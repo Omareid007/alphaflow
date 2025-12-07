@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardStackNavigator from "@/navigation/DashboardStackNavigator";
 import AnalyticsStackNavigator from "@/navigation/AnalyticsStackNavigator";
 import StrategiesStackNavigator from "@/navigation/StrategiesStackNavigator";
-import AdminStackNavigator from "@/navigation/AdminStackNavigator";
+import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { apiRequest } from "@/lib/query-client";
@@ -17,7 +17,7 @@ export type MainTabParamList = {
   DashboardTab: undefined;
   AnalyticsTab: undefined;
   StrategiesTab: undefined;
-  AdminTab: undefined;
+  ProfileTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -82,12 +82,12 @@ function MainTabContent() {
         }}
       />
       <Tab.Screen
-        name="AdminTab"
-        component={AdminStackNavigator}
+        name="ProfileTab"
+        component={ProfileStackNavigator}
         options={{
-          title: "Admin",
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="settings" size={size} color={color} />
+            <Feather name="user" size={size} color={color} />
           ),
         }}
       />

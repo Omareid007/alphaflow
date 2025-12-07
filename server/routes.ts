@@ -1,14 +1,169 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
+import { randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import {
+  insertUserSchema,
   insertStrategySchema,
   insertTradeSchema,
   insertPositionSchema,
   insertAiDecisionSchema,
 } from "@shared/schema";
 
+declare module "express-serve-static-core" {
+  interface Request {
+    userId?: string;
+  }
+}
+
+const sessions = new Map<string, { userId: string; expiresAt: Date }>();
+
+const isProduction = process.env.NODE_ENV === "production";
+
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" as const : "lax" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+}
+
+function generateSessionId(): string {
+  return randomBytes(32).toString("hex");
+}
+
+function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  const sessionId = req.cookies?.session;
+  
+  if (!sessionId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  const session = sessions.get(sessionId);
+  if (!session || session.expiresAt < new Date()) {
+    sessions.delete(sessionId);
+    return res.status(401).json({ error: "Session expired" });
+  }
+
+  req.userId = session.userId;
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const parsed = insertUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid input: username and password required" });
+      }
+
+      const { username, password } = parsed.data;
+
+      if (username.length < 3) {
+        return res.status(400).json({ error: "Username must be at least 3 characters" });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already taken" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({ username, password: hashedPassword });
+
+      const sessionId = generateSessionId();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      sessions.set(sessionId, { userId: user.id, expiresAt });
+
+      res.cookie("session", sessionId, getCookieOptions());
+
+      res.status(201).json({ id: user.id, username: user.username });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password required" });
+      }
+
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      const sessionId = generateSessionId();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      sessions.set(sessionId, { userId: user.id, expiresAt });
+
+      res.cookie("session", sessionId, getCookieOptions());
+
+      res.json({ id: user.id, username: user.username });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.session;
+      if (sessionId) {
+        sessions.delete(sessionId);
+      }
+
+      const { maxAge, ...clearOptions } = getCookieOptions();
+      res.clearCookie("session", clearOptions);
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to logout" });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.session;
+      
+      if (!sessionId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        sessions.delete(sessionId);
+        return res.status(401).json({ error: "Session expired" });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        sessions.delete(sessionId);
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      res.json({ id: user.id, username: user.username });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
   app.get("/api/agent/status", async (req, res) => {
     try {
       const status = await storage.getAgentStatus();

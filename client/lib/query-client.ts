@@ -1,19 +1,31 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
+ * Gets the base URL for the Express API server
+ * In development on web, requests go to the same origin (Metro proxies /api to Express)
+ * In production, requests go to the deployment domain
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
+  // In browser environment, use relative URLs (same origin)
+  // This works because Metro is configured to proxy /api requests to Express
+  if (typeof window !== "undefined" && window.location) {
+    return window.location.origin;
+  }
+
+  // For native/non-browser environments, use the configured domain
   let host = process.env.EXPO_PUBLIC_DOMAIN;
 
   if (!host) {
     throw new Error("EXPO_PUBLIC_DOMAIN is not set");
   }
 
-  let url = new URL(`https://${host}`);
+  // Remove port suffix for HTTPS URLs (Replit proxy handles routing)
+  if (host.includes(":")) {
+    host = host.split(":")[0];
+  }
 
-  return url.href;
+  return `https://${host}`;
 }
 
 async function throwIfResNotOk(res: Response) {
