@@ -3,6 +3,8 @@ import { View, FlatList, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -10,8 +12,10 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { Button } from "@/components/Button";
 import { apiRequest } from "@/lib/query-client";
 import type { Strategy } from "@shared/schema";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 const strategyIcons: Record<string, keyof typeof Feather.glyphMap> = {
   "range-trading": "minus",
@@ -137,12 +141,15 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
   );
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function StrategiesScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const queryClient = useQueryClient();
+  const navigation = useNavigation<NavigationProp>();
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const { data: strategies, isLoading, error, refetch } = useQuery<Strategy[]>({
@@ -153,10 +160,7 @@ export default function StrategiesScreen() {
   const toggleMutation = useMutation({
     mutationFn: async (strategy: Strategy) => {
       setTogglingId(strategy.id);
-      return apiRequest(`/api/strategies/${strategy.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ isActive: !strategy.isActive }),
-      });
+      return apiRequest("PATCH", `/api/strategies/${strategy.id}`, { isActive: !strategy.isActive });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/strategies"] });
@@ -201,10 +205,22 @@ export default function StrategiesScreen() {
       )}
       ListHeaderComponent={
         <View style={styles.header}>
-          <ThemedText style={styles.headerTitle}>Trading Strategies</ThemedText>
-          <ThemedText style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            Configure and activate automated trading strategies
-          </ThemedText>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTextContainer}>
+              <ThemedText style={styles.headerTitle}>Trading Strategies</ThemedText>
+              <ThemedText style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
+                Configure and activate automated trading strategies
+              </ThemedText>
+            </View>
+            <Button
+              onPress={() => navigation.navigate("StrategyWizard")}
+              style={styles.createButton}
+            >
+              <View style={styles.createButtonContent}>
+                <Feather name="plus" size={18} color="#FFFFFF" />
+              </View>
+            </Button>
+          </View>
           {toggleMutation.isError ? (
             <View style={styles.toggleError}>
               <Feather name="alert-triangle" size={14} color={BrandColors.error} />
@@ -235,12 +251,31 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.md,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
   headerTitle: {
     ...Typography.h2,
     marginBottom: Spacing.xs,
   },
   headerSubtitle: {
     ...Typography.body,
+  },
+  createButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 0,
+  },
+  createButtonContent: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   strategyCard: {
     borderWidth: 1,

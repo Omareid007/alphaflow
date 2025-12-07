@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import AuthNavigator from "@/navigation/AuthNavigator";
 import ModalScreen from "@/screens/ModalScreen";
+import StrategyWizardNavigator from "@/navigation/StrategyWizardNavigator";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -13,6 +14,7 @@ import { BrandColors } from "@/constants/theme";
 export type RootStackParamList = {
   Main: undefined;
   Modal: undefined;
+  StrategyWizard: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,6 +49,14 @@ export default function RootStackNavigator() {
         options={{
           presentation: "modal",
           headerTitle: "Modal",
+        }}
+      />
+      <Stack.Screen
+        name="StrategyWizard"
+        component={StrategyWizardNavigator}
+        options={{
+          presentation: "modal",
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
