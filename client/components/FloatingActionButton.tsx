@@ -1,7 +1,6 @@
 import React from "react";
-import { StyleSheet, Pressable, View } from "react-native";
+import { StyleSheet, Pressable, View, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
@@ -21,13 +20,16 @@ interface FloatingActionButtonProps {
   isRunning: boolean;
   hasError: boolean;
   onPress: () => void;
+  tabBarHeight?: number;
 }
+
+const DEFAULT_TAB_BAR_HEIGHT = Platform.select({ ios: 83, android: 60, default: 60 });
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function FloatingActionButton({ isRunning, hasError, onPress }: FloatingActionButtonProps) {
+export function FloatingActionButton({ isRunning, hasError, onPress, tabBarHeight }: FloatingActionButtonProps) {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const effectiveTabBarHeight = tabBarHeight ?? DEFAULT_TAB_BAR_HEIGHT;
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
@@ -85,7 +87,7 @@ export function FloatingActionButton({ isRunning, hasError, onPress }: FloatingA
       style={[
         styles.container,
         {
-          bottom: tabBarHeight + Spacing.lg,
+          bottom: effectiveTabBarHeight + Spacing.lg,
           right: insets.right + Spacing.lg,
         },
       ]}

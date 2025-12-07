@@ -2,12 +2,16 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardStackNavigator from "@/navigation/DashboardStackNavigator";
 import AnalyticsStackNavigator from "@/navigation/AnalyticsStackNavigator";
 import StrategiesStackNavigator from "@/navigation/StrategiesStackNavigator";
 import AdminStackNavigator from "@/navigation/AdminStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
+import { FloatingActionButton } from "@/components/FloatingActionButton";
+import { apiRequest } from "@/lib/query-client";
+import type { AgentStatus } from "@shared/schema";
 
 export type MainTabParamList = {
   DashboardTab: undefined;
@@ -18,7 +22,7 @@ export type MainTabParamList = {
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-export default function MainTabNavigator() {
+function MainTabContent() {
   const { theme, isDark } = useTheme();
 
   return (
@@ -90,3 +94,45 @@ export default function MainTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+export default function MainTabNavigator() {
+  const queryClient = useQueryClient();
+
+  const { data: agentStatus, isError } = useQuery<AgentStatus>({
+    queryKey: ["/api/agent/status"],
+    refetchInterval: 5000,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/agent/toggle");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
+    },
+  });
+
+  const isRunning = agentStatus?.isRunning ?? false;
+  const hasError = isError || toggleMutation.isError;
+
+  const handleToggleAgent = () => {
+    toggleMutation.mutate();
+  };
+
+  return (
+    <View style={styles.container}>
+      <MainTabContent />
+      <FloatingActionButton
+        isRunning={isRunning}
+        hasError={hasError}
+        onPress={handleToggleAgent}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
