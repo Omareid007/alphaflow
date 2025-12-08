@@ -10,6 +10,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { PriceChart } from "@/components/PriceChart";
 import type { AgentStatus, Position, AiDecision } from "@shared/schema";
 
 interface AnalyticsSummary {
@@ -758,6 +759,15 @@ export default function DashboardScreen() {
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
     { key: "ai", component: <AIDecisionsCard /> },
+    { key: "btcChart", component: (
+      <View>
+        <View style={styles.chartHeader}>
+          <Feather name="activity" size={20} color={BrandColors.cryptoLayer} />
+          <ThemedText style={styles.chartTitle}>Bitcoin Price</ThemedText>
+        </View>
+        <PriceChart assetId="bitcoin" assetType="crypto" height={280} />
+      </View>
+    )},
     { key: "crypto", component: <CryptoMarketsCard /> },
     { key: "stock", component: <StockMarketsCard /> },
     { key: "intelligence", component: <MarketIntelligenceCard /> },
@@ -1187,5 +1197,14 @@ const styles = StyleSheet.create({
   },
   aiTime: {
     ...Typography.small,
+  },
+  chartHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  chartTitle: {
+    ...Typography.h4,
   },
 });
