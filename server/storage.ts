@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -20,6 +20,21 @@ import {
   type AgentStatus,
 } from "@shared/schema";
 
+export interface TradeFilters {
+  limit?: number;
+  offset?: number;
+  symbol?: string;
+  strategyId?: string;
+  pnlDirection?: 'profit' | 'loss' | 'all';
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export interface EnrichedTrade extends Trade {
+  aiDecision?: AiDecision | null;
+  strategyName?: string | null;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -32,8 +47,11 @@ export interface IStorage {
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
 
   getTrades(limit?: number): Promise<Trade[]>;
+  getTradesFiltered(filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
   getTrade(id: string): Promise<Trade | undefined>;
+  getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined>;
   createTrade(trade: InsertTrade): Promise<Trade>;
+  getDistinctSymbols(): Promise<string[]>;
 
   getPositions(): Promise<Position[]>;
   getPosition(id: string): Promise<Position | undefined>;
@@ -95,14 +113,120 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(trades).orderBy(desc(trades.executedAt)).limit(limit);
   }
 
+  async getTradesFiltered(filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }> {
+    const conditions: any[] = [];
+    
+    if (filters.symbol) {
+      conditions.push(eq(trades.symbol, filters.symbol));
+    }
+    
+    if (filters.strategyId) {
+      conditions.push(eq(trades.strategyId, filters.strategyId));
+    }
+    
+    if (filters.startDate) {
+      conditions.push(gte(trades.executedAt, filters.startDate));
+    }
+    
+    if (filters.endDate) {
+      conditions.push(lte(trades.executedAt, filters.endDate));
+    }
+    
+    if (filters.pnlDirection === 'profit') {
+      conditions.push(sql`CAST(${trades.pnl} AS numeric) >= 0`);
+    } else if (filters.pnlDirection === 'loss') {
+      conditions.push(sql`CAST(${trades.pnl} AS numeric) < 0`);
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(trades)
+      .where(whereClause);
+    const total = Number(countResult[0]?.count ?? 0);
+    
+    const limit = filters.limit ?? 50;
+    const offset = filters.offset ?? 0;
+    
+    const tradeResults = await db
+      .select()
+      .from(trades)
+      .where(whereClause)
+      .orderBy(desc(trades.executedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    const enrichedTrades: EnrichedTrade[] = await Promise.all(
+      tradeResults.map(async (trade) => {
+        const [aiDecision] = await db
+          .select()
+          .from(aiDecisions)
+          .where(eq(aiDecisions.executedTradeId, trade.id))
+          .limit(1);
+        
+        let strategyName: string | null = null;
+        if (trade.strategyId) {
+          const [strategy] = await db
+            .select()
+            .from(strategies)
+            .where(eq(strategies.id, trade.strategyId));
+          strategyName = strategy?.name ?? null;
+        }
+        
+        return {
+          ...trade,
+          aiDecision: aiDecision ?? null,
+          strategyName,
+        };
+      })
+    );
+    
+    return { trades: enrichedTrades, total };
+  }
+
   async getTrade(id: string): Promise<Trade | undefined> {
     const [trade] = await db.select().from(trades).where(eq(trades.id, id));
     return trade;
   }
 
+  async getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined> {
+    const [trade] = await db.select().from(trades).where(eq(trades.id, id));
+    if (!trade) return undefined;
+    
+    const [aiDecision] = await db
+      .select()
+      .from(aiDecisions)
+      .where(eq(aiDecisions.executedTradeId, trade.id))
+      .limit(1);
+    
+    let strategyName: string | null = null;
+    if (trade.strategyId) {
+      const [strategy] = await db
+        .select()
+        .from(strategies)
+        .where(eq(strategies.id, trade.strategyId));
+      strategyName = strategy?.name ?? null;
+    }
+    
+    return {
+      ...trade,
+      aiDecision: aiDecision ?? null,
+      strategyName,
+    };
+  }
+
   async createTrade(insertTrade: InsertTrade): Promise<Trade> {
     const [trade] = await db.insert(trades).values(insertTrade).returning();
     return trade;
+  }
+
+  async getDistinctSymbols(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ symbol: trades.symbol })
+      .from(trades)
+      .orderBy(trades.symbol);
+    return result.map(r => r.symbol);
   }
 
   async getPositions(): Promise<Position[]> {

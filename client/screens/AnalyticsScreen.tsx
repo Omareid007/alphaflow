@@ -1,15 +1,26 @@
-import { View, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
-import type { Trade } from "@shared/schema";
+import type { Trade, Strategy, AiDecision } from "@shared/schema";
+
+interface EnrichedTrade extends Trade {
+  aiDecision?: AiDecision | null;
+  strategyName?: string | null;
+}
+
+interface TradesResponse {
+  trades: EnrichedTrade[];
+  total: number;
+}
 
 interface AnalyticsSummary {
   totalPnl: string;
@@ -176,15 +187,53 @@ function WinRateCard() {
   );
 }
 
-function TradeLedger() {
+type PnlFilter = 'all' | 'profit' | 'loss';
+
+function FilterChip({ 
+  label, 
+  isActive, 
+  onPress 
+}: { 
+  label: string; 
+  isActive: boolean; 
+  onPress: () => void;
+}) {
   const { theme } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.filterChip,
+        { 
+          backgroundColor: isActive ? BrandColors.primaryLight : theme.backgroundRoot,
+          borderColor: isActive ? BrandColors.primaryLight : BrandColors.cardBorder,
+        },
+      ]}
+    >
+      <ThemedText 
+        style={[
+          styles.filterChipText, 
+          { color: isActive ? "#fff" : theme.text }
+        ]}
+      >
+        {label}
+      </ThemedText>
+    </Pressable>
+  );
+}
 
-  const { data: trades, isLoading } = useQuery<Trade[]>({
-    queryKey: ["/api/trades"],
-    refetchInterval: 10000,
-  });
-
-  const recentTrades = trades?.slice(0, 5) ?? [];
+function TradeCard({ 
+  trade, 
+  isExpanded, 
+  onToggle 
+}: { 
+  trade: EnrichedTrade; 
+  isExpanded: boolean; 
+  onToggle: () => void;
+}) {
+  const { theme } = useTheme();
+  const pnl = trade.pnl ? parseFloat(trade.pnl) : 0;
+  const isProfit = pnl >= 0;
 
   const formatCurrency = (value: string | number | null) => {
     if (value === null) return "$0.00";
@@ -195,59 +244,289 @@ function TradeLedger() {
 
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric", 
+      hour: "2-digit", 
+      minute: "2-digit" 
+    });
+  };
+
+  return (
+    <Pressable onPress={onToggle}>
+      <View style={[styles.tradeCard, { borderColor: BrandColors.cardBorder }]}>
+        <View style={styles.tradeRow}>
+          <View style={styles.tradeInfo}>
+            <View style={styles.tradeSymbolRow}>
+              <Feather 
+                name={trade.side === "buy" ? "arrow-up-circle" : "arrow-down-circle"} 
+                size={18} 
+                color={trade.side === "buy" ? BrandColors.success : BrandColors.error} 
+              />
+              <ThemedText style={styles.tradeSymbol}>{trade.symbol}</ThemedText>
+              {trade.strategyName ? (
+                <View style={[styles.strategyBadge, { backgroundColor: BrandColors.primaryLight + "20" }]}>
+                  <ThemedText style={[styles.strategyBadgeText, { color: BrandColors.primaryLight }]}>
+                    {trade.strategyName}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.tradeMetaRow}>
+              <ThemedText style={[styles.tradeDate, { color: theme.textSecondary }]}>
+                {formatDate(trade.executedAt)}
+              </ThemedText>
+              <ThemedText style={[styles.tradeQuantity, { color: theme.textSecondary }]}>
+                {trade.quantity} @ ${parseFloat(trade.price).toFixed(2)}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.tradePnlContainer}>
+            <ThemedText 
+              style={[
+                styles.tradePnlValue, 
+                { color: isProfit ? BrandColors.success : BrandColors.error, fontFamily: Fonts?.mono }
+              ]}
+            >
+              {formatCurrency(trade.pnl)}
+            </ThemedText>
+            <Feather 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={16} 
+              color={theme.textSecondary} 
+            />
+          </View>
+        </View>
+        
+        {isExpanded ? (
+          <View style={[styles.tradeDetails, { borderTopColor: BrandColors.cardBorder }]}>
+            {trade.aiDecision ? (
+              <>
+                <View style={styles.detailRow}>
+                  <View style={styles.detailLabelRow}>
+                    <Feather name="cpu" size={14} color={BrandColors.primaryLight} />
+                    <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                      AI Decision
+                    </ThemedText>
+                  </View>
+                  <View style={styles.confidenceBadge}>
+                    <ThemedText style={styles.confidenceText}>
+                      {trade.aiDecision.confidence 
+                        ? `${(parseFloat(trade.aiDecision.confidence) * 100).toFixed(0)}%` 
+                        : "N/A"} confidence
+                    </ThemedText>
+                  </View>
+                </View>
+                {trade.aiDecision.reasoning ? (
+                  <View style={styles.reasoningContainer}>
+                    <ThemedText style={[styles.reasoningText, { color: theme.text }]}>
+                      {trade.aiDecision.reasoning}
+                    </ThemedText>
+                  </View>
+                ) : null}
+                {trade.aiDecision.marketContext ? (
+                  <View style={styles.contextContainer}>
+                    <ThemedText style={[styles.contextLabel, { color: theme.textSecondary }]}>
+                      Market Context
+                    </ThemedText>
+                    <ThemedText style={[styles.contextText, { color: theme.text }]}>
+                      {trade.aiDecision.marketContext}
+                    </ThemedText>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.noAiDecision}>
+                <Feather name="info" size={14} color={theme.textSecondary} />
+                <ThemedText style={[styles.noAiText, { color: theme.textSecondary }]}>
+                  No AI decision data available
+                </ThemedText>
+              </View>
+            )}
+            {trade.notes ? (
+              <View style={styles.notesContainer}>
+                <ThemedText style={[styles.notesLabel, { color: theme.textSecondary }]}>
+                  Notes
+                </ThemedText>
+                <ThemedText style={[styles.notesText, { color: theme.text }]}>
+                  {trade.notes}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+function TradeLedger() {
+  const { theme } = useTheme();
+  const [pnlFilter, setPnlFilter] = useState<PnlFilter>('all');
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+
+  const queryPath = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('limit', String(pageSize));
+    params.set('offset', String(page * pageSize));
+    if (pnlFilter !== 'all') {
+      params.set('pnlDirection', pnlFilter);
+    }
+    if (selectedSymbol) {
+      params.set('symbol', selectedSymbol);
+    }
+    return `/api/trades/enriched?${params.toString()}`;
+  }, [pnlFilter, selectedSymbol, page]);
+
+  const { data: tradesData, isLoading } = useQuery<TradesResponse>({
+    queryKey: [queryPath],
+    refetchInterval: 15000,
+  });
+
+  const { data: symbols } = useQuery<string[]>({
+    queryKey: ["/api/trades/symbols"],
+  });
+
+  const { data: strategies } = useQuery<Strategy[]>({
+    queryKey: ["/api/strategies"],
+  });
+
+  const trades = tradesData?.trades ?? [];
+  const total = tradesData?.total ?? 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  const handleToggleExpand = (tradeId: string) => {
+    setExpandedTradeId(expandedTradeId === tradeId ? null : tradeId);
+  };
+
+  const handlePnlFilter = (filter: PnlFilter) => {
+    setPnlFilter(filter);
+    setPage(0);
+  };
+
+  const handleSymbolFilter = (symbol: string | null) => {
+    setSelectedSymbol(symbol);
+    setPage(0);
   };
 
   return (
     <Card elevation={1} style={styles.ledgerCard}>
       <View style={styles.cardHeader}>
         <Feather name="list" size={20} color={BrandColors.primaryLight} />
-        <ThemedText style={styles.cardTitle}>Trade History</ThemedText>
+        <ThemedText style={styles.cardTitle}>Trade Ledger</ThemedText>
+        <View style={styles.tradeBadge}>
+          <ThemedText style={styles.tradeBadgeText}>{total}</ThemedText>
+        </View>
       </View>
+      
+      <View style={styles.filtersContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          <FilterChip 
+            label="All" 
+            isActive={pnlFilter === 'all'} 
+            onPress={() => handlePnlFilter('all')} 
+          />
+          <FilterChip 
+            label="Profits" 
+            isActive={pnlFilter === 'profit'} 
+            onPress={() => handlePnlFilter('profit')} 
+          />
+          <FilterChip 
+            label="Losses" 
+            isActive={pnlFilter === 'loss'} 
+            onPress={() => handlePnlFilter('loss')} 
+          />
+          {selectedSymbol ? (
+            <FilterChip 
+              label={`${selectedSymbol} x`} 
+              isActive={true} 
+              onPress={() => handleSymbolFilter(null)} 
+            />
+          ) : null}
+        </ScrollView>
+        
+        {symbols && symbols.length > 0 && !selectedSymbol ? (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.symbolRow}
+          >
+            {symbols.slice(0, 6).map((symbol) => (
+              <Pressable 
+                key={symbol}
+                onPress={() => handleSymbolFilter(symbol)}
+                style={[styles.symbolChip, { borderColor: BrandColors.cardBorder }]}
+              >
+                <ThemedText style={[styles.symbolChipText, { color: theme.textSecondary }]}>
+                  {symbol}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+      </View>
+
       {isLoading ? (
         <View style={styles.emptyLedger}>
-          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>Loading...</ThemedText>
+          <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
+            Loading trades...
+          </ThemedText>
         </View>
-      ) : recentTrades.length === 0 ? (
+      ) : trades.length === 0 ? (
         <View style={styles.emptyLedger}>
           <Feather name="file-text" size={32} color={theme.textSecondary} />
           <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
-            No trades yet
+            {pnlFilter !== 'all' || selectedSymbol 
+              ? "No trades match your filters" 
+              : "No trades yet"}
           </ThemedText>
         </View>
       ) : (
         <View style={styles.tradeList}>
-          {recentTrades.map((trade) => {
-            const pnl = trade.pnl ? parseFloat(trade.pnl) : 0;
-            const isProfit = pnl >= 0;
-            return (
-              <View key={trade.id} style={styles.tradeRow}>
-                <View style={styles.tradeInfo}>
-                  <View style={styles.tradeSymbolRow}>
-                    <Feather 
-                      name={trade.side === "buy" ? "arrow-up-circle" : "arrow-down-circle"} 
-                      size={16} 
-                      color={trade.side === "buy" ? BrandColors.success : BrandColors.error} 
-                    />
-                    <ThemedText style={styles.tradeSymbol}>{trade.symbol}</ThemedText>
-                  </View>
-                  <ThemedText style={[styles.tradeDate, { color: theme.textSecondary }]}>
-                    {formatDate(trade.executedAt)}
-                  </ThemedText>
-                </View>
-                <View style={styles.tradePnl}>
-                  <ThemedText 
-                    style={[
-                      styles.tradePnlValue, 
-                      { color: isProfit ? BrandColors.success : BrandColors.error, fontFamily: Fonts?.mono }
-                    ]}
-                  >
-                    {formatCurrency(trade.pnl)}
-                  </ThemedText>
-                </View>
-              </View>
-            );
-          })}
+          {trades.map((trade) => (
+            <TradeCard
+              key={trade.id}
+              trade={trade}
+              isExpanded={expandedTradeId === trade.id}
+              onToggle={() => handleToggleExpand(trade.id)}
+            />
+          ))}
+          
+          {totalPages > 1 ? (
+            <View style={styles.paginationContainer}>
+              <Pressable
+                onPress={() => setPage(Math.max(0, page - 1))}
+                disabled={page === 0}
+                style={[
+                  styles.paginationButton,
+                  { opacity: page === 0 ? 0.5 : 1 }
+                ]}
+              >
+                <Feather name="chevron-left" size={20} color={theme.text} />
+              </Pressable>
+              <ThemedText style={[styles.paginationText, { color: theme.textSecondary }]}>
+                {page + 1} / {totalPages}
+              </ThemedText>
+              <Pressable
+                onPress={() => setPage(Math.min(totalPages - 1, page + 1))}
+                disabled={page >= totalPages - 1}
+                style={[
+                  styles.paginationButton,
+                  { opacity: page >= totalPages - 1 ? 0.5 : 1 }
+                ]}
+              >
+                <Feather name="chevron-right" size={20} color={theme.text} />
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       )}
     </Card>
@@ -406,6 +685,162 @@ const styles = StyleSheet.create({
   tradePnlValue: {
     ...Typography.body,
     fontWeight: "600",
+  },
+  tradePnlContainer: {
+    alignItems: "flex-end",
+    gap: Spacing.xs,
+  },
+  tradeCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  tradeMetaRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  tradeQuantity: {
+    ...Typography.small,
+  },
+  tradeDetails: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    gap: Spacing.md,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  detailLabel: {
+    ...Typography.small,
+  },
+  confidenceBadge: {
+    backgroundColor: BrandColors.success + "20",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  confidenceText: {
+    ...Typography.small,
+    color: BrandColors.success,
+    fontWeight: "600",
+  },
+  reasoningContainer: {
+    backgroundColor: BrandColors.primaryLight + "10",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+  },
+  reasoningText: {
+    ...Typography.small,
+    lineHeight: 20,
+  },
+  contextContainer: {
+    gap: Spacing.xs,
+  },
+  contextLabel: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  contextText: {
+    ...Typography.small,
+    lineHeight: 18,
+  },
+  noAiDecision: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  noAiText: {
+    ...Typography.small,
+  },
+  notesContainer: {
+    gap: Spacing.xs,
+  },
+  notesLabel: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  notesText: {
+    ...Typography.small,
+  },
+  strategyBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    marginLeft: Spacing.sm,
+  },
+  strategyBadgeText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  filtersContainer: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  filterChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  symbolRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  symbolChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+  },
+  symbolChipText: {
+    ...Typography.small,
+  },
+  tradeBadge: {
+    backgroundColor: BrandColors.primaryLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    marginLeft: "auto",
+  },
+  tradeBadgeText: {
+    ...Typography.small,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  paginationContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: Spacing.lg,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+  },
+  paginationButton: {
+    padding: Spacing.sm,
+  },
+  paginationText: {
+    ...Typography.body,
   },
   errorCard: {
     alignItems: "center",

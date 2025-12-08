@@ -269,6 +269,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/trades/enriched", async (req, res) => {
+    try {
+      const filters = {
+        limit: parseInt(req.query.limit as string) || 20,
+        offset: parseInt(req.query.offset as string) || 0,
+        symbol: req.query.symbol as string | undefined,
+        strategyId: req.query.strategyId as string | undefined,
+        pnlDirection: (req.query.pnlDirection as 'profit' | 'loss' | 'all') || 'all',
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+      };
+      
+      const result = await storage.getTradesFiltered(filters);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to get enriched trades:", error);
+      res.status(500).json({ error: "Failed to get enriched trades" });
+    }
+  });
+
+  app.get("/api/trades/symbols", async (req, res) => {
+    try {
+      const symbols = await storage.getDistinctSymbols();
+      res.json(symbols);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get symbols" });
+    }
+  });
+
   app.get("/api/trades/:id", async (req, res) => {
     try {
       const trade = await storage.getTrade(req.params.id);
@@ -278,6 +307,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(trade);
     } catch (error) {
       res.status(500).json({ error: "Failed to get trade" });
+    }
+  });
+
+  app.get("/api/trades/:id/enriched", async (req, res) => {
+    try {
+      const trade = await storage.getEnrichedTrade(req.params.id);
+      if (!trade) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      res.json(trade);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get enriched trade" });
     }
   });
 
