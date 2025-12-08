@@ -10,7 +10,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
-import type { AgentStatus, Position } from "@shared/schema";
+import type { AgentStatus, Position, AiDecision } from "@shared/schema";
 
 interface AnalyticsSummary {
   totalTrades: number;
@@ -116,6 +116,161 @@ function MarketIntelligenceCard() {
       <ThemedText style={[styles.intelligenceNote, { color: theme.textSecondary }]}>
         Data quality: Good | Sources: 3 active
       </ThemedText>
+    </Card>
+  );
+}
+
+function AIDecisionsCard() {
+  const { theme } = useTheme();
+
+  const { data: decisions, isLoading, error } = useQuery<AiDecision[]>({
+    queryKey: ["/api/ai-decisions?limit=5"],
+    refetchInterval: 30000,
+  });
+
+  const { data: aiStatus } = useQuery<{ available: boolean; model: string; provider: string }>({
+    queryKey: ["/api/ai/status"],
+  });
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case "buy":
+        return BrandColors.success;
+      case "sell":
+        return BrandColors.error;
+      default:
+        return BrandColors.neutral;
+    }
+  };
+
+  const formatConfidence = (confidence: string | number | null | undefined) => {
+    if (confidence === null || confidence === undefined) return "N/A";
+    const value = typeof confidence === "number" ? confidence : parseFloat(confidence);
+    if (isNaN(value)) return "N/A";
+    return `${(value * 100).toFixed(0)}%`;
+  };
+
+  const formatTime = (dateStr: string | Date) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.aiCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="cpu" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Decisions</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  if (!aiStatus?.available) {
+    return (
+      <Card elevation={1} style={styles.aiCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="cpu" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Decisions</ThemedText>
+        </View>
+        <View style={styles.aiStatusRow}>
+          <Feather name="alert-circle" size={20} color={BrandColors.warning} />
+          <ThemedText style={[styles.aiStatusText, { color: theme.textSecondary }]}>
+            AI engine not configured
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  if (error || !decisions) {
+    return (
+      <Card elevation={1} style={styles.aiCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="cpu" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Decisions</ThemedText>
+        </View>
+        <View style={styles.aiStatusRow}>
+          <Feather name="alert-circle" size={20} color={BrandColors.error} />
+          <ThemedText style={[styles.aiStatusText, { color: theme.textSecondary }]}>
+            Failed to load decisions
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  if (decisions.length === 0) {
+    return (
+      <Card elevation={1} style={styles.aiCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="cpu" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Decisions</ThemedText>
+          <View style={styles.aiActiveIndicator}>
+            <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
+            <ThemedText style={[styles.liveText, { color: BrandColors.aiLayer }]}>READY</ThemedText>
+          </View>
+        </View>
+        <View style={styles.aiEmptyState}>
+          <Feather name="zap" size={32} color={theme.textSecondary} />
+          <ThemedText style={[styles.aiEmptyText, { color: theme.textSecondary }]}>
+            No AI decisions yet
+          </ThemedText>
+          <ThemedText style={[styles.aiEmptySubtext, { color: theme.textSecondary }]}>
+            Start the agent to analyze opportunities
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={1} style={styles.aiCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="cpu" size={20} color={BrandColors.aiLayer} />
+        <ThemedText style={styles.cardTitle}>AI Decisions</ThemedText>
+        <View style={styles.aiActiveIndicator}>
+          <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
+          <ThemedText style={[styles.liveText, { color: BrandColors.aiLayer }]}>ACTIVE</ThemedText>
+        </View>
+      </View>
+      {decisions.map((decision, index) => (
+        <View
+          key={decision.id}
+          style={[
+            styles.aiDecisionRow,
+            index < decisions.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+          ]}
+        >
+          <View style={styles.aiDecisionInfo}>
+            <View style={styles.aiDecisionHeader}>
+              <ThemedText style={styles.aiSymbol}>{decision.symbol}</ThemedText>
+              <View style={[styles.aiActionBadge, { backgroundColor: getActionColor(decision.action) }]}>
+                <ThemedText style={styles.aiActionText}>{decision.action.toUpperCase()}</ThemedText>
+              </View>
+            </View>
+            <ThemedText style={[styles.aiReasoning, { color: theme.textSecondary }]} numberOfLines={2}>
+              {decision.reasoning || "No reasoning provided"}
+            </ThemedText>
+          </View>
+          <View style={styles.aiDecisionMeta}>
+            <ThemedText style={[styles.aiConfidence, { fontFamily: Fonts?.mono }]}>
+              {formatConfidence(decision.confidence)}
+            </ThemedText>
+            <ThemedText style={[styles.aiTime, { color: theme.textSecondary }]}>
+              {formatTime(decision.createdAt)}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
     </Card>
   );
 }
@@ -470,6 +625,7 @@ export default function DashboardScreen() {
 
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
+    { key: "ai", component: <AIDecisionsCard /> },
     { key: "crypto", component: <CryptoMarketsCard /> },
     { key: "stock", component: <StockMarketsCard /> },
     { key: "intelligence", component: <MarketIntelligenceCard /> },
@@ -787,5 +943,79 @@ const styles = StyleSheet.create({
   stockChange: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  aiCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  aiStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  aiStatusText: {
+    ...Typography.caption,
+  },
+  aiActiveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginLeft: "auto",
+  },
+  aiEmptyState: {
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
+  },
+  aiEmptyText: {
+    ...Typography.body,
+    marginTop: Spacing.md,
+  },
+  aiEmptySubtext: {
+    ...Typography.small,
+    marginTop: Spacing.xs,
+  },
+  aiDecisionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: Spacing.md,
+  },
+  aiDecisionInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  aiDecisionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  aiSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  aiActionBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  aiActionText: {
+    ...Typography.small,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  aiReasoning: {
+    ...Typography.small,
+  },
+  aiDecisionMeta: {
+    alignItems: "flex-end",
+  },
+  aiConfidence: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  aiTime: {
+    ...Typography.small,
   },
 });

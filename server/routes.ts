@@ -12,6 +12,7 @@ import {
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
+import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -546,10 +547,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/ai/analyze", async (req, res) => {
+    try {
+      const { symbol, marketData, newsContext, strategyId } = req.body;
+
+      if (!symbol || !marketData) {
+        return res.status(400).json({ error: "Symbol and market data are required" });
+      }
+
+      let strategy: StrategyContext | undefined;
+      if (strategyId) {
+        const dbStrategy = await storage.getStrategy(strategyId);
+        if (dbStrategy) {
+          strategy = {
+            id: dbStrategy.id,
+            name: dbStrategy.name,
+            type: dbStrategy.type,
+            parameters: dbStrategy.parameters ? JSON.parse(dbStrategy.parameters) : undefined,
+          };
+        }
+      }
+
+      const decision = await aiDecisionEngine.analyzeOpportunity(
+        symbol,
+        marketData as MarketData,
+        newsContext as NewsContext | undefined,
+        strategy
+      );
+
+      const aiDecisionRecord = await storage.createAiDecision({
+        strategyId: strategyId || null,
+        symbol,
+        action: decision.action,
+        confidence: decision.confidence.toString(),
+        reasoning: decision.reasoning,
+        marketContext: JSON.stringify({
+          marketData,
+          newsContext,
+          riskLevel: decision.riskLevel,
+          suggestedQuantity: decision.suggestedQuantity,
+          targetPrice: decision.targetPrice,
+          stopLoss: decision.stopLoss,
+        }),
+      });
+
+      res.json({
+        id: aiDecisionRecord.id,
+        ...decision,
+        createdAt: aiDecisionRecord.createdAt,
+      });
+    } catch (error) {
+      console.error("AI analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze trading opportunity" });
+    }
+  });
+
+  app.get("/api/ai/status", async (req, res) => {
+    try {
+      const status = aiDecisionEngine.getStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get AI status" });
+    }
+  });
+
   app.get("/api/connectors/status", async (req, res) => {
     try {
       const cryptoStatus = coingecko.getConnectionStatus();
       const stockStatus = finnhub.getConnectionStatus();
+      const aiStatus = aiDecisionEngine.getStatus();
       res.json({
         crypto: {
           provider: "CoinGecko",
@@ -559,6 +625,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stock: {
           provider: "Finnhub",
           ...stockStatus,
+          lastChecked: new Date().toISOString(),
+        },
+        ai: {
+          ...aiStatus,
           lastChecked: new Date().toISOString(),
         },
       });

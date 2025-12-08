@@ -13,6 +13,7 @@ export const BrandColors = {
   neutral: "#6B7280",
   cryptoLayer: "#F7931A",
   stockLayer: "#0A2463",
+  aiLayer: "#8B5CF6",
   profitBackground: "#D1FAE5",
   lossBackground: "#FEE2E2",
   cardBorder: "#E5E7EB",
