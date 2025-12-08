@@ -217,6 +217,125 @@ function CryptoMarketsCard() {
   );
 }
 
+interface StockQuoteData {
+  [symbol: string]: {
+    c: number;
+    d: number;
+    dp: number;
+    h: number;
+    l: number;
+    o: number;
+    pc: number;
+    t: number;
+  };
+}
+
+function StockMarketsCard() {
+  const { theme } = useTheme();
+
+  const { data: stockQuotes, isLoading, error } = useQuery<StockQuoteData>({
+    queryKey: ["/api/stock/quotes?symbols=AAPL,GOOGL,MSFT,AMZN,TSLA"],
+    refetchInterval: 60000,
+  });
+
+  const formatPrice = (price: number): string => {
+    return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatChange = (change: number): string => {
+    const prefix = change >= 0 ? "+" : "";
+    return `${prefix}${change.toFixed(2)}%`;
+  };
+
+  const stockSymbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"];
+  const stockNames: Record<string, string> = {
+    AAPL: "Apple Inc.",
+    GOOGL: "Alphabet Inc.",
+    MSFT: "Microsoft Corp.",
+    AMZN: "Amazon.com Inc.",
+    TSLA: "Tesla Inc.",
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.stockCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="bar-chart-2" size={20} color={BrandColors.stockLayer} />
+          <ThemedText style={styles.cardTitle}>Stock Markets</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  if (error || !stockQuotes || Object.keys(stockQuotes).length === 0) {
+    return (
+      <Card elevation={1} style={styles.stockCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="bar-chart-2" size={20} color={BrandColors.stockLayer} />
+          <ThemedText style={styles.cardTitle}>Stock Markets</ThemedText>
+        </View>
+        <View style={styles.stockError}>
+          <Feather name="alert-circle" size={24} color={BrandColors.warning} />
+          <ThemedText style={[styles.stockErrorText, { color: theme.textSecondary }]}>
+            Stock data unavailable (API key required)
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={1} style={styles.stockCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="bar-chart-2" size={20} color={BrandColors.stockLayer} />
+        <ThemedText style={styles.cardTitle}>Stock Markets</ThemedText>
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveDot} />
+          <ThemedText style={styles.liveText}>LIVE</ThemedText>
+        </View>
+      </View>
+      {stockSymbols.map((symbol, index) => {
+        const quote = stockQuotes[symbol];
+        if (!quote || quote.c === 0) return null;
+        return (
+          <View
+            key={symbol}
+            style={[
+              styles.stockRow,
+              index < stockSymbols.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+            ]}
+          >
+            <View style={styles.stockInfo}>
+              <View style={styles.stockIconContainer}>
+                <ThemedText style={styles.stockIconText}>{symbol.charAt(0)}</ThemedText>
+              </View>
+              <View>
+                <ThemedText style={styles.stockSymbol}>{symbol}</ThemedText>
+                <ThemedText style={[styles.stockName, { color: theme.textSecondary }]}>{stockNames[symbol]}</ThemedText>
+              </View>
+            </View>
+            <View style={styles.stockPriceInfo}>
+              <ThemedText style={[styles.stockPrice, { fontFamily: Fonts?.mono }]}>
+                ${formatPrice(quote.c)}
+              </ThemedText>
+              <ThemedText style={[
+                styles.stockChange,
+                { 
+                  fontFamily: Fonts?.mono,
+                  color: quote.dp >= 0 ? BrandColors.success : BrandColors.error
+                }
+              ]}>
+                {formatChange(quote.dp)}
+              </ThemedText>
+            </View>
+          </View>
+        );
+      })}
+    </Card>
+  );
+}
+
 function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
   const { theme } = useTheme();
 
@@ -352,6 +471,7 @@ export default function DashboardScreen() {
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
     { key: "crypto", component: <CryptoMarketsCard /> },
+    { key: "stock", component: <StockMarketsCard /> },
     { key: "intelligence", component: <MarketIntelligenceCard /> },
     { key: "layers", component: (
       <View style={styles.layersRow}>
@@ -610,6 +730,61 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   cryptoChange: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  stockCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  stockError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  stockErrorText: {
+    ...Typography.caption,
+  },
+  stockRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+  },
+  stockInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  stockIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: BrandColors.stockLayer,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stockIconText: {
+    ...Typography.body,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  stockSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  stockName: {
+    ...Typography.small,
+  },
+  stockPriceInfo: {
+    alignItems: "flex-end",
+  },
+  stockPrice: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  stockChange: {
     ...Typography.small,
     fontWeight: "500",
   },

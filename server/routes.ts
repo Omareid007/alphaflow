@@ -11,6 +11,7 @@ import {
   insertAiDecisionSchema,
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
+import { finnhub } from "./connectors/finnhub";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -468,9 +469,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/stock/quote/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const quote = await finnhub.getQuote(symbol);
+      res.json(quote);
+    } catch (error) {
+      console.error("Failed to fetch stock quote:", error);
+      res.status(500).json({ error: "Failed to fetch stock quote" });
+    }
+  });
+
+  app.get("/api/stock/quotes", async (req, res) => {
+    try {
+      const symbols = (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
+      const symbolList = symbols.split(",").map(s => s.trim().toUpperCase());
+      const quotes = await finnhub.getMultipleQuotes(symbolList);
+      const result: Record<string, unknown> = {};
+      quotes.forEach((quote, symbol) => {
+        result[symbol] = quote;
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch stock quotes:", error);
+      res.status(500).json({ error: "Failed to fetch stock quotes" });
+    }
+  });
+
+  app.get("/api/stock/candles/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const resolution = (req.query.resolution as string) || "D";
+      const from = req.query.from ? parseInt(req.query.from as string) : undefined;
+      const to = req.query.to ? parseInt(req.query.to as string) : undefined;
+      const candles = await finnhub.getCandles(symbol, resolution, from, to);
+      res.json(candles);
+    } catch (error) {
+      console.error("Failed to fetch stock candles:", error);
+      res.status(500).json({ error: "Failed to fetch stock candles" });
+    }
+  });
+
+  app.get("/api/stock/profile/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await finnhub.getCompanyProfile(symbol);
+      res.json(profile);
+    } catch (error) {
+      console.error("Failed to fetch company profile:", error);
+      res.status(500).json({ error: "Failed to fetch company profile" });
+    }
+  });
+
+  app.get("/api/stock/search", async (req, res) => {
+    try {
+      const query = (req.query.q as string) || "";
+      if (!query) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const results = await finnhub.searchSymbols(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Failed to search stocks:", error);
+      res.status(500).json({ error: "Failed to search stocks" });
+    }
+  });
+
+  app.get("/api/stock/news", async (req, res) => {
+    try {
+      const category = (req.query.category as string) || "general";
+      const news = await finnhub.getMarketNews(category);
+      res.json(news);
+    } catch (error) {
+      console.error("Failed to fetch market news:", error);
+      res.status(500).json({ error: "Failed to fetch market news" });
+    }
+  });
+
   app.get("/api/connectors/status", async (req, res) => {
     try {
       const cryptoStatus = coingecko.getConnectionStatus();
+      const stockStatus = finnhub.getConnectionStatus();
       res.json({
         crypto: {
           provider: "CoinGecko",
@@ -479,8 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         stock: {
           provider: "Finnhub",
-          connected: false,
-          hasApiKey: false,
+          ...stockStatus,
           lastChecked: new Date().toISOString(),
         },
       });
