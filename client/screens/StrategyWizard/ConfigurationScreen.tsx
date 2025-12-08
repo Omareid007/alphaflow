@@ -78,7 +78,7 @@ export default function ConfigurationScreen() {
   const { data, updateData, updateParameters } = useWizard();
 
   const handleContinue = () => {
-    navigation.navigate("RiskDisclaimer");
+    navigation.navigate("AdaptiveSettings");
   };
 
   const isValid = () => {

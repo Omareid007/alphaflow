@@ -59,7 +59,7 @@ export default function StrategyTypeScreen() {
         strategyName: `My ${strategy.name}`,
         description: strategy.description,
       });
-      navigation.navigate("AssetSelection");
+      navigation.navigate("StrategyUnderstanding");
     }
   };
 

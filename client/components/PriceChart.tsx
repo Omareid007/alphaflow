@@ -305,7 +305,7 @@ export function PriceChart({
         {renderHeader()}
         <View style={styles.nativeContainer}>
           <Feather name="bar-chart-2" size={48} color={BrandColors.primaryLight} />
-          <ThemedText style={[styles.nativeText, { color: theme.textPrimary }]}>
+          <ThemedText style={[styles.nativeText, { color: theme.text }]}>
             Interactive Charts
           </ThemedText>
           <ThemedText style={[styles.nativeSubtext, { color: theme.textSecondary }]}>
