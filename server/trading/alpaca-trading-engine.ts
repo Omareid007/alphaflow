@@ -265,13 +265,29 @@ class AlpacaTradingEngine {
       return { decision };
     }
 
+    if (!marketData.currentPrice || marketData.currentPrice <= 0 || !Number.isFinite(marketData.currentPrice)) {
+      console.warn(`Skipping trade for ${symbol}: invalid price data (currentPrice=${marketData.currentPrice})`);
+      this.strategyStates.set(strategyId || symbol, {
+        strategyId: strategyId || symbol,
+        isRunning: true,
+        lastCheck: new Date(),
+        error: `Invalid price data for ${symbol} - market data unavailable`,
+      });
+      return { decision };
+    }
+
     const account = await alpaca.getAccount();
     const buyingPower = parseFloat(account.buying_power);
+    if (!Number.isFinite(buyingPower) || buyingPower <= 0) {
+      console.warn(`Skipping trade for ${symbol}: invalid buying power (${buyingPower})`);
+      return { decision };
+    }
+
     const positionSizePercent = decision.suggestedQuantity || 0.05;
     const tradeValue = buyingPower * positionSizePercent;
     const quantity = Math.floor(tradeValue / marketData.currentPrice);
 
-    if (quantity < 1) {
+    if (!Number.isFinite(quantity) || quantity < 1) {
       return { decision };
     }
 
@@ -342,19 +358,27 @@ class AlpacaTradingEngine {
         }
 
         const assets = currentStrategy.assets || [];
+        let lastSuccessfulDecision: AIDecision | undefined;
+        let lastError: string | undefined;
+        
         for (const asset of assets) {
           try {
             const result = await this.analyzeAndExecute(asset, strategyId);
-            this.strategyStates.set(strategyId, {
-              strategyId,
-              isRunning: true,
-              lastCheck: new Date(),
-              lastDecision: result.decision,
-            });
+            lastSuccessfulDecision = result.decision;
           } catch (assetError) {
-            console.error(`Error analyzing ${asset}:`, assetError);
+            const errorMsg = (assetError as Error).message || String(assetError);
+            console.error(`Error analyzing ${asset}:`, errorMsg);
+            lastError = `${asset}: ${errorMsg}`;
           }
         }
+
+        this.strategyStates.set(strategyId, {
+          strategyId,
+          isRunning: true,
+          lastCheck: new Date(),
+          lastDecision: lastSuccessfulDecision,
+          error: lastError,
+        });
 
         await storage.updateAgentStatus({ lastHeartbeat: new Date() });
       } catch (error) {
@@ -429,7 +453,13 @@ class AlpacaTradingEngine {
       const snapshot = snapshots[symbol.toUpperCase()];
 
       if (snapshot) {
-        const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || 0;
+        const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;
+        
+        if (!currentPrice || currentPrice <= 0) {
+          console.warn(`No valid price sources for ${symbol}: latestTrade=${snapshot.latestTrade?.p}, dailyBar.c=${snapshot.dailyBar?.c}, prevDailyBar.c=${snapshot.prevDailyBar?.c}`);
+          return null;
+        }
+        
         const prevClose = snapshot.prevDailyBar?.c || currentPrice;
         const priceChange = currentPrice - prevClose;
         const priceChangePercent = prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
@@ -445,6 +475,7 @@ class AlpacaTradingEngine {
         };
       }
 
+      console.warn(`No snapshot data returned for ${symbol}`);
       return null;
     } catch (error) {
       console.error(`Failed to get market data for ${symbol}:`, error);
@@ -493,8 +524,18 @@ class AlpacaTradingEngine {
         }
 
         const snapshot = await alpaca.getSnapshots([symbol.toUpperCase()]);
-        const price = snapshot[symbol.toUpperCase()]?.latestTrade?.p || 0;
+        const snapshotData = snapshot[symbol.toUpperCase()];
+        const price = snapshotData?.latestTrade?.p || snapshotData?.dailyBar?.c || snapshotData?.prevDailyBar?.c || 0;
+        
+        if (!price || price <= 0 || !Number.isFinite(price)) {
+          console.warn(`Risk check: invalid price for ${symbol} (price=${price})`);
+          return { allowed: false, reason: `Cannot verify trade value - no valid price data for ${symbol}` };
+        }
+        
         const tradeValue = quantity * price;
+        if (!Number.isFinite(tradeValue)) {
+          return { allowed: false, reason: `Invalid trade value calculation for ${symbol}` };
+        }
 
         const buyingPower = parseFloat(account.buying_power);
         const rawPercent = status?.maxPositionSizePercent;
