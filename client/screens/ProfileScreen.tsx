@@ -1,9 +1,9 @@
-import { View, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Switch, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
@@ -12,6 +12,7 @@ import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/them
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { useState } from "react";
+import { apiRequest } from "@/lib/query-client";
 
 interface ConnectorStatus {
   provider?: string;
@@ -28,6 +29,14 @@ interface ConnectorsStatus {
   stock: ConnectorStatus;
   ai: ConnectorStatus;
   fusion: ConnectorStatus;
+}
+
+interface RiskSettings {
+  killSwitchActive: boolean;
+  maxPositionSizePercent: string;
+  maxTotalExposurePercent: string;
+  maxPositionsCount: number;
+  dailyLossLimitPercent: string;
 }
 
 function ConnectorHealthCard({ 
@@ -166,6 +175,132 @@ function ConnectorHealthCard({
   );
 }
 
+function RiskManagementCard({
+  settings,
+  isLoading,
+  onToggleKillSwitch,
+  onCloseAllPositions,
+  isTogglingKillSwitch,
+  isClosingPositions,
+}: {
+  settings: RiskSettings | undefined;
+  isLoading: boolean;
+  onToggleKillSwitch: (activate: boolean) => void;
+  onCloseAllPositions: () => void;
+  isTogglingKillSwitch: boolean;
+  isClosingPositions: boolean;
+}) {
+  const { theme } = useTheme();
+  const killSwitchActive = settings?.killSwitchActive ?? false;
+
+  const riskItems = [
+    {
+      label: "Max Position Size",
+      value: `${settings?.maxPositionSizePercent ?? "10"}%`,
+      icon: "percent" as const,
+    },
+    {
+      label: "Max Portfolio Exposure",
+      value: `${settings?.maxTotalExposurePercent ?? "50"}%`,
+      icon: "pie-chart" as const,
+    },
+    {
+      label: "Max Open Positions",
+      value: `${settings?.maxPositionsCount ?? 10}`,
+      icon: "layers" as const,
+    },
+    {
+      label: "Daily Loss Limit",
+      value: `${settings?.dailyLossLimitPercent ?? "5"}%`,
+      icon: "trending-down" as const,
+    },
+  ];
+
+  return (
+    <Card elevation={1} style={styles.settingsCard}>
+      <View style={styles.settingsHeader}>
+        <Feather name="shield" size={20} color={BrandColors.error} />
+        <ThemedText style={styles.settingsTitle}>Risk Management</ThemedText>
+      </View>
+
+      <View style={[styles.killSwitchContainer, { 
+        backgroundColor: killSwitchActive ? BrandColors.error + "15" : theme.backgroundRoot,
+        borderColor: killSwitchActive ? BrandColors.error : theme.textSecondary + "30",
+      }]}>
+        <View style={styles.killSwitchInfo}>
+          <Feather 
+            name="power" 
+            size={24} 
+            color={killSwitchActive ? BrandColors.error : BrandColors.success} 
+          />
+          <View style={styles.killSwitchText}>
+            <ThemedText style={[styles.killSwitchLabel, { 
+              color: killSwitchActive ? BrandColors.error : theme.text 
+            }]}>
+              Kill Switch
+            </ThemedText>
+            <ThemedText style={[styles.killSwitchStatus, { color: theme.textSecondary }]}>
+              {killSwitchActive ? "Trading halted" : "Trading enabled"}
+            </ThemedText>
+          </View>
+        </View>
+        <Switch
+          value={killSwitchActive}
+          onValueChange={onToggleKillSwitch}
+          disabled={isTogglingKillSwitch}
+          trackColor={{ false: theme.textSecondary + "40", true: BrandColors.error + "60" }}
+          thumbColor={killSwitchActive ? BrandColors.error : BrandColors.success}
+        />
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+        </View>
+      ) : (
+        riskItems.map((item, index) => (
+          <View
+            key={item.label}
+            style={[
+              styles.riskItem,
+              { borderBottomColor: theme.textSecondary + "20" },
+              index === riskItems.length - 1 && { borderBottomWidth: 0 },
+            ]}
+          >
+            <View style={[styles.riskIcon, { backgroundColor: BrandColors.warning + "15" }]}>
+              <Feather name={item.icon} size={16} color={BrandColors.warning} />
+            </View>
+            <ThemedText style={styles.riskLabel}>{item.label}</ThemedText>
+            <ThemedText style={[styles.riskValue, { color: theme.textSecondary }]}>
+              {item.value}
+            </ThemedText>
+          </View>
+        ))
+      )}
+
+      <Pressable
+        style={[styles.closeAllButton, { 
+          backgroundColor: BrandColors.error + "15",
+          opacity: isClosingPositions ? 0.6 : 1,
+        }]}
+        onPress={onCloseAllPositions}
+        disabled={isClosingPositions}
+      >
+        {isClosingPositions ? (
+          <ActivityIndicator size="small" color={BrandColors.error} />
+        ) : (
+          <>
+            <Feather name="x-circle" size={18} color={BrandColors.error} />
+            <ThemedText style={[styles.closeAllText, { color: BrandColors.error }]}>
+              Close All Positions
+            </ThemedText>
+          </>
+        )}
+      </Pressable>
+    </Card>
+  );
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -173,11 +308,80 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: connectorsStatus, isLoading: isLoadingConnectors, refetch: refetchConnectors } = useQuery<ConnectorsStatus>({
     queryKey: ["/api/connectors/status"],
     refetchInterval: 30000,
   });
+
+  const { data: riskSettings, isLoading: isLoadingRisk } = useQuery<RiskSettings>({
+    queryKey: ["/api/risk/settings"],
+    refetchInterval: 10000,
+  });
+
+  const killSwitchMutation = useMutation({
+    mutationFn: async (activate: boolean) => {
+      const response = await apiRequest("POST", "/api/risk/kill-switch", { activate });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/risk/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
+    },
+  });
+
+  const closeAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/risk/close-all", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/positions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trading/portfolio"] });
+      Alert.alert(
+        "Positions Closed",
+        `Closed ${data.closedCount} position(s) with total P&L: $${data.totalPnl.toFixed(2)}`
+      );
+    },
+    onError: () => {
+      Alert.alert("Error", "Failed to close positions");
+    },
+  });
+
+  const handleToggleKillSwitch = (activate: boolean) => {
+    if (activate) {
+      Alert.alert(
+        "Activate Kill Switch",
+        "This will immediately halt all trading. Are you sure?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Activate", 
+            style: "destructive",
+            onPress: () => killSwitchMutation.mutate(true),
+          },
+        ]
+      );
+    } else {
+      killSwitchMutation.mutate(false);
+    }
+  };
+
+  const handleCloseAllPositions = () => {
+    Alert.alert(
+      "Close All Positions",
+      "This will close all open positions at current market prices. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Close All", 
+          style: "destructive",
+          onPress: () => closeAllMutation.mutate(),
+        },
+      ]
+    );
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -214,6 +418,15 @@ export default function ProfileScreen() {
         connectors={connectorsStatus}
         isLoading={isLoadingConnectors}
         onRefresh={() => refetchConnectors()}
+      />
+
+      <RiskManagementCard
+        settings={riskSettings}
+        isLoading={isLoadingRisk}
+        onToggleKillSwitch={handleToggleKillSwitch}
+        onCloseAllPositions={handleCloseAllPositions}
+        isTogglingKillSwitch={killSwitchMutation.isPending}
+        isClosingPositions={closeAllMutation.isPending}
       />
 
       <Card elevation={1} style={styles.settingsCard}>
@@ -363,5 +576,64 @@ const styles = StyleSheet.create({
   statusText: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  killSwitchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  killSwitchInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  killSwitchText: {
+    gap: 2,
+  },
+  killSwitchLabel: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  killSwitchStatus: {
+    ...Typography.small,
+  },
+  riskItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    gap: Spacing.md,
+  },
+  riskIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.xs,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  riskLabel: {
+    ...Typography.body,
+    flex: 1,
+  },
+  riskValue: {
+    ...Typography.body,
+    fontWeight: "500",
+  },
+  closeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.md,
+  },
+  closeAllText: {
+    ...Typography.body,
+    fontWeight: "600",
   },
 });

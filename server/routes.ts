@@ -823,6 +823,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/risk/settings", async (req, res) => {
+    try {
+      const status = await storage.getAgentStatus();
+      if (!status) {
+        return res.json({
+          killSwitchActive: false,
+          maxPositionSizePercent: "10",
+          maxTotalExposurePercent: "50",
+          maxPositionsCount: 10,
+          dailyLossLimitPercent: "5",
+        });
+      }
+      res.json({
+        killSwitchActive: status.killSwitchActive ?? false,
+        maxPositionSizePercent: status.maxPositionSizePercent ?? "10",
+        maxTotalExposurePercent: status.maxTotalExposurePercent ?? "50",
+        maxPositionsCount: status.maxPositionsCount ?? 10,
+        dailyLossLimitPercent: status.dailyLossLimitPercent ?? "5",
+      });
+    } catch (error) {
+      console.error("Failed to get risk settings:", error);
+      res.status(500).json({ error: "Failed to get risk settings" });
+    }
+  });
+
+  app.post("/api/risk/settings", async (req, res) => {
+    try {
+      const { maxPositionSizePercent, maxTotalExposurePercent, maxPositionsCount, dailyLossLimitPercent } = req.body;
+      
+      const updates: Record<string, unknown> = {};
+      
+      if (maxPositionSizePercent !== undefined) {
+        const val = parseFloat(maxPositionSizePercent);
+        if (isNaN(val) || val <= 0 || val > 100) {
+          return res.status(400).json({ error: "Max position size must be between 0 and 100" });
+        }
+        updates.maxPositionSizePercent = val.toString();
+      }
+      if (maxTotalExposurePercent !== undefined) {
+        const val = parseFloat(maxTotalExposurePercent);
+        if (isNaN(val) || val <= 0 || val > 100) {
+          return res.status(400).json({ error: "Max total exposure must be between 0 and 100" });
+        }
+        updates.maxTotalExposurePercent = val.toString();
+      }
+      if (maxPositionsCount !== undefined) {
+        const val = parseInt(maxPositionsCount);
+        if (isNaN(val) || val <= 0 || val > 100) {
+          return res.status(400).json({ error: "Max positions count must be between 1 and 100" });
+        }
+        updates.maxPositionsCount = val;
+      }
+      if (dailyLossLimitPercent !== undefined) {
+        const val = parseFloat(dailyLossLimitPercent);
+        if (isNaN(val) || val <= 0 || val > 100) {
+          return res.status(400).json({ error: "Daily loss limit must be between 0 and 100" });
+        }
+        updates.dailyLossLimitPercent = val.toString();
+      }
+
+      const status = await storage.updateAgentStatus(updates);
+      res.json({
+        killSwitchActive: status?.killSwitchActive ?? false,
+        maxPositionSizePercent: status?.maxPositionSizePercent ?? "10",
+        maxTotalExposurePercent: status?.maxTotalExposurePercent ?? "50",
+        maxPositionsCount: status?.maxPositionsCount ?? 10,
+        dailyLossLimitPercent: status?.dailyLossLimitPercent ?? "5",
+      });
+    } catch (error) {
+      console.error("Failed to update risk settings:", error);
+      res.status(500).json({ error: "Failed to update risk settings" });
+    }
+  });
+
+  app.post("/api/risk/kill-switch", async (req, res) => {
+    try {
+      const { activate } = req.body;
+      const shouldActivate = activate === true || activate === "true";
+
+      const updateData: { killSwitchActive: boolean; isRunning?: boolean } = {
+        killSwitchActive: shouldActivate,
+      };
+      
+      if (shouldActivate) {
+        updateData.isRunning = false;
+      }
+
+      const status = await storage.updateAgentStatus(updateData);
+
+      res.json({
+        killSwitchActive: status?.killSwitchActive ?? shouldActivate,
+        isRunning: status?.isRunning ?? false,
+        message: shouldActivate ? "Kill switch activated - all trading halted" : "Kill switch deactivated",
+      });
+    } catch (error) {
+      console.error("Failed to toggle kill switch:", error);
+      res.status(500).json({ error: "Failed to toggle kill switch" });
+    }
+  });
+
+  app.post("/api/risk/close-all", async (req, res) => {
+    try {
+      const result = await paperTradingEngine.closeAllPositions();
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to close all positions:", error);
+      res.status(500).json({ error: "Failed to close all positions" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

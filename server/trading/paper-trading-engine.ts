@@ -98,6 +98,11 @@ export class PaperTradingEngine {
           return { success: false, error: "Insufficient cash for this trade" };
         }
 
+        const riskCheck = await this.checkRiskLimits(tradeValue);
+        if (!riskCheck.allowed) {
+          return { success: false, error: riskCheck.reason };
+        }
+
         trade = await storage.createTrade({
           symbol,
           side: "buy",
@@ -489,6 +494,138 @@ export class PaperTradingEngine {
       winRate: "0",
       lastHeartbeat: new Date(),
     });
+  }
+
+  async closeAllPositions(): Promise<{ success: boolean; closedCount: number; totalPnl: number; errors: string[] }> {
+    const positions = await storage.getPositions();
+    let closedCount = 0;
+    let totalPnl = 0;
+    const errors: string[] = [];
+
+    for (const position of positions) {
+      const result = await this.closePosition(position.id);
+      if (result.success) {
+        closedCount++;
+        totalPnl += result.pnl || 0;
+      } else {
+        errors.push(`Failed to close ${position.symbol}: ${result.error}`);
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      closedCount,
+      totalPnl,
+      errors,
+    };
+  }
+
+  async checkRiskLimits(tradeValue: number): Promise<{ allowed: boolean; reason?: string }> {
+    const status = await storage.getAgentStatus();
+    
+    if (status?.killSwitchActive) {
+      return { allowed: false, reason: "Kill switch is active - trading halted" };
+    }
+
+    const positions = await storage.getPositions();
+    const maxPositions = status?.maxPositionsCount ?? 10;
+    if (positions.length >= maxPositions) {
+      return { allowed: false, reason: `Maximum positions limit reached (${maxPositions})` };
+    }
+
+    const cashBalance = await this.getCashBalance();
+    const maxPositionSizePercent = parseFloat(status?.maxPositionSizePercent ?? "10") / 100;
+    const maxTradeValue = cashBalance * maxPositionSizePercent;
+    if (tradeValue > maxTradeValue) {
+      return { 
+        allowed: false, 
+        reason: `Trade exceeds max position size (${(maxPositionSizePercent * 100).toFixed(0)}% = $${maxTradeValue.toFixed(2)})` 
+      };
+    }
+
+    let positionsValue = 0;
+    for (const p of positions) {
+      const qty = parseFloat(p.quantity);
+      const price = parseFloat(p.currentPrice || p.entryPrice);
+      positionsValue += qty * price;
+    }
+    const maxExposurePercent = parseFloat(status?.maxTotalExposurePercent ?? "50") / 100;
+    const totalEquity = cashBalance + positionsValue;
+    
+    if (totalEquity > 0) {
+      const newExposure = (positionsValue + tradeValue) / totalEquity;
+      if (newExposure > maxExposurePercent) {
+        return { 
+          allowed: false, 
+          reason: `Trade would exceed max exposure (${(maxExposurePercent * 100).toFixed(0)}% of portfolio)` 
+        };
+      }
+    }
+
+    const dailyLossCheck = await this.checkDailyLossLimit();
+    if (!dailyLossCheck.allowed) {
+      return dailyLossCheck;
+    }
+
+    return { allowed: true };
+  }
+
+  private async checkDailyLossLimit(): Promise<{ allowed: boolean; reason?: string }> {
+    const status = await storage.getAgentStatus();
+    const dailyLossLimitPercent = parseFloat(status?.dailyLossLimitPercent ?? "5") / 100;
+    
+    const trades = await storage.getTrades(1000);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todaysTrades = trades.filter((t) => {
+      const tradeDate = new Date(t.executedAt);
+      return tradeDate >= today;
+    });
+    
+    const todaysLoss = todaysTrades.reduce((sum, t) => {
+      const pnl = parseFloat(t.pnl || "0");
+      return pnl < 0 ? sum + Math.abs(pnl) : sum;
+    }, 0);
+    
+    const cashBalance = await this.getCashBalance();
+    const positions = await storage.getPositions();
+    let positionsValue = 0;
+    for (const p of positions) {
+      const qty = parseFloat(p.quantity);
+      const price = parseFloat(p.currentPrice || p.entryPrice);
+      positionsValue += qty * price;
+    }
+    const totalEquity = cashBalance + positionsValue;
+    
+    if (totalEquity > 0) {
+      const dailyLossPercent = todaysLoss / totalEquity;
+      if (dailyLossPercent >= dailyLossLimitPercent) {
+        return { 
+          allowed: false, 
+          reason: `Daily loss limit reached (${(dailyLossLimitPercent * 100).toFixed(0)}% = $${(totalEquity * dailyLossLimitPercent).toFixed(2)})` 
+        };
+      }
+    }
+    
+    return { allowed: true };
+  }
+
+  async getRiskSettings(): Promise<{
+    killSwitchActive: boolean;
+    maxPositionSizePercent: number;
+    maxTotalExposurePercent: number;
+    maxPositionsCount: number;
+    dailyLossLimitPercent: number;
+  }> {
+    const status = await storage.getAgentStatus();
+    return {
+      killSwitchActive: status?.killSwitchActive ?? false,
+      maxPositionSizePercent: parseFloat(status?.maxPositionSizePercent ?? "10"),
+      maxTotalExposurePercent: parseFloat(status?.maxTotalExposurePercent ?? "50"),
+      maxPositionsCount: status?.maxPositionsCount ?? 10,
+      dailyLossLimitPercent: parseFloat(status?.dailyLossLimitPercent ?? "5"),
+    };
   }
 }
 

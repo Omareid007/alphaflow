@@ -79,6 +79,11 @@ export const agentStatus = pgTable("agent_status", {
   winRate: numeric("win_rate"),
   cashBalance: numeric("cash_balance").default("100000"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  killSwitchActive: boolean("kill_switch_active").default(false).notNull(),
+  maxPositionSizePercent: numeric("max_position_size_percent").default("10"),
+  maxTotalExposurePercent: numeric("max_total_exposure_percent").default("50"),
+  maxPositionsCount: integer("max_positions_count").default(10),
+  dailyLossLimitPercent: numeric("daily_loss_limit_percent").default("5"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
