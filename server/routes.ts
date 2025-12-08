@@ -12,6 +12,9 @@ import {
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
+import { alpaca } from "./connectors/alpaca";
+import { coinmarketcap } from "./connectors/coinmarketcap";
+import { newsapi } from "./connectors/newsapi";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
@@ -930,6 +933,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to close all positions:", error);
       res.status(500).json({ error: "Failed to close all positions" });
+    }
+  });
+
+  app.get("/api/alpaca/account", async (req, res) => {
+    try {
+      const account = await alpaca.getAccount();
+      res.json(account);
+    } catch (error) {
+      console.error("Failed to get Alpaca account:", error);
+      res.status(500).json({ error: "Failed to get Alpaca account" });
+    }
+  });
+
+  app.get("/api/alpaca/positions", async (req, res) => {
+    try {
+      const positions = await alpaca.getPositions();
+      res.json(positions);
+    } catch (error) {
+      console.error("Failed to get Alpaca positions:", error);
+      res.status(500).json({ error: "Failed to get Alpaca positions" });
+    }
+  });
+
+  app.get("/api/alpaca/orders", async (req, res) => {
+    try {
+      const status = (req.query.status as "open" | "closed" | "all") || "all";
+      const limit = parseInt(req.query.limit as string) || 50;
+      const orders = await alpaca.getOrders(status, limit);
+      res.json(orders);
+    } catch (error) {
+      console.error("Failed to get Alpaca orders:", error);
+      res.status(500).json({ error: "Failed to get Alpaca orders" });
+    }
+  });
+
+  app.post("/api/alpaca/orders", async (req, res) => {
+    try {
+      const order = await alpaca.createOrder(req.body);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Failed to create Alpaca order:", error);
+      res.status(500).json({ error: "Failed to create Alpaca order" });
+    }
+  });
+
+  app.delete("/api/alpaca/orders/:orderId", async (req, res) => {
+    try {
+      await alpaca.cancelOrder(req.params.orderId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to cancel Alpaca order:", error);
+      res.status(500).json({ error: "Failed to cancel Alpaca order" });
+    }
+  });
+
+  app.get("/api/alpaca/assets", async (req, res) => {
+    try {
+      const assetClass = (req.query.asset_class as "us_equity" | "crypto") || "us_equity";
+      const assets = await alpaca.getAssets("active", assetClass);
+      res.json(assets);
+    } catch (error) {
+      console.error("Failed to get Alpaca assets:", error);
+      res.status(500).json({ error: "Failed to get Alpaca assets" });
+    }
+  });
+
+  app.get("/api/alpaca/assets/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const assets = await alpaca.searchAssets(query);
+      res.json(assets);
+    } catch (error) {
+      console.error("Failed to search Alpaca assets:", error);
+      res.status(500).json({ error: "Failed to search Alpaca assets" });
+    }
+  });
+
+  app.get("/api/alpaca/bars", async (req, res) => {
+    try {
+      const symbols = (req.query.symbols as string)?.split(",") || ["AAPL"];
+      const timeframe = (req.query.timeframe as string) || "1Day";
+      const start = req.query.start as string;
+      const end = req.query.end as string;
+      const bars = await alpaca.getBars(symbols, timeframe, start, end);
+      res.json(bars);
+    } catch (error) {
+      console.error("Failed to get Alpaca bars:", error);
+      res.status(500).json({ error: "Failed to get Alpaca bars" });
+    }
+  });
+
+  app.get("/api/alpaca/snapshots", async (req, res) => {
+    try {
+      const symbols = (req.query.symbols as string)?.split(",") || ["AAPL"];
+      const snapshots = await alpaca.getSnapshots(symbols);
+      res.json(snapshots);
+    } catch (error) {
+      console.error("Failed to get Alpaca snapshots:", error);
+      res.status(500).json({ error: "Failed to get Alpaca snapshots" });
+    }
+  });
+
+  app.get("/api/cmc/listings", async (req, res) => {
+    try {
+      const start = parseInt(req.query.start as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const listings = await coinmarketcap.getLatestListings(start, limit);
+      res.json(listings);
+    } catch (error) {
+      console.error("Failed to get CMC listings:", error);
+      res.status(500).json({ error: "Failed to get CoinMarketCap listings" });
+    }
+  });
+
+  app.get("/api/cmc/quotes", async (req, res) => {
+    try {
+      const symbols = (req.query.symbols as string)?.split(",") || ["BTC", "ETH"];
+      const quotes = await coinmarketcap.getQuotesBySymbols(symbols);
+      res.json(quotes);
+    } catch (error) {
+      console.error("Failed to get CMC quotes:", error);
+      res.status(500).json({ error: "Failed to get CoinMarketCap quotes" });
+    }
+  });
+
+  app.get("/api/cmc/global", async (req, res) => {
+    try {
+      const metrics = await coinmarketcap.getGlobalMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Failed to get CMC global metrics:", error);
+      res.status(500).json({ error: "Failed to get CoinMarketCap global metrics" });
+    }
+  });
+
+  app.get("/api/cmc/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const results = await coinmarketcap.searchCryptos(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Failed to search CMC:", error);
+      res.status(500).json({ error: "Failed to search CoinMarketCap" });
+    }
+  });
+
+  app.get("/api/news/headlines", async (req, res) => {
+    try {
+      const category = (req.query.category as "business" | "technology" | "general") || "business";
+      const country = (req.query.country as string) || "us";
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const headlines = await newsapi.getTopHeadlines(category, country, pageSize);
+      res.json(headlines);
+    } catch (error) {
+      console.error("Failed to get news headlines:", error);
+      res.status(500).json({ error: "Failed to get news headlines" });
+    }
+  });
+
+  app.get("/api/news/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const sortBy = (req.query.sortBy as "relevancy" | "popularity" | "publishedAt") || "publishedAt";
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const articles = await newsapi.searchNews(query, sortBy, pageSize);
+      res.json(articles);
+    } catch (error) {
+      console.error("Failed to search news:", error);
+      res.status(500).json({ error: "Failed to search news" });
+    }
+  });
+
+  app.get("/api/news/market", async (req, res) => {
+    try {
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const articles = await newsapi.getMarketNews(pageSize);
+      res.json(articles);
+    } catch (error) {
+      console.error("Failed to get market news:", error);
+      res.status(500).json({ error: "Failed to get market news" });
+    }
+  });
+
+  app.get("/api/news/crypto", async (req, res) => {
+    try {
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const articles = await newsapi.getCryptoNews(pageSize);
+      res.json(articles);
+    } catch (error) {
+      console.error("Failed to get crypto news:", error);
+      res.status(500).json({ error: "Failed to get crypto news" });
+    }
+  });
+
+  app.get("/api/news/stock/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const articles = await newsapi.getStockNews(symbol, pageSize);
+      res.json(articles);
+    } catch (error) {
+      console.error("Failed to get stock news:", error);
+      res.status(500).json({ error: "Failed to get stock news" });
     }
   });
 
