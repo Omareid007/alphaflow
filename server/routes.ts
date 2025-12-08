@@ -10,6 +10,7 @@ import {
   insertPositionSchema,
   insertAiDecisionSchema,
 } from "@shared/schema";
+import { coingecko } from "./connectors/coingecko";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -393,6 +394,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get analytics summary" });
+    }
+  });
+
+  app.get("/api/crypto/markets", async (req, res) => {
+    try {
+      const perPage = parseInt(req.query.per_page as string) || 20;
+      const page = parseInt(req.query.page as string) || 1;
+      const order = (req.query.order as string) || "market_cap_desc";
+      const markets = await coingecko.getMarkets("usd", perPage, page, order);
+      res.json(markets);
+    } catch (error) {
+      console.error("Failed to fetch crypto markets:", error);
+      res.status(500).json({ error: "Failed to fetch crypto market data" });
+    }
+  });
+
+  app.get("/api/crypto/prices", async (req, res) => {
+    try {
+      const ids = (req.query.ids as string) || "bitcoin,ethereum,solana";
+      const coinIds = ids.split(",").map(id => id.trim());
+      const prices = await coingecko.getSimplePrice(coinIds);
+      res.json(prices);
+    } catch (error) {
+      console.error("Failed to fetch crypto prices:", error);
+      res.status(500).json({ error: "Failed to fetch crypto prices" });
+    }
+  });
+
+  app.get("/api/crypto/chart/:coinId", async (req, res) => {
+    try {
+      const { coinId } = req.params;
+      const days = (req.query.days as string) || "7";
+      const chart = await coingecko.getMarketChart(coinId, "usd", days);
+      res.json(chart);
+    } catch (error) {
+      console.error("Failed to fetch crypto chart:", error);
+      res.status(500).json({ error: "Failed to fetch crypto chart data" });
+    }
+  });
+
+  app.get("/api/crypto/trending", async (req, res) => {
+    try {
+      const trending = await coingecko.getTrending();
+      res.json(trending);
+    } catch (error) {
+      console.error("Failed to fetch trending coins:", error);
+      res.status(500).json({ error: "Failed to fetch trending coins" });
+    }
+  });
+
+  app.get("/api/crypto/global", async (req, res) => {
+    try {
+      const global = await coingecko.getGlobalData();
+      res.json(global);
+    } catch (error) {
+      console.error("Failed to fetch global market data:", error);
+      res.status(500).json({ error: "Failed to fetch global market data" });
+    }
+  });
+
+  app.get("/api/crypto/search", async (req, res) => {
+    try {
+      const query = (req.query.q as string) || "";
+      if (!query) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      const results = await coingecko.searchCoins(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Failed to search coins:", error);
+      res.status(500).json({ error: "Failed to search coins" });
+    }
+  });
+
+  app.get("/api/connectors/status", async (req, res) => {
+    try {
+      const cryptoStatus = coingecko.getConnectionStatus();
+      res.json({
+        crypto: {
+          provider: "CoinGecko",
+          ...cryptoStatus,
+          lastChecked: new Date().toISOString(),
+        },
+        stock: {
+          provider: "Finnhub",
+          connected: false,
+          hasApiKey: false,
+          lastChecked: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get connector status" });
     }
   });
 

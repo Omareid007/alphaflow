@@ -1,9 +1,10 @@
-import { View, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Image, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
@@ -20,6 +21,21 @@ interface AnalyticsSummary {
   openPositions: number;
   unrealizedPnl: string;
   isAgentRunning: boolean;
+}
+
+interface CryptoMarketData {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  total_volume: number;
+  high_24h: number;
+  low_24h: number;
+  price_change_24h: number;
+  price_change_percentage_24h: number;
+  image: string;
 }
 
 function AgentStatusCard() {
@@ -100,6 +116,103 @@ function MarketIntelligenceCard() {
       <ThemedText style={[styles.intelligenceNote, { color: theme.textSecondary }]}>
         Data quality: Good | Sources: 3 active
       </ThemedText>
+    </Card>
+  );
+}
+
+function CryptoMarketsCard() {
+  const { theme } = useTheme();
+
+  const { data: cryptoMarkets, isLoading, error } = useQuery<CryptoMarketData[]>({
+    queryKey: ["/api/crypto/markets?per_page=5"],
+    refetchInterval: 60000,
+  });
+
+  const formatPrice = (price: number): string => {
+    if (price >= 1000) {
+      return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (price >= 1) {
+      return price.toFixed(2);
+    }
+    return price.toFixed(4);
+  };
+
+  const formatChange = (change: number): string => {
+    const prefix = change >= 0 ? "+" : "";
+    return `${prefix}${change.toFixed(2)}%`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.cryptoCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="trending-up" size={20} color={BrandColors.cryptoLayer} />
+          <ThemedText style={styles.cardTitle}>Crypto Markets</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  if (error || !cryptoMarkets) {
+    return (
+      <Card elevation={1} style={styles.cryptoCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="trending-up" size={20} color={BrandColors.cryptoLayer} />
+          <ThemedText style={styles.cardTitle}>Crypto Markets</ThemedText>
+        </View>
+        <View style={styles.cryptoError}>
+          <Feather name="alert-circle" size={24} color={BrandColors.warning} />
+          <ThemedText style={[styles.cryptoErrorText, { color: theme.textSecondary }]}>
+            Unable to load market data
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={1} style={styles.cryptoCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="trending-up" size={20} color={BrandColors.cryptoLayer} />
+        <ThemedText style={styles.cardTitle}>Crypto Markets</ThemedText>
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveDot} />
+          <ThemedText style={styles.liveText}>LIVE</ThemedText>
+        </View>
+      </View>
+      {cryptoMarkets.map((coin, index) => (
+        <View
+          key={coin.id}
+          style={[
+            styles.cryptoRow,
+            index < cryptoMarkets.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+          ]}
+        >
+          <View style={styles.cryptoInfo}>
+            <Image source={{ uri: coin.image }} style={styles.cryptoIcon} />
+            <View>
+              <ThemedText style={styles.cryptoSymbol}>{coin.symbol.toUpperCase()}</ThemedText>
+              <ThemedText style={[styles.cryptoName, { color: theme.textSecondary }]}>{coin.name}</ThemedText>
+            </View>
+          </View>
+          <View style={styles.cryptoPriceInfo}>
+            <ThemedText style={[styles.cryptoPrice, { fontFamily: Fonts?.mono }]}>
+              ${formatPrice(coin.current_price)}
+            </ThemedText>
+            <ThemedText style={[
+              styles.cryptoChange,
+              { 
+                fontFamily: Fonts?.mono,
+                color: coin.price_change_percentage_24h >= 0 ? BrandColors.success : BrandColors.error
+              }
+            ]}>
+              {formatChange(coin.price_change_percentage_24h)}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
     </Card>
   );
 }
@@ -238,6 +351,7 @@ export default function DashboardScreen() {
 
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
+    { key: "crypto", component: <CryptoMarketsCard /> },
     { key: "intelligence", component: <MarketIntelligenceCard /> },
     { key: "layers", component: (
       <View style={styles.layersRow}>
@@ -434,5 +548,69 @@ const styles = StyleSheet.create({
   pnlValue: {
     ...Typography.body,
     fontWeight: "600",
+  },
+  cryptoCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  cryptoError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  cryptoErrorText: {
+    ...Typography.caption,
+  },
+  liveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginLeft: "auto",
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: BrandColors.success,
+  },
+  liveText: {
+    ...Typography.small,
+    color: BrandColors.success,
+    fontWeight: "600",
+  },
+  cryptoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+  },
+  cryptoInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  cryptoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  cryptoSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  cryptoName: {
+    ...Typography.small,
+  },
+  cryptoPriceInfo: {
+    alignItems: "flex-end",
+  },
+  cryptoPrice: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  cryptoChange: {
+    ...Typography.small,
+    fontWeight: "500",
   },
 });
