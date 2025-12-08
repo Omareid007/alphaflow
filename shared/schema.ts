@@ -77,6 +77,7 @@ export const agentStatus = pgTable("agent_status", {
   totalTrades: integer("total_trades").default(0),
   totalPnl: numeric("total_pnl").default("0"),
   winRate: numeric("win_rate"),
+  cashBalance: numeric("cash_balance").default("100000"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

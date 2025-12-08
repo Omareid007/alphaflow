@@ -14,6 +14,7 @@ import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
+import { paperTradingEngine } from "./trading/paper-trading-engine";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -670,6 +671,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(status);
     } catch (error) {
       res.status(500).json({ error: "Failed to get fusion status" });
+    }
+  });
+
+  app.post("/api/trading/execute", async (req, res) => {
+    try {
+      const { symbol, side, quantity, price, strategyId, notes } = req.body;
+
+      if (!symbol || !side || !quantity || !price) {
+        return res.status(400).json({ error: "Symbol, side, quantity, and price are required" });
+      }
+
+      if (!["buy", "sell"].includes(side)) {
+        return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
+      }
+
+      const result = await paperTradingEngine.executeTrade({
+        symbol,
+        side,
+        quantity: parseFloat(quantity),
+        price: parseFloat(price),
+        strategyId,
+        notes,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Trade execution error:", error);
+      res.status(500).json({ error: "Failed to execute trade" });
+    }
+  });
+
+  app.post("/api/trading/close/:positionId", async (req, res) => {
+    try {
+      const { positionId } = req.params;
+      const { currentPrice } = req.body;
+
+      const result = await paperTradingEngine.closePosition(
+        positionId,
+        currentPrice ? parseFloat(currentPrice) : undefined
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Close position error:", error);
+      res.status(500).json({ error: "Failed to close position" });
+    }
+  });
+
+  app.get("/api/trading/portfolio", async (req, res) => {
+    try {
+      const summary = await paperTradingEngine.getPortfolioSummary();
+      res.json(summary);
+    } catch (error) {
+      console.error("Portfolio summary error:", error);
+      res.status(500).json({ error: "Failed to get portfolio summary" });
+    }
+  });
+
+  app.post("/api/trading/analyze-execute", async (req, res) => {
+    try {
+      const { symbol, strategyId } = req.body;
+
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      const result = await paperTradingEngine.analyzeAndExecute(symbol, strategyId);
+      res.json(result);
+    } catch (error) {
+      console.error("Analyze and execute error:", error);
+      res.status(500).json({ error: "Failed to analyze and execute trade" });
+    }
+  });
+
+  app.post("/api/trading/update-prices", async (req, res) => {
+    try {
+      await paperTradingEngine.updatePositionPrices();
+      res.json({ success: true, message: "Position prices updated" });
+    } catch (error) {
+      console.error("Update prices error:", error);
+      res.status(500).json({ error: "Failed to update position prices" });
+    }
+  });
+
+  app.post("/api/trading/reset", async (req, res) => {
+    try {
+      await paperTradingEngine.resetPortfolio();
+      const cashBalance = await paperTradingEngine.getCashBalance();
+      res.json({ success: true, cashBalance });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reset portfolio" });
+    }
+  });
+
+  app.get("/api/trading/balance", async (req, res) => {
+    try {
+      const cashBalance = await paperTradingEngine.getCashBalance();
+      res.json({ cashBalance });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get balance" });
     }
   });
 
