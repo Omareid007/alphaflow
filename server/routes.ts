@@ -13,6 +13,7 @@ import {
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
+import { dataFusionEngine } from "./fusion/data-fusion-engine";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -616,6 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cryptoStatus = coingecko.getConnectionStatus();
       const stockStatus = finnhub.getConnectionStatus();
       const aiStatus = aiDecisionEngine.getStatus();
+      const fusionStatus = dataFusionEngine.getStatus();
       res.json({
         crypto: {
           provider: "CoinGecko",
@@ -631,9 +633,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...aiStatus,
           lastChecked: new Date().toISOString(),
         },
+        fusion: {
+          provider: "Data Fusion Engine",
+          ...fusionStatus,
+          lastChecked: new Date().toISOString(),
+        },
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get connector status" });
+    }
+  });
+
+  app.get("/api/fusion/intelligence", async (req, res) => {
+    try {
+      const intelligence = await dataFusionEngine.getMarketIntelligence();
+      res.json(intelligence);
+    } catch (error) {
+      console.error("Failed to get market intelligence:", error);
+      res.status(500).json({ error: "Failed to get market intelligence" });
+    }
+  });
+
+  app.get("/api/fusion/market-data", async (req, res) => {
+    try {
+      const fusedData = await dataFusionEngine.getFusedMarketData();
+      res.json(fusedData);
+    } catch (error) {
+      console.error("Failed to get fused market data:", error);
+      res.status(500).json({ error: "Failed to get fused market data" });
+    }
+  });
+
+  app.get("/api/fusion/status", async (req, res) => {
+    try {
+      const status = dataFusionEngine.getStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get fusion status" });
     }
   });
 

@@ -97,24 +97,156 @@ function AgentStatusCard() {
   );
 }
 
+interface MarketIntelligenceData {
+  overall: number;
+  components: {
+    momentum: number;
+    volatility: number;
+    sentiment: number;
+    volume: number;
+  };
+  signals: {
+    type: "bullish" | "bearish" | "neutral";
+    source: string;
+    message: string;
+    strength: number;
+    timestamp: string;
+  }[];
+  dataQuality: "excellent" | "good" | "fair" | "poor";
+  activeSources: number;
+  totalSources: number;
+  lastUpdated: string;
+}
+
 function MarketIntelligenceCard() {
   const { theme } = useTheme();
-  const score = 0.65;
+
+  const { data: intelligence, isLoading, error } = useQuery<MarketIntelligenceData>({
+    queryKey: ["/api/fusion/intelligence"],
+    refetchInterval: 30000,
+  });
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.intelligenceCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Market Intelligence</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  if (error || !intelligence) {
+    return (
+      <Card elevation={1} style={styles.intelligenceCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Market Intelligence</ThemedText>
+        </View>
+        <View style={styles.intelligenceError}>
+          <Feather name="alert-circle" size={24} color={BrandColors.warning} />
+          <ThemedText style={[styles.intelligenceErrorText, { color: theme.textSecondary }]}>
+            Unable to calculate intelligence score
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  const score = intelligence.overall;
+  const getScoreColor = (s: number) => {
+    if (s < 0.3) return BrandColors.error;
+    if (s < 0.7) return BrandColors.warning;
+    return BrandColors.success;
+  };
+
+  const getSignalIcon = (type: string) => {
+    switch (type) {
+      case "bullish":
+        return "trending-up";
+      case "bearish":
+        return "trending-down";
+      default:
+        return "minus";
+    }
+  };
+
+  const getSignalColor = (type: string) => {
+    switch (type) {
+      case "bullish":
+        return BrandColors.success;
+      case "bearish":
+        return BrandColors.error;
+      default:
+        return BrandColors.neutral;
+    }
+  };
 
   return (
     <Card elevation={1} style={styles.intelligenceCard}>
       <View style={styles.cardHeader}>
         <Feather name="activity" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.cardTitle}>Market Intelligence</ThemedText>
+        <View style={styles.liveIndicator}>
+          <View style={[styles.liveDot, { backgroundColor: BrandColors.primaryLight }]} />
+          <ThemedText style={[styles.liveText, { color: BrandColors.primaryLight }]}>LIVE</ThemedText>
+        </View>
       </View>
       <View style={styles.scoreContainer}>
         <View style={styles.scoreBar}>
-          <View style={[styles.scoreFill, { width: `${score * 100}%`, backgroundColor: score < 0.3 ? BrandColors.error : score < 0.7 ? BrandColors.warning : BrandColors.success }]} />
+          <View style={[styles.scoreFill, { width: `${score * 100}%`, backgroundColor: getScoreColor(score) }]} />
         </View>
         <ThemedText style={[styles.scoreText, { fontFamily: Fonts?.mono }]}>{(score * 100).toFixed(0)}%</ThemedText>
       </View>
+      <View style={styles.intelligenceComponents}>
+        <View style={styles.componentRow}>
+          <ThemedText style={[styles.componentLabel, { color: theme.textSecondary }]}>Momentum</ThemedText>
+          <ThemedText style={[styles.componentValue, { fontFamily: Fonts?.mono }]}>
+            {(intelligence.components.momentum * 100).toFixed(0)}%
+          </ThemedText>
+        </View>
+        <View style={styles.componentRow}>
+          <ThemedText style={[styles.componentLabel, { color: theme.textSecondary }]}>Volatility</ThemedText>
+          <ThemedText style={[styles.componentValue, { fontFamily: Fonts?.mono }]}>
+            {(intelligence.components.volatility * 100).toFixed(0)}%
+          </ThemedText>
+        </View>
+        <View style={styles.componentRow}>
+          <ThemedText style={[styles.componentLabel, { color: theme.textSecondary }]}>Sentiment</ThemedText>
+          <ThemedText style={[styles.componentValue, { fontFamily: Fonts?.mono }]}>
+            {(intelligence.components.sentiment * 100).toFixed(0)}%
+          </ThemedText>
+        </View>
+        <View style={styles.componentRow}>
+          <ThemedText style={[styles.componentLabel, { color: theme.textSecondary }]}>Volume</ThemedText>
+          <ThemedText style={[styles.componentValue, { fontFamily: Fonts?.mono }]}>
+            {(intelligence.components.volume * 100).toFixed(0)}%
+          </ThemedText>
+        </View>
+      </View>
+      {intelligence.signals.length > 0 ? (
+        <View style={styles.signalsContainer}>
+          {intelligence.signals.slice(0, 4).map((signal, index) => (
+            <View key={index} style={styles.signalRow}>
+              <Feather 
+                name={getSignalIcon(signal.type) as keyof typeof Feather.glyphMap} 
+                size={14} 
+                color={getSignalColor(signal.type)} 
+              />
+              <ThemedText 
+                style={[styles.signalText, { color: theme.textSecondary }]} 
+                numberOfLines={1}
+              >
+                {signal.message}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <ThemedText style={[styles.intelligenceNote, { color: theme.textSecondary }]}>
-        Data quality: Good | Sources: 3 active
+        Data quality: {intelligence.dataQuality.charAt(0).toUpperCase() + intelligence.dataQuality.slice(1)} | Sources: {intelligence.activeSources} active
       </ThemedText>
     </Card>
   );
@@ -734,6 +866,44 @@ const styles = StyleSheet.create({
   },
   intelligenceNote: {
     ...Typography.small,
+  },
+  intelligenceError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  intelligenceErrorText: {
+    ...Typography.caption,
+  },
+  intelligenceComponents: {
+    flexDirection: "row",
+    gap: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  componentRow: {
+    flex: 1,
+  },
+  componentLabel: {
+    ...Typography.small,
+    marginBottom: Spacing.xs,
+  },
+  componentValue: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  signalsContainer: {
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  signalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  signalText: {
+    ...Typography.small,
+    flex: 1,
   },
   layersRow: {
     flexDirection: "row",
