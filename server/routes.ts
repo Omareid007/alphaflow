@@ -18,6 +18,7 @@ import { newsapi } from "./connectors/newsapi";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
+import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -61,6 +62,10 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  alpacaTradingEngine.initialize().catch(err => 
+    console.error("Failed to initialize Alpaca trading engine:", err)
+  );
+
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const parsed = insertUserSchema.safeParse(req.body);
@@ -1145,6 +1150,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get stock news:", error);
       res.status(500).json({ error: "Failed to get stock news" });
+    }
+  });
+
+  app.get("/api/alpaca-trading/status", async (req, res) => {
+    try {
+      const status = alpacaTradingEngine.getStatus();
+      const connected = await alpacaTradingEngine.isAlpacaConnected();
+      res.json({ ...status, alpacaConnected: connected });
+    } catch (error) {
+      console.error("Failed to get Alpaca trading status:", error);
+      res.status(500).json({ error: "Failed to get Alpaca trading status" });
+    }
+  });
+
+  app.post("/api/alpaca-trading/execute", async (req, res) => {
+    try {
+      const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } = req.body;
+
+      if (!symbol || !side || !quantity) {
+        return res.status(400).json({ error: "Symbol, side, and quantity are required" });
+      }
+
+      if (!["buy", "sell"].includes(side)) {
+        return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
+      }
+
+      const result = await alpacaTradingEngine.executeAlpacaTrade({
+        symbol,
+        side,
+        quantity: parseFloat(quantity),
+        strategyId,
+        notes,
+        orderType,
+        limitPrice: limitPrice ? parseFloat(limitPrice) : undefined,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Alpaca trade execution error:", error);
+      res.status(500).json({ error: "Failed to execute Alpaca trade" });
+    }
+  });
+
+  app.post("/api/alpaca-trading/close/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { strategyId } = req.body;
+
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Close Alpaca position error:", error);
+      res.status(500).json({ error: "Failed to close Alpaca position" });
+    }
+  });
+
+  app.post("/api/alpaca-trading/analyze", async (req, res) => {
+    try {
+      const { symbol, strategyId } = req.body;
+
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      const result = await alpacaTradingEngine.analyzeSymbol(symbol, strategyId);
+      res.json(result);
+    } catch (error) {
+      console.error("Analyze symbol error:", error);
+      res.status(500).json({ error: "Failed to analyze symbol" });
+    }
+  });
+
+  app.post("/api/alpaca-trading/analyze-execute", async (req, res) => {
+    try {
+      const { symbol, strategyId } = req.body;
+
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      const result = await alpacaTradingEngine.analyzeAndExecute(symbol, strategyId);
+      res.json(result);
+    } catch (error) {
+      console.error("Analyze and execute error:", error);
+      res.status(500).json({ error: "Failed to analyze and execute trade" });
+    }
+  });
+
+  app.post("/api/strategies/:id/start", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await alpacaTradingEngine.startStrategy(id);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ success: true, message: "Strategy started" });
+    } catch (error) {
+      console.error("Start strategy error:", error);
+      res.status(500).json({ error: "Failed to start strategy" });
+    }
+  });
+
+  app.post("/api/strategies/:id/stop", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await alpacaTradingEngine.stopStrategy(id);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ success: true, message: "Strategy stopped" });
+    } catch (error) {
+      console.error("Stop strategy error:", error);
+      res.status(500).json({ error: "Failed to stop strategy" });
+    }
+  });
+
+  app.get("/api/strategies/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const state = alpacaTradingEngine.getStrategyState(id);
+      const strategy = await storage.getStrategy(id);
+
+      if (!strategy) {
+        return res.status(404).json({ error: "Strategy not found" });
+      }
+
+      res.json({
+        strategy,
+        runState: state || { strategyId: id, isRunning: false },
+      });
+    } catch (error) {
+      console.error("Get strategy status error:", error);
+      res.status(500).json({ error: "Failed to get strategy status" });
+    }
+  });
+
+  app.post("/api/alpaca-trading/stop-all", async (req, res) => {
+    try {
+      await alpacaTradingEngine.stopAllStrategies();
+      res.json({ success: true, message: "All strategies stopped" });
+    } catch (error) {
+      console.error("Stop all strategies error:", error);
+      res.status(500).json({ error: "Failed to stop all strategies" });
     }
   });
 
