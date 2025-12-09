@@ -1066,6 +1066,22 @@ function UAEMarketsCard() {
   );
 }
 
+const CRYPTO_TICKERS = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LTC", "ADA", "AVAX", "DOT", "MATIC", "LINK", "UNI", "SHIB", "ATOM"];
+const CRYPTO_NAMES = ["BITCOIN", "ETHEREUM", "SOLANA", "RIPPLE", "DOGECOIN", "LITECOIN", "CARDANO", "AVALANCHE", "POLKADOT", "POLYGON", "CHAINLINK", "UNISWAP"];
+
+function isCryptoSymbol(symbol: string): boolean {
+  const upper = symbol.toUpperCase();
+  if (CRYPTO_NAMES.includes(upper)) return true;
+  for (const ticker of CRYPTO_TICKERS) {
+    if (upper === ticker || upper.startsWith(ticker + "/") || upper.includes("/" + ticker)) return true;
+  }
+  if (upper.endsWith("USD") || upper.endsWith("USDT") || upper.endsWith("USDC")) {
+    const base = upper.replace(/(USD[TC]?)$/, "");
+    if (CRYPTO_TICKERS.includes(base)) return true;
+  }
+  return false;
+}
+
 function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
   const { theme } = useTheme();
 
@@ -1076,11 +1092,11 @@ function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
 
   const layerPositions = positions?.filter(p => {
     const isCrypto = layer === "Crypto";
-    const symbol = p.symbol.toUpperCase();
+    const symbolIsCrypto = isCryptoSymbol(p.symbol);
     if (isCrypto) {
-      return symbol.includes("BTC") || symbol.includes("ETH") || symbol.includes("USD");
+      return symbolIsCrypto;
     }
-    return !symbol.includes("BTC") && !symbol.includes("ETH");
+    return !symbolIsCrypto;
   }) || [];
 
   const layerPnl = layerPositions.reduce((sum, p) => sum + parseFloat(p.unrealizedPnl || "0"), 0);
@@ -1153,7 +1169,7 @@ function PositionsList() {
       </View>
       {positions.map((position, index) => {
         const pnl = parseFloat(position.unrealizedPnl || "0");
-        const isCrypto = position.symbol.includes("BTC") || position.symbol.includes("ETH");
+        const isCrypto = isCryptoSymbol(position.symbol);
         return (
           <View
             key={position.id}
