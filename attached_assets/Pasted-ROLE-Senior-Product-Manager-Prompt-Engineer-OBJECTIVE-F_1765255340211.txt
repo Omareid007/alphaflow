@@ -1,0 +1,97 @@
+ROLE: Senior Product Manager + Prompt Engineer
+
+OBJECTIVE
+Fix and complete Alpaca integration end-to-end (trading + market data), replace any hardcoded symbol lists with dynamic, tradable instruments, implement an order-validation middleware layer, and make the “AI Decisions” + “Equity Curve” features work with real data.
+
+CONTEXT
+The app currently appears to have incomplete Alpaca configuration and is using a static symbols array like:
+const stockSymbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"]
+
+This must be replaced with dynamic, real tradable assets from Alpaca. Also, some instruments are miscategorized (e.g., Bitcoin showing under Stocks). Several UI cards are blank (AI Decisions / Equity Curve) and must be implemented properly.
+
+PRIMARY TASKS (ALPACA)
+1) Alpaca API Configuration + Verification
+- Configure Alpaca API keys securely using Replit Secrets (server-side only; never expose keys in client code).
+- Support both PAPER and LIVE environments via env switch.
+- Implement an “Alpaca Health Check” endpoint that verifies:
+  - Account endpoint works
+  - Assets endpoint works
+  - Market data endpoint works
+  - Orders endpoint works (place + cancel a safe paper test order when PAPER mode is enabled)
+- Log and surface clear errors in UI when keys are missing/invalid.
+
+2) Use Alpaca Capabilities Broadly (not just basic orders)
+Implement core coverage for:
+- Account snapshot (cash, buying power, equity, status)
+- Positions (list, single position)
+- Orders (create, list, get-by-id, cancel)
+- Portfolio history (to power Equity Curve)
+- Market data (quotes/trades/bars/snapshots where appropriate)
+- WebSocket streaming for live updates (market data + order updates), if feasible in current stack
+
+3) Order Validation / Middleware Layer (REQUIRED)
+Add a middleware layer (server-side) that validates and normalizes every order BEFORE sending to Alpaca.
+It must:
+- Validate symbol exists and is tradable for the requested asset class
+- Validate order type (market/limit/stop/stop_limit), side, time_in_force, extended_hours flags
+- Enforce quantity/notional rules:
+  - If asset is not fractionable, quantity must be an integer (auto-round to nearest acceptable value and explain adjustment)
+  - Enforce min increments and precision (especially for crypto) and auto-round to nearest acceptable increment
+- Normalize prices to the nearest acceptable tick/precision
+- Return a “normalizedOrder” + “adjustments” array (human-readable) so UI can show what changed and why
+- Fail fast with actionable error messages when an order cannot be made valid
+
+4) Dynamic Instruments List (NO STATIC LISTS)
+Replace any static symbol arrays with a dynamic discovery approach:
+
+UI REQUIREMENTS
+- Under the search bar, add 3 tabs: Stocks | Crypto | ETFs
+- Each tab shows a scrollable list (25 items), with the container height sized so ~5 items are visible and the rest appear on scroll.
+- Searching should query and return valid tradable assets beyond the top 25.
+
+DATA REQUIREMENTS
+- “Top 25 Stocks” must be dynamic (not hardcoded). Use Alpaca market data/screener endpoints where possible.
+- “Top 25 Crypto” must be dynamic (not hardcoded). Use Alpaca crypto snapshots and rank using available liquidity/volume/price-change metrics.
+- “Top 25 ETFs” should be dynamic. If Alpaca does not provide a direct ETF classification flag, implement a pragmatic classifier using asset metadata (e.g., name contains “ETF”, “Trust”, etc.) plus a fallback allowlist that is fetched remotely (not hardcoded in UI).
+
+CORRECTNESS REQUIREMENTS
+- Remove the word “layer” from any card titles (e.g., “Stock Layer” → “Stocks”).
+- Ensure BTC/crypto never appears under Stocks and vice versa.
+
+5) AI Decisions Card (MUST WORK)
+Currently the “AI Decisions” card is blank. Implement it with real logic:
+- When user selects a symbol, fetch real market data (e.g., snapshot + recent bars).
+- Compute a small set of indicators (e.g., trend, volatility, RSI/MAs).
+- Call the AI decision engine (OpenAI or existing AI module) with a structured prompt and return:
+  - Action: BUY/SELL/HOLD
+  - Confidence score (0–100)
+  - Suggested order parameters (qty/notional, order type, limit/stop if relevant)
+  - Short rationale grounded in the fetched data + indicators
+- Render the result in the card with loading/error states.
+
+6) Equity Curve (MUST WORK)
+Currently the equity curve is blank. Implement it using Alpaca portfolio history:
+- Pull portfolio history for the account (paper/live)
+- Plot equity over time (simple line chart)
+- Support at least 1D, 1W, 1M, 3M time ranges
+- Ensure it works for both equities and crypto portfolios (continuous/intraday flags as needed)
+
+UAE MARKET RESEARCH + PLACEHOLDER INTEGRATION
+Research: find realistic options to integrate UAE markets (ADX + DFM). Provide:
+- A shortlist of data providers (real-time/delayed) and what they offer
+- A shortlist of execution/connectivity approaches (broker member connectivity, FIX gateways, registered trading system vendors)
+Implementation (MVP):
+- Add an “UAE Markets” section in admin/config with provider toggles (data-only first).
+- Do NOT implement real UAE trading unless a compliant execution path is confirmed.
+- If data can be added easily, add a read-only UAE watchlist (ADX/DFM) with delayed data as a placeholder.
+
+DELIVERABLES
+- Working Alpaca integration (paper at minimum), verified by health check
+- Middleware validation + rounding with visible adjustments
+- Dynamic Stocks/Crypto/ETFs lists + search
+- AI Decisions card producing real outputs
+- Equity curve chart using portfolio history
+- UAE integration research summary + admin toggles placeholder
+
+REFERENCE DOC
+https://docs.alpaca.markets/docs/getting-started

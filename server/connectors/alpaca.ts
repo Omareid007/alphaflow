@@ -385,6 +385,380 @@ class AlpacaConnector {
   clearCache(): void {
     this.cache.clear();
   }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    const result: HealthCheckResult = {
+      overall: "unhealthy",
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        account: { status: "unknown", latencyMs: 0 },
+        positions: { status: "unknown", latencyMs: 0 },
+        orders: { status: "unknown", latencyMs: 0 },
+        marketData: { status: "unknown", latencyMs: 0 },
+      },
+      account: null,
+    };
+
+    const credentials = this.getCredentials();
+    if (!credentials) {
+      result.endpoints.account.status = "error";
+      result.endpoints.account.error = "API credentials not configured";
+      return result;
+    }
+
+    const checkEndpoint = async (
+      name: keyof typeof result.endpoints,
+      fn: () => Promise<unknown>
+    ) => {
+      const start = Date.now();
+      try {
+        await fn();
+        result.endpoints[name].status = "healthy";
+        result.endpoints[name].latencyMs = Date.now() - start;
+      } catch (error) {
+        result.endpoints[name].status = "error";
+        result.endpoints[name].latencyMs = Date.now() - start;
+        result.endpoints[name].error = error instanceof Error ? error.message : "Unknown error";
+      }
+    };
+
+    await checkEndpoint("account", async () => {
+      const account = await this.getAccount();
+      result.account = {
+        id: account.id,
+        status: account.status,
+        currency: account.currency,
+        buyingPower: account.buying_power,
+        portfolioValue: account.portfolio_value,
+        cash: account.cash,
+        equity: account.equity,
+        tradingBlocked: account.trading_blocked,
+      };
+    });
+
+    await Promise.all([
+      checkEndpoint("positions", () => this.getPositions()),
+      checkEndpoint("orders", () => this.getOrders("open", 1)),
+      checkEndpoint("marketData", () => this.getSnapshots(["AAPL"])),
+    ]);
+
+    const healthyCount = Object.values(result.endpoints).filter(
+      (e) => e.status === "healthy"
+    ).length;
+    const total = Object.keys(result.endpoints).length;
+
+    if (healthyCount === total) {
+      result.overall = "healthy";
+    } else if (healthyCount > 0) {
+      result.overall = "degraded";
+    } else {
+      result.overall = "unhealthy";
+    }
+
+    return result;
+  }
+
+  async getPortfolioHistory(
+    period: string = "1M",
+    timeframe: string = "1D"
+  ): Promise<PortfolioHistory> {
+    const cacheKey = `portfolio_history_${period}_${timeframe}`;
+    const cached = this.getCached<PortfolioHistory>(cacheKey);
+    if (cached) return cached;
+
+    const url = `${ALPACA_PAPER_URL}/v2/account/portfolio/history?period=${period}&timeframe=${timeframe}`;
+    const data = await this.fetchWithRetry<PortfolioHistory>(url);
+    this.setCache(cacheKey, data);
+    return data;
+  }
+
+  async getTopStocks(limit: number = 25): Promise<TopAsset[]> {
+    const cacheKey = `top_stocks_${limit}`;
+    const cached = this.getCached<TopAsset[]>(cacheKey);
+    if (cached) return cached;
+
+    const assets = await this.getAssets("active", "us_equity");
+    const tradableAssets = assets
+      .filter((a) => a.tradable && a.fractionable)
+      .slice(0, 100);
+
+    const symbols = tradableAssets.slice(0, 50).map((a) => a.symbol);
+    let snapshots: { [symbol: string]: AlpacaSnapshot } = {};
+    
+    try {
+      snapshots = await this.getSnapshots(symbols);
+    } catch {
+      snapshots = {};
+    }
+
+    const result: TopAsset[] = tradableAssets
+      .map((asset) => {
+        const snapshot = snapshots[asset.symbol];
+        const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
+        const prevClose = snapshot?.prevDailyBar?.c ?? price;
+        const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+        const volume = snapshot?.dailyBar?.v ?? 0;
+        
+        return {
+          symbol: asset.symbol,
+          name: asset.name,
+          price,
+          change,
+          volume,
+          tradable: asset.tradable,
+          fractionable: asset.fractionable,
+          assetClass: "us_equity" as const,
+        };
+      })
+      .filter((a) => a.price > 0)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, limit);
+
+    this.setCache(cacheKey, result);
+    return result;
+  }
+
+  async getTopCrypto(limit: number = 25): Promise<TopAsset[]> {
+    const cacheKey = `top_crypto_${limit}`;
+    const cached = this.getCached<TopAsset[]>(cacheKey);
+    if (cached) return cached;
+
+    const assets = await this.getAssets("active", "crypto");
+    const tradableAssets = assets.filter((a) => a.tradable).slice(0, limit * 2);
+
+    const symbols = tradableAssets.map((a) => a.symbol);
+    
+    interface CryptoSnapshot {
+      dailyBar?: AlpacaBar;
+      prevDailyBar?: AlpacaBar;
+      latestTrade?: { p: number };
+    }
+    
+    let cryptoSnapshots: { snapshots: { [symbol: string]: CryptoSnapshot } } = { snapshots: {} };
+    
+    try {
+      const url = `${ALPACA_DATA_URL}/v1beta3/crypto/us/snapshots?symbols=${symbols.join(",")}`;
+      cryptoSnapshots = await this.fetchWithRetry<{ snapshots: { [symbol: string]: CryptoSnapshot } }>(url);
+    } catch {
+      cryptoSnapshots = { snapshots: {} };
+    }
+
+    const result: TopAsset[] = tradableAssets.map((asset) => {
+      const snapshot = cryptoSnapshots.snapshots?.[asset.symbol];
+      const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
+      const prevClose = snapshot?.prevDailyBar?.c ?? price;
+      const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+      const volume = snapshot?.dailyBar?.v ?? 0;
+
+      return {
+        symbol: asset.symbol,
+        name: asset.name,
+        price,
+        change,
+        volume,
+        tradable: asset.tradable,
+        fractionable: asset.fractionable,
+        assetClass: "crypto" as const,
+      };
+    })
+    .filter((a) => a.price > 0)
+    .sort((a, b) => b.volume - a.volume)
+    .slice(0, limit);
+
+    this.setCache(cacheKey, result);
+    return result;
+  }
+
+  async getTopETFs(limit: number = 25): Promise<TopAsset[]> {
+    const cacheKey = `top_etfs_${limit}`;
+    const cached = this.getCached<TopAsset[]>(cacheKey);
+    if (cached) return cached;
+
+    const popularETFs: { symbol: string; name: string }[] = [
+      { symbol: "SPY", name: "S&P 500 ETF" },
+      { symbol: "QQQ", name: "Nasdaq 100 ETF" },
+      { symbol: "IWM", name: "Russell 2000 ETF" },
+      { symbol: "DIA", name: "Dow Jones ETF" },
+      { symbol: "VTI", name: "Total Stock Market" },
+      { symbol: "VOO", name: "Vanguard S&P 500" },
+      { symbol: "VEA", name: "Developed Markets" },
+      { symbol: "VWO", name: "Emerging Markets" },
+      { symbol: "EFA", name: "EAFE Index ETF" },
+      { symbol: "EEM", name: "Emerging Mkts ETF" },
+      { symbol: "GLD", name: "Gold Trust" },
+      { symbol: "SLV", name: "Silver Trust" },
+      { symbol: "USO", name: "US Oil Fund" },
+      { symbol: "TLT", name: "20+ Year Treasury" },
+      { symbol: "IEF", name: "7-10 Year Treasury" },
+      { symbol: "LQD", name: "Investment Grade Corp" },
+      { symbol: "HYG", name: "High Yield Corporate" },
+      { symbol: "XLF", name: "Financial Sector" },
+      { symbol: "XLK", name: "Technology Sector" },
+      { symbol: "XLE", name: "Energy Sector" },
+      { symbol: "XLV", name: "Healthcare Sector" },
+      { symbol: "XLI", name: "Industrial Sector" },
+      { symbol: "XLY", name: "Consumer Discretionary" },
+      { symbol: "XLP", name: "Consumer Staples" },
+      { symbol: "XLU", name: "Utilities Sector" },
+    ];
+
+    const etfList = popularETFs.slice(0, limit);
+    const symbols = etfList.map((e) => e.symbol);
+    let snapshots: { [symbol: string]: AlpacaSnapshot } = {};
+
+    try {
+      snapshots = await this.getSnapshots(symbols);
+    } catch {
+      snapshots = {};
+    }
+
+    const result: TopAsset[] = etfList.map((etf) => {
+      const snapshot = snapshots[etf.symbol];
+      const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
+      const prevClose = snapshot?.prevDailyBar?.c ?? price;
+      const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+      const volume = snapshot?.dailyBar?.v ?? 0;
+
+      return {
+        symbol: etf.symbol,
+        name: etf.name,
+        price,
+        change,
+        volume,
+        tradable: true,
+        fractionable: true,
+        assetClass: "us_equity" as const,
+      };
+    })
+    .filter((a) => a.price > 0)
+    .sort((a, b) => b.volume - a.volume);
+
+    this.setCache(cacheKey, result);
+    return result;
+  }
+
+  validateOrder(params: CreateOrderParams): OrderValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const adjustments: { field: string; from: unknown; to: unknown; reason: string }[] = [];
+
+    if (!params.symbol || params.symbol.trim() === "") {
+      errors.push("Symbol is required");
+    }
+
+    if (!params.qty && !params.notional) {
+      errors.push("Either qty or notional is required");
+    }
+
+    if (params.qty && params.notional) {
+      warnings.push("Both qty and notional provided - qty takes precedence");
+    }
+
+    if (params.qty) {
+      const qty = parseFloat(params.qty);
+      if (isNaN(qty) || qty <= 0) {
+        errors.push("Quantity must be a positive number");
+      }
+    }
+
+    if (params.notional) {
+      const notional = parseFloat(params.notional);
+      if (isNaN(notional) || notional <= 0) {
+        errors.push("Notional value must be positive");
+      }
+      if (notional < 1) {
+        errors.push("Minimum order value is $1");
+      }
+    }
+
+    if (params.type === "limit" && !params.limit_price) {
+      errors.push("Limit price required for limit orders");
+    }
+
+    if (params.type === "stop" && !params.stop_price) {
+      errors.push("Stop price required for stop orders");
+    }
+
+    if (params.type === "stop_limit" && (!params.limit_price || !params.stop_price)) {
+      errors.push("Both limit and stop prices required for stop-limit orders");
+    }
+
+    const normalizedParams = { ...params };
+    normalizedParams.symbol = params.symbol?.toUpperCase().trim();
+
+    if (params.type === "market" && params.time_in_force === "gtc") {
+      adjustments.push({
+        field: "time_in_force",
+        from: "gtc",
+        to: "day",
+        reason: "Market orders cannot be GTC",
+      });
+      normalizedParams.time_in_force = "day";
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+      adjustments,
+      normalizedParams,
+    };
+  }
+}
+
+export interface HealthCheckResult {
+  overall: "healthy" | "degraded" | "unhealthy";
+  timestamp: string;
+  endpoints: {
+    account: EndpointStatus;
+    positions: EndpointStatus;
+    orders: EndpointStatus;
+    marketData: EndpointStatus;
+  };
+  account: {
+    id: string;
+    status: string;
+    currency: string;
+    buyingPower: string;
+    portfolioValue: string;
+    cash: string;
+    equity: string;
+    tradingBlocked: boolean;
+  } | null;
+}
+
+interface EndpointStatus {
+  status: "healthy" | "error" | "unknown";
+  latencyMs: number;
+  error?: string;
+}
+
+export interface PortfolioHistory {
+  timestamp: number[];
+  equity: number[];
+  profit_loss: number[];
+  profit_loss_pct: number[];
+  base_value: number;
+  timeframe: string;
+}
+
+export interface TopAsset {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  volume: number;
+  tradable: boolean;
+  fractionable: boolean;
+  assetClass: "us_equity" | "crypto";
+}
+
+export interface OrderValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  adjustments: { field: string; from: unknown; to: unknown; reason: string }[];
+  normalizedParams: CreateOrderParams;
 }
 
 export const alpaca = new AlpacaConnector();

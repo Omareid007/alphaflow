@@ -1043,6 +1043,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/alpaca/health", async (req, res) => {
+    try {
+      const health = await alpaca.healthCheck();
+      res.json(health);
+    } catch (error) {
+      console.error("Failed to check Alpaca health:", error);
+      res.status(500).json({ error: "Failed to check Alpaca health" });
+    }
+  });
+
+  app.get("/api/alpaca/portfolio-history", async (req, res) => {
+    try {
+      const period = (req.query.period as string) || "1M";
+      const timeframe = (req.query.timeframe as string) || "1D";
+      const history = await alpaca.getPortfolioHistory(period, timeframe);
+      res.json(history);
+    } catch (error) {
+      console.error("Failed to get portfolio history:", error);
+      res.status(500).json({ error: "Failed to get portfolio history" });
+    }
+  });
+
+  app.get("/api/alpaca/top-stocks", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 25;
+      const stocks = await alpaca.getTopStocks(limit);
+      res.json(stocks);
+    } catch (error) {
+      console.error("Failed to get top stocks:", error);
+      res.status(500).json({ error: "Failed to get top stocks" });
+    }
+  });
+
+  app.get("/api/alpaca/top-crypto", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 25;
+      const crypto = await alpaca.getTopCrypto(limit);
+      res.json(crypto);
+    } catch (error) {
+      console.error("Failed to get top crypto:", error);
+      res.status(500).json({ error: "Failed to get top crypto" });
+    }
+  });
+
+  app.get("/api/alpaca/top-etfs", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 25;
+      const etfs = await alpaca.getTopETFs(limit);
+      res.json(etfs);
+    } catch (error) {
+      console.error("Failed to get top ETFs:", error);
+      res.status(500).json({ error: "Failed to get top ETFs" });
+    }
+  });
+
+  app.post("/api/alpaca/validate-order", async (req, res) => {
+    try {
+      const validation = alpaca.validateOrder(req.body);
+      res.json(validation);
+    } catch (error) {
+      console.error("Failed to validate order:", error);
+      res.status(500).json({ error: "Failed to validate order" });
+    }
+  });
+
   app.get("/api/cmc/listings", async (req, res) => {
     try {
       const start = parseInt(req.query.start as string) || 1;

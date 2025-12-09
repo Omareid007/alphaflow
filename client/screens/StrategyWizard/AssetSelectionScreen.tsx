@@ -9,43 +9,31 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
-import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { useWizard } from "./index";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
-interface AlpacaAsset {
-  id: string;
+interface TopAsset {
   symbol: string;
   name: string;
-  exchange: string;
-  asset_class: string;
+  price: number;
+  change: number;
+  volume: number;
   tradable: boolean;
-}
-
-interface CryptoListing {
-  id: number;
-  name: string;
-  symbol: string;
-  quote: {
-    USD: {
-      price: number;
-      percent_change_24h: number;
-      market_cap: number;
-    };
-  };
+  fractionable: boolean;
+  assetClass: "us_equity" | "crypto";
 }
 
 interface Asset {
   symbol: string;
   name: string;
-  type: "crypto" | "stock";
+  type: "crypto" | "stock" | "etf";
   price?: number;
   change24h?: number;
+  volume?: number;
 }
 
-const popularCryptoSymbols = ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "LINK", "MATIC"];
-const popularStockSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "WMT"];
+type TabType = "all" | "stocks" | "crypto" | "etfs";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "AssetSelection">;
 
@@ -66,82 +54,88 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function AssetSelectionScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { data, updateData } = useWizard();
   const [selectedAssets, setSelectedAssets] = useState<string[]>(data.assets);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "crypto" | "stock">("all");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const { data: cryptoListings, isLoading: cryptoLoading } = useQuery<{ data: CryptoListing[] }>({
-    queryKey: ["/api/cmc/listings?limit=20"],
+  const { data: topStocks, isLoading: stocksLoading } = useQuery<TopAsset[]>({
+    queryKey: ["/api/alpaca/top-stocks?limit=25"],
   });
 
-  const { data: alpacaAssets, isLoading: stockLoading } = useQuery<AlpacaAsset[]>({
-    queryKey: ["/api/alpaca/assets"],
+  const { data: topCrypto, isLoading: cryptoLoading } = useQuery<TopAsset[]>({
+    queryKey: ["/api/alpaca/top-crypto?limit=25"],
   });
 
-  const { data: searchedStocks, isLoading: searchingStocks } = useQuery<AlpacaAsset[]>({
-    queryKey: [`/api/alpaca/assets/search?query=${debouncedSearch}`],
-    enabled: debouncedSearch.length >= 2,
+  const { data: topETFs, isLoading: etfsLoading } = useQuery<TopAsset[]>({
+    queryKey: ["/api/alpaca/top-etfs?limit=25"],
   });
-
-  const { data: searchedCrypto, isLoading: searchingCrypto } = useQuery<{ data: CryptoListing[] }>({
-    queryKey: [`/api/cmc/search?query=${debouncedSearch}`],
-    enabled: debouncedSearch.length >= 2,
-  });
-
-  const cryptoAssets = useMemo((): Asset[] => {
-    if (debouncedSearch.length >= 2 && searchedCrypto?.data) {
-      return searchedCrypto.data.slice(0, 15).map((c) => ({
-        symbol: `${c.symbol}/USD`,
-        name: c.name,
-        type: "crypto" as const,
-        price: c.quote?.USD?.price,
-        change24h: c.quote?.USD?.percent_change_24h,
-      }));
-    }
-    if (!cryptoListings?.data) return [];
-    return cryptoListings.data
-      .filter((c) => popularCryptoSymbols.includes(c.symbol) || cryptoListings.data.indexOf(c) < 15)
-      .slice(0, 15)
-      .map((c) => ({
-        symbol: `${c.symbol}/USD`,
-        name: c.name,
-        type: "crypto" as const,
-        price: c.quote?.USD?.price,
-        change24h: c.quote?.USD?.percent_change_24h,
-      }));
-  }, [cryptoListings, searchedCrypto, debouncedSearch]);
 
   const stockAssets = useMemo((): Asset[] => {
-    if (debouncedSearch.length >= 2 && searchedStocks) {
-      return searchedStocks.slice(0, 15).map((s) => ({
-        symbol: s.symbol,
-        name: s.name,
-        type: "stock" as const,
-      }));
-    }
-    if (!alpacaAssets) return [];
-    const popular = alpacaAssets.filter((a) => popularStockSymbols.includes(a.symbol));
-    const others = alpacaAssets
-      .filter((a) => !popularStockSymbols.includes(a.symbol) && a.tradable)
-      .slice(0, 15 - popular.length);
-    return [...popular, ...others].map((s) => ({
+    if (!topStocks) return [];
+    return topStocks.map((s) => ({
       symbol: s.symbol,
       name: s.name,
       type: "stock" as const,
+      price: s.price,
+      change24h: s.change,
+      volume: s.volume,
     }));
-  }, [alpacaAssets, searchedStocks, debouncedSearch]);
+  }, [topStocks]);
+
+  const cryptoAssets = useMemo((): Asset[] => {
+    if (!topCrypto) return [];
+    return topCrypto.map((c) => ({
+      symbol: c.symbol,
+      name: c.name,
+      type: "crypto" as const,
+      price: c.price,
+      change24h: c.change,
+      volume: c.volume,
+    }));
+  }, [topCrypto]);
+
+  const etfAssets = useMemo((): Asset[] => {
+    if (!topETFs) return [];
+    return topETFs.map((e) => ({
+      symbol: e.symbol,
+      name: e.name,
+      type: "etf" as const,
+      price: e.price,
+      change24h: e.change,
+      volume: e.volume,
+    }));
+  }, [topETFs]);
 
   const filteredAssets = useMemo(() => {
-    if (activeTab === "crypto") return cryptoAssets;
-    if (activeTab === "stock") return stockAssets;
-    return [...cryptoAssets, ...stockAssets];
-  }, [activeTab, cryptoAssets, stockAssets]);
+    let assets: Asset[] = [];
+    
+    if (activeTab === "stocks") {
+      assets = stockAssets;
+    } else if (activeTab === "crypto") {
+      assets = cryptoAssets;
+    } else if (activeTab === "etfs") {
+      assets = etfAssets;
+    } else {
+      assets = [...stockAssets, ...cryptoAssets, ...etfAssets];
+    }
+
+    if (debouncedSearch.length >= 2) {
+      const search = debouncedSearch.toLowerCase();
+      return assets.filter(
+        (a) =>
+          a.symbol.toLowerCase().includes(search) ||
+          a.name.toLowerCase().includes(search)
+      );
+    }
+
+    return assets;
+  }, [activeTab, stockAssets, cryptoAssets, etfAssets, debouncedSearch]);
 
   const toggleAsset = useCallback((symbol: string) => {
     setSelectedAssets((prev) =>
@@ -156,8 +150,14 @@ export default function AssetSelectionScreen() {
     navigation.navigate("TriggerConditions");
   };
 
-  const isLoading = cryptoLoading || stockLoading;
-  const isSearching = searchingStocks || searchingCrypto;
+  const isLoading = stocksLoading || cryptoLoading || etfsLoading;
+
+  const tabs: { key: TabType; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "stocks", label: "Stocks" },
+    { key: "crypto", label: "Crypto" },
+    { key: "etfs", label: "ETFs" },
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.backgroundRoot }}>
@@ -180,22 +180,22 @@ export default function AssetSelectionScreen() {
       </View>
 
       <View style={styles.tabContainer}>
-        {(["all", "crypto", "stock"] as const).map((tab) => (
+        {tabs.map((tab) => (
           <Pressable
-            key={tab}
+            key={tab.key}
             style={[
               styles.tab,
-              activeTab === tab ? { backgroundColor: BrandColors.primaryLight } : undefined,
+              activeTab === tab.key ? { backgroundColor: BrandColors.primaryLight } : undefined,
             ]}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => setActiveTab(tab.key)}
           >
             <ThemedText
               style={[
                 styles.tabText,
-                activeTab === tab ? styles.tabTextActive : { color: theme.textSecondary },
+                activeTab === tab.key ? styles.tabTextActive : { color: theme.textSecondary },
               ]}
             >
-              {tab === "all" ? "All" : tab === "crypto" ? "Crypto" : "Stocks"}
+              {tab.label}
             </ThemedText>
           </Pressable>
         ))}
@@ -212,21 +212,12 @@ export default function AssetSelectionScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={BrandColors.primaryLight} />
             <ThemedText style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Loading assets...
+              Loading assets from Alpaca...
             </ThemedText>
           </View>
         ) : (
           <>
-            {isSearching ? (
-              <View style={styles.searchingIndicator}>
-                <ActivityIndicator size="small" color={BrandColors.primaryLight} />
-                <ThemedText style={[styles.searchingText, { color: theme.textSecondary }]}>
-                  Searching...
-                </ThemedText>
-              </View>
-            ) : null}
-
-            {filteredAssets.length === 0 && !isSearching ? (
+            {filteredAssets.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Feather name="search" size={48} color={theme.textSecondary} />
                 <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
@@ -234,6 +225,34 @@ export default function AssetSelectionScreen() {
                     ? "No assets found for your search"
                     : "No assets available"}
                 </ThemedText>
+              </View>
+            ) : null}
+
+            {(activeTab === "all" || activeTab === "stocks") && stockAssets.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Feather name="bar-chart-2" size={18} color={BrandColors.stockLayer} />
+                  <ThemedText style={styles.sectionTitle}>Stocks</ThemedText>
+                  <ThemedText style={[styles.sectionCount, { color: theme.textSecondary }]}>
+                    ({stockAssets.length})
+                  </ThemedText>
+                </View>
+                <View style={styles.assetGrid}>
+                  {(activeTab === "all" ? stockAssets.slice(0, 10) : stockAssets)
+                    .filter((a) => {
+                      if (debouncedSearch.length < 2) return true;
+                      const search = debouncedSearch.toLowerCase();
+                      return a.symbol.toLowerCase().includes(search) || a.name.toLowerCase().includes(search);
+                    })
+                    .map((asset) => (
+                      <AssetCard
+                        key={asset.symbol}
+                        asset={asset}
+                        selected={selectedAssets.includes(asset.symbol)}
+                        onPress={() => toggleAsset(asset.symbol)}
+                      />
+                    ))}
+                </View>
               </View>
             ) : null}
 
@@ -247,36 +266,48 @@ export default function AssetSelectionScreen() {
                   </ThemedText>
                 </View>
                 <View style={styles.assetGrid}>
-                  {cryptoAssets.map((asset) => (
-                    <AssetCard
-                      key={asset.symbol}
-                      asset={asset}
-                      selected={selectedAssets.includes(asset.symbol)}
-                      onPress={() => toggleAsset(asset.symbol)}
-                    />
-                  ))}
+                  {(activeTab === "all" ? cryptoAssets.slice(0, 10) : cryptoAssets)
+                    .filter((a) => {
+                      if (debouncedSearch.length < 2) return true;
+                      const search = debouncedSearch.toLowerCase();
+                      return a.symbol.toLowerCase().includes(search) || a.name.toLowerCase().includes(search);
+                    })
+                    .map((asset) => (
+                      <AssetCard
+                        key={asset.symbol}
+                        asset={asset}
+                        selected={selectedAssets.includes(asset.symbol)}
+                        onPress={() => toggleAsset(asset.symbol)}
+                      />
+                    ))}
                 </View>
               </View>
             ) : null}
 
-            {(activeTab === "all" || activeTab === "stock") && stockAssets.length > 0 ? (
+            {(activeTab === "all" || activeTab === "etfs") && etfAssets.length > 0 ? (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Feather name="bar-chart-2" size={18} color={BrandColors.stockLayer} />
-                  <ThemedText style={styles.sectionTitle}>Stocks</ThemedText>
+                  <Feather name="layers" size={18} color={BrandColors.primaryLight} />
+                  <ThemedText style={styles.sectionTitle}>ETFs</ThemedText>
                   <ThemedText style={[styles.sectionCount, { color: theme.textSecondary }]}>
-                    ({stockAssets.length})
+                    ({etfAssets.length})
                   </ThemedText>
                 </View>
                 <View style={styles.assetGrid}>
-                  {stockAssets.map((asset) => (
-                    <AssetCard
-                      key={asset.symbol}
-                      asset={asset}
-                      selected={selectedAssets.includes(asset.symbol)}
-                      onPress={() => toggleAsset(asset.symbol)}
-                    />
-                  ))}
+                  {(activeTab === "all" ? etfAssets.slice(0, 10) : etfAssets)
+                    .filter((a) => {
+                      if (debouncedSearch.length < 2) return true;
+                      const search = debouncedSearch.toLowerCase();
+                      return a.symbol.toLowerCase().includes(search) || a.name.toLowerCase().includes(search);
+                    })
+                    .map((asset) => (
+                      <AssetCard
+                        key={asset.symbol}
+                        asset={asset}
+                        selected={selectedAssets.includes(asset.symbol)}
+                        onPress={() => toggleAsset(asset.symbol)}
+                      />
+                    ))}
                 </View>
               </View>
             ) : null}
@@ -318,7 +349,14 @@ function AssetCard({
   onPress: () => void;
 }) {
   const { theme } = useTheme();
-  const borderColor = asset.type === "crypto" ? BrandColors.cryptoLayer : BrandColors.stockLayer;
+  
+  const getBorderColor = () => {
+    if (asset.type === "crypto") return BrandColors.cryptoLayer;
+    if (asset.type === "etf") return BrandColors.primaryLight;
+    return BrandColors.stockLayer;
+  };
+  
+  const borderColor = getBorderColor();
 
   const formatPrice = (price?: number) => {
     if (!price) return null;
@@ -331,6 +369,14 @@ function AssetCard({
     if (change === undefined || change === null) return null;
     const prefix = change >= 0 ? "+" : "";
     return `${prefix}${change.toFixed(2)}%`;
+  };
+
+  const formatVolume = (volume?: number) => {
+    if (!volume) return null;
+    if (volume >= 1000000000) return `${(volume / 1000000000).toFixed(1)}B`;
+    if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
+    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
+    return volume.toString();
   };
 
   return (
@@ -347,31 +393,43 @@ function AssetCard({
     >
       <View style={styles.assetContent}>
         <View style={styles.assetMainInfo}>
-          <ThemedText style={styles.assetSymbol}>{asset.symbol}</ThemedText>
+          <View style={styles.symbolRow}>
+            <ThemedText style={styles.assetSymbol}>{asset.symbol}</ThemedText>
+            <View style={[styles.typeBadge, { backgroundColor: `${borderColor}20` }]}>
+              <ThemedText style={[styles.typeBadgeText, { color: borderColor }]}>
+                {asset.type.toUpperCase()}
+              </ThemedText>
+            </View>
+          </View>
           <ThemedText style={[styles.assetName, { color: theme.textSecondary }]} numberOfLines={1}>
             {asset.name}
           </ThemedText>
         </View>
-        {asset.price ? (
-          <View style={styles.assetPriceInfo}>
+        <View style={styles.assetPriceInfo}>
+          {asset.price ? (
             <ThemedText style={[styles.assetPrice, { fontFamily: Fonts?.mono }]}>
               {formatPrice(asset.price)}
             </ThemedText>
-            {asset.change24h !== undefined ? (
-              <ThemedText
-                style={[
-                  styles.assetChange,
-                  {
-                    color: asset.change24h >= 0 ? BrandColors.success : BrandColors.error,
-                    fontFamily: Fonts?.mono,
-                  },
-                ]}
-              >
-                {formatChange(asset.change24h)}
-              </ThemedText>
-            ) : null}
-          </View>
-        ) : null}
+          ) : null}
+          {asset.change24h !== undefined ? (
+            <ThemedText
+              style={[
+                styles.assetChange,
+                {
+                  color: asset.change24h >= 0 ? BrandColors.success : BrandColors.error,
+                  fontFamily: Fonts?.mono,
+                },
+              ]}
+            >
+              {formatChange(asset.change24h)}
+            </ThemedText>
+          ) : null}
+          {asset.volume ? (
+            <ThemedText style={[styles.assetVolume, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+              Vol: {formatVolume(asset.volume)}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
       <View
         style={[
@@ -442,16 +500,6 @@ const styles = StyleSheet.create({
   loadingText: {
     ...Typography.body,
   },
-  searchingIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-  },
-  searchingText: {
-    ...Typography.caption,
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -498,9 +546,24 @@ const styles = StyleSheet.create({
   assetMainInfo: {
     flex: 1,
   },
+  symbolRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: 2,
+  },
   assetSymbol: {
     ...Typography.h4,
-    marginBottom: 2,
+  },
+  typeBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   assetName: {
     ...Typography.caption,
@@ -514,6 +577,10 @@ const styles = StyleSheet.create({
   },
   assetChange: {
     ...Typography.small,
+  },
+  assetVolume: {
+    fontSize: 10,
+    marginTop: 2,
   },
   checkbox: {
     width: 24,
