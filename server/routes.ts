@@ -722,8 +722,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = await storage.getAgentStatus();
       
       const orchestratorState = orchestrator.getState();
-      const activePositions = Array.from(orchestratorState.activePositions.values());
-      const unrealizedPnl = activePositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0);
+      
+      let alpacaPositions: any[] = [];
+      let unrealizedPnl = 0;
+      try {
+        alpacaPositions = await alpaca.getPositions();
+        unrealizedPnl = alpacaPositions.reduce((sum, p) => sum + parseFloat(p.unrealized_pl || "0"), 0);
+      } catch (e) {
+        console.error("Failed to fetch Alpaca positions for analytics:", e);
+      }
 
       const winningTrades = trades.filter(t => parseFloat(t.pnl || "0") > 0);
       const totalPnl = trades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
@@ -735,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
         losingTrades: trades.length - winningTrades.length,
-        openPositions: activePositions.length,
+        openPositions: alpacaPositions.length,
         unrealizedPnl: unrealizedPnl.toFixed(2),
         isAgentRunning: orchestratorState.isRunning,
         dailyPnl: orchestratorState.dailyPnl.toFixed(2),

@@ -16,7 +16,7 @@ import { PriceChart } from "@/components/PriceChart";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
 import { AutonomousControlCard } from "@/components/AutonomousControlCard";
 import { apiRequest } from "@/lib/query-client";
-import type { AiDecision, Position } from "@shared/schema";
+import type { AiDecision } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 interface AnalyticsSummary {
@@ -45,6 +45,20 @@ interface CryptoMarketData {
   price_change_24h: number;
   price_change_percentage_24h: number;
   image: string;
+}
+
+interface AlpacaPosition {
+  symbol: string;
+  qty: string;
+  avg_entry_price: string;
+  current_price: string;
+  unrealized_pl: string;
+  side: string;
+  asset_class: string;
+  market_value: string;
+  cost_basis: string;
+  unrealized_plpc: string;
+  change_today: string;
 }
 
 function AgentStatusCard() {
@@ -1095,21 +1109,21 @@ function isCryptoSymbol(symbol: string): boolean {
 function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
   const { theme } = useTheme();
 
-  const { data: positions } = useQuery<Position[]>({
-    queryKey: ["/api/positions"],
+  const { data: positions } = useQuery<AlpacaPosition[]>({
+    queryKey: ["/api/alpaca/positions"],
     refetchInterval: 10000,
   });
 
   const layerPositions = positions?.filter(p => {
-    const isCrypto = layer === "Crypto";
-    const symbolIsCrypto = isCryptoSymbol(p.symbol);
-    if (isCrypto) {
+    const isCryptoLayer = layer === "Crypto";
+    const symbolIsCrypto = p.asset_class === "crypto" || isCryptoSymbol(p.symbol);
+    if (isCryptoLayer) {
       return symbolIsCrypto;
     }
     return !symbolIsCrypto;
   }) || [];
 
-  const layerPnl = layerPositions.reduce((sum, p) => sum + parseFloat(p.unrealizedPnl || "0"), 0);
+  const layerPnl = layerPositions.reduce((sum, p) => sum + parseFloat(p.unrealized_pl || "0"), 0);
 
   return (
     <Card elevation={1} style={styles.layerCard}>
@@ -1142,8 +1156,8 @@ function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
 function PositionsList() {
   const { theme } = useTheme();
 
-  const { data: positions, isLoading } = useQuery<Position[]>({
-    queryKey: ["/api/positions"],
+  const { data: positions, isLoading } = useQuery<AlpacaPosition[]>({
+    queryKey: ["/api/alpaca/positions"],
     refetchInterval: 10000,
   });
 
@@ -1178,11 +1192,11 @@ function PositionsList() {
         <ThemedText style={styles.cardTitle}>Open Positions ({positions.length})</ThemedText>
       </View>
       {positions.map((position, index) => {
-        const pnl = parseFloat(position.unrealizedPnl || "0");
-        const isCrypto = isCryptoSymbol(position.symbol);
+        const pnl = parseFloat(position.unrealized_pl || "0");
+        const isCrypto = position.asset_class === "crypto" || isCryptoSymbol(position.symbol);
         return (
           <View
-            key={position.id}
+            key={position.symbol}
             style={[
               styles.positionRow,
               index < positions.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
@@ -1197,7 +1211,7 @@ function PositionsList() {
                 </ThemedText>
               </View>
               <ThemedText style={[styles.positionDetails, { color: theme.textSecondary }]}>
-                {position.quantity} @ ${parseFloat(position.entryPrice).toFixed(2)}
+                {position.qty} @ ${parseFloat(position.avg_entry_price).toFixed(2)}
               </ThemedText>
             </View>
             <View style={styles.positionPnl}>
