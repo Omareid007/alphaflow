@@ -619,6 +619,10 @@ function AISuggestedTradesCard() {
             No trade suggestions yet
           </ThemedText>
         </View>
+        <Pressable style={styles.viewAllButton} onPress={handleViewAll}>
+          <ThemedText style={[styles.viewAllText, { color: BrandColors.aiLayer }]}>View All Suggestions</ThemedText>
+          <Feather name="chevron-right" size={16} color={BrandColors.aiLayer} />
+        </Pressable>
       </Card>
     );
   }
