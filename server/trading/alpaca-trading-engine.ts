@@ -3,6 +3,7 @@ import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams, 
 import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } from "../ai/decision-engine";
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
+import { eventBus, logger, type TradeExecutedEvent, type StrategySignalEvent, type PositionEvent } from "../orchestration";
 
 export interface AlpacaTradeRequest {
   symbol: string;
@@ -380,9 +381,23 @@ class AlpacaTradingEngine {
 
       await this.updateAgentStats();
 
+      const tradeEvent: TradeExecutedEvent = {
+        tradeId: trade.id,
+        orderId: order.id,
+        symbol: symbol.toUpperCase(),
+        side,
+        quantity,
+        price: filledPrice,
+        status: order.status,
+        strategyId,
+      };
+      eventBus.emit("trade:executed", tradeEvent, "alpaca-trading-engine");
+      logger.trade(`Executed ${side} ${quantity} ${symbol} @ $${filledPrice}`, { orderId: order.id, status: order.status });
+
       return { success: true, order, trade };
     } catch (error) {
       console.error("Alpaca trade execution error:", error);
+      eventBus.emit("trade:error", { message: (error as Error).message }, "alpaca-trading-engine");
       return { success: false, error: (error as Error).message };
     }
   }
@@ -443,9 +458,21 @@ class AlpacaTradingEngine {
 
       await this.updateAgentStats();
 
+      const positionEvent: PositionEvent = {
+        symbol: symbol.toUpperCase(),
+        quantity: 0,
+        entryPrice,
+        currentPrice: exitPrice,
+        unrealizedPnl: 0,
+        side: isShort ? "short" : "long",
+      };
+      eventBus.emit("position:closed", positionEvent, "alpaca-trading-engine");
+      logger.trade(`Closed ${position.side} position ${symbol}`, { pnl, exitPrice });
+
       return { success: true, order, trade };
     } catch (error) {
       console.error("Close Alpaca position error:", error);
+      eventBus.emit("trade:error", { message: (error as Error).message }, "alpaca-trading-engine");
       return { success: false, error: (error as Error).message };
     }
   }
@@ -704,6 +731,9 @@ class AlpacaTradingEngine {
       lastCheck: new Date(),
     });
 
+    eventBus.emit("strategy:started", { strategyId, strategyName: strategy.name }, "alpaca-trading-engine");
+    logger.strategy(strategy.name, "Started", { assets: strategy.assets });
+
     return { success: true };
   }
 
@@ -714,6 +744,7 @@ class AlpacaTradingEngine {
       this.strategyRunners.delete(strategyId);
     }
 
+    const strategy = await storage.getStrategy(strategyId);
     await storage.toggleStrategy(strategyId, false);
     this.strategyStates.set(strategyId, {
       strategyId,
@@ -726,6 +757,9 @@ class AlpacaTradingEngine {
     if (!anyActive) {
       await storage.updateAgentStatus({ isRunning: false });
     }
+
+    eventBus.emit("strategy:stopped", { strategyId, strategyName: strategy?.name || strategyId }, "alpaca-trading-engine");
+    logger.strategy(strategy?.name || strategyId, "Stopped");
 
     return { success: true };
   }

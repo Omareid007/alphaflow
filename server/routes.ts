@@ -21,6 +21,7 @@ import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { orchestrator } from "./autonomous/orchestrator";
+import { eventBus, logger, coordinator } from "./orchestration";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -1943,6 +1944,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to stop all strategies" });
     }
   });
+
+  app.get("/api/orchestration/status", async (req, res) => {
+    try {
+      const status = coordinator.getStatus();
+      const config = coordinator.getConfig();
+      res.json({ status, config });
+    } catch (error) {
+      console.error("Get orchestration status error:", error);
+      res.status(500).json({ error: "Failed to get orchestration status" });
+    }
+  });
+
+  app.post("/api/orchestration/start", async (req, res) => {
+    try {
+      await coordinator.start();
+      res.json({ success: true, message: "Coordinator started" });
+    } catch (error) {
+      console.error("Start coordinator error:", error);
+      res.status(500).json({ error: "Failed to start coordinator" });
+    }
+  });
+
+  app.post("/api/orchestration/stop", async (req, res) => {
+    try {
+      await coordinator.stop();
+      res.json({ success: true, message: "Coordinator stopped" });
+    } catch (error) {
+      console.error("Stop coordinator error:", error);
+      res.status(500).json({ error: "Failed to stop coordinator" });
+    }
+  });
+
+  app.put("/api/orchestration/config", async (req, res) => {
+    try {
+      const updates = req.body;
+      coordinator.updateConfig(updates);
+      res.json({ success: true, config: coordinator.getConfig() });
+    } catch (error) {
+      console.error("Update orchestration config error:", error);
+      res.status(500).json({ error: "Failed to update configuration" });
+    }
+  });
+
+  app.get("/api/orchestration/logs", async (req, res) => {
+    try {
+      const { level, category, limit } = req.query;
+      const logs = logger.getLogs({
+        level: level as "debug" | "info" | "warn" | "error" | "critical" | undefined,
+        category: category as string | undefined,
+        limit: limit ? parseInt(limit as string) : 100,
+      });
+      res.json({ logs, stats: logger.getStats() });
+    } catch (error) {
+      console.error("Get logs error:", error);
+      res.status(500).json({ error: "Failed to get logs" });
+    }
+  });
+
+  app.get("/api/orchestration/logs/errors", async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const errors = logger.getErrorLogs(limit ? parseInt(limit as string) : 50);
+      res.json({ errors });
+    } catch (error) {
+      console.error("Get error logs error:", error);
+      res.status(500).json({ error: "Failed to get error logs" });
+    }
+  });
+
+  app.get("/api/orchestration/events", async (req, res) => {
+    try {
+      const { type, source, limit } = req.query;
+      const events = eventBus.getEventHistory({
+        type: type as any,
+        source: source as string | undefined,
+        limit: limit ? parseInt(limit as string) : 50,
+      });
+      res.json({ events, stats: eventBus.getStats() });
+    } catch (error) {
+      console.error("Get events error:", error);
+      res.status(500).json({ error: "Failed to get events" });
+    }
+  });
+
+  app.post("/api/orchestration/reset-stats", async (req, res) => {
+    try {
+      coordinator.resetStats();
+      res.json({ success: true, message: "Statistics reset" });
+    } catch (error) {
+      console.error("Reset stats error:", error);
+      res.status(500).json({ error: "Failed to reset statistics" });
+    }
+  });
+
+  coordinator.start().catch(err => 
+    console.error("Failed to start trading coordinator:", err)
+  );
 
   const httpServer = createServer(app);
 
