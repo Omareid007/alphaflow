@@ -101,6 +101,24 @@ export interface AlpacaBarsResponse {
   next_page_token: string | null;
 }
 
+export interface AlpacaClock {
+  timestamp: string;
+  is_open: boolean;
+  next_open: string;
+  next_close: string;
+}
+
+export interface MarketStatus {
+  isOpen: boolean;
+  isPreMarket: boolean;
+  isAfterHours: boolean;
+  isExtendedHours: boolean;
+  currentTime: string;
+  nextOpen: string;
+  nextClose: string;
+  session: "pre-market" | "regular" | "after-hours" | "closed";
+}
+
 export interface AlpacaQuote {
   ap: number;
   as: number;
@@ -542,6 +560,65 @@ class AlpacaConnector {
 
   clearCache(): void {
     this.cache.clear();
+  }
+
+  async getClock(): Promise<AlpacaClock> {
+    const cacheKey = "clock";
+    const cached = this.getCached<AlpacaClock>(cacheKey);
+    if (cached) return cached;
+
+    const url = `${ALPACA_PAPER_URL}/v2/clock`;
+    const data = await this.fetchWithRetry<AlpacaClock>(url);
+    this.setCache(cacheKey, data);
+    return data;
+  }
+
+  async getMarketStatus(): Promise<MarketStatus> {
+    const clock = await this.getClock();
+    const now = new Date(clock.timestamp);
+    const nextOpen = new Date(clock.next_open);
+    const nextClose = new Date(clock.next_close);
+    
+    const etHour = parseInt(
+      now.toLocaleString("en-US", { timeZone: "America/New_York", hour: "2-digit", hour12: false })
+    );
+    const etMinute = parseInt(
+      now.toLocaleString("en-US", { timeZone: "America/New_York", minute: "2-digit" })
+    );
+    const etTime = etHour * 60 + etMinute;
+    
+    const preMarketStart = 4 * 60;
+    const marketOpen = 9 * 60 + 30;
+    const marketClose = 16 * 60;
+    const afterHoursEnd = 20 * 60;
+    
+    const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
+    const isPreMarket = isWeekday && etTime >= preMarketStart && etTime < marketOpen;
+    const isRegularHours = clock.is_open;
+    const isAfterHours = isWeekday && etTime >= marketClose && etTime < afterHoursEnd;
+    const isExtendedHours = isPreMarket || isAfterHours;
+    
+    let session: "pre-market" | "regular" | "after-hours" | "closed";
+    if (isRegularHours) {
+      session = "regular";
+    } else if (isPreMarket) {
+      session = "pre-market";
+    } else if (isAfterHours) {
+      session = "after-hours";
+    } else {
+      session = "closed";
+    }
+    
+    return {
+      isOpen: clock.is_open,
+      isPreMarket,
+      isAfterHours,
+      isExtendedHours,
+      currentTime: clock.timestamp,
+      nextOpen: clock.next_open,
+      nextClose: clock.next_close,
+      session,
+    };
   }
 
   async healthCheck(): Promise<HealthCheckResult> {

@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams, type BracketOrderParams } from "../connectors/alpaca";
+import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams, type BracketOrderParams, type MarketStatus } from "../connectors/alpaca";
 import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } from "../ai/decision-engine";
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
@@ -16,6 +16,7 @@ export interface AlpacaTradeRequest {
   takeProfitPrice?: number;
   useBracketOrder?: boolean;
   trailingStopPercent?: number;
+  extendedHours?: boolean;
 }
 
 export interface AlpacaTradeResult {
@@ -232,12 +233,38 @@ class AlpacaTradingEngine {
     return await alpaca.getPositions();
   }
 
+  async getMarketStatus(): Promise<MarketStatus> {
+    return await alpaca.getMarketStatus();
+  }
+
+  async getClock() {
+    return await alpaca.getClock();
+  }
+
+  async canTradeExtendedHours(symbol: string): Promise<{ allowed: boolean; reason?: string }> {
+    if (this.isCryptoSymbol(symbol)) {
+      return { allowed: false, reason: "Extended hours trading is not available for crypto" };
+    }
+    
+    const marketStatus = await this.getMarketStatus();
+    if (marketStatus.session === "regular") {
+      return { allowed: true };
+    }
+    
+    if (marketStatus.isExtendedHours) {
+      return { allowed: true };
+    }
+    
+    return { allowed: false, reason: "Market is closed and not in extended hours session (4AM-8PM ET on weekdays)" };
+  }
+
   async executeAlpacaTrade(request: AlpacaTradeRequest): Promise<AlpacaTradeResult> {
     try {
       const { 
         symbol, side, quantity, strategyId, notes, 
         orderType = "market", limitPrice,
-        stopLossPrice, takeProfitPrice, useBracketOrder, trailingStopPercent
+        stopLossPrice, takeProfitPrice, useBracketOrder, trailingStopPercent,
+        extendedHours = false
       } = request;
 
       if (quantity <= 0) {
@@ -253,11 +280,28 @@ class AlpacaTradingEngine {
       const isCrypto = this.isCryptoSymbol(symbol);
       let order: AlpacaOrder;
 
+      if (extendedHours && isCrypto) {
+        return { success: false, error: "Extended hours trading is not available for crypto" };
+      }
+
+      if (extendedHours && orderType !== "limit") {
+        return { success: false, error: "Extended hours trading requires limit orders only" };
+      }
+
+      if (extendedHours && !limitPrice) {
+        return { success: false, error: "Extended hours trading requires a limit price" };
+      }
+
+      if (extendedHours && !Number.isInteger(quantity)) {
+        return { success: false, error: "Extended hours trading requires whole share quantities (no fractional shares)" };
+      }
+
       const shouldUseBracketOrder = useBracketOrder && 
         side === "buy" && 
         stopLossPrice && 
         takeProfitPrice && 
-        !isCrypto;
+        !isCrypto &&
+        !extendedHours;
 
       if (shouldUseBracketOrder) {
         const bracketParams: BracketOrderParams = {
@@ -276,7 +320,7 @@ class AlpacaTradingEngine {
 
         console.log(`[Trading] Creating bracket order for ${symbol}: Entry=${limitPrice || 'market'}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}`);
         order = await alpaca.createBracketOrder(bracketParams);
-      } else if (trailingStopPercent && side === "sell" && !isCrypto) {
+      } else if (trailingStopPercent && side === "sell" && !isCrypto && !extendedHours) {
         console.log(`[Trading] Creating trailing stop order for ${symbol}: trail=${trailingStopPercent}%`);
         order = await alpaca.createTrailingStopOrder({
           symbol: alpacaSymbol,
@@ -285,6 +329,19 @@ class AlpacaTradingEngine {
           trail_percent: trailingStopPercent,
           time_in_force: "gtc",
         });
+      } else if (extendedHours) {
+        const orderParams: CreateOrderParams = {
+          symbol: alpacaSymbol,
+          qty: quantity.toString(),
+          side,
+          type: "limit",
+          time_in_force: "day",
+          limit_price: limitPrice!.toString(),
+          extended_hours: true,
+        };
+
+        console.log(`[Trading] Creating extended hours limit order for ${symbol}: ${side} ${quantity} @ $${limitPrice}`);
+        order = await alpaca.createOrder(orderParams);
       } else {
         const orderParams: CreateOrderParams = {
           symbol: alpacaSymbol,

@@ -1499,6 +1499,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/alpaca/clock", async (req, res) => {
+    try {
+      const clock = await alpacaTradingEngine.getClock();
+      res.json(clock);
+    } catch (error) {
+      console.error("Failed to get market clock:", error);
+      res.status(500).json({ error: "Failed to get market clock" });
+    }
+  });
+
+  app.get("/api/alpaca/market-status", async (req, res) => {
+    try {
+      const status = await alpacaTradingEngine.getMarketStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Failed to get market status:", error);
+      res.status(500).json({ error: "Failed to get market status" });
+    }
+  });
+
+  app.get("/api/alpaca/can-trade-extended/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const result = await alpacaTradingEngine.canTradeExtendedHours(symbol);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to check extended hours availability:", error);
+      res.status(500).json({ error: "Failed to check extended hours availability" });
+    }
+  });
+
   app.get("/api/alpaca/portfolio-history", async (req, res) => {
     try {
       const period = (req.query.period as string) || "1M";
