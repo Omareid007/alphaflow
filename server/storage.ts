@@ -266,6 +266,29 @@ export class DatabaseStorage implements IStorage {
     return decision;
   }
 
+  async updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined> {
+    const [decision] = await db
+      .update(aiDecisions)
+      .set(updates)
+      .where(eq(aiDecisions.id, id))
+      .returning();
+    return decision;
+  }
+
+  async getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined> {
+    const conditions = [eq(aiDecisions.symbol, symbol.toUpperCase())];
+    if (strategyId) {
+      conditions.push(eq(aiDecisions.strategyId, strategyId));
+    }
+    const [decision] = await db
+      .select()
+      .from(aiDecisions)
+      .where(and(...conditions))
+      .orderBy(desc(aiDecisions.createdAt))
+      .limit(1);
+    return decision;
+  }
+
   async getAgentStatus(): Promise<AgentStatus | undefined> {
     const [status] = await db.select().from(agentStatus).limit(1);
     return status;

@@ -1368,8 +1368,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/alpaca/snapshots", async (req, res) => {
     try {
       const symbols = (req.query.symbols as string)?.split(",") || ["AAPL"];
-      const snapshots = await alpaca.getSnapshots(symbols);
-      res.json(snapshots);
+      
+      const cryptoSymbols: string[] = [];
+      const stockSymbols: string[] = [];
+      
+      for (const symbol of symbols) {
+        if (symbol.includes("/") || ["BTCUSD", "ETHUSD", "SOLUSD"].includes(symbol.toUpperCase())) {
+          const normalizedCrypto = symbol.includes("/") ? symbol : 
+            symbol.toUpperCase() === "BTCUSD" ? "BTC/USD" :
+            symbol.toUpperCase() === "ETHUSD" ? "ETH/USD" :
+            symbol.toUpperCase() === "SOLUSD" ? "SOL/USD" : symbol;
+          cryptoSymbols.push(normalizedCrypto);
+        } else {
+          stockSymbols.push(symbol);
+        }
+      }
+      
+      let result: { [symbol: string]: unknown } = {};
+      
+      if (stockSymbols.length > 0) {
+        const stockSnapshots = await alpaca.getSnapshots(stockSymbols);
+        result = { ...result, ...stockSnapshots };
+      }
+      
+      if (cryptoSymbols.length > 0) {
+        const cryptoSnapshots = await alpaca.getCryptoSnapshots(cryptoSymbols);
+        result = { ...result, ...cryptoSnapshots };
+      }
+      
+      res.json(result);
     } catch (error) {
       console.error("Failed to get Alpaca snapshots:", error);
       res.status(500).json({ error: "Failed to get Alpaca snapshots" });
