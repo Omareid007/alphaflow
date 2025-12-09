@@ -16,7 +16,7 @@ import { PriceChart } from "@/components/PriceChart";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
 import { AutonomousControlCard } from "@/components/AutonomousControlCard";
 import { apiRequest } from "@/lib/query-client";
-import type { AgentStatus, Position, AiDecision } from "@shared/schema";
+import type { AiDecision } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 interface AnalyticsSummary {
@@ -28,6 +28,8 @@ interface AnalyticsSummary {
   openPositions: number;
   unrealizedPnl: string;
   isAgentRunning: boolean;
+  dailyPnl: string;
+  dailyTradeCount: number;
 }
 
 interface CryptoMarketData {
@@ -48,18 +50,14 @@ interface CryptoMarketData {
 function AgentStatusCard() {
   const { theme } = useTheme();
 
-  const { data: agentStatus, isLoading } = useQuery<AgentStatus>({
-    queryKey: ["/api/agent/status"],
+  const { data: analytics, isLoading } = useQuery<AnalyticsSummary>({
+    queryKey: ["/api/analytics/summary"],
     refetchInterval: 5000,
   });
 
-  const { data: analytics } = useQuery<AnalyticsSummary>({
-    queryKey: ["/api/analytics/summary"],
-    refetchInterval: 10000,
-  });
-
-  const isRunning = agentStatus?.isRunning ?? false;
+  const isRunning = analytics?.isAgentRunning ?? false;
   const totalPnl = parseFloat(analytics?.totalPnl || "0");
+  const dailyPnl = parseFloat(analytics?.dailyPnl || "0");
 
   if (isLoading) {
     return (
@@ -82,9 +80,21 @@ function AgentStatusCard() {
       </View>
       <View style={styles.agentStats}>
         <View style={styles.statItem}>
-          <ThemedText style={styles.statLabel}>Active Positions</ThemedText>
+          <ThemedText style={styles.statLabel}>Positions</ThemedText>
           <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>
             {analytics?.openPositions ?? 0}
+          </ThemedText>
+        </View>
+        <View style={styles.statItem}>
+          <ThemedText style={styles.statLabel}>Daily P/L</ThemedText>
+          <ThemedText style={[
+            styles.statValue, 
+            { 
+              fontFamily: Fonts?.mono, 
+              color: dailyPnl > 0 ? BrandColors.success : dailyPnl < 0 ? BrandColors.error : BrandColors.neutral 
+            }
+          ]}>
+            ${analytics?.dailyPnl ?? "0.00"}
           </ThemedText>
         </View>
         <View style={styles.statItem}>

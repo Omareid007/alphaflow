@@ -719,13 +719,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/analytics/summary", async (req, res) => {
     try {
       const trades = await storage.getTrades(1000);
-      const positions = await storage.getPositions();
       const status = await storage.getAgentStatus();
+      
+      const orchestratorState = orchestrator.getState();
+      const activePositions = Array.from(orchestratorState.activePositions.values());
+      const unrealizedPnl = activePositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0);
 
       const winningTrades = trades.filter(t => parseFloat(t.pnl || "0") > 0);
       const totalPnl = trades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
       const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
-      const unrealizedPnl = positions.reduce((sum, p) => sum + parseFloat(p.unrealizedPnl || "0"), 0);
 
       res.json({
         totalTrades: trades.length,
@@ -733,9 +735,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
         losingTrades: trades.length - winningTrades.length,
-        openPositions: positions.length,
+        openPositions: activePositions.length,
         unrealizedPnl: unrealizedPnl.toFixed(2),
-        isAgentRunning: status?.isRunning ?? false,
+        isAgentRunning: orchestratorState.isRunning,
+        dailyPnl: orchestratorState.dailyPnl.toFixed(2),
+        dailyTradeCount: orchestratorState.dailyTradeCount,
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get analytics summary" });
