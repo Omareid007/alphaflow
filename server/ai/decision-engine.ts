@@ -1,11 +1,10 @@
 import OpenAI from "openai";
 import pLimit from "p-limit";
 import pRetry from "p-retry";
+import { openRouterProvider } from "./openrouter-provider";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const MODEL = "gpt-5";
 
-// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -45,26 +44,28 @@ export interface AIDecision {
   stopLoss?: number;
 }
 
-function isRateLimitError(error: unknown): boolean {
+function isRateLimitOrQuotaError(error: unknown): boolean {
   const errorMsg = (error as { message?: string })?.message || String(error);
   return (
     errorMsg.includes("429") ||
+    errorMsg.includes("403") ||
     errorMsg.includes("RATELIMIT_EXCEEDED") ||
     errorMsg.toLowerCase().includes("quota") ||
-    errorMsg.toLowerCase().includes("rate limit")
+    errorMsg.toLowerCase().includes("rate limit") ||
+    errorMsg.toLowerCase().includes("spend limit") ||
+    errorMsg.toLowerCase().includes("exceeded")
   );
 }
 
 const limit = pLimit(2);
 
+let useOpenRouterFallback = false;
+let openAIFailureCount = 0;
+const MAX_OPENAI_FAILURES = 3;
+
 export class AIDecisionEngine {
-  async analyzeOpportunity(
-    symbol: string,
-    marketData: MarketData,
-    newsContext?: NewsContext,
-    strategy?: StrategyContext
-  ): Promise<AIDecision> {
-    const systemPrompt = `You are an expert trading analyst AI assistant for a paper trading application. Your role is to analyze market data and provide trading recommendations.
+  private getSystemPrompt(): string {
+    return `You are an expert trading analyst AI assistant for a paper trading application. Your role is to analyze market data and provide trading recommendations.
 
 You MUST respond with a valid JSON object containing these exact fields:
 - action: "buy", "sell", or "hold"
@@ -82,8 +83,20 @@ Consider:
 4. The strategy type and parameters if provided
 
 This is for PAPER TRADING only - educational purposes. Be decisive but conservative.`;
+  }
 
+  async analyzeOpportunity(
+    symbol: string,
+    marketData: MarketData,
+    newsContext?: NewsContext,
+    strategy?: StrategyContext
+  ): Promise<AIDecision> {
+    const systemPrompt = this.getSystemPrompt();
     const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
+
+    if (useOpenRouterFallback && openRouterProvider.isAvailable()) {
+      return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
+    }
 
     return limit(() =>
       pRetry(
@@ -104,10 +117,19 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
               throw new Error("Empty response from AI");
             }
 
+            openAIFailureCount = 0;
             const parsed = JSON.parse(content) as AIDecision;
             return this.validateDecision(parsed);
           } catch (error) {
-            if (isRateLimitError(error)) {
+            if (isRateLimitOrQuotaError(error)) {
+              openAIFailureCount++;
+              console.log(`[AI] OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}: ${(error as Error).message}`);
+              
+              if (openAIFailureCount >= MAX_OPENAI_FAILURES && openRouterProvider.isAvailable()) {
+                console.log("[AI] Switching to OpenRouter fallback");
+                useOpenRouterFallback = true;
+                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
+              }
               throw error;
             }
             const abortError = new Error((error as Error).message);
@@ -116,13 +138,37 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
           }
         },
         {
-          retries: 3,
+          retries: 2,
           minTimeout: 1000,
-          maxTimeout: 10000,
+          maxTimeout: 5000,
           factor: 2,
         }
       )
     );
+  }
+
+  private async analyzeWithOpenRouter(
+    systemPrompt: string,
+    userPrompt: string
+  ): Promise<AIDecision> {
+    try {
+      const { content, model } = await openRouterProvider.chat(systemPrompt, userPrompt);
+      console.log(`[AI] OpenRouter response from ${model}`);
+      const parsed = JSON.parse(content) as AIDecision;
+      return this.validateDecision(parsed);
+    } catch (error) {
+      console.error("[AI] OpenRouter failed:", (error as Error).message);
+      return this.getDefaultDecision("OpenRouter analysis failed");
+    }
+  }
+
+  private getDefaultDecision(reason: string): AIDecision {
+    return {
+      action: "hold",
+      confidence: 0.3,
+      reasoning: reason + ". Defaulting to hold for safety.",
+      riskLevel: "medium",
+    };
   }
 
   private buildUserPrompt(
@@ -231,12 +277,7 @@ Symbol: ${symbol}
         results.set(opp.symbol, decision);
       } catch (error) {
         console.error(`Failed to analyze ${opp.symbol}:`, error);
-        results.set(opp.symbol, {
-          action: "hold",
-          confidence: 0,
-          reasoning: "Analysis failed due to an error.",
-          riskLevel: "high",
-        });
+        results.set(opp.symbol, this.getDefaultDecision(`Analysis failed for ${opp.symbol}`));
       }
     });
 
@@ -244,12 +285,27 @@ Symbol: ${symbol}
     return results;
   }
 
-  getStatus(): { available: boolean; model: string; provider: string } {
+  getStatus(): { available: boolean; model: string; provider: string; usingFallback: boolean } {
+    const openAIAvailable = !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
+    const openRouterStatus = openRouterProvider.getStatus();
+    
     return {
-      available: !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY),
-      model: MODEL,
-      provider: "Replit AI Integrations (OpenAI)",
+      available: openAIAvailable || openRouterStatus.available,
+      model: useOpenRouterFallback ? (openRouterStatus.currentModel || "openrouter") : MODEL,
+      provider: useOpenRouterFallback ? "OpenRouter" : "Replit AI Integrations (OpenAI)",
+      usingFallback: useOpenRouterFallback,
     };
+  }
+
+  resetToOpenAI() {
+    useOpenRouterFallback = false;
+    openAIFailureCount = 0;
+    console.log("[AI] Reset to OpenAI primary");
+  }
+
+  forceOpenRouter() {
+    useOpenRouterFallback = true;
+    console.log("[AI] Forced OpenRouter mode");
   }
 }
 
