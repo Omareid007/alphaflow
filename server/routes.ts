@@ -401,6 +401,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/autonomous/open-orders", async (req, res) => {
+    try {
+      const orders = await alpacaTradingEngine.getOpenOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("Failed to get open orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/cancel-stale-orders", async (req, res) => {
+    try {
+      const { maxAgeMinutes } = req.body;
+      const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to cancel stale orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/cancel-all-orders", async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.cancelAllOpenOrders();
+      res.json({ success: result.cancelled > 0, ...result });
+    } catch (error) {
+      console.error("Failed to cancel all orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.get("/api/autonomous/reconcile-positions", async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.reconcilePositions();
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to reconcile positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/sync-positions", async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.syncPositionsFromAlpaca();
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to sync positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/close-all-positions", async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.closeAllPositions();
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to close all positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   app.get("/api/strategies", async (req, res) => {
     try {
       const strategies = await storage.getStrategies();

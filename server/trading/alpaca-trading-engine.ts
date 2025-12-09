@@ -365,16 +365,22 @@ class AlpacaTradingEngine {
       const quantity = parseFloat(position.qty);
       const entryPrice = parseFloat(position.avg_entry_price);
       const exitPrice = parseFloat(order.filled_avg_price || position.current_price);
-      const pnl = (exitPrice - entryPrice) * quantity;
+      const isShort = position.side === "short";
+      // For longs: profit when exit > entry; for shorts: profit when exit < entry
+      const pnl = isShort 
+        ? (entryPrice - exitPrice) * quantity 
+        : (exitPrice - entryPrice) * quantity;
+      // Closing a long = sell; closing a short = buy
+      const tradeSide = isShort ? "buy" : "sell";
 
       const trade = await storage.createTrade({
         symbol: symbol.toUpperCase(),
-        side: "sell",
+        side: tradeSide,
         quantity: quantity.toString(),
         price: exitPrice.toString(),
         strategyId: strategyId || null,
         status: "completed",
-        notes: `Closed Alpaca position. Order ID: ${order.id}`,
+        notes: `Closed Alpaca ${position.side} position. Order ID: ${order.id}`,
         pnl: pnl.toString(),
       });
 
@@ -858,6 +864,287 @@ class AlpacaTradingEngine {
       runningStrategies: this.strategyRunners.size,
       strategyStates: states,
     };
+  }
+
+  async cancelStaleOrders(maxAgeMinutes: number = 60): Promise<{
+    cancelled: string[];
+    errors: Array<{ orderId: string; error: string }>;
+  }> {
+    const cancelled: string[] = [];
+    const errors: Array<{ orderId: string; error: string }> = [];
+
+    try {
+      const openOrders = await alpaca.getOrders("open", 100);
+      const now = new Date();
+      const maxAgeMs = maxAgeMinutes * 60 * 1000;
+
+      for (const order of openOrders) {
+        const createdAt = new Date(order.created_at);
+        const ageMs = now.getTime() - createdAt.getTime();
+
+        if (ageMs > maxAgeMs && order.status !== "filled" && order.status !== "partially_filled") {
+          try {
+            await alpaca.cancelOrder(order.id);
+            cancelled.push(order.id);
+            console.log(`[Reconciliation] Cancelled stale order ${order.id} for ${order.symbol} (age: ${Math.round(ageMs / 60000)} minutes)`);
+          } catch (err) {
+            errors.push({ orderId: order.id, error: (err as Error).message });
+          }
+        }
+      }
+
+      console.log(`[Reconciliation] Cancelled ${cancelled.length} stale orders, ${errors.length} errors`);
+    } catch (err) {
+      console.error("[Reconciliation] Failed to cancel stale orders:", err);
+      throw err;
+    }
+
+    return { cancelled, errors };
+  }
+
+  async cancelAllOpenOrders(): Promise<{
+    cancelled: number;
+    ordersCancelledBefore: number;
+    remainingAfter: number;
+    error?: string;
+  }> {
+    try {
+      const ordersBefore = await alpaca.getOrders("open", 100);
+      const countBefore = ordersBefore.length;
+      
+      if (countBefore === 0) {
+        console.log("[Reconciliation] No open orders to cancel");
+        return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0 };
+      }
+      
+      await alpaca.cancelAllOrders();
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const ordersAfter = await alpaca.getOrders("open", 100);
+      const countAfter = ordersAfter.length;
+      const actualCancelled = countBefore - countAfter;
+      
+      console.log(`[Reconciliation] Cancelled ${actualCancelled} orders (before: ${countBefore}, remaining: ${countAfter})`);
+      return { 
+        cancelled: actualCancelled, 
+        ordersCancelledBefore: countBefore, 
+        remainingAfter: countAfter 
+      };
+    } catch (err) {
+      console.error("[Reconciliation] Failed to cancel all orders:", err);
+      return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0, error: (err as Error).message };
+    }
+  }
+
+  async reconcilePositions(): Promise<{
+    alpacaPositions: Array<{ symbol: string; qty: string; side: string; marketValue: string; unrealizedPnl: string }>;
+    dbPositions: Array<{ id: string; symbol: string; quantity: string }>;
+    discrepancies: Array<{ symbol: string; alpacaQty: string; dbQty: string; action: string }>;
+    synced: boolean;
+  }> {
+    const alpacaPositions = await alpaca.getPositions();
+    const dbPositions = await storage.getPositions();
+
+    const alpacaMap = new Map(
+      alpacaPositions.map(p => [p.symbol.toUpperCase(), p])
+    );
+    const dbMap = new Map(
+      dbPositions.map(p => [p.symbol.toUpperCase(), p])
+    );
+
+    const discrepancies: Array<{ symbol: string; alpacaQty: string; dbQty: string; action: string }> = [];
+
+    for (const [symbol, alpacaPos] of alpacaMap) {
+      const dbPos = dbMap.get(symbol);
+      if (!dbPos) {
+        discrepancies.push({
+          symbol,
+          alpacaQty: alpacaPos.qty,
+          dbQty: "0",
+          action: "create_in_db",
+        });
+      } else if (alpacaPos.qty !== dbPos.quantity) {
+        discrepancies.push({
+          symbol,
+          alpacaQty: alpacaPos.qty,
+          dbQty: dbPos.quantity,
+          action: "update_db_quantity",
+        });
+      }
+    }
+
+    for (const [symbol, dbPos] of dbMap) {
+      if (!alpacaMap.has(symbol)) {
+        discrepancies.push({
+          symbol,
+          alpacaQty: "0",
+          dbQty: dbPos.quantity,
+          action: "remove_from_db",
+        });
+      }
+    }
+
+    console.log(`[Reconciliation] Found ${discrepancies.length} discrepancies between Alpaca and DB`);
+
+    return {
+      alpacaPositions: alpacaPositions.map(p => ({
+        symbol: p.symbol,
+        qty: p.qty,
+        side: p.side,
+        marketValue: p.market_value,
+        unrealizedPnl: p.unrealized_pl,
+      })),
+      dbPositions: dbPositions.map(p => ({
+        id: p.id,
+        symbol: p.symbol,
+        quantity: p.quantity,
+      })),
+      discrepancies,
+      synced: discrepancies.length === 0,
+    };
+  }
+
+  async syncPositionsFromAlpaca(): Promise<{
+    created: string[];
+    updated: string[];
+    removed: string[];
+    errors: Array<{ symbol: string; error: string }>;
+  }> {
+    const created: string[] = [];
+    const updated: string[] = [];
+    const removed: string[] = [];
+    const errors: Array<{ symbol: string; error: string }> = [];
+
+    try {
+      const alpacaPositions = await alpaca.getPositions();
+      const dbPositions = await storage.getPositions();
+
+      const alpacaMap = new Map(
+        alpacaPositions.map(p => [p.symbol.toUpperCase(), p])
+      );
+      const dbMap = new Map(
+        dbPositions.map(p => [p.symbol.toUpperCase(), p])
+      );
+
+      for (const [symbol, alpacaPos] of alpacaMap) {
+        try {
+          const dbPos = dbMap.get(symbol);
+          if (!dbPos) {
+            await storage.createPosition({
+              symbol: alpacaPos.symbol,
+              quantity: alpacaPos.qty,
+              entryPrice: alpacaPos.avg_entry_price,
+              currentPrice: alpacaPos.current_price,
+              unrealizedPnl: alpacaPos.unrealized_pl,
+              strategyId: null,
+            });
+            created.push(symbol);
+            console.log(`[Sync] Created position for ${symbol}`);
+          } else {
+            await storage.updatePosition(dbPos.id, {
+              quantity: alpacaPos.qty,
+              currentPrice: alpacaPos.current_price,
+              unrealizedPnl: alpacaPos.unrealized_pl,
+            });
+            updated.push(symbol);
+          }
+        } catch (err) {
+          errors.push({ symbol, error: (err as Error).message });
+        }
+      }
+
+      for (const [symbol, dbPos] of dbMap) {
+        if (!alpacaMap.has(symbol)) {
+          try {
+            await storage.deletePosition(dbPos.id);
+            removed.push(symbol);
+            console.log(`[Sync] Removed stale position for ${symbol}`);
+          } catch (err) {
+            errors.push({ symbol, error: (err as Error).message });
+          }
+        }
+      }
+
+      console.log(`[Sync] Completed: ${created.length} created, ${updated.length} updated, ${removed.length} removed`);
+    } catch (err) {
+      console.error("[Sync] Failed to sync positions:", err);
+      throw err;
+    }
+
+    return { created, updated, removed, errors };
+  }
+
+  async closeAllPositions(): Promise<{
+    closed: Array<{ symbol: string; qty: string; pnl: string }>;
+    tradesCreated: number;
+    errors: Array<{ symbol: string; error: string }>;
+  }> {
+    const closed: Array<{ symbol: string; qty: string; pnl: string }> = [];
+    const errors: Array<{ symbol: string; error: string }> = [];
+    let tradesCreated = 0;
+
+    try {
+      const positions = await alpaca.getPositions();
+      
+      for (const position of positions) {
+        try {
+          const qty = parseFloat(position.qty);
+          const entryPrice = parseFloat(position.avg_entry_price);
+          const currentPrice = parseFloat(position.current_price);
+          const isShort = position.side === "short";
+          
+          const order = await alpaca.closePosition(position.symbol);
+          
+          const exitPrice = order.filled_avg_price 
+            ? parseFloat(order.filled_avg_price) 
+            : currentPrice;
+          // For longs: profit when exit > entry; for shorts: profit when exit < entry
+          const realizedPnl = isShort 
+            ? (entryPrice - exitPrice) * qty 
+            : (exitPrice - entryPrice) * qty;
+          // Closing a long = sell; closing a short = buy
+          const tradeSide = isShort ? "buy" : "sell";
+          
+          await storage.createTrade({
+            symbol: position.symbol,
+            side: tradeSide,
+            quantity: position.qty,
+            price: exitPrice.toString(),
+            strategyId: null,
+            status: "completed",
+            notes: `Closed all positions (${position.side}). Order ID: ${order.id}. Entry: $${entryPrice.toFixed(2)}, Exit: $${exitPrice.toFixed(2)}`,
+            pnl: realizedPnl.toString(),
+          });
+          tradesCreated++;
+          
+          closed.push({ 
+            symbol: position.symbol, 
+            qty: position.qty, 
+            pnl: realizedPnl.toFixed(2) 
+          });
+          console.log(`[Reconciliation] Closed ${position.side} position for ${position.symbol}: qty=${qty}, PnL=$${realizedPnl.toFixed(2)}`);
+        } catch (err) {
+          errors.push({ symbol: position.symbol, error: (err as Error).message });
+        }
+      }
+
+      await this.syncPositionsFromAlpaca();
+      await this.updateAgentStats();
+      console.log(`[Reconciliation] Closed ${closed.length} positions, created ${tradesCreated} trades, ${errors.length} errors`);
+    } catch (err) {
+      console.error("[Reconciliation] Failed to close all positions:", err);
+      throw err;
+    }
+
+    return { closed, tradesCreated, errors };
+  }
+
+  async getOpenOrders(): Promise<AlpacaOrder[]> {
+    return await alpaca.getOrders("open", 100);
+  }
+
+  async getOrderDetails(orderId: string): Promise<AlpacaOrder> {
+    return await alpaca.getOrder(orderId);
   }
 }
 
