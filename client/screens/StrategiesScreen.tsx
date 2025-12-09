@@ -327,6 +327,7 @@ export default function StrategiesScreen() {
         style={[styles.fab, { top: headerHeight + Spacing.lg, right: Spacing.lg, backgroundColor: theme.link }]}
         accessibilityLabel="Create new strategy"
         accessibilityRole="button"
+        testID="create-strategy-fab"
       >
         <Feather name="plus" size={20} color="#FFFFFF" />
       </Pressable>

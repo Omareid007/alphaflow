@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Modal, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 
@@ -33,6 +33,11 @@ export default function ConfirmationScreen() {
         controlLimits: data.controlLimits,
         executionMode: data.executionMode,
         triggerConditions: data.triggerConditions,
+        backtestResults: data.backtestResults,
+        aiValidation: data.aiValidation,
+        riskAcknowledged: data.riskAcknowledged,
+        strategyUnderstandingConfirmed: data.strategyUnderstandingConfirmed,
+        marketSuitabilityConfirmed: data.marketSuitabilityConfirmed,
       };
       
       const strategyData = {
@@ -55,7 +60,12 @@ export default function ConfirmationScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/strategies"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
       resetWizard();
-      navigation.getParent()?.goBack();
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Main" }],
+        })
+      );
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to create strategy");

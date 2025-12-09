@@ -302,10 +302,10 @@ export default function BacktestScreen() {
       >
         <Button
           onPress={handleContinue}
-          disabled={!results.hasRun}
+          disabled={isRunning}
           style={styles.continueButton}
         >
-          Continue
+          {results.hasRun ? "Continue" : "Skip Backtest"}
         </Button>
       </View>
     </View>
