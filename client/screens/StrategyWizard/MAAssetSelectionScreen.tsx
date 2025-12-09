@@ -16,6 +16,9 @@ import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigat
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "MAAssetSelection">;
 
 const SUPPORTED_SYMBOLS = [
+  { symbol: "BTC/USD", name: "Bitcoin", description: "24/7 crypto trading" },
+  { symbol: "ETH/USD", name: "Ethereum", description: "24/7 crypto trading" },
+  { symbol: "SOL/USD", name: "Solana", description: "24/7 crypto trading" },
   { symbol: "SPY", name: "S&P 500 ETF", description: "Broad US market exposure" },
   { symbol: "QQQ", name: "Nasdaq 100 ETF", description: "Tech-heavy index" },
   { symbol: "AAPL", name: "Apple Inc.", description: "Consumer technology" },
