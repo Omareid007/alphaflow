@@ -321,6 +321,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/autonomous/close-position", async (req, res) => {
+    try {
+      const { symbol } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+      
+      if (result.success) {
+        res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
+      } else {
+        res.status(400).json({ success: false, error: result.error || "Failed to close position" });
+      }
+    } catch (error) {
+      console.error("Failed to close position:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/execute-trades", async (req, res) => {
+    try {
+      const { decisionIds } = req.body;
+      if (!decisionIds || !Array.isArray(decisionIds) || decisionIds.length === 0) {
+        return res.status(400).json({ error: "Decision IDs array is required" });
+      }
+      
+      const results: Array<{ decisionId: string; success: boolean; error?: string; order?: unknown }> = [];
+      
+      for (const decisionId of decisionIds) {
+        const decisions = await storage.getAiDecisions(100);
+        const decision = decisions.find(d => d.id === decisionId);
+        if (!decision) {
+          results.push({ decisionId, success: false, error: "Decision not found" });
+          continue;
+        }
+        
+        try {
+          const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
+            symbol: decision.symbol,
+            side: decision.action as "buy" | "sell",
+            quantity: 1,
+          });
+          
+          if (orderResult.success) {
+            results.push({ decisionId, success: true, order: orderResult.order });
+          } else {
+            results.push({ decisionId, success: false, error: orderResult.error });
+          }
+        } catch (err) {
+          results.push({ decisionId, success: false, error: String(err) });
+        }
+      }
+      
+      const successCount = results.filter(r => r.success).length;
+      res.json({ 
+        success: successCount > 0, 
+        message: `Executed ${successCount}/${decisionIds.length} trades`,
+        results 
+      });
+    } catch (error) {
+      console.error("Failed to execute trades:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   app.get("/api/strategies", async (req, res) => {
     try {
       const strategies = await storage.getStrategies();

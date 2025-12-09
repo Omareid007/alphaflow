@@ -9,6 +9,7 @@ import { BrandColors, BorderRadius, Spacing, Typography } from "@/constants/them
 import DashboardStackNavigator from "@/navigation/DashboardStackNavigator";
 import AnalyticsStackNavigator from "@/navigation/AnalyticsStackNavigator";
 import StrategiesStackNavigator from "@/navigation/StrategiesStackNavigator";
+import AutoStackNavigator from "@/navigation/AutoStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
@@ -19,6 +20,7 @@ export type MainTabParamList = {
   DashboardTab: undefined;
   AnalyticsTab: undefined;
   StrategiesTab: undefined;
+  AutoTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -80,6 +82,16 @@ function MainTabContent() {
           title: "Strategies",
           tabBarIcon: ({ color, size }) => (
             <Feather name="layers" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AutoTab"
+        component={AutoStackNavigator}
+        options={{
+          title: "Auto",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="cpu" size={size} color={color} />
           ),
         }}
       />
