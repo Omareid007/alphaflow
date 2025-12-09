@@ -20,6 +20,7 @@ import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyConte
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
+import { orchestrator } from "./autonomous/orchestrator";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -211,6 +212,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to toggle agent:", error);
       res.status(500).json({ error: "Failed to toggle agent" });
+    }
+  });
+
+  app.get("/api/autonomous/state", async (req, res) => {
+    try {
+      const state = orchestrator.getState();
+      const riskLimits = orchestrator.getRiskLimits();
+      res.json({
+        ...state,
+        riskLimits,
+        activePositions: Array.from(state.activePositions.entries()).map(([key, pos]) => ({
+          ...pos,
+          symbol: key,
+        })),
+        pendingSignals: Array.from(state.pendingSignals.entries()).map(([symbol, signal]) => ({
+          symbol,
+          ...signal,
+        })),
+      });
+    } catch (error) {
+      console.error("Failed to get autonomous state:", error);
+      res.status(500).json({ error: "Failed to get autonomous state" });
+    }
+  });
+
+  app.post("/api/autonomous/start", async (req, res) => {
+    try {
+      await orchestrator.start();
+      const state = orchestrator.getState();
+      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
+    } catch (error) {
+      console.error("Failed to start autonomous mode:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/autonomous/stop", async (req, res) => {
+    try {
+      await orchestrator.stop();
+      const state = orchestrator.getState();
+      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
+    } catch (error) {
+      console.error("Failed to stop autonomous mode:", error);
+      res.status(500).json({ error: "Failed to stop autonomous mode" });
+    }
+  });
+
+  app.post("/api/autonomous/kill-switch", async (req, res) => {
+    try {
+      const { activate, reason } = req.body;
+      if (activate) {
+        await orchestrator.activateKillSwitch(reason || "Manual activation");
+      } else {
+        await orchestrator.deactivateKillSwitch();
+      }
+      const state = orchestrator.getState();
+      res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
+    } catch (error) {
+      console.error("Failed to toggle kill switch:", error);
+      res.status(500).json({ error: "Failed to toggle kill switch" });
+    }
+  });
+
+  app.put("/api/autonomous/risk-limits", async (req, res) => {
+    try {
+      const {
+        maxPositionSizePercent,
+        maxTotalExposurePercent,
+        maxPositionsCount,
+        dailyLossLimitPercent,
+      } = req.body;
+
+      await orchestrator.updateRiskLimits({
+        maxPositionSizePercent,
+        maxTotalExposurePercent,
+        maxPositionsCount,
+        dailyLossLimitPercent,
+      });
+
+      res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
+    } catch (error) {
+      console.error("Failed to update risk limits:", error);
+      res.status(500).json({ error: "Failed to update risk limits" });
+    }
+  });
+
+  app.post("/api/autonomous/mode", async (req, res) => {
+    try {
+      const { mode } = req.body;
+      if (!["autonomous", "semi-auto", "manual"].includes(mode)) {
+        return res.status(400).json({ error: "Invalid mode. Use: autonomous, semi-auto, or manual" });
+      }
+      await orchestrator.setMode(mode);
+      res.json({ success: true, mode: orchestrator.getMode() });
+    } catch (error) {
+      console.error("Failed to set mode:", error);
+      res.status(500).json({ error: "Failed to set mode" });
+    }
+  });
+
+  app.get("/api/autonomous/execution-history", async (req, res) => {
+    try {
+      const state = orchestrator.getState();
+      res.json(state.executionHistory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get execution history" });
     }
   });
 
