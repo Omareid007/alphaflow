@@ -21,6 +21,54 @@ export interface AlpacaTradeRequest {
   extendedHours?: boolean;
 }
 
+export interface TargetAllocation {
+  symbol: string;
+  targetPercent: number;
+}
+
+export interface CurrentAllocation {
+  symbol: string;
+  currentPercent: number;
+  currentValue: number;
+  quantity: number;
+  price: number;
+}
+
+export interface RebalanceTrade {
+  symbol: string;
+  side: "buy" | "sell";
+  quantity: number;
+  estimatedValue: number;
+  currentPercent: number;
+  targetPercent: number;
+  reason: string;
+}
+
+export interface RebalancePreview {
+  currentAllocations: CurrentAllocation[];
+  targetAllocations: TargetAllocation[];
+  proposedTrades: RebalanceTrade[];
+  portfolioValue: number;
+  cashAvailable: number;
+  cashAfterRebalance: number;
+  estimatedTradingCost: number;
+}
+
+export interface RebalanceResult {
+  success: boolean;
+  tradesExecuted: Array<{
+    symbol: string;
+    side: string;
+    quantity: number;
+    status: string;
+    orderId?: string;
+    error?: string;
+  }>;
+  errors: string[];
+  portfolioValueBefore: number;
+  portfolioValueAfter: number;
+}
+
 export interface AlpacaTradeResult {
   success: boolean;
   order?: AlpacaOrder;
@@ -1232,6 +1280,360 @@ class AlpacaTradingEngine {
 
   async getOrderDetails(orderId: string): Promise<AlpacaOrder> {
     return await alpaca.getOrder(orderId);
+  }
+
+  async getCurrentAllocations(): Promise<{
+    allocations: CurrentAllocation[];
+    portfolioValue: number;
+    cashBalance: number;
+  }> {
+    const account = await alpaca.getAccount();
+    const positions = await alpaca.getPositions();
+    
+    const cashBalance = safeParseFloat(account.cash);
+    let positionsValue = 0;
+    
+    const allocations: CurrentAllocation[] = [];
+    
+    for (const position of positions) {
+      const marketValue = safeParseFloat(position.market_value);
+      const quantity = safeParseFloat(position.qty);
+      const price = safeParseFloat(position.current_price);
+      
+      positionsValue += marketValue;
+      
+      allocations.push({
+        symbol: position.symbol.toUpperCase(),
+        currentPercent: 0,
+        currentValue: marketValue,
+        quantity,
+        price,
+      });
+    }
+    
+    const portfolioValue = cashBalance + positionsValue;
+    
+    for (const allocation of allocations) {
+      allocation.currentPercent = portfolioValue > 0 
+        ? (allocation.currentValue / portfolioValue) * 100 
+        : 0;
+    }
+    
+    allocations.push({
+      symbol: "CASH",
+      currentPercent: portfolioValue > 0 ? (cashBalance / portfolioValue) * 100 : 100,
+      currentValue: cashBalance,
+      quantity: cashBalance,
+      price: 1,
+    });
+    
+    return { allocations, portfolioValue, cashBalance };
+  }
+
+  async previewRebalance(targetAllocations: TargetAllocation[]): Promise<RebalancePreview> {
+    const { allocations: currentAllocations, portfolioValue, cashBalance } = 
+      await this.getCurrentAllocations();
+    
+    const totalTargetPercent = targetAllocations.reduce((sum, t) => sum + t.targetPercent, 0);
+    if (totalTargetPercent > 100) {
+      throw new Error(`Target allocations sum to ${totalTargetPercent}%, must be <= 100%`);
+    }
+    
+    const proposedTrades: RebalanceTrade[] = [];
+    let estimatedCashChange = 0;
+    
+    const currentMap = new Map(
+      currentAllocations
+        .filter(a => a.symbol !== "CASH")
+        .map(a => [a.symbol, a])
+    );
+    
+    for (const target of targetAllocations) {
+      if (target.symbol === "CASH") continue;
+      
+      const symbol = target.symbol.toUpperCase();
+      const targetValue = (target.targetPercent / 100) * portfolioValue;
+      const current = currentMap.get(symbol);
+      const currentValue = current?.currentValue || 0;
+      const currentPercent = current?.currentPercent || 0;
+      const currentPrice = current?.price || 0;
+      
+      const valueDiff = targetValue - currentValue;
+      
+      if (Math.abs(valueDiff) < 10) continue;
+      
+      if (valueDiff > 0 && currentPrice > 0) {
+        const buyQuantity = Math.floor(valueDiff / currentPrice);
+        if (buyQuantity >= 1) {
+          proposedTrades.push({
+            symbol,
+            side: "buy",
+            quantity: buyQuantity,
+            estimatedValue: buyQuantity * currentPrice,
+            currentPercent,
+            targetPercent: target.targetPercent,
+            reason: `Increase allocation from ${currentPercent.toFixed(1)}% to ${target.targetPercent}%`,
+          });
+          estimatedCashChange -= buyQuantity * currentPrice;
+        }
+      } else if (valueDiff < 0 && currentPrice > 0 && current) {
+        const sellQuantity = Math.min(
+          Math.floor(Math.abs(valueDiff) / currentPrice),
+          current.quantity
+        );
+        if (sellQuantity >= 1) {
+          proposedTrades.push({
+            symbol,
+            side: "sell",
+            quantity: sellQuantity,
+            estimatedValue: sellQuantity * currentPrice,
+            currentPercent,
+            targetPercent: target.targetPercent,
+            reason: `Decrease allocation from ${currentPercent.toFixed(1)}% to ${target.targetPercent}%`,
+          });
+          estimatedCashChange += sellQuantity * currentPrice;
+        }
+      }
+    }
+    
+    for (const [symbol, current] of currentMap) {
+      const hasTarget = targetAllocations.some(
+        t => t.symbol.toUpperCase() === symbol
+      );
+      if (!hasTarget && current.quantity > 0) {
+        proposedTrades.push({
+          symbol,
+          side: "sell",
+          quantity: current.quantity,
+          estimatedValue: current.currentValue,
+          currentPercent: current.currentPercent,
+          targetPercent: 0,
+          reason: `Close position - not in target allocation`,
+        });
+        estimatedCashChange += current.currentValue;
+      }
+    }
+    
+    proposedTrades.sort((a, b) => {
+      if (a.side === "sell" && b.side === "buy") return -1;
+      if (a.side === "buy" && b.side === "sell") return 1;
+      return b.estimatedValue - a.estimatedValue;
+    });
+    
+    const estimatedTradingCost = proposedTrades.length * 0.01;
+    
+    return {
+      currentAllocations,
+      targetAllocations,
+      proposedTrades,
+      portfolioValue,
+      cashAvailable: cashBalance,
+      cashAfterRebalance: cashBalance + estimatedCashChange,
+      estimatedTradingCost,
+    };
+  }
+
+  async executeRebalance(
+    targetAllocations: TargetAllocation[],
+    dryRun: boolean = false
+  ): Promise<RebalanceResult> {
+    const preview = await this.previewRebalance(targetAllocations);
+    const portfolioValueBefore = safeParseFloat(preview.portfolioValue);
+    
+    if (dryRun) {
+      return {
+        success: true,
+        tradesExecuted: preview.proposedTrades.map(t => ({
+          symbol: t.symbol,
+          side: t.side,
+          quantity: Math.floor(safeParseFloat(t.quantity)),
+          status: "dry_run",
+        })),
+        errors: [],
+        portfolioValueBefore,
+        portfolioValueAfter: portfolioValueBefore,
+      };
+    }
+    
+    const tradesExecuted: RebalanceResult["tradesExecuted"] = [];
+    const errors: string[] = [];
+    
+    const sellTrades = preview.proposedTrades.filter(t => t.side === "sell");
+    
+    for (const trade of sellTrades) {
+      try {
+        const quantity = Math.floor(safeParseFloat(trade.quantity));
+        if (quantity < 1) continue;
+        
+        const result = await this.executeAlpacaTrade({
+          symbol: trade.symbol,
+          side: "sell",
+          quantity,
+          notes: `Rebalance: ${trade.reason}`,
+        });
+        
+        tradesExecuted.push({
+          symbol: trade.symbol,
+          side: "sell",
+          quantity,
+          status: result.success ? "executed" : "failed",
+          orderId: result.order?.id,
+          error: result.error,
+        });
+        
+        if (!result.success) {
+          errors.push(`${trade.symbol} sell failed: ${result.error}`);
+        }
+      } catch (err) {
+        const errorMsg = (err as Error).message;
+        errors.push(`${trade.symbol} sell error: ${errorMsg}`);
+        tradesExecuted.push({
+          symbol: trade.symbol,
+          side: "sell",
+          quantity: Math.floor(safeParseFloat(trade.quantity)),
+          status: "error",
+          error: errorMsg,
+        });
+      }
+    }
+    
+    if (sellTrades.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    const { allocations: refreshedAllocations, portfolioValue: refreshedPortfolioValue, cashBalance: availableCash } = 
+      await this.getCurrentAllocations();
+    
+    const refreshedPositionMap = new Map(
+      refreshedAllocations
+        .filter(a => a.symbol !== "CASH")
+        .map(a => [a.symbol, a])
+    );
+    
+    for (const target of targetAllocations) {
+      if (target.symbol === "CASH") continue;
+      
+      const symbol = target.symbol.toUpperCase();
+      const targetValue = (safeParseFloat(target.targetPercent) / 100) * refreshedPortfolioValue;
+      const current = refreshedPositionMap.get(symbol);
+      const currentValue = current ? safeParseFloat(current.currentValue) : 0;
+      const currentPrice = current ? safeParseFloat(current.price) : 0;
+      
+      const valueDiff = targetValue - currentValue;
+      
+      if (valueDiff <= 10 || currentPrice <= 0) continue;
+      
+      const maxBuyValue = Math.min(valueDiff, availableCash * 0.95);
+      const buyQuantity = Math.floor(maxBuyValue / currentPrice);
+      
+      if (buyQuantity < 1) continue;
+      
+      try {
+        const result = await this.executeAlpacaTrade({
+          symbol,
+          side: "buy",
+          quantity: buyQuantity,
+          notes: `Rebalance: Increase allocation to ${target.targetPercent}%`,
+        });
+        
+        tradesExecuted.push({
+          symbol,
+          side: "buy",
+          quantity: buyQuantity,
+          status: result.success ? "executed" : "failed",
+          orderId: result.order?.id,
+          error: result.error,
+        });
+        
+        if (!result.success) {
+          errors.push(`${symbol} buy failed: ${result.error}`);
+        }
+      } catch (err) {
+        const errorMsg = (err as Error).message;
+        errors.push(`${symbol} buy error: ${errorMsg}`);
+        tradesExecuted.push({
+          symbol,
+          side: "buy",
+          quantity: buyQuantity,
+          status: "error",
+          error: errorMsg,
+        });
+      }
+    }
+    
+    await this.syncPositionsFromAlpaca();
+    await this.updateAgentStats();
+    
+    const finalAccount = await alpaca.getAccount();
+    const finalPositions = await alpaca.getPositions();
+    const cashAfter = safeParseFloat(finalAccount.cash);
+    const positionsValueAfter = finalPositions.reduce(
+      (sum, p) => sum + safeParseFloat(p.market_value), 0
+    );
+    const portfolioValueAfter = cashAfter + positionsValueAfter;
+    
+    logger.trade(`Rebalance complete: ${tradesExecuted.length} trades, ${errors.length} errors`, {
+      tradesExecuted: tradesExecuted.length,
+      errors: errors.length,
+      portfolioValueBefore,
+      portfolioValueAfter,
+    });
+    
+    eventBus.emit("portfolio:rebalanced", {
+      tradesExecuted: tradesExecuted.length,
+      errors: errors.length,
+      portfolioValueBefore,
+      portfolioValueAfter,
+    }, "alpaca-trading-engine");
+    
+    return {
+      success: errors.length === 0,
+      tradesExecuted,
+      errors,
+      portfolioValueBefore,
+      portfolioValueAfter,
+    };
+  }
+
+  async getRebalanceSuggestions(): Promise<{
+    currentAllocations: CurrentAllocation[];
+    suggestedAllocations: TargetAllocation[];
+    reasoning: string;
+  }> {
+    const { allocations: currentAllocations, portfolioValue } = 
+      await this.getCurrentAllocations();
+    
+    const nonCashAllocations = currentAllocations.filter(a => a.symbol !== "CASH");
+    
+    if (nonCashAllocations.length === 0) {
+      return {
+        currentAllocations,
+        suggestedAllocations: this.DEFAULT_WATCHLIST.slice(0, 5).map((symbol, i) => ({
+          symbol,
+          targetPercent: 15,
+        })),
+        reasoning: "No current positions. Suggesting equal-weight allocation across top 5 watchlist stocks (15% each, 25% cash reserve).",
+      };
+    }
+    
+    const symbolCount = nonCashAllocations.length;
+    const equalWeight = Math.floor(80 / symbolCount);
+    
+    const suggestedAllocations: TargetAllocation[] = nonCashAllocations.map(a => ({
+      symbol: a.symbol,
+      targetPercent: equalWeight,
+    }));
+    
+    const allocatedPercent = suggestedAllocations.reduce((sum, a) => sum + a.targetPercent, 0);
+    if (allocatedPercent < 80 && suggestedAllocations.length > 0) {
+      suggestedAllocations[0].targetPercent += (80 - allocatedPercent);
+    }
+    
+    return {
+      currentAllocations,
+      suggestedAllocations,
+      reasoning: `Suggesting equal-weight rebalancing across ${symbolCount} positions (~${equalWeight}% each) with 20% cash reserve for risk management.`,
+    };
   }
 }
 

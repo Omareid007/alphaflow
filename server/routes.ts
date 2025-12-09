@@ -1518,6 +1518,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/alpaca/allocations", async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.getCurrentAllocations();
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to get current allocations:", error);
+      res.status(500).json({ error: "Failed to get current allocations" });
+    }
+  });
+
+  app.post("/api/alpaca/rebalance/preview", async (req, res) => {
+    try {
+      const { targetAllocations } = req.body;
+      if (!targetAllocations || !Array.isArray(targetAllocations)) {
+        return res.status(400).json({ error: "targetAllocations array required" });
+      }
+      
+      for (const alloc of targetAllocations) {
+        if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
+          return res.status(400).json({ error: "Each allocation must have symbol and targetPercent" });
+        }
+        if (alloc.targetPercent < 0 || alloc.targetPercent > 100) {
+          return res.status(400).json({ error: "targetPercent must be between 0 and 100" });
+        }
+      }
+      
+      const preview = await alpacaTradingEngine.previewRebalance(targetAllocations);
+      res.json(preview);
+    } catch (error) {
+      console.error("Failed to preview rebalance:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to preview rebalance" });
+    }
+  });
+
+  app.post("/api/alpaca/rebalance/execute", async (req, res) => {
+    try {
+      const { targetAllocations, dryRun = false } = req.body;
+      if (!targetAllocations || !Array.isArray(targetAllocations)) {
+        return res.status(400).json({ error: "targetAllocations array required" });
+      }
+      
+      for (const alloc of targetAllocations) {
+        if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
+          return res.status(400).json({ error: "Each allocation must have symbol and targetPercent" });
+        }
+        if (alloc.targetPercent < 0 || alloc.targetPercent > 100) {
+          return res.status(400).json({ error: "targetPercent must be between 0 and 100" });
+        }
+      }
+      
+      const result = await alpacaTradingEngine.executeRebalance(targetAllocations, dryRun);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to execute rebalance:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to execute rebalance" });
+    }
+  });
+
+  app.get("/api/alpaca/rebalance/suggestions", async (req, res) => {
+    try {
+      const suggestions = await alpacaTradingEngine.getRebalanceSuggestions();
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Failed to get rebalance suggestions:", error);
+      res.status(500).json({ error: "Failed to get rebalance suggestions" });
+    }
+  });
+
   app.get("/api/alpaca/assets/search", async (req, res) => {
     try {
       const query = req.query.q as string;
