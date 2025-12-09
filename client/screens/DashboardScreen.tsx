@@ -11,6 +11,7 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { PriceChart } from "@/components/PriceChart";
+import { apiRequest } from "@/lib/query-client";
 import type { AgentStatus, Position, AiDecision } from "@shared/schema";
 
 interface AnalyticsSummary {
@@ -253,6 +254,24 @@ function MarketIntelligenceCard() {
   );
 }
 
+interface MarketContext {
+  marketData?: {
+    price?: number;
+    change?: number;
+    volume?: number;
+    high?: number;
+    low?: number;
+  };
+  newsContext?: {
+    headlines?: string[];
+    sentiment?: string;
+  };
+  riskLevel?: "low" | "medium" | "high";
+  suggestedQuantity?: number;
+  targetPrice?: number;
+  stopLoss?: number;
+}
+
 function AIDecisionsCard() {
   const { theme } = useTheme();
 
@@ -265,11 +284,53 @@ function AIDecisionsCard() {
     queryKey: ["/api/ai/status"],
   });
 
+  const decisionSymbols = decisions?.map(d => d.symbol).filter(Boolean).slice(0, 5) || [];
+  
+  const { data: liveSnapshots } = useQuery<Record<string, { 
+    dailyBar?: { c: number; v: number }; 
+    prevDailyBar?: { c: number };
+    latestTrade?: { p: number };
+  }>>({
+    queryKey: ["/api/alpaca/snapshots", decisionSymbols],
+    queryFn: async ({ queryKey }) => {
+      const symbols = queryKey[1] as string[];
+      if (!symbols || symbols.length === 0) return {};
+      const params = new URLSearchParams({ symbols: symbols.join(",") });
+      const response = await apiRequest("GET", `/api/alpaca/snapshots?${params.toString()}`);
+      return await response.json();
+    },
+    enabled: decisionSymbols.length > 0,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  const getLiveData = (symbol: string): { price?: number; change?: number } | undefined => {
+    const snapshot = liveSnapshots?.[symbol];
+    if (!snapshot) return undefined;
+    const price = snapshot.dailyBar?.c ?? snapshot.latestTrade?.p;
+    const prevClose = snapshot.prevDailyBar?.c;
+    const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : undefined;
+    return { price, change };
+  };
+
   const getActionColor = (action: string) => {
     switch (action) {
       case "buy":
         return BrandColors.success;
       case "sell":
+        return BrandColors.error;
+      default:
+        return BrandColors.neutral;
+    }
+  };
+
+  const getRiskColor = (risk: string | undefined) => {
+    switch (risk) {
+      case "low":
+        return BrandColors.success;
+      case "medium":
+        return BrandColors.warning;
+      case "high":
         return BrandColors.error;
       default:
         return BrandColors.neutral;
@@ -283,6 +344,11 @@ function AIDecisionsCard() {
     return `${(value * 100).toFixed(0)}%`;
   };
 
+  const formatPrice = (price: number | undefined) => {
+    if (!price) return "-";
+    return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const formatTime = (dateStr: string | Date) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -294,6 +360,16 @@ function AIDecisionsCard() {
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${Math.floor(diffHours / 24)}d ago`;
   };
+
+  const parseMarketContext = (contextStr: string | null | undefined): MarketContext | null => {
+    if (!contextStr) return null;
+    try {
+      return JSON.parse(contextStr) as MarketContext;
+    } catch {
+      return null;
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -375,35 +451,92 @@ function AIDecisionsCard() {
           <ThemedText style={[styles.liveText, { color: BrandColors.aiLayer }]}>ACTIVE</ThemedText>
         </View>
       </View>
-      {decisions.map((decision, index) => (
-        <View
-          key={decision.id}
-          style={[
-            styles.aiDecisionRow,
-            index < decisions.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
-          ]}
-        >
-          <View style={styles.aiDecisionInfo}>
-            <View style={styles.aiDecisionHeader}>
-              <ThemedText style={styles.aiSymbol}>{decision.symbol}</ThemedText>
-              <View style={[styles.aiActionBadge, { backgroundColor: getActionColor(decision.action) }]}>
-                <ThemedText style={styles.aiActionText}>{decision.action.toUpperCase()}</ThemedText>
+      {decisions.map((decision, index) => {
+        const context = parseMarketContext(decision.marketContext);
+        const liveData = getLiveData(decision.symbol);
+        const currentPrice = liveData?.price ?? context?.marketData?.price;
+        const priceChange = liveData?.change ?? context?.marketData?.change;
+
+        return (
+          <View
+            key={decision.id}
+            style={[
+              styles.aiDecisionRow,
+              index < decisions.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+            ]}
+          >
+            <View style={styles.aiDecisionInfo}>
+              <View style={styles.aiDecisionHeader}>
+                <ThemedText style={styles.aiSymbol}>{decision.symbol}</ThemedText>
+                <View style={[styles.aiActionBadge, { backgroundColor: getActionColor(decision.action) }]}>
+                  <ThemedText style={styles.aiActionText}>{decision.action.toUpperCase()}</ThemedText>
+                </View>
+                {context?.riskLevel ? (
+                  <View style={[styles.aiRiskBadge, { borderColor: getRiskColor(context.riskLevel) }]}>
+                    <ThemedText style={[styles.aiRiskText, { color: getRiskColor(context.riskLevel) }]}>
+                      {context.riskLevel.toUpperCase()}
+                    </ThemedText>
+                  </View>
+                ) : null}
               </View>
+              {currentPrice ? (
+                <View style={styles.aiPriceRow}>
+                  <ThemedText style={[styles.aiCurrentPrice, { fontFamily: Fonts?.mono }]}>
+                    {formatPrice(currentPrice)}
+                  </ThemedText>
+                  {priceChange !== undefined ? (
+                    <ThemedText style={[
+                      styles.aiPriceChange,
+                      { 
+                        fontFamily: Fonts?.mono,
+                        color: priceChange >= 0 ? BrandColors.success : BrandColors.error 
+                      }
+                    ]}>
+                      {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
+                    </ThemedText>
+                  ) : null}
+                </View>
+              ) : null}
+              {context?.targetPrice || context?.stopLoss ? (
+                <View style={styles.aiTargetsRow}>
+                  {context.targetPrice ? (
+                    <View style={styles.aiTargetItem}>
+                      <Feather name="target" size={12} color={BrandColors.success} />
+                      <ThemedText style={[styles.aiTargetText, { color: theme.textSecondary }]}>
+                        Target: {formatPrice(context.targetPrice)}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                  {context.stopLoss ? (
+                    <View style={styles.aiTargetItem}>
+                      <Feather name="shield" size={12} color={BrandColors.error} />
+                      <ThemedText style={[styles.aiTargetText, { color: theme.textSecondary }]}>
+                        Stop: {formatPrice(context.stopLoss)}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              <ThemedText style={[styles.aiReasoning, { color: theme.textSecondary }]} numberOfLines={2}>
+                {decision.reasoning || "No reasoning provided"}
+              </ThemedText>
             </View>
-            <ThemedText style={[styles.aiReasoning, { color: theme.textSecondary }]} numberOfLines={2}>
-              {decision.reasoning || "No reasoning provided"}
-            </ThemedText>
+            <View style={styles.aiDecisionMeta}>
+              <ThemedText style={[styles.aiConfidence, { fontFamily: Fonts?.mono }]}>
+                {formatConfidence(decision.confidence)}
+              </ThemedText>
+              <ThemedText style={[styles.aiTime, { color: theme.textSecondary }]}>
+                {formatTime(decision.createdAt)}
+              </ThemedText>
+              {context?.suggestedQuantity ? (
+                <ThemedText style={[styles.aiQty, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+                  Qty: {context.suggestedQuantity}
+                </ThemedText>
+              ) : null}
+            </View>
           </View>
-          <View style={styles.aiDecisionMeta}>
-            <ThemedText style={[styles.aiConfidence, { fontFamily: Fonts?.mono }]}>
-              {formatConfidence(decision.confidence)}
-            </ThemedText>
-            <ThemedText style={[styles.aiTime, { color: theme.textSecondary }]}>
-              {formatTime(decision.createdAt)}
-            </ThemedText>
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </Card>
   );
 }
@@ -1197,6 +1330,50 @@ const styles = StyleSheet.create({
   },
   aiTime: {
     ...Typography.small,
+  },
+  aiRiskBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+  },
+  aiRiskText: {
+    ...Typography.small,
+    fontWeight: "600",
+    fontSize: 10,
+  },
+  aiPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  aiCurrentPrice: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  aiPriceChange: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  aiTargetsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  aiTargetItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  aiTargetText: {
+    ...Typography.small,
+    fontSize: 11,
+  },
+  aiQty: {
+    ...Typography.small,
+    marginTop: Spacing.xs,
   },
   chartHeader: {
     flexDirection: "row",
