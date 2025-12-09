@@ -11,6 +11,7 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { PriceChart } from "@/components/PriceChart";
+import { EquityCurveCard } from "@/components/EquityCurveCard";
 import { apiRequest } from "@/lib/query-client";
 import type { AgentStatus, Position, AiDecision } from "@shared/schema";
 
@@ -891,6 +892,7 @@ export default function DashboardScreen() {
 
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
+    { key: "equityCurve", component: <EquityCurveCard /> },
     { key: "ai", component: <AIDecisionsCard /> },
     { key: "btcChart", component: (
       <View>
