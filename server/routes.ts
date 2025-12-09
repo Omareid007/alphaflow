@@ -27,6 +27,7 @@ import {
   reconcileOrderBook 
 } from "./trading/order-execution-flow";
 import { orchestrator } from "./autonomous/orchestrator";
+import { marketConditionAnalyzer } from "./ai/market-condition-analyzer";
 import { eventBus, logger, coordinator } from "./orchestration";
 import { safeParseFloat } from "./utils/numeric";
 
@@ -74,6 +75,10 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 export async function registerRoutes(app: Express): Promise<Server> {
   alpacaTradingEngine.initialize().catch(err => 
     console.error("Failed to initialize Alpaca trading engine:", err)
+  );
+
+  orchestrator.autoStart().catch(err =>
+    console.error("Failed to auto-start orchestrator:", err)
   );
 
   // Bootstrap admin user "Omar" with password "test1234"
@@ -331,6 +336,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to set mode:", error);
       res.status(500).json({ error: "Failed to set mode" });
+    }
+  });
+
+  app.get("/api/agent/market-analysis", async (req, res) => {
+    try {
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
+      const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
+      
+      res.json({
+        isRunning: analyzerStatus.isRunning,
+        lastAnalysis,
+        lastAnalysisTime: analyzerStatus.lastAnalysisTime,
+        currentOrderLimit: analyzerStatus.currentOrderLimit,
+      });
+    } catch (error) {
+      console.error("Failed to get market analysis:", error);
+      res.status(500).json({ error: "Failed to get market analysis" });
+    }
+  });
+
+  app.post("/api/agent/market-analysis/refresh", async (req, res) => {
+    try {
+      const analysis = await marketConditionAnalyzer.runAnalysis();
+      res.json({ success: true, analysis });
+    } catch (error) {
+      console.error("Failed to refresh market analysis:", error);
+      res.status(500).json({ error: "Failed to refresh market analysis" });
+    }
+  });
+
+  app.get("/api/agent/dynamic-limits", async (req, res) => {
+    try {
+      const agentStatus = await storage.getAgentStatus();
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
+      
+      const minLimit = agentStatus?.minOrderLimit ?? 10;
+      const maxLimit = agentStatus?.maxOrderLimit ?? 50;
+      
+      let currentLimit = agentStatus?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
+      currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
+      
+      res.json({
+        currentDynamicLimit: currentLimit,
+        minOrderLimit: minLimit,
+        maxOrderLimit: maxLimit,
+        marketCondition: agentStatus?.marketCondition || "neutral",
+        aiConfidenceScore: agentStatus?.aiConfidenceScore || "0.5",
+        lastMarketAnalysis: agentStatus?.lastMarketAnalysis,
+      });
+    } catch (error) {
+      console.error("Failed to get dynamic limits:", error);
+      res.status(500).json({ error: "Failed to get dynamic limits" });
+    }
+  });
+
+  app.post("/api/agent/set-limits", async (req, res) => {
+    try {
+      const { minOrderLimit, maxOrderLimit } = req.body;
+      
+      const updates: { minOrderLimit?: number; maxOrderLimit?: number } = {};
+      
+      if (minOrderLimit !== undefined) {
+        if (minOrderLimit < 1 || minOrderLimit > 100) {
+          return res.status(400).json({ error: "minOrderLimit must be between 1 and 100" });
+        }
+        updates.minOrderLimit = minOrderLimit;
+      }
+      
+      if (maxOrderLimit !== undefined) {
+        if (maxOrderLimit < 1 || maxOrderLimit > 100) {
+          return res.status(400).json({ error: "maxOrderLimit must be between 1 and 100" });
+        }
+        updates.maxOrderLimit = maxOrderLimit;
+      }
+      
+      if (updates.minOrderLimit && updates.maxOrderLimit && updates.minOrderLimit > updates.maxOrderLimit) {
+        return res.status(400).json({ error: "minOrderLimit cannot be greater than maxOrderLimit" });
+      }
+      
+      await storage.updateAgentStatus(updates);
+      const updatedStatus = await storage.getAgentStatus();
+      
+      res.json({
+        success: true,
+        minOrderLimit: updatedStatus?.minOrderLimit,
+        maxOrderLimit: updatedStatus?.maxOrderLimit,
+      });
+    } catch (error) {
+      console.error("Failed to set limits:", error);
+      res.status(500).json({ error: "Failed to set limits" });
+    }
+  });
+
+  app.get("/api/agent/health", async (req, res) => {
+    try {
+      const healthStatus = orchestrator.getHealthStatus();
+      const agentStatus = await storage.getAgentStatus();
+      
+      res.json({
+        ...healthStatus,
+        autoStartEnabled: agentStatus?.autoStartEnabled ?? true,
+        lastHeartbeatFromDb: agentStatus?.lastHeartbeat,
+      });
+    } catch (error) {
+      console.error("Failed to get agent health:", error);
+      res.status(500).json({ error: "Failed to get agent health" });
+    }
+  });
+
+  app.post("/api/agent/auto-start", async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      
+      await orchestrator.setAutoStartEnabled(enabled);
+      
+      res.json({ success: true, autoStartEnabled: enabled });
+    } catch (error) {
+      console.error("Failed to set auto-start:", error);
+      res.status(500).json({ error: "Failed to set auto-start" });
     }
   });
 
@@ -2183,6 +2310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   coordinator.start().catch(err => 
     console.error("Failed to start trading coordinator:", err)
+  );
+
+  orchestrator.autoStart().catch(err => 
+    console.error("Failed to auto-start orchestrator:", err)
   );
 
   const httpServer = createServer(app);

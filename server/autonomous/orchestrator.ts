@@ -5,6 +5,7 @@ import { coingecko } from "../connectors/coingecko";
 import { storage } from "../storage";
 import type { Strategy } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
+import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 
 export interface OrchestratorConfig {
   analysisIntervalMs: number;
@@ -102,13 +103,23 @@ function normalizeCryptoSymbol(symbol: string): string {
   return upperSymbol;
 }
 
+const HEARTBEAT_INTERVAL_MS = 30000;
+const STALE_HEARTBEAT_THRESHOLD_MS = 120000;
+const AUTO_RESTART_DELAY_MS = 5000;
+const MAX_CONSECUTIVE_ERRORS = 5;
+
 class AutonomousOrchestrator {
   private state: OrchestratorState;
   private config: OrchestratorConfig;
   private riskLimits: RiskLimits;
   private analysisTimer: NodeJS.Timeout | null = null;
   private positionTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
   private isProcessing = false;
+  private consecutiveErrors = 0;
+  private lastHeartbeat: Date | null = null;
+  private autoStartEnabled = true;
+  private isAutoStarting = false;
 
   constructor() {
     this.config = { ...DEFAULT_CONFIG };
@@ -127,6 +138,166 @@ class AutonomousOrchestrator {
     };
   }
 
+  async autoStart(): Promise<void> {
+    if (this.isAutoStarting) {
+      console.log("[Orchestrator] Auto-start already in progress");
+      return;
+    }
+
+    this.isAutoStarting = true;
+
+    try {
+      console.log("[Orchestrator] Auto-start initializing...");
+
+      const agentStatus = await storage.getAgentStatus();
+      this.autoStartEnabled = agentStatus?.autoStartEnabled ?? true;
+
+      if (!this.autoStartEnabled) {
+        console.log("[Orchestrator] Auto-start is disabled in settings");
+        this.isAutoStarting = false;
+        return;
+      }
+
+      if (agentStatus?.killSwitchActive) {
+        console.log("[Orchestrator] Auto-start blocked: Kill switch is active");
+        this.isAutoStarting = false;
+        return;
+      }
+
+      await marketConditionAnalyzer.initialize();
+
+      await this.start();
+
+      this.startHeartbeat();
+
+      console.log("[Orchestrator] Auto-start complete - Agent is now running persistently");
+    } catch (error) {
+      console.error("[Orchestrator] Auto-start failed:", error);
+      this.state.errors.push(`Auto-start failed: ${error}`);
+
+      setTimeout(() => {
+        this.isAutoStarting = false;
+        this.autoStart().catch(err => {
+          console.error("[Orchestrator] Auto-restart retry failed:", err);
+        });
+      }, AUTO_RESTART_DELAY_MS);
+    } finally {
+      this.isAutoStarting = false;
+    }
+  }
+
+  private startHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+    }
+
+    this.lastHeartbeat = new Date();
+
+    this.heartbeatTimer = setInterval(async () => {
+      await this.performHeartbeat();
+    }, HEARTBEAT_INTERVAL_MS);
+
+    console.log("[Orchestrator] Heartbeat started");
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  private async performHeartbeat(): Promise<void> {
+    try {
+      const now = new Date();
+      this.lastHeartbeat = now;
+
+      await storage.updateAgentStatus({
+        lastHeartbeat: now,
+      });
+
+      await this.checkAndRecoverIfStale();
+
+      if (this.consecutiveErrors > 0) {
+        this.consecutiveErrors = Math.max(0, this.consecutiveErrors - 1);
+      }
+    } catch (error) {
+      console.error("[Orchestrator] Heartbeat error:", error);
+      this.consecutiveErrors++;
+
+      if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        console.log("[Orchestrator] Too many consecutive errors, triggering self-healing");
+        await this.selfHeal();
+      }
+    }
+  }
+
+  private async checkAndRecoverIfStale(): Promise<void> {
+    if (!this.state.isRunning) return;
+
+    const now = Date.now();
+    const lastAnalysis = this.state.lastAnalysisTime?.getTime() || 0;
+    const timeSinceAnalysis = now - lastAnalysis;
+
+    if (timeSinceAnalysis > STALE_HEARTBEAT_THRESHOLD_MS && lastAnalysis > 0) {
+      console.log(`[Orchestrator] Stale state detected (${Math.round(timeSinceAnalysis / 1000)}s since last analysis)`);
+      await this.selfHeal();
+    }
+  }
+
+  private async selfHeal(): Promise<void> {
+    console.log("[Orchestrator] Initiating self-healing...");
+
+    const wasAutoStartEnabled = this.autoStartEnabled;
+
+    try {
+      await this.stop(true);
+
+      await new Promise(resolve => setTimeout(resolve, AUTO_RESTART_DELAY_MS));
+
+      this.consecutiveErrors = 0;
+      this.state.errors = [];
+
+      if (wasAutoStartEnabled) {
+        await this.start();
+        this.startHeartbeat();
+        console.log("[Orchestrator] Self-healing complete - Agent restarted");
+      }
+    } catch (error) {
+      console.error("[Orchestrator] Self-healing failed:", error);
+      this.state.errors.push(`Self-healing failed: ${error}`);
+    }
+  }
+
+  async setAutoStartEnabled(enabled: boolean): Promise<void> {
+    this.autoStartEnabled = enabled;
+    await storage.updateAgentStatus({ autoStartEnabled: enabled });
+    console.log(`[Orchestrator] Auto-start ${enabled ? "enabled" : "disabled"}`);
+  }
+
+  isAutoStartEnabledFlag(): boolean {
+    return this.autoStartEnabled;
+  }
+
+  getHealthStatus(): {
+    isHealthy: boolean;
+    lastHeartbeat: Date | null;
+    consecutiveErrors: number;
+    autoStartEnabled: boolean;
+    marketCondition: string | null;
+    dynamicOrderLimit: number;
+  } {
+    const analyzerStatus = marketConditionAnalyzer.getStatus();
+    return {
+      isHealthy: this.consecutiveErrors < MAX_CONSECUTIVE_ERRORS && this.state.isRunning,
+      lastHeartbeat: this.lastHeartbeat,
+      consecutiveErrors: this.consecutiveErrors,
+      autoStartEnabled: this.autoStartEnabled,
+      marketCondition: analyzerStatus.lastAnalysis?.condition || null,
+      dynamicOrderLimit: analyzerStatus.currentOrderLimit,
+    };
+  }
+
   async initialize(): Promise<void> {
     await this.loadRiskLimitsFromDB();
     await this.syncPositionsFromBroker();
@@ -136,11 +307,13 @@ class AutonomousOrchestrator {
   private async loadRiskLimitsFromDB(): Promise<void> {
     try {
       const agentStatus = await storage.getAgentStatus();
+      const dynamicLimit = marketConditionAnalyzer.getCurrentOrderLimit();
+      
       if (agentStatus) {
         this.riskLimits = {
           maxPositionSizePercent: Number(agentStatus.maxPositionSizePercent) || 10,
           maxTotalExposurePercent: Number(agentStatus.maxTotalExposurePercent) || 50,
-          maxPositionsCount: agentStatus.maxPositionsCount || 10,
+          maxPositionsCount: agentStatus.dynamicOrderLimit || dynamicLimit || 10,
           dailyLossLimitPercent: Number(agentStatus.dailyLossLimitPercent) || 5,
           killSwitchActive: agentStatus.killSwitchActive || false,
         };
@@ -247,7 +420,7 @@ class AutonomousOrchestrator {
     console.log("[Orchestrator] Started autonomous trading mode");
   }
 
-  async stop(): Promise<void> {
+  async stop(preserveAutoStart = false): Promise<void> {
     if (!this.state.isRunning) {
       console.log("[Orchestrator] Not running");
       return;
@@ -265,6 +438,9 @@ class AutonomousOrchestrator {
       clearInterval(this.positionTimer);
       this.positionTimer = null;
     }
+
+    this.stopHeartbeat();
+    marketConditionAnalyzer.stop();
 
     await storage.updateAgentStatus({ isRunning: false });
 
