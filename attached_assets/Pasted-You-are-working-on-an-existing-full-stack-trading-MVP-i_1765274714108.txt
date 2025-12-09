@@ -1,0 +1,353 @@
+You are working on an existing full-stack trading MVP in this Replit project.
+
+Two key backend modules already exist and must NOT be broken:
+
+decision-engine.ts
+
+Contains AIDecisionEngine which calls OpenAI (via Replit AI Integrations) to produce per-symbol trade recommendations.
+
+This is currently used for “AI trade suggestions” and should keep working as-is.
+
+data-fusion-engine.ts
+
+Contains DataFusionEngine and getMarketIntelligence() / getFusedMarketData().
+
+It already builds a MarketIntelligenceScore and signals[] using CoinGecko + Finnhub.
+
+This powers the “AI-Powered Market Intelligence & Signals” UI card.
+
+Do NOT change the existing public interfaces of these two engines.
+You may extend them, but they must remain backward compatible.
+
+Goal
+
+Implement a single concrete, user-friendly strategy in the app:
+
+Moving Average Crossover Strategy (7-day / 20-day SMA)
+
+And wire it into:
+
+A simple Strategy Config Wizard step for retail users.
+
+A deterministic strategy engine / backtest for this strategy only.
+
+An “AI Strategy Validation” button that uses an LLM once per click to explain and critique the user’s chosen parameters, using existing data engines as context.
+
+This should be done with minimal tech debt, and with maximum reuse of:
+
+AIDecisionEngine pattern for OpenAI integration.
+
+DataFusionEngine’s existing market intelligence and signals.
+
+LLM must not be called inside any per-tick or continuous trading loop.
+
+1) Add a Strategy Definition & Holder for Moving Average Crossover
+
+Create a new backend module, e.g. strategies/moving-average-crossover.ts.
+
+Requirements:
+
+Export a type for the strategy config, something like:
+
+export interface MovingAverageCrossoverConfig {
+  id: string; // strategy instance ID
+  symbol: string; // underlying symbol or instrument
+  fastPeriod: number; // default 7
+  slowPeriod: number; // default 20
+  allocationPct: number; // % of portfolio, e.g. 0.05, 0.10
+  riskLimitPct: number; // max drawdown per strategy, e.g. 0.10
+  universe?: string; // optional context tag like "US_EQUITY"
+  createdAt: string;
+}
+
+
+Export default presets that are safe and simple for retail users. For example:
+
+export const MOVING_AVERAGE_PRESETS = [
+  { id: "conservative", fastPeriod: 10, slowPeriod: 30, allocationPct: 0.05, riskLimitPct: 0.05 },
+  { id: "balanced", fastPeriod: 7, slowPeriod: 20, allocationPct: 0.10, riskLimitPct: 0.10 },
+  { id: "aggressive", fastPeriod: 5, slowPeriod: 15, allocationPct: 0.15, riskLimitPct: 0.15 },
+];
+
+
+Export a function to validate and normalize user configs:
+
+export function normalizeMovingAverageConfig(input: Partial<MovingAverageCrossoverConfig>): MovingAverageCrossoverConfig {
+  // apply defaults, clamp fastPeriod/slowPeriod into reasonable bounds,
+  // ensure fastPeriod < slowPeriod, clamp allocationPct, etc.
+}
+
+
+Export a simple backtest function that uses historical price data for a given symbol and applies the 7/20 SMA crossover rules:
+
+export interface MovingAverageBacktestResult {
+  symbol: string;
+  config: MovingAverageCrossoverConfig;
+  trades: Array<{ entryDate: string; exitDate: string; entryPrice: number; exitPrice: number; pnlPct: number }>;
+  metrics: {
+    annualReturnPct: number;
+    maxDrawdownPct: number;
+    sharpeApprox?: number;
+    totalTrades: number;
+    winRatePct: number;
+  };
+}
+
+export async function backtestMovingAverageStrategy(
+  config: MovingAverageCrossoverConfig
+): Promise<MovingAverageBacktestResult> {
+  // fetch daily historical prices (use existing connectors like Finnhub if available),
+  // compute 7-day and 20-day simple moving averages,
+  // generate trades: buy when fast SMA crosses above slow SMA, sell when it crosses below.
+  // keep this implementation simple and deterministic.
+}
+
+
+For now, focus on a small symbol universe (e.g. SPY, QQQ, or a fixed list of US large caps).
+The goal is to have one fully working strategy with:
+
+Config
+
+Validation
+
+Backtest result structure
+
+2) Add Backend Routes for Strategy Config + Backtest + AI Validation
+
+In the main backend API file (where other /api routes are defined), add routes under e.g. /api/strategies/moving-average:
+
+2.1 GET /api/strategies/moving-average/schema
+
+Returns metadata for the frontend wizard:
+
+allowed parameter ranges (fast 5–15, slow 15–60, allocation 1–25%, etc)
+
+preset labels and default values
+
+human-readable description for non-expert users.
+
+Example shape:
+
+{
+  "id": "moving_average_crossover_7_20",
+  "name": "Moving Average Crossover (7/20)",
+  "description": "A simple trend-following strategy that buys when a short moving average crosses above a longer one.",
+  "presets": [...],
+  "parameterBounds": {
+    "fastPeriod": { "min": 3, "max": 20 },
+    "slowPeriod": { "min": 10, "max": 60 },
+    "allocationPct": { "min": 0.01, "max": 0.25 },
+    "riskLimitPct": { "min": 0.02, "max": 0.30 }
+  }
+}
+
+2.2 POST /api/strategies/moving-average/backtest
+
+Body:
+
+{
+  "symbol": "SPY",
+  "fastPeriod": 7,
+  "slowPeriod": 20,
+  "allocationPct": 0.10,
+  "riskLimitPct": 0.10
+}
+
+
+Steps:
+
+Normalize the config using normalizeMovingAverageConfig.
+
+Run backtestMovingAverageStrategy(config).
+
+Return the backtest result object.
+
+2.3 POST /api/strategies/moving-average/ai-validate
+
+This is the “AI Strategy Validation” endpoint.
+
+Body includes:
+
+selected strategy config (same as backtest)
+
+optionally recent market intelligence from DataFusionEngine (see below, you can fetch it in the backend, not the frontend)
+
+Response:
+
+{
+  "summary": "Human-readable explanation of how this strategy behaves with these parameters.",
+  "riskAssessment": "short text about risk level and typical drawdowns.",
+  "parameterFeedback": [
+    "Your fastPeriod is very short compared to slowPeriod, expect more whipsaws.",
+    "AllocationPct=15% is aggressive for new traders; consider 5–10%."
+  ],
+  "suitability": "retail_friendly" | "borderline" | "advanced_only"
+}
+
+
+Implementation details:
+
+Create a new helper class/module, e.g. ai-strategy-validator.ts, reusing the OpenAI integration pattern from decision-engine.ts:
+
+Use the same OpenAI client and environment variables (AI_INTEGRATIONS_OPENAI_*).
+
+Use chat.completions.create with response_format: { type: "json_object" } to strictly return JSON.
+
+The system prompt should:
+
+Explain that this is not firing trades, only evaluating a moving-average crossover strategy config.
+
+Require the exact JSON shape.
+
+Stress that the target user is a retail / average user, not a professional quant.
+
+Ask the model to:
+
+Explain in simple language what the strategy does with this config.
+
+Highlight major risks (drawdown, whipsaw risk, over-allocation).
+
+Classify suitability for retail users (retail_friendly, borderline, advanced_only).
+
+The user prompt should include:
+
+Symbol, fastPeriod, slowPeriod, allocationPct, riskLimitPct.
+
+Optional summary from DataFusionEngine.getMarketIntelligence():
+
+overall score
+
+main signals (bullish/bearish/neutral)
+
+sentiment & volatility.
+
+Important:
+This AI validation is called only when the user clicks the “AI Strategy Validation” button in the wizard. It must not run automatically in a tight loop.
+
+3) Frontend: Strategy Wizard + AI Validation Button
+
+Locate the existing frontend where strategy selection / configuration happens and where the “AI-Powered Market Intelligence & Signals” card is shown.
+
+Extend the UI as follows:
+
+Strategy Selection Step
+
+Add “Moving Average Crossover (7/20)” as the primary, recommended strategy for now.
+
+Other strategies (RSI, Mean Reversion, StatArb) can be shown as “coming soon / disabled”.
+
+Moving Average Config Step
+
+For retail users, keep it simple:
+
+Dropdown: Preset
+
+Conservative / Balanced / Aggressive (from MOVING_AVERAGE_PRESETS).
+
+Optional “Advanced” toggle that reveals:
+
+Fast MA period (slider or numeric input)
+
+Slow MA period
+
+Allocation %
+
+Risk limit %
+
+Backtest Button
+
+Button: “Run Backtest”
+
+Calls POST /api/strategies/moving-average/backtest with the current config.
+
+Displays:
+
+annualReturnPct
+
+maxDrawdownPct
+
+totalTrades, winRatePct
+
+A simple mini chart of equity curve is nice but optional.
+
+AI Strategy Validation Button
+
+Button: “AI Strategy Validation”
+
+Calls POST /api/strategies/moving-average/ai-validate.
+
+Shows:
+
+A highlight card with summary.
+
+A risk section with riskAssessment.
+
+A bullet list from parameterFeedback.
+
+A label (chip/badge) for suitability.
+
+This button should visibly use the “AI-powered” concept, but the underlying logic stays safe:
+
+It never executes trades.
+
+It only comments on the strategy configuration and its risk.
+
+Integration with existing Market Intelligence Card
+
+On the same page, keep the existing AI-Powered Market Intelligence & Signals card driven by dataFusionEngine.getFusedMarketData() or getMarketIntelligence().
+
+You may optionally wire the “AI Strategy Validation” tooltip copy to mention current market condition, but this is not required.
+
+4) Constraints & Safety
+
+Do NOT:
+
+Put LLM calls inside any real-time trading loop.
+
+Let the LLM directly output buy/sell/size decisions for live execution.
+
+You MAY:
+
+Reuse AIDecisionEngine style (rate limiting, retries, JSON validation) for the new ai-strategy-validator.
+
+Import dataFusionEngine into the AI validation endpoint to enrich the AI with current market sentiment.
+
+Keep everything:
+
+Deterministic for backtests and any recurring logic.
+
+LLM usage limited to configuration-time explanation and validation.
+
+5) Summary of Tasks for You (Replit Agent)
+
+Scan the repo to locate:
+
+Existing API routing for the backend.
+
+Existing strategy or wizard components in the frontend.
+
+Where dataFusionEngine and AIDecisionEngine are currently used.
+
+Implement:
+
+strategies/moving-average-crossover.ts with config, presets, backtest.
+
+ai-strategy-validator.ts (or similar) using the OpenAI integration pattern from decision-engine.ts.
+
+New backend routes under /api/strategies/moving-average/* (schema, backtest, ai-validate).
+
+Update the frontend:
+
+Add Moving Average Crossover as the main strategy in the wizard.
+
+Add config UI with presets and optional advanced settings.
+
+Add “Run Backtest” and “AI Strategy Validation” buttons + result display.
+
+Ensure:
+
+Existing “AI-Powered Market Intelligence & Signals” UI remains functional.
+
+Existing decision engine endpoints are not broken.
+
+The app still runs end-to-end without TypeScript or runtime errors.
