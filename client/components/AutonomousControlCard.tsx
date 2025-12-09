@@ -348,8 +348,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   cardTitle: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold as "600",
+    fontSize: Typography.body.fontSize,
+    fontWeight: 600,
     flex: 1,
   },
   modeBadge: {
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   modeText: {
     fontSize: 10,
-    fontWeight: Typography.weights.bold as "700",
+    fontWeight: 700,
     color: BrandColors.background,
   },
   killSwitchBanner: {
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
   killSwitchText: {
     flex: 1,
     color: BrandColors.background,
-    fontWeight: Typography.weights.bold as "700",
-    fontSize: Typography.sizes.body,
+    fontWeight: 700,
+    fontSize: Typography.body.fontSize,
   },
   deactivateButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -385,8 +385,8 @@ const styles = StyleSheet.create({
   },
   deactivateButtonText: {
     color: BrandColors.background,
-    fontWeight: Typography.weights.semibold as "600",
-    fontSize: Typography.sizes.small,
+    fontWeight: 600,
+    fontSize: Typography.small.fontSize,
   },
   controlRow: {
     flexDirection: "row",
@@ -401,11 +401,11 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   controlLabel: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.medium as "500",
+    fontSize: Typography.body.fontSize,
+    fontWeight: 500,
   },
   controlDescription: {
-    fontSize: Typography.sizes.small,
+    fontSize: Typography.small.fontSize,
     marginTop: 2,
   },
   statsGrid: {
@@ -428,8 +428,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold as "600",
+    fontSize: Typography.body.fontSize,
+    fontWeight: 600,
     marginTop: 2,
   },
   riskSettingsToggle: {
@@ -441,8 +441,8 @@ const styles = StyleSheet.create({
   },
   riskSettingsLabel: {
     flex: 1,
-    fontSize: Typography.sizes.small,
-    fontWeight: Typography.weights.medium as "500",
+    fontSize: Typography.small.fontSize,
+    fontWeight: 500,
   },
   riskSettings: {
     backgroundColor: "rgba(255,255,255,0.03)",
@@ -457,11 +457,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   riskLabel: {
-    fontSize: Typography.sizes.small,
+    fontSize: Typography.small.fontSize,
   },
   riskValue: {
-    fontSize: Typography.sizes.small,
-    fontWeight: Typography.weights.semibold as "600",
+    fontSize: Typography.small.fontSize,
+    fontWeight: 600,
   },
   killSwitchButton: {
     flexDirection: "row",
@@ -475,8 +475,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   killSwitchButtonText: {
-    fontSize: Typography.sizes.small,
-    fontWeight: Typography.weights.semibold as "600",
+    fontSize: Typography.small.fontSize,
+    fontWeight: 600,
   },
   errorsContainer: {
     marginTop: Spacing.md,
@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   errorsTitle: {
-    fontSize: Typography.sizes.small,
-    fontWeight: Typography.weights.semibold as "600",
+    fontSize: Typography.small.fontSize,
+    fontWeight: 600,
     marginBottom: Spacing.xs,
   },
   errorItem: {
@@ -500,6 +500,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   errorText: {
-    fontSize: Typography.sizes.small,
+    fontSize: Typography.small.fontSize,
   },
 });

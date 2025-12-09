@@ -14,6 +14,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { PriceChart } from "@/components/PriceChart";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
+import { AutonomousControlCard } from "@/components/AutonomousControlCard";
 import { apiRequest } from "@/lib/query-client";
 import type { AgentStatus, Position, AiDecision } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
@@ -1199,6 +1200,7 @@ export default function DashboardScreen() {
 
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
+    { key: "autonomous", component: <AutonomousControlCard /> },
     { key: "equityCurve", component: <EquityCurveCard /> },
     { key: "suggestions", component: <AISuggestedTradesCard /> },
     { key: "ai", component: <AIDecisionsCard /> },
