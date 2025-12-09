@@ -489,6 +489,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/strategy-config", async (req, res) => {
+    try {
+      const { normalizeMovingAverageConfig } = await import("./strategies/moving-average-crossover");
+      const config = normalizeMovingAverageConfig(req.body);
+      res.json(config);
+    } catch (error) {
+      console.error("Failed to normalize strategy config:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to normalize config" });
+    }
+  });
+
+  app.post("/api/strategy-validate", async (req, res) => {
+    try {
+      const { normalizeMovingAverageConfig } = await import("./strategies/moving-average-crossover");
+      const { validateMovingAverageConfig, getValidatorStatus } = await import("./ai/ai-strategy-validator");
+      
+      const status = getValidatorStatus();
+      if (!status.available) {
+        return res.status(503).json({ error: "AI validation service is not available" });
+      }
+      
+      const config = normalizeMovingAverageConfig(req.body.config || req.body);
+      const result = await validateMovingAverageConfig(config);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to validate strategy:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to validate strategy" });
+    }
+  });
+
   app.get("/api/trades", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;

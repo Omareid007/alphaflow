@@ -71,7 +71,11 @@ export default function StrategyTypeScreen() {
         strategyName: `My ${strategy.name}`,
         description: strategy.description,
       });
-      navigation.navigate("StrategyUnderstanding");
+      if (strategyId === "moving-average-crossover") {
+        navigation.navigate("MAAssetSelection");
+      } else {
+        navigation.navigate("StrategyUnderstanding");
+      }
     }
   };
 

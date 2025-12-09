@@ -23,6 +23,9 @@ import {
   ExecutionScreen,
   RiskDisclaimerScreen,
   ConfirmationScreen,
+  MAAssetSelectionScreen,
+  MARiskProfileScreen,
+  MASummaryScreen,
 } from "@/screens/StrategyWizard";
 
 export type StrategyWizardParamList = {
@@ -41,6 +44,9 @@ export type StrategyWizardParamList = {
   Execution: undefined;
   RiskDisclaimer: undefined;
   Confirmation: undefined;
+  MAAssetSelection: undefined;
+  MARiskProfile: undefined;
+  MASummary: undefined;
 };
 
 const Stack = createNativeStackNavigator<StrategyWizardParamList>();
@@ -145,6 +151,21 @@ export default function StrategyWizardNavigator() {
           name="Confirmation"
           component={ConfirmationScreen}
           options={{ headerTitle: "Confirm" }}
+        />
+        <Stack.Screen
+          name="MAAssetSelection"
+          component={MAAssetSelectionScreen}
+          options={{ headerTitle: "Select Asset" }}
+        />
+        <Stack.Screen
+          name="MARiskProfile"
+          component={MARiskProfileScreen}
+          options={{ headerTitle: "Risk Profile" }}
+        />
+        <Stack.Screen
+          name="MASummary"
+          component={MASummaryScreen}
+          options={{ headerTitle: "Review" }}
         />
       </Stack.Navigator>
     </WizardProvider>

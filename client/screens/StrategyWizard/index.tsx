@@ -259,3 +259,6 @@ export { default as BacktestScreen } from "./BacktestScreen";
 export { default as ExecutionScreen } from "./ExecutionScreen";
 export { default as RiskDisclaimerScreen } from "./RiskDisclaimerScreen";
 export { default as ConfirmationScreen } from "./ConfirmationScreen";
+export { default as MAAssetSelectionScreen } from "./MAAssetSelectionScreen";
+export { default as MARiskProfileScreen } from "./MARiskProfileScreen";
+export { default as MASummaryScreen } from "./MASummaryScreen";
