@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Modal, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { useWizard } from "./index";
 import { apiRequest } from "@/lib/query-client";
+import type { Strategy } from "@shared/schema";
 
 export default function ConfirmationScreen() {
   const { theme } = useTheme();
@@ -23,18 +24,36 @@ export default function ConfirmationScreen() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const allParameters = {
+        ...data.parameters,
+        movingAverageParams: data.movingAverageParams,
+        adaptiveSettings: data.adaptiveSettings,
+        capitalAllocation: data.capitalAllocation,
+        exposureSettings: data.exposureSettings,
+        controlLimits: data.controlLimits,
+        executionMode: data.executionMode,
+        triggerConditions: data.triggerConditions,
+      };
+      
       const strategyData = {
         name: data.strategyName,
         type: data.strategyType,
         description: data.description,
-        isActive: false,
+        isActive: true,
         assets: data.assets,
-        parameters: JSON.stringify(data.parameters),
+        parameters: JSON.stringify(allParameters),
       };
-      return apiRequest("POST", "/api/strategies", strategyData);
+      
+      const response = await apiRequest("POST", "/api/strategies", strategyData);
+      const createdStrategy: Strategy = await response.json();
+      
+      await apiRequest("POST", `/api/strategies/${createdStrategy.id}/start`);
+      
+      return createdStrategy;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
       resetWizard();
       navigation.getParent()?.goBack();
     },
@@ -100,7 +119,19 @@ export default function ConfirmationScreen() {
             <ThemedText style={[styles.summaryLabel, { color: theme.textSecondary }]}>
               Type
             </ThemedText>
-            <ThemedText style={styles.summaryValue}>Range Trading</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {data.strategyType === "moving-average-crossover" 
+                ? "Moving Average Crossover" 
+                : data.strategyType === "range-trading"
+                ? "Range Trading"
+                : data.strategyType === "momentum"
+                ? "Momentum"
+                : data.strategyType === "mean-reversion"
+                ? "Mean Reversion"
+                : data.strategyType === "breakout"
+                ? "Breakout"
+                : data.strategyType}
+            </ThemedText>
           </View>
 
           <View style={styles.divider} />
@@ -159,7 +190,7 @@ export default function ConfirmationScreen() {
           {createMutation.isPending ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            "Create Strategy"
+            "Create & Activate Strategy"
           )}
         </Button>
       </View>

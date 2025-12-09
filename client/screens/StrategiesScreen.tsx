@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, FlatList, StyleSheet, ActivityIndicator, Pressable } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -16,6 +16,71 @@ import { Button } from "@/components/Button";
 import { apiRequest } from "@/lib/query-client";
 import type { Strategy } from "@shared/schema";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+interface ConfirmationModalProps {
+  visible: boolean;
+  strategy: Strategy | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+function ConfirmationModal({ visible, strategy, onConfirm, onCancel, isLoading }: ConfirmationModalProps) {
+  const { theme } = useTheme();
+  
+  if (!strategy) return null;
+  
+  const isActive = strategy.isActive;
+  const title = isActive ? "Pause Strategy?" : "Activate Strategy?";
+  const message = isActive 
+    ? `Are you sure you want to pause "${strategy.name}"? This will stop automated trading for this strategy.`
+    : `Are you sure you want to activate "${strategy.name}"? This will start automated trading.`;
+  
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onCancel}>
+        <Pressable style={[styles.modalContent, { backgroundColor: theme.backgroundPrimary }]} onPress={(e) => e.stopPropagation()}>
+          <View style={[styles.modalIconContainer, { backgroundColor: isActive ? BrandColors.warning + "20" : BrandColors.success + "20" }]}>
+            <Feather 
+              name={isActive ? "pause-circle" : "play-circle"} 
+              size={32} 
+              color={isActive ? BrandColors.warning : BrandColors.success} 
+            />
+          </View>
+          <ThemedText style={styles.modalTitle}>{title}</ThemedText>
+          <ThemedText style={[styles.modalMessage, { color: theme.textSecondary }]}>{message}</ThemedText>
+          <View style={styles.modalButtons}>
+            <Pressable 
+              style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.backgroundSecondary }]}
+              onPress={onCancel}
+              disabled={isLoading}
+            >
+              <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+            </Pressable>
+            <Pressable 
+              style={[styles.modalButton, styles.confirmButton, { backgroundColor: isActive ? BrandColors.warning : BrandColors.success }]}
+              onPress={onConfirm}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <ThemedText style={styles.confirmButtonText}>
+                  {isActive ? "Pause" : "Activate"}
+                </ThemedText>
+              )}
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 const strategyIcons: Record<string, keyof typeof Feather.glyphMap> = {
   "range-trading": "minus",
@@ -151,6 +216,7 @@ export default function StrategiesScreen() {
   const queryClient = useQueryClient();
   const navigation = useNavigation<NavigationProp>();
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [confirmStrategy, setConfirmStrategy] = useState<Strategy | null>(null);
 
   const { data: strategies, isLoading, error, refetch } = useQuery<Strategy[]>({
     queryKey: ["/api/strategies"],
@@ -160,20 +226,34 @@ export default function StrategiesScreen() {
   const toggleMutation = useMutation({
     mutationFn: async (strategy: Strategy) => {
       setTogglingId(strategy.id);
-      return apiRequest("PATCH", `/api/strategies/${strategy.id}`, { isActive: !strategy.isActive });
+      if (strategy.isActive) {
+        await apiRequest("POST", `/api/strategies/${strategy.id}/stop`);
+      } else {
+        await apiRequest("POST", `/api/strategies/${strategy.id}/start`);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
+      setConfirmStrategy(null);
     },
     onSettled: () => {
       setTogglingId(null);
     },
   });
 
-  const handleStrategyToggle = (strategy: Strategy) => {
-    if (!toggleMutation.isPending) {
-      toggleMutation.mutate(strategy);
+  const handleStrategyPress = (strategy: Strategy) => {
+    setConfirmStrategy(strategy);
+  };
+
+  const handleConfirmToggle = () => {
+    if (confirmStrategy && !toggleMutation.isPending) {
+      toggleMutation.mutate(confirmStrategy);
     }
+  };
+
+  const handleCancelToggle = () => {
+    setConfirmStrategy(null);
   };
 
   if (error) {
@@ -200,7 +280,7 @@ export default function StrategiesScreen() {
         renderItem={({ item }) => (
           <StrategyCard 
             strategy={item} 
-            onToggle={handleStrategyToggle}
+            onToggle={handleStrategyPress}
             isToggling={togglingId === item.id}
           />
         )}
@@ -234,6 +314,13 @@ export default function StrategiesScreen() {
             <EmptyStrategies />
           )
         }
+      />
+      <ConfirmationModal
+        visible={confirmStrategy !== null}
+        strategy={confirmStrategy}
+        onConfirm={handleConfirmToggle}
+        onCancel={handleCancelToggle}
+        isLoading={toggleMutation.isPending}
       />
       <Pressable
         onPress={() => navigation.navigate("StrategyWizard")}
@@ -407,5 +494,60 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    alignItems: "center",
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+  },
+  modalTitle: {
+    ...Typography.h3,
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  modalMessage: {
+    ...Typography.body,
+    textAlign: "center",
+    marginBottom: Spacing.xl,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButton: {},
+  confirmButton: {},
+  cancelButtonText: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  confirmButtonText: {
+    ...Typography.body,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
