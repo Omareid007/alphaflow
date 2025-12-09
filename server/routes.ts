@@ -446,6 +446,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/strategies/:id/start", async (req, res) => {
+    try {
+      const strategy = await storage.getStrategy(req.params.id);
+      if (!strategy) {
+        return res.status(404).json({ error: "Strategy not found" });
+      }
+      
+      const result = await alpacaTradingEngine.startStrategy(req.params.id);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error || "Failed to start strategy" });
+      }
+      
+      const updatedStrategy = await storage.getStrategy(req.params.id);
+      res.json(updatedStrategy);
+    } catch (error) {
+      console.error("Failed to start strategy:", error);
+      res.status(500).json({ error: "Failed to start strategy" });
+    }
+  });
+
+  app.post("/api/strategies/:id/stop", async (req, res) => {
+    try {
+      const strategy = await storage.getStrategy(req.params.id);
+      if (!strategy) {
+        return res.status(404).json({ error: "Strategy not found" });
+      }
+      
+      const result = await alpacaTradingEngine.stopStrategy(req.params.id);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error || "Failed to stop strategy" });
+      }
+      
+      const updatedStrategy = await storage.getStrategy(req.params.id);
+      res.json(updatedStrategy);
+    } catch (error) {
+      console.error("Failed to stop strategy:", error);
+      res.status(500).json({ error: "Failed to stop strategy" });
+    }
+  });
+
   app.get("/api/strategies/moving-average/schema", async (req, res) => {
     try {
       const { STRATEGY_SCHEMA } = await import("./strategies/moving-average-crossover");

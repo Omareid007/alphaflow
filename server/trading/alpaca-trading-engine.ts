@@ -51,19 +51,27 @@ class AlpacaTradingEngine {
     return cryptoPairs.includes(symbol.toUpperCase()) || symbol.includes("/");
   }
 
+  private normalizeCryptoSymbol(symbol: string): string {
+    const upperSymbol = symbol.toUpperCase();
+    if (upperSymbol.includes("/")) {
+      return upperSymbol;
+    }
+    if (upperSymbol === "BTCUSD") return "BTC/USD";
+    if (upperSymbol === "ETHUSD") return "ETH/USD";
+    if (upperSymbol === "SOLUSD") return "SOL/USD";
+    if (upperSymbol.endsWith("USD") && upperSymbol.length > 3) {
+      const base = upperSymbol.slice(0, -3);
+      return `${base}/USD`;
+    }
+    return upperSymbol;
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
     this.initialized = true;
     
     try {
       const strategies = await storage.getStrategies();
-      
-      for (const strategy of strategies.filter(s => s.isActive)) {
-        if (!this.strategyRunners.has(strategy.id)) {
-          console.log(`Resetting orphaned active strategy: ${strategy.name} (${strategy.id})`);
-          await storage.toggleStrategy(strategy.id, false);
-        }
-      }
       
       let autoPilotStrategy = strategies.find(s => s.name === "Auto-Pilot Strategy");
       
@@ -73,7 +81,7 @@ class AlpacaTradingEngine {
           name: "Auto-Pilot Strategy",
           type: "momentum",
           description: "Default AI-powered trading strategy that automatically analyzes market opportunities",
-          isActive: false,
+          isActive: true,
           assets: this.DEFAULT_WATCHLIST,
           parameters: JSON.stringify({
             riskLevel: "medium",
@@ -99,15 +107,31 @@ class AlpacaTradingEngine {
       setTimeout(async () => {
         try {
           const isConnected = await this.isAlpacaConnected();
-          if (isConnected && this.autoStartStrategyId) {
-            console.log("Alpaca connected, auto-starting strategy...");
-            const result = await this.startStrategy(this.autoStartStrategyId);
-            if (result.success) {
-              console.log("Auto-Pilot Strategy started successfully");
-            } else {
-              console.log(`Could not auto-start strategy: ${result.error}`);
+          if (isConnected) {
+            console.log("Alpaca connected, auto-starting all active strategies...");
+            const allStrategies = await storage.getStrategies();
+            const activeStrategies = allStrategies.filter(s => s.isActive);
+            
+            for (const strategy of activeStrategies) {
+              if (!this.strategyRunners.has(strategy.id)) {
+                console.log(`Auto-starting strategy: ${strategy.name}`);
+                const result = await this.startStrategy(strategy.id);
+                if (result.success) {
+                  console.log(`Strategy "${strategy.name}" started successfully`);
+                } else {
+                  console.log(`Could not start strategy "${strategy.name}": ${result.error}`);
+                }
+              }
             }
-          } else if (!isConnected) {
+            
+            if (activeStrategies.length === 0 && this.autoStartStrategyId) {
+              console.log("No active strategies found, starting Auto-Pilot Strategy...");
+              const result = await this.startStrategy(this.autoStartStrategyId);
+              if (result.success) {
+                console.log("Auto-Pilot Strategy started successfully");
+              }
+            }
+          } else {
             console.log("Alpaca not connected - running in AI suggestion mode only");
           }
         } catch (err) {
@@ -581,9 +605,15 @@ class AlpacaTradingEngine {
 
   private async getMarketDataForSymbol(symbol: string): Promise<MarketData | null> {
     try {
-      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
-      const snapshots = await alpaca.getSnapshots([alpacaSymbol]);
-      const snapshot = snapshots[alpacaSymbol];
+      const isCrypto = this.isCryptoSymbol(symbol);
+      const lookupSymbol = isCrypto 
+        ? this.normalizeCryptoSymbol(symbol) 
+        : this.normalizeSymbolForAlpaca(symbol);
+      
+      const snapshots = isCrypto 
+        ? await alpaca.getCryptoSnapshots([lookupSymbol])
+        : await alpaca.getSnapshots([lookupSymbol]);
+      const snapshot = snapshots[lookupSymbol];
 
       if (snapshot) {
         const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;

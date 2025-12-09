@@ -363,6 +363,51 @@ class AlpacaConnector {
     return data;
   }
 
+  async getCryptoSnapshots(symbols: string[]): Promise<{ [symbol: string]: AlpacaSnapshot }> {
+    const symbolsParam = symbols.join(",");
+    const cacheKey = `crypto_snapshots_${symbolsParam}`;
+    const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(cacheKey);
+    if (cached) return cached;
+
+    const url = `${ALPACA_DATA_URL}/v1beta3/crypto/us/snapshots?symbols=${symbolsParam}`;
+    
+    interface CryptoSnapshotResponse {
+      snapshots: { 
+        [symbol: string]: {
+          dailyBar?: AlpacaBar;
+          prevDailyBar?: AlpacaBar;
+          latestTrade?: { p: number; s: number; t: string };
+          latestQuote?: AlpacaQuote;
+          minuteBar?: AlpacaBar;
+        } 
+      };
+    }
+    
+    const response = await this.fetchWithRetry<CryptoSnapshotResponse>(url);
+    
+    const result: { [symbol: string]: AlpacaSnapshot } = {};
+    for (const [symbol, snapshot] of Object.entries(response.snapshots || {})) {
+      result[symbol] = {
+        latestTrade: {
+          t: snapshot.latestTrade?.t || "",
+          x: "CBSE",
+          p: snapshot.latestTrade?.p || 0,
+          s: snapshot.latestTrade?.s || 0,
+          c: [],
+          i: 0,
+          z: "",
+        },
+        latestQuote: snapshot.latestQuote || { ap: 0, as: 0, bp: 0, bs: 0, t: "" },
+        minuteBar: snapshot.minuteBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
+        dailyBar: snapshot.dailyBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
+        prevDailyBar: snapshot.prevDailyBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
+      };
+    }
+    
+    this.setCache(cacheKey, result);
+    return result;
+  }
+
   async searchAssets(query: string): Promise<AlpacaAsset[]> {
     const assets = await this.getAssets("active", "us_equity");
     const lowerQuery = query.toLowerCase();
