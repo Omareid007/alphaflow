@@ -136,6 +136,32 @@ export interface CreateOrderParams {
   stop_price?: string;
   client_order_id?: string;
   extended_hours?: boolean;
+  order_class?: "simple" | "bracket" | "oco" | "oto";
+  take_profit?: { limit_price: string };
+  stop_loss?: { stop_price: string; limit_price?: string };
+  trail_percent?: string;
+  trail_price?: string;
+}
+
+export interface BracketOrderParams {
+  symbol: string;
+  qty: string;
+  side: "buy" | "sell";
+  type?: "market" | "limit";
+  time_in_force?: "day" | "gtc";
+  limit_price?: string;
+  take_profit_price: string;
+  stop_loss_price: string;
+  stop_loss_limit_price?: string;
+}
+
+export interface TrailingStopOrderParams {
+  symbol: string;
+  qty: string;
+  side: "buy" | "sell";
+  trail_percent?: number;
+  trail_price?: number;
+  time_in_force?: "day" | "gtc";
 }
 
 interface CacheEntry<T> {
@@ -277,6 +303,93 @@ class AlpacaConnector {
       method: "POST",
       body: JSON.stringify(params),
     });
+  }
+
+  async createBracketOrder(params: BracketOrderParams): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol: params.symbol,
+      qty: params.qty,
+      side: params.side,
+      type: params.type || "market",
+      time_in_force: params.time_in_force || "gtc",
+      order_class: "bracket",
+      take_profit: {
+        limit_price: params.take_profit_price,
+      },
+      stop_loss: {
+        stop_price: params.stop_loss_price,
+        limit_price: params.stop_loss_limit_price,
+      },
+    };
+
+    if (params.limit_price) {
+      orderParams.limit_price = params.limit_price;
+    }
+
+    console.log(`[Alpaca] Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}`);
+    return this.createOrder(orderParams);
+  }
+
+  async createTrailingStopOrder(params: TrailingStopOrderParams): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol: params.symbol,
+      qty: params.qty,
+      side: params.side,
+      type: "trailing_stop",
+      time_in_force: params.time_in_force || "gtc",
+    };
+
+    if (params.trail_percent !== undefined) {
+      orderParams.trail_percent = params.trail_percent.toString();
+    } else if (params.trail_price !== undefined) {
+      orderParams.trail_price = params.trail_price.toString();
+    } else {
+      orderParams.trail_percent = "2";
+    }
+
+    console.log(`[Alpaca] Creating trailing stop order for ${params.symbol}: trail=${params.trail_percent || params.trail_price}`);
+    return this.createOrder(orderParams);
+  }
+
+  async createStopLossOrder(
+    symbol: string,
+    qty: string,
+    stopPrice: string,
+    limitPrice?: string
+  ): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol,
+      qty,
+      side: "sell",
+      type: limitPrice ? "stop_limit" : "stop",
+      time_in_force: "gtc",
+      stop_price: stopPrice,
+    };
+
+    if (limitPrice) {
+      orderParams.limit_price = limitPrice;
+    }
+
+    console.log(`[Alpaca] Creating stop loss order for ${symbol} at $${stopPrice}`);
+    return this.createOrder(orderParams);
+  }
+
+  async createTakeProfitOrder(
+    symbol: string,
+    qty: string,
+    limitPrice: string
+  ): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol,
+      qty,
+      side: "sell",
+      type: "limit",
+      time_in_force: "gtc",
+      limit_price: limitPrice,
+    };
+
+    console.log(`[Alpaca] Creating take profit order for ${symbol} at $${limitPrice}`);
+    return this.createOrder(orderParams);
   }
 
   async getOrders(status: "open" | "closed" | "all" = "all", limit = 50): Promise<AlpacaOrder[]> {

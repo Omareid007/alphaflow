@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams } from "../connectors/alpaca";
+import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams, type BracketOrderParams } from "../connectors/alpaca";
 import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } from "../ai/decision-engine";
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
@@ -12,6 +12,10 @@ export interface AlpacaTradeRequest {
   notes?: string;
   orderType?: "market" | "limit";
   limitPrice?: number;
+  stopLossPrice?: number;
+  takeProfitPrice?: number;
+  useBracketOrder?: boolean;
+  trailingStopPercent?: number;
 }
 
 export interface AlpacaTradeResult {
@@ -230,7 +234,11 @@ class AlpacaTradingEngine {
 
   async executeAlpacaTrade(request: AlpacaTradeRequest): Promise<AlpacaTradeResult> {
     try {
-      const { symbol, side, quantity, strategyId, notes, orderType = "market", limitPrice } = request;
+      const { 
+        symbol, side, quantity, strategyId, notes, 
+        orderType = "market", limitPrice,
+        stopLossPrice, takeProfitPrice, useBracketOrder, trailingStopPercent
+      } = request;
 
       if (quantity <= 0) {
         return { success: false, error: "Quantity must be greater than 0" };
@@ -242,23 +250,65 @@ class AlpacaTradingEngine {
       }
 
       const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol, true);
-      const orderParams: CreateOrderParams = {
-        symbol: alpacaSymbol,
-        qty: quantity.toString(),
-        side,
-        type: orderType,
-        time_in_force: this.isCryptoSymbol(symbol) ? "gtc" : "day",
-      };
+      const isCrypto = this.isCryptoSymbol(symbol);
+      let order: AlpacaOrder;
 
-      if (orderType === "limit" && limitPrice) {
-        orderParams.limit_price = limitPrice.toString();
+      const shouldUseBracketOrder = useBracketOrder && 
+        side === "buy" && 
+        stopLossPrice && 
+        takeProfitPrice && 
+        !isCrypto;
+
+      if (shouldUseBracketOrder) {
+        const bracketParams: BracketOrderParams = {
+          symbol: alpacaSymbol,
+          qty: quantity.toString(),
+          side,
+          type: orderType === "limit" ? "limit" : "market",
+          time_in_force: "gtc",
+          take_profit_price: takeProfitPrice.toFixed(2),
+          stop_loss_price: stopLossPrice.toFixed(2),
+        };
+
+        if (orderType === "limit" && limitPrice) {
+          bracketParams.limit_price = limitPrice.toString();
+        }
+
+        console.log(`[Trading] Creating bracket order for ${symbol}: Entry=${limitPrice || 'market'}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}`);
+        order = await alpaca.createBracketOrder(bracketParams);
+      } else if (trailingStopPercent && side === "sell" && !isCrypto) {
+        console.log(`[Trading] Creating trailing stop order for ${symbol}: trail=${trailingStopPercent}%`);
+        order = await alpaca.createTrailingStopOrder({
+          symbol: alpacaSymbol,
+          qty: quantity.toString(),
+          side,
+          trail_percent: trailingStopPercent,
+          time_in_force: "gtc",
+        });
+      } else {
+        const orderParams: CreateOrderParams = {
+          symbol: alpacaSymbol,
+          qty: quantity.toString(),
+          side,
+          type: orderType,
+          time_in_force: isCrypto ? "gtc" : "day",
+        };
+
+        if (orderType === "limit" && limitPrice) {
+          orderParams.limit_price = limitPrice.toString();
+        }
+
+        order = await alpaca.createOrder(orderParams);
       }
-
-      const order = await alpaca.createOrder(orderParams);
 
       const filledPrice = order.filled_avg_price
         ? parseFloat(order.filled_avg_price)
         : limitPrice || 0;
+
+      let tradeNotes = notes || `Alpaca Order ID: ${order.id}`;
+      if (shouldUseBracketOrder) {
+        tradeNotes += ` | Bracket: SL=$${stopLossPrice?.toFixed(2)}, TP=$${takeProfitPrice?.toFixed(2)}`;
+      }
 
       const trade = await storage.createTrade({
         symbol: symbol.toUpperCase(),
@@ -267,7 +317,7 @@ class AlpacaTradingEngine {
         price: filledPrice.toString(),
         strategyId: strategyId || null,
         status: order.status,
-        notes: notes || `Alpaca Order ID: ${order.id}`,
+        notes: tradeNotes,
         pnl: null,
       });
 
@@ -475,12 +525,19 @@ class AlpacaTradingEngine {
       }
     }
 
+    const stopLossPrice = decision.stopLoss || (marketData.currentPrice * 0.95);
+    const takeProfitPrice = decision.targetPrice || (marketData.currentPrice * 1.10);
+    const useBracketOrder = !this.isCryptoSymbol(symbol);
+
     const tradeResult = await this.executeAlpacaTrade({
       symbol,
       side: "buy",
       quantity,
       strategyId,
       notes,
+      stopLossPrice,
+      takeProfitPrice,
+      useBracketOrder,
     });
 
     // Link AI decision to executed trade
