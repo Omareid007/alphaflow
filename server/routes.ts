@@ -22,6 +22,7 @@ import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { orchestrator } from "./autonomous/orchestrator";
 import { eventBus, logger, coordinator } from "./orchestration";
+import { safeParseFloat } from "./utils/numeric";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -896,13 +897,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let unrealizedPnl = 0;
       try {
         alpacaPositions = await alpaca.getPositions();
-        unrealizedPnl = alpacaPositions.reduce((sum, p) => sum + parseFloat(p.unrealized_pl || "0"), 0);
+        unrealizedPnl = alpacaPositions.reduce((sum, p) => sum + safeParseFloat(p.unrealized_pl, 0), 0);
       } catch (e) {
         console.error("Failed to fetch Alpaca positions for analytics:", e);
       }
 
-      const winningTrades = trades.filter(t => parseFloat(t.pnl || "0") > 0);
-      const totalPnl = trades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
+      const winningTrades = trades.filter(t => safeParseFloat(t.pnl, 0) > 0);
+      const totalPnl = trades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
       const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
 
       res.json({
@@ -1251,8 +1252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await paperTradingEngine.executeTrade({
         symbol,
         side,
-        quantity: parseFloat(quantity),
-        price: parseFloat(price),
+        quantity: safeParseFloat(quantity),
+        price: safeParseFloat(price),
         strategyId,
         notes,
       });
@@ -1275,7 +1276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await paperTradingEngine.closePosition(
         positionId,
-        currentPrice ? parseFloat(currentPrice) : undefined
+        currentPrice ? safeParseFloat(currentPrice) : undefined
       );
 
       if (!result.success) {
@@ -1815,11 +1816,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await alpacaTradingEngine.executeAlpacaTrade({
         symbol,
         side,
-        quantity: parseFloat(quantity),
+        quantity: safeParseFloat(quantity),
         strategyId,
         notes,
         orderType,
-        limitPrice: limitPrice ? parseFloat(limitPrice) : undefined,
+        limitPrice: limitPrice ? safeParseFloat(limitPrice) : undefined,
       });
 
       if (!result.success) {

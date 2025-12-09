@@ -4,6 +4,7 @@ import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } 
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
 import { eventBus, logger, type TradeExecutedEvent, type StrategySignalEvent, type PositionEvent } from "../orchestration";
+import { safeParseFloat, formatPrice, calculatePnL } from "../utils/numeric";
 
 export interface AlpacaTradeRequest {
   symbol: string;
@@ -360,7 +361,7 @@ class AlpacaTradingEngine {
       }
 
       const filledPrice = order.filled_avg_price
-        ? parseFloat(order.filled_avg_price)
+        ? safeParseFloat(order.filled_avg_price)
         : limitPrice || 0;
 
       let tradeNotes = notes || `Alpaca Order ID: ${order.id}`;
@@ -434,14 +435,11 @@ class AlpacaTradingEngine {
         throw closeError;
       }
 
-      const quantity = parseFloat(position.qty);
-      const entryPrice = parseFloat(position.avg_entry_price);
-      const exitPrice = parseFloat(order.filled_avg_price || position.current_price);
+      const quantity = safeParseFloat(position.qty);
+      const entryPrice = safeParseFloat(position.avg_entry_price);
+      const exitPrice = safeParseFloat(order.filled_avg_price || position.current_price);
       const isShort = position.side === "short";
-      // For longs: profit when exit > entry; for shorts: profit when exit < entry
-      const pnl = isShort 
-        ? (entryPrice - exitPrice) * quantity 
-        : (exitPrice - entryPrice) * quantity;
+      const pnl = calculatePnL(entryPrice, exitPrice, quantity, isShort ? "short" : "long");
       // Closing a long = sell; closing a short = buy
       const tradeSide = isShort ? "buy" : "sell";
 
@@ -572,7 +570,7 @@ class AlpacaTradingEngine {
     }
 
     const account = await alpaca.getAccount();
-    const buyingPower = parseFloat(account.buying_power);
+    const buyingPower = safeParseFloat(account.buying_power);
     if (!Number.isFinite(buyingPower) || buyingPower <= 0) {
       console.warn(`Skipping trade for ${symbol}: invalid buying power (${buyingPower})`);
       return { decision };
@@ -898,9 +896,9 @@ class AlpacaTradingEngine {
           return { allowed: false, reason: `Invalid trade value calculation for ${symbol}` };
         }
 
-        const buyingPower = parseFloat(account.buying_power);
+        const buyingPower = safeParseFloat(account.buying_power);
         const rawPercent = status?.maxPositionSizePercent;
-        const parsedPercent = rawPercent ? parseFloat(rawPercent) : NaN;
+        const parsedPercent = rawPercent ? safeParseFloat(rawPercent) : NaN;
         const maxPositionSizePercent = (isNaN(parsedPercent) || parsedPercent <= 0) ? 10 : parsedPercent;
         const maxPositionSizeDecimal = maxPositionSizePercent / 100;
         const maxTradeValue = buyingPower * maxPositionSizeDecimal;
@@ -925,10 +923,10 @@ class AlpacaTradingEngine {
       const trades = await storage.getTrades(1000);
       const closingTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "0");
       const totalRealizedPnl = closingTrades.reduce(
-        (sum, t) => sum + parseFloat(t.pnl || "0"),
+        (sum, t) => sum + safeParseFloat(t.pnl, 0),
         0
       );
-      const winningTrades = closingTrades.filter((t) => parseFloat(t.pnl || "0") > 0);
+      const winningTrades = closingTrades.filter((t) => safeParseFloat(t.pnl, 0) > 0);
       const winRate = closingTrades.length > 0
         ? (winningTrades.length / closingTrades.length) * 100
         : 0;
@@ -1123,6 +1121,7 @@ class AlpacaTradingEngine {
           if (!dbPos) {
             await storage.createPosition({
               symbol: alpacaPos.symbol,
+              side: alpacaPos.side,
               quantity: alpacaPos.qty,
               entryPrice: alpacaPos.avg_entry_price,
               currentPrice: alpacaPos.current_price,
@@ -1179,20 +1178,17 @@ class AlpacaTradingEngine {
       
       for (const position of positions) {
         try {
-          const qty = parseFloat(position.qty);
-          const entryPrice = parseFloat(position.avg_entry_price);
-          const currentPrice = parseFloat(position.current_price);
+          const qty = safeParseFloat(position.qty);
+          const entryPrice = safeParseFloat(position.avg_entry_price);
+          const currentPrice = safeParseFloat(position.current_price);
           const isShort = position.side === "short";
           
           const order = await alpaca.closePosition(position.symbol);
           
           const exitPrice = order.filled_avg_price 
-            ? parseFloat(order.filled_avg_price) 
+            ? safeParseFloat(order.filled_avg_price) 
             : currentPrice;
-          // For longs: profit when exit > entry; for shorts: profit when exit < entry
-          const realizedPnl = isShort 
-            ? (entryPrice - exitPrice) * qty 
-            : (exitPrice - entryPrice) * qty;
+          const realizedPnl = calculatePnL(entryPrice, exitPrice, qty, isShort ? "short" : "long");
           // Closing a long = sell; closing a short = buy
           const tradeSide = isShort ? "buy" : "sell";
           
