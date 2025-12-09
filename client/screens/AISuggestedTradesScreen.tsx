@@ -1,6 +1,8 @@
 import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
@@ -11,6 +13,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { apiRequest } from "@/lib/query-client";
 import type { AiDecision } from "@shared/schema";
+import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 interface MarketContext {
   marketData?: {
@@ -34,6 +37,7 @@ export default function AISuggestedTradesScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: decisions, isLoading, error, refetch } = useQuery<AiDecision[]>({
@@ -211,7 +215,10 @@ export default function AISuggestedTradesScreen() {
     const priceChange = liveData?.change ?? context?.marketData?.change;
 
     return (
-      <Card elevation={1} style={styles.suggestionCard}>
+      <Pressable
+        onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
+      >
+        <Card elevation={1} style={styles.suggestionCard}>
         <View style={styles.suggestionHeader}>
           <View style={styles.symbolRow}>
             <ThemedText style={styles.symbol}>{decision.symbol}</ThemedText>
@@ -304,6 +311,7 @@ export default function AISuggestedTradesScreen() {
           ) : null}
         </View>
       </Card>
+      </Pressable>
     );
   };
 
