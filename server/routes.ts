@@ -604,6 +604,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/strategies/mean-reversion/schema", async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA } = await import("./strategies/mean-reversion-scalper");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      console.error("Failed to get mean reversion strategy schema:", error);
+      res.status(500).json({ error: "Failed to get strategy schema" });
+    }
+  });
+
+  app.post("/api/strategies/mean-reversion/backtest", async (req, res) => {
+    try {
+      const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("./strategies/mean-reversion-scalper");
+      const config = normalizeMeanReversionConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMeanReversionStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to run mean reversion backtest:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to run backtest" });
+    }
+  });
+
+  app.post("/api/strategies/mean-reversion/signal", async (req, res) => {
+    try {
+      const { normalizeMeanReversionConfig, generateMeanReversionSignal } = await import("./strategies/mean-reversion-scalper");
+      const config = normalizeMeanReversionConfig(req.body.config || req.body);
+      const prices = req.body.prices as number[];
+      
+      if (!prices || !Array.isArray(prices) || prices.length < config.lookbackPeriod) {
+        return res.status(400).json({ error: `Need at least ${config.lookbackPeriod} price points` });
+      }
+      
+      const signal = generateMeanReversionSignal(prices, config);
+      res.json(signal);
+    } catch (error) {
+      console.error("Failed to generate mean reversion signal:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to generate signal" });
+    }
+  });
+
+  app.get("/api/strategies/momentum/schema", async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA } = await import("./strategies/momentum-strategy");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      console.error("Failed to get momentum strategy schema:", error);
+      res.status(500).json({ error: "Failed to get strategy schema" });
+    }
+  });
+
+  app.post("/api/strategies/momentum/backtest", async (req, res) => {
+    try {
+      const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("./strategies/momentum-strategy");
+      const config = normalizeMomentumConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMomentumStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to run momentum backtest:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to run backtest" });
+    }
+  });
+
+  app.post("/api/strategies/momentum/signal", async (req, res) => {
+    try {
+      const { normalizeMomentumConfig, generateMomentumSignal } = await import("./strategies/momentum-strategy");
+      const config = normalizeMomentumConfig(req.body.config || req.body);
+      const prices = req.body.prices as number[];
+      
+      const requiredLength = Math.max(config.lookbackPeriod, config.rsiPeriod) + 1;
+      if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
+        return res.status(400).json({ error: `Need at least ${requiredLength} price points` });
+      }
+      
+      const signal = generateMomentumSignal(prices, config);
+      res.json(signal);
+    } catch (error) {
+      console.error("Failed to generate momentum signal:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to generate signal" });
+    }
+  });
+
+  app.get("/api/strategies/all-schemas", async (req, res) => {
+    try {
+      const { ALL_STRATEGIES } = await import("./strategies/index");
+      res.json(ALL_STRATEGIES);
+    } catch (error) {
+      console.error("Failed to get all strategy schemas:", error);
+      res.status(500).json({ error: "Failed to get strategy schemas" });
+    }
+  });
+
   app.post("/api/strategy-config", async (req, res) => {
     try {
       const { normalizeMovingAverageConfig } = await import("./strategies/moving-average-crossover");
