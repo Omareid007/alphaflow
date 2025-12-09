@@ -50,6 +50,7 @@ interface CryptoMarketData {
 interface AlpacaPosition {
   symbol: string;
   qty: string;
+  qty_available: string;
   avg_entry_price: string;
   current_price: string;
   unrealized_pl: string;
@@ -1295,7 +1296,7 @@ function PositionsList() {
                 </ThemedText>
               </View>
               <ThemedText style={[styles.positionDetails, { color: theme.textSecondary }]}>
-                {position.qty} @ ${parseFloat(position.avg_entry_price).toFixed(2)}
+                {position.qty}{position.qty_available && position.qty_available !== position.qty ? ` (${position.qty_available} avail)` : ""} @ ${parseFloat(position.avg_entry_price).toFixed(2)}
               </ThemedText>
             </View>
             <View style={styles.positionPnl}>

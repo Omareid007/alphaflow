@@ -30,6 +30,7 @@ export interface AlpacaPosition {
   asset_class: string;
   avg_entry_price: string;
   qty: string;
+  qty_available: string;
   side: string;
   market_value: string;
   cost_basis: string;
