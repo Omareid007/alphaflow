@@ -128,6 +128,90 @@ function AgentStatusCard() {
   );
 }
 
+interface AlpacaAccount {
+  portfolio_value: string;
+  equity: string;
+  buying_power: string;
+  cash: string;
+  long_market_value: string;
+  last_equity: string;
+}
+
+function AccountBalanceCard() {
+  const { theme } = useTheme();
+
+  const { data: account, isLoading } = useQuery<AlpacaAccount>({
+    queryKey: ["/api/alpaca/account"],
+    refetchInterval: 10000,
+  });
+
+  const portfolioValue = parseFloat(account?.portfolio_value || "0");
+  const equity = parseFloat(account?.equity || "0");
+  const buyingPower = parseFloat(account?.buying_power || "0");
+  const cash = parseFloat(account?.cash || "0");
+  const lastEquity = parseFloat(account?.last_equity || "0");
+  const dailyChange = equity - lastEquity;
+  const dailyChangePercent = lastEquity > 0 ? ((dailyChange / lastEquity) * 100) : 0;
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={2} style={styles.accountCard}>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={2} style={styles.accountCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="dollar-sign" size={20} color={BrandColors.success} />
+        <ThemedText style={styles.cardTitle}>Account Balance</ThemedText>
+      </View>
+      <View style={styles.accountMainValue}>
+        <ThemedText style={[styles.accountPortfolioValue, { fontFamily: Fonts?.mono }]}>
+          {formatCurrency(portfolioValue)}
+        </ThemedText>
+        <View style={styles.accountChangeRow}>
+          <ThemedText style={[
+            styles.accountChange,
+            { 
+              fontFamily: Fonts?.mono,
+              color: dailyChange >= 0 ? BrandColors.success : BrandColors.error 
+            }
+          ]}>
+            {dailyChange >= 0 ? "+" : ""}{formatCurrency(dailyChange)} ({dailyChangePercent >= 0 ? "+" : ""}{dailyChangePercent.toFixed(2)}%)
+          </ThemedText>
+          <ThemedText style={[styles.accountChangeLabel, { color: theme.textSecondary }]}>today</ThemedText>
+        </View>
+      </View>
+      <View style={styles.accountStats}>
+        <View style={styles.accountStatItem}>
+          <ThemedText style={[styles.accountStatLabel, { color: theme.textSecondary }]}>Buying Power</ThemedText>
+          <ThemedText style={[styles.accountStatValue, { fontFamily: Fonts?.mono }]}>
+            {formatCurrency(buyingPower)}
+          </ThemedText>
+        </View>
+        <View style={styles.accountStatItem}>
+          <ThemedText style={[styles.accountStatLabel, { color: theme.textSecondary }]}>Cash</ThemedText>
+          <ThemedText style={[styles.accountStatValue, { fontFamily: Fonts?.mono }]}>
+            {formatCurrency(cash)}
+          </ThemedText>
+        </View>
+        <View style={styles.accountStatItem}>
+          <ThemedText style={[styles.accountStatLabel, { color: theme.textSecondary }]}>Equity</ThemedText>
+          <ThemedText style={[styles.accountStatValue, { fontFamily: Fonts?.mono }]}>
+            {formatCurrency(equity)}
+          </ThemedText>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
 interface MarketIntelligenceData {
   overall: number;
   components: {
@@ -1239,6 +1323,7 @@ export default function DashboardScreen() {
   const { theme } = useTheme();
 
   const sections = [
+    { key: "account", component: <AccountBalanceCard /> },
     { key: "agent", component: <AgentStatusCard /> },
     { key: "autonomous", component: <AutonomousControlCard /> },
     { key: "equityCurve", component: <EquityCurveCard /> },
@@ -1325,6 +1410,48 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...Typography.h2,
+  },
+  accountCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.success,
+    borderLeftWidth: 4,
+  },
+  accountMainValue: {
+    marginBottom: Spacing.lg,
+  },
+  accountPortfolioValue: {
+    ...Typography.h1,
+    fontSize: 32,
+  },
+  accountChangeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  accountChange: {
+    ...Typography.body,
+  },
+  accountChangeLabel: {
+    ...Typography.small,
+  },
+  accountStats: {
+    flexDirection: "row",
+    gap: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+  },
+  accountStatItem: {
+    flex: 1,
+  },
+  accountStatLabel: {
+    ...Typography.small,
+    marginBottom: Spacing.xs,
+  },
+  accountStatValue: {
+    ...Typography.body,
+    fontWeight: "600",
   },
   intelligenceCard: {
     borderWidth: 1,

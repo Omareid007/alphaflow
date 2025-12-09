@@ -644,7 +644,7 @@ export default function AutoScreen() {
       >
         <Card elevation={1} style={[
           styles.suggestionCard,
-          isSelected && styles.suggestionCardSelected
+          isSelected ? styles.suggestionCardSelected : undefined
         ]}>
           <View style={styles.suggestionHeader}>
             <View style={styles.symbolRow}>
