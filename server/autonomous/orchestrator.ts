@@ -493,7 +493,7 @@ class AutonomousOrchestrator {
         side: "buy",
         quantity: order.qty || order.filled_qty,
         price: order.filled_avg_price || "0",
-        status: "executed",
+        status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
       });
 
@@ -571,7 +571,7 @@ class AutonomousOrchestrator {
         quantity: order.filled_qty || position.quantity.toString(),
         price: order.filled_avg_price || position.currentPrice.toString(),
         pnl: pnl.toString(),
-        status: "executed",
+        status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
       });
 

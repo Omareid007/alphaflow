@@ -16,7 +16,7 @@ import { PriceChart } from "@/components/PriceChart";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
 import { AutonomousControlCard } from "@/components/AutonomousControlCard";
 import { apiRequest } from "@/lib/query-client";
-import type { AiDecision } from "@shared/schema";
+import type { AiDecision, Position } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 interface AnalyticsSummary {
