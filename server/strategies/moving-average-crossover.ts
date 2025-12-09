@@ -1,4 +1,4 @@
-import { finnhub, type StockCandle } from "../connectors/finnhub";
+import { alpaca, type AlpacaBar } from "../connectors/alpaca";
 
 export interface MovingAverageCrossoverConfig {
   id: string;
@@ -175,22 +175,29 @@ export async function backtestMovingAverageStrategy(
 ): Promise<MovingAverageBacktestResult> {
   const normalizedConfig = normalizeMovingAverageConfig(config);
   
-  const now = Math.floor(Date.now() / 1000);
-  const from = now - lookbackDays * 24 * 60 * 60;
+  const now = new Date();
+  const from = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   
-  let candles: StockCandle;
+  let bars: AlpacaBar[];
   try {
-    candles = await finnhub.getCandles(normalizedConfig.symbol, "D", from, now);
+    const response = await alpaca.getBars(
+      [normalizedConfig.symbol],
+      "1Day",
+      from.toISOString(),
+      now.toISOString(),
+      lookbackDays + 50
+    );
+    bars = response.bars[normalizedConfig.symbol] || [];
   } catch (error) {
     throw new Error(`Failed to fetch historical data for ${normalizedConfig.symbol}: ${(error as Error).message}`);
   }
 
-  if (!candles || candles.s !== "ok" || !candles.c || candles.c.length < normalizedConfig.slowPeriod + 10) {
+  if (!bars || bars.length < normalizedConfig.slowPeriod + 10) {
     throw new Error(`Insufficient historical data for ${normalizedConfig.symbol}. Need at least ${normalizedConfig.slowPeriod + 10} days of data.`);
   }
 
-  const closePrices = candles.c;
-  const timestamps = candles.t;
+  const closePrices = bars.map(bar => bar.c);
+  const timestamps = bars.map(bar => Math.floor(new Date(bar.t).getTime() / 1000));
   
   const fastSMA = calculateSMA(closePrices, normalizedConfig.fastPeriod);
   const slowSMA = calculateSMA(closePrices, normalizedConfig.slowPeriod);

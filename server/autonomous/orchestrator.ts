@@ -153,19 +153,49 @@ class AutonomousOrchestrator {
   async syncPositionsFromBroker(): Promise<void> {
     try {
       const positions = await alpaca.getPositions();
+      const existingPositions = new Map(this.state.activePositions);
       this.state.activePositions.clear();
 
       for (const pos of positions) {
+        const entryPrice = parseFloat(pos.avg_entry_price);
+        const currentPrice = parseFloat(pos.current_price);
+        
+        const existingPos = existingPositions.get(pos.symbol);
+        
+        let stopLossPrice = existingPos?.stopLossPrice;
+        let takeProfitPrice = existingPos?.takeProfitPrice;
+        let trailingStopPercent = existingPos?.trailingStopPercent;
+        
+        if (!stopLossPrice && entryPrice > 0) {
+          stopLossPrice = entryPrice * 0.95;
+        }
+        if (!takeProfitPrice && entryPrice > 0) {
+          takeProfitPrice = entryPrice * 1.10;
+        }
+        
+        if (existingPos?.trailingStopPercent && currentPrice > entryPrice) {
+          const profitPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+          if (profitPercent > 5) {
+            const newStopLoss = currentPrice * (1 - existingPos.trailingStopPercent / 100);
+            if (!stopLossPrice || newStopLoss > stopLossPrice) {
+              stopLossPrice = newStopLoss;
+              console.log(`[Orchestrator] Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`);
+            }
+          }
+        }
+
         const positionWithRules: PositionWithRules = {
           symbol: pos.symbol,
           quantity: parseFloat(pos.qty),
-          entryPrice: parseFloat(pos.avg_entry_price),
-          currentPrice: parseFloat(pos.current_price),
+          entryPrice,
+          currentPrice,
           unrealizedPnl: parseFloat(pos.unrealized_pl),
           unrealizedPnlPercent: parseFloat(pos.unrealized_plpc) * 100,
-          openedAt: new Date(),
-          stopLossPrice: undefined,
-          takeProfitPrice: undefined,
+          openedAt: existingPos?.openedAt || new Date(),
+          stopLossPrice,
+          takeProfitPrice,
+          trailingStopPercent,
+          strategyId: existingPos?.strategyId,
         };
 
         this.state.activePositions.set(pos.symbol, positionWithRules);
@@ -635,6 +665,8 @@ class AutonomousOrchestrator {
       for (const [symbol, position] of this.state.activePositions.entries()) {
         await this.checkPositionRules(symbol, position);
       }
+
+      await this.rebalancePositions();
     } catch (error) {
       console.error("[Orchestrator] Position management cycle error:", error);
     }
@@ -760,6 +792,105 @@ class AutonomousOrchestrator {
     this.state.dailyPnl = 0;
     this.state.dailyTradeCount = 0;
     console.log("[Orchestrator] Reset daily stats");
+  }
+
+  async rebalancePositions(): Promise<void> {
+    try {
+      const account = await alpaca.getAccount();
+      const portfolioValue = parseFloat(account.portfolio_value);
+      
+      if (portfolioValue <= 0) {
+        console.log("[Orchestrator] Cannot rebalance: invalid portfolio value");
+        return;
+      }
+
+      const targetAllocationPercent = this.riskLimits.maxPositionSizePercent;
+      const rebalanceThresholdPercent = 2;
+
+      for (const [symbol, position] of this.state.activePositions.entries()) {
+        const positionValue = position.currentPrice * position.quantity;
+        const currentAllocationPercent = (positionValue / portfolioValue) * 100;
+        const drift = currentAllocationPercent - targetAllocationPercent;
+
+        if (Math.abs(drift) > rebalanceThresholdPercent) {
+          console.log(`[Orchestrator] Position ${symbol} drifted by ${drift.toFixed(2)}%`);
+
+          if (drift > rebalanceThresholdPercent) {
+            const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
+            const sharesToSell = Math.floor(excessValue / position.currentPrice);
+            
+            if (sharesToSell > 0 && sharesToSell < position.quantity) {
+              console.log(`[Orchestrator] Rebalancing: Selling ${sharesToSell} shares of ${symbol}`);
+              await this.closePosition(
+                symbol,
+                {
+                  action: "sell",
+                  confidence: 0.8,
+                  reasoning: `Rebalancing: Position overweight by ${drift.toFixed(1)}%`,
+                  riskLevel: "low",
+                },
+                position,
+                (sharesToSell / position.quantity) * 100
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[Orchestrator] Rebalancing error:", error);
+      this.state.errors.push(`Rebalancing failed: ${error}`);
+    }
+  }
+
+  async adjustStopLossTakeProfit(
+    symbol: string,
+    newStopLoss?: number,
+    newTakeProfit?: number,
+    trailingStopPercent?: number
+  ): Promise<boolean> {
+    const position = this.state.activePositions.get(symbol);
+    if (!position) {
+      console.log(`[Orchestrator] Cannot adjust SL/TP: Position ${symbol} not found`);
+      return false;
+    }
+
+    if (newStopLoss !== undefined) {
+      if (newStopLoss >= position.currentPrice) {
+        console.log(`[Orchestrator] Invalid stop loss: $${newStopLoss} >= current price $${position.currentPrice}`);
+        return false;
+      }
+      position.stopLossPrice = newStopLoss;
+    }
+
+    if (newTakeProfit !== undefined) {
+      if (newTakeProfit <= position.currentPrice) {
+        console.log(`[Orchestrator] Invalid take profit: $${newTakeProfit} <= current price $${position.currentPrice}`);
+        return false;
+      }
+      position.takeProfitPrice = newTakeProfit;
+    }
+
+    if (trailingStopPercent !== undefined) {
+      if (trailingStopPercent <= 0 || trailingStopPercent >= 100) {
+        console.log(`[Orchestrator] Invalid trailing stop percent: ${trailingStopPercent}`);
+        return false;
+      }
+      position.trailingStopPercent = trailingStopPercent;
+    }
+
+    this.state.activePositions.set(symbol, position);
+    console.log(`[Orchestrator] Updated ${symbol} - SL: $${position.stopLossPrice?.toFixed(2)}, TP: $${position.takeProfitPrice?.toFixed(2)}, Trail: ${position.trailingStopPercent || 'N/A'}%`);
+    return true;
+  }
+
+  async applyTrailingStopToAllPositions(trailPercent: number = 5): Promise<void> {
+    for (const [symbol, position] of this.state.activePositions.entries()) {
+      if (position.unrealizedPnlPercent > 0) {
+        position.trailingStopPercent = trailPercent;
+        this.state.activePositions.set(symbol, position);
+        console.log(`[Orchestrator] Applied ${trailPercent}% trailing stop to ${symbol}`);
+      }
+    }
   }
 }
 
