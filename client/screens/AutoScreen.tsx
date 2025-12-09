@@ -124,7 +124,15 @@ export default function AutoScreen() {
   });
 
   const { data: searchResults, isLoading: searchLoading } = useQuery<TopAsset[]>({
-    queryKey: ["/api/alpaca/top-stocks?limit=50"],
+    queryKey: ["/api/alpaca/top-stocks", debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: "50" });
+      if (debouncedSearch.length >= 2) {
+        params.append("search", debouncedSearch.toUpperCase());
+      }
+      const response = await apiRequest("GET", `/api/alpaca/top-stocks?${params.toString()}`);
+      return await response.json();
+    },
     enabled: debouncedSearch.length >= 2,
   });
 
@@ -208,7 +216,7 @@ export default function AutoScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/autonomous/state"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-decisions?limit=50"] });
       setSelectedDecisions(new Set());
       Alert.alert("Success", "Trades submitted for execution");
     },
