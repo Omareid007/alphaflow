@@ -14,6 +14,7 @@ export const BrandColors = {
   cryptoLayer: "#F7931A",
   stockLayer: "#0A2463",
   aiLayer: "#8B5CF6",
+  uaeLayer: "#00732F",
   profitBackground: "#D1FAE5",
   lossBackground: "#FEE2E2",
   cardBorder: "#E5E7EB",

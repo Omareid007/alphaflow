@@ -15,6 +15,7 @@ import { finnhub } from "./connectors/finnhub";
 import { alpaca } from "./connectors/alpaca";
 import { coinmarketcap } from "./connectors/coinmarketcap";
 import { newsapi } from "./connectors/newsapi";
+import { uaeMarkets } from "./connectors/uae-markets";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
@@ -595,6 +596,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch market news:", error);
       res.status(500).json({ error: "Failed to fetch market news" });
+    }
+  });
+
+  app.get("/api/uae/stocks", async (req, res) => {
+    try {
+      const exchange = req.query.exchange as "ADX" | "DFM" | undefined;
+      const stocks = await uaeMarkets.getTopStocks(exchange);
+      res.json(stocks);
+    } catch (error) {
+      console.error("Failed to fetch UAE stocks:", error);
+      res.status(500).json({ error: "Failed to fetch UAE stocks" });
+    }
+  });
+
+  app.get("/api/uae/summary", async (req, res) => {
+    try {
+      const exchange = req.query.exchange as "ADX" | "DFM" | undefined;
+      const summary = await uaeMarkets.getMarketSummary(exchange);
+      res.json(summary);
+    } catch (error) {
+      console.error("Failed to fetch UAE market summary:", error);
+      res.status(500).json({ error: "Failed to fetch UAE market summary" });
+    }
+  });
+
+  app.get("/api/uae/info", async (req, res) => {
+    try {
+      const info = uaeMarkets.getMarketInfo();
+      res.json(info);
+    } catch (error) {
+      console.error("Failed to fetch UAE market info:", error);
+      res.status(500).json({ error: "Failed to fetch UAE market info" });
+    }
+  });
+
+  app.get("/api/uae/status", async (req, res) => {
+    try {
+      const status = uaeMarkets.getConnectionStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get UAE connector status" });
     }
   });
 

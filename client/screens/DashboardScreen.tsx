@@ -885,6 +885,186 @@ function StockMarketsCard() {
   );
 }
 
+interface UAEStock {
+  symbol: string;
+  name: string;
+  nameArabic?: string;
+  exchange: "ADX" | "DFM";
+  sector: string;
+  currentPrice: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  marketCap?: number;
+  currency: string;
+  lastUpdated: string;
+}
+
+interface UAEMarketSummary {
+  exchange: "ADX" | "DFM";
+  indexName: string;
+  indexValue: number;
+  change: number;
+  changePercent: number;
+  tradingValue: number;
+  tradingVolume: number;
+  advancers: number;
+  decliners: number;
+  unchanged: number;
+  lastUpdated: string;
+}
+
+interface UAEConnectionStatus {
+  connected: boolean;
+  dataSource: "mock" | "live";
+  cacheSize: number;
+  apiConfigured: boolean;
+  isMockData: boolean;
+}
+
+function UAEMarketsCard() {
+  const { theme } = useTheme();
+
+  const { data: stocks, isLoading: stocksLoading, error: stocksError } = useQuery<UAEStock[]>({
+    queryKey: ["/api/uae/stocks"],
+    refetchInterval: 60000,
+  });
+
+  const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery<UAEMarketSummary[]>({
+    queryKey: ["/api/uae/summary"],
+    refetchInterval: 60000,
+  });
+
+  const { data: status } = useQuery<UAEConnectionStatus>({
+    queryKey: ["/api/uae/status"],
+    refetchInterval: 120000,
+  });
+
+  const isLoading = stocksLoading || summaryLoading;
+  const hasError = stocksError || summaryError;
+
+  const formatPrice = (price: number): string => {
+    return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatChange = (change: number): string => {
+    const prefix = change >= 0 ? "+" : "";
+    return `${prefix}${change.toFixed(2)}%`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.uaeCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="globe" size={20} color={BrandColors.uaeLayer} />
+          <ThemedText style={styles.cardTitle}>UAE Markets</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.primaryLight} />
+      </Card>
+    );
+  }
+
+  if (hasError || !stocks || stocks.length === 0) {
+    return (
+      <Card elevation={1} style={styles.uaeCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="globe" size={20} color={BrandColors.uaeLayer} />
+          <ThemedText style={styles.cardTitle}>UAE Markets</ThemedText>
+          <View style={styles.uaeBetaIndicator}>
+            <ThemedText style={[styles.uaeBetaText, { color: BrandColors.warning }]}>BETA</ThemedText>
+          </View>
+        </View>
+        <View style={styles.uaeError}>
+          <Feather name="alert-circle" size={24} color={BrandColors.warning} />
+          <ThemedText style={[styles.uaeErrorText, { color: theme.textSecondary }]}>
+            UAE market data unavailable
+          </ThemedText>
+          <ThemedText style={[styles.uaeNoteText, { color: theme.textSecondary, marginTop: Spacing.sm }]}>
+            This feature uses sample data. Live API integration coming soon.
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={1} style={styles.uaeCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="globe" size={20} color={BrandColors.uaeLayer} />
+        <ThemedText style={styles.cardTitle}>UAE Markets</ThemedText>
+        <View style={styles.uaeBetaIndicator}>
+          <ThemedText style={[styles.uaeBetaText, { color: BrandColors.warning }]}>BETA</ThemedText>
+        </View>
+      </View>
+      {summary ? (
+        <View style={styles.uaeSummaryRow}>
+          {summary.map((market) => (
+            <View key={market.exchange} style={styles.uaeIndexItem}>
+              <ThemedText style={[styles.uaeIndexName, { color: theme.textSecondary }]}>{market.exchange}</ThemedText>
+              <ThemedText style={[styles.uaeIndexValue, { fontFamily: Fonts?.mono }]}>
+                {formatPrice(market.indexValue)}
+              </ThemedText>
+              <ThemedText style={[
+                styles.uaeIndexChange,
+                { 
+                  fontFamily: Fonts?.mono,
+                  color: market.changePercent >= 0 ? BrandColors.success : BrandColors.error
+                }
+              ]}>
+                {formatChange(market.changePercent)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {stocks.slice(0, 5).map((stock, index) => (
+        <View
+          key={stock.symbol}
+          style={[
+            styles.uaeStockRow,
+            index < Math.min(stocks.length, 5) - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+          ]}
+        >
+          <View style={styles.uaeStockInfo}>
+            <View style={styles.uaeStockHeader}>
+              <ThemedText style={styles.uaeStockSymbol}>{stock.symbol}</ThemedText>
+              <View style={[styles.uaeExchangeBadge, { backgroundColor: stock.exchange === "ADX" ? BrandColors.uaeLayer : BrandColors.primaryLight }]}>
+                <ThemedText style={styles.uaeExchangeText}>{stock.exchange}</ThemedText>
+              </View>
+            </View>
+            <ThemedText style={[styles.uaeStockName, { color: theme.textSecondary }]} numberOfLines={1}>
+              {stock.name}
+            </ThemedText>
+          </View>
+          <View style={styles.uaeStockPriceInfo}>
+            <ThemedText style={[styles.uaeStockPrice, { fontFamily: Fonts?.mono }]}>
+              {stock.currency} {formatPrice(stock.currentPrice)}
+            </ThemedText>
+            <ThemedText style={[
+              styles.uaeStockChange,
+              { 
+                fontFamily: Fonts?.mono,
+                color: stock.changePercent >= 0 ? BrandColors.success : BrandColors.error
+              }
+            ]}>
+              {formatChange(stock.changePercent)}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
+      <View style={styles.uaeNote}>
+        <Feather name="info" size={12} color={theme.textSecondary} />
+        <ThemedText style={[styles.uaeNoteText, { color: theme.textSecondary }]}>
+          {status?.isMockData 
+            ? "Sample data for demonstration. Live ADX/DFM API integration coming soon."
+            : "Live market data from UAE exchanges"
+          }
+        </ThemedText>
+      </View>
+    </Card>
+  );
+}
+
 function LayerStatusCard({ layer, color }: { layer: string; color: string }) {
   const { theme } = useTheme();
 
@@ -1033,6 +1213,7 @@ export default function DashboardScreen() {
     )},
     { key: "crypto", component: <CryptoMarketsCard /> },
     { key: "stock", component: <StockMarketsCard /> },
+    { key: "uae", component: <UAEMarketsCard /> },
     { key: "intelligence", component: <MarketIntelligenceCard /> },
     { key: "layers", component: (
       <View style={styles.layersRow}>
@@ -1569,5 +1750,113 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     ...Typography.h4,
+  },
+  uaeCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  uaeError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  uaeErrorText: {
+    ...Typography.caption,
+  },
+  uaeBetaIndicator: {
+    marginLeft: "auto",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+    borderColor: BrandColors.warning,
+  },
+  uaeBetaText: {
+    ...Typography.small,
+    fontWeight: "600",
+    fontSize: 10,
+  },
+  uaeSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.cardBorder,
+  },
+  uaeIndexItem: {
+    alignItems: "center",
+  },
+  uaeIndexName: {
+    ...Typography.small,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  uaeIndexValue: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  uaeIndexChange: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  uaeStockRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+  },
+  uaeStockInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  uaeStockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  uaeStockSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  uaeExchangeBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  uaeExchangeText: {
+    ...Typography.small,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 10,
+  },
+  uaeStockName: {
+    ...Typography.small,
+  },
+  uaeStockPriceInfo: {
+    alignItems: "flex-end",
+  },
+  uaeStockPrice: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  uaeStockChange: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  uaeNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+  },
+  uaeNoteText: {
+    ...Typography.small,
+    fontSize: 11,
   },
 });
