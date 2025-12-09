@@ -68,6 +68,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error("Failed to initialize Alpaca trading engine:", err)
   );
 
+  // Bootstrap admin user "Omar" with password "test1234"
+  try {
+    const adminUser = await storage.getUserByUsername("Omar");
+    if (!adminUser) {
+      const hashedPassword = await bcrypt.hash("test1234", 10);
+      await storage.createUser({ username: "Omar", password: hashedPassword });
+      console.log("[Bootstrap] Created admin user: Omar");
+    } else {
+      console.log("[Bootstrap] Admin user Omar already exists");
+    }
+  } catch (err) {
+    console.error("[Bootstrap] Failed to create admin user:", err);
+  }
+
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const parsed = insertUserSchema.safeParse(req.body);

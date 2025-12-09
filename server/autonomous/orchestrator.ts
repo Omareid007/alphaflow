@@ -114,7 +114,7 @@ class AutonomousOrchestrator {
     this.riskLimits = { ...DEFAULT_RISK_LIMITS };
     this.state = {
       isRunning: false,
-      mode: "manual",
+      mode: "autonomous",
       lastAnalysisTime: null,
       lastPositionCheckTime: null,
       activePositions: new Map(),
@@ -143,7 +143,6 @@ class AutonomousOrchestrator {
           dailyLossLimitPercent: Number(agentStatus.dailyLossLimitPercent) || 5,
           killSwitchActive: agentStatus.killSwitchActive || false,
         };
-        this.state.mode = agentStatus.isRunning ? "autonomous" : "manual";
       }
     } catch (error) {
       console.error("[Orchestrator] Failed to load risk limits:", error);
