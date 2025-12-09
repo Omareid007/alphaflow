@@ -84,6 +84,13 @@ export const agentStatus = pgTable("agent_status", {
   maxTotalExposurePercent: numeric("max_total_exposure_percent").default("50"),
   maxPositionsCount: integer("max_positions_count").default(10),
   dailyLossLimitPercent: numeric("daily_loss_limit_percent").default("5"),
+  dynamicOrderLimit: integer("dynamic_order_limit").default(10),
+  minOrderLimit: integer("min_order_limit").default(10),
+  maxOrderLimit: integer("max_order_limit").default(50),
+  marketCondition: text("market_condition").default("neutral"),
+  aiConfidenceScore: numeric("ai_confidence_score").default("0.5"),
+  autoStartEnabled: boolean("auto_start_enabled").default(true).notNull(),
+  lastMarketAnalysis: timestamp("last_market_analysis"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
