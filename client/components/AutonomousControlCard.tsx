@@ -1,4 +1,4 @@
-import { View, StyleSheet, ActivityIndicator, Pressable, Switch, Alert } from "react-native";
+import { View, StyleSheet, ActivityIndicator, Pressable, Switch, Alert, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -8,6 +8,19 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { apiRequest } from "@/lib/query-client";
+
+function showConfirm(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    if (window.confirm(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+  } else {
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Confirm", onPress: onConfirm },
+    ]);
+  }
+}
 
 interface AutonomousState {
   isRunning: boolean;
@@ -90,22 +103,16 @@ export function AutonomousControlCard() {
 
   const handleToggleAutonomous = () => {
     if (state?.isRunning) {
-      Alert.alert(
+      showConfirm(
         "Stop Autonomous Trading",
         "Are you sure you want to stop the autonomous trading agent?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Stop", style: "destructive", onPress: () => stopMutation.mutate() },
-        ]
+        () => stopMutation.mutate()
       );
     } else {
-      Alert.alert(
+      showConfirm(
         "Start Autonomous Trading",
         "This will enable fully autonomous trading. The AI will analyze markets and execute trades automatically based on your risk settings.\n\nAre you sure?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Start", onPress: () => startMutation.mutate() },
-        ]
+        () => startMutation.mutate()
       );
     }
   };
@@ -113,13 +120,10 @@ export function AutonomousControlCard() {
   const handleKillSwitch = () => {
     const isActive = state?.riskLimits?.killSwitchActive;
     if (!isActive) {
-      Alert.alert(
+      showConfirm(
         "EMERGENCY KILL SWITCH",
         "This will immediately stop all autonomous trading and prevent any new trades.\n\nActivate kill switch?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "ACTIVATE", style: "destructive", onPress: () => killSwitchMutation.mutate(true) },
-        ]
+        () => killSwitchMutation.mutate(true)
       );
     } else {
       killSwitchMutation.mutate(false);
