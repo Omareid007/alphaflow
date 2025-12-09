@@ -33,7 +33,14 @@ class AlpacaTradingEngine {
   private strategyRunners: Map<string, NodeJS.Timeout> = new Map();
   private strategyStates: Map<string, StrategyRunState> = new Map();
   private checkIntervalMs = 60000;
+  private backgroundGeneratorInterval: NodeJS.Timeout | null = null;
+  private backgroundGeneratorIntervalMs = 120000;
   private initialized = false;
+  private autoStartStrategyId: string | null = null;
+
+  private readonly DEFAULT_WATCHLIST = [
+    "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH"
+  ];
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -41,21 +48,117 @@ class AlpacaTradingEngine {
     
     try {
       const strategies = await storage.getStrategies();
-      const activeStrategies = strategies.filter(s => s.isActive);
       
-      for (const strategy of activeStrategies) {
+      for (const strategy of strategies.filter(s => s.isActive)) {
         if (!this.strategyRunners.has(strategy.id)) {
           console.log(`Resetting orphaned active strategy: ${strategy.name} (${strategy.id})`);
           await storage.toggleStrategy(strategy.id, false);
         }
       }
       
-      const runningStrategies = strategies.filter(s => s.isActive);
-      if (runningStrategies.length === 0) {
-        await storage.updateAgentStatus({ isRunning: false });
+      let autoPilotStrategy = strategies.find(s => s.name === "Auto-Pilot Strategy");
+      
+      if (!autoPilotStrategy) {
+        console.log("Creating default Auto-Pilot Strategy...");
+        autoPilotStrategy = await storage.createStrategy({
+          name: "Auto-Pilot Strategy",
+          type: "momentum",
+          description: "Default AI-powered trading strategy that automatically analyzes market opportunities",
+          isActive: false,
+          assets: this.DEFAULT_WATCHLIST,
+          parameters: JSON.stringify({
+            riskLevel: "medium",
+            maxPositionSize: 0.05,
+            confidenceThreshold: 0.6,
+            autoExecute: true
+          }),
+        });
+        console.log(`Created Auto-Pilot Strategy with ID: ${autoPilotStrategy.id}`);
       }
+      
+      this.autoStartStrategyId = autoPilotStrategy.id;
+      
+      this.startBackgroundAIGenerator();
+      
+      await storage.updateAgentStatus({ 
+        isRunning: true, 
+        lastHeartbeat: new Date() 
+      });
+      
+      console.log("Trading agent initialized and active by default");
+      
+      setTimeout(async () => {
+        try {
+          const isConnected = await this.isAlpacaConnected();
+          if (isConnected && this.autoStartStrategyId) {
+            console.log("Alpaca connected, auto-starting strategy...");
+            const result = await this.startStrategy(this.autoStartStrategyId);
+            if (result.success) {
+              console.log("Auto-Pilot Strategy started successfully");
+            } else {
+              console.log(`Could not auto-start strategy: ${result.error}`);
+            }
+          } else if (!isConnected) {
+            console.log("Alpaca not connected - running in AI suggestion mode only");
+          }
+        } catch (err) {
+          console.error("Error during auto-start:", err);
+        }
+      }, 5000);
+      
     } catch (error) {
       console.error("Failed to initialize trading engine:", error);
+    }
+  }
+
+  private startBackgroundAIGenerator(): void {
+    if (this.backgroundGeneratorInterval) {
+      clearInterval(this.backgroundGeneratorInterval);
+    }
+
+    console.log("Starting background AI suggestion generator...");
+    
+    this.generateBackgroundAISuggestions();
+    
+    this.backgroundGeneratorInterval = setInterval(
+      () => this.generateBackgroundAISuggestions(),
+      this.backgroundGeneratorIntervalMs
+    );
+  }
+
+  private async generateBackgroundAISuggestions(): Promise<void> {
+    try {
+      const agentStatus = await storage.getAgentStatus();
+      if (agentStatus?.killSwitchActive) {
+        console.log("Kill switch active - skipping background AI generation");
+        return;
+      }
+
+      console.log("Generating background AI suggestions...");
+      
+      const symbolsToAnalyze = this.DEFAULT_WATCHLIST.slice(0, 5);
+      
+      for (const symbol of symbolsToAnalyze) {
+        try {
+          await this.analyzeSymbol(symbol);
+          console.log(`Generated AI suggestion for ${symbol}`);
+        } catch (err) {
+          console.log(`Could not analyze ${symbol}:`, (err as Error).message);
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      await storage.updateAgentStatus({ lastHeartbeat: new Date() });
+    } catch (error) {
+      console.error("Background AI generation error:", error);
+    }
+  }
+
+  stopBackgroundGenerator(): void {
+    if (this.backgroundGeneratorInterval) {
+      clearInterval(this.backgroundGeneratorInterval);
+      this.backgroundGeneratorInterval = null;
+      console.log("Background AI generator stopped");
     }
   }
 
@@ -432,7 +535,24 @@ class AlpacaTradingEngine {
     for (const [strategyId] of this.strategyRunners) {
       await this.stopStrategy(strategyId);
     }
+    this.stopBackgroundGenerator();
     await storage.updateAgentStatus({ isRunning: false });
+  }
+
+  async resumeAgent(): Promise<void> {
+    console.log("Resuming trading agent...");
+    this.startBackgroundAIGenerator();
+    await storage.updateAgentStatus({ 
+      isRunning: true, 
+      lastHeartbeat: new Date() 
+    });
+    
+    if (this.autoStartStrategyId) {
+      const isConnected = await this.isAlpacaConnected();
+      if (isConnected) {
+        await this.startStrategy(this.autoStartStrategyId);
+      }
+    }
   }
 
   getStrategyState(strategyId: string): StrategyRunState | undefined {

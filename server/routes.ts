@@ -199,12 +199,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const currentStatus = await storage.getAgentStatus();
       const newIsRunning = !(currentStatus?.isRunning ?? false);
-      const status = await storage.updateAgentStatus({
-        isRunning: newIsRunning,
-        lastHeartbeat: new Date(),
-      });
+      
+      if (newIsRunning) {
+        await alpacaTradingEngine.resumeAgent();
+      } else {
+        await alpacaTradingEngine.stopAllStrategies();
+      }
+      
+      const status = await storage.getAgentStatus();
       res.json(status);
     } catch (error) {
+      console.error("Failed to toggle agent:", error);
       res.status(500).json({ error: "Failed to toggle agent" });
     }
   });
