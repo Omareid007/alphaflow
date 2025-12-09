@@ -61,6 +61,8 @@ export interface IStorage {
 
   getAiDecisions(limit?: number): Promise<AiDecision[]>;
   createAiDecision(decision: InsertAiDecision): Promise<AiDecision>;
+  updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
+  getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
 
   getAgentStatus(): Promise<AgentStatus | undefined>;
   updateAgentStatus(updates: Partial<AgentStatus>): Promise<AgentStatus>;
