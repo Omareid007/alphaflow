@@ -844,7 +844,8 @@ export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
   
   try {
     const allOrders = await alpaca.getOrders("all", 500);
-    const staleThreshold = Date.now() - 24 * 60 * 60 * 1000;
+    const staleThresholdMs = 24 * 60 * 60 * 1000;
+    const now = Date.now();
     
     for (const order of allOrders) {
       let isUnreal = false;
@@ -852,7 +853,8 @@ export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
       
       const filledQty = safeParseFloat(order.filled_qty, 0);
       const notionalValue = order.notional ? safeParseFloat(order.notional, 0) : 0;
-      const orderAge = new Date(order.created_at).getTime();
+      const orderCreatedAt = new Date(order.created_at).getTime();
+      const orderAgeMs = now - orderCreatedAt;
       
       if (order.status === "rejected") {
         isUnreal = true;
@@ -868,7 +870,7 @@ export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
         reason = "Order has zero quantity and zero notional";
       } else if (
         ACTIVE_STATUSES.includes(order.status as any) &&
-        orderAge < staleThreshold &&
+        orderAgeMs >= staleThresholdMs &&
         filledQty === 0
       ) {
         isUnreal = true;
@@ -918,10 +920,12 @@ export async function cleanupUnrealOrders(): Promise<{
       if (ACTIVE_STATUSES.includes(order.status as any)) {
         try {
           await alpaca.cancelOrder(order.orderId);
-          result.canceled++;
           console.log(`[OrderCleanup] Canceled unreal order ${order.orderId}: ${order.reason}`);
+          result.canceled++;
         } catch (error) {
-          result.errors.push(`Failed to cancel ${order.orderId}: ${(error as Error).message}`);
+          const errorMsg = `Failed to cancel ${order.orderId}: ${(error as Error).message}`;
+          result.errors.push(errorMsg);
+          console.warn(`[OrderCleanup] ${errorMsg}`);
         }
       }
     }

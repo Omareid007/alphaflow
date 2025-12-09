@@ -20,6 +20,12 @@ import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyConte
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
+import { 
+  orderExecutionEngine,
+  identifyUnrealOrders, 
+  cleanupUnrealOrders, 
+  reconcileOrderBook 
+} from "./trading/order-execution-flow";
 import { orchestrator } from "./autonomous/orchestrator";
 import { eventBus, logger, coordinator } from "./orchestration";
 import { safeParseFloat } from "./utils/numeric";
@@ -460,6 +466,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, ...result });
     } catch (error) {
       console.error("Failed to close all positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.get("/api/orders/unreal", async (req, res) => {
+    try {
+      const unrealOrders = await identifyUnrealOrders();
+      res.json({
+        count: unrealOrders.length,
+        orders: unrealOrders
+      });
+    } catch (error) {
+      console.error("Failed to identify unreal orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/orders/cleanup", async (req, res) => {
+    try {
+      const result = await cleanupUnrealOrders();
+      res.json({
+        success: result.errors.length === 0,
+        identified: result.identified,
+        canceled: result.canceled,
+        errors: result.errors
+      });
+    } catch (error) {
+      console.error("Failed to cleanup unreal orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.post("/api/orders/reconcile", async (req, res) => {
+    try {
+      const result = await reconcileOrderBook();
+      res.json({
+        success: true,
+        alpacaOrders: result.alpacaOrders,
+        localTrades: result.localTrades,
+        missingLocal: result.missingLocal,
+        orphanedLocal: result.orphanedLocal,
+        synced: result.synced
+      });
+    } catch (error) {
+      console.error("Failed to reconcile order book:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.get("/api/orders/execution-engine/status", async (req, res) => {
+    try {
+      const activeExecutions = orderExecutionEngine.getActiveExecutions();
+      const executions = Array.from(activeExecutions.entries()).map(([id, state]) => ({
+        clientOrderId: id,
+        orderId: state.orderId,
+        symbol: state.symbol,
+        side: state.side,
+        status: state.status,
+        attempts: state.attempts,
+        createdAt: state.createdAt.toISOString(),
+        updatedAt: state.updatedAt.toISOString()
+      }));
+      res.json({
+        activeCount: executions.length,
+        executions
+      });
+    } catch (error) {
+      console.error("Failed to get execution engine status:", error);
       res.status(500).json({ error: String(error) });
     }
   });
