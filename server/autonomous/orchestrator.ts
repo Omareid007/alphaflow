@@ -77,6 +77,30 @@ const WATCHLIST = {
   crypto: ["BTC", "ETH", "SOL"],
 };
 
+function isCryptoSymbol(symbol: string): boolean {
+  const upperSymbol = symbol.toUpperCase();
+  // Check bare tickers
+  if (WATCHLIST.crypto.includes(upperSymbol)) return true;
+  // Check USD pairs (e.g., BTC/USD, BTCUSD)
+  const cryptoPairs = WATCHLIST.crypto.flatMap(c => [`${c}/USD`, `${c}USD`]);
+  return cryptoPairs.includes(upperSymbol) || 
+         (symbol.includes("/") && upperSymbol.endsWith("USD"));
+}
+
+function normalizeCryptoSymbol(symbol: string): string {
+  const upperSymbol = symbol.toUpperCase();
+  // Already in correct format
+  if (upperSymbol.includes("/")) return upperSymbol;
+  // Bare ticker (BTC -> BTC/USD)
+  if (WATCHLIST.crypto.includes(upperSymbol)) return `${upperSymbol}/USD`;
+  // BTCUSD format -> BTC/USD
+  if (upperSymbol.endsWith("USD") && upperSymbol.length > 3) {
+    const base = upperSymbol.slice(0, -3);
+    return `${base}/USD`;
+  }
+  return upperSymbol;
+}
+
 class AutonomousOrchestrator {
   private state: OrchestratorState;
   private config: OrchestratorConfig;
@@ -453,13 +477,13 @@ class AutonomousOrchestrator {
         };
       }
 
-      const isCrypto = WATCHLIST.crypto.includes(symbol);
+      const isCrypto = isCryptoSymbol(symbol);
       const orderParams: CreateOrderParams = {
-        symbol: isCrypto ? `${symbol}/USD` : symbol,
+        symbol: isCrypto ? normalizeCryptoSymbol(symbol) : symbol,
         notional: positionValue.toFixed(2),
         side: "buy",
         type: "market",
-        time_in_force: "day",
+        time_in_force: isCrypto ? "gtc" : "day",
       };
 
       const order = await alpaca.createOrder(orderParams);
@@ -519,8 +543,8 @@ class AutonomousOrchestrator {
     partialPercent: number = 100
   ): Promise<ExecutionResult> {
     try {
-      const isCrypto = WATCHLIST.crypto.includes(symbol);
-      const brokerSymbol = isCrypto ? `${symbol}/USD` : symbol;
+      const isCrypto = isCryptoSymbol(symbol);
+      const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
 
       let order;
       if (partialPercent >= 100) {
@@ -532,7 +556,7 @@ class AutonomousOrchestrator {
           qty: closeQty.toString(),
           side: "sell",
           type: "market",
-          time_in_force: "day",
+          time_in_force: isCrypto ? "gtc" : "day",
         });
       }
 

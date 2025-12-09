@@ -42,13 +42,27 @@ class AlpacaTradingEngine {
     "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH"
   ];
 
-  private normalizeSymbolForAlpaca(symbol: string): string {
+  private normalizeSymbolForAlpaca(symbol: string, forOrder: boolean = false): string {
+    // For crypto orders, Alpaca requires the slash format (e.g., BTC/USD)
+    // For stock orders and position lookups, use uppercase without slash
+    if (forOrder && this.isCryptoSymbol(symbol)) {
+      return this.normalizeCryptoSymbol(symbol);
+    }
     return symbol.replace("/", "").toUpperCase();
   }
 
   private isCryptoSymbol(symbol: string): boolean {
-    const cryptoPairs = ["BTC/USD", "ETH/USD", "SOL/USD", "BTCUSD", "ETHUSD", "SOLUSD"];
-    return cryptoPairs.includes(symbol.toUpperCase()) || symbol.includes("/");
+    const upperSymbol = symbol.toUpperCase();
+    // Common crypto pairs on Alpaca
+    const cryptoPairs = [
+      "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "AVAX/USD",
+      "DOT/USD", "LINK/USD", "UNI/USD", "AAVE/USD", "LTC/USD", "BCH/USD",
+      "BTCUSD", "ETHUSD", "SOLUSD", "DOGEUSD", "SHIBUSD", "AVAXUSD",
+      "DOTUSD", "LINKUSD", "UNIUSD", "AAVEUSD", "LTCUSD", "BCHUSD"
+    ];
+    // Check if it's a known crypto pair or contains a slash (crypto format)
+    return cryptoPairs.includes(upperSymbol) || 
+           (symbol.includes("/") && upperSymbol.endsWith("USD"));
   }
 
   private normalizeCryptoSymbol(symbol: string): string {
@@ -227,13 +241,13 @@ class AlpacaTradingEngine {
         return { success: false, error: riskCheck.reason };
       }
 
-      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
+      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol, true);
       const orderParams: CreateOrderParams = {
         symbol: alpacaSymbol,
         qty: quantity.toString(),
         side,
         type: orderType,
-        time_in_force: "day",
+        time_in_force: this.isCryptoSymbol(symbol) ? "gtc" : "day",
       };
 
       if (orderType === "limit" && limitPrice) {
@@ -268,7 +282,10 @@ class AlpacaTradingEngine {
 
   async closeAlpacaPosition(symbol: string, strategyId?: string): Promise<AlpacaTradeResult> {
     try {
-      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
+      // For crypto, use slash format; for stocks, use standard format
+      const alpacaSymbol = this.isCryptoSymbol(symbol) 
+        ? this.normalizeCryptoSymbol(symbol) 
+        : this.normalizeSymbolForAlpaca(symbol);
       let position: AlpacaPosition | null = null;
       try {
         position = await alpaca.getPosition(alpacaSymbol);
@@ -433,7 +450,10 @@ class AlpacaTradingEngine {
 
     if (decision.action === "sell") {
       try {
-        const alpacaSellSymbol = this.normalizeSymbolForAlpaca(symbol);
+        // For crypto, use slash format; for stocks, use standard format
+        const alpacaSellSymbol = this.isCryptoSymbol(symbol) 
+          ? this.normalizeCryptoSymbol(symbol) 
+          : this.normalizeSymbolForAlpaca(symbol);
         const position = await alpaca.getPosition(alpacaSellSymbol);
         if (!position) {
           return { decision };
