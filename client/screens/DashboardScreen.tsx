@@ -1,7 +1,9 @@
-import { View, FlatList, StyleSheet, ActivityIndicator, Image, RefreshControl } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Image, RefreshControl, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
@@ -14,6 +16,7 @@ import { PriceChart } from "@/components/PriceChart";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
 import { apiRequest } from "@/lib/query-client";
 import type { AgentStatus, Position, AiDecision } from "@shared/schema";
+import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 interface AnalyticsSummary {
   totalTrades: number;
@@ -542,6 +545,126 @@ function AIDecisionsCard() {
   );
 }
 
+function AISuggestedTradesCard() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
+
+  const { data: decisions, isLoading } = useQuery<AiDecision[]>({
+    queryKey: ["/api/ai-decisions?limit=3"],
+    refetchInterval: 30000,
+  });
+
+  const { data: aiStatus } = useQuery<{ available: boolean; model: string; provider: string }>({
+    queryKey: ["/api/ai/status"],
+  });
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case "buy": return BrandColors.success;
+      case "sell": return BrandColors.error;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  const formatConfidence = (confidence: string | number | null | undefined) => {
+    if (confidence === null || confidence === undefined) return "N/A";
+    const value = typeof confidence === "number" ? confidence : parseFloat(confidence);
+    if (isNaN(value)) return "N/A";
+    return `${(value * 100).toFixed(0)}%`;
+  };
+
+  const handleViewAll = () => {
+    navigation.navigate("AISuggestedTrades");
+  };
+
+  if (isLoading) {
+    return (
+      <Card elevation={1} style={styles.suggestionsCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="zap" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Suggested Trades</ThemedText>
+        </View>
+        <ActivityIndicator size="small" color={BrandColors.aiLayer} />
+      </Card>
+    );
+  }
+
+  if (!aiStatus?.available) {
+    return (
+      <Card elevation={1} style={styles.suggestionsCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="zap" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Suggested Trades</ThemedText>
+        </View>
+        <View style={styles.aiStatusRow}>
+          <Feather name="alert-circle" size={20} color={BrandColors.warning} />
+          <ThemedText style={[styles.aiStatusText, { color: theme.textSecondary }]}>
+            AI engine not configured
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  if (!decisions || decisions.length === 0) {
+    return (
+      <Card elevation={1} style={styles.suggestionsCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="zap" size={20} color={BrandColors.aiLayer} />
+          <ThemedText style={styles.cardTitle}>AI Suggested Trades</ThemedText>
+        </View>
+        <View style={styles.aiEmptyState}>
+          <Feather name="cpu" size={32} color={theme.textSecondary} />
+          <ThemedText style={[styles.aiEmptyText, { color: theme.textSecondary }]}>
+            No trade suggestions yet
+          </ThemedText>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card elevation={1} style={styles.suggestionsCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="zap" size={20} color={BrandColors.aiLayer} />
+        <ThemedText style={styles.cardTitle}>AI Suggested Trades</ThemedText>
+        <View style={styles.aiActiveIndicator}>
+          <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
+          <ThemedText style={[styles.liveText, { color: BrandColors.aiLayer }]}>LIVE</ThemedText>
+        </View>
+      </View>
+      {decisions.slice(0, 3).map((decision, index) => (
+        <View
+          key={decision.id}
+          style={[
+            styles.suggestionRow,
+            index < Math.min(decisions.length, 3) - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder }
+          ]}
+        >
+          <View style={styles.suggestionInfo}>
+            <View style={styles.suggestionHeader}>
+              <ThemedText style={styles.suggestionSymbol}>{decision.symbol}</ThemedText>
+              <View style={[styles.suggestionActionBadge, { backgroundColor: getActionColor(decision.action) }]}>
+                <ThemedText style={styles.suggestionActionText}>{decision.action.toUpperCase()}</ThemedText>
+              </View>
+            </View>
+            <ThemedText style={[styles.suggestionReasoning, { color: theme.textSecondary }]} numberOfLines={1}>
+              {decision.reasoning || "Analysis pending"}
+            </ThemedText>
+          </View>
+          <ThemedText style={[styles.suggestionConfidence, { fontFamily: Fonts?.mono }]}>
+            {formatConfidence(decision.confidence)}
+          </ThemedText>
+        </View>
+      ))}
+      <Pressable style={styles.viewAllButton} onPress={handleViewAll}>
+        <ThemedText style={[styles.viewAllText, { color: BrandColors.aiLayer }]}>View All Suggestions</ThemedText>
+        <Feather name="chevron-right" size={16} color={BrandColors.aiLayer} />
+      </Pressable>
+    </Card>
+  );
+}
+
 function CryptoMarketsCard() {
   const { theme } = useTheme();
 
@@ -893,6 +1016,7 @@ export default function DashboardScreen() {
   const sections = [
     { key: "agent", component: <AgentStatusCard /> },
     { key: "equityCurve", component: <EquityCurveCard /> },
+    { key: "suggestions", component: <AISuggestedTradesCard /> },
     { key: "ai", component: <AIDecisionsCard /> },
     { key: "btcChart", component: (
       <View>
@@ -1262,6 +1386,62 @@ const styles = StyleSheet.create({
   aiCard: {
     borderWidth: 1,
     borderColor: BrandColors.cardBorder,
+  },
+  suggestionsCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  suggestionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+  },
+  suggestionInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  suggestionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  suggestionSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  suggestionActionBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  suggestionActionText: {
+    ...Typography.small,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 10,
+  },
+  suggestionReasoning: {
+    ...Typography.small,
+  },
+  suggestionConfidence: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    marginTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+  },
+  viewAllText: {
+    ...Typography.body,
+    fontWeight: "600",
   },
   aiStatusRow: {
     flexDirection: "row",
