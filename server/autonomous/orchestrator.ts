@@ -4,6 +4,7 @@ import { finnhub } from "../connectors/finnhub";
 import { coingecko } from "../connectors/coingecko";
 import { storage } from "../storage";
 import type { Strategy } from "@shared/schema";
+import { safeParseFloat } from "../utils/numeric";
 
 export interface OrchestratorConfig {
   analysisIntervalMs: number;
@@ -156,8 +157,8 @@ class AutonomousOrchestrator {
       this.state.activePositions.clear();
 
       for (const pos of positions) {
-        const entryPrice = parseFloat(pos.avg_entry_price);
-        const currentPrice = parseFloat(pos.current_price);
+        const entryPrice = safeParseFloat(pos.avg_entry_price);
+        const currentPrice = safeParseFloat(pos.current_price);
         
         const existingPos = existingPositions.get(pos.symbol);
         
@@ -185,11 +186,11 @@ class AutonomousOrchestrator {
 
         const positionWithRules: PositionWithRules = {
           symbol: pos.symbol,
-          quantity: parseFloat(pos.qty),
+          quantity: safeParseFloat(pos.qty),
           entryPrice,
           currentPrice,
-          unrealizedPnl: parseFloat(pos.unrealized_pl),
-          unrealizedPnlPercent: parseFloat(pos.unrealized_plpc) * 100,
+          unrealizedPnl: safeParseFloat(pos.unrealized_pl),
+          unrealizedPnlPercent: safeParseFloat(pos.unrealized_plpc) * 100,
           openedAt: existingPos?.openedAt || new Date(),
           stopLossPrice,
           takeProfitPrice,
@@ -475,8 +476,8 @@ class AutonomousOrchestrator {
   ): Promise<ExecutionResult> {
     try {
       const account = await alpaca.getAccount();
-      const portfolioValue = parseFloat(account.portfolio_value);
-      const buyingPower = parseFloat(account.buying_power);
+      const portfolioValue = safeParseFloat(account.portfolio_value);
+      const buyingPower = safeParseFloat(account.buying_power);
 
       const positionSizePercent = Math.min(
         (decision.suggestedQuantity || 0.05) * 100,
@@ -530,9 +531,9 @@ class AutonomousOrchestrator {
 
       const positionWithRules: PositionWithRules = {
         symbol,
-        quantity: parseFloat(order.qty || order.filled_qty || "0"),
-        entryPrice: parseFloat(order.filled_avg_price || "0"),
-        currentPrice: parseFloat(order.filled_avg_price || "0"),
+        quantity: safeParseFloat(order.qty || order.filled_qty),
+        entryPrice: safeParseFloat(order.filled_avg_price),
+        currentPrice: safeParseFloat(order.filled_avg_price),
         unrealizedPnl: 0,
         unrealizedPnlPercent: 0,
         openedAt: new Date(),
@@ -591,9 +592,9 @@ class AutonomousOrchestrator {
       }
 
       const pnl =
-        (parseFloat(order.filled_avg_price || position.currentPrice.toString()) -
+        (safeParseFloat(order.filled_avg_price, position.currentPrice) -
           position.entryPrice) *
-        parseFloat(order.filled_qty || position.quantity.toString());
+        safeParseFloat(order.filled_qty, position.quantity);
 
       await storage.createTrade({
         symbol,
@@ -624,8 +625,8 @@ class AutonomousOrchestrator {
         action: "sell",
         reason: decision.reasoning,
         symbol,
-        quantity: parseFloat(order.filled_qty || position.quantity.toString()),
-        price: parseFloat(order.filled_avg_price || position.currentPrice.toString()),
+        quantity: safeParseFloat(order.filled_qty, position.quantity),
+        price: safeParseFloat(order.filled_avg_price, position.currentPrice),
       };
     } catch (error) {
       console.error(`[Orchestrator] Failed to close position ${symbol}:`, error);

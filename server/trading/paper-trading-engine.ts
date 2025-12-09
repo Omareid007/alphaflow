@@ -3,6 +3,7 @@ import { aiDecisionEngine, type MarketData, type AIDecision } from "../ai/decisi
 import { coingecko } from "../connectors/coingecko";
 import { finnhub } from "../connectors/finnhub";
 import type { Trade, Position } from "@shared/schema";
+import { safeParseFloat } from "../utils/numeric";
 
 export interface TradeRequest {
   symbol: string;
@@ -59,7 +60,7 @@ export class PaperTradingEngine {
       });
       return DEFAULT_CASH_BALANCE;
     }
-    return parseFloat(status.cashBalance);
+    return safeParseFloat(status.cashBalance, DEFAULT_CASH_BALANCE);
   }
 
   private async setCashBalance(newBalance: number): Promise<void> {
@@ -115,8 +116,8 @@ export class PaperTradingEngine {
         });
 
         if (existingLongPosition) {
-          const existingQty = parseFloat(existingLongPosition.quantity);
-          const existingCost = existingQty * parseFloat(existingLongPosition.entryPrice);
+          const existingQty = safeParseFloat(existingLongPosition.quantity);
+          const existingCost = existingQty * safeParseFloat(existingLongPosition.entryPrice);
           const newCost = quantity * price;
           const totalQty = existingQty + quantity;
           const avgPrice = (existingCost + newCost) / totalQty;
@@ -145,13 +146,13 @@ export class PaperTradingEngine {
           return { success: false, error: `No long position to sell for ${symbol}` };
         }
 
-        const existingQty = parseFloat(existingLongPosition.quantity);
+        const existingQty = safeParseFloat(existingLongPosition.quantity);
         
         if (quantity > existingQty) {
           return { success: false, error: `Cannot sell more than owned (${existingQty} ${symbol})` };
         }
 
-        const entryPrice = parseFloat(existingLongPosition.entryPrice);
+        const entryPrice = safeParseFloat(existingLongPosition.entryPrice);
         realizedPnl = (price - entryPrice) * quantity;
         const remainingQty = existingQty - quantity;
 
@@ -195,8 +196,8 @@ export class PaperTradingEngine {
         return { success: false, error: "Position not found" };
       }
 
-      const quantity = parseFloat(position.quantity);
-      const entryPrice = parseFloat(position.entryPrice);
+      const quantity = safeParseFloat(position.quantity);
+      const entryPrice = safeParseFloat(position.entryPrice);
       const exitPrice = currentPrice || await this.getCurrentPrice(position.symbol);
 
       if (!exitPrice) {
@@ -236,8 +237,8 @@ export class PaperTradingEngine {
       for (const position of positions) {
         const currentPrice = await this.getCurrentPrice(position.symbol);
         if (currentPrice) {
-          const quantity = parseFloat(position.quantity);
-          const entryPrice = parseFloat(position.entryPrice);
+          const quantity = safeParseFloat(position.quantity);
+          const entryPrice = safeParseFloat(position.entryPrice);
           const unrealizedPnl = (currentPrice - entryPrice) * quantity;
 
           await storage.updatePosition(position.id, {
@@ -262,10 +263,10 @@ export class PaperTradingEngine {
     let totalUnrealizedPnl = 0;
 
     const positionsWithPnl: PositionWithPnL[] = positions.map((p) => {
-      const quantity = parseFloat(p.quantity);
-      const entryPrice = parseFloat(p.entryPrice);
-      const currentPrice = parseFloat(p.currentPrice || p.entryPrice);
-      const unrealizedPnl = parseFloat(p.unrealizedPnl || "0");
+      const quantity = safeParseFloat(p.quantity);
+      const entryPrice = safeParseFloat(p.entryPrice);
+      const currentPrice = safeParseFloat(p.currentPrice || p.entryPrice);
+      const unrealizedPnl = safeParseFloat(p.unrealizedPnl);
 
       const value = quantity * currentPrice;
       const cost = quantity * entryPrice;
@@ -282,11 +283,11 @@ export class PaperTradingEngine {
 
     const closingTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "0");
     const totalRealizedPnl = closingTrades.reduce(
-      (sum, t) => sum + parseFloat(t.pnl || "0"),
+      (sum, t) => sum + safeParseFloat(t.pnl),
       0
     );
 
-    const winningTrades = closingTrades.filter((t) => parseFloat(t.pnl || "0") > 0);
+    const winningTrades = closingTrades.filter((t) => safeParseFloat(t.pnl) > 0);
     const winRate = closingTrades.length > 0
       ? (winningTrades.length / closingTrades.length) * 100
       : 0;
@@ -462,10 +463,10 @@ export class PaperTradingEngine {
       const trades = await storage.getTrades(1000);
       const closingTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "0");
       const totalRealizedPnl = closingTrades.reduce(
-        (sum, t) => sum + parseFloat(t.pnl || "0"),
+        (sum, t) => sum + safeParseFloat(t.pnl),
         0
       );
-      const winningTrades = closingTrades.filter((t) => parseFloat(t.pnl || "0") > 0);
+      const winningTrades = closingTrades.filter((t) => safeParseFloat(t.pnl) > 0);
       const winRate = closingTrades.length > 0
         ? (winningTrades.length / closingTrades.length) * 100
         : 0;
@@ -534,7 +535,7 @@ export class PaperTradingEngine {
     }
 
     const cashBalance = await this.getCashBalance();
-    const maxPositionSizePercent = parseFloat(status?.maxPositionSizePercent ?? "10") / 100;
+    const maxPositionSizePercent = safeParseFloat(status?.maxPositionSizePercent, 10) / 100;
     const maxTradeValue = cashBalance * maxPositionSizePercent;
     if (tradeValue > maxTradeValue) {
       return { 
@@ -545,11 +546,11 @@ export class PaperTradingEngine {
 
     let positionsValue = 0;
     for (const p of positions) {
-      const qty = parseFloat(p.quantity);
-      const price = parseFloat(p.currentPrice || p.entryPrice);
+      const qty = safeParseFloat(p.quantity);
+      const price = safeParseFloat(p.currentPrice || p.entryPrice);
       positionsValue += qty * price;
     }
-    const maxExposurePercent = parseFloat(status?.maxTotalExposurePercent ?? "50") / 100;
+    const maxExposurePercent = safeParseFloat(status?.maxTotalExposurePercent, 50) / 100;
     const totalEquity = cashBalance + positionsValue;
     
     if (totalEquity > 0) {
@@ -572,7 +573,7 @@ export class PaperTradingEngine {
 
   private async checkDailyLossLimit(): Promise<{ allowed: boolean; reason?: string }> {
     const status = await storage.getAgentStatus();
-    const dailyLossLimitPercent = parseFloat(status?.dailyLossLimitPercent ?? "5") / 100;
+    const dailyLossLimitPercent = safeParseFloat(status?.dailyLossLimitPercent, 5) / 100;
     
     const trades = await storage.getTrades(1000);
     const today = new Date();
@@ -584,7 +585,7 @@ export class PaperTradingEngine {
     });
     
     const todaysLoss = todaysTrades.reduce((sum, t) => {
-      const pnl = parseFloat(t.pnl || "0");
+      const pnl = safeParseFloat(t.pnl);
       return pnl < 0 ? sum + Math.abs(pnl) : sum;
     }, 0);
     
@@ -592,8 +593,8 @@ export class PaperTradingEngine {
     const positions = await storage.getPositions();
     let positionsValue = 0;
     for (const p of positions) {
-      const qty = parseFloat(p.quantity);
-      const price = parseFloat(p.currentPrice || p.entryPrice);
+      const qty = safeParseFloat(p.quantity);
+      const price = safeParseFloat(p.currentPrice || p.entryPrice);
       positionsValue += qty * price;
     }
     const totalEquity = cashBalance + positionsValue;
@@ -621,10 +622,10 @@ export class PaperTradingEngine {
     const status = await storage.getAgentStatus();
     return {
       killSwitchActive: status?.killSwitchActive ?? false,
-      maxPositionSizePercent: parseFloat(status?.maxPositionSizePercent ?? "10"),
-      maxTotalExposurePercent: parseFloat(status?.maxTotalExposurePercent ?? "50"),
+      maxPositionSizePercent: safeParseFloat(status?.maxPositionSizePercent, 10),
+      maxTotalExposurePercent: safeParseFloat(status?.maxTotalExposurePercent, 50),
       maxPositionsCount: status?.maxPositionsCount ?? 10,
-      dailyLossLimitPercent: parseFloat(status?.dailyLossLimitPercent ?? "5"),
+      dailyLossLimitPercent: safeParseFloat(status?.dailyLossLimitPercent, 5),
     };
   }
 }
