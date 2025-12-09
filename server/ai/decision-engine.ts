@@ -42,6 +42,7 @@ export interface AIDecision {
   suggestedQuantity?: number;
   targetPrice?: number;
   stopLoss?: number;
+  trailingStopPercent?: number;
 }
 
 function isRateLimitOrQuotaError(error: unknown): boolean {
@@ -245,6 +246,14 @@ Symbol: ${symbol}
       ? (decision.riskLevel as "low" | "medium" | "high")
       : "medium";
 
+    let trailingStopPercent = decision.trailingStopPercent;
+    if (trailingStopPercent !== undefined) {
+      trailingStopPercent = Number(trailingStopPercent);
+      if (isNaN(trailingStopPercent) || trailingStopPercent < 0.5 || trailingStopPercent > 20) {
+        trailingStopPercent = undefined;
+      }
+    }
+
     return {
       action,
       confidence,
@@ -253,6 +262,7 @@ Symbol: ${symbol}
       suggestedQuantity: decision.suggestedQuantity,
       targetPrice: decision.targetPrice,
       stopLoss: decision.stopLoss,
+      trailingStopPercent,
     };
   }
 

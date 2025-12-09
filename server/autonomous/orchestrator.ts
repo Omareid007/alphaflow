@@ -539,6 +539,7 @@ class AutonomousOrchestrator {
         openedAt: new Date(),
         stopLossPrice: decision.stopLoss,
         takeProfitPrice: decision.targetPrice,
+        trailingStopPercent: decision.trailingStopPercent,
       };
 
       this.state.activePositions.set(symbol, positionWithRules);
