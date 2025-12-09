@@ -439,6 +439,12 @@ class AlpacaTradingEngine {
           return { decision };
         }
         const tradeResult = await this.closeAlpacaPosition(symbol, strategyId);
+        
+        // Link AI decision to executed trade
+        if (tradeResult.success && tradeResult.trade) {
+          await this.linkAiDecisionToTrade(symbol, strategyId, tradeResult.trade.id);
+        }
+        
         return { decision, tradeResult };
       } catch (posError) {
         const errorMsg = (posError as Error).message?.toLowerCase() || "";
@@ -457,7 +463,24 @@ class AlpacaTradingEngine {
       notes,
     });
 
+    // Link AI decision to executed trade
+    if (tradeResult.success && tradeResult.trade) {
+      await this.linkAiDecisionToTrade(symbol, strategyId, tradeResult.trade.id);
+    }
+
     return { decision, tradeResult };
+  }
+
+  private async linkAiDecisionToTrade(symbol: string, strategyId: string | undefined, tradeId: string): Promise<void> {
+    try {
+      const latestDecision = await storage.getLatestAiDecisionForSymbol(symbol, strategyId);
+      if (latestDecision && !latestDecision.executedTradeId) {
+        await storage.updateAiDecision(latestDecision.id, { executedTradeId: tradeId });
+        console.log(`Linked AI decision ${latestDecision.id} to trade ${tradeId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to link AI decision to trade: ${error}`);
+    }
   }
 
   async startStrategy(strategyId: string): Promise<{ success: boolean; error?: string }> {

@@ -10,6 +10,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { EquityCurveCard } from "@/components/EquityCurveCard";
 import type { Trade, Strategy, AiDecision } from "@shared/schema";
 
 interface EnrichedTrade extends Trade {
@@ -120,31 +121,6 @@ function PerformanceMetrics() {
   );
 }
 
-function EquityCurveCard() {
-  const { theme } = useTheme();
-
-  const { data: trades } = useQuery<Trade[]>({
-    queryKey: ["/api/trades"],
-    refetchInterval: 10000,
-  });
-
-  const hasTrades = trades && trades.length > 0;
-
-  return (
-    <Card elevation={1} style={styles.chartCard}>
-      <View style={styles.cardHeader}>
-        <Feather name="trending-up" size={20} color={BrandColors.primaryLight} />
-        <ThemedText style={styles.cardTitle}>Equity Curve</ThemedText>
-      </View>
-      <View style={styles.chartPlaceholder}>
-        <Feather name="bar-chart-2" size={48} color={theme.textSecondary} />
-        <ThemedText style={[styles.placeholderText, { color: theme.textSecondary }]}>
-          {hasTrades ? "Chart coming soon" : "Chart will appear after trades"}
-        </ThemedText>
-      </View>
-    </Card>
-  );
-}
 
 function WinRateCard() {
   const { theme } = useTheme();
