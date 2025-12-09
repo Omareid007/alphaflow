@@ -1,0 +1,996 @@
+/**
+ * ORDER EXECUTION FLOW WITH ERROR HANDLING AND AUTO-RECOVERY
+ * 
+ * This file implements comprehensive order execution with:
+ * - Pre-execution validation
+ * - Retry mechanisms with exponential backoff
+ * - Error classification and recovery strategies
+ * - Order status tracking and reconciliation
+ * - Expected outcome validation
+ */
+
+import { randomUUID } from "crypto";
+import { alpaca, CreateOrderParams, AlpacaOrder } from "../connectors/alpaca";
+import { storage } from "../storage";
+import { safeParseFloat } from "../utils/numeric";
+import {
+  CreateOrderSchema,
+  validateOrderTypeCombination,
+  validateStopPrice,
+  validateLimitPrice,
+  validateBracketOrder,
+  validateTrailingStop,
+  TERMINAL_STATUSES,
+  ACTIVE_STATUSES,
+  FAILED_STATUSES,
+  type ValidationResult
+} from "./order-types-matrix";
+
+// ============================================================================
+// ERROR CLASSIFICATION
+// ============================================================================
+
+export enum OrderErrorType {
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  INSUFFICIENT_FUNDS = "INSUFFICIENT_FUNDS",
+  INVALID_SYMBOL = "INVALID_SYMBOL",
+  MARKET_CLOSED = "MARKET_CLOSED",
+  RATE_LIMITED = "RATE_LIMITED",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  BROKER_REJECTION = "BROKER_REJECTION",
+  POSITION_NOT_FOUND = "POSITION_NOT_FOUND",
+  ORDER_NOT_FOUND = "ORDER_NOT_FOUND",
+  TIMEOUT = "TIMEOUT",
+  UNKNOWN = "UNKNOWN"
+}
+
+export interface ClassifiedError {
+  type: OrderErrorType;
+  message: string;
+  retryable: boolean;
+  suggestedDelay: number;
+  recoveryStrategy: RecoveryStrategy;
+  originalError?: Error;
+}
+
+export enum RecoveryStrategy {
+  NONE = "NONE",
+  RETRY_IMMEDIATELY = "RETRY_IMMEDIATELY",
+  RETRY_WITH_BACKOFF = "RETRY_WITH_BACKOFF",
+  ADJUST_AND_RETRY = "ADJUST_AND_RETRY",
+  CANCEL_AND_REPLACE = "CANCEL_AND_REPLACE",
+  WAIT_FOR_MARKET_OPEN = "WAIT_FOR_MARKET_OPEN",
+  CHECK_AND_SYNC = "CHECK_AND_SYNC",
+  MANUAL_INTERVENTION = "MANUAL_INTERVENTION"
+}
+
+/**
+ * Classify error and determine recovery strategy
+ */
+function classifyError(error: Error, context?: string): ClassifiedError {
+  const message = error.message.toLowerCase();
+  
+  if (message.includes("insufficient") || message.includes("buying power")) {
+    return {
+      type: OrderErrorType.INSUFFICIENT_FUNDS,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: RecoveryStrategy.ADJUST_AND_RETRY
+    };
+  }
+  
+  if (message.includes("symbol") && (message.includes("not found") || message.includes("invalid"))) {
+    return {
+      type: OrderErrorType.INVALID_SYMBOL,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: RecoveryStrategy.MANUAL_INTERVENTION
+    };
+  }
+  
+  if (message.includes("market") && (message.includes("closed") || message.includes("not open"))) {
+    return {
+      type: OrderErrorType.MARKET_CLOSED,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 60000,
+      recoveryStrategy: RecoveryStrategy.WAIT_FOR_MARKET_OPEN
+    };
+  }
+  
+  if (message.includes("429") || message.includes("rate limit")) {
+    return {
+      type: OrderErrorType.RATE_LIMITED,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 5000,
+      recoveryStrategy: RecoveryStrategy.RETRY_WITH_BACKOFF
+    };
+  }
+  
+  if (message.includes("network") || message.includes("fetch") || message.includes("econnrefused")) {
+    return {
+      type: OrderErrorType.NETWORK_ERROR,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 2000,
+      recoveryStrategy: RecoveryStrategy.RETRY_WITH_BACKOFF
+    };
+  }
+  
+  if (message.includes("timeout")) {
+    return {
+      type: OrderErrorType.TIMEOUT,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 1000,
+      recoveryStrategy: RecoveryStrategy.CHECK_AND_SYNC
+    };
+  }
+  
+  if (message.includes("rejected") || message.includes("refused")) {
+    return {
+      type: OrderErrorType.BROKER_REJECTION,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: RecoveryStrategy.ADJUST_AND_RETRY
+    };
+  }
+  
+  if (message.includes("position") && message.includes("not found")) {
+    return {
+      type: OrderErrorType.POSITION_NOT_FOUND,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: RecoveryStrategy.CHECK_AND_SYNC
+    };
+  }
+  
+  if (message.includes("order") && message.includes("not found")) {
+    return {
+      type: OrderErrorType.ORDER_NOT_FOUND,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: RecoveryStrategy.CHECK_AND_SYNC
+    };
+  }
+  
+  return {
+    type: OrderErrorType.UNKNOWN,
+    message: error.message,
+    retryable: true,
+    suggestedDelay: 3000,
+    recoveryStrategy: RecoveryStrategy.RETRY_WITH_BACKOFF,
+    originalError: error
+  };
+}
+
+// ============================================================================
+// EXECUTION FLOW STATE
+// ============================================================================
+
+export interface OrderExecutionState {
+  orderId: string | null;
+  clientOrderId: string;
+  status: "pending" | "validating" | "submitting" | "submitted" | "monitoring" | "filled" | "failed" | "canceled" | "recovering";
+  symbol: string;
+  side: "buy" | "sell";
+  orderType: string;
+  requestedQty: string;
+  filledQty: string;
+  requestedPrice: string | null;
+  filledPrice: string | null;
+  attempts: number;
+  maxAttempts: number;
+  createdAt: Date;
+  updatedAt: Date;
+  errors: ClassifiedError[];
+  validationResult: ValidationResult | null;
+  expectedOutcome: ExpectedOutcome | null;
+  actualOutcome: ActualOutcome | null;
+}
+
+export interface ExpectedOutcome {
+  fillPrice: { min: number; max: number };
+  fillQty: number;
+  estimatedCost: number;
+  shouldFillImmediately: boolean;
+  fillTimeEstimateMs: number;
+  risksIdentified: string[];
+}
+
+export interface ActualOutcome {
+  filled: boolean;
+  fillPrice: number | null;
+  fillQty: number;
+  totalCost: number;
+  fillTimeMs: number;
+  slippage: number | null;
+  status: string;
+  unexpectedEvents: string[];
+}
+
+// ============================================================================
+// ORDER EXECUTION ENGINE
+// ============================================================================
+
+export interface ExecuteOrderOptions {
+  maxRetries?: number;
+  retryDelayMs?: number;
+  timeoutMs?: number;
+  validateBeforeSubmit?: boolean;
+  trackExpectedOutcome?: boolean;
+  autoRecover?: boolean;
+}
+
+const DEFAULT_OPTIONS: Required<ExecuteOrderOptions> = {
+  maxRetries: 3,
+  retryDelayMs: 1000,
+  timeoutMs: 30000,
+  validateBeforeSubmit: true,
+  trackExpectedOutcome: true,
+  autoRecover: true
+};
+
+export interface OrderExecutionResult {
+  success: boolean;
+  state: OrderExecutionState;
+  order?: AlpacaOrder;
+  error?: ClassifiedError;
+  validationWarnings: string[];
+  outcomeAnalysis?: OutcomeAnalysis;
+}
+
+export interface OutcomeAnalysis {
+  matchesExpected: boolean;
+  slippagePercent: number | null;
+  fillTimeDeviation: number | null;
+  unexpectedIssues: string[];
+  recommendations: string[];
+}
+
+class OrderExecutionEngine {
+  private activeExecutions: Map<string, OrderExecutionState> = new Map();
+  
+  /**
+   * Execute order with full validation, retry, and recovery
+   */
+  async executeOrder(
+    params: CreateOrderParams,
+    options: ExecuteOrderOptions = {}
+  ): Promise<OrderExecutionResult> {
+    const opts = { ...DEFAULT_OPTIONS, ...options };
+    const clientOrderId = params.client_order_id || randomUUID();
+    
+    const state: OrderExecutionState = {
+      orderId: null,
+      clientOrderId,
+      status: "pending",
+      symbol: params.symbol,
+      side: params.side,
+      orderType: params.type,
+      requestedQty: params.qty || params.notional || "0",
+      filledQty: "0",
+      requestedPrice: params.limit_price || params.stop_price || null,
+      filledPrice: null,
+      attempts: 0,
+      maxAttempts: opts.maxRetries,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      errors: [],
+      validationResult: null,
+      expectedOutcome: null,
+      actualOutcome: null
+    };
+    
+    this.activeExecutions.set(clientOrderId, state);
+    const warnings: string[] = [];
+    
+    try {
+      // Phase 1: Validation
+      state.status = "validating";
+      state.updatedAt = new Date();
+      
+      if (opts.validateBeforeSubmit) {
+        const validation = await this.validateOrderParams(params);
+        state.validationResult = validation;
+        
+        if (!validation.valid) {
+          const error = classifyError(new Error(validation.errors.join("; ")));
+          error.type = OrderErrorType.VALIDATION_ERROR;
+          state.errors.push(error);
+          state.status = "failed";
+          return {
+            success: false,
+            state,
+            error,
+            validationWarnings: validation.warnings
+          };
+        }
+        
+        warnings.push(...validation.warnings);
+      }
+      
+      // Phase 2: Calculate Expected Outcome
+      if (opts.trackExpectedOutcome) {
+        state.expectedOutcome = await this.calculateExpectedOutcome(params);
+      }
+      
+      // Phase 3: Submit Order with Retry
+      state.status = "submitting";
+      let order: AlpacaOrder | null = null;
+      
+      while (state.attempts < opts.maxRetries) {
+        state.attempts++;
+        state.updatedAt = new Date();
+        
+        try {
+          const orderWithClientId = {
+            ...params,
+            client_order_id: clientOrderId
+          };
+          
+          order = await this.submitOrderWithTimeout(orderWithClientId, opts.timeoutMs);
+          state.orderId = order.id;
+          state.status = "submitted";
+          break;
+        } catch (error) {
+          const classifiedError = classifyError(error as Error, `Attempt ${state.attempts}`);
+          state.errors.push(classifiedError);
+          
+          if (!classifiedError.retryable || state.attempts >= opts.maxRetries) {
+            if (opts.autoRecover && classifiedError.recoveryStrategy !== RecoveryStrategy.NONE) {
+              const recovered = await this.attemptRecovery(state, classifiedError, params);
+              if (recovered) {
+                order = recovered;
+                break;
+              }
+            }
+            
+            state.status = "failed";
+            return {
+              success: false,
+              state,
+              error: classifiedError,
+              validationWarnings: warnings
+            };
+          }
+          
+          const delay = classifiedError.suggestedDelay * Math.pow(2, state.attempts - 1);
+          await this.sleep(delay);
+        }
+      }
+      
+      if (!order) {
+        state.status = "failed";
+        return {
+          success: false,
+          state,
+          error: state.errors[state.errors.length - 1],
+          validationWarnings: warnings
+        };
+      }
+      
+      // Phase 4: Monitor for Fill
+      state.status = "monitoring";
+      const monitoredOrder = await this.monitorOrderUntilTerminal(order.id, opts.timeoutMs);
+      
+      // Phase 5: Record Actual Outcome
+      state.actualOutcome = this.recordActualOutcome(monitoredOrder, state);
+      
+      if (FAILED_STATUSES.includes(monitoredOrder.status as any)) {
+        state.status = monitoredOrder.status as any;
+        return {
+          success: false,
+          state,
+          order: monitoredOrder,
+          validationWarnings: warnings,
+          outcomeAnalysis: this.analyzeOutcome(state)
+        };
+      }
+      
+      state.status = "filled";
+      state.filledQty = monitoredOrder.filled_qty;
+      state.filledPrice = monitoredOrder.filled_avg_price;
+      
+      return {
+        success: true,
+        state,
+        order: monitoredOrder,
+        validationWarnings: warnings,
+        outcomeAnalysis: this.analyzeOutcome(state)
+      };
+      
+    } finally {
+      this.activeExecutions.delete(clientOrderId);
+    }
+  }
+  
+  /**
+   * Validate order parameters before submission
+   */
+  private async validateOrderParams(params: CreateOrderParams): Promise<ValidationResult> {
+    const result: ValidationResult = { valid: true, errors: [], warnings: [] };
+    
+    // Schema validation
+    try {
+      CreateOrderSchema.parse(params);
+    } catch (e: any) {
+      result.valid = false;
+      result.errors.push(`Schema validation failed: ${e.message}`);
+      return result;
+    }
+    
+    // Type/TIF combination validation
+    const typeTifValidation = validateOrderTypeCombination(
+      params.type,
+      params.time_in_force,
+      params.extended_hours
+    );
+    result.errors.push(...typeTifValidation.errors);
+    result.warnings.push(...typeTifValidation.warnings);
+    if (!typeTifValidation.valid) result.valid = false;
+    
+    // Get current price for price validations
+    let currentPrice: number | null = null;
+    try {
+      const snapshots = await alpaca.getSnapshots([params.symbol]);
+      currentPrice = snapshots[params.symbol]?.latestTrade?.p || null;
+    } catch {
+      result.warnings.push(`Could not fetch current price for ${params.symbol}`);
+    }
+    
+    if (currentPrice) {
+      // Stop price validation
+      if (params.stop_price) {
+        const stopValidation = validateStopPrice(
+          params.side,
+          currentPrice,
+          parseFloat(params.stop_price)
+        );
+        result.errors.push(...stopValidation.errors);
+        result.warnings.push(...stopValidation.warnings);
+        if (!stopValidation.valid) result.valid = false;
+      }
+      
+      // Limit price validation
+      if (params.limit_price) {
+        const limitValidation = validateLimitPrice(
+          params.side,
+          currentPrice,
+          parseFloat(params.limit_price)
+        );
+        result.errors.push(...limitValidation.errors);
+        result.warnings.push(...limitValidation.warnings);
+        if (!limitValidation.valid) result.valid = false;
+      }
+      
+      // Bracket order validation
+      if (params.order_class === "bracket" && params.take_profit && params.stop_loss) {
+        const entryPrice = params.limit_price ? parseFloat(params.limit_price) : currentPrice;
+        const bracketValidation = validateBracketOrder(
+          params.side,
+          entryPrice,
+          parseFloat(params.take_profit.limit_price),
+          parseFloat(params.stop_loss.stop_price)
+        );
+        result.errors.push(...bracketValidation.errors);
+        result.warnings.push(...bracketValidation.warnings);
+        if (!bracketValidation.valid) result.valid = false;
+      }
+    }
+    
+    // Trailing stop validation
+    if (params.type === "trailing_stop") {
+      const trailValidation = validateTrailingStop(
+        params.trail_percent ? parseFloat(params.trail_percent) : undefined,
+        params.trail_price ? parseFloat(params.trail_price) : undefined
+      );
+      result.errors.push(...trailValidation.errors);
+      result.warnings.push(...trailValidation.warnings);
+      if (!trailValidation.valid) result.valid = false;
+    }
+    
+    // Check market status for non-extended hours
+    if (!params.extended_hours) {
+      try {
+        const marketStatus = await alpaca.getMarketStatus();
+        if (!marketStatus.isOpen && params.time_in_force === "day") {
+          result.warnings.push(
+            `Market is currently ${marketStatus.session}. Day orders will queue until market open.`
+          );
+        }
+      } catch {
+        result.warnings.push("Could not verify market status");
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Calculate expected outcome based on order parameters
+   */
+  private async calculateExpectedOutcome(params: CreateOrderParams): Promise<ExpectedOutcome> {
+    const qty = parseFloat(params.qty || "0");
+    const notional = parseFloat(params.notional || "0");
+    
+    let currentPrice = 0;
+    try {
+      const snapshots = await alpaca.getSnapshots([params.symbol]);
+      currentPrice = snapshots[params.symbol]?.latestTrade?.p || 0;
+    } catch {
+      currentPrice = params.limit_price ? parseFloat(params.limit_price) : 0;
+    }
+    
+    const expectedQty = qty > 0 ? qty : (notional / currentPrice);
+    const risks: string[] = [];
+    
+    let fillPriceMin = currentPrice;
+    let fillPriceMax = currentPrice;
+    let shouldFillImmediately = false;
+    let fillTimeEstimate = 0;
+    
+    switch (params.type) {
+      case "market":
+        fillPriceMin = currentPrice * 0.995;
+        fillPriceMax = currentPrice * 1.005;
+        shouldFillImmediately = true;
+        fillTimeEstimate = 500;
+        risks.push("Slippage possible in fast-moving markets");
+        break;
+        
+      case "limit":
+        const limitPrice = parseFloat(params.limit_price || "0");
+        fillPriceMin = limitPrice;
+        fillPriceMax = limitPrice;
+        shouldFillImmediately = params.side === "buy" 
+          ? limitPrice >= currentPrice
+          : limitPrice <= currentPrice;
+        fillTimeEstimate = shouldFillImmediately ? 1000 : 300000;
+        if (!shouldFillImmediately) {
+          risks.push("Order may not fill if price doesn't reach limit");
+        }
+        break;
+        
+      case "stop":
+        fillPriceMin = parseFloat(params.stop_price || "0") * 0.99;
+        fillPriceMax = parseFloat(params.stop_price || "0") * 1.01;
+        shouldFillImmediately = false;
+        fillTimeEstimate = 600000;
+        risks.push("Stop orders trigger as market orders - slippage possible");
+        break;
+        
+      case "stop_limit":
+        fillPriceMin = parseFloat(params.limit_price || "0");
+        fillPriceMax = parseFloat(params.limit_price || "0");
+        shouldFillImmediately = false;
+        fillTimeEstimate = 600000;
+        risks.push("Order may not fill if gap occurs past limit price");
+        break;
+        
+      case "trailing_stop":
+        fillPriceMin = currentPrice * 0.9;
+        fillPriceMax = currentPrice * 1.1;
+        shouldFillImmediately = false;
+        fillTimeEstimate = 3600000;
+        risks.push("Trailing stop may trigger during normal volatility");
+        break;
+    }
+    
+    return {
+      fillPrice: { min: fillPriceMin, max: fillPriceMax },
+      fillQty: expectedQty,
+      estimatedCost: expectedQty * ((fillPriceMin + fillPriceMax) / 2),
+      shouldFillImmediately,
+      fillTimeEstimateMs: fillTimeEstimate,
+      risksIdentified: risks
+    };
+  }
+  
+  /**
+   * Submit order with timeout
+   */
+  private async submitOrderWithTimeout(
+    params: CreateOrderParams,
+    timeoutMs: number
+  ): Promise<AlpacaOrder> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Order submission timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      
+      alpaca.createOrder(params)
+        .then(order => {
+          clearTimeout(timeout);
+          resolve(order);
+        })
+        .catch(error => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+    });
+  }
+  
+  /**
+   * Monitor order until it reaches a terminal state
+   */
+  private async monitorOrderUntilTerminal(
+    orderId: string,
+    timeoutMs: number
+  ): Promise<AlpacaOrder> {
+    const startTime = Date.now();
+    const pollInterval = 1000;
+    
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const order = await alpaca.getOrder(orderId);
+        
+        if (TERMINAL_STATUSES.includes(order.status as any)) {
+          return order;
+        }
+        
+        await this.sleep(pollInterval);
+      } catch (error) {
+        console.error(`Error polling order ${orderId}:`, error);
+        await this.sleep(pollInterval);
+      }
+    }
+    
+    return await alpaca.getOrder(orderId);
+  }
+  
+  /**
+   * Record actual outcome from filled order
+   */
+  private recordActualOutcome(
+    order: AlpacaOrder,
+    state: OrderExecutionState
+  ): ActualOutcome {
+    const fillPrice = safeParseFloat(order.filled_avg_price, 0);
+    const fillQty = safeParseFloat(order.filled_qty, 0);
+    const fillTimeMs = order.filled_at
+      ? new Date(order.filled_at).getTime() - state.createdAt.getTime()
+      : Date.now() - state.createdAt.getTime();
+    
+    const requestedPrice = state.requestedPrice ? parseFloat(state.requestedPrice) : null;
+    const slippage = requestedPrice && fillPrice
+      ? ((fillPrice - requestedPrice) / requestedPrice) * 100
+      : null;
+    
+    const unexpectedEvents: string[] = [];
+    
+    if (order.status === "partially_filled") {
+      unexpectedEvents.push(`Only partially filled: ${fillQty} of ${order.qty}`);
+    }
+    
+    if (slippage !== null && Math.abs(slippage) > 1) {
+      unexpectedEvents.push(`Significant slippage: ${slippage.toFixed(2)}%`);
+    }
+    
+    return {
+      filled: order.status === "filled",
+      fillPrice,
+      fillQty,
+      totalCost: fillPrice * fillQty,
+      fillTimeMs,
+      slippage,
+      status: order.status,
+      unexpectedEvents
+    };
+  }
+  
+  /**
+   * Analyze outcome vs expected
+   */
+  private analyzeOutcome(state: OrderExecutionState): OutcomeAnalysis {
+    const expected = state.expectedOutcome;
+    const actual = state.actualOutcome;
+    
+    if (!expected || !actual) {
+      return {
+        matchesExpected: true,
+        slippagePercent: null,
+        fillTimeDeviation: null,
+        unexpectedIssues: [],
+        recommendations: []
+      };
+    }
+    
+    const issues: string[] = [];
+    const recommendations: string[] = [];
+    
+    let matchesExpected = true;
+    
+    // Check fill price
+    if (actual.fillPrice !== null) {
+      if (actual.fillPrice < expected.fillPrice.min || actual.fillPrice > expected.fillPrice.max) {
+        matchesExpected = false;
+        issues.push(
+          `Fill price $${actual.fillPrice.toFixed(2)} outside expected range ` +
+          `$${expected.fillPrice.min.toFixed(2)}-$${expected.fillPrice.max.toFixed(2)}`
+        );
+        recommendations.push("Consider using limit orders for better price control");
+      }
+    }
+    
+    // Check fill quantity
+    if (actual.fillQty < expected.fillQty * 0.99) {
+      matchesExpected = false;
+      issues.push(`Partial fill: ${actual.fillQty} of ${expected.fillQty} requested`);
+      recommendations.push("Check liquidity before placing large orders");
+    }
+    
+    // Check fill time
+    const fillTimeDeviation = actual.fillTimeMs - expected.fillTimeEstimateMs;
+    if (expected.shouldFillImmediately && actual.fillTimeMs > 5000) {
+      issues.push(`Expected immediate fill but took ${actual.fillTimeMs}ms`);
+    }
+    
+    // Add any unexpected events
+    issues.push(...actual.unexpectedEvents);
+    
+    return {
+      matchesExpected,
+      slippagePercent: actual.slippage,
+      fillTimeDeviation,
+      unexpectedIssues: issues,
+      recommendations
+    };
+  }
+  
+  /**
+   * Attempt recovery based on error type
+   */
+  private async attemptRecovery(
+    state: OrderExecutionState,
+    error: ClassifiedError,
+    originalParams: CreateOrderParams
+  ): Promise<AlpacaOrder | null> {
+    state.status = "recovering";
+    console.log(`[OrderExecution] Attempting recovery: ${error.recoveryStrategy}`);
+    
+    switch (error.recoveryStrategy) {
+      case RecoveryStrategy.CHECK_AND_SYNC:
+        try {
+          const orders = await alpaca.getOrders("all", 10);
+          const existingOrder = orders.find(o => o.client_order_id === state.clientOrderId);
+          if (existingOrder) {
+            console.log(`[OrderExecution] Found existing order via sync: ${existingOrder.id}`);
+            return existingOrder;
+          }
+        } catch {
+          console.error("[OrderExecution] Sync check failed");
+        }
+        return null;
+        
+      case RecoveryStrategy.ADJUST_AND_RETRY:
+        if (error.type === OrderErrorType.INSUFFICIENT_FUNDS) {
+          const reducedParams = { ...originalParams };
+          if (reducedParams.qty) {
+            reducedParams.qty = (parseFloat(reducedParams.qty) * 0.5).toString();
+          } else if (reducedParams.notional) {
+            reducedParams.notional = (parseFloat(reducedParams.notional) * 0.5).toString();
+          }
+          try {
+            return await alpaca.createOrder(reducedParams);
+          } catch {
+            return null;
+          }
+        }
+        return null;
+        
+      case RecoveryStrategy.WAIT_FOR_MARKET_OPEN:
+        const marketStatus = await alpaca.getMarketStatus();
+        if (marketStatus.isOpen || marketStatus.isExtendedHours) {
+          try {
+            return await alpaca.createOrder(originalParams);
+          } catch {
+            return null;
+          }
+        }
+        return null;
+        
+      default:
+        return null;
+    }
+  }
+  
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  /**
+   * Get active execution states for monitoring
+   */
+  getActiveExecutions(): Map<string, OrderExecutionState> {
+    return new Map(this.activeExecutions);
+  }
+}
+
+export const orderExecutionEngine = new OrderExecutionEngine();
+
+// ============================================================================
+// ORDER BOOK CLEANUP UTILITIES
+// ============================================================================
+
+export interface UnrealOrder {
+  orderId: string;
+  symbol: string;
+  status: string;
+  reason: string;
+  createdAt: string;
+  filledQty: string;
+  qty: string;
+  notional: string | null;
+}
+
+/**
+ * Identify "unreal" orders - orders that have no value and should be cleaned up
+ * 
+ * Criteria for unreal orders:
+ * 1. Status is rejected, canceled, or expired
+ * 2. Zero filled quantity
+ * 3. Null or zero notional value
+ * 4. Stale orders older than 24 hours with no fills
+ */
+export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
+  const unrealOrders: UnrealOrder[] = [];
+  
+  try {
+    const allOrders = await alpaca.getOrders("all", 500);
+    const staleThreshold = Date.now() - 24 * 60 * 60 * 1000;
+    
+    for (const order of allOrders) {
+      let isUnreal = false;
+      let reason = "";
+      
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+      const notionalValue = order.notional ? safeParseFloat(order.notional, 0) : 0;
+      const orderAge = new Date(order.created_at).getTime();
+      
+      if (order.status === "rejected") {
+        isUnreal = true;
+        reason = "Order was rejected by broker";
+      } else if (order.status === "canceled" && filledQty === 0) {
+        isUnreal = true;
+        reason = "Order was canceled with no fills";
+      } else if (order.status === "expired" && filledQty === 0) {
+        isUnreal = true;
+        reason = "Order expired with no fills";
+      } else if (filledQty === 0 && notionalValue === 0 && order.qty === "0") {
+        isUnreal = true;
+        reason = "Order has zero quantity and zero notional";
+      } else if (
+        ACTIVE_STATUSES.includes(order.status as any) &&
+        orderAge < staleThreshold &&
+        filledQty === 0
+      ) {
+        isUnreal = true;
+        reason = "Stale active order with no fills (>24 hours old)";
+      }
+      
+      if (isUnreal) {
+        unrealOrders.push({
+          orderId: order.id,
+          symbol: order.symbol,
+          status: order.status,
+          reason,
+          createdAt: order.created_at,
+          filledQty: order.filled_qty,
+          qty: order.qty,
+          notional: order.notional
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[OrderCleanup] Failed to identify unreal orders:", error);
+  }
+  
+  return unrealOrders;
+}
+
+/**
+ * Clean up unreal orders from Alpaca order book
+ * Only cancels orders that are still in cancelable state
+ */
+export async function cleanupUnrealOrders(): Promise<{
+  identified: number;
+  canceled: number;
+  errors: string[];
+}> {
+  const result = {
+    identified: 0,
+    canceled: 0,
+    errors: [] as string[]
+  };
+  
+  try {
+    const unrealOrders = await identifyUnrealOrders();
+    result.identified = unrealOrders.length;
+    
+    for (const order of unrealOrders) {
+      if (ACTIVE_STATUSES.includes(order.status as any)) {
+        try {
+          await alpaca.cancelOrder(order.orderId);
+          result.canceled++;
+          console.log(`[OrderCleanup] Canceled unreal order ${order.orderId}: ${order.reason}`);
+        } catch (error) {
+          result.errors.push(`Failed to cancel ${order.orderId}: ${(error as Error).message}`);
+        }
+      }
+    }
+    
+    console.log(`[OrderCleanup] Identified ${result.identified} unreal orders, canceled ${result.canceled}`);
+  } catch (error) {
+    result.errors.push(`Cleanup failed: ${(error as Error).message}`);
+  }
+  
+  return result;
+}
+
+/**
+ * Reconcile local order records with Alpaca order book
+ */
+export async function reconcileOrderBook(): Promise<{
+  alpacaOrders: number;
+  localTrades: number;
+  missingLocal: string[];
+  orphanedLocal: string[];
+  synced: number;
+}> {
+  const result = {
+    alpacaOrders: 0,
+    localTrades: 0,
+    missingLocal: [] as string[],
+    orphanedLocal: [] as string[],
+    synced: 0
+  };
+  
+  try {
+    const alpacaOrders = await alpaca.getOrders("all", 100);
+    result.alpacaOrders = alpacaOrders.length;
+    
+    const localTrades = await storage.getTrades(100);
+    result.localTrades = localTrades.length;
+    
+    const alpacaOrderIds = new Set(alpacaOrders.map(o => o.id));
+    const alpacaClientIds = new Set(alpacaOrders.map(o => o.client_order_id));
+    
+    for (const order of alpacaOrders) {
+      if (order.status === "filled") {
+        const hasLocal = localTrades.some(t => 
+          t.notes?.includes(order.id) || 
+          t.notes?.includes(order.client_order_id)
+        );
+        
+        if (!hasLocal) {
+          result.missingLocal.push(order.id);
+          
+          await storage.createTrade({
+            symbol: order.symbol,
+            side: order.side as "buy" | "sell",
+            quantity: order.filled_qty,
+            price: order.filled_avg_price || "0",
+            status: "completed",
+            notes: `Synced from Alpaca: ${order.id}`,
+            pnl: null,
+            strategyId: null
+          });
+          result.synced++;
+        }
+      }
+    }
+    
+    console.log(`[Reconciliation] Orders: Alpaca=${result.alpacaOrders}, Local=${result.localTrades}, Synced=${result.synced}`);
+  } catch (error) {
+    console.error("[Reconciliation] Failed:", error);
+  }
+  
+  return result;
+}
