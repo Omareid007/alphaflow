@@ -42,6 +42,15 @@ class AlpacaTradingEngine {
     "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH"
   ];
 
+  private normalizeSymbolForAlpaca(symbol: string): string {
+    return symbol.replace("/", "").toUpperCase();
+  }
+
+  private isCryptoSymbol(symbol: string): boolean {
+    const cryptoPairs = ["BTC/USD", "ETH/USD", "SOL/USD", "BTCUSD", "ETHUSD", "SOLUSD"];
+    return cryptoPairs.includes(symbol.toUpperCase()) || symbol.includes("/");
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
     this.initialized = true;
@@ -194,8 +203,9 @@ class AlpacaTradingEngine {
         return { success: false, error: riskCheck.reason };
       }
 
+      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
       const orderParams: CreateOrderParams = {
-        symbol: symbol.toUpperCase(),
+        symbol: alpacaSymbol,
         qty: quantity.toString(),
         side,
         type: orderType,
@@ -234,9 +244,10 @@ class AlpacaTradingEngine {
 
   async closeAlpacaPosition(symbol: string, strategyId?: string): Promise<AlpacaTradeResult> {
     try {
+      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
       let position: AlpacaPosition | null = null;
       try {
-        position = await alpaca.getPosition(symbol);
+        position = await alpaca.getPosition(alpacaSymbol);
       } catch (posError) {
         const errorMsg = (posError as Error).message?.toLowerCase() || "";
         if (errorMsg.includes("404") || errorMsg.includes("not found") || errorMsg.includes("position does not exist")) {
@@ -251,7 +262,7 @@ class AlpacaTradingEngine {
 
       let order: AlpacaOrder;
       try {
-        order = await alpaca.closePosition(symbol);
+        order = await alpaca.closePosition(alpacaSymbol);
       } catch (closeError) {
         const errorMsg = (closeError as Error).message?.toLowerCase() || "";
         if (errorMsg.includes("404") || errorMsg.includes("not found") || errorMsg.includes("position does not exist")) {
@@ -398,7 +409,8 @@ class AlpacaTradingEngine {
 
     if (decision.action === "sell") {
       try {
-        const position = await alpaca.getPosition(symbol);
+        const alpacaSellSymbol = this.normalizeSymbolForAlpaca(symbol);
+        const position = await alpaca.getPosition(alpacaSellSymbol);
         if (!position) {
           return { decision };
         }
@@ -569,8 +581,9 @@ class AlpacaTradingEngine {
 
   private async getMarketDataForSymbol(symbol: string): Promise<MarketData | null> {
     try {
-      const snapshots = await alpaca.getSnapshots([symbol.toUpperCase()]);
-      const snapshot = snapshots[symbol.toUpperCase()];
+      const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol);
+      const snapshots = await alpaca.getSnapshots([alpacaSymbol]);
+      const snapshot = snapshots[alpacaSymbol];
 
       if (snapshot) {
         const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;
@@ -643,8 +656,9 @@ class AlpacaTradingEngine {
           return { allowed: false, reason: `Maximum positions limit reached (${maxPositions})` };
         }
 
-        const snapshot = await alpaca.getSnapshots([symbol.toUpperCase()]);
-        const snapshotData = snapshot[symbol.toUpperCase()];
+        const riskSymbol = this.normalizeSymbolForAlpaca(symbol);
+        const snapshot = await alpaca.getSnapshots([riskSymbol]);
+        const snapshotData = snapshot[riskSymbol];
         const price = snapshotData?.latestTrade?.p || snapshotData?.dailyBar?.c || snapshotData?.prevDailyBar?.c || 0;
         
         if (!price || price <= 0 || !Number.isFinite(price)) {
