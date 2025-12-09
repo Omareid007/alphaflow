@@ -7,6 +7,7 @@ import {
   ScrollView,
   Text,
   Modal,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedView } from "@/components/ThemedView";
@@ -185,14 +186,15 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing["2xl"],
     minWidth: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(Platform.OS === "web"
+      ? ({ boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.1)" } as any)
+      : {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        }),
   },
   buttonText: {
     fontWeight: "600",

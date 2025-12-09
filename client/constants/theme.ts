@@ -153,7 +153,7 @@ export const Fonts = Platform.select({
   },
 });
 
-export const Shadows = {
+const nativeShadows = {
   card: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -169,6 +169,17 @@ export const Shadows = {
     elevation: 4,
   },
 };
+
+const webShadows = {
+  card: {
+    boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+  } as any,
+  fab: {
+    boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.15)",
+  } as any,
+};
+
+export const Shadows = Platform.OS === "web" ? webShadows : nativeShadows;
 
 export function getDataQualityColor(score: number): string {
   if (score < 0.3) return BrandColors.error;
