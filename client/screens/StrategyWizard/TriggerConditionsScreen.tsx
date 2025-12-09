@@ -76,7 +76,11 @@ export default function TriggerConditionsScreen() {
   };
 
   const handleContinue = () => {
-    navigation.navigate("Configuration");
+    if (data.strategyType === "moving-average-crossover") {
+      navigation.navigate("MAConfiguration");
+    } else {
+      navigation.navigate("Configuration");
+    }
   };
 
   const entryTriggers = triggerOptions.filter((t) => t.category === "entry");

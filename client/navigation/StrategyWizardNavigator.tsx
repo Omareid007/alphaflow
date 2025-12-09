@@ -14,6 +14,7 @@ import {
   AssetSelectionScreen,
   TriggerConditionsScreen,
   ConfigurationScreen,
+  MAConfigurationScreen,
   AdaptiveSettingsScreen,
   CapitalAllocationScreen,
   ExposureSettingsScreen,
@@ -31,6 +32,7 @@ export type StrategyWizardParamList = {
   AssetSelection: undefined;
   TriggerConditions: undefined;
   Configuration: undefined;
+  MAConfiguration: undefined;
   AdaptiveSettings: undefined;
   CapitalAllocation: undefined;
   ExposureSettings: undefined;
@@ -98,6 +100,11 @@ export default function StrategyWizardNavigator() {
           name="Configuration"
           component={ConfigurationScreen}
           options={{ headerTitle: "Configuration" }}
+        />
+        <Stack.Screen
+          name="MAConfiguration"
+          component={MAConfigurationScreen}
+          options={{ headerTitle: "MA Settings" }}
         />
         <Stack.Screen
           name="AdaptiveSettings"

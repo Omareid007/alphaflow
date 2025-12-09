@@ -14,11 +14,20 @@ import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigat
 
 const strategies = [
   {
+    id: "moving-average-crossover",
+    name: "Moving Average Crossover",
+    description: "Buy when fast SMA crosses above slow SMA. Classic trend-following strategy with ~21% annual returns in backtests.",
+    icon: "activity" as const,
+    available: true,
+    featured: true,
+  },
+  {
     id: "range-trading",
     name: "Range Trading",
     description: "Trade between support and resistance levels. Best for sideways markets.",
     icon: "minus" as const,
     available: true,
+    featured: false,
   },
   {
     id: "momentum",
@@ -26,6 +35,7 @@ const strategies = [
     description: "Follow strong price movements. Buy high, sell higher.",
     icon: "trending-up" as const,
     available: false,
+    featured: false,
   },
   {
     id: "mean-reversion",
@@ -33,6 +43,7 @@ const strategies = [
     description: "Trade reversals when price deviates from average.",
     icon: "refresh-cw" as const,
     available: false,
+    featured: false,
   },
   {
     id: "breakout",
@@ -40,6 +51,7 @@ const strategies = [
     description: "Enter when price breaks key levels with volume.",
     icon: "zap" as const,
     available: false,
+    featured: false,
   },
 ];
 

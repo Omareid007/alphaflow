@@ -9,6 +9,14 @@ export interface RangeParameters {
   maxPositions: string;
 }
 
+export interface MovingAverageParameters {
+  fastPeriod: number;
+  slowPeriod: number;
+  allocationPct: number;
+  riskLimitPct: number;
+  presetId?: string;
+}
+
 export interface AdaptiveSettings {
   useMarketSentiment: boolean;
   useNewsAnalysis: boolean;
@@ -44,6 +52,19 @@ export interface BacktestResults {
   maxDrawdown: number;
   sharpeRatio: number;
   totalTrades: number;
+  annualReturn?: number;
+  sortinoRatio?: number;
+  avgWin?: number;
+  avgLoss?: number;
+  profitFactor?: number;
+}
+
+export interface AIValidationResult {
+  summary: string;
+  riskAssessment: string;
+  parameterFeedback: string[];
+  suitability: "retail_friendly" | "borderline" | "advanced_only";
+  confidence: number;
 }
 
 export interface WizardData {
@@ -52,11 +73,13 @@ export interface WizardData {
   description: string;
   assets: string[];
   parameters: RangeParameters;
+  movingAverageParams?: MovingAverageParameters;
   adaptiveSettings: AdaptiveSettings;
   capitalAllocation: CapitalAllocation;
   exposureSettings: ExposureSettings;
   controlLimits: ControlLimits;
   backtestResults: BacktestResults;
+  aiValidation?: AIValidationResult;
   riskAcknowledged: boolean;
   strategyUnderstandingConfirmed: boolean;
   marketSuitabilityConfirmed: boolean;
@@ -76,6 +99,13 @@ const defaultWizardData: WizardData = {
     stopLossPercent: "2",
     takeProfitPercent: "3",
     maxPositions: "3",
+  },
+  movingAverageParams: {
+    fastPeriod: 7,
+    slowPeriod: 20,
+    allocationPct: 0.10,
+    riskLimitPct: 0.10,
+    presetId: "balanced",
   },
   adaptiveSettings: {
     useMarketSentiment: true,
@@ -220,6 +250,7 @@ export { default as MarketSuitabilityScreen } from "./MarketSuitabilityScreen";
 export { default as TriggerConditionsScreen } from "./TriggerConditionsScreen";
 export { default as AssetSelectionScreen } from "./AssetSelectionScreen";
 export { default as ConfigurationScreen } from "./ConfigurationScreen";
+export { default as MAConfigurationScreen } from "./MAConfigurationScreen";
 export { default as AdaptiveSettingsScreen } from "./AdaptiveSettingsScreen";
 export { default as CapitalAllocationScreen } from "./CapitalAllocationScreen";
 export { default as ExposureSettingsScreen } from "./ExposureSettingsScreen";

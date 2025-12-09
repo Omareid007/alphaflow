@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -10,7 +10,8 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
-import { useWizard } from "./index";
+import { useWizard, AIValidationResult } from "./index";
+import { apiRequest } from "@/lib/query-client";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "Backtest">;
@@ -19,22 +20,95 @@ export default function BacktestScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const { data, updateBacktestResults } = useWizard();
+  const { data, updateBacktestResults, updateData } = useWizard();
   const [isRunning, setIsRunning] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
   const handleRunBacktest = async () => {
     setIsRunning(true);
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-    const mockResults = {
-      hasRun: true,
-      winRate: 58 + Math.random() * 15,
-      totalReturn: 12 + Math.random() * 20,
-      maxDrawdown: 8 + Math.random() * 7,
-      sharpeRatio: 1.2 + Math.random() * 0.8,
-      totalTrades: Math.floor(45 + Math.random() * 30),
-    };
-    updateBacktestResults(mockResults);
-    setIsRunning(false);
+    try {
+      if (data.strategyType === "moving-average-crossover") {
+        const symbol = data.assets[0] || "SPY";
+        const maParams = data.movingAverageParams;
+        const response = await apiRequest(
+          "POST",
+          "/api/strategies/moving-average/backtest",
+          {
+            symbol,
+            fastPeriod: maParams?.fastPeriod ?? 7,
+            slowPeriod: maParams?.slowPeriod ?? 20,
+            allocationPct: maParams?.allocationPct ?? 0.10,
+            riskLimitPct: maParams?.riskLimitPct ?? 0.10,
+          }
+        );
+        const result = (await response.json()) as {
+          metrics: {
+            winRatePct: number;
+            totalReturnPct: number;
+            maxDrawdownPct: number;
+            sharpeRatio: number;
+            sortinoRatio: number;
+            totalTrades: number;
+            annualReturnPct: number;
+            avgWinPct: number;
+            avgLossPct: number;
+            profitFactor: number;
+          };
+        };
+        updateBacktestResults({
+          hasRun: true,
+          winRate: result.metrics.winRatePct,
+          totalReturn: result.metrics.totalReturnPct,
+          maxDrawdown: result.metrics.maxDrawdownPct,
+          sharpeRatio: result.metrics.sharpeRatio,
+          totalTrades: result.metrics.totalTrades,
+          annualReturn: result.metrics.annualReturnPct,
+          sortinoRatio: result.metrics.sortinoRatio,
+          avgWin: result.metrics.avgWinPct,
+          avgLoss: result.metrics.avgLossPct,
+          profitFactor: result.metrics.profitFactor,
+        });
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const mockResults = {
+          hasRun: true,
+          winRate: 58 + Math.random() * 15,
+          totalReturn: 12 + Math.random() * 20,
+          maxDrawdown: 8 + Math.random() * 7,
+          sharpeRatio: 1.2 + Math.random() * 0.8,
+          totalTrades: Math.floor(45 + Math.random() * 30),
+        };
+        updateBacktestResults(mockResults);
+      }
+    } catch (error) {
+      Alert.alert("Backtest Failed", (error as Error).message || "Unable to run backtest");
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleAIValidation = async () => {
+    if (data.strategyType !== "moving-average-crossover") return;
+    setIsValidating(true);
+    try {
+      const maParams = data.movingAverageParams;
+      const response = await apiRequest(
+        "POST",
+        "/api/strategies/moving-average/ai-validate",
+        {
+          fastPeriod: maParams?.fastPeriod ?? 7,
+          slowPeriod: maParams?.slowPeriod ?? 20,
+          allocationPct: maParams?.allocationPct ?? 0.10,
+          riskLimitPct: maParams?.riskLimitPct ?? 0.10,
+        }
+      );
+      const result = (await response.json()) as AIValidationResult;
+      updateData({ aiValidation: result });
+    } catch (error) {
+      Alert.alert("AI Validation Failed", (error as Error).message || "Unable to validate strategy");
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleContinue = () => {
@@ -174,6 +248,45 @@ export default function BacktestScreen() {
                 Run Again
               </ThemedText>
             </Pressable>
+
+            {data.strategyType === "moving-average-crossover" ? (
+              <View style={styles.aiSection}>
+                <View style={styles.aiHeader}>
+                  <Feather name="cpu" size={20} color={BrandColors.primaryLight} />
+                  <ThemedText style={styles.aiTitle}>AI Strategy Review</ThemedText>
+                </View>
+                
+                {data.aiValidation ? (
+                  <AIValidationDisplay validation={data.aiValidation} />
+                ) : (
+                  <Card elevation={1} style={styles.aiPromptCard}>
+                    <ThemedText style={[styles.aiPromptText, { color: theme.textSecondary }]}>
+                      Get AI-powered feedback on your strategy configuration
+                    </ThemedText>
+                    <Pressable
+                      onPress={handleAIValidation}
+                      disabled={isValidating}
+                      style={[
+                        styles.aiButton,
+                        {
+                          backgroundColor: BrandColors.primaryLight,
+                          opacity: isValidating ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      {isValidating ? (
+                        <View style={styles.loadingContent}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <ThemedText style={styles.loadingText}>Analyzing...</ThemedText>
+                        </View>
+                      ) : (
+                        <ThemedText style={styles.aiButtonText}>Get AI Feedback</ThemedText>
+                      )}
+                    </Pressable>
+                  </Card>
+                )}
+              </View>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -224,6 +337,79 @@ function MetricCard({
       <ThemedText style={[styles.metricValue, { color, fontFamily: Fonts?.mono }]}>
         {value}
       </ThemedText>
+    </Card>
+  );
+}
+
+function AIValidationDisplay({ validation }: { validation: AIValidationResult }) {
+  const { theme } = useTheme();
+
+  const getSuitabilityColor = () => {
+    switch (validation.suitability) {
+      case "retail_friendly":
+        return BrandColors.success;
+      case "borderline":
+        return BrandColors.warning || "#F59E0B";
+      case "advanced_only":
+        return BrandColors.error;
+      default:
+        return theme.textSecondary;
+    }
+  };
+
+  const getSuitabilityLabel = () => {
+    switch (validation.suitability) {
+      case "retail_friendly":
+        return "Beginner Friendly";
+      case "borderline":
+        return "Moderate Risk";
+      case "advanced_only":
+        return "Advanced Only";
+      default:
+        return "Unknown";
+    }
+  };
+
+  return (
+    <Card elevation={1} style={styles.aiResultCard}>
+      <View style={styles.aiResultHeader}>
+        <View
+          style={[
+            styles.suitabilityBadge,
+            { backgroundColor: getSuitabilityColor() + "20" },
+          ]}
+        >
+          <ThemedText style={[styles.suitabilityText, { color: getSuitabilityColor() }]}>
+            {getSuitabilityLabel()}
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.confidenceText, { color: theme.textSecondary }]}>
+          {Math.round(validation.confidence * 100)}% confidence
+        </ThemedText>
+      </View>
+
+      <ThemedText style={styles.aiSummary}>{validation.summary}</ThemedText>
+
+      <View style={styles.aiRiskSection}>
+        <ThemedText style={[styles.aiRiskLabel, { color: theme.textSecondary }]}>
+          Risk Assessment
+        </ThemedText>
+        <ThemedText style={styles.aiRiskText}>{validation.riskAssessment}</ThemedText>
+      </View>
+
+      {validation.parameterFeedback.length > 0 ? (
+        <View style={styles.aiFeedbackSection}>
+          <ThemedText style={[styles.aiFeedbackLabel, { color: theme.textSecondary }]}>
+            Suggestions
+          </ThemedText>
+          {validation.parameterFeedback.map((item, index) => (
+            <View key={index} style={styles.aiFeedbackItem}>
+              <Feather name="check" size={14} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.aiFeedbackText}>{item}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -353,6 +539,90 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     alignItems: "center",
     justifyContent: "center",
+  },
+  aiSection: {
+    marginTop: Spacing.xl,
+  },
+  aiHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  aiTitle: {
+    ...Typography.h4,
+  },
+  aiPromptCard: {
+    alignItems: "center",
+  },
+  aiPromptText: {
+    ...Typography.body,
+    textAlign: "center",
+    marginBottom: Spacing.lg,
+  },
+  aiButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiButtonText: {
+    ...Typography.body,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  aiResultCard: {},
+  aiResultHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  suitabilityBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  suitabilityText: {
+    ...Typography.caption,
+    fontWeight: "600",
+  },
+  confidenceText: {
+    ...Typography.caption,
+  },
+  aiSummary: {
+    ...Typography.body,
+    marginBottom: Spacing.lg,
+  },
+  aiRiskSection: {
+    marginBottom: Spacing.md,
+  },
+  aiRiskLabel: {
+    ...Typography.caption,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  aiRiskText: {
+    ...Typography.body,
+  },
+  aiFeedbackSection: {
+    marginTop: Spacing.sm,
+  },
+  aiFeedbackLabel: {
+    ...Typography.caption,
+    fontWeight: "600",
+    marginBottom: Spacing.sm,
+  },
+  aiFeedbackItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  aiFeedbackText: {
+    ...Typography.body,
+    flex: 1,
   },
   footer: {
     paddingHorizontal: Spacing.lg,

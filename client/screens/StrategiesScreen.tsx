@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -185,76 +185,78 @@ export default function StrategiesScreen() {
   }
 
   return (
-    <FlatList
-      style={{ flex: 1, backgroundColor: theme.backgroundRoot }}
-      contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.xl,
-        paddingBottom: tabBarHeight + Spacing.xl,
-        paddingHorizontal: Spacing.lg,
-        gap: Spacing.md,
-      }}
-      scrollIndicatorInsets={{ bottom: insets.bottom }}
-      data={strategies ?? []}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <StrategyCard 
-          strategy={item} 
-          onToggle={handleStrategyToggle}
-          isToggling={togglingId === item.id}
-        />
-      )}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
+    <View style={{ flex: 1, backgroundColor: theme.backgroundRoot }}>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.xl,
+          paddingBottom: tabBarHeight + Spacing.xl,
+          paddingHorizontal: Spacing.lg,
+          gap: Spacing.md,
+        }}
+        scrollIndicatorInsets={{ bottom: insets.bottom }}
+        data={strategies ?? []}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <StrategyCard 
+            strategy={item} 
+            onToggle={handleStrategyToggle}
+            isToggling={togglingId === item.id}
+          />
+        )}
+        ListHeaderComponent={
+          <View style={styles.header}>
             <View style={styles.headerTextContainer}>
               <ThemedText style={styles.headerTitle}>Trading Strategies</ThemedText>
               <ThemedText style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
                 Configure and activate automated trading strategies
               </ThemedText>
             </View>
-            <Button
-              onPress={() => navigation.navigate("StrategyWizard")}
-              style={styles.createButton}
-            >
-              <View style={styles.createButtonContent}>
-                <Feather name="plus" size={18} color="#FFFFFF" />
+            {toggleMutation.isError ? (
+              <View style={styles.toggleError}>
+                <Feather name="alert-triangle" size={14} color={BrandColors.error} />
+                <ThemedText style={[styles.toggleErrorText, { color: BrandColors.error }]}>
+                  Failed to update strategy
+                </ThemedText>
               </View>
-            </Button>
+            ) : null}
           </View>
-          {toggleMutation.isError ? (
-            <View style={styles.toggleError}>
-              <Feather name="alert-triangle" size={14} color={BrandColors.error} />
-              <ThemedText style={[styles.toggleErrorText, { color: BrandColors.error }]}>
-                Failed to update strategy
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={BrandColors.primaryLight} />
+              <ThemedText style={[styles.loadingText, { color: theme.textSecondary }]}>
+                Loading strategies...
               </ThemedText>
             </View>
-          ) : null}
-        </View>
-      }
-      ListEmptyComponent={
-        isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={BrandColors.primaryLight} />
-            <ThemedText style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Loading strategies...
-            </ThemedText>
-          </View>
-        ) : (
-          <EmptyStrategies />
-        )
-      }
-    />
+          ) : (
+            <EmptyStrategies />
+          )
+        }
+      />
+      <Pressable
+        onPress={() => navigation.navigate("StrategyWizard")}
+        style={[styles.fab, { top: headerHeight + Spacing.lg, right: Spacing.lg, backgroundColor: theme.link }]}
+        accessibilityLabel="Create new strategy"
+        accessibilityRole="button"
+      >
+        <Feather name="plus" size={20} color="#FFFFFF" />
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.md,
+    zIndex: 10,
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    zIndex: 10,
   },
   headerTextContainer: {
     flex: 1,
@@ -272,6 +274,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     paddingHorizontal: 0,
+    zIndex: 20,
+    elevation: 5,
   },
   createButtonContent: {
     alignItems: "center",
@@ -389,5 +393,19 @@ const styles = StyleSheet.create({
   },
   toggleErrorText: {
     ...Typography.small,
+  },
+  fab: {
+    position: "absolute",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });

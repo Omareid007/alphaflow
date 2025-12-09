@@ -446,6 +446,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/strategies/moving-average/schema", async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA } = await import("./strategies/moving-average-crossover");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      console.error("Failed to get MA strategy schema:", error);
+      res.status(500).json({ error: "Failed to get strategy schema" });
+    }
+  });
+
+  app.post("/api/strategies/moving-average/backtest", async (req, res) => {
+    try {
+      const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } = await import("./strategies/moving-average-crossover");
+      const config = normalizeMovingAverageConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMovingAverageStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to run MA backtest:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to run backtest" });
+    }
+  });
+
+  app.post("/api/strategies/moving-average/ai-validate", async (req, res) => {
+    try {
+      const { normalizeMovingAverageConfig } = await import("./strategies/moving-average-crossover");
+      const { validateMovingAverageConfig, getValidatorStatus } = await import("./ai/ai-strategy-validator");
+      
+      const status = getValidatorStatus();
+      if (!status.available) {
+        return res.status(503).json({ error: "AI validation service is not available" });
+      }
+      
+      const config = normalizeMovingAverageConfig(req.body.config || req.body);
+      const marketIntelligence = req.body.marketIntelligence;
+      const result = await validateMovingAverageConfig(config, marketIntelligence);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to AI validate strategy:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to validate strategy" });
+    }
+  });
+
   app.get("/api/trades", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
