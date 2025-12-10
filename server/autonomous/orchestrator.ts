@@ -1,4 +1,4 @@
-import { alpaca, CreateOrderParams } from "../connectors/alpaca";
+import { alpaca, CreateOrderParams, AlpacaOrder } from "../connectors/alpaca";
 import { aiDecisionEngine, AIDecision, MarketData } from "../ai/decision-engine";
 import { finnhub } from "../connectors/finnhub";
 import { coingecko } from "../connectors/coingecko";
@@ -6,6 +6,55 @@ import { storage } from "../storage";
 import type { Strategy } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
+
+const FILL_POLL_INTERVAL_MS = 500;
+const FILL_TIMEOUT_MS = 30000;
+
+interface OrderFillResult {
+  order: AlpacaOrder | null;
+  timedOut: boolean;
+  hasFillData: boolean;
+  isFullyFilled: boolean;
+}
+
+async function waitForOrderFill(orderId: string): Promise<OrderFillResult> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < FILL_TIMEOUT_MS) {
+    try {
+      const order = await alpaca.getOrder(orderId);
+      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+      const hasFillData = filledPrice > 0 && filledQty > 0;
+      
+      if (order.status === "filled" && hasFillData) {
+        return { order, timedOut: false, hasFillData: true, isFullyFilled: true };
+      }
+      
+      if (["canceled", "expired", "rejected", "suspended"].includes(order.status)) {
+        console.warn(`[Orchestrator] Order ${orderId} ended with status: ${order.status}`);
+        return { order, timedOut: false, hasFillData, isFullyFilled: false };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
+    } catch (error) {
+      console.error(`[Orchestrator] Error polling order ${orderId}:`, error);
+      await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
+    }
+  }
+  
+  console.warn(`[Orchestrator] Order ${orderId} fill timeout after ${FILL_TIMEOUT_MS}ms`);
+  try {
+    const finalOrder = await alpaca.getOrder(orderId);
+    const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
+    const filledQty = safeParseFloat(finalOrder.filled_qty, 0);
+    const hasFillData = filledPrice > 0 && filledQty > 0;
+    const isFullyFilled = finalOrder.status === "filled" && hasFillData;
+    return { order: finalOrder, timedOut: true, hasFillData, isFullyFilled };
+  } catch {
+    return { order: null, timedOut: true, hasFillData: false, isFullyFilled: false };
+  }
+}
 
 export interface OrchestratorConfig {
   analysisIntervalMs: number;
@@ -692,13 +741,49 @@ class AutonomousOrchestrator {
         time_in_force: isCrypto ? "gtc" : "day",
       };
 
-      const order = await alpaca.createOrder(orderParams);
+      const initialOrder = await alpaca.createOrder(orderParams);
+      
+      const fillResult = await waitForOrderFill(initialOrder.id);
+      
+      if (!fillResult.order) {
+        console.error(`[Orchestrator] Order ${initialOrder.id} - no order data received`);
+        await this.syncPositionsFromBroker();
+        return {
+          success: false,
+          action: "buy",
+          reason: "Order failed - no response from broker",
+          symbol,
+          orderId: initialOrder.id,
+        };
+      }
+      
+      if (!fillResult.hasFillData) {
+        console.error(`[Orchestrator] Order ${initialOrder.id} has no fill data, syncing positions`);
+        await this.syncPositionsFromBroker();
+        return {
+          success: false,
+          action: "buy",
+          reason: fillResult.timedOut 
+            ? "Order fill timed out - position sync triggered" 
+            : "Order rejected or no fill data",
+          symbol,
+          orderId: initialOrder.id,
+        };
+      }
+      
+      if (fillResult.timedOut && !fillResult.isFullyFilled) {
+        console.warn(`[Orchestrator] Order ${initialOrder.id} timed out with partial fill, using available data`);
+      }
+      
+      const order = fillResult.order;
+      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      const filledQty = safeParseFloat(order.filled_qty, 0);
 
       await storage.createTrade({
         symbol,
         side: "buy",
-        quantity: order.qty || order.filled_qty,
-        price: order.filled_avg_price || "0",
+        quantity: filledQty.toString(),
+        price: filledPrice.toString(),
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
       });
@@ -707,9 +792,9 @@ class AutonomousOrchestrator {
 
       const positionWithRules: PositionWithRules = {
         symbol,
-        quantity: safeParseFloat(order.qty || order.filled_qty),
-        entryPrice: safeParseFloat(order.filled_avg_price),
-        currentPrice: safeParseFloat(order.filled_avg_price),
+        quantity: filledQty,
+        entryPrice: filledPrice,
+        currentPrice: filledPrice,
         unrealizedPnl: 0,
         unrealizedPnlPercent: 0,
         openedAt: new Date(),
@@ -753,12 +838,12 @@ class AutonomousOrchestrator {
       const isCrypto = isCryptoSymbol(symbol);
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
 
-      let order;
+      let initialOrder;
       if (partialPercent >= 100) {
-        order = await alpaca.closePosition(brokerSymbol);
+        initialOrder = await alpaca.closePosition(brokerSymbol);
       } else {
         const closeQty = (position.quantity * partialPercent) / 100;
-        order = await alpaca.createOrder({
+        initialOrder = await alpaca.createOrder({
           symbol: brokerSymbol,
           qty: closeQty.toString(),
           side: "sell",
@@ -767,16 +852,49 @@ class AutonomousOrchestrator {
         });
       }
 
-      const pnl =
-        (safeParseFloat(order.filled_avg_price, position.currentPrice) -
-          position.entryPrice) *
-        safeParseFloat(order.filled_qty, position.quantity);
+      const fillResult = await waitForOrderFill(initialOrder.id);
+      
+      if (!fillResult.order) {
+        console.error(`[Orchestrator] Close order ${initialOrder.id} - no order data received`);
+        await this.syncPositionsFromBroker();
+        return {
+          success: false,
+          action: "sell",
+          reason: "Close order failed - no response from broker",
+          symbol,
+          orderId: initialOrder.id,
+        };
+      }
+      
+      if (!fillResult.hasFillData) {
+        console.error(`[Orchestrator] Close order ${initialOrder.id} has no fill data, syncing positions`);
+        await this.syncPositionsFromBroker();
+        return {
+          success: false,
+          action: "sell",
+          reason: fillResult.timedOut 
+            ? "Close order fill timed out - position sync triggered" 
+            : "Close order rejected or no fill data",
+          symbol,
+          orderId: initialOrder.id,
+        };
+      }
+      
+      if (fillResult.timedOut && !fillResult.isFullyFilled) {
+        console.warn(`[Orchestrator] Close order ${initialOrder.id} timed out with partial fill, using available data`);
+      }
+      
+      const order = fillResult.order;
+      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+
+      const pnl = (filledPrice - position.entryPrice) * filledQty;
 
       await storage.createTrade({
         symbol,
         side: "sell",
-        quantity: order.filled_qty || position.quantity.toString(),
-        price: order.filled_avg_price || position.currentPrice.toString(),
+        quantity: filledQty.toString(),
+        price: filledPrice.toString(),
         pnl: pnl.toString(),
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
@@ -801,8 +919,8 @@ class AutonomousOrchestrator {
         action: "sell",
         reason: decision.reasoning,
         symbol,
-        quantity: safeParseFloat(order.filled_qty, position.quantity),
-        price: safeParseFloat(order.filled_avg_price, position.currentPrice),
+        quantity: filledQty,
+        price: filledPrice,
       };
     } catch (error) {
       console.error(`[Orchestrator] Failed to close position ${symbol}:`, error);

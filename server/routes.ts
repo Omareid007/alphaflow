@@ -1103,16 +1103,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Failed to fetch Alpaca positions for analytics:", e);
       }
 
-      const winningTrades = trades.filter(t => safeParseFloat(t.pnl, 0) > 0);
-      const totalPnl = trades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
-      const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
+      const closedTrades = trades.filter(t => {
+        if (t.pnl === null || t.pnl === undefined) return false;
+        const pnlStr = String(t.pnl).trim();
+        if (pnlStr === "") return false;
+        const pnlValue = parseFloat(pnlStr);
+        return Number.isFinite(pnlValue);
+      });
+      const winningTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
+      const losingTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
+      const totalPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+      const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
 
       res.json({
         totalTrades: trades.length,
         totalPnl: totalPnl.toFixed(2),
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
-        losingTrades: trades.length - winningTrades.length,
+        losingTrades: losingTrades.length,
         openPositions: alpacaPositions.length,
         unrealizedPnl: unrealizedPnl.toFixed(2),
         isAgentRunning: orchestratorState.isRunning,
