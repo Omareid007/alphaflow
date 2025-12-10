@@ -23,6 +23,55 @@ interface TradesResponse {
   total: number;
 }
 
+interface MarketData {
+  symbol?: string;
+  currentPrice?: number;
+  priceChange24h?: number;
+  priceChangePercent24h?: number;
+  high24h?: number;
+  low24h?: number;
+  volume?: number;
+}
+
+interface MarketContext {
+  marketData?: MarketData;
+  riskLevel?: string;
+  suggestedQuantity?: number;
+  targetPrice?: number;
+  stopLoss?: number;
+}
+
+const parseMarketContext = (contextStr: string | null | undefined): MarketContext | null => {
+  if (!contextStr) return null;
+  try {
+    return JSON.parse(contextStr) as MarketContext;
+  } catch {
+    return null;
+  }
+};
+
+const formatVolume = (volume: number): string => {
+  if (volume >= 1000000) {
+    return `${(volume / 1000000).toFixed(2)}M`;
+  } else if (volume >= 1000) {
+    return `${(volume / 1000).toFixed(1)}K`;
+  }
+  return volume.toString();
+};
+
+const getRiskLevelColor = (risk: string): string => {
+  switch (risk?.toLowerCase()) {
+    case "low":
+      return BrandColors.success;
+    case "medium":
+      return BrandColors.warning;
+    case "high":
+      return BrandColors.error;
+    default:
+      return BrandColors.neutral;
+  }
+};
+
 interface AnalyticsSummary {
   totalPnl: string;
   winRate: string;
@@ -198,6 +247,137 @@ function FilterChip({
   );
 }
 
+function FormattedMarketContext({ contextStr }: { contextStr: string }) {
+  const { theme } = useTheme();
+  const context = parseMarketContext(contextStr);
+  
+  if (!context) {
+    return null;
+  }
+
+  const marketData = context.marketData;
+  const priceChange = marketData?.priceChange24h ?? 0;
+  const priceChangePercent = marketData?.priceChangePercent24h ?? 0;
+  const isPricePositive = priceChange >= 0;
+
+  return (
+    <View style={styles.marketContextContainer}>
+      <View style={styles.marketContextHeader}>
+        <Feather name="bar-chart-2" size={14} color={BrandColors.primaryLight} />
+        <ThemedText style={[styles.marketContextTitle, { color: theme.text }]}>
+          Market Context
+        </ThemedText>
+      </View>
+      
+      {marketData ? (
+        <View style={styles.marketDataGrid}>
+          <View style={styles.marketDataRow}>
+            <View style={styles.marketDataItem}>
+              <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+                Current Price
+              </ThemedText>
+              <ThemedText style={[styles.marketDataValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                ${marketData.currentPrice?.toFixed(2) ?? "N/A"}
+              </ThemedText>
+            </View>
+            <View style={styles.marketDataItem}>
+              <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+                24h Change
+              </ThemedText>
+              <ThemedText style={[
+                styles.marketDataValue, 
+                { color: isPricePositive ? BrandColors.success : BrandColors.error, fontFamily: Fonts?.mono }
+              ]}>
+                {isPricePositive ? "+" : ""}{priceChange.toFixed(2)} ({isPricePositive ? "+" : ""}{priceChangePercent.toFixed(2)}%)
+              </ThemedText>
+            </View>
+          </View>
+          
+          <View style={styles.marketDataRow}>
+            <View style={styles.marketDataItem}>
+              <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+                24h High
+              </ThemedText>
+              <ThemedText style={[styles.marketDataValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                ${marketData.high24h?.toFixed(2) ?? "N/A"}
+              </ThemedText>
+            </View>
+            <View style={styles.marketDataItem}>
+              <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+                24h Low
+              </ThemedText>
+              <ThemedText style={[styles.marketDataValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                ${marketData.low24h?.toFixed(2) ?? "N/A"}
+              </ThemedText>
+            </View>
+          </View>
+
+          {marketData.volume ? (
+            <View style={styles.marketDataRow}>
+              <View style={styles.marketDataItem}>
+                <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+                  Volume
+                </ThemedText>
+                <ThemedText style={[styles.marketDataValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                  {formatVolume(marketData.volume)}
+                </ThemedText>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.tradeParamsGrid}>
+        {context.riskLevel ? (
+          <View style={styles.tradeParamItem}>
+            <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+              Risk Level
+            </ThemedText>
+            <View style={[styles.riskBadge, { backgroundColor: getRiskLevelColor(context.riskLevel) + "20" }]}>
+              <ThemedText style={[styles.riskBadgeText, { color: getRiskLevelColor(context.riskLevel) }]}>
+                {context.riskLevel.toUpperCase()}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
+        
+        {context.targetPrice ? (
+          <View style={styles.tradeParamItem}>
+            <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+              Target Price
+            </ThemedText>
+            <ThemedText style={[styles.marketDataValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>
+              ${context.targetPrice.toFixed(2)}
+            </ThemedText>
+          </View>
+        ) : null}
+        
+        {context.stopLoss ? (
+          <View style={styles.tradeParamItem}>
+            <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+              Stop Loss
+            </ThemedText>
+            <ThemedText style={[styles.marketDataValue, { color: BrandColors.error, fontFamily: Fonts?.mono }]}>
+              ${context.stopLoss.toFixed(2)}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {context.suggestedQuantity ? (
+          <View style={styles.tradeParamItem}>
+            <ThemedText style={[styles.marketDataLabel, { color: theme.textSecondary }]}>
+              Suggested Qty
+            </ThemedText>
+            <ThemedText style={[styles.marketDataValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+              {context.suggestedQuantity}
+            </ThemedText>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function TradeCard({ 
   trade, 
   isExpanded, 
@@ -309,14 +489,7 @@ function TradeCard({
                   </View>
                 ) : null}
                 {trade.aiDecision.marketContext ? (
-                  <View style={styles.contextContainer}>
-                    <ThemedText style={[styles.contextLabel, { color: theme.textSecondary }]}>
-                      Market Context
-                    </ThemedText>
-                    <ThemedText style={[styles.contextText, { color: theme.text }]}>
-                      {trade.aiDecision.marketContext}
-                    </ThemedText>
-                  </View>
+                  <FormattedMarketContext contextStr={trade.aiDecision.marketContext} />
                 ) : null}
               </>
             ) : (
@@ -737,6 +910,61 @@ const styles = StyleSheet.create({
   contextText: {
     ...Typography.small,
     lineHeight: 18,
+  },
+  marketContextContainer: {
+    marginTop: Spacing.sm,
+  },
+  marketContextHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  marketContextTitle: {
+    ...Typography.small,
+    fontWeight: "600",
+    marginLeft: Spacing.xs,
+  },
+  marketDataGrid: {
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  marketDataRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: Spacing.xs,
+  },
+  marketDataItem: {
+    flex: 1,
+  },
+  marketDataLabel: {
+    ...Typography.small,
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  marketDataValue: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  tradeParamsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  tradeParamItem: {
+    width: "50%",
+    marginBottom: Spacing.sm,
+  },
+  riskBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    marginTop: 2,
+  },
+  riskBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   noAiDecision: {
     flexDirection: "row",
