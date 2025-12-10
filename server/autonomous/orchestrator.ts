@@ -1052,6 +1052,20 @@ class AutonomousOrchestrator {
     return { ...this.state };
   }
 
+  getPendingAnalysis(): { symbol: string; startedAt: Date; status: string }[] {
+    const pending: { symbol: string; startedAt: Date; status: string }[] = [];
+    
+    for (const [symbol, signal] of this.state.pendingSignals.entries()) {
+      pending.push({
+        symbol,
+        startedAt: new Date(),
+        status: "pending_execution",
+      });
+    }
+    
+    return pending;
+  }
+
   getRiskLimits(): RiskLimits {
     return { ...this.riskLimits };
   }

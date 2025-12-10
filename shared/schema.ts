@@ -66,6 +66,13 @@ export const aiDecisions = pgTable("ai_decisions", {
   marketContext: text("market_context"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   executedTradeId: varchar("executed_trade_id").references(() => trades.id),
+  status: text("status").default("pending").notNull(),
+  stopLoss: numeric("stop_loss"),
+  takeProfit: numeric("take_profit"),
+  entryPrice: numeric("entry_price"),
+  filledPrice: numeric("filled_price"),
+  filledAt: timestamp("filled_at"),
+  skipReason: text("skip_reason"),
 });
 
 export const agentStatus = pgTable("agent_status", {

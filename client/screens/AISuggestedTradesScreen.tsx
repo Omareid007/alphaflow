@@ -1,10 +1,10 @@
-import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
 
 import { useTheme } from "@/hooks/useTheme";
@@ -92,6 +92,40 @@ export default function AISuggestedTradesScreen() {
         return BrandColors.error;
       default:
         return BrandColors.neutral;
+    }
+  };
+
+  const getStatusColor = (status: string | null | undefined) => {
+    switch (status) {
+      case "executed":
+      case "filled":
+        return BrandColors.success;
+      case "pending":
+      case "pending_execution":
+        return BrandColors.warning;
+      case "skipped":
+        return BrandColors.error;
+      case "analyzing":
+        return BrandColors.aiLayer;
+      default:
+        return BrandColors.neutral;
+    }
+  };
+
+  const getStatusLabel = (status: string | null | undefined) => {
+    switch (status) {
+      case "executed":
+      case "filled":
+        return "FILLED";
+      case "pending":
+      case "pending_execution":
+        return "PENDING";
+      case "skipped":
+        return "SKIPPED";
+      case "analyzing":
+        return "ANALYZING";
+      default:
+        return "SUGGESTED";
     }
   };
 
@@ -225,6 +259,9 @@ export default function AISuggestedTradesScreen() {
             <View style={[styles.actionBadge, { backgroundColor: getActionColor(decision.action) }]}>
               <ThemedText style={styles.actionText}>{decision.action.toUpperCase()}</ThemedText>
             </View>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor((decision as any).status) }]}>
+              <ThemedText style={styles.statusText}>{getStatusLabel((decision as any).status)}</ThemedText>
+            </View>
             {context?.riskLevel ? (
               <View style={[styles.riskBadge, { borderColor: getRiskColor(context.riskLevel) }]}>
                 <ThemedText style={[styles.riskText, { color: getRiskColor(context.riskLevel) }]}>
@@ -298,6 +335,29 @@ export default function AISuggestedTradesScreen() {
             {decision.reasoning || "No reasoning provided"}
           </ThemedText>
         </View>
+
+        {(decision as any).skipReason ? (
+          <View style={styles.skipReasonSection}>
+            <ThemedText style={[styles.skipReasonLabel, { color: BrandColors.error }]}>Skip Reason</ThemedText>
+            <ThemedText style={[styles.skipReasonText, { color: theme.textSecondary }]}>
+              {(decision as any).skipReason}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {(decision as any).filledPrice && parseFloat((decision as any).filledPrice) > 0 ? (
+          <View style={styles.filledPriceSection}>
+            <View style={styles.priceRow}>
+              <View style={styles.targetRow}>
+                <Feather name="check-circle" size={14} color={BrandColors.success} />
+                <ThemedText style={[styles.priceLabel, { color: theme.textSecondary }]}>Filled At</ThemedText>
+              </View>
+              <ThemedText style={[styles.priceValue, { fontFamily: Fonts?.mono, color: BrandColors.success }]}>
+                {formatPrice(parseFloat((decision as any).filledPrice))}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.footer}>
           <ThemedText style={[styles.timestamp, { color: theme.textSecondary }]}>
@@ -441,6 +501,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  statusText: {
+    ...Typography.small,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 10,
+  },
   riskBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
@@ -506,6 +577,27 @@ const styles = StyleSheet.create({
   reasoning: {
     ...Typography.body,
     lineHeight: 22,
+  },
+  skipReasonSection: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  skipReasonLabel: {
+    ...Typography.small,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  skipReasonText: {
+    ...Typography.body,
+    lineHeight: 20,
+  },
+  filledPriceSection: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   footer: {
     flexDirection: "row",

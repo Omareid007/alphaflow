@@ -223,6 +223,15 @@ export class DatabaseStorage implements IStorage {
     return trade;
   }
 
+  async updateTrade(id: string, updates: Partial<InsertTrade>): Promise<Trade | undefined> {
+    const [trade] = await db
+      .update(trades)
+      .set(updates)
+      .where(eq(trades.id, id))
+      .returning();
+    return trade;
+  }
+
   async getDistinctSymbols(): Promise<string[]> {
     const result = await db
       .selectDistinct({ symbol: trades.symbol })

@@ -1015,6 +1015,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/positions/broker", async (req, res) => {
+    try {
+      const positions = await alpaca.getPositions();
+      
+      const enrichedPositions = positions.map(p => ({
+        symbol: p.symbol,
+        quantity: safeParseFloat(p.qty, 0),
+        entryPrice: safeParseFloat(p.avg_entry_price, 0),
+        currentPrice: safeParseFloat(p.current_price, 0),
+        marketValue: safeParseFloat(p.market_value, 0),
+        unrealizedPnl: safeParseFloat(p.unrealized_pl, 0),
+        unrealizedPnlPercent: safeParseFloat(p.unrealized_plpc, 0) * 100,
+        side: safeParseFloat(p.qty, 0) > 0 ? "long" : "short",
+        assetClass: p.asset_class,
+        exchange: p.exchange,
+        costBasis: safeParseFloat(p.cost_basis, 0),
+      }));
+      
+      res.json(enrichedPositions);
+    } catch (error) {
+      console.error("Failed to fetch broker positions:", error);
+      res.status(500).json({ error: "Failed to fetch positions from broker" });
+    }
+  });
+
   app.get("/api/positions/:id", async (req, res) => {
     try {
       const position = await storage.getPosition(req.params.id);
@@ -1074,6 +1099,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/ai-decisions/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const statusFilter = req.query.status as string;
+      const actionFilter = req.query.action as string;
+      
+      const decisions = await storage.getAiDecisions(limit + offset);
+      let filtered = decisions.slice(offset, offset + limit);
+      
+      if (statusFilter) {
+        filtered = filtered.filter(d => d.status === statusFilter);
+      }
+      if (actionFilter) {
+        filtered = filtered.filter(d => d.action === actionFilter);
+      }
+      
+      const pendingAnalysis = orchestrator.getPendingAnalysis?.() || [];
+      
+      res.json({
+        decisions: filtered,
+        total: decisions.length,
+        hasMore: offset + limit < decisions.length,
+        pendingAnalysis: pendingAnalysis,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get AI decision history" });
+    }
+  });
+
   app.post("/api/ai-decisions", async (req, res) => {
     try {
       const parsed = insertAiDecisionSchema.safeParse(req.body);
@@ -1084,6 +1139,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(decision);
     } catch (error) {
       res.status(500).json({ error: "Failed to create AI decision" });
+    }
+  });
+
+  app.post("/api/trades/backfill-prices", async (req, res) => {
+    try {
+      const trades = await storage.getTrades(500);
+      const zeroTrades = trades.filter(t => safeParseFloat(t.price, 0) === 0);
+      
+      if (zeroTrades.length === 0) {
+        return res.json({ message: "No trades need backfilling", updated: 0 });
+      }
+
+      let orders: any[] = [];
+      try {
+        orders = await alpaca.getOrders("all", 500);
+      } catch (e) {
+        console.error("Failed to fetch Alpaca orders for backfill:", e);
+        return res.status(500).json({ error: "Failed to fetch order history from broker" });
+      }
+
+      let updated = 0;
+      for (const trade of zeroTrades) {
+        const matchingOrder = orders.find(o => 
+          o.symbol === trade.symbol && 
+          o.side === trade.side &&
+          o.status === "filled" &&
+          safeParseFloat(o.filled_avg_price, 0) > 0 &&
+          Math.abs(new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()) < 60000
+        );
+
+        if (matchingOrder) {
+          const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
+          const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
+          
+          await storage.updateTrade(trade.id, {
+            price: filledPrice.toString(),
+            quantity: filledQty.toString(),
+            status: "filled",
+          });
+          updated++;
+        }
+      }
+
+      res.json({ 
+        message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
+        updated,
+        remaining: zeroTrades.length - updated
+      });
+    } catch (error) {
+      console.error("Trade backfill error:", error);
+      res.status(500).json({ error: "Failed to backfill trade prices" });
+    }
+  });
+
+  app.get("/api/orders/recent", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const orders = await alpaca.getOrders("all", limit);
+      
+      const enrichedOrders = orders.map(o => ({
+        id: o.id,
+        symbol: o.symbol,
+        side: o.side,
+        type: o.type,
+        status: o.status,
+        quantity: safeParseFloat(o.qty, 0),
+        filledQuantity: safeParseFloat(o.filled_qty, 0),
+        filledPrice: safeParseFloat(o.filled_avg_price, 0),
+        limitPrice: o.limit_price ? safeParseFloat(o.limit_price, 0) : null,
+        stopPrice: o.stop_price ? safeParseFloat(o.stop_price, 0) : null,
+        createdAt: o.created_at,
+        filledAt: o.filled_at,
+        submittedAt: o.submitted_at,
+        timeInForce: o.time_in_force,
+        assetClass: o.asset_class,
+        isAI: true,
+      }));
+      
+      res.json(enrichedOrders);
+    } catch (error) {
+      console.error("Failed to fetch recent orders:", error);
+      res.status(500).json({ error: "Failed to fetch recent orders" });
     }
   });
 
