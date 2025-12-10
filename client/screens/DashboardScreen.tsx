@@ -1246,6 +1246,15 @@ function PositionsList() {
     refetchInterval: 10000,
   });
 
+  const { data: aiDecisions } = useQuery<AiDecision[]>({
+    queryKey: ["/api/ai-decisions?limit=100"],
+    refetchInterval: 30000,
+  });
+
+  const aiSymbols = new Set(
+    aiDecisions?.filter(d => d.action === "buy" && (d as any).status === "executed").map(d => d.symbol) || []
+  );
+
   if (isLoading) {
     return (
       <Card elevation={1} style={styles.positionsCard}>
@@ -1291,6 +1300,12 @@ function PositionsList() {
               <View style={styles.positionSymbolRow}>
                 <View style={[styles.assetTypeIndicator, { backgroundColor: isCrypto ? BrandColors.cryptoLayer : BrandColors.stockLayer }]} />
                 <ThemedText style={styles.positionSymbol}>{position.symbol}</ThemedText>
+                {aiSymbols.has(position.symbol) ? (
+                  <View style={[styles.positionAiBadge, { backgroundColor: BrandColors.aiLayer + "30" }]}>
+                    <Feather name="cpu" size={10} color={BrandColors.aiLayer} style={{ marginRight: 3 }} />
+                    <ThemedText style={[styles.positionAiBadgeText, { color: BrandColors.aiLayer }]}>AI</ThemedText>
+                  </View>
+                ) : null}
                 <ThemedText style={[styles.positionSide, { color: position.side === "long" ? BrandColors.success : BrandColors.error }]}>
                   {position.side.toUpperCase()}
                 </ThemedText>
@@ -1607,6 +1622,17 @@ const styles = StyleSheet.create({
   positionSide: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  positionAiBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  positionAiBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
   positionDetails: {
     ...Typography.small,

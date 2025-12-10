@@ -242,7 +242,7 @@ function TradeCard({
               <ThemedText style={styles.tradeSymbol}>{trade.symbol}</ThemedText>
               {trade.aiDecision ? (
                 <View style={[styles.aiBadge, { backgroundColor: BrandColors.aiLayer + "30" }]}>
-                  <Feather name="cpu" size={10} color={BrandColors.aiLayer} />
+                  <Feather name="cpu" size={10} color={BrandColors.aiLayer} style={{ marginRight: 3 }} />
                   <ThemedText style={[styles.aiBadgeText, { color: BrandColors.aiLayer }]}>
                     AI
                   </ThemedText>
@@ -770,7 +770,6 @@ const styles = StyleSheet.create({
   aiBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
