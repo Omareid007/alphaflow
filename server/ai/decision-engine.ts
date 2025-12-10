@@ -115,16 +115,31 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
 
             const content = response.choices[0]?.message?.content;
             if (!content) {
-              throw new Error("Empty response from AI");
+              console.warn(`[AI] Empty response from AI for analysis, trying OpenRouter fallback`);
+              if (openRouterProvider.isAvailable()) {
+                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
+              }
+              return this.getDefaultDecision("AI returned empty response");
             }
 
             openAIFailureCount = 0;
             const parsed = JSON.parse(content) as AIDecision;
             return this.validateDecision(parsed);
           } catch (error) {
+            const errorMsg = (error as Error).message || String(error);
+            
+            // Check for empty response or parse errors - use fallback instead of throwing
+            if (errorMsg.includes("Empty response") || errorMsg.includes("JSON")) {
+              console.warn(`[AI] Parse/empty error, trying OpenRouter fallback: ${errorMsg}`);
+              if (openRouterProvider.isAvailable()) {
+                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
+              }
+              return this.getDefaultDecision(`AI analysis issue: ${errorMsg}`);
+            }
+            
             if (isRateLimitOrQuotaError(error)) {
               openAIFailureCount++;
-              console.log(`[AI] OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}: ${(error as Error).message}`);
+              console.log(`[AI] OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}: ${errorMsg}`);
               
               if (openAIFailureCount >= MAX_OPENAI_FAILURES && openRouterProvider.isAvailable()) {
                 console.log("[AI] Switching to OpenRouter fallback");
@@ -133,7 +148,7 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
               }
               throw error;
             }
-            const abortError = new Error((error as Error).message);
+            const abortError = new Error(errorMsg);
             (abortError as Error & { name: string }).name = 'AbortError';
             throw abortError;
           }

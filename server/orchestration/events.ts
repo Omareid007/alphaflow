@@ -16,6 +16,7 @@ export type TradingEventType =
   | "position:updated"
   | "ai:decision"
   | "ai:analysis:complete"
+  | "portfolio:rebalanced"
   | "system:heartbeat"
   | "system:error"
   | "system:warning"
@@ -142,6 +143,7 @@ class TradingEventBus extends EventEmitter {
       "position:updated",
       "ai:decision",
       "ai:analysis:complete",
+      "portfolio:rebalanced",
       "system:heartbeat",
       "system:error",
       "system:warning",

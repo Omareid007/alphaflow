@@ -94,7 +94,8 @@ class AlpacaTradingEngine {
   private autoStartStrategyId: string | null = null;
 
   private readonly DEFAULT_WATCHLIST = [
-    "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH"
+    "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH",
+    "BTC/USD", "ETH/USD", "SOL/USD"
   ];
 
   private normalizeSymbolForAlpaca(symbol: string, forOrder: boolean = false): string {
