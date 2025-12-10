@@ -40,10 +40,20 @@ export default function AISuggestedTradesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: decisions, isLoading, error, refetch } = useQuery<AiDecision[]>({
-    queryKey: ["/api/ai-decisions?limit=50"],
-    refetchInterval: 30000,
+  interface HistoryResponse {
+    decisions: AiDecision[];
+    total: number;
+    hasMore: boolean;
+    pendingAnalysis: Array<{ symbol: string; startedAt: Date; status: string }>;
+  }
+
+  const { data: historyData, isLoading, error, refetch } = useQuery<HistoryResponse>({
+    queryKey: ["/api/ai-decisions/history?limit=50"],
+    refetchInterval: 10000,
   });
+
+  const decisions = historyData?.decisions ?? [];
+  const pendingAnalysis = historyData?.pendingAnalysis ?? [];
 
   const { data: aiStatus } = useQuery<{ available: boolean; model: string; provider: string }>({
     queryKey: ["/api/ai/status"],
@@ -392,16 +402,42 @@ export default function AISuggestedTradesScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BrandColors.aiLayer} />
       }
       ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.headerInfo}>
-            <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
-            <ThemedText style={[styles.headerText, { color: BrandColors.aiLayer }]}>
-              AI-Powered Analysis
+        <View>
+          <View style={styles.header}>
+            <View style={styles.headerInfo}>
+              <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
+              <ThemedText style={[styles.headerText, { color: BrandColors.aiLayer }]}>
+                AI-Powered Analysis
+              </ThemedText>
+            </View>
+            <ThemedText style={[styles.headerCount, { color: theme.textSecondary }]}>
+              {decisions.length} suggestions
             </ThemedText>
           </View>
-          <ThemedText style={[styles.headerCount, { color: theme.textSecondary }]}>
-            {decisions.length} suggestions
-          </ThemedText>
+          
+          {pendingAnalysis.length > 0 ? (
+            <Card elevation={1} style={styles.pendingCard}>
+              <View style={styles.pendingHeader}>
+                <ActivityIndicator size="small" color={BrandColors.aiLayer} />
+                <ThemedText style={[styles.pendingTitle, { color: BrandColors.aiLayer }]}>
+                  Currently Analyzing
+                </ThemedText>
+              </View>
+              <View style={styles.pendingList}>
+                {pendingAnalysis.map((item, index) => (
+                  <View key={`${item.symbol}-${index}`} style={styles.pendingItem}>
+                    <View style={styles.pendingSymbolRow}>
+                      <Feather name="search" size={14} color={BrandColors.aiLayer} />
+                      <ThemedText style={styles.pendingSymbol}>{item.symbol}</ThemedText>
+                    </View>
+                    <ThemedText style={[styles.pendingStatus, { color: theme.textSecondary }]}>
+                      {item.status}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          ) : null}
         </View>
       }
     />
@@ -447,6 +483,45 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  pendingCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.aiLayer,
+    marginBottom: Spacing.lg,
+  },
+  pendingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  pendingTitle: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  pendingList: {
+    gap: Spacing.sm,
+  },
+  pendingItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.cardBorder,
+  },
+  pendingSymbolRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  pendingSymbol: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  pendingStatus: {
+    ...Typography.small,
+    textTransform: "capitalize",
   },
   header: {
     flexDirection: "row",
