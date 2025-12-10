@@ -240,6 +240,14 @@ function TradeCard({
                 color={trade.side === "buy" ? BrandColors.success : BrandColors.error} 
               />
               <ThemedText style={styles.tradeSymbol}>{trade.symbol}</ThemedText>
+              {trade.aiDecision ? (
+                <View style={[styles.aiBadge, { backgroundColor: BrandColors.aiLayer + "30" }]}>
+                  <Feather name="cpu" size={10} color={BrandColors.aiLayer} />
+                  <ThemedText style={[styles.aiBadgeText, { color: BrandColors.aiLayer }]}>
+                    AI
+                  </ThemedText>
+                </View>
+              ) : null}
               {trade.strategyName ? (
                 <View style={[styles.strategyBadge, { backgroundColor: BrandColors.primaryLight + "20" }]}>
                   <ThemedText style={[styles.strategyBadgeText, { color: BrandColors.primaryLight }]}>
@@ -758,6 +766,18 @@ const styles = StyleSheet.create({
   strategyBadgeText: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  aiBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
   filtersContainer: {
     gap: Spacing.sm,
