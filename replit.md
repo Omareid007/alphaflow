@@ -28,6 +28,16 @@ Preferred communication style: Simple, everyday language.
 - **Shadow Style Platform Handling**: Fixed deprecated shadow* props using Platform.OS checks (boxShadow on web, shadow* on native)
 - **StrategyWizard Refactor**: Extracted context and types to separate context.tsx file, breaking 18 require cycle warnings
 
+### UI Visualization Widgets (December 2025)
+- **Data Funnels Widget**: New `client/components/DataFunnelsWidget.tsx` visualizes all data connectors grouped by category:
+  - Trading (Alpaca), Market Data (Finnhub, CoinGecko, CoinMarketCap, UAE Markets), News (NewsAPI), Enrichment (Valyu.ai, Hugging Face), AI (OpenAI)
+  - Shows connection status, cache sizes, and visual flow leading to "AI Decision Engine"
+- **Activity Flow Widget**: New `client/components/ActivityFlowWidget.tsx` provides n8n-style real-time activity visualization:
+  - Shows agent status (Active/Stopped) with animated indicator
+  - Displays recent AI decisions and trades as connected nodes
+  - Includes stats row with total trades and P&L
+- **Enhanced /api/connectors/status**: Endpoint now returns `allConnectors[]` array with full status for all 9 data sources
+
 ## System Architecture
 
 ### Frontend Architecture
