@@ -1258,23 +1258,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/analytics/summary", async (req, res) => {
     try {
       const trades = await storage.getTrades(1000);
-      const status = await storage.getAgentStatus();
-      
       const orchestratorState = orchestrator.getState();
       
       let alpacaPositions: any[] = [];
       let unrealizedPnl = 0;
+      let accountTotalPnl = 0;
+      let dailyPnlFromAccount = 0;
+      
       try {
         alpacaPositions = await alpaca.getPositions();
         unrealizedPnl = alpacaPositions.reduce((sum, p) => sum + safeParseFloat(p.unrealized_pl, 0), 0);
+        
+        const account = await alpaca.getAccount();
+        const portfolioValue = safeParseFloat(account.portfolio_value, 0);
+        const lastEquity = safeParseFloat(account.last_equity, 0);
+        const STARTING_CAPITAL = 100000;
+        
+        accountTotalPnl = portfolioValue - STARTING_CAPITAL;
+        dailyPnlFromAccount = portfolioValue - lastEquity;
       } catch (e) {
-        console.error("Failed to fetch Alpaca positions for analytics:", e);
+        console.error("Failed to fetch Alpaca data for analytics:", e);
       }
 
-      // Only consider SELL trades as closed trades (they close positions)
       const sellTrades = trades.filter(t => t.side === "sell");
       
-      // Filter sell trades that have valid PnL values
       const closedTrades = sellTrades.filter(t => {
         if (t.pnl === null || t.pnl === undefined) return false;
         const pnlStr = String(t.pnl).trim();
@@ -1285,32 +1292,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const winningTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
       const losingTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
-      const totalPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
       const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
 
-      // Calculate daily P&L from trades executed today
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todaysTrades = closedTrades.filter(t => {
         const executedAt = new Date(t.executedAt);
         return executedAt >= todayStart;
       });
-      const dailyPnl = todaysTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
       const dailyTradeCount = todaysTrades.length;
-
-      // Total P&L = Realized P&L from closed trades + Unrealized P&L from open positions
-      const totalPnlIncludingUnrealized = totalPnl + unrealizedPnl;
 
       res.json({
         totalTrades: trades.length,
-        totalPnl: totalPnlIncludingUnrealized.toFixed(2),
+        totalPnl: accountTotalPnl.toFixed(2),
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
         losingTrades: losingTrades.length,
         openPositions: alpacaPositions.length,
         unrealizedPnl: unrealizedPnl.toFixed(2),
         isAgentRunning: orchestratorState.isRunning,
-        dailyPnl: dailyPnl.toFixed(2),
+        dailyPnl: dailyPnlFromAccount.toFixed(2),
         dailyTradeCount: dailyTradeCount,
       });
     } catch (error) {
