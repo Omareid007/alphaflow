@@ -12,6 +12,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (December 2025)
 
+### Multi-Provider LLM & Data Fusion Integration
+- **Data Fusion Engine Integration**: AlpacaTradingEngine.analyzeSymbol() now enriches decisions with Hugging Face sentiment and Valyu.ai fundamentals when API keys are available
+- **Enhanced Decision Logging**: Full transparency with input snapshots, reasoning chains, alternative options considered, and data source attribution stored in marketContext
+- **Optional Enrichment Pattern**: gatherEnrichmentData() method gracefully handles missing API keys, enabling progressive enhancement as providers are configured
+- **Type-Safe Data Flow**: Fixed interface mismatches between connectors and fusion engine (MarketDataPoint.reliability, SentimentDataPoint.sentiment, FundamentalDataPoint.symbol)
+
 ### Bug Fixes & Reliability Improvements
 - **AI Model Fix**: Changed invalid "gpt-5" model to "gpt-4o-mini" in decision-engine.ts - eliminates empty AI responses
 - **NewsAPI Circuit Breaker**: Extended cache times to 60min fresh / 24hr stale to handle 100 req/day limit

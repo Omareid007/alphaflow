@@ -5,6 +5,11 @@ import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
 import { eventBus, logger, type TradeExecutedEvent, type StrategySignalEvent, type PositionEvent } from "../orchestration";
 import { safeParseFloat, formatPrice, calculatePnL } from "../utils/numeric";
+import { fuseMarketData, type FusedMarketIntelligence } from "../ai/data-fusion-engine";
+import { createEnhancedDecisionLog, type EnhancedDecisionLog } from "../ai/enhanced-decision-log";
+import { huggingface } from "../connectors/huggingface";
+import { valyu } from "../connectors/valyu";
+import { log } from "../utils/logger";
 
 export interface AlpacaTradeRequest {
   symbol: string;
@@ -527,7 +532,7 @@ class AlpacaTradingEngine {
   async analyzeSymbol(
     symbol: string,
     strategyId?: string
-  ): Promise<{ decision: AIDecision; marketData: MarketData }> {
+  ): Promise<{ decision: AIDecision; marketData: MarketData; fusedIntelligence?: FusedMarketIntelligence; enhancedLog?: EnhancedDecisionLog }> {
     const marketData = await this.getMarketDataForSymbol(symbol);
     if (!marketData) {
       throw new Error(`Could not get market data for ${symbol}`);
@@ -535,6 +540,7 @@ class AlpacaTradingEngine {
 
     let strategy: Strategy | undefined;
     let newsContext: NewsContext | undefined;
+    let fusedIntelligence: FusedMarketIntelligence | undefined;
 
     if (strategyId) {
       strategy = await storage.getStrategy(strategyId);
@@ -553,6 +559,38 @@ class AlpacaTradingEngine {
       console.log(`Could not fetch news for ${symbol}:`, e);
     }
 
+    // Gather enrichment data from optional sources
+    const enrichmentData = await this.gatherEnrichmentData(symbol, marketData, newsContext);
+    
+    // Fuse data from multiple sources if we have enrichment
+    if (enrichmentData.hasEnrichment) {
+      try {
+        fusedIntelligence = fuseMarketData({
+          symbol,
+          assetType: this.isCryptoSymbol(symbol) ? "crypto" : "stock",
+          marketData: [{
+            source: "alpaca",
+            symbol,
+            price: marketData.currentPrice,
+            priceChange: marketData.priceChange24h,
+            priceChangePercent: marketData.priceChangePercent24h,
+            volume: marketData.volume,
+            timestamp: new Date(),
+            reliability: 0.95,
+          }],
+          sentimentData: enrichmentData.sentimentData,
+          fundamentalData: enrichmentData.fundamentalData,
+        });
+        log.info("AI", `Fused intelligence for ${symbol}`, {
+          signalAgreement: fusedIntelligence.signalAgreement,
+          trendStrength: fusedIntelligence.trendStrength,
+          dataQuality: fusedIntelligence.dataQuality.completeness,
+        });
+      } catch (e) {
+        log.warn("AI", `Data fusion failed for ${symbol}`, { error: (e as Error).message });
+      }
+    }
+
     const strategyContext = strategy
       ? {
           id: strategy.id,
@@ -569,6 +607,16 @@ class AlpacaTradingEngine {
       strategyContext
     );
 
+    // Create enhanced decision log with full transparency
+    const enhancedLog = createEnhancedDecisionLog(
+      decision,
+      marketData,
+      newsContext,
+      strategyContext,
+      fusedIntelligence,
+      { provider: "openai", model: "gpt-4o-mini" }
+    );
+
     await storage.createAiDecision({
       strategyId: strategyId || null,
       symbol,
@@ -582,10 +630,83 @@ class AlpacaTradingEngine {
         suggestedQuantity: decision.suggestedQuantity,
         targetPrice: decision.targetPrice,
         stopLoss: decision.stopLoss,
+        fusedIntelligence: fusedIntelligence ? {
+          signalAgreement: fusedIntelligence.signalAgreement,
+          trendStrength: fusedIntelligence.trendStrength,
+          dataQuality: fusedIntelligence.dataQuality,
+          warnings: fusedIntelligence.warnings,
+        } : undefined,
+        enhancedLogId: enhancedLog.id,
       }),
     });
 
-    return { decision, marketData };
+    return { decision, marketData, fusedIntelligence, enhancedLog };
+  }
+
+  /**
+   * Gather enrichment data from optional sources (Hugging Face, Valyu.ai)
+   * Returns empty arrays if API keys aren't configured
+   */
+  private async gatherEnrichmentData(
+    symbol: string,
+    marketData: MarketData,
+    newsContext?: NewsContext
+  ): Promise<{
+    hasEnrichment: boolean;
+    sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; timestamp: Date }>;
+    fundamentalData: Array<{ source: string; symbol: string; peRatio?: number; revenueGrowth?: number; timestamp: Date }>;
+  }> {
+    const sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; timestamp: Date }> = [];
+    const fundamentalData: Array<{ source: string; symbol: string; peRatio?: number; revenueGrowth?: number; timestamp: Date }> = [];
+
+    // Try Hugging Face sentiment enrichment if we have headlines
+    if (newsContext?.headlines && newsContext.headlines.length > 0 && huggingface.isAvailable()) {
+      try {
+        const signal = await huggingface.generateEnrichmentSignal(
+          symbol,
+          newsContext.headlines,
+          marketData.priceChangePercent24h
+        );
+        if (signal) {
+          const sentiment: "positive" | "negative" | "neutral" = 
+            signal.sentimentScore > 0.2 ? "positive" : signal.sentimentScore < -0.2 ? "negative" : "neutral";
+          sentimentData.push({
+            source: "huggingface_finbert",
+            symbol,
+            sentiment,
+            score: signal.sentimentScore,
+            confidence: signal.confidence,
+            timestamp: new Date(),
+          });
+        }
+      } catch (e) {
+        log.debug("AI", `HuggingFace enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+      }
+    }
+
+    // Try Valyu.ai fundamentals for stocks (not crypto)
+    if (!this.isCryptoSymbol(symbol) && valyu.isAvailable()) {
+      try {
+        const ratios = await valyu.getFinancialRatios(symbol);
+        if (ratios) {
+          fundamentalData.push({
+            source: "valyu",
+            symbol,
+            peRatio: ratios.peRatio,
+            revenueGrowth: ratios.revenueGrowth,
+            timestamp: new Date(),
+          });
+        }
+      } catch (e) {
+        log.debug("AI", `Valyu.ai enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+      }
+    }
+
+    return {
+      hasEnrichment: sentimentData.length > 0 || fundamentalData.length > 0,
+      sentimentData,
+      fundamentalData,
+    };
   }
 
   async analyzeAndExecute(
