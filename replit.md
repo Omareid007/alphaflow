@@ -72,10 +72,14 @@ Preferred communication style: Simple, everyday language.
 - Implementation: Adapter pattern for swappable providers
 
 **AI/LLM Integration**:
-- Provider: OpenAI API (required)
+- Primary Provider: OpenAI API (via Replit AI Integrations)
+- Secondary Provider: OpenRouter (optional fallback)
+- Architecture: Minimal fetch-based client abstraction, NO external LLM frameworks
 - Usage: Decision scoring, opportunity analysis, trade explanations
 - Features: Function/tool calling for data composition
+- Safe Tools: Read-only documentation helper (dev-only CLI)
 - Security: API keys stored server-side only, never exposed to client
+- Key Files: `server/ai/llmClient.ts`, `server/ai/openaiClient.ts`, `server/ai/index.ts`
 
 **Brokerage Integration** (planned):
 - Paper Trading: Alpaca Paper Trading API (primary target)
@@ -156,3 +160,7 @@ Preferred communication style: Simple, everyday language.
 | `docs/FINANCIAL_METRICS.md` | P&L formulas, metric→UI mapping |
 | `docs/ARCHITECTURE.md` | Mermaid diagrams, data flows, integrations |
 | `docs/TESTING.md` | Test strategy, commands, scenarios |
+| `docs/AI_MODELS_AND_PROVIDERS.md` | LLM client architecture, provider configuration |
+| `docs/DOC_ASSISTANT.md` | Dev-only documentation Q&A tool |
+| `docs/CONNECTORS_AND_INTEGRATIONS.md` | External API connector patterns |
+| `docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md` | Trading orchestrator deep-dive |
