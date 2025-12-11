@@ -69,3 +69,10 @@ Preferred communication style: Simple, everyday language.
 - **analyzeWithFunctionCalling Method**: New AI analysis method allowing real-time data queries during decision-making
 - **Available Tools**: get_news_sentiment (GDELT), get_financial_ratios (Valyu), get_earnings_data (Valyu), get_insider_transactions (Valyu), get_additional_news (NewsAPI), get_market_quote (Finnhub)
 - **Graceful Fallback**: Falls back to standard analysis if function calling fails
+
+### P&L Calculation Fix (December 11, 2025)
+- **Root Cause**: Total P&L was using hardcoded `portfolioValue - 100000` instead of canonical formula
+- **Fix Applied**: Changed to `Total P&L = Unrealized P&L + Realized P&L` per FINANCIAL_METRICS.md Section 1.2
+- **API Response**: Added `realizedPnl` field to `/api/analytics/summary` for transparency
+- **Key Files Modified**: `server/routes.ts`, `client/screens/DashboardScreen.tsx`, `client/screens/AnalyticsScreen.tsx`
+- **Reference**: See `docs/FINANCIAL_METRICS.md` Section 8.2 for API response format

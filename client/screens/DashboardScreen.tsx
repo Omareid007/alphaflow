@@ -22,6 +22,7 @@ import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigat
 interface AnalyticsSummary {
   totalTrades: number;
   totalPnl: string;
+  realizedPnl: string;
   winRate: string;
   winningTrades: number;
   losingTrades: number;

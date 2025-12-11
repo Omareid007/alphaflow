@@ -384,9 +384,34 @@ Sharpe Ratio = (Average Return - Risk-Free Rate) / Standard Deviation of Returns
 
 | Endpoint | Returns |
 |----------|---------|
-| `GET /api/analytics/summary` | Total realized + unrealized P&L |
+| `GET /api/analytics/summary` | Total P&L, realized P&L, unrealized P&L, win rate, trade counts |
 | `GET /api/positions` | Positions with current prices and unrealized P&L |
 | `GET /api/trades` | Trade history with realized P&L |
+
+#### /api/analytics/summary Response Format
+
+```typescript
+{
+  totalTrades: number;        // All trades (buy + sell)
+  totalPnl: string;           // unrealizedPnl + realizedPnl (per Section 1.2)
+  realizedPnl: string;        // Sum of closed trade P&L
+  unrealizedPnl: string;      // Sum of open position unrealized_pl from Alpaca
+  winRate: string;            // (winningTrades / closedTrades) * 100
+  winningTrades: number;      // Trades with P&L > 0
+  losingTrades: number;       // Trades with P&L < 0
+  openPositions: number;      // Current position count from Alpaca
+  isAgentRunning: boolean;    // Trading agent status
+  dailyPnl: string;           // portfolioValue - lastEquity (today's change)
+  dailyTradeCount: number;    // Trades executed today
+}
+```
+
+**Total P&L Formula (implemented Dec 2025):**
+```typescript
+// From server/routes.ts - /api/analytics/summary endpoint
+const realizedPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+const totalPnl = unrealizedPnl + realizedPnl;
+```
 
 ### 8.3 Database Fields
 

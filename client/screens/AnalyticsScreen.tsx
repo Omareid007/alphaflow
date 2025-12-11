@@ -74,6 +74,7 @@ const getRiskLevelColor = (risk: string): string => {
 
 interface AnalyticsSummary {
   totalPnl: string;
+  realizedPnl: string;
   winRate: string;
   totalTrades: number;
   winningTrades: number;

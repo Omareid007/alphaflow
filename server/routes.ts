@@ -1265,7 +1265,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let alpacaPositions: any[] = [];
       let unrealizedPnl = 0;
-      let accountTotalPnl = 0;
       let dailyPnlFromAccount = 0;
       
       try {
@@ -1275,9 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const account = await alpaca.getAccount();
         const portfolioValue = safeParseFloat(account.portfolio_value, 0);
         const lastEquity = safeParseFloat(account.last_equity, 0);
-        const STARTING_CAPITAL = 100000;
         
-        accountTotalPnl = portfolioValue - STARTING_CAPITAL;
         dailyPnlFromAccount = portfolioValue - lastEquity;
       } catch (e) {
         console.error("Failed to fetch Alpaca data for analytics:", e);
@@ -1293,6 +1290,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return Number.isFinite(pnlValue);
       });
       
+      const realizedPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+      
+      const totalPnl = unrealizedPnl + realizedPnl;
+      
       const winningTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
       const losingTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
       const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
@@ -1307,7 +1308,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         totalTrades: trades.length,
-        totalPnl: accountTotalPnl.toFixed(2),
+        totalPnl: totalPnl.toFixed(2),
+        realizedPnl: realizedPnl.toFixed(2),
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
         losingTrades: losingTrades.length,
