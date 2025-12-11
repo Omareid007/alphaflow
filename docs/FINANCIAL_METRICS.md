@@ -15,6 +15,7 @@
 6. [Trade Classification](#6-trade-classification)
 7. [Numeric Examples](#7-numeric-examples)
 8. [Implementation Reference](#8-implementation-reference)
+9. [Metric to UI Mapping](#9-metric-to-ui-mapping)
 
 ---
 
@@ -397,6 +398,82 @@ Sharpe Ratio = (Average Return - Risk-Free Rate) / Standard Deviation of Returns
 - `entryPrice`: Cost basis per share
 - `currentPrice`: Latest market price
 - `unrealizedPnl`: Current paper profit/loss
+
+---
+
+## 9. Metric to UI Mapping
+
+This table shows where each financial metric is displayed in the application.
+
+### 9.1 Dashboard Screen Metrics
+
+| Metric | UI Component | Data Source | Format |
+|--------|--------------|-------------|--------|
+| **Total Equity** | Portfolio Summary Card | `/api/alpaca/account` → `equity` | `$XXX,XXX.XX` |
+| **Cash Balance** | Portfolio Summary Card | `/api/alpaca/account` → `cash` | `$XXX,XXX.XX` |
+| **Buying Power** | Portfolio Summary Card | `/api/alpaca/account` → `buying_power` | `$XXX,XXX.XX` |
+| **Day Change** | Portfolio Summary Card | Calculated: `equity - last_equity` | `+$X,XXX.XX` / `-$X,XXX.XX` |
+| **Day Change %** | Portfolio Summary Card | Calculated: `(day_change / last_equity) × 100` | `+X.XX%` / `-X.XX%` |
+| **Total Unrealized P&L** | Positions Widget | Sum of all position `unrealized_pl` | Green/Red colored |
+| **Total Realized P&L** | Analytics Card | `/api/analytics/summary` → `totalRealizedPnl` | `$X,XXX.XX` |
+| **Win Rate** | Analytics Card | `/api/analytics/summary` → `winRate` | `XX%` |
+| **Trade Count** | Analytics Card | `/api/analytics/summary` → `tradeCount` | Integer |
+
+### 9.2 Position Row Metrics
+
+| Metric | Field | Calculation | Format |
+|--------|-------|-------------|--------|
+| **Symbol** | `symbol` | Direct from Alpaca | `AAPL`, `BTC/USD` |
+| **Quantity** | `qty` | Direct from Alpaca | Integer or decimal |
+| **Avg Entry** | `avg_entry_price` | Direct from Alpaca | `$XXX.XX` |
+| **Current Price** | `current_price` | Direct from Alpaca | `$XXX.XX` |
+| **Market Value** | `market_value` | `current_price × qty` | `$X,XXX.XX` |
+| **Unrealized P&L** | `unrealized_pl` | `(current - entry) × qty` | Green/Red `$X.XX` |
+| **Unrealized P&L %** | `unrealized_plpc` | `(unrealized_pl / cost_basis) × 100` | Green/Red `X.XX%` |
+| **Today's Change** | `change_today` | `(current - lastday_price) × qty` | `$X.XX` |
+
+### 9.3 Trade History Row Metrics
+
+| Metric | Field | Source | Format |
+|--------|-------|--------|--------|
+| **Symbol** | `symbol` | Database `trades` table | `AAPL` |
+| **Side** | `side` | Database | `BUY` / `SELL` |
+| **Quantity** | `quantity` | Database | Numeric |
+| **Price** | `price` | Alpaca order fill price | `$XXX.XX` |
+| **Realized P&L** | `pnl` | Calculated on sell | Green/Red `$X.XX` |
+| **Executed At** | `executed_at` | Alpaca fill timestamp | `Dec 11, 2:30 PM` |
+| **Status** | `status` | Database | `completed`, `failed` |
+
+### 9.4 Agent Status Metrics
+
+| Metric | UI Location | Source | Format |
+|--------|-------------|--------|--------|
+| **Agent Running** | Status Badge | `agentStatus.isRunning` | Green/Red dot |
+| **Last Heartbeat** | Agent Card | `agentStatus.lastHeartbeat` | `X sec ago` |
+| **Total Trades** | Agent Card | `agentStatus.totalTrades` | Integer |
+| **Session P&L** | Agent Card | `agentStatus.totalPnl` | `$X,XXX.XX` |
+| **Active Positions** | Agent Card | `positions.length` | Integer |
+
+### 9.5 Color Coding Rules
+
+| Condition | Color | Usage |
+|-----------|-------|-------|
+| `value > 0` | Green (`#10B981`) | Positive P&L, gains |
+| `value < 0` | Red (`#EF4444`) | Negative P&L, losses |
+| `value === 0` | Neutral (text color) | No change |
+| Agent running | Green dot | Agent active |
+| Agent stopped | Gray dot | Agent inactive |
+| Kill switch active | Red dot | Emergency stop |
+
+### 9.6 Calculation Functions Used
+
+| UI Metric | Function | File |
+|-----------|----------|------|
+| P&L (any) | `calculatePnL()` | `server/utils/numeric.ts` |
+| Percent change | `calculatePercentChange()` | `server/utils/numeric.ts` |
+| Safe number parsing | `safeParseFloat()` | `server/utils/numeric.ts` |
+| Price formatting | `formatPrice()` | `server/utils/numeric.ts` |
+| Percent formatting | `formatPercent()` | `server/utils/numeric.ts` |
 
 ---
 

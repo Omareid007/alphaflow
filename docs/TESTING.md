@@ -117,23 +117,26 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **Unit Test Framework** | Not set up | Vitest recommended |
+| **Unit Test Framework** | Configured | Vitest with vitest.config.ts |
 | **Integration Tests** | Partial | Manual curl commands |
 | **E2E Framework** | Available | Playwright via `run_test` tool |
 | **Test Database** | Shared | Uses development database |
 | **Mocking Library** | Not set up | MSW recommended for API mocking |
 
-### 3.2 Recommended Setup (TODO)
+### 3.2 Running Unit Tests
 
 ```bash
-# Install test dependencies (future)
-npm install -D vitest @testing-library/react msw
+# Run all unit tests once
+npx vitest run
 
-# Test commands (to be added)
-npm run test:unit        # Run unit tests
-npm run test:integration # Run integration tests
-npm run test:e2e         # Run E2E tests
-npm run test             # Run all tests
+# Run tests in watch mode
+npx vitest
+
+# Run specific test file
+npx vitest run server/utils/numeric.test.ts
+
+# Run tests with coverage
+npx vitest run --coverage
 ```
 
 ### 3.3 Test File Naming
@@ -435,34 +438,47 @@ Tests should clean up after themselves when modifying data:
 
 ## 9. Known Testing Gaps
 
-### 9.1 Missing Test Coverage
+### 9.1 Current Test Coverage
+
+| Area | Status | Test Count | Priority |
+|------|--------|------------|----------|
+| **Numeric utilities** | Covered | 39 tests | Complete |
+| **P&L calculations** | Covered | 14 tests | Complete |
+| **Percent change** | Covered | 6 tests | Complete |
+| **Safe parsing** | Covered | 10 tests | Complete |
+| **Formatting functions** | Covered | 9 tests | Complete |
+| Risk limits | Manual | 0 tests | High |
+| AI decisions | Manual | 0 tests | Medium |
+| Position sync | Manual | 0 tests | Medium |
+| Error handling | Limited | 0 tests | Medium |
+
+### 9.2 Missing Test Coverage
 
 | Area | Gap | Priority |
 |------|-----|----------|
-| Unit tests | No unit test framework set up | High |
-| P&L calculations | No automated tests | Critical |
-| Risk limits | No automated tests | High |
+| Risk limit enforcement | No automated tests | High |
 | AI decisions | No mocked LLM tests | Medium |
 | Position sync | Manual testing only | Medium |
 | Error handling | Limited coverage | Medium |
+| API endpoints | No integration tests | Medium |
 
-### 9.2 Recommended Next Steps
+### 9.3 Recommended Next Steps
 
-1. **Set up Vitest** for unit testing
-2. **Add unit tests** for `calculatePnL` and numeric utilities
-3. **Add integration tests** for critical API endpoints
-4. **Create mock fixtures** for Alpaca and OpenAI responses
-5. **Document E2E test scenarios** in this file as they're created
+1. **Add integration tests** for critical API endpoints
+2. **Create mock fixtures** for Alpaca and OpenAI responses
+3. **Add risk limit tests** for order enforcement logic
+4. **Document E2E test scenarios** in this file as they're created
 
-### 9.3 Test Debt Backlog
+### 9.4 Test Debt Backlog
 
-| Item | Description | Effort |
-|------|-------------|--------|
-| Set up Vitest | Configure test runner | 2h |
-| Unit tests for numeric.ts | Test calculation functions | 4h |
-| Mock Alpaca responses | Create fixtures | 4h |
-| Integration test suite | Test critical endpoints | 8h |
-| CI/CD integration | Run tests on commit | 4h |
+| Item | Description | Status | Effort |
+|------|-------------|--------|--------|
+| Set up Vitest | Configure test runner | Done | - |
+| Unit tests for numeric.ts | Test calculation functions | Done (39 tests) | - |
+| Mock Alpaca responses | Create fixtures | TODO | 4h |
+| Integration test suite | Test critical endpoints | TODO | 8h |
+| Risk limit tests | Test order enforcement | TODO | 4h |
+| CI/CD integration | Run tests on commit | TODO | 4h |
 
 ---
 

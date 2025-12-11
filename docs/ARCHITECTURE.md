@@ -21,6 +21,65 @@
 
 ## 1. High-Level Architecture
 
+### 1.1 System Context Diagram (Mermaid)
+
+```mermaid
+C4Context
+    title System Context Diagram - AI Active Trader
+
+    Person(user, "Trader", "User who configures and monitors AI trading agent")
+    
+    System(app, "AI Active Trader", "Mobile-first trading application with AI-driven market analysis")
+    
+    System_Ext(alpaca, "Alpaca", "Broker API for paper trading, market data, positions")
+    System_Ext(openai, "OpenAI", "LLM for AI trading decisions and analysis")
+    System_Ext(finnhub, "Finnhub", "Stock market data and company fundamentals")
+    System_Ext(newsapi, "NewsAPI", "Real-time news headlines for market context")
+    System_Ext(crypto, "CoinMarketCap/CoinGecko", "Cryptocurrency market data")
+    
+    Rel(user, app, "Configures strategies, monitors positions", "HTTPS/Mobile App")
+    Rel(app, alpaca, "Executes trades, fetches positions", "REST API")
+    Rel(app, openai, "Requests trading decisions", "REST API")
+    Rel(app, finnhub, "Fetches stock data", "REST API")
+    Rel(app, newsapi, "Fetches news", "REST API")
+    Rel(app, crypto, "Fetches crypto data", "REST API")
+```
+
+### 1.2 Container Diagram (Mermaid)
+
+```mermaid
+C4Container
+    title Container Diagram - AI Active Trader
+
+    Person(user, "Trader", "User of the application")
+    
+    Container_Boundary(app, "AI Active Trader") {
+        Container(mobile, "Mobile App", "React Native/Expo", "Cross-platform mobile interface")
+        Container(web, "Web App", "React Native Web", "Browser-based interface")
+        Container(api, "API Server", "Express.js", "REST API and business logic")
+        Container(orchestrator, "Trading Orchestrator", "TypeScript", "Autonomous trading agent loop")
+        Container(ai_engine, "AI Decision Engine", "TypeScript/OpenAI", "Generates trading decisions")
+        ContainerDb(db, "PostgreSQL", "Drizzle ORM", "Trades, positions, decisions, status")
+    }
+    
+    System_Ext(alpaca, "Alpaca API", "Paper trading broker")
+    System_Ext(openai, "OpenAI API", "GPT-4o-mini LLM")
+    System_Ext(market, "Market Data APIs", "Finnhub, NewsAPI, Crypto")
+    
+    Rel(user, mobile, "Uses", "Touch UI")
+    Rel(user, web, "Uses", "Browser")
+    Rel(mobile, api, "API calls", "HTTP/REST")
+    Rel(web, api, "API calls", "HTTP/REST")
+    Rel(api, db, "Reads/Writes", "SQL")
+    Rel(orchestrator, ai_engine, "Requests decisions", "Function call")
+    Rel(orchestrator, api, "Executes trades", "Internal")
+    Rel(orchestrator, alpaca, "Places orders", "REST API")
+    Rel(ai_engine, openai, "LLM prompts", "REST API")
+    Rel(api, market, "Fetches data", "REST API")
+```
+
+### 1.3 ASCII Architecture Diagram
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         CLIENT LAYER                                 │
