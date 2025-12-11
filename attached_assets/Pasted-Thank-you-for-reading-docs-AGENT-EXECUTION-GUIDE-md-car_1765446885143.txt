@@ -1,0 +1,85 @@
+Thank you for reading docs/AGENT_EXECUTION_GUIDE.md carefully.
+
+Here are definitive answers to your questions and how I want you to proceed:
+
+1) FILE LOCATION FOR THE GUIDE  
+Yes, the correct and final location for the governance document is:
+- docs/AGENT_EXECUTION_GUIDE.md
+
+If it is not already there, save it there. This is the canonical path and MUST NOT change.
+
+2) MISSING REFERENCED DOCUMENTS  
+Yes, you MUST create and maintain the following documentation files as part of our documentation system:
+
+- docs/FINANCIAL_METRICS.md
+- docs/ARCHITECTURE.md
+- docs/TESTING.md
+
+Use the instructions and templates implied by:
+- docs/AGENT_EXECUTION_GUIDE.md
+- docs/APP_OVERVIEW.md
+
+For now:
+- Create **full, meaningful first versions** of these docs, NOT empty stubs.
+- Focus on what is actually implemented in this repo right now.
+- If some sections are “not implemented yet”, explicitly label them as such instead of guessing.
+
+3) INTEGRATION WITH APP_OVERVIEW.md  
+Yes, I want the documents cross-linked in a simple, clean way:
+
+- In docs/APP_OVERVIEW.md, add a short subsection (e.g. “Related Documentation”) that links to:
+  - docs/AGENT_EXECUTION_GUIDE.md
+  - docs/FINANCIAL_METRICS.md
+  - docs/ARCHITECTURE.md
+  - docs/TESTING.md
+
+- In docs/AGENT_EXECUTION_GUIDE.md, keep the reference to docs/APP_OVERVIEW.md as the main “map” of the app.
+
+So:
+- They should remain separate documents with clear responsibilities,
+- BUT they should cross-reference each other so future agents and engineers always find them.
+
+4) LOGGING UTILITY  
+For now, **do NOT** create a full-blown logging framework as part of this task. The current approach using console.log with prefixes is acceptable as a temporary baseline.
+
+HOWEVER:
+- When you work on observability, SRE, or error handling tasks later, you SHOULD refactor to a small logging utility that:
+  - centralises formatting,
+  - supports log levels (info/warn/error),
+  - and avoids logging secrets.
+
+For this current documentation-focused task, you can:
+- Simply document the current logging approach in the architecture/observability docs,
+- And optionally add a small TODO section about improving logging in the future.
+
+5) ENFORCEMENT SCOPE  
+The guide applies to:
+
+- **All future work from this point forward**, and  
+- **Any existing code you TOUCH during a task.**
+
+You are NOT required to proactively audit the entire codebase right now purely for compliance. However:
+
+- Whenever you modify existing code, you MUST:
+  - Bring it closer to the standards in docs/AGENT_EXECUTION_GUIDE.md (tests, docs, safety).
+  - Avoid introducing new patterns that conflict with the guide.
+
+Think of this as:
+- “Forward-looking enforcement” + “Boy scout rule”:
+  - Leave every part you touch in a better state than you found it.
+
+NOW, NEXT STEP:
+After applying the above decisions, your next task is:
+
+- Confirm docs/AGENT_EXECUTION_GUIDE.md is in place at the correct path.
+- Then proceed to create and populate:
+  - docs/FINANCIAL_METRICS.md
+  - docs/ARCHITECTURE.md
+  - docs/TESTING.md
+
+Use the instructions and templates implied by our previous conversation and by the execution guide.
+
+In your next reply, please:
+- Confirm file paths,
+- Briefly list what you plan to do for each of the three docs (one or two bullets per doc),
+- Then execute that plan end-to-end (implement, add tests if needed, update docs), following AGENT_EXECUTION_GUIDE.
