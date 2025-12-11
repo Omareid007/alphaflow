@@ -487,6 +487,20 @@ Tests should clean up after themselves when modifying data:
 | Date | Change |
 |------|--------|
 | Dec 2024 | Initial testing documentation |
+| Dec 2024 | Added related governance docs section |
+
+---
+
+## Related Governance Docs
+
+| Document | Relevance |
+|----------|-----------|
+| `FINANCIAL_METRICS.md` | P&L calculation formulas for metrics testing |
+| `AI_MODELS_AND_PROVIDERS.md` | AI response parsing and mocking patterns |
+| `CONNECTORS_AND_INTEGRATIONS.md` | Connector testing patterns (mocking, error handling) |
+| `ORCHESTRATOR_AND_AGENT_RUNTIME.md` | Orchestrator test scenarios (kill switch, risk limits) |
+| `AGENT_EXECUTION_GUIDE.md` | Sections 14-16 define testing expectations by component |
+| `LESSONS_LEARNED.md` | Section 4.4 for testing lessons |
 
 ---
 

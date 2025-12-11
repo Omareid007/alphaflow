@@ -98,11 +98,22 @@ When adding a new lesson, use this template:
 
 - **Date:** YYYY-MM-DD
 - **Task:** Brief description of what was done
-- **Area:** (metrics | orchestrator | UI | infra | API | testing | etc.)
+- **Area:** (metrics | orchestrator | UI | infra | API | testing | ai_models | connectors | agent_orchestration | etc.)
 - **What worked:** Key patterns or approaches that succeeded
 - **Issues/Pitfalls:** Problems encountered
 - **Recommendations:** Actionable advice for future similar tasks
 ```
+
+**Valid Area values:**
+- `metrics` - P&L, financial calculations
+- `orchestrator` - Trading orchestrator runtime
+- `ui` - Frontend, user interface
+- `infra` - Infrastructure, deployment, DevOps
+- `api` - API endpoints, REST services
+- `testing` - Test coverage, QA
+- `ai_models` - AI providers, prompts, decision engine
+- `connectors` - External API integrations
+- `agent_orchestration` - Development-time agent roles/modes
 
 ### Where to Add Lessons
 
@@ -185,6 +196,71 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 
 ---
 
+### 4.7 AI Models & Prompting Lessons
+
+*Lessons about AI providers, prompt engineering, and decision engine.*
+
+**Initial lesson (December 2024):**
+- Always clarify metric definitions and expected outputs before changing AI prompts that produce metrics
+- Use structured JSON output format for all AI responses - makes parsing reliable
+- Never include API keys or account credentials in prompts
+- Include "paper trading" context in all trading-related prompts
+- Validate AI responses before trusting them for any financial decision
+- Cache recent AI analyses to reduce costs and avoid redundant calls
+- Test AI parsing logic with edge cases (malformed JSON, missing fields, invalid values)
+
+**Reference:** See `docs/AI_MODELS_AND_PROVIDERS.md` for deep-dive on AI integration.
+
+---
+
+### 4.8 Connector & External API Lessons
+
+*Lessons about external service integrations and API handling.*
+
+**Initial lesson (December 2024):**
+- Always implement and test degraded mode for connector failures - orchestrator must continue
+- Rate limits vary significantly by provider - track state and implement appropriate backoff
+- NewsAPI has aggressive daily limits (100/day on free tier) - use long cache periods
+- Never log API keys or secrets, even when debugging - use the centralized logger with redaction
+- Transform external errors to internal types - don't leak external API details to callers
+- Follow the adapter pattern for new connectors - see existing connectors for template
+
+**Reference:** See `docs/CONNECTORS_AND_INTEGRATIONS.md` for deep-dive on connectors.
+
+---
+
+### 4.9 Orchestrator & Agent Runtime Lessons
+
+*Lessons about the trading orchestrator and autonomous agent behavior.*
+
+**Initial lesson (December 2024):**
+- Any change to orchestrator logic should include at least one new regression test and clear logging
+- Always use cycle IDs for log correlation - makes debugging much easier
+- Test kill switch behavior explicitly - it's a critical safety mechanism
+- Risk limits should be enforced at multiple levels (orchestrator, broker, database)
+- Handle all failure paths gracefully - the orchestrator should never crash on external errors
+- Paper trading mode is enforced at API URL level - never change the Alpaca base URL without explicit approval
+
+**Reference:** See `docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md` for deep-dive on orchestrator.
+
+---
+
+### 4.10 Development-Time Agent Orchestration Lessons
+
+*Lessons about using the multi-role agent effectively.*
+
+**Initial lesson (December 2024):**
+- Pick the right mode/role set for each task to avoid mixing concerns and wasting tokens
+- For AI/connector/orchestrator work, always consult Sections 14-17 of AGENT_EXECUTION_GUIDE.md
+- Documentation-only tasks should use Technical Writer + Architect roles - avoid touching code
+- When in doubt about task scope, analyze before implementing - prevents wasted effort
+- Complex tasks benefit from explicit task lists - makes progress visible and avoids missed steps
+- Cross-reference related docs in changes - helps future agents understand connections
+
+**Reference:** See `docs/AGENT_EXECUTION_GUIDE.md` Section 17 for role usage rules.
+
+---
+
 ## 5. Improvement Backlog
 
 *Ideas for future improvements derived from lessons learned.*
@@ -203,8 +279,10 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 | Date | Change | Author/Source |
 |------|--------|---------------|
 | 2024-12-11 | Initial document creation with foundational structure | Governance update task |
+| 2024-12-11 | Added sections 4.7-4.10 (AI, Connectors, Orchestrator, Agent Orchestration) | Extended governance task |
+| 2024-12-11 | Extended Area values template with new categories | Extended governance task |
 
 ---
 
-*Document Version: 1.0*  
+*Document Version: 1.1*  
 *Last Updated: December 2024*

@@ -606,5 +606,296 @@ The agent should always consider: "What is the smallest set of files and docs I 
 
 ---
 
-*Document Version: 1.1*  
+## 14. AI Models & Provider Governance
+
+### 14.1 Scope & Locations
+
+The project uses AI models for trading decision support. Key AI-related modules:
+
+| Module | Location | Purpose |
+|--------|----------|---------|
+| Decision Engine | `server/ai/decision-engine.ts` | Core AI decision logic for trade signals |
+| OpenAI Integration | `server/ai/openai.ts` | Provider wrapper for OpenAI API |
+| AI Analysis | `server/trading/alpaca-trading-engine.ts` | AI-powered market analysis |
+
+**Responsibilities:**
+- Generate buy/sell/hold recommendations with confidence scores
+- Provide explainable reasoning for each decision
+- Summarize market conditions and news sentiment
+- Analyze technical indicators and price patterns
+
+### 14.2 Model Selection & Usage Rules
+
+**When to use lighter/cheaper models:**
+- Quick status checks
+- Simple summarization
+- Non-critical logging or formatting
+
+**When to use deeper/more expensive models:**
+- Trade decision generation
+- Complex multi-factor analysis
+- Risk assessment calculations
+
+**Prompt guidelines:**
+- Keep prompts concise and structured
+- Use clear output format specifications (JSON preferred)
+- Avoid sending excessive market data in single prompts
+- Prefer batch analysis over repeated single-symbol calls
+
+### 14.3 Safety & Content Rules
+
+**CRITICAL - You MUST:**
+- Never include secrets, API keys, or auth tokens in prompts
+- Never expose real account credentials to AI models
+- Always include "paper trading only" context in trading prompts
+- Validate AI responses before executing any trades
+
+**Output validation:**
+- Parse AI responses safely with error handling
+- Reject responses that don't match expected schema
+- Log malformed responses for debugging
+- Never trust AI output blindly for financial decisions
+
+### 14.4 Cost & Token Efficiency
+
+To minimize AI costs:
+
+1. **Use caching:** Cache recent analysis results for repeated queries
+2. **Batch requests:** Combine multiple symbol analyses where possible
+3. **Avoid loops:** Don't call AI repeatedly in tight loops
+4. **Use appropriate models:** Match model capability to task complexity
+5. **Monitor usage:** Track token consumption in logs
+
+### 14.5 Testing Expectations
+
+**Required tests for AI changes:**
+- Unit tests for response parsing functions
+- Tests with mocked LLM responses
+- At least one example input/output scenario documented
+- Edge case handling for malformed responses
+
+**Reference:** See `docs/TESTING.md` Section 2.1 for AI-related test patterns.
+
+### 14.6 Logging Expectations
+
+Use the `log.ai()` category for all AI operations:
+```typescript
+log.ai("Analysis complete for AAPL", { confidence: 0.85, action: "buy" });
+```
+
+**Reference:** See `docs/OBSERVABILITY.md` for AI logging categories.
+
+---
+
+## 15. Connectors & External Integrations Governance
+
+### 15.1 Scope
+
+The project connects to multiple external services:
+
+| Connector | Location | Purpose |
+|-----------|----------|---------|
+| Alpaca | `server/connectors/alpaca.ts` | Broker API for paper trading |
+| Finnhub | `server/connectors/finnhub.ts` | Stock market data |
+| CoinGecko | `server/connectors/coingecko.ts` | Cryptocurrency prices |
+| NewsAPI | `server/connectors/newsapi.ts` | News headlines |
+| CoinMarketCap | `server/connectors/coinmarketcap.ts` | Crypto market data |
+
+### 15.2 Design Patterns
+
+All connectors MUST follow the **adapter pattern**:
+
+1. **Small surface API:** Expose only needed methods to application code
+2. **Centralized error handling:** Catch and transform external errors
+3. **Retry logic:** Implement exponential backoff for transient failures
+4. **Logging:** Use `log.connector()` for all external calls
+
+**New connector requirements:**
+- Follow existing connector patterns in `server/connectors/`
+- Implement standard error handling
+- Add rate limiting where required by provider
+- Document API usage in connector comments
+
+### 15.3 Reliability & Rate Limiting
+
+**Rate limit handling:**
+- Implement backoff when rate limited (429 responses)
+- Track rate limit state to avoid repeated failures
+- Log rate limit events with remaining cooldown time
+
+**Graceful degradation:**
+- Never crash the orchestrator on connector failures
+- Return sensible defaults or empty data on failure
+- Log errors but continue operation
+- Allow orchestrator to proceed with partial data
+
+**Error handling rules:**
+- Catch all external exceptions within connector
+- Transform external errors to internal error types
+- Log meaningful errors WITHOUT leaking secrets
+- Avoid throwing unhandled exceptions to main loop
+
+### 15.4 Security & Secrets
+
+**CRITICAL requirements:**
+
+| Rule | Implementation |
+|------|----------------|
+| API keys in env vars | Use `process.env.ALPACA_API_KEY`, etc. |
+| Never log secrets | Use logger's automatic redaction |
+| Never hardcode | No credentials in code or docs |
+| Verify on change | Check all connector changes against these rules |
+
+### 15.5 Testing & Validation
+
+**Testing requirements:**
+- Integration tests with mocked external responses
+- Test error handling paths (timeouts, rate limits, errors)
+- Test data transformation and parsing
+- Document expected response shapes
+
+**Reference:** See `docs/TESTING.md` for connector testing patterns.
+
+### 15.6 Logging Expectations
+
+Use `log.connector()` for external API interactions:
+```typescript
+log.connector("Alpaca API call", { endpoint: "/positions", duration: 150 });
+```
+
+**Reference:** See `docs/OBSERVABILITY.md` for connector logging.
+
+---
+
+## 16. Trading Orchestrator & Agent Runtime Governance
+
+### 16.1 Responsibilities
+
+The orchestrator (`server/autonomous/orchestrator.ts`) manages the automated trading lifecycle:
+
+| Responsibility | Description |
+|----------------|-------------|
+| Scheduling | Run analysis cycles at configured intervals |
+| Market data | Fetch prices via connectors |
+| AI decisions | Call decision engine for trade signals |
+| Trade execution | Place paper trades via Alpaca API |
+| State updates | Sync positions and update database |
+| Logging | Emit structured logs with cycle IDs |
+| Safety | Enforce risk limits and kill switch |
+
+### 16.2 Safety Rails
+
+**CRITICAL - Paper Trading Only:**
+- The system is designed for paper trading only
+- Real trading requires explicit configuration changes
+- Never bypass paper trading mode checks
+
+**Risk limits MUST be respected:**
+- Maximum position size percent
+- Maximum total exposure percent
+- Maximum positions count
+- Daily loss limit percent
+- Kill switch activation
+
+**Any orchestrator change is HIGH RISK and must:**
+- Be backed by unit and integration tests
+- Be documented in ARCHITECTURE.md for major changes
+- Be logged in LESSONS_LEARNED.md for significant learnings
+- Include clear rollback plan
+
+### 16.3 Failure Handling
+
+**Required failure handling:**
+
+| Failure Type | Required Behavior |
+|--------------|-------------------|
+| AI call fails | Log error, skip decision, continue cycle |
+| Connector timeout | Log warning, use cached data if available, continue |
+| Broker rejects order | Log rejection reason, record in AI decisions, continue |
+| Database error | Log critical error, pause cycle, alert |
+
+**Logging requirements:**
+- Log all failures with correlation IDs
+- Include contextual data (symbol, cycle, state)
+- Use appropriate log levels (error vs critical)
+
+### 16.4 Testing Expectations
+
+**Required tests:**
+- Unit tests for pure orchestration logic (decision processing, state management)
+- Integration tests for end-to-end flows with mocked connectors/broker
+- Test kill switch and risk limit enforcement
+- Test graceful shutdown behavior
+
+**Reference:** See `docs/TESTING.md` Section 5 for orchestrator test scenarios.
+
+### 16.5 Logging Expectations
+
+The orchestrator uses cycle IDs for correlation:
+```typescript
+log.info("Orchestrator", `[${cycleId}] Running analysis cycle...`);
+```
+
+**Reference:** See `docs/OBSERVABILITY.md` Section "Integration with Orchestrator".
+
+---
+
+## 17. Development-Time Agents & Role Orchestration (Replit Agent)
+
+### 17.1 Roles
+
+When working on this repository, the AI agent should dynamically switch between roles based on task type:
+
+| Role | Focus Area |
+|------|------------|
+| Product Manager | User value, acceptance criteria, minimal viable change |
+| Business/Product Analyst | Map requirements to data structures and endpoints |
+| Software Architect | Layering, architecture coherence, integration design |
+| Full-Stack Engineer | Implementation across frontend/backend with tests |
+| QA Engineer (Manual) | Design human-executable test scenarios |
+| QA Engineer (Automation) | Implement automated tests |
+| DevOps / SRE | Build scripts, deployment, observability |
+| Security Engineer | Auth, encryption, input validation, secrets |
+| UI/UX Designer | Clarity, accessibility, consistency |
+| Technical Writer | Documentation, runbooks, governance docs |
+
+### 17.2 Role Usage Rules
+
+**For bug fixes affecting behavior or correctness:**
+- Use: Product Analyst + Architect + Full-Stack + QA
+- Focus: Root cause, minimal fix, regression tests, docs
+
+**For new features:**
+- Use: PM + Architect + Full-Stack + QA (+ UX for UI changes)
+- Focus: Requirements, design, implementation, tests, docs
+
+**For infrastructure/deployment:**
+- Use: DevOps/SRE + Architect + QA
+- Focus: Safety, environment consistency, scripts, docs
+
+**For documentation-only tasks:**
+- Use: Technical Writer + Architect
+- Focus: Governance, cross-links, append-only changes
+
+**For AI/connector/orchestrator work:**
+- Use: Architect + Full-Stack + QA + SRE
+- Focus: Safety rails, testing, observability, docs
+- **Always consult:** This section (14-16) plus deep-dive docs
+
+### 17.3 End-to-End Completion
+
+For any non-trivial task:
+
+1. **Analyse:** Understand the request, consult relevant docs
+2. **Design:** Plan minimal coherent solution
+3. **Implement:** Make changes (if allowed in task scope)
+4. **Test:** Add/update tests, verify behavior
+5. **Document:** Update relevant docs
+6. **Summarise:** Provide clear summary of changes
+
+**Cross-reference:** See Section 13 (Task Analysis & Mode Selection) for mode-specific workflows.
+
+---
+
+*Document Version: 1.2*  
 *Last Updated: December 2024*

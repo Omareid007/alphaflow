@@ -245,3 +245,15 @@ Planned observability improvements:
 3. **Alerting**: Automated alerts for critical conditions (daily loss limit, API failures)
 4. **Dashboard**: Grafana dashboard for real-time monitoring
 5. **Log Persistence**: PostgreSQL or external service for log history
+
+---
+
+## Related Governance Docs
+
+| Document | Relevance |
+|----------|-----------|
+| `AGENT_EXECUTION_GUIDE.md` | Sections 14-16 define logging expectations for AI, connectors, and orchestrator |
+| `AI_MODELS_AND_PROVIDERS.md` | Deep-dive on AI logging patterns |
+| `CONNECTORS_AND_INTEGRATIONS.md` | Deep-dive on connector logging |
+| `ORCHESTRATOR_AND_AGENT_RUNTIME.md` | Cycle ID correlation and orchestrator logging |
+| `LESSONS_LEARNED.md` | Practical lessons on logging and observability |

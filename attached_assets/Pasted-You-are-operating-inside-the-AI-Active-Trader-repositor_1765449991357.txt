@@ -1,0 +1,333 @@
+You are operating inside the AI Active Trader repository.
+
+This is a **documentation-only, governance-update task** with the following strict rules:
+
+- ✅ You MAY add new sections, subsections, and cross-links to existing Markdown docs.
+- ✅ You MAY create new Markdown docs under docs/ if they don’t exist.
+- ❌ You MUST NOT delete, rename, or overwrite any existing sections, headings, or documents.
+- ❌ You MUST NOT modify application runtime code (TypeScript/JS/TSX/etc.) in this task.
+
+--------------------------------------------------
+STEP 0 – BASE CONTEXT & MODE
+--------------------------------------------------
+
+Before doing anything else:
+
+1. Open and read these documents (no edits yet):
+   - docs/AGENT_EXECUTION_GUIDE.md
+   - docs/APP_OVERVIEW.md
+   - docs/ARCHITECTURE.md
+   - docs/FINANCIAL_METRICS.md
+   - docs/TESTING.md
+   - docs/OBSERVABILITY.md
+   - docs/LESSONS_LEARNED.md
+
+2. Decide your execution mode for this task and apply it consistently:
+   - Primary: **“Docs Governance Mode”** (you are evolving process & docs).
+   - Secondary: **“Light Code Inspection Mode”**:
+     - You MAY open and read code files (e.g. AI providers, connectors, orchestrator), but
+     - You MUST NOT change any code in this task.
+
+You will ONLY update or create Markdown documentation to improve governance and clarity around:
+- AI models and providers
+- Connectors and external integrations
+- Trading orchestrator / agent runtime
+- Development-time agent roles & orchestration (PM, Architect, QA, DevOps, etc.)
+- Continuous improvement hooks (via docs/LESSONS_LEARNED.md)
+
+--------------------------------------------------
+STEP 1 – EXTEND AGENT_EXECUTION_GUIDE FOR AI / CONNECTORS / ORCHESTRATOR / AGENTS
+--------------------------------------------------
+
+Open docs/AGENT_EXECUTION_GUIDE.md.
+
+You MUST:
+- Leave all existing content exactly as it is.
+- Append new top-level sections at the end of the file (e.g. numbered after the last current section).
+- Keep heading style consistent with the rest of the document.
+
+Append the following new sections (adjust numbering to follow the existing last section):
+
+1) “AI Models & Provider Governance”
+
+Add a new top-level section that defines how the project uses AI models and providers. It should include:
+
+- **Scope & Locations**
+  - List the main AI-related modules and providers in the codebase (e.g. server/ai/*, model provider wrappers).
+  - Briefly describe their roles (decision engine, summarisation, etc.).
+
+- **Model Selection & Usage Rules**
+  - Define how to choose between:
+    - Lighter / cheaper models vs deeper / more expensive models.
+  - Clarify typical usage patterns:
+    - Quick checks, deep strategy analysis, summarisation, etc.
+  - Emphasise:
+    - Avoid over-long prompts.
+    - Prefer structured prompts and parsing-friendly responses.
+
+- **Safety & Content Rules**
+  - Never include secrets, API keys, or raw auth tokens in prompts.
+  - Ensure prompts reflect “paper trading only” and do not encourage or pretend to use real-money accounts unless explicitly configured.
+
+- **Cost & Token Efficiency**
+  - Use smaller/cheaper models where acceptable.
+  - Re-use cached analysis where appropriate.
+  - Avoid repeated, redundant AI calls in tight loops.
+
+- **Testing Expectations**
+  - Any changes to AI decision logic must:
+    - Have unit tests for parsing and decision functions.
+    - Include at least one example input/output scenario (either in tests or docs).
+  - Link to docs/TESTING.md for how to test AI-related logic.
+
+2) “Connectors & External Integrations Governance”
+
+Append a new top-level section that governs all external APIs and connectors (e.g. broker, market data, news, pricing, etc.).
+
+Include:
+
+- **Scope**
+  - List the main connectors (broker, market data, news, crypto, etc.).
+  - Mention their main file locations (e.g. server/connectors/*.ts, server/services for integration logic).
+
+- **Design Patterns**
+  - Describe that connectors should follow an “adapter” pattern:
+    - A small surface API that the rest of the system uses.
+    - Centralised error handling, retries, and logging.
+  - Note that any new connector must fit this pattern.
+
+- **Reliability & Rate Limiting**
+  - Define rules for:
+    - Handling rate limits (e.g. backoff, retry, safe degradation).
+    - Failing gracefully without crashing the orchestrator.
+  - Require that connectors:
+    - Log meaningful errors (without leaking secrets).
+    - Avoid throwing unhandled exceptions into the main loop.
+
+- **Security & Secrets**
+  - All API keys and credentials must:
+    - Live in environment variables.
+    - Never be logged.
+    - Never be hard-coded in code or docs.
+  - Any connector change must be checked against these rules.
+
+- **Testing & Validation**
+  - Connectors should be tested via:
+    - Integration tests with mocked/stubbed external responses.
+  - docs/TESTING.md should describe how to test each critical connector.
+
+3) “Trading Orchestrator & Agent Runtime Governance”
+
+Append a new top-level section that defines strict governance for the trading orchestrator and runtime agent behavior.
+
+Include:
+
+- **Responsibilities**
+  - Summarise what the orchestrator does:
+    - Scheduling cycles.
+    - Fetching market data via connectors.
+    - Calling AI decision engine.
+    - Placing paper trades via broker API.
+    - Updating DB/state.
+    - Emitting logs and metrics.
+
+- **Safety Rails**
+  - Explicitly state:
+    - Paper trading only (unless project is explicitly configured otherwise later).
+    - Respect account/risk limits (max position sizes, allowed symbols, etc., if already defined).
+    - Respect the kill switch / emergency stop behavior.
+  - Any orchestrator changes are high-risk and must:
+    - Be backed by tests.
+    - Be documented in ARCHITECTURE.md and LESSONS_LEARNED.md for major changes.
+
+- **Failure Handling**
+  - Define what must happen if:
+    - AI calls fail,
+    - Connectors time out or error,
+    - Broker rejects orders.
+  - Require robust logging of these events and safe, non-destructive behaviour.
+
+- **Testing**
+  - Describe expectations for:
+    - Unit tests for pure orchestration logic.
+    - Integration tests for end-to-end flows, using mocked connectors/broker.
+  - Point to docs/TESTING.md for detailed test coverage strategy.
+
+4) “Development-Time Agents & Role Orchestration (Replit Agent)”
+
+Append a new top-level section to clarify how the multi-role Replit Agent should behave when working on this repo.
+
+Include:
+
+- **Roles**
+  - List the key roles:
+    - Product Manager / Business Analyst
+    - Software Architect
+    - Full-Stack Engineer
+    - QA (manual & automation)
+    - DevOps / SRE
+    - Security Engineer
+    - UI/UX Designer
+    - Technical Writer / Docs engineer
+  - State that the agent should “switch mindset” depending on the task type.
+
+- **Role Usage Rules**
+  - For bug fixes affecting behavior or correctness:
+    - Use Product Analyst + Architect + Full-Stack + QA.
+  - For new features:
+    - Use PM + Architect + Full-Stack + QA (+ UX for UI changes).
+  - For infra/deployment:
+    - Use DevOps/SRE + Architect + QA.
+  - For docs-only tasks:
+    - Use Technical Writer + Architect.
+
+- **End-to-End Completion**
+  - For any non-trivial task:
+    - Analyse → design → implement (if allowed) → test → document → summarise.
+
+If a “Task Analysis & Mode Selection” section already exists, do NOT modify it; simply ensure that this new section references it and adds more detail for AI/connector/orchestrator-related work.
+
+--------------------------------------------------
+STEP 2 – ADD/UPDATE DEDICATED DEEP-DIVE DOCS
+--------------------------------------------------
+
+Under docs/, you MAY create or extend the following files (append-only if they already exist):
+
+1) docs/AI_MODELS_AND_PROVIDERS.md
+
+- Purpose:
+  - Deep-dive on:
+    - Which AI providers/models are used,
+    - Where they are configured,
+    - How they are called,
+    - Cost & token considerations.
+
+- Content:
+  - List current AI providers and models.
+  - For each:
+    - Typical use cases (fast checks vs heavy analysis).
+    - Key configuration/env vars.
+    - Any special prompt formats expected.
+  - “Best practice” guidance for:
+    - Short, structured prompts.
+    - Parsing responses safely.
+  - Cross-links to:
+    - AGENT_EXECUTION_GUIDE “AI Models & Provider Governance” section.
+    - OBSERVABILITY.md for AI logging categories.
+    - TESTING.md for AI-related tests.
+
+2) docs/CONNECTORS_AND_INTEGRATIONS.md
+
+- Purpose:
+  - Deep-dive on external APIs and connectors.
+
+- Content:
+  - For each connector (e.g. broker, market data, news, crypto, etc.):
+    - Purpose.
+    - File path(s).
+    - Main endpoints used.
+    - Rate-limit / error-handling strategy.
+  - Common patterns:
+    - Shared retry logic, caching, logging categories.
+  - Cross-links to:
+    - AGENT_EXECUTION_GUIDE “Connectors & External Integrations Governance”.
+    - OBSERVABILITY.md.
+    - TESTING.md.
+
+3) docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md
+
+- Purpose:
+  - Deep-dive on the trading orchestrator and runtime agent behaviour.
+
+- Content:
+  - High-level flow of a full orchestrator cycle:
+    - Diagram (Mermaid) + prose.
+  - State management:
+    - Which DB tables/collections or in-memory structures are involved.
+  - Integration points:
+    - With AI engine.
+    - With connectors.
+    - With broker.
+  - Cross-links to:
+    - ARCHITECTURE.md (overall architecture).
+    - AGENT_EXECUTION_GUIDE (orchestrator governance).
+    - FINANCIAL_METRICS.md (if P&L or metrics are updated by orchestrator).
+
+For all three docs:
+- Do NOT repeat entire APP_OVERVIEW content.
+- Think of them as “deep dives” that APP_OVERVIEW and AGENT_EXECUTION_GUIDE can point to.
+
+--------------------------------------------------
+STEP 3 – EXTEND LESSONS_LEARNED FOR AI / CONNECTORS / ORCHESTRATOR / AGENTS
+--------------------------------------------------
+
+Open docs/LESSONS_LEARNED.md.
+
+Without deleting or rewriting existing content:
+
+1. Make sure the template for lessons includes an “Area” or similar field.
+   - Extend it to include:
+     - ai_models
+     - connectors
+     - orchestrator
+     - agent_orchestration
+
+2. Under the “Categorised Lessons” section (or equivalent), append new subsections like:
+
+   - “AI Models & Prompting Lessons”
+   - “Connector & External API Lessons”
+   - “Orchestrator & Agent Runtime Lessons”
+   - “Development-Time Agent Orchestration Lessons”
+
+3. Seed each new subsection with 1–2 high-level initial lessons, based on current docs and architecture, for example:
+   - AI: “Always clarify metric definitions and expected outputs before changing AI prompts that produce metrics.”
+   - Connectors: “Always implement and test degraded mode for connector failures.”
+   - Orchestrator: “Any change to orchestrator logic should include at least one new regression test and clear logging.”
+   - Agent orchestration: “Pick the right mode/role set for each task to avoid mixing concerns and wasting tokens.”
+
+4. Explicitly state that:
+   - AGENT_EXECUTION_GUIDE.md is always read first.
+   - LESSONS_LEARNED.md is an optional, but recommended, second step to apply practical insights to the current task.
+
+--------------------------------------------------
+STEP 4 – OBSERVABILITY & TESTING CROSS-LINKS
+--------------------------------------------------
+
+1. In docs/AGENT_EXECUTION_GUIDE.md, within each new section you added (AI, connectors, orchestrator), add short subsections for:
+   - “Logging Expectations” that point to docs/OBSERVABILITY.md.
+   - “Testing Expectations” that point to docs/TESTING.md (and FINANCIAL_METRICS.md if metrics are involved).
+
+2. In docs/OBSERVABILITY.md:
+   - Append a brief “Related Governance Docs” note at the bottom that lists:
+     - AGENT_EXECUTION_GUIDE.md (new AI/connector/orchestrator sections)
+     - CONNECTORS_AND_INTEGRATIONS.md
+     - ORCHESTRATOR_AND_AGENT_RUNTIME.md
+
+3. In docs/TESTING.md:
+   - Append a brief “Related Governance Docs” note that points to:
+     - FINANCIAL_METRICS.md (for metrics testing),
+     - AI_MODELS_AND_PROVIDERS.md (for AI testing),
+     - CONNECTORS_AND_INTEGRATIONS.md (for connector tests),
+     - ORCHESTRATOR_AND_AGENT_RUNTIME.md (for orchestrator tests).
+
+All these additions must be append-only and must not break existing headings.
+
+--------------------------------------------------
+STEP 5 – FINAL CHECK & SUMMARY
+--------------------------------------------------
+
+Before finishing:
+
+1. Check that:
+   - No existing text in docs/AGENT_EXECUTION_GUIDE.md or other docs was deleted or replaced.
+   - All new sections fit the existing style (headings, tone, structure).
+
+2. Ensure:
+   - All cross-references use correct relative paths (e.g. ./AI_MODELS_AND_PROVIDERS.md).
+
+3. In your final response back to me, provide:
+   - A bullet list of:
+     - Which docs you created or modified.
+     - Which new sections you added to AGENT_EXECUTION_GUIDE.md.
+   - A short paragraph explaining how AI models, connectors, orchestrator, and agent roles are now governed.
+   - Any recommended follow-up tasks (optional) for future prompts (e.g. “add more concrete AI examples later”, “expand connector tests”).
