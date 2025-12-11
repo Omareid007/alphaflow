@@ -473,23 +473,44 @@ export default function ProfileScreen() {
           <ThemedText style={styles.settingsTitle}>Account Settings</ThemedText>
         </View>
         
-        <View style={[styles.settingItem, { borderBottomColor: theme.textSecondary + "20" }]}>
+        <Pressable 
+          style={[styles.settingItem, { borderBottomColor: theme.textSecondary + "20" }]}
+          onPress={() => Alert.alert(
+            "Notifications",
+            "Notification preferences will be available in a future update. You'll be able to configure alerts for trades, price movements, and agent status changes.",
+            [{ text: "OK" }]
+          )}
+        >
           <Feather name="bell" size={20} color={theme.textSecondary} />
           <ThemedText style={styles.settingText}>Notifications</ThemedText>
           <Feather name="chevron-right" size={20} color={theme.textSecondary} />
-        </View>
+        </Pressable>
 
-        <View style={[styles.settingItem, { borderBottomColor: theme.textSecondary + "20" }]}>
+        <Pressable 
+          style={[styles.settingItem, { borderBottomColor: theme.textSecondary + "20" }]}
+          onPress={() => Alert.alert(
+            "Security",
+            "Security settings will be available in a future update. You'll be able to manage 2FA, session management, and API key access.",
+            [{ text: "OK" }]
+          )}
+        >
           <Feather name="shield" size={20} color={theme.textSecondary} />
           <ThemedText style={styles.settingText}>Security</ThemedText>
           <Feather name="chevron-right" size={20} color={theme.textSecondary} />
-        </View>
+        </Pressable>
 
-        <View style={styles.settingItem}>
+        <Pressable 
+          style={styles.settingItem}
+          onPress={() => Alert.alert(
+            "Help & Support",
+            "Need assistance?\n\nThis is a paper trading application. All trades are simulated and no real money is involved.\n\nFor questions about the trading agent, check the Activity Flow and Data Funnels widgets above.",
+            [{ text: "OK" }]
+          )}
+        >
           <Feather name="help-circle" size={20} color={theme.textSecondary} />
           <ThemedText style={styles.settingText}>Help & Support</ThemedText>
           <Feather name="chevron-right" size={20} color={theme.textSecondary} />
-        </View>
+        </Pressable>
       </Card>
 
       <Pressable

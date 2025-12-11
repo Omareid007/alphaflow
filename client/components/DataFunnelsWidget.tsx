@@ -1,9 +1,14 @@
-import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { useState } from "react";
+import { View, StyleSheet, Pressable, ActivityIndicator, LayoutAnimation, Platform, UIManager } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface ConnectorData {
   id: string;
@@ -35,6 +40,21 @@ const categoryConfig: Record<string, { label: string; icon: "server" | "database
 
 export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunnelsWidgetProps) {
   const { theme } = useTheme();
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    broker: true,
+    market_data: true,
+    news: true,
+    enrichment: true,
+    ai: true,
+  });
+
+  const toggleCategory = (category: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
+  };
 
   const groupedConnectors = (connectors || []).reduce((acc, connector) => {
     const category = connector.category || "other";
@@ -93,9 +113,14 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
             const categoryConnectors = groupedConnectors[category];
             const connectedCount = categoryConnectors.filter(c => c.connected).length;
             
+            const isExpanded = expandedCategories[category] !== false;
+            
             return (
               <View key={category} style={styles.categorySection}>
-                <View style={[styles.categoryHeader, { backgroundColor: config.color + "15" }]}>
+                <Pressable 
+                  onPress={() => toggleCategory(category)}
+                  style={[styles.categoryHeader, { backgroundColor: config.color + "15" }]}
+                >
                   <Feather name={config.icon} size={14} color={config.color} />
                   <ThemedText style={[styles.categoryLabel, { color: config.color }]}>
                     {config.label}
@@ -105,9 +130,14 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
                       {connectedCount}/{categoryConnectors.length}
                     </ThemedText>
                   </View>
-                </View>
+                  <Feather 
+                    name={isExpanded ? "chevron-down" : "chevron-right"} 
+                    size={16} 
+                    color={config.color} 
+                  />
+                </Pressable>
                 
-                {categoryConnectors.map((connector, idx) => {
+                {isExpanded ? categoryConnectors.map((connector, idx) => {
                   const status = getStatusInfo(connector);
                   return (
                     <View
@@ -134,7 +164,7 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
                       </View>
                     </View>
                   );
-                })}
+                }) : null}
                 
                 {catIndex < categories.length - 1 ? (
                   <View style={styles.flowArrow}>

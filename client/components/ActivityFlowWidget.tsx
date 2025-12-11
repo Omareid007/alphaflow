@@ -1,4 +1,5 @@
-import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { useState } from "react";
+import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Modal } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/useTheme";
@@ -45,6 +46,7 @@ const nodeConfig: Record<string, { icon: "activity" | "cpu" | "trending-up" | "a
 
 export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
   const { theme } = useTheme();
+  const [selectedActivity, setSelectedActivity] = useState<AgentActivity | null>(null);
 
   const { data: recentDecisions, isLoading: isLoadingDecisions } = useQuery<any[]>({
     queryKey: ["/api/ai/decisions", { limit: 5 }],
@@ -162,7 +164,11 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
             const isLast = index === activities.length - 1 || index === 5;
             
             return (
-              <View key={activity.id} style={styles.activityItem}>
+              <Pressable 
+                key={activity.id} 
+                style={styles.activityItem}
+                onPress={() => setSelectedActivity(activity)}
+              >
                 <View style={styles.nodeColumn}>
                   <View style={[styles.node, { backgroundColor: config.color + "20", borderColor: config.color }]}>
                     <Feather name={config.icon} size={12} color={config.color} />
@@ -177,6 +183,7 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
                     <ThemedText style={styles.activityMessage} numberOfLines={1}>
                       {activity.message}
                     </ThemedText>
+                    <Feather name="chevron-right" size={14} color={theme.textSecondary} style={styles.activityChevron} />
                     <View style={[
                       styles.miniStatus,
                       { backgroundColor: activity.status === "success" ? BrandColors.success + "20" : activity.status === "error" ? BrandColors.error + "20" : BrandColors.warning + "20" }
@@ -192,7 +199,7 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
                     {formatTime(activity.timestamp)}
                   </ThemedText>
                 </View>
-              </View>
+              </Pressable>
             );
           })}
         </ScrollView>
@@ -218,6 +225,103 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
           </View>
         </View>
       ) : null}
+
+      <Modal
+        visible={selectedActivity !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedActivity(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable 
+            style={styles.modalBackdrop}
+            onPress={() => setSelectedActivity(null)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundSecondary }]}>
+            {selectedActivity ? (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={[
+                    styles.modalIcon,
+                    { backgroundColor: (nodeConfig[selectedActivity.type]?.color || BrandColors.primaryLight) + "20" }
+                  ]}>
+                    <Feather 
+                      name={nodeConfig[selectedActivity.type]?.icon || "activity"} 
+                      size={20} 
+                      color={nodeConfig[selectedActivity.type]?.color || BrandColors.primaryLight} 
+                    />
+                  </View>
+                  <ThemedText style={styles.modalTitle}>
+                    {selectedActivity.type.charAt(0).toUpperCase() + selectedActivity.type.slice(1)} Details
+                  </ThemedText>
+                  <Pressable onPress={() => setSelectedActivity(null)} style={styles.modalClose}>
+                    <Feather name="x" size={20} color={theme.textSecondary} />
+                  </Pressable>
+                </View>
+
+                <View style={[styles.modalDivider, { backgroundColor: theme.textSecondary + "20" }]} />
+
+                <View style={styles.modalBody}>
+                  {selectedActivity.symbol ? (
+                    <View style={styles.modalRow}>
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Symbol</ThemedText>
+                      <ThemedText style={styles.modalValue}>{selectedActivity.symbol}</ThemedText>
+                    </View>
+                  ) : null}
+                  
+                  {selectedActivity.action ? (
+                    <View style={styles.modalRow}>
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Action</ThemedText>
+                      <ThemedText style={[
+                        styles.modalValue,
+                        { color: selectedActivity.action.toLowerCase() === "buy" ? BrandColors.success : selectedActivity.action.toLowerCase() === "sell" ? BrandColors.error : theme.text }
+                      ]}>
+                        {selectedActivity.action.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.modalRow}>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Message</ThemedText>
+                    <ThemedText style={styles.modalValue}>{selectedActivity.message}</ThemedText>
+                  </View>
+
+                  <View style={styles.modalRow}>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Status</ThemedText>
+                    <View style={[
+                      styles.modalStatusBadge,
+                      { backgroundColor: selectedActivity.status === "success" ? BrandColors.success + "20" : selectedActivity.status === "error" ? BrandColors.error + "20" : BrandColors.warning + "20" }
+                    ]}>
+                      <ThemedText style={[
+                        styles.modalStatusText,
+                        { color: selectedActivity.status === "success" ? BrandColors.success : selectedActivity.status === "error" ? BrandColors.error : BrandColors.warning }
+                      ]}>
+                        {selectedActivity.status.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+
+                  <View style={styles.modalRow}>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Timestamp</ThemedText>
+                    <ThemedText style={[styles.modalValue, { color: theme.textSecondary }]}>
+                      {new Date(selectedActivity.timestamp).toLocaleString()}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <Pressable 
+                  style={[styles.modalButton, { backgroundColor: BrandColors.primaryLight + "15" }]}
+                  onPress={() => setSelectedActivity(null)}
+                >
+                  <ThemedText style={[styles.modalButtonText, { color: BrandColors.primaryLight }]}>
+                    Close
+                  </ThemedText>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </Card>
   );
 }
@@ -347,5 +451,85 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 30,
+  },
+  activityChevron: {
+    marginLeft: Spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  modalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    ...Typography.h4,
+    flex: 1,
+  },
+  modalClose: {
+    padding: Spacing.xs,
+  },
+  modalDivider: {
+    height: 1,
+    marginVertical: Spacing.md,
+  },
+  modalBody: {
+    gap: Spacing.sm,
+  },
+  modalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+  },
+  modalLabel: {
+    ...Typography.caption,
+  },
+  modalValue: {
+    ...Typography.body,
+    fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
+  modalStatusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xs,
+  },
+  modalStatusText: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  modalButton: {
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.lg,
+  },
+  modalButtonText: {
+    ...Typography.body,
+    fontWeight: "600",
   },
 });
