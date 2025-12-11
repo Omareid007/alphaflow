@@ -41,6 +41,7 @@ Preferred communication style: Simple, everyday language.
 ### AI Suggested Trades Screen Enhancements (December 2025)
 - **Status Filtering**: Filter chips for all/executed/pending/skipped/suggested with live counts
 - **Pagination**: Configurable items per page (10/25/50/100) with page navigation controls
+- **Mode-Aware Pagination**: totalPages calculated from symbolGroups.length in grouped view, filteredDecisions.length in list view, with useEffect to clamp currentPage
 - **Symbol Grouping**: Toggle between list view and grouped view showing trades by symbol
 - **Expandable Legs**: In grouped view, click symbols to expand and see last 4 trades per symbol
 - **Smooth Animations**: LayoutAnimation for filter/pagination/view mode transitions
