@@ -82,3 +82,13 @@ Preferred communication style: Simple, everyday language.
 - **Subtitles Added**: "Realized" shows subtitle "Closed trades", "Unrealized" shows subtitle "Open positions"
 - **Transparency Improvement**: Users can now see the breakdown of their P&L from closed trades vs open positions
 - **Files Modified**: `client/screens/AnalyticsScreen.tsx` (added metricSubtitle style, updated metrics array)
+
+### Provider Capability Mapping - Phase 1 Complete (December 11, 2025)
+- **Documentation Created**: `docs/providers/` directory with comprehensive capability mapping for all major providers
+- **Alpaca Capabilities**: Identified bracket orders, trailing stops, OCO as underused (interfaces exist but not integrated)
+- **Finnhub Capabilities**: Identified `/stock/metric` (fundamentals), `/scan/technical-indicator` (signals), `/stock/earnings` as HIGH VALUE unused endpoints
+- **CoinGecko Capabilities**: Identified `/coins/{id}/ohlc` (OHLCV) and `/coins/categories` as missing
+- **OpenAI Capabilities**: Identified `strict: true` structured outputs and Batch API (50% cost savings) as critical gaps
+- **Gap Analysis Summary**: Alpaca 65% utilized, Finnhub 25%, CoinGecko 40%, OpenAI 35%
+- **Priority Matrix**: P0 items include OpenAI structured outputs, Alpaca bracket orders, Finnhub financials/technicals
+- **Key Files**: `docs/providers/CAPABILITY_SUMMARY.md`, `docs/providers/ALPACA_CAPABILITIES.md`, `docs/providers/FINNHUB_CAPABILITIES.md`, `docs/providers/COINGECKO_CAPABILITIES.md`, `docs/providers/OPENAI_CAPABILITIES.md`
