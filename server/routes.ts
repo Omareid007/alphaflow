@@ -1262,9 +1262,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dailyPnl = todaysTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
       const dailyTradeCount = todaysTrades.length;
 
+      // Total P&L = Realized P&L from closed trades + Unrealized P&L from open positions
+      const totalPnlIncludingUnrealized = totalPnl + unrealizedPnl;
+
       res.json({
         totalTrades: trades.length,
-        totalPnl: totalPnl.toFixed(2),
+        totalPnl: totalPnlIncludingUnrealized.toFixed(2),
         winRate: winRate.toFixed(1),
         winningTrades: winningTrades.length,
         losingTrades: losingTrades.length,
