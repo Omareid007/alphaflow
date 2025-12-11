@@ -776,8 +776,30 @@ class AutonomousOrchestrator {
       }
       
       const order = fillResult.order;
-      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      let filledPrice = safeParseFloat(order.filled_avg_price, 0);
       const filledQty = safeParseFloat(order.filled_qty, 0);
+
+      // If Alpaca didn't return filled price, fetch current market price
+      if (filledPrice === 0) {
+        try {
+          const isCrypto = isCryptoSymbol(symbol);
+          if (isCrypto) {
+            const normSymbol = normalizeCryptoSymbol(symbol);
+            const snapshots = await alpaca.getCryptoSnapshots([normSymbol]);
+            const snapshot = snapshots[normSymbol];
+            filledPrice = snapshot?.latestTrade?.p || 0;
+          } else {
+            const snapshots = await alpaca.getSnapshots([symbol]);
+            const snapshot = snapshots[symbol];
+            filledPrice = snapshot?.latestTrade?.p || 0;
+          }
+          if (filledPrice > 0) {
+            console.log(`[Orchestrator] Using market price ${filledPrice} for ${symbol}`);
+          }
+        } catch (error) {
+          console.warn(`[Orchestrator] Failed to fetch market price for ${symbol}:`, error);
+        }
+      }
 
       await storage.createTrade({
         symbol,
@@ -885,8 +907,30 @@ class AutonomousOrchestrator {
       }
       
       const order = fillResult.order;
-      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      let filledPrice = safeParseFloat(order.filled_avg_price, 0);
       const filledQty = safeParseFloat(order.filled_qty, 0);
+
+      // If Alpaca didn't return filled price, fetch current market price
+      if (filledPrice === 0) {
+        try {
+          const isCrypto = isCryptoSymbol(symbol);
+          if (isCrypto) {
+            const normSymbol = normalizeCryptoSymbol(symbol);
+            const snapshots = await alpaca.getCryptoSnapshots([normSymbol]);
+            const snapshot = snapshots[normSymbol];
+            filledPrice = snapshot?.latestTrade?.p || 0;
+          } else {
+            const snapshots = await alpaca.getSnapshots([symbol]);
+            const snapshot = snapshots[symbol];
+            filledPrice = snapshot?.latestTrade?.p || 0;
+          }
+          if (filledPrice > 0) {
+            console.log(`[Orchestrator] Using market price ${filledPrice} for ${symbol}`);
+          }
+        } catch (error) {
+          console.warn(`[Orchestrator] Failed to fetch market price for ${symbol}:`, error);
+        }
+      }
 
       const pnl = (filledPrice - position.entryPrice) * filledQty;
 
