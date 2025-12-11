@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { DataFunnelsWidget } from "@/components/DataFunnelsWidget";
+import { ActivityFlowWidget } from "@/components/ActivityFlowWidget";
 import { useState } from "react";
 import { apiRequest } from "@/lib/query-client";
 
@@ -24,11 +26,34 @@ interface ConnectorStatus {
   cacheSize?: number;
 }
 
+interface ConnectorData {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  connected: boolean;
+  hasApiKey: boolean;
+  cacheSize?: number;
+  circuitBreakerOpen?: boolean;
+  rateLimitedUntil?: number | null;
+  model?: string;
+  lastChecked: string;
+}
+
 interface ConnectorsStatus {
   crypto: ConnectorStatus;
   stock: ConnectorStatus;
   ai: ConnectorStatus;
   fusion: ConnectorStatus;
+  allConnectors?: ConnectorData[];
+}
+
+interface AgentStatus {
+  isRunning: boolean;
+  totalTrades: number;
+  totalPnl: string;
+  lastHeartbeat: string;
+  errorMessage: string | null;
 }
 
 interface RiskSettings {
@@ -320,6 +345,11 @@ export default function ProfileScreen() {
     refetchInterval: 10000,
   });
 
+  const { data: agentStatus } = useQuery<AgentStatus>({
+    queryKey: ["/api/agent/status"],
+    refetchInterval: 5000,
+  });
+
   const killSwitchMutation = useMutation({
     mutationFn: async (activate: boolean) => {
       const response = await apiRequest("POST", "/api/risk/kill-switch", { activate });
@@ -419,6 +449,14 @@ export default function ProfileScreen() {
         isLoading={isLoadingConnectors}
         onRefresh={() => refetchConnectors()}
       />
+
+      <DataFunnelsWidget
+        connectors={connectorsStatus?.allConnectors}
+        isLoading={isLoadingConnectors}
+        onRefresh={() => refetchConnectors()}
+      />
+
+      <ActivityFlowWidget agentStatus={agentStatus} />
 
       <RiskManagementCard
         settings={riskSettings}

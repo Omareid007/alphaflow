@@ -16,6 +16,8 @@ import { alpaca } from "./connectors/alpaca";
 import { coinmarketcap } from "./connectors/coinmarketcap";
 import { newsapi } from "./connectors/newsapi";
 import { uaeMarkets } from "./connectors/uae-markets";
+import { valyu } from "./connectors/valyu";
+import { huggingface } from "./connectors/huggingface";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
@@ -1578,6 +1580,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stockStatus = finnhub.getConnectionStatus();
       const aiStatus = aiDecisionEngine.getStatus();
       const fusionStatus = dataFusionEngine.getStatus();
+      const alpacaStatus = alpaca.getConnectionStatus();
+      const newsStatus = newsapi.getConnectionStatus();
+      const coinmarketcapStatus = coinmarketcap.getConnectionStatus();
+      const valyuStatus = valyu.getConnectionStatus();
+      const huggingfaceStatus = huggingface.getConnectionStatus();
+      const uaeStatus = uaeMarkets.getConnectionStatus();
+      
       res.json({
         crypto: {
           provider: "CoinGecko",
@@ -1598,6 +1607,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...fusionStatus,
           lastChecked: new Date().toISOString(),
         },
+        allConnectors: [
+          {
+            id: "alpaca",
+            name: "Alpaca",
+            category: "broker",
+            description: "Paper trading execution & account management",
+            connected: alpacaStatus.connected,
+            hasApiKey: alpacaStatus.hasCredentials,
+            cacheSize: alpacaStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "finnhub",
+            name: "Finnhub",
+            category: "market_data",
+            description: "Real-time stock quotes & fundamentals",
+            connected: stockStatus.connected,
+            hasApiKey: stockStatus.hasApiKey,
+            cacheSize: stockStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "coingecko",
+            name: "CoinGecko",
+            category: "market_data",
+            description: "Cryptocurrency prices & market data",
+            connected: cryptoStatus.connected,
+            hasApiKey: cryptoStatus.hasApiKey,
+            cacheSize: cryptoStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "coinmarketcap",
+            name: "CoinMarketCap",
+            category: "market_data",
+            description: "Comprehensive crypto market data",
+            connected: coinmarketcapStatus.connected,
+            hasApiKey: coinmarketcapStatus.hasApiKey,
+            cacheSize: coinmarketcapStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "newsapi",
+            name: "NewsAPI",
+            category: "news",
+            description: "Real-time news headlines for sentiment",
+            connected: newsStatus.connected,
+            hasApiKey: newsStatus.hasApiKey,
+            cacheSize: newsStatus.cacheSize,
+            circuitBreakerOpen: newsStatus.isCircuitOpen,
+            rateLimitedUntil: newsStatus.isRateLimited ? newsStatus.rateLimitExpiresIn : null,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "valyu",
+            name: "Valyu.ai",
+            category: "enrichment",
+            description: "Financial ratios, earnings & SEC filings",
+            connected: valyuStatus.connected,
+            hasApiKey: valyuStatus.hasApiKey,
+            cacheSize: valyuStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "huggingface",
+            name: "Hugging Face",
+            category: "enrichment",
+            description: "FinBERT sentiment analysis & ML models",
+            connected: huggingfaceStatus.connected,
+            hasApiKey: huggingfaceStatus.hasApiKey,
+            cacheSize: huggingfaceStatus.cacheSize,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "openai",
+            name: "OpenAI",
+            category: "ai",
+            description: "GPT-4o-mini for trading decisions",
+            connected: aiStatus.available,
+            hasApiKey: aiStatus.available,
+            model: aiStatus.model,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "uae-markets",
+            name: "UAE Markets",
+            category: "market_data",
+            description: "Dubai DFM & Abu Dhabi ADX stocks",
+            connected: uaeStatus.connected,
+            hasApiKey: uaeStatus.apiConfigured,
+            cacheSize: uaeStatus.cacheSize,
+            isMockData: uaeStatus.isMockData,
+            lastChecked: new Date().toISOString(),
+          },
+        ],
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get connector status" });
