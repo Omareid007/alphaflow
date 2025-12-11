@@ -378,6 +378,14 @@ class AutonomousOrchestrator {
       const existingPositions = new Map(this.state.activePositions);
       this.state.activePositions.clear();
 
+      // Sync positions to database for consistency
+      try {
+        await storage.syncPositionsFromAlpaca(positions);
+        console.log(`[Orchestrator] Synced ${positions.length} positions to database`);
+      } catch (dbError) {
+        console.error("[Orchestrator] Failed to sync positions to database:", dbError);
+      }
+
       for (const pos of positions) {
         const entryPrice = safeParseFloat(pos.avg_entry_price);
         const currentPrice = safeParseFloat(pos.current_price);

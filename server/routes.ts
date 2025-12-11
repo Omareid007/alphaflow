@@ -1006,15 +1006,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Returns LIVE Alpaca positions (source of truth) - syncs to database for historical tracking
   app.get("/api/positions", async (req, res) => {
     try {
-      const positions = await storage.getPositions();
-      res.json(positions);
+      const positions = await alpaca.getPositions();
+      
+      // Sync to database in background (don't block response)
+      storage.syncPositionsFromAlpaca(positions).catch(err => 
+        console.error("Failed to sync positions to database:", err)
+      );
+      
+      const enrichedPositions = positions.map(p => ({
+        id: p.asset_id,
+        symbol: p.symbol,
+        quantity: p.qty,
+        entryPrice: p.avg_entry_price,
+        currentPrice: p.current_price,
+        unrealizedPnl: p.unrealized_pl,
+        side: safeParseFloat(p.qty, 0) > 0 ? "long" : "short",
+        marketValue: safeParseFloat(p.market_value, 0),
+        unrealizedPnlPercent: safeParseFloat(p.unrealized_plpc, 0) * 100,
+        assetClass: p.asset_class,
+        exchange: p.exchange,
+        costBasis: safeParseFloat(p.cost_basis, 0),
+        changeToday: safeParseFloat(p.change_today, 0) * 100,
+      }));
+      
+      res.json(enrichedPositions);
     } catch (error) {
-      res.status(500).json({ error: "Failed to get positions" });
+      console.error("Failed to fetch positions:", error);
+      // Fallback to database positions if Alpaca fails
+      try {
+        const dbPositions = await storage.getPositions();
+        res.json(dbPositions);
+      } catch {
+        res.status(500).json({ error: "Failed to get positions" });
+      }
     }
   });
 
+  // Alias for /api/positions (backward compatibility)
   app.get("/api/positions/broker", async (req, res) => {
     try {
       const positions = await alpaca.getPositions();

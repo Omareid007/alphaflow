@@ -268,6 +268,38 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async deleteAllPositions(): Promise<number> {
+    const result = await db.delete(positions).returning();
+    return result.length;
+  }
+
+  async syncPositionsFromAlpaca(alpacaPositions: Array<{
+    symbol: string;
+    qty: string;
+    avg_entry_price: string;
+    current_price: string;
+    unrealized_pl: string;
+    side: string;
+  }>): Promise<Position[]> {
+    await this.deleteAllPositions();
+    
+    if (alpacaPositions.length === 0) {
+      return [];
+    }
+
+    const positionsToInsert = alpacaPositions.map(pos => ({
+      symbol: pos.symbol,
+      quantity: pos.qty,
+      entryPrice: pos.avg_entry_price,
+      currentPrice: pos.current_price,
+      unrealizedPnl: pos.unrealized_pl,
+      side: pos.side === "long" ? "long" : "short",
+    }));
+
+    const insertedPositions = await db.insert(positions).values(positionsToInsert).returning();
+    return insertedPositions;
+  }
+
   async getAiDecisions(limit: number = 20): Promise<AiDecision[]> {
     return db.select().from(aiDecisions).orderBy(desc(aiDecisions.createdAt)).limit(limit);
   }
