@@ -83,15 +83,30 @@ Preferred communication style: Simple, everyday language.
 - Requirements: Real-time news headlines, sentiment data, categorization
 - Implementation: Adapter pattern for swappable providers
 
-**AI/LLM Integration**:
+**AI/LLM Integration** (Multi-Provider Architecture):
 - Primary Provider: OpenAI API (via Replit AI Integrations)
-- Secondary Provider: OpenRouter (optional fallback)
+- Additional Providers: Groq (ultra-fast), Together.ai (200+ models), AIML API (400+ models), OpenRouter (fallback)
+- LLM Router: Intelligent task routing based on complexity and cost
+  - Simple tasks → Groq Llama 3.1 8B ($0.05/1M tokens)
+  - Complex reasoning → OpenAI GPT-4o
+  - Batch operations → Together.ai
 - Architecture: Minimal fetch-based client abstraction, NO external LLM frameworks
 - Usage: Decision scoring, opportunity analysis, trade explanations
-- Features: Function/tool calling for data composition
-- Safe Tools: Read-only documentation helper (dev-only CLI)
-- Security: API keys stored server-side only, never exposed to client
-- Key Files: `server/ai/llmClient.ts`, `server/ai/openaiClient.ts`, `server/ai/index.ts`
+- Features: Function/tool calling, multi-provider fallback, cost optimization
+- Key Files: `server/ai/llmClient.ts`, `server/ai/llmRouter.ts`, `server/ai/groqClient.ts`, `server/ai/togetherClient.ts`, `server/ai/aimlClient.ts`
+
+**Data Sources & Enrichment**:
+- Valyu.ai: Structured financial data (earnings, ratios, SEC filings) at $1.50/1k queries
+- Hugging Face: FinBERT sentiment analysis, trend scoring as LLM inputs
+- Data Fusion Engine: Combines multiple sources with conflict resolution and confidence scoring
+- Key Files: `server/connectors/valyu.ts`, `server/connectors/huggingface.ts`, `server/ai/data-fusion-engine.ts`
+
+**Enhanced AI Decision Logging**:
+- Input Snapshots: Market data, sentiment, fundamentals captured
+- Reasoning Chains: Step-by-step analysis with weights
+- Alternatives Considered: Why other actions were rejected
+- Provider Attribution: Which LLM made the decision with cost/latency
+- Key Files: `server/ai/enhanced-decision-log.ts`
 
 **Brokerage Integration** (planned):
 - Paper Trading: Alpaca Paper Trading API (primary target)

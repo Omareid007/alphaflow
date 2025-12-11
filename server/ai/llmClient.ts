@@ -11,7 +11,7 @@
  * @see docs/AGENT_EXECUTION_GUIDE.md Section 14 for governance
  */
 
-export type LLMProvider = "openai" | "openrouter";
+export type LLMProvider = "openai" | "openrouter" | "groq" | "together" | "aimlapi";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
