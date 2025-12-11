@@ -49,6 +49,14 @@ export interface FundamentalDataPoint {
   revenue?: number;
   revenueGrowth?: number;
   debtToEquity?: number;
+  freeCashFlow?: number;
+  dividendYield?: number;
+  insiderSentiment?: "bullish" | "bearish" | "neutral";
+  insiderBuyValue?: number;
+  insiderSellValue?: number;
+  totalAssets?: number;
+  totalLiabilities?: number;
+  operatingMargin?: number;
   timestamp: Date;
 }
 
@@ -76,6 +84,10 @@ export interface FusedMarketIntelligence {
     eps?: number;
     peRatio?: number;
     revenueGrowth?: number;
+    freeCashFlow?: number;
+    dividendYield?: number;
+    debtToEquity?: number;
+    insiderSentiment?: "bullish" | "bearish" | "neutral";
     confidence: number;
     sources: string[];
   };
@@ -111,6 +123,7 @@ const SOURCE_RELIABILITY: Record<string, number> = {
   newsapi: 0.75,
   huggingface: 0.80,
   finbert: 0.80,
+  gdelt: 0.80,
 };
 
 export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
@@ -298,24 +311,56 @@ function fuseFundamentalData(
   let eps: number | undefined;
   let peRatio: number | undefined;
   let revenueGrowth: number | undefined;
+  let freeCashFlow: number | undefined;
+  let dividendYield: number | undefined;
+  let debtToEquity: number | undefined;
+  let insiderSentiment: "bullish" | "bearish" | "neutral" | undefined;
+
+  let insiderBullishCount = 0;
+  let insiderBearishCount = 0;
 
   for (const point of data) {
     if (point.eps !== undefined && eps === undefined) eps = point.eps;
     if (point.peRatio !== undefined && peRatio === undefined) peRatio = point.peRatio;
     if (point.revenueGrowth !== undefined && revenueGrowth === undefined) revenueGrowth = point.revenueGrowth;
+    if (point.freeCashFlow !== undefined && freeCashFlow === undefined) freeCashFlow = point.freeCashFlow;
+    if (point.dividendYield !== undefined && dividendYield === undefined) dividendYield = point.dividendYield;
+    if (point.debtToEquity !== undefined && debtToEquity === undefined) debtToEquity = point.debtToEquity;
+    
+    if (point.insiderSentiment) {
+      if (point.insiderSentiment === "bullish") insiderBullishCount++;
+      else if (point.insiderSentiment === "bearish") insiderBearishCount++;
+    }
     
     if (!sources.includes(point.source)) {
       sources.push(point.source);
     }
   }
 
-  const fieldsAvailable = [eps, peRatio, revenueGrowth].filter(f => f !== undefined).length;
-  const confidence = fieldsAvailable / 3;
+  if (insiderBullishCount > insiderBearishCount) {
+    insiderSentiment = "bullish";
+  } else if (insiderBearishCount > insiderBullishCount) {
+    insiderSentiment = "bearish";
+  } else if (insiderBullishCount > 0 || insiderBearishCount > 0) {
+    insiderSentiment = "neutral";
+  }
+
+  const coreFields = [eps, peRatio, revenueGrowth].filter(f => f !== undefined).length;
+  const extendedFields = [freeCashFlow, dividendYield, debtToEquity, insiderSentiment].filter(f => f !== undefined).length;
+  const confidence = (coreFields + extendedFields * 0.5) / 5;
+
+  if (insiderSentiment === "bearish" && coreFields > 0) {
+    warnings.push("Insider activity shows bearish sentiment - insiders selling");
+  }
 
   return {
     eps,
     peRatio,
     revenueGrowth,
+    freeCashFlow,
+    dividendYield,
+    debtToEquity,
+    insiderSentiment,
     confidence,
     sources,
   };
@@ -445,6 +490,10 @@ export function formatForLLM(intelligence: FusedMarketIntelligence): string {
     if (f.eps !== undefined) fundParts.push(`EPS: $${f.eps.toFixed(2)}`);
     if (f.peRatio !== undefined) fundParts.push(`P/E: ${f.peRatio.toFixed(1)}`);
     if (f.revenueGrowth !== undefined) fundParts.push(`Revenue Growth: ${(f.revenueGrowth * 100).toFixed(1)}%`);
+    if (f.freeCashFlow !== undefined) fundParts.push(`FCF: $${(f.freeCashFlow / 1e9).toFixed(2)}B`);
+    if (f.dividendYield !== undefined) fundParts.push(`Div Yield: ${f.dividendYield.toFixed(2)}%`);
+    if (f.debtToEquity !== undefined) fundParts.push(`D/E: ${f.debtToEquity.toFixed(2)}`);
+    if (f.insiderSentiment) fundParts.push(`Insider: ${f.insiderSentiment.toUpperCase()}`);
     if (fundParts.length > 0) {
       parts.push(`Fundamentals: ${fundParts.join(", ")}`);
     }

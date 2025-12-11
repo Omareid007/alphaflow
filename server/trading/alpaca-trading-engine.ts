@@ -9,6 +9,7 @@ import { fuseMarketData, type FusedMarketIntelligence } from "../ai/data-fusion-
 import { createEnhancedDecisionLog, type EnhancedDecisionLog } from "../ai/enhanced-decision-log";
 import { huggingface } from "../connectors/huggingface";
 import { valyu } from "../connectors/valyu";
+import { gdelt } from "../connectors/gdelt";
 import { log } from "../utils/logger";
 
 export interface AlpacaTradeRequest {
@@ -644,7 +645,7 @@ class AlpacaTradingEngine {
   }
 
   /**
-   * Gather enrichment data from optional sources (Hugging Face, Valyu.ai)
+   * Gather enrichment data from optional sources (Hugging Face, Valyu.ai, GDELT)
    * Returns empty arrays if API keys aren't configured
    */
   private async gatherEnrichmentData(
@@ -653,54 +654,140 @@ class AlpacaTradingEngine {
     newsContext?: NewsContext
   ): Promise<{
     hasEnrichment: boolean;
-    sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; timestamp: Date }>;
-    fundamentalData: Array<{ source: string; symbol: string; peRatio?: number; revenueGrowth?: number; timestamp: Date }>;
+    sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; headlines?: string[]; timestamp: Date }>;
+    fundamentalData: Array<{ 
+      source: string; 
+      symbol: string; 
+      peRatio?: number; 
+      revenueGrowth?: number;
+      debtToEquity?: number;
+      freeCashFlow?: number;
+      dividendYield?: number;
+      insiderSentiment?: "bullish" | "bearish" | "neutral";
+      timestamp: Date 
+    }>;
   }> {
-    const sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; timestamp: Date }> = [];
-    const fundamentalData: Array<{ source: string; symbol: string; peRatio?: number; revenueGrowth?: number; timestamp: Date }> = [];
+    const sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; headlines?: string[]; timestamp: Date }> = [];
+    const fundamentalData: Array<{ 
+      source: string; 
+      symbol: string; 
+      peRatio?: number; 
+      revenueGrowth?: number;
+      debtToEquity?: number;
+      freeCashFlow?: number;
+      dividendYield?: number;
+      insiderSentiment?: "bullish" | "bearish" | "neutral";
+      timestamp: Date 
+    }> = [];
+
+    const enrichmentPromises: Promise<void>[] = [];
 
     // Try Hugging Face sentiment enrichment if we have headlines
     if (newsContext?.headlines && newsContext.headlines.length > 0 && huggingface.isAvailable()) {
-      try {
-        const signal = await huggingface.generateEnrichmentSignal(
-          symbol,
-          newsContext.headlines,
-          marketData.priceChangePercent24h
-        );
-        if (signal) {
-          const sentiment: "positive" | "negative" | "neutral" = 
-            signal.sentimentScore > 0.2 ? "positive" : signal.sentimentScore < -0.2 ? "negative" : "neutral";
-          sentimentData.push({
-            source: "huggingface_finbert",
-            symbol,
-            sentiment,
-            score: signal.sentimentScore,
-            confidence: signal.confidence,
-            timestamp: new Date(),
-          });
-        }
-      } catch (e) {
-        log.debug("AI", `HuggingFace enrichment skipped for ${symbol}`, { reason: (e as Error).message });
-      }
+      enrichmentPromises.push(
+        (async () => {
+          try {
+            const signal = await huggingface.generateEnrichmentSignal(
+              symbol,
+              newsContext.headlines!,
+              marketData.priceChangePercent24h
+            );
+            if (signal) {
+              const sentiment: "positive" | "negative" | "neutral" = 
+                signal.sentimentScore > 0.2 ? "positive" : signal.sentimentScore < -0.2 ? "negative" : "neutral";
+              sentimentData.push({
+                source: "huggingface_finbert",
+                symbol,
+                sentiment,
+                score: signal.sentimentScore,
+                confidence: signal.confidence,
+                timestamp: new Date(),
+              });
+            }
+          } catch (e) {
+            log.debug("AI", `HuggingFace enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+          }
+        })()
+      );
     }
 
-    // Try Valyu.ai fundamentals for stocks (not crypto)
-    if (!this.isCryptoSymbol(symbol) && valyu.isAvailable()) {
-      try {
-        const ratios = await valyu.getFinancialRatios(symbol);
-        if (ratios) {
-          fundamentalData.push({
-            source: "valyu",
-            symbol,
-            peRatio: ratios.peRatio,
-            revenueGrowth: ratios.revenueGrowth,
-            timestamp: new Date(),
-          });
+    // Try GDELT for real-time global news sentiment (FREE, no API key needed)
+    const isCrypto = this.isCryptoSymbol(symbol);
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const gdeltSentiment = isCrypto 
+            ? await gdelt.getCryptoSentiment(symbol.replace(/USD$|USDT$|\/USD$/i, ""))
+            : await gdelt.analyzeSymbolSentiment(symbol);
+          
+          if (gdeltSentiment && gdeltSentiment.articleCount > 0) {
+            const sentiment: "positive" | "negative" | "neutral" = 
+              gdeltSentiment.sentiment === "bullish" ? "positive" : 
+              gdeltSentiment.sentiment === "bearish" ? "negative" : "neutral";
+            
+            sentimentData.push({
+              source: "gdelt",
+              symbol,
+              sentiment,
+              score: gdeltSentiment.averageTone / 10,
+              confidence: Math.min(0.9, gdeltSentiment.articleCount / 50),
+              headlines: gdeltSentiment.topHeadlines,
+              timestamp: new Date(),
+            });
+
+            if (gdeltSentiment.volumeSpike) {
+              log.info("GDELT", `Breaking news detected for ${symbol}`, {
+                articleCount: gdeltSentiment.articleCount,
+                sentiment: gdeltSentiment.sentiment,
+              });
+            }
+          }
+        } catch (e) {
+          log.debug("AI", `GDELT enrichment skipped for ${symbol}`, { reason: (e as Error).message });
         }
-      } catch (e) {
-        log.debug("AI", `Valyu.ai enrichment skipped for ${symbol}`, { reason: (e as Error).message });
-      }
+      })()
+    );
+
+    // Try Valyu.ai comprehensive fundamentals for stocks (not crypto)
+    if (!isCrypto && valyu.isAvailable()) {
+      enrichmentPromises.push(
+        (async () => {
+          try {
+            const [ratios, cashFlow, dividends, insiderData] = await Promise.all([
+              valyu.getFinancialRatios(symbol),
+              valyu.getCashFlow(symbol).catch(() => null),
+              valyu.getDividends(symbol).catch(() => null),
+              valyu.getInsiderTransactions(symbol).catch(() => null),
+            ]);
+            
+            if (ratios || cashFlow || dividends || insiderData) {
+              fundamentalData.push({
+                source: "valyu",
+                symbol,
+                peRatio: ratios?.peRatio,
+                revenueGrowth: ratios?.revenueGrowth,
+                debtToEquity: ratios?.debtToEquity,
+                freeCashFlow: cashFlow?.freeCashFlow,
+                dividendYield: dividends?.dividendYield,
+                insiderSentiment: insiderData?.netInsiderSentiment,
+                timestamp: new Date(),
+              });
+
+              if (insiderData?.netInsiderSentiment === "bearish") {
+                log.warn("Valyu", `Insider selling detected for ${symbol}`, {
+                  sentiment: insiderData.netInsiderSentiment,
+                  sellValue: insiderData.totalSellValue,
+                });
+              }
+            }
+          } catch (e) {
+            log.debug("AI", `Valyu.ai enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+          }
+        })()
+      );
     }
+
+    await Promise.allSettled(enrichmentPromises);
 
     return {
       hasEnrichment: sentimentData.length > 0 || fundamentalData.length > 0,

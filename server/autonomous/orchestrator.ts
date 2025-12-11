@@ -11,6 +11,8 @@ import { log } from "../utils/logger";
 const FILL_POLL_INTERVAL_MS = 500;
 const FILL_TIMEOUT_MS = 30000;
 const STALE_ORDER_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
+const DEFAULT_TAKE_PROFIT_PERCENT = 6;
 
 interface OrderFillResult {
   order: AlpacaOrder | null;
@@ -428,11 +430,19 @@ class AutonomousOrchestrator {
         let takeProfitPrice = existingPos?.takeProfitPrice;
         let trailingStopPercent = existingPos?.trailingStopPercent;
         
+        const hardStopLoss = entryPrice * (1 - DEFAULT_HARD_STOP_LOSS_PERCENT / 100);
+        const defaultTakeProfit = entryPrice * (1 + DEFAULT_TAKE_PROFIT_PERCENT / 100);
+        
         if (!stopLossPrice && entryPrice > 0) {
-          stopLossPrice = entryPrice * 0.95;
+          stopLossPrice = hardStopLoss;
         }
         if (!takeProfitPrice && entryPrice > 0) {
-          takeProfitPrice = entryPrice * 1.10;
+          takeProfitPrice = defaultTakeProfit;
+        }
+        
+        if (stopLossPrice && stopLossPrice < hardStopLoss && entryPrice > 0) {
+          log.info("Orchestrator", `Enforcing hard stop-loss for ${pos.symbol}: $${stopLossPrice.toFixed(2)} -> $${hardStopLoss.toFixed(2)}`);
+          stopLossPrice = hardStopLoss;
         }
         
         if (existingPos?.trailingStopPercent && currentPrice > entryPrice) {

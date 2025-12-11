@@ -18,6 +18,7 @@ import { newsapi } from "./connectors/newsapi";
 import { uaeMarkets } from "./connectors/uae-markets";
 import { valyu } from "./connectors/valyu";
 import { huggingface } from "./connectors/huggingface";
+import { gdelt } from "./connectors/gdelt";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 import { paperTradingEngine } from "./trading/paper-trading-engine";
@@ -1586,6 +1587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const valyuStatus = valyu.getConnectionStatus();
       const huggingfaceStatus = huggingface.getConnectionStatus();
       const uaeStatus = uaeMarkets.getConnectionStatus();
+      const gdeltStatus = gdelt.getConnectionStatus();
       
       res.json({
         crypto: {
@@ -1664,7 +1666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: "valyu",
             name: "Valyu.ai",
             category: "enrichment",
-            description: "Financial ratios, earnings & SEC filings",
+            description: "9 financial datasets: earnings, ratios, balance sheets, income, cash flow, dividends, insider trades, SEC filings, market movers",
             connected: valyuStatus.connected,
             hasApiKey: valyuStatus.hasApiKey,
             cacheSize: valyuStatus.cacheSize,
@@ -1699,6 +1701,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hasApiKey: uaeStatus.apiConfigured,
             cacheSize: uaeStatus.cacheSize,
             isMockData: uaeStatus.isMockData,
+            lastChecked: new Date().toISOString(),
+          },
+          {
+            id: "gdelt",
+            name: "GDELT",
+            category: "news",
+            description: "Real-time global news (100+ languages), sentiment tracking, breaking news detection (FREE, updates every 15min)",
+            connected: gdeltStatus.connected,
+            hasApiKey: true,
+            cacheSize: gdeltStatus.cacheSize,
             lastChecked: new Date().toISOString(),
           },
         ],
