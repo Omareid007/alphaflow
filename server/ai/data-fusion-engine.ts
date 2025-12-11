@@ -46,17 +46,43 @@ export interface FundamentalDataPoint {
   symbol: string;
   eps?: number;
   peRatio?: number;
+  pbRatio?: number;
+  roe?: number;
+  roa?: number;
   revenue?: number;
   revenueGrowth?: number;
   debtToEquity?: number;
+  currentRatio?: number;
   freeCashFlow?: number;
   dividendYield?: number;
+  grossMargin?: number;
+  netProfitMargin?: number;
+  beta?: number;
+  epsGrowth?: number;
+  weekHigh52?: number;
+  weekLow52?: number;
   insiderSentiment?: "bullish" | "bearish" | "neutral";
   insiderBuyValue?: number;
   insiderSellValue?: number;
   totalAssets?: number;
   totalLiabilities?: number;
   operatingMargin?: number;
+  timestamp: Date;
+}
+
+export interface TechnicalDataPoint {
+  source: string;
+  symbol: string;
+  signal: "buy" | "neutral" | "sell";
+  buyCount?: number;
+  sellCount?: number;
+  neutralCount?: number;
+  adx?: number;
+  isTrending?: boolean;
+  support?: number;
+  resistance?: number;
+  volatility?: number;
+  trend?: "bullish" | "bearish" | "neutral";
   timestamp: Date;
 }
 
@@ -83,11 +109,36 @@ export interface FusedMarketIntelligence {
   fundamentals?: {
     eps?: number;
     peRatio?: number;
+    pbRatio?: number;
+    roe?: number;
+    roa?: number;
     revenueGrowth?: number;
     freeCashFlow?: number;
     dividendYield?: number;
     debtToEquity?: number;
+    currentRatio?: number;
+    grossMargin?: number;
+    netProfitMargin?: number;
+    beta?: number;
+    epsGrowth?: number;
+    weekHigh52?: number;
+    weekLow52?: number;
     insiderSentiment?: "bullish" | "bearish" | "neutral";
+    confidence: number;
+    sources: string[];
+  };
+
+  technicals?: {
+    signal: "buy" | "neutral" | "sell";
+    buyCount: number;
+    sellCount: number;
+    neutralCount: number;
+    adx?: number;
+    isTrending: boolean;
+    support?: number;
+    resistance?: number;
+    volatility?: number;
+    trend: "bullish" | "bearish" | "neutral";
     confidence: number;
     sources: string[];
   };
@@ -112,6 +163,7 @@ export interface FusionInput {
   marketData?: MarketDataPoint[];
   sentimentData?: SentimentDataPoint[];
   fundamentalData?: FundamentalDataPoint[];
+  technicalData?: TechnicalDataPoint[];
 }
 
 const SOURCE_RELIABILITY: Record<string, number> = {
@@ -127,7 +179,7 @@ const SOURCE_RELIABILITY: Record<string, number> = {
 };
 
 export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
-  const { symbol, assetType = "unknown", marketData = [], sentimentData = [], fundamentalData = [] } = input;
+  const { symbol, assetType = "unknown", marketData = [], sentimentData = [], fundamentalData = [], technicalData = [] } = input;
   
   const warnings: string[] = [];
   const now = new Date();
@@ -135,10 +187,11 @@ export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
   const fusedPrice = fusePriceData(marketData, warnings);
   const fusedSentiment = fuseSentimentData(sentimentData, warnings);
   const fusedFundamentals = fuseFundamentalData(fundamentalData, warnings);
+  const fusedTechnicals = fuseTechnicalData(technicalData, warnings);
 
-  const trendStrength = calculateTrendStrength(fusedPrice, fusedSentiment);
-  const volatilityIndicator = calculateVolatility(marketData);
-  const signalAgreement = calculateSignalAgreement(fusedPrice, fusedSentiment, fusedFundamentals);
+  const trendStrength = calculateTrendStrength(fusedPrice, fusedSentiment, fusedTechnicals);
+  const volatilityIndicator = calculateVolatilityWithTechnicals(marketData, technicalData);
+  const signalAgreement = calculateSignalAgreementWithTechnicals(fusedPrice, fusedSentiment, fusedFundamentals, fusedTechnicals);
 
   const dataQuality = assessDataQuality(marketData, sentimentData, fundamentalData, now);
 
@@ -146,6 +199,7 @@ export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
     priceSources: fusedPrice.sources.length,
     sentimentSources: fusedSentiment.sources.length,
     fundamentalSources: fusedFundamentals?.sources.length || 0,
+    technicalSources: fusedTechnicals?.sources.length || 0,
     signalAgreement: signalAgreement.toFixed(2),
     warnings: warnings.length,
   });
@@ -156,6 +210,7 @@ export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
     price: fusedPrice,
     sentiment: fusedSentiment,
     fundamentals: fusedFundamentals,
+    technicals: fusedTechnicals,
     trendStrength,
     volatilityIndicator,
     signalAgreement,
@@ -310,10 +365,20 @@ function fuseFundamentalData(
   const sources: string[] = [];
   let eps: number | undefined;
   let peRatio: number | undefined;
+  let pbRatio: number | undefined;
+  let roe: number | undefined;
+  let roa: number | undefined;
   let revenueGrowth: number | undefined;
   let freeCashFlow: number | undefined;
   let dividendYield: number | undefined;
   let debtToEquity: number | undefined;
+  let currentRatio: number | undefined;
+  let grossMargin: number | undefined;
+  let netProfitMargin: number | undefined;
+  let beta: number | undefined;
+  let epsGrowth: number | undefined;
+  let weekHigh52: number | undefined;
+  let weekLow52: number | undefined;
   let insiderSentiment: "bullish" | "bearish" | "neutral" | undefined;
 
   let insiderBullishCount = 0;
@@ -322,10 +387,20 @@ function fuseFundamentalData(
   for (const point of data) {
     if (point.eps !== undefined && eps === undefined) eps = point.eps;
     if (point.peRatio !== undefined && peRatio === undefined) peRatio = point.peRatio;
+    if (point.pbRatio !== undefined && pbRatio === undefined) pbRatio = point.pbRatio;
+    if (point.roe !== undefined && roe === undefined) roe = point.roe;
+    if (point.roa !== undefined && roa === undefined) roa = point.roa;
     if (point.revenueGrowth !== undefined && revenueGrowth === undefined) revenueGrowth = point.revenueGrowth;
     if (point.freeCashFlow !== undefined && freeCashFlow === undefined) freeCashFlow = point.freeCashFlow;
     if (point.dividendYield !== undefined && dividendYield === undefined) dividendYield = point.dividendYield;
     if (point.debtToEquity !== undefined && debtToEquity === undefined) debtToEquity = point.debtToEquity;
+    if (point.currentRatio !== undefined && currentRatio === undefined) currentRatio = point.currentRatio;
+    if (point.grossMargin !== undefined && grossMargin === undefined) grossMargin = point.grossMargin;
+    if (point.netProfitMargin !== undefined && netProfitMargin === undefined) netProfitMargin = point.netProfitMargin;
+    if (point.beta !== undefined && beta === undefined) beta = point.beta;
+    if (point.epsGrowth !== undefined && epsGrowth === undefined) epsGrowth = point.epsGrowth;
+    if (point.weekHigh52 !== undefined && weekHigh52 === undefined) weekHigh52 = point.weekHigh52;
+    if (point.weekLow52 !== undefined && weekLow52 === undefined) weekLow52 = point.weekLow52;
     
     if (point.insiderSentiment) {
       if (point.insiderSentiment === "bullish") insiderBullishCount++;
@@ -346,8 +421,13 @@ function fuseFundamentalData(
   }
 
   const coreFields = [eps, peRatio, revenueGrowth].filter(f => f !== undefined).length;
-  const extendedFields = [freeCashFlow, dividendYield, debtToEquity, insiderSentiment].filter(f => f !== undefined).length;
-  const confidence = (coreFields + extendedFields * 0.5) / 5;
+  const valuationFields = [pbRatio, roe, roa].filter(f => f !== undefined).length;
+  const marginFields = [grossMargin, netProfitMargin].filter(f => f !== undefined).length;
+  const rangeFields = [weekHigh52, weekLow52].filter(f => f !== undefined).length;
+  const extendedFields = [freeCashFlow, dividendYield, debtToEquity, currentRatio, beta, epsGrowth, insiderSentiment].filter(f => f !== undefined).length;
+  const totalFields = coreFields + valuationFields + marginFields + rangeFields + extendedFields;
+  const maxFields = 17;
+  const confidence = Math.min(1, totalFields / maxFields);
 
   if (insiderSentiment === "bearish" && coreFields > 0) {
     warnings.push("Insider activity shows bearish sentiment - insiders selling");
@@ -356,11 +436,95 @@ function fuseFundamentalData(
   return {
     eps,
     peRatio,
+    pbRatio,
+    roe,
+    roa,
     revenueGrowth,
     freeCashFlow,
     dividendYield,
     debtToEquity,
+    currentRatio,
+    grossMargin,
+    netProfitMargin,
+    beta,
+    epsGrowth,
+    weekHigh52,
+    weekLow52,
     insiderSentiment,
+    confidence,
+    sources,
+  };
+}
+
+function fuseTechnicalData(
+  data: TechnicalDataPoint[],
+  warnings: string[]
+): FusedMarketIntelligence["technicals"] | undefined {
+  if (data.length === 0) {
+    return undefined;
+  }
+
+  const sources: string[] = [];
+  let totalBuyCount = 0;
+  let totalSellCount = 0;
+  let totalNeutralCount = 0;
+  let adxSum = 0;
+  let adxCount = 0;
+  let trendingCount = 0;
+  let supportSum = 0;
+  let supportCount = 0;
+  let resistanceSum = 0;
+  let resistanceCount = 0;
+  let volatilitySum = 0;
+  let volatilityCount = 0;
+  let bullishTrendCount = 0;
+  let bearishTrendCount = 0;
+
+  for (const point of data) {
+    if (point.buyCount !== undefined) totalBuyCount += point.buyCount;
+    if (point.sellCount !== undefined) totalSellCount += point.sellCount;
+    if (point.neutralCount !== undefined) totalNeutralCount += point.neutralCount;
+    if (point.adx !== undefined) { adxSum += point.adx; adxCount++; }
+    if (point.isTrending) trendingCount++;
+    if (point.support !== undefined) { supportSum += point.support; supportCount++; }
+    if (point.resistance !== undefined) { resistanceSum += point.resistance; resistanceCount++; }
+    if (point.volatility !== undefined) { volatilitySum += point.volatility; volatilityCount++; }
+    if (point.trend === "bullish") bullishTrendCount++;
+    else if (point.trend === "bearish") bearishTrendCount++;
+    
+    if (!sources.includes(point.source)) {
+      sources.push(point.source);
+    }
+  }
+
+  const overallSignal: "buy" | "neutral" | "sell" = 
+    totalBuyCount > totalSellCount + totalNeutralCount ? "buy" :
+    totalSellCount > totalBuyCount + totalNeutralCount ? "sell" : "neutral";
+
+  const trend: "bullish" | "bearish" | "neutral" =
+    bullishTrendCount > bearishTrendCount ? "bullish" :
+    bearishTrendCount > bullishTrendCount ? "bearish" : "neutral";
+
+  const totalIndicators = totalBuyCount + totalSellCount + totalNeutralCount;
+  const confidence = totalIndicators > 0 
+    ? Math.max(totalBuyCount, totalSellCount) / totalIndicators 
+    : 0;
+
+  if (overallSignal === "sell" && totalSellCount > totalBuyCount * 2) {
+    warnings.push("Strong sell signals from technical indicators");
+  }
+
+  return {
+    signal: overallSignal,
+    buyCount: totalBuyCount,
+    sellCount: totalSellCount,
+    neutralCount: totalNeutralCount,
+    adx: adxCount > 0 ? adxSum / adxCount : undefined,
+    isTrending: trendingCount > data.length / 2,
+    support: supportCount > 0 ? supportSum / supportCount : undefined,
+    resistance: resistanceCount > 0 ? resistanceSum / resistanceCount : undefined,
+    volatility: volatilityCount > 0 ? volatilitySum / volatilityCount : undefined,
+    trend,
     confidence,
     sources,
   };
@@ -368,15 +532,35 @@ function fuseFundamentalData(
 
 function calculateTrendStrength(
   price: FusedMarketIntelligence["price"],
-  sentiment: FusedMarketIntelligence["sentiment"]
+  sentiment: FusedMarketIntelligence["sentiment"],
+  technicals?: FusedMarketIntelligence["technicals"]
 ): number {
   if (price.confidence === 0) return 0;
 
   const priceDirection = price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0;
   const sentimentDirection = sentiment.score > 0 ? 1 : sentiment.score < 0 ? -1 : 0;
+  const technicalDirection = technicals 
+    ? (technicals.signal === "buy" ? 1 : technicals.signal === "sell" ? -1 : 0)
+    : 0;
 
   const priceStrength = Math.min(1, Math.abs(price.changePercent) / 5);
   const sentimentStrength = Math.abs(sentiment.score);
+  const technicalStrength = technicals?.confidence || 0;
+
+  const directions = [priceDirection, sentimentDirection];
+  const strengths = [priceStrength * price.confidence, sentimentStrength * sentiment.confidence];
+  
+  if (technicals && technicals.confidence > 0) {
+    directions.push(technicalDirection);
+    strengths.push(technicalStrength);
+  }
+
+  const totalStrength = strengths.reduce((a, b) => a + b, 0);
+  const avgDirection = directions.reduce((a, b) => a + b, 0) / directions.length;
+
+  if (Math.abs(avgDirection) > 0.5) {
+    return (totalStrength / strengths.length) * Math.sign(avgDirection);
+  }
 
   if (priceDirection === sentimentDirection && priceDirection !== 0) {
     return (priceStrength + sentimentStrength) / 2 * price.confidence * sentiment.confidence;
@@ -404,6 +588,26 @@ function calculateVolatility(data: MarketDataPoint[]): number {
   return Math.min(1, totalVolatility / withRange.length);
 }
 
+function calculateVolatilityWithTechnicals(
+  marketData: MarketDataPoint[],
+  technicalData: TechnicalDataPoint[]
+): number {
+  const baseVolatility = calculateVolatility(marketData);
+  
+  if (technicalData.length === 0) return baseVolatility;
+  
+  const technicalVolatilities = technicalData
+    .filter(t => t.volatility !== undefined)
+    .map(t => t.volatility!);
+  
+  if (technicalVolatilities.length === 0) return baseVolatility;
+  
+  const avgTechnicalVolatility = technicalVolatilities.reduce((a, b) => a + b, 0) / technicalVolatilities.length;
+  const normalizedTechnicalVolatility = Math.min(1, avgTechnicalVolatility / 100);
+  
+  return (baseVolatility * 0.6 + normalizedTechnicalVolatility * 0.4);
+}
+
 function calculateSignalAgreement(
   price: FusedMarketIntelligence["price"],
   sentiment: FusedMarketIntelligence["sentiment"],
@@ -425,6 +629,43 @@ function calculateSignalAgreement(
       fundamentalSignal = fundamentals.revenueGrowth > 0 ? 1 : -1;
     }
     if (fundamentalSignal !== 0) signals.push(fundamentalSignal);
+  }
+
+  if (signals.length <= 1) return 1;
+
+  const sum = signals.reduce((a, b) => a + b, 0);
+  const agreement = Math.abs(sum) / signals.length;
+
+  return agreement;
+}
+
+function calculateSignalAgreementWithTechnicals(
+  price: FusedMarketIntelligence["price"],
+  sentiment: FusedMarketIntelligence["sentiment"],
+  fundamentals: FusedMarketIntelligence["fundamentals"] | undefined,
+  technicals: FusedMarketIntelligence["technicals"] | undefined
+): number {
+  const signals: number[] = [];
+
+  if (price.confidence > 0) {
+    signals.push(price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0);
+  }
+
+  if (sentiment.confidence > 0) {
+    signals.push(sentiment.score > 0.1 ? 1 : sentiment.score < -0.1 ? -1 : 0);
+  }
+
+  if (fundamentals && fundamentals.confidence > 0) {
+    let fundamentalSignal = 0;
+    if (fundamentals.revenueGrowth !== undefined) {
+      fundamentalSignal = fundamentals.revenueGrowth > 0 ? 1 : -1;
+    }
+    if (fundamentalSignal !== 0) signals.push(fundamentalSignal);
+  }
+
+  if (technicals && technicals.confidence > 0) {
+    const technicalSignal = technicals.signal === "buy" ? 1 : technicals.signal === "sell" ? -1 : 0;
+    if (technicalSignal !== 0) signals.push(technicalSignal);
   }
 
   if (signals.length <= 1) return 1;

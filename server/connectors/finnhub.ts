@@ -61,6 +61,64 @@ export interface MarketNews {
   url: string;
 }
 
+export interface BasicFinancials {
+  symbol: string;
+  metric: {
+    "10DayAverageTradingVolume"?: number;
+    "52WeekHigh"?: number;
+    "52WeekLow"?: number;
+    "52WeekPriceReturnDaily"?: number;
+    beta?: number;
+    bookValuePerShareQuarterly?: number;
+    currentRatioQuarterly?: number;
+    dividendYieldIndicatedAnnual?: number;
+    epsBasicExclExtraItemsTTM?: number;
+    epsGrowth3Y?: number;
+    epsGrowth5Y?: number;
+    epsGrowthTTMYoy?: number;
+    grossMargin5Y?: number;
+    grossMarginTTM?: number;
+    marketCapitalization?: number;
+    netProfitMargin5Y?: number;
+    netProfitMarginTTM?: number;
+    operatingMargin5Y?: number;
+    operatingMarginTTM?: number;
+    peBasicExclExtraTTM?: number;
+    peExclExtraTTM?: number;
+    pbQuarterly?: number;
+    priceToSalesTTM?: number;
+    psTTM?: number;
+    revenueGrowth3Y?: number;
+    revenueGrowth5Y?: number;
+    revenueGrowthTTMYoy?: number;
+    roaRfy?: number;
+    roaTTM?: number;
+    roeRfy?: number;
+    roeTTM?: number;
+    roiTTM?: number;
+    totalDebtToEquityQuarterly?: number;
+    totalDebtToTotalCapitalQuarterly?: number;
+    [key: string]: number | undefined;
+  };
+  metricType?: string;
+  series?: Record<string, unknown>;
+}
+
+export interface TechnicalIndicator {
+  technicalAnalysis: {
+    count: {
+      buy: number;
+      neutral: number;
+      sell: number;
+    };
+    signal: "buy" | "neutral" | "sell";
+  };
+  trend: {
+    adx: number;
+    trending: boolean;
+  };
+}
+
 class FinnhubConnector {
   private quoteCache = new ApiCache<StockQuote>({
     freshDuration: 60 * 1000,
@@ -81,6 +139,14 @@ class FinnhubConnector {
   private newsCache = new ApiCache<MarketNews[]>({
     freshDuration: 5 * 60 * 1000,
     staleDuration: 60 * 60 * 1000,
+  });
+  private financialsCache = new ApiCache<BasicFinancials>({
+    freshDuration: 60 * 60 * 1000,
+    staleDuration: 24 * 60 * 60 * 1000,
+  });
+  private technicalCache = new ApiCache<TechnicalIndicator>({
+    freshDuration: 5 * 60 * 1000,
+    staleDuration: 30 * 60 * 1000,
   });
   
   private lastRequestTime = 0;
@@ -271,13 +337,114 @@ class FinnhubConnector {
     return quotes;
   }
 
+  async getBasicFinancials(symbol: string): Promise<BasicFinancials> {
+    const cacheKey = `financials_${symbol}`;
+    const url = `${FINNHUB_BASE_URL}/stock/metric?symbol=${symbol.toUpperCase()}&metric=all`;
+    return this.fetchWithRetry<BasicFinancials>(url, cacheKey, this.financialsCache);
+  }
+
+  async getTechnicalIndicator(symbol: string, resolution = "D"): Promise<TechnicalIndicator> {
+    const cacheKey = `technical_${symbol}_${resolution}`;
+    const url = `${FINNHUB_BASE_URL}/scan/technical-indicator?symbol=${symbol.toUpperCase()}&resolution=${resolution}`;
+    return this.fetchWithRetry<TechnicalIndicator>(url, cacheKey, this.technicalCache);
+  }
+
+  async getKeyMetrics(symbol: string): Promise<{
+    peRatio: number | null;
+    pbRatio: number | null;
+    roe: number | null;
+    roa: number | null;
+    currentRatio: number | null;
+    debtToEquity: number | null;
+    grossMargin: number | null;
+    netProfitMargin: number | null;
+    beta: number | null;
+    dividendYield: number | null;
+    epsGrowth: number | null;
+    revenueGrowth: number | null;
+    weekHigh52: number | null;
+    weekLow52: number | null;
+  }> {
+    try {
+      const financials = await this.getBasicFinancials(symbol);
+      const m = financials.metric;
+      return {
+        peRatio: m.peBasicExclExtraTTM ?? m.peExclExtraTTM ?? null,
+        pbRatio: m.pbQuarterly ?? null,
+        roe: m.roeTTM ?? m.roeRfy ?? null,
+        roa: m.roaTTM ?? m.roaRfy ?? null,
+        currentRatio: m.currentRatioQuarterly ?? null,
+        debtToEquity: m.totalDebtToEquityQuarterly ?? null,
+        grossMargin: m.grossMarginTTM ?? m.grossMargin5Y ?? null,
+        netProfitMargin: m.netProfitMarginTTM ?? m.netProfitMargin5Y ?? null,
+        beta: m.beta ?? null,
+        dividendYield: m.dividendYieldIndicatedAnnual ?? null,
+        epsGrowth: m.epsGrowthTTMYoy ?? m.epsGrowth3Y ?? null,
+        revenueGrowth: m.revenueGrowthTTMYoy ?? m.revenueGrowth3Y ?? null,
+        weekHigh52: m["52WeekHigh"] ?? null,
+        weekLow52: m["52WeekLow"] ?? null,
+      };
+    } catch (error) {
+      log.warn("Finnhub", `Failed to get key metrics for ${symbol}`, { error: String(error) });
+      return {
+        peRatio: null,
+        pbRatio: null,
+        roe: null,
+        roa: null,
+        currentRatio: null,
+        debtToEquity: null,
+        grossMargin: null,
+        netProfitMargin: null,
+        beta: null,
+        dividendYield: null,
+        epsGrowth: null,
+        revenueGrowth: null,
+        weekHigh52: null,
+        weekLow52: null,
+      };
+    }
+  }
+
+  async getTechnicalSignals(symbol: string): Promise<{
+    signal: "buy" | "neutral" | "sell";
+    buyCount: number;
+    sellCount: number;
+    neutralCount: number;
+    adx: number | null;
+    isTrending: boolean;
+  }> {
+    try {
+      const indicator = await this.getTechnicalIndicator(symbol);
+      return {
+        signal: indicator.technicalAnalysis.signal,
+        buyCount: indicator.technicalAnalysis.count.buy,
+        sellCount: indicator.technicalAnalysis.count.sell,
+        neutralCount: indicator.technicalAnalysis.count.neutral,
+        adx: indicator.trend.adx,
+        isTrending: indicator.trend.trending,
+      };
+    } catch (error) {
+      log.warn("Finnhub", `Failed to get technical signals for ${symbol}`, { error: String(error) });
+      return {
+        signal: "neutral",
+        buyCount: 0,
+        sellCount: 0,
+        neutralCount: 0,
+        adx: null,
+        isTrending: false,
+      };
+    }
+  }
+
   getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
     const totalCacheSize = 
       this.quoteCache.size() + 
       this.candleCache.size() + 
       this.profileCache.size() + 
       this.searchCache.size() + 
-      this.newsCache.size();
+      this.newsCache.size() +
+      this.financialsCache.size() +
+      this.technicalCache.size();
     
     return {
       connected: !!this.getApiKey(),
@@ -292,6 +459,8 @@ class FinnhubConnector {
     this.profileCache.clear();
     this.searchCache.clear();
     this.newsCache.clear();
+    this.financialsCache.clear();
+    this.technicalCache.clear();
   }
 }
 

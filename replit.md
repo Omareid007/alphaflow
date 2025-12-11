@@ -92,3 +92,18 @@ Preferred communication style: Simple, everyday language.
 - **Gap Analysis Summary**: Alpaca 65% utilized, Finnhub 25%, CoinGecko 40%, OpenAI 35%
 - **Priority Matrix**: P0 items include OpenAI structured outputs, Alpaca bracket orders, Finnhub financials/technicals
 - **Key Files**: `docs/providers/CAPABILITY_SUMMARY.md`, `docs/providers/ALPACA_CAPABILITIES.md`, `docs/providers/FINNHUB_CAPABILITIES.md`, `docs/providers/COINGECKO_CAPABILITIES.md`, `docs/providers/OPENAI_CAPABILITIES.md`
+
+### Phase 2 Implementation - P0 Provider Upgrades Complete (December 11, 2025)
+- **OpenAI Structured Outputs**: Added `strict: true` to all DATA_QUERY_TOOLS definitions in `server/ai/decision-engine.ts` for guaranteed JSON schema compliance. Added `parallel_tool_calls: false` to ensure sequential tool execution.
+- **Finnhub Basic Financials**: New `/stock/metric` endpoint integration with `getBasicFinancials()` and `getKeyMetrics()` methods. Exposes P/E, P/B, ROE, ROA, gross margin, net profit margin, beta, dividend yield, EPS growth, revenue growth, 52-week high/low.
+- **Finnhub Technical Indicators**: New `/scan/technical-indicator` endpoint with `getTechnicalIndicator()` and `getTechnicalSignals()` methods. Provides buy/sell/neutral signal counts, ADX trend indicator, and trending status.
+- **Alpaca Bracket Orders**: Trade executor in `openPosition()` now uses bracket orders when AI decision includes targetPrice AND stopLoss for stocks. Atomic entry with TP/SL for better risk management.
+- **CoinGecko OHLCV**: New `/coins/{id}/ohlc` endpoint with `getOHLC()` and `getOHLCWithIndicators()` methods. Provides candlestick data with derived volatility, trend (bullish/bearish/neutral), support, and resistance levels.
+- **Data Fusion Engine Enhanced**: 
+  - Extended `FundamentalDataPoint` with 10 new fields (pbRatio, roe, roa, currentRatio, grossMargin, netProfitMargin, beta, epsGrowth, weekHigh52, weekLow52)
+  - Added `TechnicalDataPoint` interface for technical analysis fusion
+  - Added `technicals` field to `FusedMarketIntelligence` output
+  - Updated `fuseFundamentalData()` to emit all new fields
+  - Added `fuseTechnicalData()`, `calculateVolatilityWithTechnicals()`, `calculateSignalAgreementWithTechnicals()` functions
+  - Enhanced `calculateTrendStrength()` to incorporate technical signals
+- **Key Files Modified**: `server/ai/decision-engine.ts`, `server/connectors/finnhub.ts`, `server/connectors/coingecko.ts`, `server/autonomous/orchestrator.ts`, `server/ai/data-fusion-engine.ts`

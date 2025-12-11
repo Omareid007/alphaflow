@@ -491,6 +491,25 @@ class AutonomousOrchestrator {
     }
   }
 
+  private async fetchCurrentPrice(symbol: string): Promise<number> {
+    try {
+      const isCrypto = isCryptoSymbol(symbol);
+      if (isCrypto) {
+        const normSymbol = normalizeCryptoSymbol(symbol);
+        const snapshots = await alpaca.getCryptoSnapshots([normSymbol]);
+        const snapshot = snapshots[normSymbol];
+        return snapshot?.latestTrade?.p || 0;
+      } else {
+        const snapshots = await alpaca.getSnapshots([symbol]);
+        const snapshot = snapshots[symbol];
+        return snapshot?.latestTrade?.p || 0;
+      }
+    } catch (error) {
+      log.warn("Orchestrator", `Failed to fetch current price for ${symbol}`, { error: String(error) });
+      return 0;
+    }
+  }
+
   async start(): Promise<void> {
     if (this.state.isRunning) {
       log.info("Orchestrator", "Already running");
@@ -801,15 +820,46 @@ class AutonomousOrchestrator {
       }
 
       const isCrypto = isCryptoSymbol(symbol);
-      const orderParams: CreateOrderParams = {
-        symbol: isCrypto ? normalizeCryptoSymbol(symbol) : symbol,
-        notional: positionValue.toFixed(2),
-        side: "buy",
-        type: "market",
-        time_in_force: isCrypto ? "gtc" : "day",
-      };
-
-      const initialOrder = await alpaca.createOrder(orderParams);
+      const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+      
+      let initialOrder;
+      const hasBracketParams = decision.targetPrice && decision.stopLoss && !isCrypto;
+      
+      if (hasBracketParams && decision.targetPrice && decision.stopLoss) {
+        log.info("Orchestrator", `Using bracket order for ${symbol}: TP=$${decision.targetPrice}, SL=$${decision.stopLoss}`);
+        const currentPrice = await this.fetchCurrentPrice(symbol);
+        if (currentPrice > 0 && positionValue > 0) {
+          const estimatedQty = (positionValue / currentPrice).toFixed(6);
+          initialOrder = await alpaca.createBracketOrder({
+            symbol: brokerSymbol,
+            qty: estimatedQty,
+            side: "buy",
+            type: "market",
+            time_in_force: "day",
+            take_profit_price: decision.targetPrice.toFixed(2),
+            stop_loss_price: decision.stopLoss.toFixed(2),
+          });
+        } else {
+          log.warn("Orchestrator", `Bracket order fallback - invalid price/value for ${symbol}`);
+          const orderParams: CreateOrderParams = {
+            symbol: brokerSymbol,
+            notional: positionValue.toFixed(2),
+            side: "buy",
+            type: "market",
+            time_in_force: "day",
+          };
+          initialOrder = await alpaca.createOrder(orderParams);
+        }
+      } else {
+        const orderParams: CreateOrderParams = {
+          symbol: brokerSymbol,
+          notional: positionValue.toFixed(2),
+          side: "buy",
+          type: "market",
+          time_in_force: isCrypto ? "gtc" : "day",
+        };
+        initialOrder = await alpaca.createOrder(orderParams);
+      }
       
       const fillResult = await waitForOrderFill(initialOrder.id);
       

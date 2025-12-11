@@ -69,9 +69,19 @@ export interface GlobalMarketData {
   };
 }
 
+export interface OHLCData {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
 type CoinListItem = { id: string; symbol: string; name: string };
 type SearchResult = { coins: { id: string; name: string; symbol: string; market_cap_rank: number; thumb: string }[] };
 type TrendingResult = { coins: TrendingCoin[] };
+
+type OHLCRaw = [number, number, number, number, number][];
 
 class CoinGeckoConnector {
   private marketsCache = new ApiCache<CoinPrice[]>({
@@ -100,6 +110,10 @@ class CoinGeckoConnector {
   });
   private searchCache = new ApiCache<SearchResult>({
     freshDuration: 15 * 60 * 1000,
+    staleDuration: 60 * 60 * 1000,
+  });
+  private ohlcCache = new ApiCache<OHLCRaw>({
+    freshDuration: 5 * 60 * 1000,
     staleDuration: 60 * 60 * 1000,
   });
   
@@ -285,6 +299,79 @@ class CoinGeckoConnector {
     return this.fetchWithRetry<SearchResult>(url, cacheKey, this.searchCache);
   }
 
+  async getOHLC(
+    coinId: string,
+    vsCurrency = "usd",
+    days: 1 | 7 | 14 | 30 | 90 | 180 | 365 | "max" = 7
+  ): Promise<OHLCData[]> {
+    const cacheKey = `ohlc_${coinId}_${vsCurrency}_${days}`;
+    const url = `${COINGECKO_BASE_URL}/coins/${coinId}/ohlc?vs_currency=${vsCurrency}&days=${days}`;
+    const rawData = await this.fetchWithRetry<OHLCRaw>(url, cacheKey, this.ohlcCache);
+    return rawData.map(([timestamp, open, high, low, close]) => ({
+      timestamp,
+      open,
+      high,
+      low,
+      close,
+    }));
+  }
+
+  async getOHLCWithIndicators(
+    coinId: string,
+    days: 1 | 7 | 14 | 30 | 90 | 180 | 365 | "max" = 30
+  ): Promise<{
+    candles: OHLCData[];
+    latestPrice: number;
+    priceChange24h: number;
+    volatility: number;
+    trend: "bullish" | "bearish" | "neutral";
+    support: number;
+    resistance: number;
+  }> {
+    const ohlc = await this.getOHLC(coinId, "usd", days);
+    if (ohlc.length === 0) {
+      return {
+        candles: [],
+        latestPrice: 0,
+        priceChange24h: 0,
+        volatility: 0,
+        trend: "neutral",
+        support: 0,
+        resistance: 0,
+      };
+    }
+
+    const latestCandle = ohlc[ohlc.length - 1];
+    const latestPrice = latestCandle.close;
+    const firstCandle = ohlc[0];
+    const priceChange24h = ((latestPrice - firstCandle.close) / firstCandle.close) * 100;
+
+    const highs = ohlc.map((c) => c.high);
+    const lows = ohlc.map((c) => c.low);
+    const closes = ohlc.map((c) => c.close);
+
+    const avgClose = closes.reduce((a, b) => a + b, 0) / closes.length;
+    const variance = closes.reduce((sum, c) => sum + Math.pow(c - avgClose, 2), 0) / closes.length;
+    const volatility = (Math.sqrt(variance) / avgClose) * 100;
+
+    const resistance = Math.max(...highs);
+    const support = Math.min(...lows);
+
+    const recentCandles = ohlc.slice(-5);
+    const bullishCount = recentCandles.filter((c) => c.close > c.open).length;
+    const trend = bullishCount >= 4 ? "bullish" : bullishCount <= 1 ? "bearish" : "neutral";
+
+    return {
+      candles: ohlc,
+      latestPrice,
+      priceChange24h,
+      volatility,
+      trend,
+      support,
+      resistance,
+    };
+  }
+
   getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
     const totalCacheSize = 
       this.marketsCache.size() + 
@@ -293,7 +380,8 @@ class CoinGeckoConnector {
       this.trendingCache.size() + 
       this.globalCache.size() + 
       this.coinListCache.size() + 
-      this.searchCache.size();
+      this.searchCache.size() +
+      this.ohlcCache.size();
     
     return {
       connected: true,
@@ -310,6 +398,7 @@ class CoinGeckoConnector {
     this.globalCache.clear();
     this.coinListCache.clear();
     this.searchCache.clear();
+    this.ohlcCache.clear();
   }
 }
 

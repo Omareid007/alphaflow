@@ -16,6 +16,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_news_sentiment",
       description: "Get real-time news sentiment and headlines for a stock or crypto symbol from GDELT (free, updates every 15 min)",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -28,7 +29,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "Whether this is a cryptocurrency (true) or stock (false)"
           }
         },
-        required: ["symbol", "isCrypto"]
+        required: ["symbol", "isCrypto"],
+        additionalProperties: false
       }
     }
   },
@@ -37,6 +39,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_financial_ratios",
       description: "Get fundamental financial ratios for a stock (P/E, ROE, debt-to-equity, etc.) from Valyu.ai",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -45,7 +48,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "The stock ticker symbol (e.g., AAPL, MSFT)"
           }
         },
-        required: ["symbol"]
+        required: ["symbol"],
+        additionalProperties: false
       }
     }
   },
@@ -54,6 +58,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_earnings_data",
       description: "Get recent earnings data (EPS, revenue, surprises) for a stock",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -62,7 +67,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "The stock ticker symbol (e.g., AAPL, MSFT)"
           }
         },
-        required: ["symbol"]
+        required: ["symbol"],
+        additionalProperties: false
       }
     }
   },
@@ -71,6 +77,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_insider_transactions",
       description: "Get recent insider trading activity (buys/sells by executives)",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -79,7 +86,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "The stock ticker symbol (e.g., AAPL, MSFT)"
           }
         },
-        required: ["symbol"]
+        required: ["symbol"],
+        additionalProperties: false
       }
     }
   },
@@ -88,6 +96,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_additional_news",
       description: "Get additional news headlines from NewsAPI for broader market context",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -96,7 +105,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "Search query for news (e.g., 'Apple earnings', 'tech sector')"
           }
         },
-        required: ["query"]
+        required: ["query"],
+        additionalProperties: false
       }
     }
   },
@@ -105,6 +115,7 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_market_quote",
       description: "Get real-time stock quote data from Finnhub",
+      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -113,7 +124,8 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: "The stock ticker symbol (e.g., AAPL, MSFT)"
           }
         },
-        required: ["symbol"]
+        required: ["symbol"],
+        additionalProperties: false
       }
     }
   }
@@ -416,6 +428,7 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
         tools: DATA_QUERY_TOOLS,
         tool_choice: "auto",
         max_completion_tokens: 2048,
+        parallel_tool_calls: false,
       });
 
       let iterations = 0;
@@ -426,14 +439,15 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
         messages.push(response.choices[0].message);
 
         for (const toolCall of toolCalls) {
-          const args = JSON.parse(toolCall.function.arguments);
-          log.debug("AI", `Function call: ${toolCall.function.name}`, { args });
-          toolsUsed.push(toolCall.function.name);
+          const funcCall = toolCall as { id: string; type: string; function: { name: string; arguments: string } };
+          const args = JSON.parse(funcCall.function.arguments);
+          log.debug("AI", `Function call: ${funcCall.function.name}`, { args });
+          toolsUsed.push(funcCall.function.name);
 
-          const result = await executeToolCall(toolCall.function.name, args);
+          const result = await executeToolCall(funcCall.function.name, args);
           messages.push({
             role: "tool",
-            tool_call_id: toolCall.id,
+            tool_call_id: funcCall.id,
             content: result,
           });
         }
@@ -444,6 +458,7 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
           tools: DATA_QUERY_TOOLS,
           tool_choice: "auto",
           max_completion_tokens: 2048,
+          parallel_tool_calls: false,
         });
 
         iterations++;
