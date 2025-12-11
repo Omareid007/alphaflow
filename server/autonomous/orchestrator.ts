@@ -66,6 +66,7 @@ export interface OrchestratorConfig {
 export interface PositionWithRules {
   symbol: string;
   quantity: number;
+  availableQuantity: number;
   entryPrice: number;
   currentPrice: number;
   unrealizedPnl: number;
@@ -414,9 +415,13 @@ class AutonomousOrchestrator {
           }
         }
 
+        const totalQty = safeParseFloat(pos.qty);
+        const availableQty = safeParseFloat(pos.qty_available);
+        
         const positionWithRules: PositionWithRules = {
           symbol: pos.symbol,
-          quantity: safeParseFloat(pos.qty),
+          quantity: totalQty,
+          availableQuantity: availableQty,
           entryPrice,
           currentPrice,
           unrealizedPnl: safeParseFloat(pos.unrealized_pl),
@@ -825,6 +830,7 @@ class AutonomousOrchestrator {
       const positionWithRules: PositionWithRules = {
         symbol,
         quantity: filledQty,
+        availableQuantity: filledQty,
         entryPrice: filledPrice,
         currentPrice: filledPrice,
         unrealizedPnl: 0,
@@ -1180,10 +1186,23 @@ class AutonomousOrchestrator {
 
           if (drift > rebalanceThresholdPercent) {
             const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
-            const sharesToSell = Math.floor(excessValue / position.currentPrice);
+            let sharesToSell = Math.floor(excessValue / position.currentPrice);
+            
+            // Use available quantity instead of total - prevents "insufficient qty" errors
+            const availableShares = Math.floor(position.availableQuantity);
+            if (availableShares <= 0) {
+              log.warn("Orchestrator", `Skipping rebalance for ${symbol}: no available shares (${position.availableQuantity} available, ${position.quantity - position.availableQuantity} held for orders)`);
+              continue;
+            }
+            
+            // Limit sell quantity to what's actually available
+            if (sharesToSell > availableShares) {
+              log.info("Orchestrator", `Limiting rebalance for ${symbol}: requested ${sharesToSell} but only ${availableShares} available`);
+              sharesToSell = availableShares;
+            }
             
             if (sharesToSell > 0 && sharesToSell < position.quantity) {
-              log.info("Orchestrator", `Rebalancing: Selling ${sharesToSell} shares of ${symbol}`);
+              log.info("Orchestrator", `Rebalancing: Selling ${sharesToSell} shares of ${symbol} (${availableShares} available)`);
               await this.closePosition(
                 symbol,
                 {
