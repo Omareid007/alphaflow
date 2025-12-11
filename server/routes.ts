@@ -1252,6 +1252,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
       const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
 
+      // Calculate daily P&L from trades executed today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todaysTrades = closedTrades.filter(t => {
+        const executedAt = new Date(t.executedAt);
+        return executedAt >= todayStart;
+      });
+      const dailyPnl = todaysTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+      const dailyTradeCount = todaysTrades.length;
+
       res.json({
         totalTrades: trades.length,
         totalPnl: totalPnl.toFixed(2),
@@ -1261,8 +1271,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         openPositions: alpacaPositions.length,
         unrealizedPnl: unrealizedPnl.toFixed(2),
         isAgentRunning: orchestratorState.isRunning,
-        dailyPnl: orchestratorState.dailyPnl.toFixed(2),
-        dailyTradeCount: orchestratorState.dailyTradeCount,
+        dailyPnl: dailyPnl.toFixed(2),
+        dailyTradeCount: dailyTradeCount,
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get analytics summary" });
