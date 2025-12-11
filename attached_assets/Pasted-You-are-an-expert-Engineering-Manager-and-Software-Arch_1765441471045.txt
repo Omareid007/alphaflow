@@ -1,0 +1,260 @@
+You are an expert Engineering Manager and Software Architect working inside this Replit project.
+
+Your task:
+Review the entire app and completely rewrite docs/APP_OVERVIEW.md so that it becomes the SINGLE canonical, one-stop documentation that any future software engineer can read to:
+- Understand what the system does and why it exists
+- See how everything is built and wired together
+- Know how to run, debug, test, deploy, scale, and safely change it
+- Use Replit efficiently while minimizing tokens, credits, and overall cost
+
+Treat APP_OVERVIEW.md as the master handover document for a real development team in a financial/trading context.
+
+=====================================
+[SECTION 1] – WORKING STYLE & CONSTRAINTS
+=====================================
+
+1. Roles:
+   - You are acting as:
+     - Engineering Manager
+     - Lead Software Architect
+     - Senior Full-Stack Developer
+   - Assume that the reader is a professional engineer joining the project for the first time.
+
+2. Scope:
+   - You MUST review the codebase and any existing docs (including the current APP_OVERVIEW.md if it exists).
+   - Then, UPDATE docs/APP_OVERVIEW.md to reflect the true, current implementation — no wishful thinking or out-of-date assumptions.
+
+3. Constraints:
+   - Do NOT expose or print any secrets (API keys, tokens, passwords).
+   - Be concise but complete: use structure, tables, and diagrams instead of repetitive text.
+   - Minimize token/credit consumption by:
+     - Reading only the files you actually need.
+     - Summarizing patterns instead of listing every single file.
+     - Reusing any existing docs (FINANCIAL_METRICS.md, ARCHITECTURE.md, TESTING.md, etc.) by linking to them instead of copying full content.
+
+4. Output:
+   - Your ONLY code change in this task should be updating docs/APP_OVERVIEW.md (create it if missing).
+   - The APP_OVERVIEW.md file must be valid Markdown and readable in a normal editor.
+
+=====================================
+[SECTION 2] – HIGH-LEVEL STRUCTURE OF APP_OVERVIEW.md
+=====================================
+
+Rewrite APP_OVERVIEW.md with a clear, navigable structure.
+
+At minimum, include these top-level sections (you may add subsections where helpful):
+
+1. Introduction & Purpose
+2. Business Context & Main Features
+3. System Overview (Big Picture)
+4. Architecture Views & Diagrams
+5. Tech Stack & Dependencies
+6. Codebase Layout & Module Responsibilities
+7. Data Model & Storage
+8. External Integrations (e.g. Alpaca, AI, other APIs)
+9. Runtime Environments, Deployment & Hosting (including Replit)
+10. Configuration, Secrets & Environment Management
+11. Testing Strategy & Quality Gates
+12. Observability, Logging & Monitoring
+13. Security & Compliance Considerations (high level)
+14. Bug-Fix & Stabilization Strategy
+15. Extensibility & How to Add/Modify Features Safely
+16. Scaling & Performance Strategy
+17. Cost & Token/Credit Management (Replit + external APIs if any)
+18. Known Issues, Limitations & TODOs
+19. Further Documentation & ADRs (if any exist)
+
+You are free to rename or slightly regroup these sections if it improves clarity, but the content must still be covered.
+
+=====================================
+[SECTION 3] – DETAILED CONTENT REQUIREMENTS
+=====================================
+
+For each section, populate APP_OVERVIEW.md as follows.
+
+3.1 Introduction & Purpose
+   - One short paragraph describing:
+     - What this app is
+     - Who it is for (type of users)
+     - The core problem it solves
+   - State explicitly that this document is the primary entry point for all new engineers.
+
+3.2 Business Context & Main Features
+   - Bullet list or short table of main user-facing features and flows (e.g. “paper trading”, “P&L dashboard”, “strategy builder”, etc.).
+   - For each feature:
+     - One-line business purpose
+     - Very short description of the typical user journey.
+
+3.3 System Overview (Big Picture)
+   - A short narrative of how the system works end-to-end:
+     - From user interaction → frontend → backend → external services (e.g. Alpaca) → database → back to UI.
+   - Add a **system context diagram** in Mermaid (C4-style Level 1) that shows:
+     - The app
+     - External actors (users, brokers, APIs)
+     - External systems (Alpaca, databases, AI services, etc.).
+
+3.4 Architecture Views & Diagrams
+   - Provide at least:
+     - A **container-level diagram** in Mermaid (C4-style Level 2):
+       - Frontend, Backend/API services, Database(s), external services (Alpaca, AI/LLM provider, etc.).
+     - Optionally a component-level diagram for the most critical backend service, if it improves understanding.
+   - Briefly explain:
+     - How responsibilities are split across containers/services.
+     - Any important communication patterns (REST, WebSockets, queues, etc.), if used.
+
+3.5 Tech Stack & Dependencies
+   - List main technologies:
+     - Frontend framework(s)
+     - Backend framework(s)
+     - Database type and ORM (if any)
+     - Message brokers, caches, queues if present
+     - Any AI/ML or analytics libraries
+   - Summarize major runtime dependencies from package manifests (e.g. package.json, requirements.txt, pyproject.toml):
+     - Group by purpose: “core runtime”, “testing”, “dev tooling”, etc.
+   - Mention how dependencies are installed and managed (npm, yarn, pnpm, pip, poetry, etc.).
+
+3.6 Codebase Layout & Module Responsibilities
+   - Provide a folder tree **at a useful abstraction level** (avoid listing every file).
+   - For each key folder or module, describe:
+     - Its purpose
+     - Typical responsibilities
+     - Important entrypoints (e.g. main routes, main components, key classes).
+
+3.7 Data Model & Storage
+   - Describe the main data model:
+     - Core entities (e.g. User, Account, Position, Order, Strategy, etc.).
+     - High-level relationships.
+   - Add a simple **ER-style diagram** or conceptual data diagram in Mermaid.
+   - Clarify:
+     - What is persisted vs. coming directly from external APIs (like Alpaca).
+     - Any caching layers or derived tables.
+   - Describe where migrations live and how schema changes are applied (if applicable).
+
+3.8 External Integrations
+   - List all external services (e.g. Alpaca, other broker APIs, AI services, analytics, email/SMS, etc.).
+   - For each integration:
+     - What it is used for.
+     - Where the integration code lives.
+     - What endpoints or main operations are used (no secrets, just concepts).
+   - Clarify whether integration calls are synchronous, asynchronous, or both.
+
+3.9 Runtime Environments, Deployment & Hosting
+   - Explain how to:
+     - Run the app locally in Replit (commands, scripts, expected ports).
+     - Run/tests in a local dev environment outside Replit (if supported).
+   - Document:
+     - Any existing Dockerfile(s) or containerization.
+     - Expected deployment targets (Replit, other cloud, etc.).
+     - How the services are composed in production vs development.
+
+3.10 Configuration, Secrets & Environment Management
+   - Explain all relevant environment variables and config files (WITHOUT printing actual secrets).
+   - Clarify:
+     - How to configure Alpaca keys and other API credentials.
+     - How different environments (dev/test/prod) are configured.
+   - Emphasize secure handling:
+     - Use env vars, not hard-coded secrets.
+
+3.11 Testing Strategy & Quality Gates
+   - Describe the testing stack:
+     - Which frameworks are used (e.g. Jest/Vitest, pytest, etc.).
+     - Types of tests present: unit, integration, e2e.
+   - Include:
+     - How to run all tests from the command line.
+     - What parts of the system have the most coverage (e.g. P&L calculations, order flows).
+   - Mention any test data/fixtures and where they live.
+   - Note any CI/testing scripts if they exist.
+
+3.12 Observability, Logging & Monitoring
+   - Describe:
+     - Logging approach (libraries used, log format).
+     - Any monitoring or metrics (if implemented).
+   - If no structured observability exists, clearly state that and suggest minimal next steps.
+
+3.13 Security & Compliance Considerations
+   - At a high level:
+     - Note any security-relevant practices (auth, authz, encryption, rate limiting, input validation).
+     - Call out sensitive data handled (e.g. financial data, personal data).
+   - This is a **summary**, not a full security review.
+
+3.14 Bug-Fix & Stabilization Strategy
+   - Provide guidance for engineers on:
+     - How to identify issues quickly (logs, tests, known error patterns).
+     - Where the most fragile or complex parts of the code are.
+     - A suggested order of operations:
+       1) Fix critical correctness and P&L / trading logic bugs.
+       2) Harden tests around those flows.
+       3) Only then optimize UI/UX and performance.
+
+3.15 Extensibility & Safe Changes
+   - Explain how to safely:
+     - Add a new feature.
+     - Modify an existing user flow (e.g. new type of order or new dashboard widget).
+   - Include:
+     - Which layers to touch (frontend, backend, domain, DB).
+     - Where to add tests to avoid regressions.
+
+3.16 Scaling & Performance Strategy
+   - Describe the current scalability posture:
+     - Where bottlenecks are likely to be (DB, external APIs, specific services).
+   - Provide guidelines for future scaling:
+     - Horizontal vs vertical scaling plans.
+     - Caching opportunities.
+     - Any rate-limit or throughput constraints from external providers (if known).
+
+3.17 Cost & Token/Credit Management
+   - Specific focus on:
+     - How to run and develop on Replit with minimal credits/token consumption:
+       - Prefer running tests and scripts locally inside the container instead of repeatedly calling external AI APIs.
+       - Reuse docs like APP_OVERVIEW.md itself to reduce repeated code scanning.
+   - If the app uses LLM/AI APIs:
+     - Describe how to configure models and limits.
+     - Suggest safe defaults to keep costs under control.
+
+3.18 Known Issues, Limitations & TODOs
+   - Honest list of:
+     - Known bugs
+     - Missing features
+     - Technical debt hotspots
+   - Group by severity (critical / major / minor) where possible.
+   - This should guide the next engineering team’s first sprints.
+
+3.19 Further Documentation & ADRs
+   - Link to:
+     - Any other Markdown docs (FINANCIAL_METRICS.md, ARCHITECTURE.md, TESTING.md, CONTRIBUTING.md, etc.).
+     - Any Architecture Decision Records (ADRs) if present, and briefly explain what kinds of decisions they capture.
+
+=====================================
+[SECTION 4] – STYLE, TONE & FORMAT
+=====================================
+
+1. Tone:
+   - Professional, direct, and practical.
+   - Written for engineers; assume they know how to code but not this codebase.
+
+2. Format:
+   - Use Markdown headings, bullet lists, tables where helpful.
+   - Use Mermaid diagrams for all diagrams so the doc stays text-only but renderable.
+   - Avoid overly long paragraphs; prefer structured sections and subsections.
+
+3. Accuracy:
+   - The content MUST match the actual implementation.
+   - If something is not yet implemented, clearly label it as “Planned” or “Not implemented yet” rather than pretending it exists.
+
+=====================================
+[SECTION 5] – COMPLETION CHECKLIST
+=====================================
+
+Before you finish, ensure that:
+
+- [ ] docs/APP_OVERVIEW.md exists and is updated.
+- [ ] It includes all the required sections (even if some are short today).
+- [ ] All diagrams use Mermaid syntax and are syntactically valid.
+- [ ] Running the app and tests from the instructions in APP_OVERVIEW.md actually works in this Replit environment (as far as you can verify).
+- [ ] There are clear pointers to:
+      - Where to fix bugs
+      - How to move to a stable live product
+      - How to scale and evolve the system over time
+- [ ] The document can be read top-to-bottom by a new engineer to get a solid mental model of the system within ~30–60 minutes.
+
+Update only docs/APP_OVERVIEW.md for this task.
