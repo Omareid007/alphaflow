@@ -64,7 +64,13 @@ export const STRATEGY_SCHEMA = {
   description: "A simple trend-following strategy that generates buy signals when a short-term moving average crosses above a longer-term moving average, and sell signals when it crosses below. The classic 7/20 SMA version has historically shown ~21% annualized returns in backtests.",
   presets: MOVING_AVERAGE_PRESETS,
   parameterBounds: PARAMETER_BOUNDS,
-  supportedSymbols: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM"],
+  supportedSymbols: [
+    "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
+    "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD", "CVX", "ABBV", "MRK",
+    "KO", "PEP", "COST", "TMO", "AVGO", "ORCL", "ACN", "MCD", "CSCO", "ABT",
+    "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
+    "BTC/USD", "ETH/USD", "SOL/USD",
+  ],
 };
 
 export function normalizeMovingAverageConfig(

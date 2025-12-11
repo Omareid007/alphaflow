@@ -70,7 +70,13 @@ export const STRATEGY_SCHEMA = {
   description: "A high-frequency strategy that identifies when price deviates significantly from its mean and trades the expected reversion. Buys when price falls below the lower band and sells when it rises above the upper band. Best for range-bound markets.",
   presets: MEAN_REVERSION_PRESETS,
   parameterBounds: PARAMETER_BOUNDS,
-  supportedSymbols: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM"],
+  supportedSymbols: [
+    "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
+    "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD", "CVX", "ABBV", "MRK",
+    "KO", "PEP", "COST", "TMO", "AVGO", "ORCL", "ACN", "MCD", "CSCO", "ABT",
+    "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
+    "BTC/USD", "ETH/USD", "SOL/USD",
+  ],
 };
 
 export function normalizeMeanReversionConfig(

@@ -82,7 +82,13 @@ export const STRATEGY_SCHEMA = {
   description: "A trend-following strategy that trades in the direction of price momentum. Uses rate of change and RSI indicators to identify strong momentum moves. Buys when momentum is positive and RSI confirms, sells when momentum reverses.",
   presets: MOMENTUM_PRESETS,
   parameterBounds: PARAMETER_BOUNDS,
-  supportedSymbols: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM"],
+  supportedSymbols: [
+    "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
+    "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD", "CVX", "ABBV", "MRK",
+    "KO", "PEP", "COST", "TMO", "AVGO", "ORCL", "ACN", "MCD", "CSCO", "ABT",
+    "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
+    "BTC/USD", "ETH/USD", "SOL/USD",
+  ],
 };
 
 export function normalizeMomentumConfig(

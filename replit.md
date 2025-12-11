@@ -55,3 +55,17 @@ Preferred communication style: Simple, everyday language.
 - **3% Hard Stop-Loss**: Changed default from 5% based on backtest research (2.11 Sharpe ratio)
 - **6% Take-Profit**: Adjusted default for better risk/reward
 - **Enforcement Logic**: Hard stop-loss enforced at position sync
+
+### Trading Universe Expansion (December 11, 2025)
+- **Stocks**: Expanded from 10 to 50+ symbols across all sectors (tech, finance, healthcare, consumer, energy, industrials)
+- **Crypto**: Expanded from 3 to 11 symbols (BTC, ETH, SOL, XRP, DOGE, ADA, DOT, LINK, AVAX, MATIC, LTC)
+- **Strategy Support**: All strategy schemas (moving average, momentum, mean reversion) updated with expanded universe
+
+### GDELT Crypto Query Fix
+- **Simplified Query Format**: Changed from complex "OR" queries to simple crypto name mapping (e.g., "Bitcoin cryptocurrency" instead of "BTC cryptocurrency OR BTC crypto")
+- **Crypto Name Map**: Maps ticker symbols (BTC, ETH, SOL) to full names for better GDELT API compatibility
+
+### OpenAI Function Calling Integration
+- **analyzeWithFunctionCalling Method**: New AI analysis method allowing real-time data queries during decision-making
+- **Available Tools**: get_news_sentiment (GDELT), get_financial_ratios (Valyu), get_earnings_data (Valyu), get_insider_transactions (Valyu), get_additional_news (NewsAPI), get_market_quote (Finnhub)
+- **Graceful Fallback**: Falls back to standard analysis if function calling fails

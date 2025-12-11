@@ -3,8 +3,209 @@ import pLimit from "p-limit";
 import pRetry from "p-retry";
 import { openRouterProvider } from "./openrouter-provider";
 import { log } from "../utils/logger";
+import { gdelt } from "../connectors/gdelt";
+import { valyu } from "../connectors/valyu";
+import { finnhub } from "../connectors/finnhub";
+import { newsapi } from "../connectors/newsapi";
 
 const MODEL = "gpt-4o-mini";
+
+const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "get_news_sentiment",
+      description: "Get real-time news sentiment and headlines for a stock or crypto symbol from GDELT (free, updates every 15 min)",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "The stock ticker (e.g., AAPL, MSFT) or crypto name (e.g., Bitcoin, Ethereum)"
+          },
+          isCrypto: {
+            type: "boolean",
+            description: "Whether this is a cryptocurrency (true) or stock (false)"
+          }
+        },
+        required: ["symbol", "isCrypto"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_financial_ratios",
+      description: "Get fundamental financial ratios for a stock (P/E, ROE, debt-to-equity, etc.) from Valyu.ai",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
+          }
+        },
+        required: ["symbol"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_earnings_data",
+      description: "Get recent earnings data (EPS, revenue, surprises) for a stock",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string", 
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
+          }
+        },
+        required: ["symbol"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_insider_transactions",
+      description: "Get recent insider trading activity (buys/sells by executives)",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
+          }
+        },
+        required: ["symbol"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_additional_news",
+      description: "Get additional news headlines from NewsAPI for broader market context",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query for news (e.g., 'Apple earnings', 'tech sector')"
+          }
+        },
+        required: ["query"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_market_quote",
+      description: "Get real-time stock quote data from Finnhub",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
+          }
+        },
+        required: ["symbol"]
+      }
+    }
+  }
+];
+
+async function executeToolCall(name: string, args: Record<string, unknown>): Promise<string> {
+  try {
+    switch (name) {
+      case "get_news_sentiment": {
+        const symbol = args.symbol as string;
+        const isCrypto = args.isCrypto as boolean;
+        if (isCrypto) {
+          const sentiment = await gdelt.getCryptoSentiment(symbol);
+          return JSON.stringify({
+            sentiment: sentiment.sentiment,
+            articleCount: sentiment.articleCount,
+            averageTone: sentiment.averageTone,
+            volumeSpike: sentiment.volumeSpike,
+            topHeadlines: sentiment.topHeadlines.slice(0, 3)
+          });
+        } else {
+          const articles = await gdelt.searchArticles(`${symbol} stock`, { timespan: "24hours", maxRecords: 20 });
+          const tone = await gdelt.getToneTimeline(`${symbol} stock`, "24hours");
+          const sentiment = tone.averageTone > 2 ? "bullish" : tone.averageTone < -2 ? "bearish" : "neutral";
+          return JSON.stringify({
+            sentiment,
+            articleCount: articles.totalResults,
+            averageTone: tone.averageTone,
+            volumeSpike: false,
+            topHeadlines: articles.articles.slice(0, 3).map(a => a.title)
+          });
+        }
+      }
+      case "get_financial_ratios": {
+        const ratios = await valyu.getFinancialRatios(args.symbol as string);
+        return JSON.stringify({
+          peRatio: ratios.peRatio,
+          roe: ratios.roe,
+          debtToEquity: ratios.debtToEquity,
+          hasData: !!ratios.rawData
+        });
+      }
+      case "get_earnings_data": {
+        const earnings = await valyu.getEarnings(args.symbol as string);
+        return JSON.stringify({
+          eps: earnings.eps,
+          revenue: earnings.revenue,
+          hasData: !!earnings.rawData
+        });
+      }
+      case "get_insider_transactions": {
+        const insider = await valyu.getInsiderTransactions(args.symbol as string);
+        const buys = insider.transactions.filter(t => t.transactionType === "buy");
+        const sells = insider.transactions.filter(t => t.transactionType === "sell");
+        return JSON.stringify({
+          recentBuys: buys.length,
+          recentSells: sells.length,
+          netInsiderSentiment: insider.netInsiderSentiment,
+          totalBuyValue: insider.totalBuyValue,
+          totalSellValue: insider.totalSellValue
+        });
+      }
+      case "get_additional_news": {
+        const news = await newsapi.searchNews(args.query as string, "relevancy", 5);
+        return JSON.stringify({
+          articles: news.slice(0, 3).map(a => ({
+            title: a.title,
+            source: a.source
+          })),
+          totalResults: news.length
+        });
+      }
+      case "get_market_quote": {
+        const quote = await finnhub.getQuote(args.symbol as string);
+        return JSON.stringify({
+          currentPrice: quote.c,
+          change: quote.d,
+          changePercent: quote.dp,
+          high: quote.h,
+          low: quote.l,
+          open: quote.o,
+          previousClose: quote.pc
+        });
+      }
+      default:
+        return JSON.stringify({ error: `Unknown tool: ${name}` });
+    }
+  } catch (error) {
+    log.warn("AI", `Tool call failed: ${name}`, { error: String(error) });
+    return JSON.stringify({ error: `Failed to fetch data: ${(error as Error).message}` });
+  }
+}
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -176,6 +377,101 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
     } catch (error) {
       log.error("AI", "OpenRouter failed", { error: (error as Error).message });
       return this.getDefaultDecision("OpenRouter analysis failed");
+    }
+  }
+
+  async analyzeWithFunctionCalling(
+    symbol: string,
+    marketData: MarketData,
+    newsContext?: NewsContext,
+    strategy?: StrategyContext
+  ): Promise<AIDecision & { toolsUsed?: string[] }> {
+    const systemPrompt = `You are an expert trading analyst AI assistant for a paper trading application.
+
+You have access to tools to query real-time market data, news sentiment, financial ratios, earnings, and insider trading activity. Use these tools when you need additional information to make a better trading decision.
+
+After gathering the data you need, provide your final recommendation as a valid JSON object with these fields:
+- action: "buy", "sell", or "hold"
+- confidence: number between 0 and 1
+- reasoning: explanation of your decision including data sources used
+- riskLevel: "low", "medium", or "high"
+- suggestedQuantity: optional position size (0.01-0.25)
+- targetPrice: optional take-profit target
+- stopLoss: optional stop-loss level
+
+This is for PAPER TRADING only. Be decisive but conservative.`;
+
+    const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
+    const toolsUsed: string[] = [];
+
+    try {
+      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ];
+
+      let response = await openai.chat.completions.create({
+        model: MODEL,
+        messages,
+        tools: DATA_QUERY_TOOLS,
+        tool_choice: "auto",
+        max_completion_tokens: 2048,
+      });
+
+      let iterations = 0;
+      const maxIterations = 3;
+
+      while (response.choices[0]?.message?.tool_calls && iterations < maxIterations) {
+        const toolCalls = response.choices[0].message.tool_calls;
+        messages.push(response.choices[0].message);
+
+        for (const toolCall of toolCalls) {
+          const args = JSON.parse(toolCall.function.arguments);
+          log.debug("AI", `Function call: ${toolCall.function.name}`, { args });
+          toolsUsed.push(toolCall.function.name);
+
+          const result = await executeToolCall(toolCall.function.name, args);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: result,
+          });
+        }
+
+        response = await openai.chat.completions.create({
+          model: MODEL,
+          messages,
+          tools: DATA_QUERY_TOOLS,
+          tool_choice: "auto",
+          max_completion_tokens: 2048,
+        });
+
+        iterations++;
+      }
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        log.warn("AI", "Empty response from function-calling analysis");
+        return { ...this.getDefaultDecision("Empty response"), toolsUsed };
+      }
+
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        log.warn("AI", "No JSON found in function-calling response");
+        return { ...this.getDefaultDecision("No JSON in response"), toolsUsed };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as AIDecision;
+      log.info("AI", `Function-calling analysis complete`, { 
+        symbol, 
+        action: parsed.action, 
+        toolsUsed: toolsUsed.length 
+      });
+      
+      return { ...this.validateDecision(parsed), toolsUsed };
+    } catch (error) {
+      log.error("AI", "Function-calling analysis failed", { error: (error as Error).message });
+      return { ...await this.analyzeOpportunity(symbol, marketData, newsContext, strategy), toolsUsed };
     }
   }
 

@@ -441,7 +441,23 @@ class GdeltConnector {
   }
 
   async getCryptoSentiment(cryptoName: string): Promise<GdeltSentimentAnalysis> {
-    const query = `${cryptoName} cryptocurrency OR ${cryptoName} crypto`;
+    const cryptoNameMap: Record<string, string> = {
+      BTC: "Bitcoin",
+      ETH: "Ethereum", 
+      SOL: "Solana",
+      XRP: "Ripple",
+      DOGE: "Dogecoin",
+      ADA: "Cardano",
+      DOT: "Polkadot",
+      LINK: "Chainlink",
+      AVAX: "Avalanche",
+      MATIC: "Polygon",
+      LTC: "Litecoin",
+      SHIB: "Shiba",
+    };
+    
+    const fullName = cryptoNameMap[cryptoName.toUpperCase()] || cryptoName;
+    const query = `${fullName} cryptocurrency`;
     
     const cacheKey = `crypto_sentiment_${cryptoName}`;
     const cached = this.sentimentCache.get(cacheKey);

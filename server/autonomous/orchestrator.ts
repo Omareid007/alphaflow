@@ -159,8 +159,15 @@ const DEFAULT_RISK_LIMITS: RiskLimits = {
 };
 
 const WATCHLIST = {
-  stocks: ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA"],
-  crypto: ["BTC", "ETH", "SOL"],
+  stocks: [
+    "AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA",
+    "JPM", "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD",
+    "CVX", "ABBV", "MRK", "KO", "PEP", "COST", "TMO", "AVGO",
+    "ORCL", "ACN", "MCD", "CSCO", "ABT", "DHR", "NKE", "TXN",
+    "NEE", "PM", "UPS", "LIN", "RTX", "HON", "QCOM", "COP",
+    "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
+  ],
+  crypto: ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "DOT", "LINK", "AVAX", "MATIC", "LTC"],
 };
 
 function isCryptoSymbol(symbol: string): boolean {
