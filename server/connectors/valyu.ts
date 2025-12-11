@@ -16,7 +16,7 @@
 import { ApiCache } from "../lib/api-cache";
 import { log } from "../utils/logger";
 
-const VALYU_BASE_URL = "https://api.valyu.network/v1";
+const VALYU_BASE_URL = "https://api.valyu.ai/v1";
 
 export interface ValyuSearchResult {
   url: string;
@@ -225,7 +225,7 @@ class ValyuConnector {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          "x-api-key": apiKey,
         },
         body: JSON.stringify(body),
       });
