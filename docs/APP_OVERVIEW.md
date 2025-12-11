@@ -673,17 +673,24 @@ npm run db:push
 
 | Document | Location | Purpose |
 |----------|----------|---------|
-| replit.md | `/replit.md` | Project context and architecture |
+| **Agent Execution Guide** | `docs/AGENT_EXECUTION_GUIDE.md` | How AI agents must operate in this repo |
+| **Financial Metrics** | `docs/FINANCIAL_METRICS.md` | P&L formulas, calculations, business logic |
+| **Architecture** | `docs/ARCHITECTURE.md` | System design, data flows, integrations |
+| **Testing** | `docs/TESTING.md` | Test strategy, commands, scenarios |
+| replit.md | `/replit.md` | Project context and environment |
 | Design Guidelines | `/design_guidelines.md` | UI/UX standards |
+
+> **For AI Agents:** Before making any changes, you MUST read `docs/AGENT_EXECUTION_GUIDE.md` first. It defines the mandatory workflow for all tasks.
 
 ### Architecture Decisions
 
-Key decisions are documented inline in `replit.md`:
+Key decisions are documented in `docs/ARCHITECTURE.md` and `replit.md`:
 
 - **Monorepo structure:** Simplifies type sharing
 - **Schema-first development:** Single source of truth in shared/schema.ts
 - **Adapter pattern:** Swappable data providers
 - **Paper trading only:** MVP safety, real trading disabled
+- **Layered architecture:** Presentation → API → Domain → Data Access
 
 ---
 
