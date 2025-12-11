@@ -1,0 +1,102 @@
+Now that all clarifications are answered, proceed with the following task.
+
+ROLE & CONTEXT
+- Before doing anything, open and strictly follow:
+  - docs/AGENT_EXECUTION_GUIDE.md
+  - docs/APP_OVERVIEW.md
+
+- Act in combined roles:
+  - Software Architect
+  - Financial Engineer
+  - Full-Stack Engineer
+  - QA Engineer (Automation + Manual)
+  - Technical Writer
+
+GOAL
+Create and fully populate the following documentation files based on the actual codebase:
+
+- docs/FINANCIAL_METRICS.md
+- docs/ARCHITECTURE.md
+- docs/TESTING.md
+
+You may use any existing templates inside those files; if they do not exist, create them with a structure similar to:
+
+- FINANCIAL_METRICS.md → Financial metric definitions, formulas, data sources, UI mapping, edge cases, and tests.
+- ARCHITECTURE.md → System context, containers, tech stack, code layout, key flows, cross-cutting concerns.
+- TESTING.md → Test types, tools, structure, commands, coverage matrix, fixtures, manual QA scenarios.
+
+STEP 1 – FINANCIAL_METRICS.md
+1. Locate all logic related to:
+   - P&L (realized, unrealized, total, daily)
+   - Equity, cash, buying power, portfolio value
+   - Any performance or analytics metrics exposed by the backend and used in the UI.
+2. Document for each metric:
+   - Name & plain-English definition.
+   - Exact formula (conceptual + pseudo code if useful).
+   - Data sources:
+     - Broker endpoints (e.g. Alpaca)
+     - Local DB tables / fields
+     - Any intermediate calculation helpers.
+   - One small numeric example for key metrics (especially Total P&L).
+3. Add a metric→UI mapping table:
+   - Widget/Screen → Metric(s) → API/Function.
+4. If you discover inconsistencies between implementation and definitions:
+   - Prefer fixing the implementation (with tests) to match a correct definition,
+   - Then document the final behaviour.
+
+STEP 2 – ARCHITECTURE.md
+1. Infer actual architecture from:
+   - Folder structure
+   - Main entrypoints (frontend & backend)
+   - Data access modules
+   - External integrations (broker, market data, AI, etc.)
+2. Document:
+   - A short “What this system is and does” description.
+   - A Mermaid **context diagram** (User, Client, Backend, DB, Broker, AI, etc.).
+   - A Mermaid **container diagram** (Frontend, API, Orchestrator, DB, Integrations).
+   - Tech stack: runtimes, frameworks, DB, key libraries.
+   - Codebase layout: main folders and responsibilities.
+   - At least one **key flow** as a sequence diagram (e.g. place trade → broker → DB → analytics → UI).
+3. Ensure the doc:
+   - Uses the real technologies and paths from the repository.
+   - Matches the current implementation, not an imaginary future design.
+
+STEP 3 – TESTING.md
+1. Analyse current testing situation:
+   - Which test frameworks are present (e.g. Jest/Vitest/pytest).
+   - Where tests live (tests/, __tests__/, co-located).
+   - What scripts exist in package.json or equivalent.
+2. Document:
+   - Test levels used (unit/integration/E2E – only if they actually exist).
+   - Exact commands to run tests in this repo (ensure they work, or fix them).
+   - The test directory structure.
+   - A coverage matrix for the most critical flows (P&L, order placement, orchestrator, auth, dashboard metrics, etc.).
+   - At least 2–3 manual QA scenarios for core trading & P&L flows.
+3. If critical logic (e.g. P&L helpers) currently lacks tests:
+   - Add minimal but solid unit tests for these functions.
+   - Hook them into the existing test scripts.
+   - Reflect this in the coverage matrix.
+
+STEP 4 – CROSS-LINKING DOCS
+- In docs/APP_OVERVIEW.md, add a short section that links to:
+  - docs/AGENT_EXECUTION_GUIDE.md
+  - docs/FINANCIAL_METRICS.md
+  - docs/ARCHITECTURE.md
+  - docs/TESTING.md
+- Ensure each of the three docs clearly references APP_OVERVIEW.md as the high-level entrypoint, where relevant.
+
+SAFETY & SCOPE
+- Do not add any destructive operations (no DB drops, no schema wipes).
+- Do not expose or log secrets.
+- Prefer small, focused refactors over large rewrites.
+- Only adjust code/tests where necessary to make documentation truthful and to add missing test coverage for critical paths.
+
+FINAL RESPONSE
+When you are done, your response MUST include:
+
+1. A bullet list of what you changed:
+   - Per document (FINANCIAL_METRICS, ARCHITECTURE, TESTING)
+   - Any supporting code/test changes.
+2. A list of all files created or modified (paths).
+3. Test commands you ran (or should be run) and expected outcomes.
+4. Any known limitations or TODOs for future work.
