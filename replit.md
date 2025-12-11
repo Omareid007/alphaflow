@@ -76,3 +76,9 @@ Preferred communication style: Simple, everyday language.
 - **API Response**: Added `realizedPnl` field to `/api/analytics/summary` for transparency
 - **Key Files Modified**: `server/routes.ts`, `client/screens/DashboardScreen.tsx`, `client/screens/AnalyticsScreen.tsx`
 - **Reference**: See `docs/FINANCIAL_METRICS.md` Section 8.2 for API response format
+
+### Analytics Screen P&L Breakdown Enhancement (December 11, 2025)
+- **Enhanced Metrics Display**: Analytics screen PerformanceMetrics now shows 4 cards: Total P&L, Realized, Unrealized, Win Rate
+- **Subtitles Added**: "Realized" shows subtitle "Closed trades", "Unrealized" shows subtitle "Open positions"
+- **Transparency Improvement**: Users can now see the breakdown of their P&L from closed trades vs open positions
+- **Files Modified**: `client/screens/AnalyticsScreen.tsx` (added metricSubtitle style, updated metrics array)

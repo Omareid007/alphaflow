@@ -122,31 +122,34 @@ function PerformanceMetrics() {
   }
 
   const totalPnl = parseFloat(summary?.totalPnl ?? "0");
+  const realizedPnl = parseFloat(summary?.realizedPnl ?? "0");
+  const unrealizedPnl = parseFloat(summary?.unrealizedPnl ?? "0");
   const winRate = parseFloat(summary?.winRate ?? "0");
-  const avgTrade = summary?.totalTrades && summary.totalTrades > 0 
-    ? totalPnl / summary.totalTrades 
-    : 0;
 
   const metrics = [
     { 
       label: "Total P&L", 
       value: formatCurrency(totalPnl), 
-      isPositive: totalPnl >= 0 
+      isPositive: totalPnl >= 0,
+      subtitle: null
+    },
+    { 
+      label: "Realized", 
+      value: formatCurrency(realizedPnl), 
+      isPositive: realizedPnl >= 0,
+      subtitle: "Closed trades"
+    },
+    { 
+      label: "Unrealized", 
+      value: formatCurrency(unrealizedPnl), 
+      isPositive: unrealizedPnl >= 0,
+      subtitle: "Open positions"
     },
     { 
       label: "Win Rate", 
       value: `${winRate.toFixed(1)}%`, 
-      isPositive: null 
-    },
-    { 
-      label: "Total Trades", 
-      value: String(summary?.totalTrades ?? 0), 
-      isPositive: null 
-    },
-    { 
-      label: "Avg Trade", 
-      value: formatCurrency(avgTrade), 
-      isPositive: avgTrade >= 0 
+      isPositive: null,
+      subtitle: null
     },
   ];
 
@@ -165,6 +168,11 @@ function PerformanceMetrics() {
           >
             {metric.value}
           </ThemedText>
+          {metric.subtitle ? (
+            <ThemedText style={[styles.metricSubtitle, { color: theme.textSecondary, opacity: 0.7 }]}>
+              {metric.subtitle}
+            </ThemedText>
+          ) : null}
         </Card>
       ))}
     </View>
@@ -739,6 +747,10 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     ...Typography.h2,
+  },
+  metricSubtitle: {
+    ...Typography.caption,
+    marginTop: 2,
   },
   chartCard: {
     borderWidth: 1,
