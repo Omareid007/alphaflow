@@ -1240,13 +1240,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Failed to fetch Alpaca positions for analytics:", e);
       }
 
-      const closedTrades = trades.filter(t => {
+      // Only consider SELL trades as closed trades (they close positions)
+      const sellTrades = trades.filter(t => t.side === "sell");
+      
+      // Filter sell trades that have valid PnL values
+      const closedTrades = sellTrades.filter(t => {
         if (t.pnl === null || t.pnl === undefined) return false;
         const pnlStr = String(t.pnl).trim();
         if (pnlStr === "") return false;
         const pnlValue = parseFloat(pnlStr);
         return Number.isFinite(pnlValue);
       });
+      
       const winningTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
       const losingTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
       const totalPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
