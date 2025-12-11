@@ -16,6 +16,7 @@
 7. [Orchestrator Architecture](#7-orchestrator-architecture)
 8. [Security Architecture](#8-security-architecture)
 9. [Deployment Architecture](#9-deployment-architecture)
+10. [Observability Architecture](#10-observability-architecture)
 
 ---
 
@@ -640,6 +641,87 @@ interface RiskLimits {
 
 ---
 
+## 10. Observability Architecture
+
+### 10.1 Logging Infrastructure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    LOGGING SYSTEM                            │
+│                                                              │
+│  ┌────────────────────┐    ┌────────────────────┐          │
+│  │   Request Logger   │    │   Cycle Logger     │          │
+│  │   (Middleware)     │    │   (Orchestrator)   │          │
+│  └─────────┬──────────┘    └─────────┬──────────┘          │
+│            │                         │                      │
+│            └───────────┬─────────────┘                      │
+│                        │                                    │
+│                        ▼                                    │
+│            ┌────────────────────────┐                       │
+│            │   Centralized Logger   │                       │
+│            │   server/utils/logger  │                       │
+│            └───────────┬────────────┘                       │
+│                        │                                    │
+│            ┌───────────┴───────────┐                        │
+│            │                       │                        │
+│            ▼                       ▼                        │
+│  ┌─────────────────┐    ┌─────────────────┐                │
+│  │  Console Output │    │  In-Memory      │                │
+│  │  (stdout/stderr)│    │  Buffer (2000)  │                │
+│  └─────────────────┘    └─────────────────┘                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 10.2 Correlation ID Flow
+
+```
+┌──────────┐     ┌──────────────┐     ┌──────────────────┐
+│  Client  │────▶│ Request ID   │────▶│ API Handler      │
+│  Request │     │ Middleware   │     │ (with requestId) │
+└──────────┘     └──────────────┘     └────────┬─────────┘
+                                               │
+                       ┌───────────────────────┘
+                       ▼
+              ┌─────────────────┐
+              │ All log entries │
+              │ include same    │
+              │ requestId       │
+              └─────────────────┘
+```
+
+### 10.3 Log Categories
+
+| Category | Symbol | Component |
+|----------|--------|-----------|
+| TRADE | Trade operations | Orchestrator, Trade Execution |
+| STRATEGY | Strategy signals | Strategy Evaluation |
+| MARKET | Market data | Connectors (Alpaca, Finnhub) |
+| AI | AI decisions | OpenAI Integration |
+| CONNECTOR | External APIs | All external services |
+| SYSTEM | Server lifecycle | Express, Startup/Shutdown |
+
+### 10.4 Log Access API
+
+```
+GET /api/logs
+├── ?limit=100      # Number of entries
+├── ?level=error    # Minimum level filter
+└── Response: LogEntry[]
+
+LogEntry {
+  timestamp: ISO 8601
+  level: debug|info|warn|error|critical
+  category: TRADE|STRATEGY|MARKET|AI|CONNECTOR|SYSTEM
+  requestId?: string
+  message: string
+  data?: object
+}
+```
+
+See [OBSERVABILITY.md](./OBSERVABILITY.md) for complete logging documentation.
+
+---
+
 ## Architectural Decisions Log
 
 | Date | Decision | Rationale |
@@ -650,6 +732,7 @@ interface RiskLimits {
 | 2024 | Paper trading only | MVP validation without financial risk |
 | 2024 | Alpaca as primary | Best paper trading API, supports stocks + crypto |
 | 2024 | OpenAI + fallback | Reliable AI with OpenRouter as backup |
+| 2024 | Centralized logger | Production readiness with correlation IDs |
 
 ---
 
