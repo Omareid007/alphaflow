@@ -133,3 +133,26 @@ Preferred communication style: Simple, everyday language.
 **React Navigation v7**: Native stack and bottom tab navigators with platform-optimized transitions
 - **Rationale**: Best-in-class navigation for React Native with native feel
 - **Features**: Header blur effects, gesture controls, safe area handling
+
+### Testing Infrastructure
+
+**Unit Tests**: Vitest for server-side testing
+- Configuration: `vitest.config.ts` at project root
+- Test files: `*.test.ts` pattern
+- Run tests: `npx vitest run`
+- Current coverage: 39 tests for numeric utilities and P&L calculations
+- Test location: `server/utils/numeric.test.ts`
+
+**E2E Tests**: Playwright via `run_test` tool
+- Human-executable scenarios documented in `docs/TESTING.md`
+- Mobile viewport: 402x874 pixels
+
+### Documentation Structure
+
+| Document | Purpose |
+|----------|---------|
+| `docs/APP_OVERVIEW.md` | Canonical entry point, complete system documentation |
+| `docs/AGENT_EXECUTION_GUIDE.md` | AI agent governance and execution workflow |
+| `docs/FINANCIAL_METRICS.md` | P&L formulas, metric→UI mapping |
+| `docs/ARCHITECTURE.md` | Mermaid diagrams, data flows, integrations |
+| `docs/TESTING.md` | Test strategy, commands, scenarios |
