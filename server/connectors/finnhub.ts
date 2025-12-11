@@ -1,4 +1,5 @@
 import { ApiCache } from "../lib/api-cache";
+import { log } from "../utils/logger";
 
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
@@ -95,7 +96,7 @@ class FinnhubConnector {
     
     if (now < this.rateLimitedUntil) {
       const waitTime = this.rateLimitedUntil - now;
-      console.log(`[Finnhub] Rate limited, waiting ${waitTime}ms...`);
+      log.warn("Finnhub", `Rate limited, waiting ${waitTime}ms`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
     
@@ -120,7 +121,7 @@ class FinnhubConnector {
     if (!apiKey) {
       const stale = cache.getStale(cacheKey);
       if (stale) {
-        console.log(`[Finnhub] No API key, serving stale data for ${cacheKey}`);
+        log.debug("Finnhub", `No API key, serving stale data for ${cacheKey}`);
         return stale;
       }
       throw new Error("FINNHUB_API_KEY is not configured");
@@ -136,7 +137,7 @@ class FinnhubConnector {
         this.pendingRefreshes.add(cacheKey);
         this.backgroundRefresh(url, cacheKey, cache, retries);
       }
-      console.log(`[Finnhub] Serving stale data for ${cacheKey}, refreshing in background`);
+      log.debug("Finnhub", `Serving stale data for ${cacheKey}, refreshing in background`);
       return cached.data;
     }
 
@@ -152,7 +153,7 @@ class FinnhubConnector {
     try {
       await this.doFetch(url, cacheKey, cache, retries);
     } catch (error) {
-      console.log(`[Finnhub] Background refresh failed for ${cacheKey}`);
+      log.warn("Finnhub", `Background refresh failed for ${cacheKey}`);
     } finally {
       this.pendingRefreshes.delete(cacheKey);
     }
@@ -183,12 +184,12 @@ class FinnhubConnector {
           
           const stale = cache.getStale(cacheKey);
           if (stale) {
-            console.log(`[Finnhub] Rate limited, serving stale data for ${cacheKey}`);
+            log.debug("Finnhub", `Rate limited, serving stale data for ${cacheKey}`);
             return stale;
           }
           
           const waitTime = Math.pow(2, i) * 1000;
-          console.log(`[Finnhub] Rate limited, waiting ${waitTime}ms...`);
+          log.warn("Finnhub", `Rate limited, waiting ${waitTime}ms`);
           await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         }
@@ -203,7 +204,7 @@ class FinnhubConnector {
       } catch (error) {
         const stale = cache.getStale(cacheKey);
         if (stale && i === retries - 1) {
-          console.log(`[Finnhub] Error fetching, serving stale data for ${cacheKey}`);
+          log.debug("Finnhub", `Error fetching, serving stale data for ${cacheKey}`);
           return stale;
         }
         if (i === retries - 1) throw error;
@@ -263,7 +264,7 @@ class FinnhubConnector {
           quotes.set(symbol, quote);
         }
       } catch (error) {
-        console.error(`Failed to fetch quote for ${symbol}:`, error);
+        log.error("Finnhub", `Failed to fetch quote for ${symbol}`, { error: String(error) });
       }
     }
     

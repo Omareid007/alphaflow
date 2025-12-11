@@ -10,7 +10,7 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
-import { useWizard, AIValidationResult } from "./index";
+import { useWizard, AIValidationResult } from "./context";
 import { apiRequest } from "@/lib/query-client";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 

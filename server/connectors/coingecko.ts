@@ -1,4 +1,5 @@
 import { ApiCache } from "../lib/api-cache";
+import { log } from "../utils/logger";
 
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 
@@ -115,7 +116,7 @@ class CoinGeckoConnector {
     
     if (now < this.rateLimitedUntil) {
       const waitTime = this.rateLimitedUntil - now;
-      console.log(`[CoinGecko] Rate limited, waiting ${waitTime}ms...`);
+      log.warn("CoinGecko", `Rate limited, waiting ${waitTime}ms`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
     
@@ -146,7 +147,7 @@ class CoinGeckoConnector {
         this.pendingRefreshes.add(cacheKey);
         this.backgroundRefresh(url, cacheKey, cache, retries);
       }
-      console.log(`[CoinGecko] Serving stale data for ${cacheKey}, refreshing in background`);
+      log.debug("CoinGecko", `Serving stale data for ${cacheKey}, refreshing in background`);
       return cached.data;
     }
 
@@ -162,7 +163,7 @@ class CoinGeckoConnector {
     try {
       await this.doFetch(url, cacheKey, cache, retries);
     } catch (error) {
-      console.log(`[CoinGecko] Background refresh failed for ${cacheKey}`);
+      log.warn("CoinGecko", `Background refresh failed for ${cacheKey}`);
     } finally {
       this.pendingRefreshes.delete(cacheKey);
     }
@@ -195,12 +196,12 @@ class CoinGeckoConnector {
           
           const stale = cache.getStale(cacheKey);
           if (stale) {
-            console.log(`[CoinGecko] Rate limited, serving stale data for ${cacheKey}`);
+            log.debug("CoinGecko", `Rate limited, serving stale data for ${cacheKey}`);
             return stale;
           }
           
           const waitTime = Math.pow(2, i) * 1000;
-          console.log(`[CoinGecko] Rate limited, waiting ${waitTime}ms...`);
+          log.warn("CoinGecko", `Rate limited, waiting ${waitTime}ms`);
           await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         }
@@ -215,7 +216,7 @@ class CoinGeckoConnector {
       } catch (error) {
         const stale = cache.getStale(cacheKey);
         if (stale && i === retries - 1) {
-          console.log(`[CoinGecko] Error fetching, serving stale data for ${cacheKey}`);
+          log.debug("CoinGecko", `Error fetching, serving stale data for ${cacheKey}`);
           return stale;
         }
         if (i === retries - 1) throw error;

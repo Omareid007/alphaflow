@@ -1,3 +1,5 @@
+import { log } from "../utils/logger";
+
 const ALPACA_PAPER_URL = "https://paper-api.alpaca.markets";
 const ALPACA_DATA_URL = "https://data.alpaca.markets";
 
@@ -253,7 +255,7 @@ class AlpacaConnector {
 
         if (response.status === 429) {
           const waitTime = Math.pow(2, i) * 1000;
-          console.log(`Alpaca rate limited, waiting ${waitTime}ms...`);
+          log.warn("Alpaca", `Rate limited, waiting ${waitTime}ms`);
           await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         }
@@ -345,7 +347,7 @@ class AlpacaConnector {
       orderParams.limit_price = params.limit_price;
     }
 
-    console.log(`[Alpaca] Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}`);
+    log.debug("Alpaca", `Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}`);
     return this.createOrder(orderParams);
   }
 
@@ -366,7 +368,7 @@ class AlpacaConnector {
       orderParams.trail_percent = "2";
     }
 
-    console.log(`[Alpaca] Creating trailing stop order for ${params.symbol}: trail=${params.trail_percent || params.trail_price}`);
+    log.debug("Alpaca", `Creating trailing stop order for ${params.symbol}: trail=${params.trail_percent || params.trail_price}`);
     return this.createOrder(orderParams);
   }
 
@@ -389,7 +391,7 @@ class AlpacaConnector {
       orderParams.limit_price = limitPrice;
     }
 
-    console.log(`[Alpaca] Creating stop loss order for ${symbol} at $${stopPrice}`);
+    log.debug("Alpaca", `Creating stop loss order for ${symbol} at $${stopPrice}`);
     return this.createOrder(orderParams);
   }
 
@@ -407,7 +409,7 @@ class AlpacaConnector {
       limit_price: limitPrice,
     };
 
-    console.log(`[Alpaca] Creating take profit order for ${symbol} at $${limitPrice}`);
+    log.debug("Alpaca", `Creating take profit order for ${symbol} at $${limitPrice}`);
     return this.createOrder(orderParams);
   }
 

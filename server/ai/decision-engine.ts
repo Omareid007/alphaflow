@@ -2,8 +2,9 @@ import OpenAI from "openai";
 import pLimit from "p-limit";
 import pRetry from "p-retry";
 import { openRouterProvider } from "./openrouter-provider";
+import { log } from "../utils/logger";
 
-const MODEL = "gpt-5";
+const MODEL = "gpt-4o-mini";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -115,7 +116,7 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
 
             const content = response.choices[0]?.message?.content;
             if (!content) {
-              console.warn(`[AI] Empty response from AI for analysis, trying OpenRouter fallback`);
+              log.warn("AI", "Empty response from AI for analysis, trying OpenRouter fallback");
               if (openRouterProvider.isAvailable()) {
                 return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
               }
@@ -130,7 +131,7 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
             
             // Check for empty response or parse errors - use fallback instead of throwing
             if (errorMsg.includes("Empty response") || errorMsg.includes("JSON")) {
-              console.warn(`[AI] Parse/empty error, trying OpenRouter fallback: ${errorMsg}`);
+              log.warn("AI", "Parse/empty error, trying OpenRouter fallback", { error: errorMsg });
               if (openRouterProvider.isAvailable()) {
                 return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
               }
@@ -139,10 +140,10 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
             
             if (isRateLimitOrQuotaError(error)) {
               openAIFailureCount++;
-              console.log(`[AI] OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}: ${errorMsg}`);
+              log.warn("AI", `OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}`, { error: errorMsg });
               
               if (openAIFailureCount >= MAX_OPENAI_FAILURES && openRouterProvider.isAvailable()) {
-                console.log("[AI] Switching to OpenRouter fallback");
+                log.info("AI", "Switching to OpenRouter fallback");
                 useOpenRouterFallback = true;
                 return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
               }
@@ -169,11 +170,11 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
   ): Promise<AIDecision> {
     try {
       const { content, model } = await openRouterProvider.chat(systemPrompt, userPrompt);
-      console.log(`[AI] OpenRouter response from ${model}`);
+      log.info("AI", `OpenRouter response from ${model}`);
       const parsed = JSON.parse(content) as AIDecision;
       return this.validateDecision(parsed);
     } catch (error) {
-      console.error("[AI] OpenRouter failed:", (error as Error).message);
+      log.error("AI", "OpenRouter failed", { error: (error as Error).message });
       return this.getDefaultDecision("OpenRouter analysis failed");
     }
   }
@@ -301,7 +302,7 @@ Symbol: ${symbol}
         );
         results.set(opp.symbol, decision);
       } catch (error) {
-        console.error(`Failed to analyze ${opp.symbol}:`, error);
+        log.error("AI", `Failed to analyze ${opp.symbol}`, { error: String(error) });
         results.set(opp.symbol, this.getDefaultDecision(`Analysis failed for ${opp.symbol}`));
       }
     });
@@ -325,12 +326,12 @@ Symbol: ${symbol}
   resetToOpenAI() {
     useOpenRouterFallback = false;
     openAIFailureCount = 0;
-    console.log("[AI] Reset to OpenAI primary");
+    log.info("AI", "Reset to OpenAI primary");
   }
 
   forceOpenRouter() {
     useOpenRouterFallback = true;
-    console.log("[AI] Forced OpenRouter mode");
+    log.info("AI", "Forced OpenRouter mode");
   }
 }
 

@@ -1,4 +1,5 @@
 import { ApiCache } from "../lib/api-cache";
+import { log } from "../utils/logger";
 
 const CMC_BASE_URL = "https://pro-api.coinmarketcap.com";
 
@@ -183,7 +184,7 @@ class CoinMarketCapConnector {
     
     if (now < this.rateLimitedUntil) {
       const waitTime = this.rateLimitedUntil - now;
-      console.log(`[CMC] Rate limited, waiting ${waitTime}ms...`);
+      log.warn("CMC", `Rate limited, waiting ${waitTime}ms`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
     
@@ -209,7 +210,7 @@ class CoinMarketCapConnector {
     if (!apiKey) {
       const stale = cache.getStale(cacheKey);
       if (stale) {
-        console.log(`[CMC] No API key, serving stale data for ${cacheKey}`);
+        log.debug("CMC", `No API key, serving stale data for ${cacheKey}`);
         return stale;
       }
       throw new Error("COINMARKETCAP_API_KEY is not configured");
@@ -225,7 +226,7 @@ class CoinMarketCapConnector {
         this.pendingRefreshes.add(cacheKey);
         this.backgroundRefresh(url, cacheKey, cache, extractData, retries);
       }
-      console.log(`[CMC] Serving stale data for ${cacheKey}, refreshing in background`);
+      log.debug("CMC", `Serving stale data for ${cacheKey}, refreshing in background`);
       return cached.data;
     }
 
@@ -242,7 +243,7 @@ class CoinMarketCapConnector {
     try {
       await this.doFetch(url, cacheKey, cache, extractData, retries);
     } catch (error) {
-      console.log(`[CMC] Background refresh failed for ${cacheKey}`);
+      log.warn("CMC", `Background refresh failed for ${cacheKey}`);
     } finally {
       this.pendingRefreshes.delete(cacheKey);
     }
@@ -272,12 +273,12 @@ class CoinMarketCapConnector {
           
           const stale = cache.getStale(cacheKey);
           if (stale) {
-            console.log(`[CMC] Rate limited, serving stale data for ${cacheKey}`);
+            log.debug("CMC", `Rate limited, serving stale data for ${cacheKey}`);
             return stale;
           }
           
           const waitTime = Math.pow(2, i) * 1000;
-          console.log(`[CMC] Rate limited, waiting ${waitTime}ms...`);
+          log.warn("CMC", `Rate limited, waiting ${waitTime}ms`);
           await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         }
@@ -293,7 +294,7 @@ class CoinMarketCapConnector {
       } catch (error) {
         const stale = cache.getStale(cacheKey);
         if (stale && i === retries - 1) {
-          console.log(`[CMC] Error fetching, serving stale data for ${cacheKey}`);
+          log.debug("CMC", `Error fetching, serving stale data for ${cacheKey}`);
           return stale;
         }
         if (i === retries - 1) throw error;

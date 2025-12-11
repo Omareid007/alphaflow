@@ -10,7 +10,7 @@ import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/them
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
-import { useWizard } from "./index";
+import { useWizard } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "RiskDisclaimer">;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, Modal } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -490,11 +490,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     zIndex: 100,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    ...(Platform.OS === "web"
+      ? ({ boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.25)" } as any)
+      : {
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+        }),
   },
   modalOverlay: {
     flex: 1,

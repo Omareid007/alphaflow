@@ -9,7 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
-import { useWizard } from "./index";
+import { useWizard } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 const strategies = [

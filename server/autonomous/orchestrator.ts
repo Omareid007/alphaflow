@@ -10,6 +10,7 @@ import { log } from "../utils/logger";
 
 const FILL_POLL_INTERVAL_MS = 500;
 const FILL_TIMEOUT_MS = 30000;
+const STALE_ORDER_TIMEOUT_MS = 5 * 60 * 1000;
 
 interface OrderFillResult {
   order: AlpacaOrder | null;
@@ -55,6 +56,36 @@ async function waitForOrderFill(orderId: string): Promise<OrderFillResult> {
   } catch {
     return { order: null, timedOut: true, hasFillData: false, isFullyFilled: false };
   }
+}
+
+async function cancelStaleOrders(): Promise<number> {
+  let canceledCount = 0;
+  try {
+    const openOrders = await alpaca.getOrders("open", 100);
+    const now = Date.now();
+    
+    for (const order of openOrders) {
+      const createdAt = new Date(order.created_at).getTime();
+      const orderAge = now - createdAt;
+      
+      if (orderAge > STALE_ORDER_TIMEOUT_MS) {
+        try {
+          await alpaca.cancelOrder(order.id);
+          canceledCount++;
+          log.info("Orchestrator", `Canceled stale order ${order.id} for ${order.symbol} (age: ${Math.floor(orderAge / 1000)}s)`);
+        } catch (error) {
+          log.warn("Orchestrator", `Failed to cancel stale order ${order.id}`, { error: String(error) });
+        }
+      }
+    }
+    
+    if (canceledCount > 0) {
+      log.info("Orchestrator", `Canceled ${canceledCount} stale pending orders`);
+    }
+  } catch (error) {
+    log.error("Orchestrator", "Error checking for stale orders", { error: String(error) });
+  }
+  return canceledCount;
 }
 
 export interface OrchestratorConfig {
@@ -541,6 +572,11 @@ class AutonomousOrchestrator {
       if (this.riskLimits.killSwitchActive) {
         log.info("Orchestrator", "Kill switch active - skipping analysis");
         return;
+      }
+
+      const canceledOrderCount = await cancelStaleOrders();
+      if (canceledOrderCount > 0) {
+        log.info("Orchestrator", `Analysis cycle: cleaned up ${canceledOrderCount} stale pending orders`);
       }
 
       if (this.checkDailyLossLimit()) {

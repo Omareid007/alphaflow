@@ -9,7 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { useWizard } from "./index";
+import { useWizard } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "MARiskProfile">;

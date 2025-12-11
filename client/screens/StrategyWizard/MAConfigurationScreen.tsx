@@ -11,7 +11,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { useWizard, MovingAverageParameters } from "./index";
+import { useWizard, MovingAverageParameters } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "MAConfiguration">;

@@ -9,7 +9,7 @@ import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/them
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { useWizard, RangeParameters } from "./index";
+import { useWizard, RangeParameters } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
 
 type NavigationProp = NativeStackNavigationProp<StrategyWizardParamList, "Configuration">;

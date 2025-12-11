@@ -1,3 +1,5 @@
+import { log } from "../utils/logger";
+
 const NEWSAPI_BASE_URL = "https://newsapi.org/v2";
 
 export interface NewsArticle {
@@ -42,12 +44,15 @@ interface CacheEntry<T> {
 
 class NewsAPIConnector {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
-  private cacheDuration = 15 * 60 * 1000; // 15 minutes
-  private staleCacheDuration = 15 * 60 * 1000; // 15 minutes max stale (reduced from 1 hour)
+  private cacheDuration = 60 * 60 * 1000; // 60 minutes fresh cache
+  private staleCacheDuration = 24 * 60 * 60 * 1000; // 24 hours stale data (handles NewsAPI 100 req/day limit)
   private lastRequestTime = 0;
-  private minRequestInterval = 2000; // 2 seconds between requests
-  private rateLimitedUntil = 0; // Track when rate limit expires
-  private consecutiveRateLimitErrors = 0; // Only track rate limit errors, not network errors
+  private minRequestInterval = 3000; // 3 seconds between requests (increased from 2)
+  private rateLimitedUntil = 0;
+  private consecutiveRateLimitErrors = 0;
+  private circuitOpen = false;
+  private circuitOpenUntil = 0;
+  private readonly CIRCUIT_OPEN_DURATION = 15 * 60 * 1000; // 15 minutes
 
   private getApiKey(): string | undefined {
     return process.env.NEWS_API_KEY;
@@ -55,6 +60,22 @@ class NewsAPIConnector {
 
   private isRateLimited(): boolean {
     return Date.now() < this.rateLimitedUntil;
+  }
+
+  private isCircuitOpen(): boolean {
+    if (this.circuitOpen && Date.now() >= this.circuitOpenUntil) {
+      this.circuitOpen = false;
+      log.info("NewsAPI", "Circuit breaker closed, resuming requests");
+    }
+    return this.circuitOpen;
+  }
+
+  private openCircuit(reason: string): void {
+    this.circuitOpen = true;
+    this.circuitOpenUntil = Date.now() + this.CIRCUIT_OPEN_DURATION;
+    log.warn("NewsAPI", `Circuit breaker opened: ${reason}`, {
+      reopenAt: new Date(this.circuitOpenUntil).toISOString(),
+    });
   }
 
   private async throttle(): Promise<void> {
@@ -89,7 +110,7 @@ class NewsAPIConnector {
     return baseDelay + Math.random() * baseDelay * 0.25;
   }
 
-  private async fetchWithRetry<T>(url: string, cacheKey: string, retries = 3): Promise<T> {
+  private async fetchWithRetry<T>(url: string, cacheKey: string, retries = 2): Promise<T> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
       throw new Error("NEWS_API_KEY is not configured");
@@ -97,10 +118,19 @@ class NewsAPIConnector {
 
     const staleData = this.getCached<T>(cacheKey, true);
 
+    // Circuit breaker check - return stale data if open
+    if (this.isCircuitOpen()) {
+      if (staleData) {
+        log.debug("NewsAPI", `Circuit open, returning cached data for ${cacheKey}`);
+        return staleData;
+      }
+      throw new Error("NewsAPI circuit breaker is open");
+    }
+
     // If rate limited, return stale data immediately without making request
     if (this.isRateLimited()) {
       if (staleData) {
-        console.log(`NewsAPI: Rate limited, returning cached data for ${cacheKey}`);
+        log.debug("NewsAPI", `Rate limited, returning cached data for ${cacheKey}`);
         return staleData;
       }
       const remainingSecs = Math.ceil((this.rateLimitedUntil - Date.now()) / 1000);
@@ -122,14 +152,19 @@ class NewsAPIConnector {
 
         if (response.status === 429) {
           this.consecutiveRateLimitErrors++;
-          // Exponential backoff: 4, 8, 16 minutes based on consecutive rate limit errors
-          const backoffMinutes = Math.min(Math.pow(2, this.consecutiveRateLimitErrors + 1), 30);
+          // Exponential backoff: 8, 16, 32 minutes based on consecutive rate limit errors
+          const backoffMinutes = Math.min(Math.pow(2, this.consecutiveRateLimitErrors + 2), 60);
           const backoffTime = this.addJitter(backoffMinutes * 60 * 1000);
           this.rateLimitedUntil = Date.now() + backoffTime;
-          console.log(`NewsAPI rate limited (429), backing off for ${Math.ceil(backoffTime / 60000)} minutes`);
+          log.warn("NewsAPI", `Rate limited (429), backing off for ${Math.ceil(backoffTime / 60000)} minutes`);
+          
+          // Open circuit after 2 consecutive rate limits
+          if (this.consecutiveRateLimitErrors >= 2) {
+            this.openCircuit("Multiple consecutive rate limits");
+          }
           
           if (staleData) {
-            console.log(`NewsAPI: Returning cached data due to rate limit`);
+            log.debug("NewsAPI", "Returning cached data due to rate limit");
             return staleData;
           }
           
@@ -139,26 +174,29 @@ class NewsAPIConnector {
         }
 
         if (response.status === 426) {
-          console.log("NewsAPI: Free tier limitation hit (426)");
+          log.warn("NewsAPI", "Free tier limitation hit (426)");
+          this.openCircuit("Free tier limitation");
           if (staleData) return staleData;
           throw new Error("NewsAPI free tier limitation");
         }
 
         if (!response.ok) {
-          // Non-rate-limit errors don't trigger cooldown
           throw new Error(`NewsAPI error: ${response.status}`);
         }
 
-        // Success - reset rate limit counter
+        // Success - reset rate limit counter and close circuit
         this.consecutiveRateLimitErrors = 0;
+        if (this.circuitOpen) {
+          this.circuitOpen = false;
+          log.info("NewsAPI", "Circuit breaker closed after successful request");
+        }
         return response.json() as Promise<T>;
       } catch (error) {
-        // Only log, don't set cooldown for network errors
-        console.log(`NewsAPI fetch attempt ${i + 1} failed:`, (error as Error).message);
+        log.debug("NewsAPI", `Fetch attempt ${i + 1} failed`, { error: (error as Error).message });
         
         if (i === retries - 1) {
           if (staleData) {
-            console.log(`NewsAPI: Returning cached data after ${retries} failed attempts`);
+            log.debug("NewsAPI", `Returning cached data after ${retries} failed attempts`);
             return staleData;
           }
           throw error;
@@ -200,10 +238,9 @@ class NewsAPIConnector {
       this.setCache(cacheKey, response.articles);
       return response.articles;
     } catch (error) {
-      // Try stale data on any error
       const stale = this.getCached<NewsArticle[]>(cacheKey, true);
       if (stale) {
-        console.log(`NewsAPI: getTopHeadlines returning stale data due to error`);
+        log.debug("NewsAPI", "getTopHeadlines returning stale data due to error");
         return stale;
       }
       throw error;
@@ -233,7 +270,7 @@ class NewsAPIConnector {
     } catch (error) {
       const stale = this.getCached<NewsArticle[]>(cacheKey, true);
       if (stale) {
-        console.log(`NewsAPI: searchNews returning stale data due to error`);
+        log.debug("NewsAPI", "searchNews returning stale data due to error");
         return stale;
       }
       throw error;
@@ -281,7 +318,7 @@ class NewsAPIConnector {
     } catch (error) {
       const stale = this.getCached<NewsSource[]>(cacheKey, true);
       if (stale) {
-        console.log(`NewsAPI: getSources returning stale data due to error`);
+        log.debug("NewsAPI", "getSources returning stale data due to error");
         return stale;
       }
       throw error;
@@ -294,14 +331,18 @@ class NewsAPIConnector {
     cacheSize: number;
     isRateLimited: boolean;
     rateLimitExpiresIn: number;
+    isCircuitOpen: boolean;
+    circuitOpenExpiresIn: number;
   } {
     const now = Date.now();
     return {
-      connected: !!this.getApiKey(),
+      connected: !!this.getApiKey() && !this.isCircuitOpen(),
       hasApiKey: !!this.getApiKey(),
       cacheSize: this.cache.size,
       isRateLimited: this.isRateLimited(),
       rateLimitExpiresIn: Math.max(0, Math.ceil((this.rateLimitedUntil - now) / 1000)),
+      isCircuitOpen: this.isCircuitOpen(),
+      circuitOpenExpiresIn: Math.max(0, Math.ceil((this.circuitOpenUntil - now) / 1000)),
     };
   }
 
@@ -312,6 +353,9 @@ class NewsAPIConnector {
   resetRateLimit(): void {
     this.rateLimitedUntil = 0;
     this.consecutiveRateLimitErrors = 0;
+    this.circuitOpen = false;
+    this.circuitOpenUntil = 0;
+    log.info("NewsAPI", "Rate limit and circuit breaker reset");
   }
 }
 

@@ -10,6 +10,18 @@ The application features a sophisticated architecture supporting multiple tradin
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (December 2025)
+
+### Bug Fixes & Reliability Improvements
+- **AI Model Fix**: Changed invalid "gpt-5" model to "gpt-4o-mini" in decision-engine.ts - eliminates empty AI responses
+- **NewsAPI Circuit Breaker**: Extended cache times to 60min fresh / 24hr stale to handle 100 req/day limit
+- **Stale Order Cleanup**: Added cancelStaleOrders() function in orchestrator.ts - cancels orders older than 5 minutes to prevent rebalancing blocks
+
+### Code Quality
+- **Centralized Logging**: Migrated all connectors (finnhub, coingecko, alpaca, coinmarketcap, newsapi) and decision-engine from console.* to centralized log.* with correlation IDs
+- **Shadow Style Platform Handling**: Fixed deprecated shadow* props using Platform.OS checks (boxShadow on web, shadow* on native)
+- **StrategyWizard Refactor**: Extracted context and types to separate context.tsx file, breaking 18 require cycle warnings
+
 ## System Architecture
 
 ### Frontend Architecture
