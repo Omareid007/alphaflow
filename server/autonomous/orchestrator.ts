@@ -6,6 +6,7 @@ import { storage } from "../storage";
 import type { Strategy } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
+import { log } from "../utils/logger";
 
 const FILL_POLL_INTERVAL_MS = 500;
 const FILL_TIMEOUT_MS = 30000;
@@ -32,18 +33,18 @@ async function waitForOrderFill(orderId: string): Promise<OrderFillResult> {
       }
       
       if (["canceled", "expired", "rejected", "suspended"].includes(order.status)) {
-        console.warn(`[Orchestrator] Order ${orderId} ended with status: ${order.status}`);
+        log.warn("Orchestrator", `Order ${orderId} ended with status: ${order.status}`);
         return { order, timedOut: false, hasFillData, isFullyFilled: false };
       }
       
       await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
     } catch (error) {
-      console.error(`[Orchestrator] Error polling order ${orderId}:`, error);
+      log.error("Orchestrator", `Error polling order ${orderId}`, { error: String(error) });
       await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
     }
   }
   
-  console.warn(`[Orchestrator] Order ${orderId} fill timeout after ${FILL_TIMEOUT_MS}ms`);
+  log.warn("Orchestrator", `Order ${orderId} fill timeout after ${FILL_TIMEOUT_MS}ms`);
   try {
     const finalOrder = await alpaca.getOrder(orderId);
     const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
@@ -189,26 +190,26 @@ class AutonomousOrchestrator {
 
   async autoStart(): Promise<void> {
     if (this.isAutoStarting) {
-      console.log("[Orchestrator] Auto-start already in progress");
+      log.info("Orchestrator", "Auto-start already in progress");
       return;
     }
 
     this.isAutoStarting = true;
 
     try {
-      console.log("[Orchestrator] Auto-start initializing...");
+      log.info("Orchestrator", "Auto-start initializing...");
 
       const agentStatus = await storage.getAgentStatus();
       this.autoStartEnabled = agentStatus?.autoStartEnabled ?? true;
 
       if (!this.autoStartEnabled) {
-        console.log("[Orchestrator] Auto-start is disabled in settings");
+        log.info("Orchestrator", "Auto-start is disabled in settings");
         this.isAutoStarting = false;
         return;
       }
 
       if (agentStatus?.killSwitchActive) {
-        console.log("[Orchestrator] Auto-start blocked: Kill switch is active");
+        log.warn("Orchestrator", "Auto-start blocked: Kill switch is active");
         this.isAutoStarting = false;
         return;
       }
@@ -219,15 +220,15 @@ class AutonomousOrchestrator {
 
       this.startHeartbeat();
 
-      console.log("[Orchestrator] Auto-start complete - Agent is now running persistently");
+      log.info("Orchestrator", "Auto-start complete - Agent is now running persistently");
     } catch (error) {
-      console.error("[Orchestrator] Auto-start failed:", error);
+      log.error("Orchestrator", "Auto-start failed", { error: String(error) });
       this.state.errors.push(`Auto-start failed: ${error}`);
 
       setTimeout(() => {
         this.isAutoStarting = false;
         this.autoStart().catch(err => {
-          console.error("[Orchestrator] Auto-restart retry failed:", err);
+          log.error("Orchestrator", "Auto-restart retry failed", { error: String(err) });
         });
       }, AUTO_RESTART_DELAY_MS);
     } finally {
@@ -246,7 +247,7 @@ class AutonomousOrchestrator {
       await this.performHeartbeat();
     }, HEARTBEAT_INTERVAL_MS);
 
-    console.log("[Orchestrator] Heartbeat started");
+    log.info("Orchestrator", "Heartbeat started");
   }
 
   private stopHeartbeat(): void {
@@ -271,11 +272,11 @@ class AutonomousOrchestrator {
         this.consecutiveErrors = Math.max(0, this.consecutiveErrors - 1);
       }
     } catch (error) {
-      console.error("[Orchestrator] Heartbeat error:", error);
+      log.error("Orchestrator", "Heartbeat error", { error: String(error) });
       this.consecutiveErrors++;
 
       if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-        console.log("[Orchestrator] Too many consecutive errors, triggering self-healing");
+        log.warn("Orchestrator", "Too many consecutive errors, triggering self-healing");
         await this.selfHeal();
       }
     }
@@ -289,13 +290,13 @@ class AutonomousOrchestrator {
     const timeSinceAnalysis = now - lastAnalysis;
 
     if (timeSinceAnalysis > STALE_HEARTBEAT_THRESHOLD_MS && lastAnalysis > 0) {
-      console.log(`[Orchestrator] Stale state detected (${Math.round(timeSinceAnalysis / 1000)}s since last analysis)`);
+      log.warn("Orchestrator", `Stale state detected (${Math.round(timeSinceAnalysis / 1000)}s since last analysis)`);
       await this.selfHeal();
     }
   }
 
   private async selfHeal(): Promise<void> {
-    console.log("[Orchestrator] Initiating self-healing...");
+    log.info("Orchestrator", "Initiating self-healing...");
 
     const wasAutoStartEnabled = this.autoStartEnabled;
 
@@ -310,10 +311,10 @@ class AutonomousOrchestrator {
       if (wasAutoStartEnabled) {
         await this.start();
         this.startHeartbeat();
-        console.log("[Orchestrator] Self-healing complete - Agent restarted");
+        log.info("Orchestrator", "Self-healing complete - Agent restarted");
       }
     } catch (error) {
-      console.error("[Orchestrator] Self-healing failed:", error);
+      log.error("Orchestrator", "Self-healing failed", { error: String(error) });
       this.state.errors.push(`Self-healing failed: ${error}`);
     }
   }
@@ -321,7 +322,7 @@ class AutonomousOrchestrator {
   async setAutoStartEnabled(enabled: boolean): Promise<void> {
     this.autoStartEnabled = enabled;
     await storage.updateAgentStatus({ autoStartEnabled: enabled });
-    console.log(`[Orchestrator] Auto-start ${enabled ? "enabled" : "disabled"}`);
+    log.info("Orchestrator", `Auto-start ${enabled ? "enabled" : "disabled"}`);
   }
 
   isAutoStartEnabledFlag(): boolean {
@@ -350,7 +351,7 @@ class AutonomousOrchestrator {
   async initialize(): Promise<void> {
     await this.loadRiskLimitsFromDB();
     await this.syncPositionsFromBroker();
-    console.log("[Orchestrator] Initialized with risk limits:", this.riskLimits);
+    log.info("Orchestrator", "Initialized with risk limits", { ...this.riskLimits });
   }
 
   private async loadRiskLimitsFromDB(): Promise<void> {
@@ -368,7 +369,7 @@ class AutonomousOrchestrator {
         };
       }
     } catch (error) {
-      console.error("[Orchestrator] Failed to load risk limits:", error);
+      log.error("Orchestrator", "Failed to load risk limits", { error: String(error) });
     }
   }
 
@@ -378,12 +379,11 @@ class AutonomousOrchestrator {
       const existingPositions = new Map(this.state.activePositions);
       this.state.activePositions.clear();
 
-      // Sync positions to database for consistency
       try {
         await storage.syncPositionsFromAlpaca(positions);
-        console.log(`[Orchestrator] Synced ${positions.length} positions to database`);
+        log.info("Orchestrator", `Synced ${positions.length} positions to database`);
       } catch (dbError) {
-        console.error("[Orchestrator] Failed to sync positions to database:", dbError);
+        log.error("Orchestrator", "Failed to sync positions to database", { error: String(dbError) });
       }
 
       for (const pos of positions) {
@@ -409,7 +409,7 @@ class AutonomousOrchestrator {
             const newStopLoss = currentPrice * (1 - existingPos.trailingStopPercent / 100);
             if (!stopLossPrice || newStopLoss > stopLossPrice) {
               stopLossPrice = newStopLoss;
-              console.log(`[Orchestrator] Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`);
+              log.info("Orchestrator", `Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`);
             }
           }
         }
@@ -431,23 +431,23 @@ class AutonomousOrchestrator {
         this.state.activePositions.set(pos.symbol, positionWithRules);
       }
 
-      console.log(`[Orchestrator] Synced ${positions.length} positions from broker`);
+      log.info("Orchestrator", `Synced ${positions.length} positions from broker`);
     } catch (error) {
-      console.error("[Orchestrator] Failed to sync positions:", error);
+      log.error("Orchestrator", "Failed to sync positions", { error: String(error) });
       this.state.errors.push(`Position sync failed: ${error}`);
     }
   }
 
   async start(): Promise<void> {
     if (this.state.isRunning) {
-      console.log("[Orchestrator] Already running");
+      log.info("Orchestrator", "Already running");
       return;
     }
 
     await this.initialize();
 
     if (this.riskLimits.killSwitchActive) {
-      console.log("[Orchestrator] Kill switch is active - cannot start");
+      log.warn("Orchestrator", "Kill switch is active - cannot start");
       throw new Error("Kill switch is active. Disable it to start autonomous trading.");
     }
 
@@ -459,14 +459,14 @@ class AutonomousOrchestrator {
 
     this.analysisTimer = setInterval(() => {
       this.runAnalysisCycle().catch((err) => {
-        console.error("[Orchestrator] Analysis cycle error:", err);
+        log.error("Orchestrator", "Analysis cycle error", { error: String(err) });
         this.state.errors.push(`Analysis error: ${err.message}`);
       });
     }, this.config.analysisIntervalMs);
 
     this.positionTimer = setInterval(() => {
       this.runPositionManagementCycle().catch((err) => {
-        console.error("[Orchestrator] Position management error:", err);
+        log.error("Orchestrator", "Position management error", { error: String(err) });
         this.state.errors.push(`Position mgmt error: ${err.message}`);
       });
     }, this.config.positionCheckIntervalMs);
@@ -474,12 +474,12 @@ class AutonomousOrchestrator {
     await this.runAnalysisCycle();
     await this.runPositionManagementCycle();
 
-    console.log("[Orchestrator] Started autonomous trading mode");
+    log.info("Orchestrator", "Started autonomous trading mode");
   }
 
   async stop(preserveAutoStart = false): Promise<void> {
     if (!this.state.isRunning) {
-      console.log("[Orchestrator] Not running");
+      log.info("Orchestrator", "Not running");
       return;
     }
 
@@ -501,11 +501,11 @@ class AutonomousOrchestrator {
 
     await storage.updateAgentStatus({ isRunning: false });
 
-    console.log("[Orchestrator] Stopped autonomous trading mode");
+    log.info("Orchestrator", "Stopped autonomous trading mode");
   }
 
   async activateKillSwitch(reason: string): Promise<void> {
-    console.log(`[Orchestrator] KILL SWITCH ACTIVATED: ${reason}`);
+    log.warn("Orchestrator", `KILL SWITCH ACTIVATED: ${reason}`);
 
     this.riskLimits.killSwitchActive = true;
     await this.stop();
@@ -518,21 +518,23 @@ class AutonomousOrchestrator {
   async deactivateKillSwitch(): Promise<void> {
     this.riskLimits.killSwitchActive = false;
     await storage.updateAgentStatus({ killSwitchActive: false });
-    console.log("[Orchestrator] Kill switch deactivated");
+    log.info("Orchestrator", "Kill switch deactivated");
   }
 
   private async runAnalysisCycle(): Promise<void> {
     if (this.isProcessing || !this.state.isRunning) return;
     this.isProcessing = true;
+    const cycleId = log.generateCycleId();
+    log.setCycleId(cycleId);
 
     try {
-      console.log("[Orchestrator] Running analysis cycle...");
+      log.info("Orchestrator", "Running analysis cycle...", { cycleId });
       this.state.lastAnalysisTime = new Date();
 
       await this.loadRiskLimitsFromDB();
 
       if (this.riskLimits.killSwitchActive) {
-        console.log("[Orchestrator] Kill switch active - skipping analysis");
+        log.info("Orchestrator", "Kill switch active - skipping analysis");
         return;
       }
 
@@ -579,7 +581,7 @@ class AutonomousOrchestrator {
             });
           }
         } catch (error) {
-          console.error(`[Orchestrator] Analysis failed for ${symbol}:`, error);
+          log.error("Orchestrator", `Analysis failed for ${symbol}`, { error: String(error) });
         }
       }
 
@@ -607,7 +609,7 @@ class AutonomousOrchestrator {
         }
       }
     } catch (error) {
-      console.error("[Orchestrator] Failed to fetch stock data:", error);
+      log.error("Orchestrator", "Failed to fetch stock data", { error: String(error) });
     }
 
     try {
@@ -628,7 +630,7 @@ class AutonomousOrchestrator {
         });
       }
     } catch (error) {
-      console.error("[Orchestrator] Failed to fetch crypto data:", error);
+      log.error("Orchestrator", "Failed to fetch crypto data", { error: String(error) });
     }
 
     return marketData;
@@ -754,7 +756,7 @@ class AutonomousOrchestrator {
       const fillResult = await waitForOrderFill(initialOrder.id);
       
       if (!fillResult.order) {
-        console.error(`[Orchestrator] Order ${initialOrder.id} - no order data received`);
+        log.error("Orchestrator", `Order ${initialOrder.id} - no order data received`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -766,7 +768,7 @@ class AutonomousOrchestrator {
       }
       
       if (!fillResult.hasFillData) {
-        console.error(`[Orchestrator] Order ${initialOrder.id} has no fill data, syncing positions`);
+        log.error("Orchestrator", `Order ${initialOrder.id} has no fill data, syncing positions`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -780,7 +782,7 @@ class AutonomousOrchestrator {
       }
       
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        console.warn(`[Orchestrator] Order ${initialOrder.id} timed out with partial fill, using available data`);
+        log.warn("Orchestrator", `Order ${initialOrder.id} timed out with partial fill, using available data`);
       }
       
       const order = fillResult.order;
@@ -802,10 +804,10 @@ class AutonomousOrchestrator {
             filledPrice = snapshot?.latestTrade?.p || 0;
           }
           if (filledPrice > 0) {
-            console.log(`[Orchestrator] Using market price ${filledPrice} for ${symbol}`);
+            log.info("Orchestrator", `Using market price ${filledPrice} for ${symbol}`);
           }
         } catch (error) {
-          console.warn(`[Orchestrator] Failed to fetch market price for ${symbol}:`, error);
+          log.warn("Orchestrator", `Failed to fetch market price for ${symbol}`, { error: String(error) });
         }
       }
 
@@ -835,7 +837,7 @@ class AutonomousOrchestrator {
 
       this.state.activePositions.set(symbol, positionWithRules);
 
-      console.log(`[Orchestrator] Opened position: ${symbol} $${positionValue.toFixed(2)}`);
+      log.trade(`Opened position: ${symbol} $${positionValue.toFixed(2)}`, { symbol, value: positionValue });
 
       return {
         success: true,
@@ -847,7 +849,7 @@ class AutonomousOrchestrator {
         price: positionWithRules.entryPrice,
       };
     } catch (error) {
-      console.error(`[Orchestrator] Failed to open position ${symbol}:`, error);
+      log.error("Orchestrator", `Failed to open position ${symbol}`, { error: String(error) });
       return {
         success: false,
         action: "buy",
@@ -885,7 +887,7 @@ class AutonomousOrchestrator {
       const fillResult = await waitForOrderFill(initialOrder.id);
       
       if (!fillResult.order) {
-        console.error(`[Orchestrator] Close order ${initialOrder.id} - no order data received`);
+        log.error("Orchestrator", `Close order ${initialOrder.id} - no order data received`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -897,7 +899,7 @@ class AutonomousOrchestrator {
       }
       
       if (!fillResult.hasFillData) {
-        console.error(`[Orchestrator] Close order ${initialOrder.id} has no fill data, syncing positions`);
+        log.error("Orchestrator", `Close order ${initialOrder.id} has no fill data, syncing positions`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -911,7 +913,7 @@ class AutonomousOrchestrator {
       }
       
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        console.warn(`[Orchestrator] Close order ${initialOrder.id} timed out with partial fill, using available data`);
+        log.warn("Orchestrator", `Close order ${initialOrder.id} timed out with partial fill, using available data`);
       }
       
       const order = fillResult.order;
@@ -933,10 +935,10 @@ class AutonomousOrchestrator {
             filledPrice = snapshot?.latestTrade?.p || 0;
           }
           if (filledPrice > 0) {
-            console.log(`[Orchestrator] Using market price ${filledPrice} for ${symbol}`);
+            log.info("Orchestrator", `Using market price ${filledPrice} for ${symbol}`);
           }
         } catch (error) {
-          console.warn(`[Orchestrator] Failed to fetch market price for ${symbol}:`, error);
+          log.warn("Orchestrator", `Failed to fetch market price for ${symbol}`, { error: String(error) });
         }
       }
 
@@ -963,7 +965,7 @@ class AutonomousOrchestrator {
         this.state.activePositions.set(symbol, position);
       }
 
-      console.log(`[Orchestrator] Closed ${partialPercent}% of ${symbol}, P&L: $${pnl.toFixed(2)}`);
+      log.trade(`Closed ${partialPercent}% of ${symbol}, P&L: $${pnl.toFixed(2)}`, { symbol, pnl, partialPercent });
 
       return {
         success: true,
@@ -975,7 +977,7 @@ class AutonomousOrchestrator {
         price: filledPrice,
       };
     } catch (error) {
-      console.error(`[Orchestrator] Failed to close position ${symbol}:`, error);
+      log.error("Orchestrator", `Failed to close position ${symbol}`, { error: String(error) });
       return {
         success: false,
         action: "sell",
@@ -991,7 +993,7 @@ class AutonomousOrchestrator {
     decision: AIDecision,
     existingPosition: PositionWithRules
   ): Promise<ExecutionResult> {
-    console.log(`[Orchestrator] Reinforcing position: ${symbol}`);
+    log.info("Orchestrator", `Reinforcing position: ${symbol}`);
 
     const reinforceDecision: AIDecision = {
       ...decision,
@@ -1015,7 +1017,7 @@ class AutonomousOrchestrator {
 
       await this.rebalancePositions();
     } catch (error) {
-      console.error("[Orchestrator] Position management cycle error:", error);
+      log.error("Orchestrator", "Position management cycle error", { error: String(error) });
     }
   }
 
@@ -1024,7 +1026,7 @@ class AutonomousOrchestrator {
     position: PositionWithRules
   ): Promise<void> {
     if (position.stopLossPrice && position.currentPrice <= position.stopLossPrice) {
-      console.log(`[Orchestrator] Stop-loss triggered for ${symbol}`);
+      log.warn("Orchestrator", `Stop-loss triggered for ${symbol}`);
       await this.closePosition(
         symbol,
         {
@@ -1039,7 +1041,7 @@ class AutonomousOrchestrator {
     }
 
     if (position.takeProfitPrice && position.currentPrice >= position.takeProfitPrice) {
-      console.log(`[Orchestrator] Take-profit triggered for ${symbol}`);
+      log.info("Orchestrator", `Take-profit triggered for ${symbol}`);
 
       const pnlPercent = position.unrealizedPnlPercent;
       if (pnlPercent > 15) {
@@ -1071,7 +1073,7 @@ class AutonomousOrchestrator {
     }
 
     if (position.unrealizedPnlPercent <= -8) {
-      console.log(`[Orchestrator] Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`);
+      log.warn("Orchestrator", `Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`);
       await this.closePosition(
         symbol,
         {
@@ -1133,7 +1135,7 @@ class AutonomousOrchestrator {
       killSwitchActive: limits.killSwitchActive,
     });
 
-    console.log("[Orchestrator] Updated risk limits:", this.riskLimits);
+    log.info("Orchestrator", "Updated risk limits", { ...this.riskLimits });
   }
 
   async setMode(mode: "autonomous" | "semi-auto" | "manual"): Promise<void> {
@@ -1152,7 +1154,7 @@ class AutonomousOrchestrator {
   resetDailyStats(): void {
     this.state.dailyPnl = 0;
     this.state.dailyTradeCount = 0;
-    console.log("[Orchestrator] Reset daily stats");
+    log.info("Orchestrator", "Reset daily stats");
   }
 
   async rebalancePositions(): Promise<void> {
@@ -1161,7 +1163,7 @@ class AutonomousOrchestrator {
       const portfolioValue = parseFloat(account.portfolio_value);
       
       if (portfolioValue <= 0) {
-        console.log("[Orchestrator] Cannot rebalance: invalid portfolio value");
+        log.warn("Orchestrator", "Cannot rebalance: invalid portfolio value");
         return;
       }
 
@@ -1174,14 +1176,14 @@ class AutonomousOrchestrator {
         const drift = currentAllocationPercent - targetAllocationPercent;
 
         if (Math.abs(drift) > rebalanceThresholdPercent) {
-          console.log(`[Orchestrator] Position ${symbol} drifted by ${drift.toFixed(2)}%`);
+          log.info("Orchestrator", `Position ${symbol} drifted by ${drift.toFixed(2)}%`);
 
           if (drift > rebalanceThresholdPercent) {
             const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
             const sharesToSell = Math.floor(excessValue / position.currentPrice);
             
             if (sharesToSell > 0 && sharesToSell < position.quantity) {
-              console.log(`[Orchestrator] Rebalancing: Selling ${sharesToSell} shares of ${symbol}`);
+              log.info("Orchestrator", `Rebalancing: Selling ${sharesToSell} shares of ${symbol}`);
               await this.closePosition(
                 symbol,
                 {
@@ -1198,7 +1200,7 @@ class AutonomousOrchestrator {
         }
       }
     } catch (error) {
-      console.error("[Orchestrator] Rebalancing error:", error);
+      log.error("Orchestrator", "Rebalancing error", { error: String(error) });
       this.state.errors.push(`Rebalancing failed: ${error}`);
     }
   }
@@ -1211,13 +1213,13 @@ class AutonomousOrchestrator {
   ): Promise<boolean> {
     const position = this.state.activePositions.get(symbol);
     if (!position) {
-      console.log(`[Orchestrator] Cannot adjust SL/TP: Position ${symbol} not found`);
+      log.warn("Orchestrator", `Cannot adjust SL/TP: Position ${symbol} not found`);
       return false;
     }
 
     if (newStopLoss !== undefined) {
       if (newStopLoss >= position.currentPrice) {
-        console.log(`[Orchestrator] Invalid stop loss: $${newStopLoss} >= current price $${position.currentPrice}`);
+        log.warn("Orchestrator", `Invalid stop loss: $${newStopLoss} >= current price $${position.currentPrice}`);
         return false;
       }
       position.stopLossPrice = newStopLoss;
@@ -1225,7 +1227,7 @@ class AutonomousOrchestrator {
 
     if (newTakeProfit !== undefined) {
       if (newTakeProfit <= position.currentPrice) {
-        console.log(`[Orchestrator] Invalid take profit: $${newTakeProfit} <= current price $${position.currentPrice}`);
+        log.warn("Orchestrator", `Invalid take profit: $${newTakeProfit} <= current price $${position.currentPrice}`);
         return false;
       }
       position.takeProfitPrice = newTakeProfit;
@@ -1233,14 +1235,14 @@ class AutonomousOrchestrator {
 
     if (trailingStopPercent !== undefined) {
       if (trailingStopPercent <= 0 || trailingStopPercent >= 100) {
-        console.log(`[Orchestrator] Invalid trailing stop percent: ${trailingStopPercent}`);
+        log.warn("Orchestrator", `Invalid trailing stop percent: ${trailingStopPercent}`);
         return false;
       }
       position.trailingStopPercent = trailingStopPercent;
     }
 
     this.state.activePositions.set(symbol, position);
-    console.log(`[Orchestrator] Updated ${symbol} - SL: $${position.stopLossPrice?.toFixed(2)}, TP: $${position.takeProfitPrice?.toFixed(2)}, Trail: ${position.trailingStopPercent || 'N/A'}%`);
+    log.info("Orchestrator", `Updated ${symbol} - SL: $${position.stopLossPrice?.toFixed(2)}, TP: $${position.takeProfitPrice?.toFixed(2)}, Trail: ${position.trailingStopPercent || 'N/A'}%`);
     return true;
   }
 
@@ -1249,7 +1251,7 @@ class AutonomousOrchestrator {
       if (position.unrealizedPnlPercent > 0) {
         position.trailingStopPercent = trailPercent;
         this.state.activePositions.set(symbol, position);
-        console.log(`[Orchestrator] Applied ${trailPercent}% trailing stop to ${symbol}`);
+        log.info("Orchestrator", `Applied ${trailPercent}% trailing stop to ${symbol}`);
       }
     }
   }
