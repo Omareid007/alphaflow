@@ -6,6 +6,7 @@
 
 ## Table of Contents
 
+### Core Sections
 1. [Introduction & Purpose](#1-introduction--purpose)
 2. [Business Context & Main Features](#2-business-context--main-features)
 3. [System Overview](#3-system-overview)
@@ -16,6 +17,8 @@
 8. [External Integrations](#8-external-integrations)
 9. [Runtime & Deployment](#9-runtime-environments-deployment--hosting)
 10. [Configuration & Secrets](#10-configuration-secrets--environment-management)
+
+### Operations & Quality
 11. [Testing Strategy](#11-testing-strategy--quality-gates)
 12. [Observability & Logging](#12-observability-logging--monitoring)
 13. [Security Considerations](#13-security--compliance-considerations)
@@ -25,6 +28,20 @@
 17. [Cost Management](#17-cost--tokencredit-management)
 18. [Known Issues & TODOs](#18-known-issues-limitations--todos)
 19. [Further Documentation](#19-further-documentation--adrs)
+
+### Deep Dives & References
+20. [Complete API Reference](#20-complete-api-reference)
+21. [Orchestrator Deep Dive](#21-orchestrator-deep-dive)
+22. [Onboarding & Developer Guide](#22-onboarding--developer-guide)
+23. [Troubleshooting Guide](#23-troubleshooting-guide)
+24. [Sprint Planning Recommendations](#24-sprint-planning-recommendations)
+
+### Appendices
+- [Appendix A: Database Schema](#appendix-a-database-schema-shabordschemats)
+- [Appendix B: Design Guidelines](#appendix-b-design-guidelines-summary)
+- [Appendix C: Project Context](#appendix-c-project-context-replitmd-summary)
+- [Appendix D: IStorage Interface](#appendix-d-istorage-interface)
+- [Appendix E: Environment Variables](#appendix-e-environment-variables-reference)
 
 ---
 
@@ -696,6 +713,718 @@ npm run format        # Format code
 
 - Replit community
 - Issue tracking via comments in code
+
+---
+
+## 20. Complete API Reference
+
+### Authentication Endpoints
+
+| Endpoint | Method | Purpose | Auth Required |
+|----------|--------|---------|---------------|
+| `/api/auth/signup` | POST | Create new user account | No |
+| `/api/auth/login` | POST | Login and create session | No |
+| `/api/auth/logout` | POST | Destroy session | No |
+| `/api/auth/me` | GET | Get current user | Yes |
+
+### Agent Control Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/agent/status` | GET | Get agent running status and stats |
+| `/api/agent/toggle` | POST | Toggle agent on/off |
+| `/api/agent/market-analysis` | GET | Get latest market analysis |
+| `/api/agent/market-analysis/refresh` | POST | Force refresh market analysis |
+| `/api/agent/dynamic-limits` | GET | Get current dynamic order limits |
+| `/api/agent/set-limits` | POST | Update order limits |
+| `/api/agent/health` | GET | Health check with uptime info |
+| `/api/agent/auto-start` | POST | Enable/disable auto-start |
+
+### Autonomous Orchestrator Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/autonomous/state` | GET | Full orchestrator state |
+| `/api/autonomous/start` | POST | Start autonomous trading |
+| `/api/autonomous/stop` | POST | Stop autonomous trading |
+| `/api/autonomous/kill-switch` | POST | Emergency stop all trading |
+| `/api/autonomous/risk-limits` | PUT | Update risk parameters |
+| `/api/autonomous/mode` | POST | Set mode (autonomous/semi-auto/manual) |
+| `/api/autonomous/execution-history` | GET | Get execution history |
+| `/api/autonomous/close-position` | POST | Close specific position |
+| `/api/autonomous/execute-trades` | POST | Execute pending AI signals |
+| `/api/autonomous/open-orders` | GET | Get all open orders |
+| `/api/autonomous/cancel-stale-orders` | POST | Cancel old unfilled orders |
+| `/api/autonomous/cancel-all-orders` | POST | Cancel all open orders |
+| `/api/autonomous/reconcile-positions` | GET | Compare DB vs Alpaca positions |
+| `/api/autonomous/sync-positions` | POST | Sync positions from Alpaca to DB |
+| `/api/autonomous/close-all-positions` | POST | Liquidate all positions |
+
+### Strategy Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/strategies` | GET | List all strategies |
+| `/api/strategies/:id` | GET | Get specific strategy |
+| `/api/strategies` | POST | Create new strategy |
+| `/api/strategies/:id` | PATCH | Update strategy |
+| `/api/strategies/:id/toggle` | POST | Activate/deactivate strategy |
+| `/api/strategies/:id/start` | POST | Start strategy execution |
+| `/api/strategies/:id/stop` | POST | Stop strategy execution |
+| `/api/strategies/:id/status` | GET | Get strategy status |
+| `/api/strategies/all-schemas` | GET | Get all strategy JSON schemas |
+| `/api/strategies/moving-average/schema` | GET | Moving average strategy schema |
+| `/api/strategies/moving-average/backtest` | POST | Backtest moving average |
+| `/api/strategies/moving-average/ai-validate` | POST | AI validation of MA strategy |
+| `/api/strategies/mean-reversion/schema` | GET | Mean reversion schema |
+| `/api/strategies/mean-reversion/backtest` | POST | Backtest mean reversion |
+| `/api/strategies/momentum/schema` | GET | Momentum strategy schema |
+| `/api/strategies/momentum/backtest` | POST | Backtest momentum |
+
+### Trade & Position Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/trades` | GET | List trades (with limit) |
+| `/api/trades/enriched` | GET | Trades with AI decisions attached |
+| `/api/trades/symbols` | GET | Distinct traded symbols |
+| `/api/trades/:id` | GET | Get specific trade |
+| `/api/trades/:id/enriched` | GET | Trade with AI decision |
+| `/api/trades` | POST | Create trade record |
+| `/api/positions` | GET | **Primary** - Live Alpaca positions |
+| `/api/positions/broker` | GET | Direct broker positions |
+| `/api/positions/:id` | GET | Get DB position by ID |
+| `/api/positions` | POST | Create position record |
+| `/api/positions/:id` | PATCH | Update position |
+
+### Analytics Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/analytics/summary` | GET | P&L summary (realized + unrealized) |
+| `/api/analytics/performance` | GET | Performance metrics |
+| `/api/analytics/equity-curve` | GET | Equity over time |
+
+### AI Decision Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/ai-decisions` | GET | List AI decisions |
+| `/api/ai-decisions` | POST | Create AI decision |
+| `/api/ai/suggest-trades` | POST | Generate AI trade suggestions |
+
+### Alpaca Broker Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/alpaca/account` | GET | Account info (balance, equity) |
+| `/api/alpaca/positions` | GET | Raw Alpaca positions |
+| `/api/alpaca/orders` | GET | All orders |
+| `/api/alpaca/orders` | POST | Place new order |
+| `/api/alpaca/orders/:orderId` | DELETE | Cancel order |
+| `/api/alpaca/assets` | GET | Tradeable assets |
+| `/api/alpaca/assets/search` | GET | Search assets |
+| `/api/alpaca/bars` | GET | OHLC bar data |
+| `/api/alpaca/snapshots` | GET | Latest quotes/trades |
+| `/api/alpaca/health` | GET | Alpaca connection health |
+| `/api/alpaca/clock` | GET | Market clock |
+| `/api/alpaca/market-status` | GET | Market open/closed status |
+| `/api/alpaca/portfolio-history` | GET | Historical portfolio values |
+| `/api/alpaca/top-stocks` | GET | Top movers (stocks) |
+| `/api/alpaca/top-crypto` | GET | Top movers (crypto) |
+| `/api/alpaca/top-etfs` | GET | Top ETFs |
+
+### Market Data Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/finnhub/quote/:symbol` | GET | Stock quote |
+| `/api/finnhub/quotes` | GET | Multiple quotes |
+| `/api/coingecko/prices` | GET | Crypto prices |
+| `/api/coingecko/markets` | GET | Crypto market data |
+| `/api/coingecko/trending` | GET | Trending coins |
+| `/api/cmc/listings` | GET | CoinMarketCap listings |
+| `/api/cmc/quotes` | GET | CoinMarketCap quotes |
+| `/api/cmc/global` | GET | Global crypto metrics |
+
+### News Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/news/headlines` | GET | Top financial headlines |
+| `/api/news/search` | GET | Search news articles |
+| `/api/news/market` | GET | Market-specific news |
+| `/api/news/crypto` | GET | Crypto news |
+| `/api/news/stock/:symbol` | GET | News for specific stock |
+
+---
+
+## 21. Orchestrator Deep Dive
+
+### Lifecycle & State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Stopped: Initial
+    Stopped --> Starting: autoStart() / start()
+    Starting --> Running: Initialization complete
+    Running --> Analyzing: analysisInterval triggers
+    Analyzing --> Executing: AI signals generated
+    Executing --> Running: Orders placed
+    Running --> SelfHealing: Consecutive errors > 5
+    SelfHealing --> Running: Recovery success
+    SelfHealing --> Stopped: Recovery failed
+    Running --> Stopped: stop() / killSwitch
+    Stopped --> [*]
+```
+
+### Core Timers
+
+| Timer | Interval | Purpose |
+|-------|----------|---------|
+| Analysis Timer | 60s | Run market analysis cycle |
+| Position Timer | 30s | Check position health, apply exit rules |
+| Heartbeat Timer | 30s | Health check, update DB, detect stale state |
+
+### Watchlist Configuration
+
+```typescript
+const WATCHLIST = {
+  stocks: ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA"],
+  crypto: ["BTC", "ETH", "SOL"],
+};
+```
+
+### Risk Limits (Defaults)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `maxPositionSizePercent` | 10% | Max single position as % of portfolio |
+| `maxTotalExposurePercent` | 50% | Max total market exposure |
+| `maxPositionsCount` | 10 | Maximum concurrent positions |
+| `dailyLossLimitPercent` | 5% | Daily loss limit (triggers kill switch) |
+| `killSwitchActive` | false | Emergency stop flag |
+
+### Self-Healing Mechanism
+
+1. **Heartbeat** runs every 30 seconds
+2. **Consecutive errors** tracked (max 5 before self-heal)
+3. **Stale detection**: If no analysis for 120s, trigger recovery
+4. **Recovery process**:
+   - Stop all timers
+   - Wait 5 seconds
+   - Reset error counters
+   - Restart if auto-start enabled
+
+### Order Fill Tracking
+
+- Orders polled every 500ms after submission
+- Timeout after 30 seconds
+- States tracked: `filled`, `canceled`, `expired`, `rejected`, `suspended`
+- Fill data captured: `filled_avg_price`, `filled_qty`
+
+---
+
+## 22. Onboarding & Developer Guide
+
+### First Day Checklist
+
+1. **Read this document** (APP_OVERVIEW.md) completely
+2. **Run the app**: `npm run all:dev`
+3. **Open web preview**: Port 5000 in browser
+4. **Check Alpaca connection**: Visit `/api/alpaca/health`
+5. **Review logs**: Check workflow output for `[Orchestrator]` messages
+6. **Explore DB**: Use Replit's Database panel to inspect tables
+
+### Understanding the Codebase
+
+**Start here:**
+1. `shared/schema.ts` - Understand the data model
+2. `server/routes.ts` - See all API endpoints
+3. `server/autonomous/orchestrator.ts` - Core trading logic
+4. `client/screens/DashboardScreen.tsx` - Main UI
+
+**Key patterns to recognize:**
+- **Repository pattern**: `storage.ts` abstracts all DB operations
+- **Adapter pattern**: `connectors/` folder has swappable data providers
+- **Query invalidation**: Frontend uses TanStack Query with cache keys
+
+### Making Your First Change
+
+**Adding a new API endpoint:**
+```typescript
+// In server/routes.ts
+app.get("/api/my-endpoint", async (req, res) => {
+  try {
+    const data = await storage.getMyData();
+    res.json(data);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+```
+
+**Adding a new screen:**
+1. Create `client/screens/MyScreen.tsx`
+2. Add to navigator in `client/navigation/`
+3. Add TanStack Query for data fetching
+
+### Code Review Checklist
+
+- [ ] No hardcoded secrets
+- [ ] Error handling with try/catch
+- [ ] TypeScript types defined
+- [ ] Console.log with `[ModuleName]` prefix
+- [ ] Database operations via `storage.ts`
+- [ ] Numeric values use `safeParseFloat`
+
+---
+
+## 23. Troubleshooting Guide
+
+### Common Issues & Solutions
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| **Agent won't start** | "Auto-start blocked" message | Check if kill switch is active in agent_status table |
+| **No positions showing** | Empty positions list | Verify Alpaca API keys are correct; check `/api/alpaca/health` |
+| **403 on sell orders** | "Insufficient qty" error | Shares are held by pending orders; cancel orders first |
+| **P&L shows 0** | No realized P&L | Historical trades (before fix) have price=0; only new trades calculate P&L |
+| **News API errors** | 429 Too Many Requests | Daily limit (100/day) exceeded; wait 24h or use cached data |
+| **AI not responding** | Timeout errors | OpenAI quota exceeded; system auto-falls back to OpenRouter |
+| **Database sync issues** | Stale positions | Call `/api/autonomous/sync-positions` to force sync from Alpaca |
+
+### Debugging Commands
+
+```bash
+# Check Alpaca connection
+curl http://localhost:5000/api/alpaca/health
+
+# Get current agent state
+curl http://localhost:5000/api/autonomous/state
+
+# View open orders
+curl http://localhost:5000/api/autonomous/open-orders
+
+# Force position sync
+curl -X POST http://localhost:5000/api/autonomous/sync-positions
+
+# Check market status
+curl http://localhost:5000/api/alpaca/market-status
+```
+
+### Log Analysis
+
+Look for these prefixes in workflow logs:
+
+| Prefix | Module | What to Look For |
+|--------|--------|------------------|
+| `[Orchestrator]` | Trading agent | State changes, errors, trade execution |
+| `[MarketAnalyzer]` | AI analysis | Market conditions, confidence scores |
+| `[AI]` | Decision engine | Trade recommendations, reasoning |
+| `[Alpaca]` | Broker connector | Order status, API errors |
+| `[Bootstrap]` | Startup | User creation, initialization |
+
+### Emergency Procedures
+
+**Kill Switch Activation:**
+```bash
+curl -X POST http://localhost:5000/api/autonomous/kill-switch \
+  -H "Content-Type: application/json" \
+  -d '{"active": true}'
+```
+
+**Close All Positions:**
+```bash
+curl -X POST http://localhost:5000/api/autonomous/close-all-positions
+```
+
+**Cancel All Orders:**
+```bash
+curl -X POST http://localhost:5000/api/autonomous/cancel-all-orders
+```
+
+---
+
+## 24. Sprint Planning Recommendations
+
+### Sprint 1: Stabilization (1-2 weeks)
+
+| Priority | Task | Effort |
+|----------|------|--------|
+| P0 | Fix historical trade prices (backfill from Alpaca) | 4h |
+| P0 | Add unit tests for P&L calculations | 8h |
+| P1 | Implement structured JSON logging | 4h |
+| P1 | Add request correlation IDs | 2h |
+| P2 | Improve error messages in UI | 4h |
+
+### Sprint 2: Testing & Reliability (1-2 weeks)
+
+| Priority | Task | Effort |
+|----------|------|--------|
+| P0 | Set up Vitest with basic test suite | 4h |
+| P0 | Add integration tests for critical endpoints | 8h |
+| P1 | Implement E2E tests with Playwright | 8h |
+| P1 | Add retry logic for flaky external APIs | 4h |
+| P2 | Create test fixtures for AI decisions | 4h |
+
+### Sprint 3: Features & Polish (2 weeks)
+
+| Priority | Task | Effort |
+|----------|------|--------|
+| P1 | Push notifications for trade executions | 8h |
+| P1 | Advanced charting with indicators | 12h |
+| P2 | Strategy performance comparison view | 8h |
+| P2 | Export trade history to CSV | 4h |
+| P3 | Dark/light mode toggle persistence | 2h |
+
+### Technical Debt Backlog
+
+| Item | Description | Effort |
+|------|-------------|--------|
+| Remove hardcoded defaults | Move to config/env vars | 2h |
+| Consolidate position endpoints | Single source of truth | 4h |
+| Add database indexes | Improve query performance | 2h |
+| Implement proper session store | For multi-user scaling | 8h |
+| Add API versioning | Prepare for breaking changes | 4h |
+
+---
+
+## Appendix A: Database Schema (shared/schema.ts)
+
+```typescript
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, numeric, boolean, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+});
+
+export const strategies = pgTable("strategies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(false).notNull(),
+  assets: text("assets").array(),
+  parameters: text("parameters"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const trades = pgTable("trades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  strategyId: varchar("strategy_id").references(() => strategies.id),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(),
+  quantity: numeric("quantity").notNull(),
+  price: numeric("price").notNull(),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+  pnl: numeric("pnl"),
+  status: text("status").default("completed").notNull(),
+  notes: text("notes"),
+});
+
+export const positions = pgTable("positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(),
+  quantity: numeric("quantity").notNull(),
+  entryPrice: numeric("entry_price").notNull(),
+  currentPrice: numeric("current_price"),
+  unrealizedPnl: numeric("unrealized_pnl"),
+  side: text("side").notNull(),
+  openedAt: timestamp("opened_at").defaultNow().notNull(),
+  strategyId: varchar("strategy_id").references(() => strategies.id),
+});
+
+export const aiDecisions = pgTable("ai_decisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  strategyId: varchar("strategy_id").references(() => strategies.id),
+  symbol: text("symbol").notNull(),
+  action: text("action").notNull(),
+  confidence: numeric("confidence"),
+  reasoning: text("reasoning"),
+  marketContext: text("market_context"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  executedTradeId: varchar("executed_trade_id").references(() => trades.id),
+  status: text("status").default("pending").notNull(),
+  stopLoss: numeric("stop_loss"),
+  takeProfit: numeric("take_profit"),
+  entryPrice: numeric("entry_price"),
+  filledPrice: numeric("filled_price"),
+  filledAt: timestamp("filled_at"),
+  skipReason: text("skip_reason"),
+});
+
+export const agentStatus = pgTable("agent_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isRunning: boolean("is_running").default(false).notNull(),
+  lastHeartbeat: timestamp("last_heartbeat"),
+  totalTrades: integer("total_trades").default(0),
+  totalPnl: numeric("total_pnl").default("0"),
+  winRate: numeric("win_rate"),
+  cashBalance: numeric("cash_balance").default("100000"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  killSwitchActive: boolean("kill_switch_active").default(false).notNull(),
+  maxPositionSizePercent: numeric("max_position_size_percent").default("10"),
+  maxTotalExposurePercent: numeric("max_total_exposure_percent").default("50"),
+  maxPositionsCount: integer("max_positions_count").default(10),
+  dailyLossLimitPercent: numeric("daily_loss_limit_percent").default("5"),
+  dynamicOrderLimit: integer("dynamic_order_limit").default(10),
+  minOrderLimit: integer("min_order_limit").default(10),
+  maxOrderLimit: integer("max_order_limit").default(50),
+  marketCondition: text("market_condition").default("neutral"),
+  aiConfidenceScore: numeric("ai_confidence_score").default("0.5"),
+  autoStartEnabled: boolean("auto_start_enabled").default(true).notNull(),
+  lastMarketAnalysis: timestamp("last_market_analysis"),
+});
+
+// Zod schemas for validation
+export const insertUserSchema = createInsertSchema(users).pick({ username: true, password: true });
+export const insertStrategySchema = createInsertSchema(strategies).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTradeSchema = createInsertSchema(trades).omit({ id: true, executedAt: true });
+export const insertPositionSchema = createInsertSchema(positions).omit({ id: true, openedAt: true });
+export const insertAiDecisionSchema = createInsertSchema(aiDecisions).omit({ id: true, createdAt: true });
+
+// TypeScript types
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertStrategy = z.infer<typeof insertStrategySchema>;
+export type Strategy = typeof strategies.$inferSelect;
+export type InsertTrade = z.infer<typeof insertTradeSchema>;
+export type Trade = typeof trades.$inferSelect;
+export type InsertPosition = z.infer<typeof insertPositionSchema>;
+export type Position = typeof positions.$inferSelect;
+export type InsertAiDecision = z.infer<typeof insertAiDecisionSchema>;
+export type AiDecision = typeof aiDecisions.$inferSelect;
+export type AgentStatus = typeof agentStatus.$inferSelect;
+```
+
+---
+
+## Appendix B: Design Guidelines Summary
+
+### Color Palette
+
+| Purpose | Color | Hex |
+|---------|-------|-----|
+| Primary | Deep Navy | `#0A2463` |
+| Primary Light | Bright Blue | `#3E92CC` |
+| Primary Dark | Dark Navy | `#001E3C` |
+| Success/Profit | Green | `#10B981` |
+| Error/Loss | Red | `#EF4444` |
+| Warning/Risk | Amber | `#F59E0B` |
+| Neutral | Gray | `#6B7280` |
+| Background | Light Gray | `#F9FAFB` |
+| Surface | White | `#FFFFFF` |
+| Crypto Layer | Bitcoin Orange | `#F7931A` |
+
+### Typography Scale
+
+| Style | Size | Weight |
+|-------|------|--------|
+| H1 | 28px | Bold |
+| H2 | 22px | Semibold |
+| H3 | 18px | Semibold |
+| Body | 16px | Regular |
+| Caption | 14px | Regular |
+| Small | 12px | Regular |
+| Monospace | 16px | Regular (SF Mono/Roboto Mono) |
+
+### Spacing Constants
+
+| Name | Value |
+|------|-------|
+| xs | 4px |
+| sm | 8px |
+| md | 12px |
+| lg | 16px |
+| xl | 20px |
+
+### Component Guidelines
+
+**Cards:**
+- Border radius: 12px
+- Background: white with 1px border `#E5E7EB`
+- Padding: 16px
+- No drop shadow (clean interface)
+
+**Touch Targets:**
+- Minimum: 44x44px
+- Buttons: 48px height minimum
+- List items: 56px minimum height
+
+**Floating Action Button:**
+- Size: 64px diameter
+- Position: Bottom-right, 16px from edges
+- Background: Gradient (`#3E92CC` to `#0A2463`)
+- States: Idle (blue), Active (pulsing green), Error (red)
+
+### Data Visualization
+
+**Trade Ledger:**
+- Profit rows: Light green tint `#D1FAE5`
+- Loss rows: Light red tint `#FEE2E2`
+- Asset type tags: Pill-shaped (crypto: orange, stock: blue)
+
+**Performance Metrics:**
+- Large numbers: 32px, Monospace, Bold
+- Percentage changes: Color-coded with symbols
+- Win rate: Circular progress with center percentage
+
+---
+
+## Appendix C: Project Context (replit.md Summary)
+
+### Key Architectural Decisions
+
+1. **Monorepo Structure**
+   - Single repo with `client/`, `server/`, `shared/` directories
+   - Simplifies type sharing and deployment
+   - Trade-off: Requires careful build configuration
+
+2. **Schema-First Development**
+   - Database schema in `shared/schema.ts` with Zod validation
+   - Single source of truth for data models
+   - Benefits: Type safety, automatic validation
+
+3. **Adapter Pattern for External Services**
+   - Abstract interfaces for market data, news, broker APIs
+   - Easy to swap providers without rewriting logic
+   - Future-proofing for new data sources
+
+4. **Paper Trading First**
+   - Complete system for paper trading, real trading disabled
+   - MVP validation without regulatory/financial risk
+   - Architecture supports real trading with minimal changes
+
+5. **AI Decision Transparency**
+   - All AI decisions logged with reasoning and context
+   - Users can understand why the agent made each decision
+   - Structured `aiDecisions` table with full context
+
+### Frontend Specifics
+
+- **Framework**: React Native with Expo SDK 54
+- **Navigation**: React Navigation v7 (bottom tabs + native stack)
+- **State**: TanStack Query for server state, React hooks for local
+- **Design**: iOS 26 liquid glass interface style
+- **Animations**: Reanimated 4 for native performance
+
+### Backend Specifics
+
+- **Framework**: Express.js with TypeScript
+- **ORM**: Drizzle ORM with PostgreSQL
+- **Build**: esbuild for production, tsx for development
+- **Error Handling**: Centralized with structured responses
+
+### Deployment
+
+- **Platform**: Replit (container-based)
+- **Database**: Replit-managed PostgreSQL (Neon-backed)
+- **Environment**: Auto-set REPLIT_DEV_DOMAIN, REPLIT_INTERNAL_APP_DOMAIN
+- **CORS**: Dynamic origin whitelisting for Replit domains
+
+---
+
+## Appendix D: IStorage Interface
+
+The storage layer abstracts all database operations:
+
+```typescript
+export interface IStorage {
+  // Users
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  // Strategies
+  getStrategies(): Promise<Strategy[]>;
+  getStrategy(id: string): Promise<Strategy | undefined>;
+  createStrategy(strategy: InsertStrategy): Promise<Strategy>;
+  updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined>;
+  toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
+
+  // Trades
+  getTrades(limit?: number): Promise<Trade[]>;
+  getTradesFiltered(filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
+  getTrade(id: string): Promise<Trade | undefined>;
+  getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined>;
+  createTrade(trade: InsertTrade): Promise<Trade>;
+  getDistinctSymbols(): Promise<string[]>;
+
+  // Positions
+  getPositions(): Promise<Position[]>;
+  getPosition(id: string): Promise<Position | undefined>;
+  createPosition(position: InsertPosition): Promise<Position>;
+  updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position | undefined>;
+  deletePosition(id: string): Promise<boolean>;
+
+  // AI Decisions
+  getAiDecisions(limit?: number): Promise<AiDecision[]>;
+  createAiDecision(decision: InsertAiDecision): Promise<AiDecision>;
+  updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
+  getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
+
+  // Agent Status
+  getAgentStatus(): Promise<AgentStatus | undefined>;
+  updateAgentStatus(updates: Partial<AgentStatus>): Promise<AgentStatus>;
+}
+```
+
+---
+
+## Appendix E: Environment Variables Reference
+
+### Required Secrets (Set in Replit Secrets Panel)
+
+```bash
+# Database (auto-set by Replit)
+DATABASE_URL=postgresql://...
+
+# Alpaca Paper Trading
+ALPACA_API_KEY=your_paper_trading_key
+ALPACA_SECRET_KEY=your_paper_trading_secret
+
+# Market Data
+FINNHUB_API_KEY=your_finnhub_key
+NEWS_API_KEY=your_newsapi_key
+COINMARKETCAP_API_KEY=your_cmc_key  # Optional
+
+# Security
+SESSION_SECRET=random_secure_string
+```
+
+### Auto-Set by Replit Runtime
+
+```bash
+REPLIT_DEV_DOMAIN=your-repl.username.repl.co
+REPLIT_INTERNAL_APP_DOMAIN=your-repl.replit.app
+NODE_ENV=development  # or production
+```
+
+### Feature Flags (Not yet implemented)
+
+```bash
+# Future configuration
+ENABLE_REAL_TRADING=false  # Always false in MVP
+AI_MODEL=gpt-4o-mini       # OpenAI model selection
+MAX_DAILY_TRADES=100       # Rate limiting
+```
+
+---
+
+## Document Changelog
+
+| Date | Version | Author | Changes |
+|------|---------|--------|---------|
+| Dec 2024 | 1.0 | Agent | Initial comprehensive documentation |
+| Dec 2024 | 2.0 | Agent | Enhanced with appendices, API reference, troubleshooting guide |
 
 ---
 
