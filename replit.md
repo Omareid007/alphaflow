@@ -38,6 +38,21 @@ Preferred communication style: Simple, everyday language.
   - Includes stats row with total trades and P&L
 - **Enhanced /api/connectors/status**: Endpoint now returns `allConnectors[]` array with full status for all 9 data sources
 
+### AI Suggested Trades Screen Enhancements (December 2025)
+- **Status Filtering**: Filter chips for all/executed/pending/skipped/suggested with live counts
+- **Pagination**: Configurable items per page (10/25/50/100) with page navigation controls
+- **Symbol Grouping**: Toggle between list view and grouped view showing trades by symbol
+- **Expandable Legs**: In grouped view, click symbols to expand and see last 4 trades per symbol
+- **Smooth Animations**: LayoutAnimation for filter/pagination/view mode transitions
+
+### Centralized Utilities (December 2025)
+- **Number Formatters**: New `client/lib/formatters.ts` with:
+  - `formatCurrency`, `formatCurrencyCompact` - currency display with compact notation
+  - `formatPercent`, `formatNumber`, `formatVolume` - numeric formatting
+  - `formatConfidence`, `formatPrice`, `formatQuantity`, `formatPnL` - trading-specific
+  - `formatTimeAgo`, `formatTimestamp`, `formatDate` - time formatting
+  - `getPercentColor`, `getPnLColor` - color utilities for gains/losses
+
 ## System Architecture
 
 ### Frontend Architecture

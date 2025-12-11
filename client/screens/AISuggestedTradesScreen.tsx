@@ -1,11 +1,11 @@
-import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl, ScrollView } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl, ScrollView, LayoutAnimation, Platform, UIManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
@@ -14,6 +14,14 @@ import { Card } from "@/components/Card";
 import { apiRequest } from "@/lib/query-client";
 import type { AiDecision } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+type StatusFilter = "all" | "executed" | "pending" | "skipped" | "suggested";
+type ViewMode = "list" | "grouped";
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface MarketContext {
   marketData?: {
@@ -33,12 +41,68 @@ interface MarketContext {
   stopLoss?: number;
 }
 
+interface SymbolGroup {
+  symbol: string;
+  decisions: AiDecision[];
+  latestAction: string;
+  latestStatus: string | null;
+  totalCount: number;
+}
+
+function FilterChip({ 
+  label, 
+  isActive, 
+  onPress,
+  count,
+}: { 
+  label: string; 
+  isActive: boolean; 
+  onPress: () => void;
+  count?: number;
+}) {
+  const { theme } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.filterChip,
+        { 
+          backgroundColor: isActive ? BrandColors.aiLayer : theme.backgroundSecondary,
+          borderColor: isActive ? BrandColors.aiLayer : BrandColors.cardBorder,
+        },
+      ]}
+    >
+      <ThemedText 
+        style={[
+          styles.filterChipText, 
+          { color: isActive ? "#fff" : theme.text }
+        ]}
+      >
+        {label}
+      </ThemedText>
+      {count !== undefined && count > 0 ? (
+        <View style={[styles.filterChipBadge, { backgroundColor: isActive ? "rgba(255,255,255,0.3)" : BrandColors.cardBorder }]}>
+          <ThemedText style={[styles.filterChipBadgeText, { color: isActive ? "#fff" : theme.textSecondary }]}>
+            {count}
+          </ThemedText>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 export default function AISuggestedTradesScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+  const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
   interface HistoryResponse {
     decisions: AiDecision[];
@@ -48,12 +112,76 @@ export default function AISuggestedTradesScreen() {
   }
 
   const { data: historyData, isLoading, error, refetch } = useQuery<HistoryResponse>({
-    queryKey: ["/api/ai-decisions/history?limit=50"],
+    queryKey: ["/api/ai-decisions/history?limit=200"],
     refetchInterval: 10000,
   });
 
-  const decisions = historyData?.decisions ?? [];
+  const allDecisions = historyData?.decisions ?? [];
   const pendingAnalysis = historyData?.pendingAnalysis ?? [];
+
+  const normalizeStatus = (status: string | null | undefined): string => {
+    if (!status) return "suggested";
+    const s = status.toLowerCase();
+    if (s === "executed" || s === "filled") return "executed";
+    if (s === "pending" || s === "pending_execution") return "pending";
+    if (s === "skipped") return "skipped";
+    return "suggested";
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: 0, executed: 0, pending: 0, skipped: 0, suggested: 0 };
+    allDecisions.forEach((d) => {
+      counts.all++;
+      const normalized = normalizeStatus((d as any).status);
+      counts[normalized as keyof typeof counts]++;
+    });
+    return counts;
+  }, [allDecisions]);
+
+  const filteredDecisions = useMemo(() => {
+    if (statusFilter === "all") return allDecisions;
+    return allDecisions.filter((d) => normalizeStatus((d as any).status) === statusFilter);
+  }, [allDecisions, statusFilter]);
+
+  const paginatedDecisions = useMemo(() => {
+    const start = currentPage * pageSize;
+    return filteredDecisions.slice(start, start + pageSize);
+  }, [filteredDecisions, currentPage, pageSize]);
+
+  const symbolGroups = useMemo((): SymbolGroup[] => {
+    const groups: Record<string, AiDecision[]> = {};
+    filteredDecisions.forEach((d) => {
+      if (!groups[d.symbol]) groups[d.symbol] = [];
+      groups[d.symbol].push(d);
+    });
+    return Object.entries(groups)
+      .map(([symbol, decisions]) => ({
+        symbol,
+        decisions: decisions.slice(0, 4),
+        latestAction: decisions[0]?.action || "hold",
+        latestStatus: (decisions[0] as any)?.status || null,
+        totalCount: decisions.length,
+      }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+  }, [filteredDecisions]);
+
+  const paginatedGroups = useMemo(() => {
+    const start = currentPage * pageSize;
+    return symbolGroups.slice(start, start + pageSize);
+  }, [symbolGroups, currentPage, pageSize]);
+
+  const totalPages = useMemo(() => {
+    const itemCount = viewMode === "grouped" ? symbolGroups.length : filteredDecisions.length;
+    return Math.max(1, Math.ceil(itemCount / pageSize));
+  }, [viewMode, symbolGroups.length, filteredDecisions.length, pageSize]);
+
+  useEffect(() => {
+    if (currentPage >= totalPages && totalPages > 0) {
+      setCurrentPage(Math.max(0, totalPages - 1));
+    }
+  }, [currentPage, totalPages]);
+
+  const decisions = viewMode === "list" ? paginatedDecisions : [];
 
   const { data: aiStatus } = useQuery<{ available: boolean; model: string; provider: string }>({
     queryKey: ["/api/ai/status"],
@@ -84,6 +212,47 @@ export default function AISuggestedTradesScreen() {
     await refetch();
     setRefreshing(false);
   }, [refetch]);
+
+  const handleStatusFilter = (filter: StatusFilter) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setStatusFilter(filter);
+    setCurrentPage(0);
+  };
+
+  const handleViewModeToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setViewMode(viewMode === "list" ? "grouped" : "list");
+    setCurrentPage(0);
+  };
+
+  const handlePageChange = (direction: "prev" | "next") => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (direction === "prev" && currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    } else if (direction === "next" && currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPageSize(size);
+    setCurrentPage(0);
+    setShowPageSizeMenu(false);
+  };
+
+  const toggleSymbolExpand = (symbol: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedSymbols((prev) => {
+      const next = new Set(prev);
+      if (next.has(symbol)) {
+        next.delete(symbol);
+      } else {
+        next.add(symbol);
+      }
+      return next;
+    });
+  };
 
   const getLiveData = (symbol: string): { price?: number; change?: number } | undefined => {
     const snapshot = liveSnapshots?.[symbol];
@@ -238,15 +407,97 @@ export default function AISuggestedTradesScreen() {
     );
   }
 
-  if (decisions.length === 0) {
+  const renderGroupedItem = ({ item: group }: { item: SymbolGroup }) => {
+    const isExpanded = expandedSymbols.has(group.symbol);
+    const liveData = getLiveData(group.symbol);
+    
+    return (
+      <Card elevation={1} style={styles.groupCard}>
+        <Pressable onPress={() => toggleSymbolExpand(group.symbol)}>
+          <View style={styles.groupHeader}>
+            <View style={styles.groupTitleRow}>
+              <ThemedText style={styles.groupSymbol}>{group.symbol}</ThemedText>
+              <View style={[styles.actionBadge, { backgroundColor: getActionColor(group.latestAction) }]}>
+                <ThemedText style={styles.actionText}>{group.latestAction.toUpperCase()}</ThemedText>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(group.latestStatus) }]}>
+                <ThemedText style={styles.statusText}>{getStatusLabel(group.latestStatus)}</ThemedText>
+              </View>
+            </View>
+            <View style={styles.groupMeta}>
+              <View style={styles.tradeCountBadge}>
+                <ThemedText style={styles.tradeCountText}>{group.totalCount} trades</ThemedText>
+              </View>
+              {liveData?.price ? (
+                <ThemedText style={[styles.groupPrice, { fontFamily: Fonts?.mono }]}>
+                  ${liveData.price.toFixed(2)}
+                </ThemedText>
+              ) : null}
+              <Feather 
+                name={isExpanded ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color={theme.textSecondary} 
+              />
+            </View>
+          </View>
+        </Pressable>
+        
+        {isExpanded ? (
+          <View style={styles.groupLegs}>
+            <ThemedText style={[styles.legsTitle, { color: theme.textSecondary }]}>
+              Last {group.decisions.length} trades
+            </ThemedText>
+            {group.decisions.map((decision, index) => (
+              <Pressable
+                key={decision.id}
+                onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
+              >
+                <View style={[styles.legItem, { borderTopColor: BrandColors.cardBorder }]}>
+                  <View style={styles.legInfo}>
+                    <View style={[styles.legActionDot, { backgroundColor: getActionColor(decision.action) }]} />
+                    <ThemedText style={[styles.legAction, { color: getActionColor(decision.action) }]}>
+                      {decision.action.toUpperCase()}
+                    </ThemedText>
+                    <View style={[styles.legStatusBadge, { backgroundColor: getStatusColor((decision as any).status) + "30" }]}>
+                      <ThemedText style={[styles.legStatusText, { color: getStatusColor((decision as any).status) }]}>
+                        {getStatusLabel((decision as any).status)}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.legDetails}>
+                    <ThemedText style={[styles.legConfidence, { fontFamily: Fonts?.mono, color: getConfidenceColor(decision.confidence) }]}>
+                      {formatConfidence(decision.confidence)}
+                    </ThemedText>
+                    <ThemedText style={[styles.legTime, { color: theme.textSecondary }]}>
+                      {formatTime(decision.createdAt)}
+                    </ThemedText>
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </Card>
+    );
+  };
+
+  if (filteredDecisions.length === 0 && !isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.backgroundRoot, paddingTop: headerHeight }]}>
         <View style={styles.emptyContainer}>
           <Feather name="zap" size={48} color={theme.textSecondary} />
-          <ThemedText style={[styles.emptyTitle, { color: theme.text }]}>No Suggestions Yet</ThemedText>
+          <ThemedText style={[styles.emptyTitle, { color: theme.text }]}>No Suggestions Found</ThemedText>
           <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-            Start the trading agent to begin analyzing opportunities
+            {statusFilter !== "all" 
+              ? `No ${statusFilter} trades found. Try a different filter.`
+              : "Start the trading agent to begin analyzing opportunities"
+            }
           </ThemedText>
+          {statusFilter !== "all" ? (
+            <Pressable style={styles.retryButton} onPress={() => handleStatusFilter("all")}>
+              <ThemedText style={styles.retryText}>Show All</ThemedText>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     );
@@ -385,6 +636,96 @@ export default function AISuggestedTradesScreen() {
     );
   };
 
+  if (viewMode === "grouped") {
+    return (
+      <FlatList
+        style={{ flex: 1, backgroundColor: theme.backgroundRoot }}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+          paddingHorizontal: Spacing.lg,
+          gap: Spacing.md,
+        }}
+        scrollIndicatorInsets={{ bottom: insets.bottom }}
+        data={paginatedGroups}
+        keyExtractor={(item) => item.symbol}
+        renderItem={renderGroupedItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BrandColors.aiLayer} />
+        }
+        ListHeaderComponent={
+          <View>
+            <View style={styles.header}>
+              <View style={styles.headerInfo}>
+                <View style={[styles.liveDot, { backgroundColor: BrandColors.aiLayer }]} />
+                <ThemedText style={[styles.headerText, { color: BrandColors.aiLayer }]}>
+                  AI-Powered Analysis (Grouped)
+                </ThemedText>
+              </View>
+              <View style={styles.headerActions}>
+                <Pressable
+                  onPress={handleViewModeToggle}
+                  style={[styles.viewModeButton, { backgroundColor: theme.backgroundSecondary }]}
+                >
+                  <Feather name="list" size={16} color={BrandColors.aiLayer} />
+                </Pressable>
+              </View>
+            </View>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScrollView}
+              contentContainerStyle={styles.filterContainer}
+            >
+              <FilterChip label="All" isActive={statusFilter === "all"} onPress={() => handleStatusFilter("all")} count={statusCounts.all} />
+              <FilterChip label="Executed" isActive={statusFilter === "executed"} onPress={() => handleStatusFilter("executed")} count={statusCounts.executed} />
+              <FilterChip label="Pending" isActive={statusFilter === "pending"} onPress={() => handleStatusFilter("pending")} count={statusCounts.pending} />
+              <FilterChip label="Skipped" isActive={statusFilter === "skipped"} onPress={() => handleStatusFilter("skipped")} count={statusCounts.skipped} />
+              <FilterChip label="Suggested" isActive={statusFilter === "suggested"} onPress={() => handleStatusFilter("suggested")} count={statusCounts.suggested} />
+            </ScrollView>
+
+            <View style={styles.paginationHeader}>
+              <View style={styles.pageInfo}>
+                <ThemedText style={[styles.pageInfoText, { color: theme.textSecondary }]}>
+                  {symbolGroups.length} symbols
+                </ThemedText>
+                <Pressable 
+                  onPress={() => setShowPageSizeMenu(!showPageSizeMenu)}
+                  style={[styles.pageSizeButton, { backgroundColor: theme.backgroundSecondary }]}
+                >
+                  <ThemedText style={[styles.pageSizeText, { color: theme.text }]}>{pageSize} per page</ThemedText>
+                  <Feather name="chevron-down" size={14} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+              {totalPages > 1 ? (
+                <View style={styles.paginationControls}>
+                  <Pressable onPress={() => handlePageChange("prev")} disabled={currentPage === 0} style={[styles.pageButton, { backgroundColor: theme.backgroundSecondary }, currentPage === 0 && styles.pageButtonDisabled]}>
+                    <Feather name="chevron-left" size={18} color={currentPage === 0 ? theme.textSecondary : theme.text} />
+                  </Pressable>
+                  <ThemedText style={[styles.pageNumber, { color: theme.text }]}>{currentPage + 1} / {totalPages}</ThemedText>
+                  <Pressable onPress={() => handlePageChange("next")} disabled={currentPage >= totalPages - 1} style={[styles.pageButton, { backgroundColor: theme.backgroundSecondary }, currentPage >= totalPages - 1 && styles.pageButtonDisabled]}>
+                    <Feather name="chevron-right" size={18} color={currentPage >= totalPages - 1 ? theme.textSecondary : theme.text} />
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+
+            {showPageSizeMenu ? (
+              <View style={[styles.pageSizeMenu, { backgroundColor: theme.backgroundSecondary }]}>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <Pressable key={size} onPress={() => handlePageSizeChange(size)} style={[styles.pageSizeOption, pageSize === size && { backgroundColor: BrandColors.aiLayer + "20" }]}>
+                    <ThemedText style={[styles.pageSizeOptionText, { color: pageSize === size ? BrandColors.aiLayer : theme.text }]}>{size} items</ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        }
+      />
+    );
+  }
+
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: theme.backgroundRoot }}
@@ -395,7 +736,7 @@ export default function AISuggestedTradesScreen() {
         gap: Spacing.md,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
-      data={decisions}
+      data={paginatedDecisions}
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
       refreshControl={
@@ -410,10 +751,125 @@ export default function AISuggestedTradesScreen() {
                 AI-Powered Analysis
               </ThemedText>
             </View>
-            <ThemedText style={[styles.headerCount, { color: theme.textSecondary }]}>
-              {decisions.length} suggestions
-            </ThemedText>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={handleViewModeToggle}
+                style={[styles.viewModeButton, { backgroundColor: theme.backgroundSecondary }]}
+              >
+                <Feather 
+                  name={viewMode === "list" ? "grid" : "list"} 
+                  size={16} 
+                  color={BrandColors.aiLayer} 
+                />
+              </Pressable>
+            </View>
           </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScrollView}
+            contentContainerStyle={styles.filterContainer}
+          >
+            <FilterChip 
+              label="All" 
+              isActive={statusFilter === "all"} 
+              onPress={() => handleStatusFilter("all")} 
+              count={statusCounts.all}
+            />
+            <FilterChip 
+              label="Executed" 
+              isActive={statusFilter === "executed"} 
+              onPress={() => handleStatusFilter("executed")} 
+              count={statusCounts.executed}
+            />
+            <FilterChip 
+              label="Pending" 
+              isActive={statusFilter === "pending"} 
+              onPress={() => handleStatusFilter("pending")} 
+              count={statusCounts.pending}
+            />
+            <FilterChip 
+              label="Skipped" 
+              isActive={statusFilter === "skipped"} 
+              onPress={() => handleStatusFilter("skipped")} 
+              count={statusCounts.skipped}
+            />
+            <FilterChip 
+              label="Suggested" 
+              isActive={statusFilter === "suggested"} 
+              onPress={() => handleStatusFilter("suggested")} 
+              count={statusCounts.suggested}
+            />
+          </ScrollView>
+
+          <View style={styles.paginationHeader}>
+            <View style={styles.pageInfo}>
+              <ThemedText style={[styles.pageInfoText, { color: theme.textSecondary }]}>
+                {filteredDecisions.length} {viewMode === "grouped" ? "symbols" : "trades"}
+              </ThemedText>
+              <Pressable 
+                onPress={() => setShowPageSizeMenu(!showPageSizeMenu)}
+                style={[styles.pageSizeButton, { backgroundColor: theme.backgroundSecondary }]}
+              >
+                <ThemedText style={[styles.pageSizeText, { color: theme.text }]}>
+                  {pageSize} per page
+                </ThemedText>
+                <Feather name="chevron-down" size={14} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+            {totalPages > 1 ? (
+              <View style={styles.paginationControls}>
+                <Pressable
+                  onPress={() => handlePageChange("prev")}
+                  disabled={currentPage === 0}
+                  style={[
+                    styles.pageButton, 
+                    { backgroundColor: theme.backgroundSecondary },
+                    currentPage === 0 && styles.pageButtonDisabled
+                  ]}
+                >
+                  <Feather name="chevron-left" size={18} color={currentPage === 0 ? theme.textSecondary : theme.text} />
+                </Pressable>
+                <ThemedText style={[styles.pageNumber, { color: theme.text }]}>
+                  {currentPage + 1} / {totalPages}
+                </ThemedText>
+                <Pressable
+                  onPress={() => handlePageChange("next")}
+                  disabled={currentPage >= totalPages - 1}
+                  style={[
+                    styles.pageButton, 
+                    { backgroundColor: theme.backgroundSecondary },
+                    currentPage >= totalPages - 1 && styles.pageButtonDisabled
+                  ]}
+                >
+                  <Feather name="chevron-right" size={18} color={currentPage >= totalPages - 1 ? theme.textSecondary : theme.text} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+
+          {showPageSizeMenu ? (
+            <View style={[styles.pageSizeMenu, { backgroundColor: theme.backgroundSecondary }]}>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <Pressable
+                  key={size}
+                  onPress={() => handlePageSizeChange(size)}
+                  style={[
+                    styles.pageSizeOption,
+                    pageSize === size && { backgroundColor: BrandColors.aiLayer + "20" }
+                  ]}
+                >
+                  <ThemedText style={[
+                    styles.pageSizeOptionText,
+                    { color: pageSize === size ? BrandColors.aiLayer : theme.text }
+                  ]}>
+                    {size} items
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           
           {pendingAnalysis.length > 0 ? (
             <Card elevation={1} style={styles.pendingCard}>
@@ -693,5 +1149,196 @@ const styles = StyleSheet.create({
   strategyText: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    gap: Spacing.xs,
+  },
+  filterChipText: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  filterChipBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  filterChipBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  filterScrollView: {
+    marginBottom: Spacing.md,
+  },
+  filterContainer: {
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  viewModeButton: {
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  paginationHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  pageInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  pageInfoText: {
+    ...Typography.small,
+  },
+  pageSizeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  pageSizeText: {
+    ...Typography.small,
+  },
+  paginationControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  pageButton: {
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  pageButtonDisabled: {
+    opacity: 0.4,
+  },
+  pageNumber: {
+    ...Typography.small,
+    fontWeight: "600",
+    minWidth: 60,
+    textAlign: "center",
+  },
+  pageSizeMenu: {
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+  },
+  pageSizeOption: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  pageSizeOptionText: {
+    ...Typography.body,
+  },
+  groupCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+    overflow: "hidden",
+  },
+  groupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+  },
+  groupTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    flexWrap: "wrap",
+    flex: 1,
+  },
+  groupSymbol: {
+    ...Typography.h4,
+    fontWeight: "700",
+  },
+  groupMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  tradeCountBadge: {
+    backgroundColor: "rgba(128,128,128,0.2)",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.sm,
+  },
+  tradeCountText: {
+    ...Typography.small,
+    fontWeight: "600",
+    fontSize: 10,
+  },
+  groupPrice: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  groupLegs: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  legsTitle: {
+    ...Typography.small,
+    marginBottom: Spacing.xs,
+  },
+  legItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+  },
+  legInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  legActionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legAction: {
+    ...Typography.small,
+    fontWeight: "700",
+  },
+  legStatusBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  legStatusText: {
+    fontSize: 9,
+    fontWeight: "600",
+  },
+  legDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  legConfidence: {
+    ...Typography.small,
+    fontWeight: "600",
+  },
+  legTime: {
+    ...Typography.small,
+    fontSize: 10,
   },
 });
