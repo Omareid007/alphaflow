@@ -268,11 +268,135 @@ jest.mock("openai", () => ({
 
 ---
 
+## 8. LLMClient Abstraction
+
+### 8.1 Overview
+
+The project uses a minimal, provider-agnostic LLM abstraction that:
+- Uses OpenAI as the **primary** provider
+- Supports **OpenRouter** as an optional secondary provider
+- Uses **NO external LLM frameworks** (no langchain, llamaindex, etc.)
+- Uses only `fetch` + small TypeScript wrappers
+
+### 8.2 Architecture
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| LLMClient Interface | `server/ai/llmClient.ts` | Provider-agnostic types and interfaces |
+| OpenAI Client | `server/ai/openaiClient.ts` | Fetch-based OpenAI implementation |
+| OpenRouter Client | `server/ai/openrouterClient.ts` | Fetch-based OpenRouter implementation |
+| Provider Selection | `server/ai/index.ts` | Selects provider based on config |
+| Safe Tools | `server/ai/tools.ts` | Read-only documentation helpers |
+| Doc Assistant | `server/ai/docAssistantCore.ts` | AI-powered docs Q&A |
+
+### 8.3 Provider Configuration
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `OPENAI_API_KEY` | OpenAI authentication | Required for OpenAI |
+| `AI_PROVIDER` | Select provider (`openai` or `openrouter`) | `openai` |
+| `OPENROUTER_API_KEY` | OpenRouter authentication | Required for OpenRouter |
+| `OPENAI_MODEL` | Override default OpenAI model | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | Override default OpenRouter model | `openai/gpt-4o-mini` |
+
+### 8.4 Usage
+
+```typescript
+import { llm, getLLMStatus } from "@/ai/index";
+
+// Check provider status
+const status = getLLMStatus();
+console.log(`Using: ${status.provider}, Available: ${status.available}`);
+
+// Make a call
+const response = await llm.call({
+  system: "You are a helpful assistant.",
+  messages: [{ role: "user", content: "Hello" }],
+  maxTokens: 500,
+  temperature: 0.3,
+});
+
+console.log(response.text);
+```
+
+### 8.5 Tool Calling
+
+```typescript
+import { llm, LLMTool } from "@/ai/index";
+
+const tools: LLMTool[] = [{
+  type: "function",
+  function: {
+    name: "getWeather",
+    description: "Get current weather",
+    parameters: {
+      type: "object",
+      properties: {
+        location: { type: "string", description: "City name" }
+      },
+      required: ["location"]
+    }
+  }
+}];
+
+const response = await llm.call({
+  system: "You are a helpful assistant.",
+  messages: [{ role: "user", content: "What's the weather in NYC?" }],
+  tools,
+  toolChoice: "auto",
+});
+
+if (response.toolCalls) {
+  for (const call of response.toolCalls) {
+    console.log(`Tool: ${call.name}, Args: ${JSON.stringify(call.arguments)}`);
+  }
+}
+```
+
+### 8.6 Safe Helper Use Cases
+
+The LLMClient is used for **safe, read-only helper tasks**:
+
+| Use Case | Allowed | Notes |
+|----------|---------|-------|
+| Docs Q&A | Yes | Via Doc Assistant CLI |
+| Log summarization | Yes | Anonymized logs only |
+| Code explanations | Yes | Read-only analysis |
+| Trading decisions | Special | Via existing decision engine only |
+| Order placement | No | Never via LLMClient |
+| Config changes | No | Never via LLMClient |
+
+---
+
+## 9. Doc Assistant Tool
+
+### 9.1 Purpose
+
+A dev-only CLI tool for asking questions about the system based on documentation.
+
+### 9.2 Usage
+
+```bash
+npx tsx tools/doc_assistant/index.ts "How is Total P&L calculated?"
+```
+
+### 9.3 Safety
+
+- **DEV-ONLY** - Not exposed via API or UI
+- **Read-only** - Only reads from docs/*.md files
+- **No secrets** - Cannot access credentials or PII
+- **No trading** - Cannot place orders or modify state
+
+See `docs/DOC_ASSISTANT.md` for full documentation.
+
+---
+
 ## Related Documentation
 
 | Document | Relevance |
 |----------|-----------|
 | `AGENT_EXECUTION_GUIDE.md` | Section 14: AI Models & Provider Governance |
+| `DOC_ASSISTANT.md` | Dev-only documentation helper |
 | `OBSERVABILITY.md` | AI logging category (`log.ai()`) |
 | `TESTING.md` | AI-related test patterns |
 | `ARCHITECTURE.md` | AI layer in system design |

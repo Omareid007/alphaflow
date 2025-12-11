@@ -1,0 +1,444 @@
+You are operating inside the AI Active Trader repository.
+
+This is a **governance + AI integration + dev-tools** task with STRICT safety rules:
+
+- You MAY:
+  - Add new TypeScript/JavaScript modules under server/ and tools/
+  - Add or extend Markdown docs under docs/
+  - Make SMALL, targeted edits to existing docs to keep them accurate & consistent
+- You MUST NOT:
+  - Remove entire sections from existing docs
+  - Rewrite or discard the existing governance or architecture intent
+  - Modify trading logic, P&L formulas, risk logic, DB schemas, or the trading orchestrator behavior
+  - Add heavy AI frameworks or SDKs (NO langchain, NO llamaindex, NO langgraph, NO vendor SDKs)
+
+Your work must be:
+- Backwards compatible
+- Minimal in surface area
+- Clearly documented
+- Easy for Replit and human engineers to maintain
+
+==================================================
+STEP 0 – READ CONTEXT & SELECT MODES
+==================================================
+
+Before doing ANY changes:
+
+1. Open and read these docs carefully (no edits yet):
+   - docs/AGENT_EXECUTION_GUIDE.md
+   - docs/AI_MODELS_AND_PROVIDERS.md
+   - docs/APP_OVERVIEW.md
+   - docs/ARCHITECTURE.md
+   - docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md
+   - docs/CONNECTORS_AND_INTEGRATIONS.md
+   - docs/FINANCIAL_METRICS.md
+   - docs/TESTING.md
+   - docs/OBSERVABILITY.md
+   - docs/LESSONS_LEARNED.md
+
+2. Based on AGENT_EXECUTION_GUIDE + any existing "Task Analysis & Mode Selection" content, internally select the modes you are operating in for THIS task:
+
+   - Docs Governance Mode
+   - AI Integration Mode (safe, dev-only helper)
+   - Architecture / Design Mode
+   - QA / Testing Mode
+   - Technical Writer Mode
+
+   You may also temporarily “switch” into other roles (PM, SRE, Security, etc.) when relevant, but this is primarily a documentation + infrastructure integration task, NOT a trading logic change.
+
+3. Respect all existing governance:
+   - If sections like “Continuous Calibration”, “Task Analysis & Mode Selection”, “AI Models & Provider Governance”, etc. already exist,
+     - DO NOT remove them,
+     - DO NOT contradict them,
+     - You may refine/extend them if needed, but keep their intent.
+
+==================================================
+STEP 1 – AI MODELS & PROVIDERS: CLEAN, MINIMAL ABSTRACTION
+==================================================
+
+Goal:
+Create a minimal, provider-agnostic LLM layer that:
+- Uses OpenAI as the **primary** provider (cheap models like gpt-4.1-mini / gpt-4o-mini or equivalent)
+- Optionally supports **OpenRouter** as a secondary provider
+- Uses NO external LLM frameworks (no langchain, no llamaindex, no vendor SDKs)
+- Uses only fetch + small TypeScript wrappers
+- Is restricted to SAFE, READ-ONLY helper tasks (docs Q&A, explanations, log summaries, etc.)
+
+1. Create a small LLMClient abstraction
+
+   File: server/ai/llmClient.ts
+
+   Define:
+
+   - LLMProvider type:
+     - "openai" | "openrouter"
+
+   - LLMRequest:
+     - model: string
+     - system?: string
+     - messages: { role: "system" | "user" | "assistant"; content: string }[]
+     - tools?: any[]                 // OpenAI-style tools JSON schema
+     - toolChoice?: "auto" | { type: "function"; function: { name: string } }
+     - maxTokens?: number
+     - temperature?: number
+
+   - LLMToolCall:
+     - name: string
+     - arguments: any
+
+   - LLMResponse:
+     - text?: string
+     - toolCalls?: LLMToolCall[]
+     - raw: any
+
+   - LLMClient interface:
+     - call(req: LLMRequest): Promise<LLMResponse>
+
+2. Implement OpenAI client
+
+   File: server/ai/openaiClient.ts
+
+   - Use fetch to call the OpenAI HTTP API (chat/completions or responses), NOT any SDK.
+   - Support:
+     - system + user messages
+     - tool calling (tools + toolChoice)
+     - maxTokens, temperature
+   - Read configuration from environment variables, for example:
+     - OPENAI_API_KEY
+     - OPENAI_MODEL (default to a cheap model like gpt-4o-mini / gpt-4.1-mini)
+     - OPENAI_BASE_URL (optional, default to official OpenAI URL)
+   - Handle errors gracefully:
+     - Return structured errors, do not crash the process.
+     - NEVER log the API key or sensitive raw payloads.
+
+3. Implement OpenRouter client (optional provider)
+
+   File: server/ai/openrouterClient.ts
+
+   - Also use fetch, following OpenRouter’s OpenAI-style API format.
+   - Read env vars:
+     - OPENROUTER_API_KEY
+     - OPENROUTER_MODEL (e.g. a DeepSeek / Kimi / Llama model)
+     - OPENROUTER_BASE_URL
+   - Same safety practices:
+     - No secrets logged
+     - Clear error handling
+
+4. Provider selection
+
+   File: server/ai/index.ts
+
+   - Choose provider based on env:
+     - AI_PROVIDER = "openai" | "openrouter" (default "openai")
+   - Export a single llm object implementing LLMClient:
+     - If AI_PROVIDER is "openrouter" and env is configured, use OpenRouterClient
+     - Otherwise default to OpenAIClient
+
+5. Update docs/AI_MODELS_AND_PROVIDERS.md (append / refine only)
+
+   - Document:
+     - The LLMClient abstraction
+     - Primary provider: OpenAI + recommended cheap models
+     - Optional secondary: OpenRouter
+     - Required env vars and safety rules
+   - Emphasise:
+     - Only safe, read-only helper use cases are allowed by default
+     - Trading logic and orders remain deterministic and code-driven
+
+==================================================
+STEP 2 – SAFE TOOLS/FUNCTIONS FOR AI (DOCS / EXPLANATIONS ONLY)
+==================================================
+
+Goal:
+Expose a VERY small set of safe “tools” that AI can call via function/tool calling. These tools must:
+
+- Operate ONLY on:
+  - docs/*.md
+  - non-sensitive metadata (e.g. anonymised logs)
+- NEVER:
+  - Place orders
+  - Change DB state
+  - Change orchestrator config
+  - Access raw customer PII or account numbers
+
+1. Create safe tools module
+
+   File: server/ai/tools.ts
+
+   Implement a few tools, e.g.:
+
+   - getMetricDefinition(metricName: string)
+     - Reads docs/FINANCIAL_METRICS.md
+     - Returns:
+       - Metric name
+       - Plain-English description
+       - Formula description
+       - Related UI widget names (if documented)
+
+   - getArchitectureSection(sectionSlug: string)
+     - Reads from docs/ARCHITECTURE.md and docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md
+     - Returns a focused snippet + reference (heading or anchor) for human follow-up
+
+   - getLessonsLearned(area: string)
+     - Reads docs/LESSONS_LEARNED.md
+     - Returns relevant bullet-point lessons for that area:
+       - ai_models, connectors, orchestrator, agent_orchestration, etc.
+
+   Optionally:
+   - getTestingGuidance(flow: string)
+     - Reads docs/TESTING.md
+     - Returns notes about how to test that flow (unit, integration, manual QA)
+
+2. Define OpenAI-style tool schema
+
+   In server/ai/tools.ts (or a separate file), export:
+
+   - tools: an array of JSON tool definitions (name, description, parameters schema) compatible with OpenAI tool calling
+   - a dispatcher:
+     - executeToolCall(toolCall: LLMToolCall): Promise<{ name: string; result: any }>
+
+3. Implement a helper that uses tools
+
+   For example, file: server/ai/docAssistantCore.ts
+
+   - Given a question string:
+     - Call llm.call with:
+       - system message explaining:
+         - “You are a docs & architecture assistant. You only answer by using docs/*.md and the safe tools provided. You do not execute trades or change system configuration.”
+       - user message with the question
+       - tools + toolChoice="auto"
+     - If the model returns tool calls:
+       - Execute each via executeToolCall
+       - Call llm.call again with the tool outputs as messages
+     - Return the final answer + a list of references (file + section names)
+
+   This helper must be PURELY read-only and must never call any trading or connector code.
+
+==================================================
+STEP 3 – DEV-ONLY DOCS ASSISTANT (CLI)
+==================================================
+
+Goal:
+Give developers (and you, as an agent) a dev-only CLI to ask questions about the system based on docs + safe tools.
+
+1. Create CLI entry
+
+   Folder: tools/doc_assistant/
+   File: tools/doc_assistant/index.ts
+
+   Behaviour:
+   - Accept a question from command line args, e.g.:
+     - npm run docs:ask "How is Total P&L calculated and mapped to the dashboard?"
+   - Use docAssistantCore.ts to:
+     - Get an answer from the LLM using tools
+     - Print:
+       - Answer text
+       - A “References” section listing file paths + headings
+
+2. Add npm script
+
+   In package.json, add:
+   - "docs:ask": "tsx tools/doc_assistant/index.ts"
+
+3. Document it
+
+   Create or update docs/DOC_ASSISTANT.md (append-only if it exists) with:
+   - Purpose
+   - How to configure env (OPENAI_API_KEY, AI_PROVIDER, etc.)
+   - How to run:
+     - npm run docs:ask "..."
+   - Scope and limitations:
+     - Dev-only
+     - No live orders, no data modifications
+     - Answers are advisory; humans must verify by reading referenced files
+
+4. DO NOT:
+   - Expose this CLI via the mobile app or public API
+   - Use it in the orchestrator
+   - Depend on it for any production trading decision
+
+==================================================
+STEP 4 – GOVERNANCE: AI / CONNECTORS / ORCHESTRATOR / AGENTS
+==================================================
+
+Goal:
+Ensure AGENT_EXECUTION_GUIDE.md and related docs encode clear rules for:
+
+- AI models & providers
+- Connectors & external integrations
+- Orchestrator & trading agent runtime
+- Development-time multi-role agent orchestration
+- Continuous Calibration & Lessons Learned
+
+You MUST NOT delete existing sections. You may:
+
+- Append new top-level sections at the end
+- Add subsections under existing headings
+- Slightly adjust existing text to keep it accurate and consistent
+
+1. AI Models & Provider Governance
+
+   In docs/AGENT_EXECUTION_GUIDE.md:
+
+   - If a section like “AI Models & Provider Governance” already exists:
+     - Refine it to:
+       - Reference the LLMClient abstraction
+       - State that OpenAI is primary, OpenRouter optional
+       - Reinforce:
+         - Use cheapest reasonable models for routine tasks
+         - Keep prompts short, structured, and deterministic where possible
+         - No secrets or raw PII in prompts
+   - If it does NOT exist:
+     - Append a new top-level section with that content
+
+2. Connectors & External Integrations Governance
+
+   In AGENT_EXECUTION_GUIDE.md:
+
+   - Ensure there is a section describing:
+     - Connectors as adapters (e.g., Alpaca, Finnhub, CoinGecko, NewsAPI, others)
+     - Error handling, retries, and rate-limit strategies
+     - Security rules (API keys in env, no secrets in logs)
+     - Testing expectations:
+       - Mocked responses
+       - Integration tests
+
+   - If a “Connectors & Integrations” doc exists (docs/CONNECTORS_AND_INTEGRATIONS.md), cross-link it here.
+
+3. Trading Orchestrator & Agent Runtime Governance
+
+   In AGENT_EXECUTION_GUIDE.md:
+
+   - Confirm or add a section that states:
+     - Responsibilities of the orchestrator (cycle, data fetch, AI call, trade placement, DB update, logging)
+     - Safety rails:
+       - Paper trading only by default
+       - Risk limits and kill switch are mandatory
+     - Any change to orchestrator is high-risk and must:
+       - Be preceded by design consideration (ARCHITECTURE.md)
+       - Include tests
+       - Add an entry to LESSONS_LEARNED.md if behavior or risk posture changes
+
+   - Cross-link docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md and docs/ARCHITECTURE.md.
+
+4. Development-Time Agent & Mode Selection
+
+   In AGENT_EXECUTION_GUIDE.md:
+
+   - Ensure that:
+     - There is a clear description of task types / modes:
+       - Bugfix Mode, Feature Mode, Refactor Mode, Infra/DevOps Mode, UI/UX Mode, Meta/Continuous-Improvement Mode, Docs Governance Mode
+     - For AI / connector / orchestrator related work:
+       - The guide tells the agent to include Architect + QA roles by default
+     - The agent is reminded to:
+       - Read AGENT_EXECUTION_GUIDE first
+       - Optionally read LESSONS_LEARNED and AI/CONNECTOR/ORCHESTRATOR docs next
+
+==================================================
+STEP 5 – CONTINUOUS CALIBRATION & LESSONS LEARNED
+==================================================
+
+Goal:
+Make sure docs/LESSONS_LEARNED.md and AGENT_EXECUTION_GUIDE.md work together as a continuous development loop.
+
+1. docs/LESSONS_LEARNED.md
+
+   - Verify there are categories or tags for:
+     - ai_models
+     - connectors
+     - orchestrator
+     - agent_orchestration
+   - If missing, add them without removing existing ones.
+   - Under categorised sections (if they exist), ensure there are subsections like:
+     - “AI Models & Prompting Lessons”
+     - “Connector & External API Lessons”
+     - “Orchestrator & Agent Runtime Lessons”
+     - “Development-Time Agent Orchestration Lessons”
+   - Seed or refine each with a handful of example lessons, e.g.:
+     - “Always clarify metric definitions before changing prompts that describe P&L.”
+     - “Connector failures must degrade gracefully; never crash cycle.”
+     - “Orchestrator changes require regression tests and explicit risk reasoning.”
+
+2. AGENT_EXECUTION_GUIDE.md Continuous Calibration section
+
+   - Ensure there is a section (or append one) like “Continuous Calibration & Lessons Learned” that:
+     - Explains:
+       - After significant tasks (bugfix, feature, refactor, infra, AI), the agent should:
+         - Reflect on what worked / didn’t
+         - Add a Lesson entry to docs/LESSONS_LEARNED.md
+     - Clarifies that LESSONS_LEARNED.md is:
+       - Optional but recommended
+       - Always secondary to AGENT_EXECUTION_GUIDE, never a replacement
+
+==================================================
+STEP 6 – OBSERVABILITY & TESTING CROSS-LINKS
+==================================================
+
+Goal:
+Make sure AI / connectors / orchestrator are properly wired into logging and testing expectations.
+
+1. docs/OBSERVABILITY.md
+
+   - If not already present, append a small section “Related Governance Docs” listing:
+     - AGENT_EXECUTION_GUIDE.md (AI, connectors, orchestrator sections)
+     - CONNECTORS_AND_INTEGRATIONS.md
+     - ORCHESTRATOR_AND_AGENT_RUNTIME.md
+     - AI_MODELS_AND_PROVIDERS.md
+
+2. docs/TESTING.md
+
+   - Under testing strategies, ensure there is mention of:
+     - AI-related logic (parsers, tools, doc assistant) → unit / integration tests
+     - Connector integrations → integration tests with mocks
+     - Orchestrator flows → high-level tests, manual QA scenarios
+   - Append “Related Governance Docs” referencing:
+     - FINANCIAL_METRICS.md
+     - AI_MODELS_AND_PROVIDERS.md
+     - CONNECTORS_AND_INTEGRATIONS.md
+     - ORCHESTRATOR_AND_AGENT_RUNTIME.md
+     - LESSONS_LEARNED.md (for areas where tests were missing in the past)
+
+==================================================
+STEP 7 – SMOKE TEST & SANITY CHECK
+==================================================
+
+1. Add at least a minimal smoke test for the doc assistant:
+
+   - It can be:
+     - A small Node script or a lightweight test file that:
+       - Mocks llm.call to return a dummy answer
+       - Confirms docAssistantCore returns a structured response (text + references)
+   - Keep it simple; no need to wire into full test runner if not already appropriate.
+
+2. Run existing tests (if there is a test command defined in package.json) and ensure:
+   - Nothing is broken by your additions.
+   - New files don’t cause build errors.
+
+==================================================
+STEP 8 – FINAL RESPONSE
+==================================================
+
+In your final response to the user, provide:
+
+1. A bullet list of all new or modified files, including:
+   - server/ai/llmClient.ts
+   - server/ai/openaiClient.ts
+   - server/ai/openrouterClient.ts (if created)
+   - server/ai/tools.ts
+   - server/ai/docAssistantCore.ts (or equivalent)
+   - tools/doc_assistant/index.ts
+   - Any test or helper files
+   - Any updated docs under docs/
+
+2. A short explanation of:
+   - How the new LLMClient works
+   - Which providers are supported and how they’re chosen (env)
+   - What the doc assistant can and cannot do
+
+3. Exact commands to:
+   - Run the doc assistant (e.g. npm run docs:ask "…")
+   - Run the test suite or smoke test
+
+4. A brief note confirming that:
+   - No trading / orchestrator / P&L logic was modified
+   - No heavy external AI frameworks were added as dependencies

@@ -614,9 +614,19 @@ The project uses AI models for trading decision support. Key AI-related modules:
 
 | Module | Location | Purpose |
 |--------|----------|---------|
+| LLMClient Interface | `server/ai/llmClient.ts` | Provider-agnostic LLM abstraction |
+| OpenAI Client | `server/ai/openaiClient.ts` | Fetch-based OpenAI implementation |
+| OpenRouter Client | `server/ai/openrouterClient.ts` | Fetch-based OpenRouter implementation |
+| Provider Selection | `server/ai/index.ts` | Selects provider based on config |
 | Decision Engine | `server/ai/decision-engine.ts` | Core AI decision logic for trade signals |
-| OpenAI Integration | `server/ai/openai.ts` | Provider wrapper for OpenAI API |
-| AI Analysis | `server/trading/alpaca-trading-engine.ts` | AI-powered market analysis |
+| Safe Tools | `server/ai/tools.ts` | Read-only documentation helpers |
+| Doc Assistant | `server/ai/docAssistantCore.ts` | AI-powered docs Q&A (dev-only) |
+
+**Architecture Principles:**
+- Uses **NO external LLM frameworks** (no langchain, llamaindex, etc.)
+- Uses only `fetch` + minimal TypeScript wrappers
+- OpenAI is **primary provider**, OpenRouter is **optional secondary**
+- Safe tools are **read-only** and access only docs/*.md files
 
 **Responsibilities:**
 - Generate buy/sell/hold recommendations with confidence scores
@@ -684,6 +694,26 @@ log.ai("Analysis complete for AAPL", { confidence: 0.85, action: "buy" });
 ```
 
 **Reference:** See `docs/OBSERVABILITY.md` for AI logging categories.
+
+### 14.7 LLMClient & Provider Configuration
+
+**Primary Provider: OpenAI**
+- API Key: `OPENAI_API_KEY` or `AI_INTEGRATIONS_OPENAI_API_KEY`
+- Default Model: `gpt-4o-mini`
+- Override: Set `OPENAI_MODEL` environment variable
+
+**Secondary Provider: OpenRouter**
+- API Key: `OPENROUTER_API_KEY`
+- Enable: Set `AI_PROVIDER=openrouter`
+- Default Model: `openai/gpt-4o-mini`
+
+**Safe Helper Tools:**
+- Dev-only CLI: `npx tsx tools/doc_assistant/index.ts "question"`
+- Only reads from docs/*.md files
+- Never places orders or modifies state
+- See `docs/DOC_ASSISTANT.md` for usage
+
+**Reference:** See `docs/AI_MODELS_AND_PROVIDERS.md` Section 8 for LLMClient details.
 
 ---
 
