@@ -357,8 +357,254 @@ Before you consider a task done, you MUST verify:
 | Financial Metrics | `docs/FINANCIAL_METRICS.md` | P&L formulas, calculations, business logic |
 | Architecture | `docs/ARCHITECTURE.md` | System design, data flows, integrations |
 | Testing | `docs/TESTING.md` | Test strategy, commands, scenarios |
+| Lessons Learned | `docs/LESSONS_LEARNED.md` | Patterns, anti-patterns, continuous improvement |
+| Observability | `docs/OBSERVABILITY.md` | Logging infrastructure and monitoring |
 
 ---
 
-*Document Version: 1.0*  
+## 12. Continuous Calibration & Lessons Learned
+
+### 12.1 Purpose
+
+This section introduces a **continuous improvement loop** for the agent's behaviour and the codebase quality.
+
+The goal is to steadily improve:
+- Code quality and reliability
+- Testing practices and coverage
+- Prompt interpretation accuracy
+- Architectural decisions
+- Overall agent effectiveness over time
+
+By capturing and applying lessons from completed tasks, the agent becomes progressively better at working within this codebase.
+
+### 12.2 When to Use
+
+**Use continuous calibration after:**
+- Completing a significant task (bugfix, feature, refactor, infrastructure change)
+- When the user explicitly requests retrospectives or process improvements
+- After any change touching critical flows (P&L, orders, orchestrator, auth)
+- After complex or multi-step implementations
+
+**Not required for:**
+- Trivial changes (typo fixes, simple comment updates)
+- Single-line fixes with obvious correctness
+- Pure documentation reorganization
+
+### 12.3 Process
+
+After finishing a significant task (implementation + tests + docs), the agent SHOULD:
+
+1. **Reflect on the task execution:**
+   - What worked well?
+   - Where did the agent struggle or waste time/tokens?
+   - Any misunderstandings from the prompt?
+   - Any missing tests or docs discovered late?
+   - Any unexpected interactions between components?
+
+2. **Summarise key lessons as 3-7 bullet points:**
+   - Focus on actionable insights
+   - Be specific about what area of the codebase is affected
+   - Include both positive patterns and pitfalls
+
+3. **Update `docs/LESSONS_LEARNED.md`:**
+   - Add a new entry under the relevant category (Section 4.x)
+   - Use the template provided in that document:
+     - Task name / short label
+     - Area (metrics, orchestrator, UI, infra, etc.)
+     - What worked
+     - What to improve
+     - Actionable recommendations
+
+4. **Governance updates:**
+   - If lessons imply changes to AGENT_EXECUTION_GUIDE.md itself, **suggest them but DO NOT change this guide automatically**
+   - Governance changes require explicit user approval
+   - Document proposed governance changes in the response
+
+### 12.4 How to Use Lessons in Future Tasks
+
+When starting any new significant task:
+
+1. **Read AGENT_EXECUTION_GUIDE.md** (this document) - mandatory
+2. **Optionally read `docs/LESSONS_LEARNED.md`** and look for relevant patterns
+3. **Apply useful lessons**, especially around:
+   - Testing strategy (what tests to add, when)
+   - Handling of financial metrics (precision, consistency)
+   - Interaction with external APIs (rate limits, error handling)
+   - Prompt interpretation and scope control
+   - Known pitfalls in specific areas of the codebase
+
+### 12.5 Relationship to Testing & Documentation
+
+Continuous Calibration is NOT a substitute for tests or docs, but an **extra layer**:
+
+| Artifact | Purpose |
+|----------|---------|
+| Tests | Prove correctness - verify the code does what it should |
+| Docs | Explain how the system works - describe current state |
+| Lessons Learned | Explain how to work on the system better - improve process |
+
+All three are complementary and should be maintained together.
+
+---
+
+## 13. Task Analysis & Mode Selection
+
+### 13.1 Purpose
+
+Before acting on any user request, the agent SHOULD:
+
+1. **Analyse** the user's prompt
+2. **Classify** the task type
+3. **Select** an appropriate "mode" that dictates:
+   - Primary roles to operate as
+   - Key docs to consult
+   - Typical workflow to follow
+
+This structured approach ensures consistent, efficient task handling and minimizes wasted effort.
+
+### 13.2 Task Types / Modes
+
+The agent should classify each task into one of these canonical modes:
+
+#### Bugfix Mode
+
+**Triggered by:** Words like "bug", "broken", "incorrect", "wrong", "error", "not working", "fix"
+
+**Focus:**
+- Identify root cause through analysis and logs
+- Fix with minimal, targeted change
+- Add regression tests that would fail before the fix
+- Update docs where logic or behaviour changed
+
+**Primary roles:** Product Analyst, Architect, Full-Stack Engineer, QA Automation
+
+**Key docs:** APP_OVERVIEW.md, ARCHITECTURE.md, TESTING.md, FINANCIAL_METRICS.md (if metrics-related), LESSONS_LEARNED.md
+
+---
+
+#### Feature Mode (New Feature / Enhancement)
+
+**Triggered by:** Words like "add", "implement", "new", "create", "build", "introduce", "enable"
+
+**Focus:**
+- Clarify feature value and acceptance criteria
+- Design minimal coherent solution that fits existing architecture
+- Implement end-to-end with comprehensive tests
+- Document the new capability
+
+**Primary roles:** PM, Architect, Full-Stack Engineer, QA, UX (if UI involved)
+
+**Key docs:** APP_OVERVIEW.md (features/flows), ARCHITECTURE.md (impacts), TESTING.md (coverage expectations), FINANCIAL_METRICS.md (if metric-related), LESSONS_LEARNED.md (patterns/pitfalls)
+
+---
+
+#### Refactor Mode
+
+**Triggered by:** Words like "clean up", "refactor", "modularise", "extract", "reorganize", "improve structure"
+
+**Focus:**
+- Preserve external behaviour (no functional changes unless explicitly requested)
+- Improve structure, readability, and testability
+- Add tests if missing for areas being refactored
+- Update architecture docs if structure changes significantly
+
+**Primary roles:** Architect, Full-Stack Engineer, QA Automation
+
+**Key docs:** ARCHITECTURE.md, TESTING.md, LESSONS_LEARNED.md (refactor lessons)
+
+---
+
+#### Infra / DevOps Mode
+
+**Triggered by:** Words like "scripts", "build", "deployment", "Docker", "run command", "CI/CD", "environment"
+
+**Focus:**
+- Improve run/test/deploy experience
+- Avoid destructive operations without explicit approval
+- Update runtime and deployment documentation
+- Ensure changes work across environments
+
+**Primary roles:** DevOps, Architect, QA
+
+**Key docs:** APP_OVERVIEW.md (Runtime & Deployment section), TESTING.md (test commands), LESSONS_LEARNED.md (infra lessons)
+
+---
+
+#### UI / UX Mode
+
+**Triggered by:** Words like "design", "layout", "widget", "screen", "labels", "user confusion", "display", "visual"
+
+**Focus:**
+- Improve clarity and usability
+- Keep functional behaviour intact unless changes are specified
+- Document major UX decisions if relevant
+- Ensure consistency with existing design patterns
+
+**Primary roles:** PM, UX Designer, Frontend Engineer, QA
+
+**Key docs:** APP_OVERVIEW.md (features/screens), FINANCIAL_METRICS.md (if metrics presentation changes), design_guidelines.md
+
+---
+
+#### Meta / Continuous Improvement Mode
+
+**Triggered by:** Words like "update guide", "change process", "improve prompts", "lessons learned", "governance", "documentation structure"
+
+**Focus:**
+- Evolve governance, docs, and internal processes
+- Never change business logic without explicit request
+- Preserve existing content (append rather than rewrite)
+- Maintain clear relationships between documents
+
+**Primary roles:** Engineering Manager, Architect, Technical Writer
+
+**Key docs:** AGENT_EXECUTION_GUIDE.md, LESSONS_LEARNED.md
+
+---
+
+### 13.3 Mode Selection Procedure
+
+For each new task, the agent SHOULD:
+
+1. **Read the user's prompt** carefully and completely
+2. **Identify keywords** that suggest a specific mode
+3. **Decide which primary mode(s) apply**
+   - Sometimes multiple modes apply (e.g., "fix this bug and add a test" = Bugfix + Feature)
+   - List primary mode first, secondary mode(s) after
+4. **State the chosen mode(s)** briefly in the action plan
+5. **Apply the relevant workflow:**
+   - Bugfix Mode → emphasize regression tests, root cause, docs
+   - Feature Mode → emphasize requirements, design, tests, docs
+   - Refactor Mode → emphasize preserving behaviour and tests
+   - Infra Mode → emphasize safety, env consistency, scripts
+   - UI/UX Mode → emphasize user clarity, visual consistency
+   - Meta Mode → emphasize governance, append-only changes
+
+### 13.4 Docs to Consult by Mode
+
+Quick reference for which docs to prioritize:
+
+| Mode | Primary Docs | Secondary Docs |
+|------|--------------|----------------|
+| Bugfix | APP_OVERVIEW, TESTING | ARCHITECTURE, FINANCIAL_METRICS, LESSONS_LEARNED |
+| Feature | APP_OVERVIEW, ARCHITECTURE | TESTING, FINANCIAL_METRICS, LESSONS_LEARNED |
+| Refactor | ARCHITECTURE, TESTING | LESSONS_LEARNED |
+| Infra/DevOps | APP_OVERVIEW (Runtime section), TESTING | LESSONS_LEARNED |
+| UI/UX | APP_OVERVIEW, design_guidelines | FINANCIAL_METRICS |
+| Meta | AGENT_EXECUTION_GUIDE | LESSONS_LEARNED |
+
+### 13.5 Token & Efficiency Benefits
+
+Mode Selection also helps minimize token/credit usage:
+
+- By quickly identifying the right subset of docs to consult
+- By avoiding scanning unrelated parts of the codebase
+- By focusing effort on the specific workflow pattern that applies
+- By reusing lessons from similar past tasks instead of rediscovering solutions
+
+The agent should always consider: "What is the smallest set of files and docs I need to complete this task well?"
+
+---
+
+*Document Version: 1.1*  
 *Last Updated: December 2024*
