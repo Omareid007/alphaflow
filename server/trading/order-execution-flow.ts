@@ -13,6 +13,9 @@ import { randomUUID } from "crypto";
 import { alpaca, CreateOrderParams, AlpacaOrder } from "../connectors/alpaca";
 import { storage } from "../storage";
 import { safeParseFloat } from "../utils/numeric";
+import { performanceTracker } from "../lib/performance-metrics";
+import { cacheQuickQuote, getQuickQuote, cacheAccountSnapshot, getAccountSnapshot, cacheTradability, getTradability } from "../lib/order-execution-cache";
+import { emitEvent } from "../lib/webhook-emitter";
 import {
   CreateOrderSchema,
   validateOrderTypeCombination,
@@ -338,6 +341,18 @@ class OrderExecutionEngine {
           order = await this.submitOrderWithTimeout(orderWithClientId, opts.timeoutMs);
           state.orderId = order.id;
           state.status = "submitted";
+          
+          emitEvent('trade.order.submitted', {
+            orderId: order.id,
+            clientOrderId,
+            symbol: params.symbol,
+            side: params.side,
+            type: params.type,
+            qty: params.qty,
+            limitPrice: params.limit_price,
+            timestamp: new Date().toISOString(),
+          }).catch(err => console.error('[Webhook] Order submitted event failed:', err));
+          
           break;
         } catch (error) {
           const classifiedError = classifyError(error as Error, `Attempt ${state.attempts}`);
@@ -398,6 +413,17 @@ class OrderExecutionEngine {
       state.filledQty = monitoredOrder.filled_qty;
       state.filledPrice = monitoredOrder.filled_avg_price;
       
+      emitEvent('trade.order.filled', {
+        orderId: monitoredOrder.id,
+        clientOrderId,
+        symbol: monitoredOrder.symbol,
+        side: monitoredOrder.side,
+        filledQty: monitoredOrder.filled_qty,
+        filledPrice: monitoredOrder.filled_avg_price,
+        status: monitoredOrder.status,
+        timestamp: new Date().toISOString(),
+      }).catch(err => console.error('[Webhook] Order filled event failed:', err));
+      
       return {
         success: true,
         state,
@@ -436,13 +462,35 @@ class OrderExecutionEngine {
     result.warnings.push(...typeTifValidation.warnings);
     if (!typeTifValidation.valid) result.valid = false;
     
-    // Get current price for price validations
+    // Get current price for price validations (check cache first for faster validation)
     let currentPrice: number | null = null;
-    try {
-      const snapshots = await alpaca.getSnapshots([params.symbol]);
-      currentPrice = snapshots[params.symbol]?.latestTrade?.p || null;
-    } catch {
-      result.warnings.push(`Could not fetch current price for ${params.symbol}`);
+    const cachedQuote = getQuickQuote(params.symbol);
+    if (cachedQuote) {
+      currentPrice = cachedQuote.price;
+    } else {
+      try {
+        const operationId = `quote_${params.symbol}_${Date.now()}`;
+        performanceTracker.startTimer(operationId);
+        const snapshots = await alpaca.getSnapshots([params.symbol]);
+        const latency = performanceTracker.endTimer(operationId, 'quoteRetrieval');
+        currentPrice = snapshots[params.symbol]?.latestTrade?.p || null;
+        if (currentPrice) {
+          const trade = snapshots[params.symbol]?.latestTrade;
+          cacheQuickQuote({
+            symbol: params.symbol,
+            price: currentPrice,
+            bid: snapshots[params.symbol]?.latestQuote?.bp || currentPrice,
+            ask: snapshots[params.symbol]?.latestQuote?.ap || currentPrice,
+            spread: 0,
+            timestamp: Date.now(),
+          });
+        }
+        if (latency > 10) {
+          console.log(`[OrderExecution] Slow quote retrieval: ${latency}ms for ${params.symbol}`);
+        }
+      } catch {
+        result.warnings.push(`Could not fetch current price for ${params.symbol}`);
+      }
     }
     
     if (currentPrice) {
@@ -594,24 +642,33 @@ class OrderExecutionEngine {
   }
   
   /**
-   * Submit order with timeout
+   * Submit order with timeout and performance tracking
    */
   private async submitOrderWithTimeout(
     params: CreateOrderParams,
     timeoutMs: number
   ): Promise<AlpacaOrder> {
+    const operationId = `order_${params.symbol}_${Date.now()}`;
+    performanceTracker.startTimer(operationId);
+    
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        performanceTracker.endTimer(operationId, 'orderExecution');
         reject(new Error(`Order submission timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       
       alpaca.createOrder(params)
         .then(order => {
           clearTimeout(timeout);
+          const latency = performanceTracker.endTimer(operationId, 'orderExecution');
+          if (latency > 50) {
+            console.log(`[OrderExecution] Slow order submission: ${latency}ms for ${params.symbol}`);
+          }
           resolve(order);
         })
         .catch(error => {
           clearTimeout(timeout);
+          performanceTracker.endTimer(operationId, 'orderExecution');
           reject(error);
         });
     });

@@ -6,6 +6,19 @@ import * as fs from "fs";
 import * as path from "path";
 import { log, createRequestLogger } from "./utils/logger";
 
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled rejection at:', promise, 'reason:', reason);
+});
+
+process.on('SIGTERM', () => console.log('[SIGNAL] SIGTERM received'));
+process.on('SIGINT', () => console.log('[SIGNAL] SIGINT received'));
+process.on('beforeExit', (code) => console.log('[PROCESS] beforeExit with code:', code));
+process.on('exit', (code) => console.log('[PROCESS] exit with code:', code));
+
 const app = express();
 
 declare module "http" {
@@ -188,26 +201,34 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
-  setupCors(app);
-  setupBodyParsing(app);
-  app.use(cookieParser());
-  setupRequestLogging(app);
+  try {
+    console.log("[STARTUP] Beginning server initialization...");
+    setupCors(app);
+    setupBodyParsing(app);
+    app.use(cookieParser());
+    setupRequestLogging(app);
 
-  configureExpoAndLanding(app);
+    configureExpoAndLanding(app);
 
-  const server = await registerRoutes(app);
+    console.log("[STARTUP] Registering routes...");
+    const server = await registerRoutes(app);
+    console.log("[STARTUP] Routes registered successfully");
 
-  setupErrorHandler(app);
+    setupErrorHandler(app);
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log.info("Server", `Express server listening on port ${port}`);
-    },
-  );
+    const port = parseInt(process.env.PORT || "5000", 10);
+    console.log(`[STARTUP] Starting server on port ${port}...`);
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log.info("Server", `Express server listening on port ${port}`);
+      },
+    );
+  } catch (error) {
+    console.error("[STARTUP] Fatal error during server initialization:", error);
+  }
 })();

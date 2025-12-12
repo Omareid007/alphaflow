@@ -11,6 +11,8 @@ import { huggingface } from "../connectors/huggingface";
 import { valyu } from "../connectors/valyu";
 import { gdelt } from "../connectors/gdelt";
 import { log } from "../utils/logger";
+import { cacheQuickQuote, cacheTradability, cacheAccountSnapshot, getOrderCacheStats } from "../lib/order-execution-cache";
+import { performanceTracker } from "../lib/performance-metrics";
 
 export interface AlpacaTradeRequest {
   symbol: string;
@@ -180,6 +182,10 @@ class AlpacaTradingEngine {
       
       console.log("Trading agent initialized and active by default");
       
+      this.warmupCaches().catch((err: Error) => 
+        console.log("Cache warmup skipped:", err.message)
+      );
+      
       setTimeout(async () => {
         try {
           const isConnected = await this.isAlpacaConnected();
@@ -217,6 +223,57 @@ class AlpacaTradingEngine {
       
     } catch (error) {
       console.error("Failed to initialize trading engine:", error);
+    }
+  }
+
+  private async warmupCaches(): Promise<void> {
+    console.log("[Cache] Warming up order execution caches...");
+    const startTime = Date.now();
+    
+    try {
+      const account = await alpaca.getAccount();
+      cacheAccountSnapshot({
+        buyingPower: parseFloat(account.buying_power),
+        cash: parseFloat(account.cash),
+        equity: parseFloat(account.equity),
+        timestamp: Date.now(),
+      });
+      
+      const symbols = this.DEFAULT_WATCHLIST.slice(0, 10);
+      const snapshots = await alpaca.getSnapshots(symbols);
+      
+      for (const symbol of symbols) {
+        const snapshot = snapshots[symbol];
+        if (snapshot?.latestTrade) {
+          cacheQuickQuote({
+            symbol,
+            price: snapshot.latestTrade.p,
+            bid: snapshot.latestQuote?.bp || snapshot.latestTrade.p,
+            ask: snapshot.latestQuote?.ap || snapshot.latestTrade.p,
+            spread: (snapshot.latestQuote?.ap || 0) - (snapshot.latestQuote?.bp || 0),
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
+      const assets = await alpaca.getAssets();
+      const relevantAssets = assets.filter(a => symbols.includes(a.symbol));
+      for (const asset of relevantAssets) {
+        cacheTradability({
+          symbol: asset.symbol,
+          tradable: asset.tradable,
+          fractionable: asset.fractionable,
+          shortable: asset.shortable,
+          marginable: asset.marginable,
+          timestamp: Date.now(),
+        });
+      }
+      
+      const elapsed = Date.now() - startTime;
+      const stats = getOrderCacheStats();
+      console.log(`[Cache] Warmup complete in ${elapsed}ms: ${stats.quotes} quotes, ${stats.tradability} assets cached`);
+    } catch (error) {
+      console.log("[Cache] Warmup failed:", (error as Error).message);
     }
   }
 

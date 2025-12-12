@@ -33,6 +33,18 @@ import { orchestrator } from "./autonomous/orchestrator";
 import { marketConditionAnalyzer } from "./ai/market-condition-analyzer";
 import { eventBus, logger, coordinator } from "./orchestration";
 import { safeParseFloat } from "./utils/numeric";
+import {
+  registerWebhook,
+  unregisterWebhook,
+  getWebhooks,
+  getWebhook,
+  updateWebhook,
+  emitEvent,
+  getDeliveryHistory,
+  getWebhookStats,
+  SUPPORTED_EVENTS,
+  type WebhookConfig,
+} from "./lib/webhook-emitter";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -76,27 +88,37 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  alpacaTradingEngine.initialize().catch(err => 
-    console.error("Failed to initialize Alpaca trading engine:", err)
-  );
+  console.log("[Routes] Starting route registration...");
+  
+  // Delay async initializations to let server start first
+  setTimeout(() => {
+    console.log("[Routes] Starting delayed initializations...");
+    alpacaTradingEngine.initialize().catch(err => 
+      console.error("Failed to initialize Alpaca trading engine:", err)
+    );
+    orchestrator.autoStart().catch(err =>
+      console.error("Failed to auto-start orchestrator:", err)
+    );
+  }, 2000);
 
-  orchestrator.autoStart().catch(err =>
-    console.error("Failed to auto-start orchestrator:", err)
-  );
-
-  // Bootstrap admin user "Omar" with password "test1234"
-  try {
-    const adminUser = await storage.getUserByUsername("Omar");
-    if (!adminUser) {
-      const hashedPassword = await bcrypt.hash("test1234", 10);
-      await storage.createUser({ username: "Omar", password: hashedPassword });
-      console.log("[Bootstrap] Created admin user: Omar");
-    } else {
-      console.log("[Bootstrap] Admin user Omar already exists");
+  // Bootstrap admin user deferred to background to not block startup
+  setTimeout(async () => {
+    try {
+      console.log("[Bootstrap] Checking for admin user...");
+      const adminUser = await storage.getUserByUsername("Omar");
+      console.log("[Bootstrap] Admin user check complete:", adminUser ? "exists" : "not found");
+      if (!adminUser) {
+        const hashedPassword = await bcrypt.hash("test1234", 10);
+        await storage.createUser({ username: "Omar", password: hashedPassword });
+        console.log("[Bootstrap] Created admin user: Omar");
+      } else {
+        console.log("[Bootstrap] Admin user Omar already exists");
+      }
+    } catch (err) {
+      console.error("[Bootstrap] Failed to create admin user:", err);
     }
-  } catch (err) {
-    console.error("[Bootstrap] Failed to create admin user:", err);
-  }
+  }, 3000);
+  console.log("[Routes] Continuing registration (admin bootstrap deferred)...");
 
   app.post("/api/auth/signup", async (req, res) => {
     try {
@@ -2700,6 +2722,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Reset stats error:", error);
       res.status(500).json({ error: "Failed to reset statistics" });
     }
+  });
+
+  app.get("/api/performance/metrics", async (req, res) => {
+    try {
+      const { performanceTracker } = await import("./lib/performance-metrics");
+      const { getOrderCacheStats } = await import("./lib/order-execution-cache");
+      const { getPoolStats } = await import("./db");
+      
+      const metrics = performanceTracker.getMetrics();
+      const sloStatus = performanceTracker.getSLOStatus();
+      const cacheStats = getOrderCacheStats();
+      const poolStats = getPoolStats();
+      
+      res.json({
+        orderExecution: performanceTracker.getMetricSummary('orderExecution'),
+        quoteRetrieval: performanceTracker.getMetricSummary('quoteRetrieval'),
+        aiDecision: performanceTracker.getMetricSummary('aiDecision'),
+        databaseQuery: performanceTracker.getMetricSummary('databaseQuery'),
+        apiCall: performanceTracker.getMetricSummary('apiCall'),
+        sloCompliance: sloStatus,
+        cache: cacheStats,
+        dbPool: poolStats,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Performance metrics error:", error);
+      res.status(500).json({ error: "Failed to get performance metrics" });
+    }
+  });
+
+  const redactWebhook = (webhook: WebhookConfig) => ({
+    ...webhook,
+    secret: webhook.secret ? '***REDACTED***' : undefined,
+    headers: webhook.headers ? Object.fromEntries(
+      Object.entries(webhook.headers).map(([k, v]) => 
+        k.toLowerCase().includes('auth') || k.toLowerCase().includes('token') || k.toLowerCase().includes('key')
+          ? [k, '***REDACTED***'] : [k, v]
+      )
+    ) : undefined,
+  });
+
+  app.get("/api/webhooks", authMiddleware, (req, res) => {
+    const webhooks = getWebhooks().map(redactWebhook);
+    res.json({ webhooks, supportedEvents: SUPPORTED_EVENTS });
+  });
+
+  app.get("/api/webhooks/:id", authMiddleware, (req, res) => {
+    const webhook = getWebhook(req.params.id);
+    if (!webhook) {
+      return res.status(404).json({ error: "Webhook not found" });
+    }
+    res.json(redactWebhook(webhook));
+  });
+
+  app.post("/api/webhooks", authMiddleware, (req, res) => {
+    try {
+      const { name, url, eventTypes, enabled, headers, secret } = req.body;
+      if (!name || !url) {
+        return res.status(400).json({ error: "name and url are required" });
+      }
+      if (!url.startsWith('https://') && process.env.NODE_ENV === 'production') {
+        return res.status(400).json({ error: "Webhook URL must use HTTPS in production" });
+      }
+      const id = `wh_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const config: WebhookConfig = {
+        id,
+        name,
+        url,
+        eventTypes: eventTypes || ['*'],
+        enabled: enabled !== false,
+        headers,
+        secret,
+      };
+      registerWebhook(config);
+      res.status(201).json(redactWebhook(config));
+    } catch (error) {
+      console.error("Webhook creation error:", error);
+      res.status(500).json({ error: "Failed to create webhook" });
+    }
+  });
+
+  app.put("/api/webhooks/:id", authMiddleware, (req, res) => {
+    const updated = updateWebhook(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: "Webhook not found" });
+    }
+    res.json(redactWebhook(updated));
+  });
+
+  app.delete("/api/webhooks/:id", authMiddleware, (req, res) => {
+    const result = unregisterWebhook(req.params.id);
+    if (!result) {
+      return res.status(404).json({ error: "Webhook not found" });
+    }
+    res.json({ success: true });
+  });
+
+  app.post("/api/webhooks/test", authMiddleware, async (req, res) => {
+    try {
+      const { eventType, payload } = req.body;
+      const results = await emitEvent(eventType || 'system.test', payload || { test: true, timestamp: new Date().toISOString() });
+      res.json({ deliveries: results.length, results });
+    } catch (error) {
+      console.error("Webhook test error:", error);
+      res.status(500).json({ error: "Failed to send test event" });
+    }
+  });
+
+  app.get("/api/webhooks/stats/overview", authMiddleware, (req, res) => {
+    res.json(getWebhookStats());
+  });
+
+  app.get("/api/webhooks/history/deliveries", authMiddleware, (req, res) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    res.json({ deliveries: getDeliveryHistory(limit) });
   });
 
   coordinator.start().catch(err => 
