@@ -872,7 +872,22 @@ class AlpacaTradingEngine {
 
     const stopLossPrice = decision.stopLoss || (marketData.currentPrice * 0.95);
     const takeProfitPrice = decision.targetPrice || (marketData.currentPrice * 1.10);
-    const useBracketOrder = !this.isCryptoSymbol(symbol);
+    
+    // Check if we're in extended hours and need to use limit orders
+    const marketStatus = await this.getMarketStatus();
+    const isExtendedHoursSession = marketStatus.isExtendedHours && !marketStatus.isOpen;
+    const isCrypto = this.isCryptoSymbol(symbol);
+    
+    // During extended hours: use limit orders, no bracket orders
+    // During regular hours: use market orders with brackets
+    const useBracketOrder = !isCrypto && !isExtendedHoursSession;
+    const useExtendedHours = isExtendedHoursSession && !isCrypto;
+    
+    // For extended hours, set limit price slightly above current for buys (0.5% buffer)
+    // Note: This function only handles BUY orders (side is hardcoded below)
+    // SELL orders go through closeAlpacaPosition() which uses Alpaca's closePosition API
+    // Round to 2 decimal places to avoid sub-penny pricing errors
+    const limitPrice = useExtendedHours ? Math.round(marketData.currentPrice * 1.005 * 100) / 100 : undefined;
 
     const tradeResult = await this.executeAlpacaTrade({
       symbol,
@@ -880,9 +895,12 @@ class AlpacaTradingEngine {
       quantity,
       strategyId,
       notes,
-      stopLossPrice,
-      takeProfitPrice,
+      stopLossPrice: useBracketOrder ? stopLossPrice : undefined,
+      takeProfitPrice: useBracketOrder ? takeProfitPrice : undefined,
       useBracketOrder,
+      extendedHours: useExtendedHours,
+      orderType: useExtendedHours ? "limit" : "market",
+      limitPrice,
     });
 
     // Link AI decision to executed trade
