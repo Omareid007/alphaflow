@@ -412,13 +412,17 @@ export default function ProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/trading/portfolio"] });
       queryClient.invalidateQueries({ queryKey: ["/api/risk/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alpaca/positions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alpaca/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alpaca/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/summary"] });
       Alert.alert(
-        "Emergency Liquidation",
+        "Emergency Liquidation Complete",
         data.message || `Liquidation initiated: ${data.ordersCancelled} orders cancelled, ${data.positionsClosing} positions closing`
       );
     },
     onError: (error) => {
-      Alert.alert("Error", "Emergency liquidation failed: " + String(error));
+      Alert.alert("Liquidation Failed", "Emergency liquidation failed: " + String(error));
     },
   });
 

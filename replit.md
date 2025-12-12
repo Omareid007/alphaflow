@@ -108,6 +108,16 @@ Preferred communication style: Simple, everyday language.
   - Enhanced `calculateTrendStrength()` to incorporate technical signals
 - **Key Files Modified**: `server/ai/decision-engine.ts`, `server/connectors/finnhub.ts`, `server/connectors/coingecko.ts`, `server/autonomous/orchestrator.ts`, `server/ai/data-fusion-engine.ts`
 
+### Emergency Liquidation & Extended Hours Trading (December 12, 2025)
+- **Emergency Liquidation Endpoint**: New `/api/risk/emergency-liquidate` endpoint that atomically:
+  1. Activates kill switch
+  2. Cancels ALL open orders
+  3. Closes ALL positions (using Alpaca's DELETE /v2/positions?cancel_orders=true for fractional shares)
+  4. Syncs database with Alpaca state
+- **Extended Hours Support**: Alpaca trading engine `closePositionImmediate()` method now supports pre-market (4:00-9:30 AM ET) and after-hours (4:00-8:00 PM ET) trading via limit orders with `extended_hours: true`
+- **Emergency UI Button**: ProfileScreen now has "Emergency Liquidate All" button with confirmation dialog that clearly explains all actions
+- **Key Files Modified**: `server/routes.ts`, `server/connectors/alpaca.ts`, `server/trading/alpaca-trading-engine.ts`, `client/screens/ProfileScreen.tsx`
+
 ### Data Consistency & AI Decision Lifecycle Fixes (December 12, 2025)
 - **Unified Analytics Endpoint**: `/api/analytics/summary` now returns synchronized data including:
   - Account totals (equity, cash, buyingPower, lastEquity, portfolioValue) from Alpaca

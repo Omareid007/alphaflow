@@ -2023,9 +2023,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const closeResult = await alpaca.closeAllPositions();
       console.log(`[EMERGENCY] Submitted close orders for ${closeResult.length} positions`);
       
-      // Step 5: Sync database with Alpaca state
+      // Step 5: Wait briefly for Alpaca to process close orders
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 6: Sync database with Alpaca state (positions and account)
       await alpacaTradingEngine.syncPositionsFromAlpaca();
-      console.log("[EMERGENCY] Synced positions from Alpaca");
+      const account = await alpaca.getAccount();
+      console.log(`[EMERGENCY] Synced positions from Alpaca. Account equity: $${account.equity}`);
       
       res.json({
         success: true,
