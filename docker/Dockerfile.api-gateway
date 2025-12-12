@@ -1,0 +1,37 @@
+# API Gateway Service Dockerfile
+# Multi-stage build for external interface
+
+FROM node:22-alpine AS base
+RUN apk add --no-cache dumb-init curl && rm -rf /var/cache/apk/*
+WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+FROM base AS builder
+COPY package*.json ./
+RUN npm ci --include=dev
+COPY . .
+RUN npx tsc -p services/tsconfig.json
+RUN npm prune --production
+
+FROM base AS production
+LABEL service="api-gateway" \
+      version="1.0.0" \
+      description="API Gateway with auth, rate limiting, routing"
+
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/services/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
+
+ENV NODE_ENV=production
+ENV SERVICE_NAME=api-gateway
+ENV PORT=5000
+ENV METRICS_PORT=9000
+
+EXPOSE 5000 9000
+USER nodejs
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/api-gateway/index.js"]

@@ -1,0 +1,157 @@
+# AI Active Trader - Deployment Pipeline
+# Deploys to staging on develop, production on main
+
+name: Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - name: Set environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    name: Deploy to ${{ needs.determine-environment.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig.yaml
+          echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
+      
+      - name: Deploy infrastructure
+        run: |
+          kubectl apply -f infrastructure/k8s/namespace.yaml
+          kubectl apply -f infrastructure/k8s/nats/
+          kubectl apply -f infrastructure/k8s/postgres/
+      
+      - name: Deploy services
+        run: |
+          # Set image tags
+          export IMAGE_TAG=${{ github.sha }}
+          export ENVIRONMENT=${{ needs.determine-environment.outputs.environment }}
+          
+          # Apply service manifests
+          for service in api-gateway trading-engine ai-decision market-data analytics orchestrator; do
+            envsubst < infrastructure/k8s/services/${service}.yaml | kubectl apply -f -
+          done
+      
+      - name: Wait for rollout
+        run: |
+          for service in api-gateway trading-engine ai-decision market-data analytics orchestrator; do
+            kubectl rollout status deployment/${service} -n ai-trader --timeout=300s
+          done
+      
+      - name: Run smoke tests
+        run: |
+          # Wait for services to be ready
+          sleep 30
+          
+          # Health check each service
+          for port in 5000 3001 3002 3003 3004 3005; do
+            curl -f http://ai-trader.internal:${port}/health || exit 1
+          done
+      
+      - name: Notify on success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Deployment to ${{ needs.determine-environment.outputs.environment }} succeeded",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":white_check_mark: *AI Active Trader* deployed to *${{ needs.determine-environment.outputs.environment }}*\nCommit: `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Deployment to ${{ needs.determine-environment.outputs.environment }} failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *AI Active Trader* deployment to *${{ needs.determine-environment.outputs.environment }}* failed\nCommit: `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  rollback:
+    name: Rollback (Manual)
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'workflow_dispatch'
+    needs: [determine-environment, deploy]
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig.yaml
+          echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
+      
+      - name: Rollback deployments
+        run: |
+          for service in api-gateway trading-engine ai-decision market-data analytics orchestrator; do
+            kubectl rollout undo deployment/${service} -n ai-trader
+          done
+      
+      - name: Wait for rollback
+        run: |
+          for service in api-gateway trading-engine ai-decision market-data analytics orchestrator; do
+            kubectl rollout status deployment/${service} -n ai-trader --timeout=300s
+          done
