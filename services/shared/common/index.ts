@@ -13,3 +13,4 @@ export * from './kill-switch';
 export * from './dead-letter-queue';
 export * from './market-regime';
 export * from './bulkhead';
+export * from './health-sentinel';
