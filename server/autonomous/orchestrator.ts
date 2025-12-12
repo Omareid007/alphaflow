@@ -1140,7 +1140,7 @@ class AutonomousOrchestrator {
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
 
       try {
-        const openOrders = await alpaca.getOpenOrders();
+        const openOrders = await alpaca.getOrders("open");
         const symbolOrders = openOrders.filter(o => o.symbol === brokerSymbol);
         for (const order of symbolOrders) {
           try {

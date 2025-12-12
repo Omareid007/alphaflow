@@ -873,6 +873,24 @@ class AlpacaTradingEngine {
     const stopLossPrice = decision.stopLoss || (marketData.currentPrice * 0.95);
     const takeProfitPrice = decision.targetPrice || (marketData.currentPrice * 1.10);
     
+    // Check for existing open orders for this symbol (wash trade prevention)
+    // If there are any sell orders (from bracket orders), skip the buy to avoid wash trade error
+    try {
+      const alpacaSymbolCheck = this.isCryptoSymbol(symbol) 
+        ? this.normalizeCryptoSymbol(symbol) 
+        : this.normalizeSymbolForAlpaca(symbol);
+      const openOrders = await alpaca.getOrders("open");
+      const symbolSellOrders = openOrders.filter(
+        o => o.symbol === alpacaSymbolCheck && o.side === "sell"
+      );
+      if (symbolSellOrders.length > 0) {
+        console.log(`[Trading] Skipping buy for ${symbol}: existing sell orders would trigger wash trade (${symbolSellOrders.length} pending sell orders)`);
+        return { decision };
+      }
+    } catch (err) {
+      console.log(`[Trading] Could not check open orders for ${symbol}, proceeding with caution: ${err}`);
+    }
+    
     // Check if we're in extended hours and need to use limit orders
     const marketStatus = await this.getMarketStatus();
     const isExtendedHoursSession = marketStatus.isExtendedHours && !marketStatus.isOpen;
