@@ -395,15 +395,85 @@ export class DSLRuntime {
     for (const indicatorName of indicatorsNeeded) {
       if (context.indicators.has(indicatorName)) continue;
 
-      const [name, ...paramStrs] = indicatorName.split('_');
-      const params = paramStrs.map(p => parseFloat(p) || 0);
+      // Parse indicator name, handling compound names like "bollinger_upper_20_2"
+      const { baseName, params: defaultParams } = this.parseIndicatorName(indicatorName);
       
-      const fn = this.customIndicators.get(name) || BUILT_IN_INDICATORS[name];
+      // Apply parameter overrides from context.parameters
+      const resolvedParams = this.resolveIndicatorParams(baseName, defaultParams, context.parameters);
+      
+      const fn = this.customIndicators.get(baseName) || BUILT_IN_INDICATORS[baseName];
       if (fn) {
-        const values = fn(context.bars, ...params);
+        const values = fn(context.bars, ...resolvedParams);
+        // Store under the original key that rules reference
         context.indicators.set(indicatorName, values);
       }
     }
+  }
+
+  private parseIndicatorName(indicatorName: string): { baseName: string; params: number[] } {
+    // Known compound indicator names (base names that contain underscores)
+    const compoundIndicators = ['bollinger_upper', 'bollinger_lower', 'volume_sma'];
+    
+    // Check for compound indicator names first
+    for (const compound of compoundIndicators) {
+      if (indicatorName.startsWith(compound)) {
+        const suffix = indicatorName.slice(compound.length);
+        if (suffix === '' || suffix.startsWith('_')) {
+          const paramStrs = suffix ? suffix.slice(1).split('_') : [];
+          const params = paramStrs.map(p => parseFloat(p)).filter(n => !isNaN(n));
+          return { baseName: compound, params };
+        }
+      }
+    }
+    
+    // Standard parsing: first segment is name, rest are params
+    const parts = indicatorName.split('_');
+    const baseName = parts[0];
+    const params = parts.slice(1).map(p => parseFloat(p)).filter(n => !isNaN(n));
+    
+    return { baseName, params };
+  }
+
+  private resolveIndicatorParams(
+    indicatorName: string,
+    defaultParams: number[],
+    parameters: Record<string, unknown>
+  ): number[] {
+    const resolved = [...defaultParams];
+    
+    // Map indicator names to parameter keys
+    const paramMappings: Record<string, string[]> = {
+      sma: ['sma_period', 'period'],
+      ema: ['ema_period', 'period'],
+      rsi: ['rsi_period', 'period'],
+      macd: ['macd_fast', 'macd_slow', 'macd_signal'],
+      bollinger_upper: ['bollinger_period', 'bollinger_stddev'],
+      bollinger_lower: ['bollinger_period', 'bollinger_stddev'],
+      atr: ['atr_period', 'period'],
+      volume_sma: ['volume_sma_period'],
+    };
+
+    const mappings = paramMappings[indicatorName] || [];
+    
+    for (let i = 0; i < mappings.length; i++) {
+      const paramKey = mappings[i];
+      if (paramKey in parameters) {
+        const value = parameters[paramKey];
+        if (typeof value === 'number') {
+          resolved[i] = value;
+        }
+      }
+      // Also check generic indicator_param format (e.g., 'rsi_0' for first param)
+      const genericKey = `${indicatorName}_${i}`;
+      if (genericKey in parameters) {
+        const value = parameters[genericKey];
+        if (typeof value === 'number') {
+          resolved[i] = value;
+        }
+      }
+    }
+
+    return resolved;
   }
 
   private evaluateConditions(rule: StrategyRule, context: StrategyContext): boolean {
@@ -449,6 +519,11 @@ export class DSLRuntime {
       const values = context.indicators.get(indicatorName);
       if (!values || values.length === 0) return false;
       rightValue = values[values.length - 1];
+    } else if (typeof condition.value === 'string' && condition.value.startsWith('param:')) {
+      // Support parameterized thresholds: 'param:rsi_oversold' -> context.parameters.rsi_oversold
+      const paramKey = condition.value.slice(6);
+      const paramValue = context.parameters[paramKey];
+      rightValue = typeof paramValue === 'number' ? paramValue : parseFloat(String(paramValue)) || 0;
     } else {
       rightValue = typeof condition.value === 'number' ? condition.value : parseFloat(condition.value as string) || 0;
     }
@@ -523,9 +598,34 @@ export class DSLRuntime {
     return Math.min(1, confidence);
   }
 
+  private resolveParameters(
+    strategy: StrategyDefinition,
+    overrides: Record<string, unknown>
+  ): Record<string, unknown> {
+    const resolved: Record<string, unknown> = {};
+
+    if (strategy.parameters) {
+      for (const [name, config] of Object.entries(strategy.parameters)) {
+        resolved[name] = config.default;
+      }
+    }
+
+    for (const [name, value] of Object.entries(overrides)) {
+      resolved[name] = value;
+    }
+
+    return resolved;
+  }
+
   async backtest(
     strategyId: string,
     bars: StrategyContext['bars'],
+    parametersOrOptions: Record<string, number> | {
+      initialCapital?: number;
+      commissionPercent?: number;
+      slippagePercent?: number;
+      parameterOverrides?: Record<string, unknown>;
+    } = {},
     options: {
       initialCapital?: number;
       commissionPercent?: number;
@@ -537,9 +637,29 @@ export class DSLRuntime {
       throw new Error(`Strategy ${strategyId} not found`);
     }
 
-    const initialCapital = options.initialCapital || 100000;
-    const commission = options.commissionPercent || 0.001;
-    const slippage = options.slippagePercent || 0.0005;
+    let parameterOverrides: Record<string, unknown> = {};
+    let initialCapital: number;
+    let commission: number;
+    let slippage: number;
+
+    if ('initialCapital' in parametersOrOptions || 'commissionPercent' in parametersOrOptions || 
+        'slippagePercent' in parametersOrOptions || 'parameterOverrides' in parametersOrOptions) {
+      const legacyOptions = parametersOrOptions as {
+        initialCapital?: number;
+        commissionPercent?: number;
+        slippagePercent?: number;
+        parameterOverrides?: Record<string, unknown>;
+      };
+      initialCapital = legacyOptions.initialCapital || 100000;
+      commission = legacyOptions.commissionPercent || 0.001;
+      slippage = legacyOptions.slippagePercent || 0.0005;
+      parameterOverrides = legacyOptions.parameterOverrides || {};
+    } else {
+      parameterOverrides = parametersOrOptions as Record<string, number>;
+      initialCapital = options.initialCapital || 100000;
+      commission = options.commissionPercent || 0.001;
+      slippage = options.slippagePercent || 0.0005;
+    }
 
     let cash = initialCapital;
     let position: { quantity: number; entryPrice: number; side: 'long' | 'short'; entryTime: Date } | null = null;
@@ -548,6 +668,8 @@ export class DSLRuntime {
     let maxDrawdown = 0;
 
     const symbol = strategy.symbols[0] || 'UNKNOWN';
+
+    const resolvedParameters = this.resolveParameters(strategy, parameterOverrides);
 
     for (let i = 50; i < bars.length; i++) {
       const currentBars = bars.slice(0, i + 1);
@@ -566,7 +688,7 @@ export class DSLRuntime {
         } : { side: 'flat', quantity: 0, entryPrice: 0, unrealizedPnl: 0 },
         account: { cash, equity: cash, buyingPower: cash },
         indicators: new Map(),
-        parameters: {},
+        parameters: resolvedParameters,
         state: {},
       };
 
@@ -720,6 +842,19 @@ export class DSLRuntime {
 
 export function createDSLRuntime(): DSLRuntime {
   return new DSLRuntime();
+}
+
+export type WalkForwardBacktestFn = (
+  strategyId: string,
+  bars: StrategyContext['bars'],
+  parameters: Record<string, number>,
+  options: { initialCapital: number; commissionPercent: number; slippagePercent: number }
+) => Promise<BacktestResult>;
+
+export function createBacktestAdapter(runtime: DSLRuntime): WalkForwardBacktestFn {
+  return async (strategyId, bars, parameters, options) => {
+    return runtime.backtest(strategyId, bars, parameters, options);
+  };
 }
 
 export const EXAMPLE_STRATEGY: StrategyDefinition = {
