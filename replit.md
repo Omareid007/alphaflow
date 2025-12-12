@@ -80,7 +80,16 @@ The platform is being transformed into an event-driven microservices architectur
 - **OpenTelemetry**: Distributed tracing across services
 - **Circuit Breakers**: Fault isolation and graceful degradation
 
+### Phase 0 Deliverables (Complete - Dec 2025)
+- **NATS JetStream Client**: Real NATS JetStream client with in-memory fallback for development (`services/shared/events/client.ts`)
+- **Event Schema Registry**: 22 Zod-validated event schemas for market, trade, AI, analytics, orchestrator, and system events (`services/shared/events/schemas.ts`)
+- **Event Types**: Comprehensive TypeScript event type definitions with saga correlation support (`services/shared/events/types.ts`)
+- **Smoke Tests**: Verified event bus publish/subscribe, schema validation, and saga correlation (all 8 tests passing)
+
 ### Phase 1 Deliverables (Complete - Dec 2025)
+- **Shared Common Package**: Logger, config, health, telemetry, and secrets management utilities (`services/shared/common/`)
+- **Service Template CLI**: Generator script for scaffolding new microservices (`scripts/create-service.ts`)
+- **API Gateway**: Express-based gateway with auth, rate limiting, request routing, CORS, and health endpoints (`services/api-gateway/index.ts`)
 - **Docker Infrastructure**: 6 service-specific Dockerfiles + base template in `docker/`
 - **CI/CD Pipelines**: GitHub Actions workflows for lint, test, build, deploy in `.github/workflows/`
 - **NATS JetStream**: Event bus configuration in `infrastructure/nats/`

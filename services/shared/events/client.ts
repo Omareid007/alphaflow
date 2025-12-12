@@ -310,7 +310,8 @@ export class EventBusClient {
       throw new Error(`[EventBus] ${this.serviceName} not connected`);
     }
 
-    const consumerName = options?.durable || `${this.serviceName}-${eventPattern.toString().replace(/\./g, '-')}`;
+    const rawName = options?.durable || `${this.serviceName}-${eventPattern.toString().replace(/\./g, '-')}`;
+    const consumerName = rawName.replace(/[.*>]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     
     console.log(`[EventBus] ${this.serviceName} subscribing to ${eventPattern} as ${consumerName}`);
 
