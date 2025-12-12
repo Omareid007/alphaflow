@@ -125,8 +125,8 @@ export class IntelligenceFabric {
 
     const results = await this.vectorStore.search(query, limit);
     return results
-      .map(r => this.analysisStore.get(r.id))
-      .filter((r): r is AnalysisResult => r !== undefined);
+      .map((result: { id: string; text: string; score: number; metadata: Record<string, unknown> }) => this.analysisStore.get(result.id))
+      .filter((result): result is AnalysisResult => result !== undefined);
   }
 
   getAnalysis(id: string): AnalysisResult | undefined {
