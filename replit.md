@@ -88,6 +88,13 @@ The platform is being transformed into an event-driven microservices architectur
 - **Shared Event Types**: TypeScript event definitions in `services/shared/events/`
 - **Database Schemas**: Per-service PostgreSQL schemas via `docker/init-db/`
 
+### Phase 3 Deliverables (Complete - Dec 2025)
+- **Performance Optimization**: Connection pooling (max 20, min 5), performance metrics tracking, order execution cache with sub-50ms validation (`server/lib/performance-metrics.ts`, `server/lib/order-execution-cache.ts`)
+- **n8n Webhook Integration**: Webhook emitter with CRUD endpoints, HMAC signatures, delivery tracking, automatic trade event emissions (`server/lib/webhook-emitter.ts`)
+- **Notification System**: Telegram, Slack, Discord support with template-based messaging and authenticated API endpoints (`server/lib/notification-service.ts`)
+- **Premium Market Data**: Polygon.io and Twelve Data connectors with technical indicators (RSI, MACD, SMA, EMA, BBands, ATR, Stoch) (`server/connectors/polygon.ts`, `server/connectors/twelvedata.ts`)
+- **Social Sentiment**: StockTwits and Reddit integration with aggregate sentiment scoring (`server/connectors/social-sentiment.ts`)
+
 ## Architecture Documentation
 
 Comprehensive architecture documentation is available in the `docs/` directory:
@@ -118,7 +125,7 @@ Comprehensive architecture documentation is available in the `docs/` directory:
 
 ## External Dependencies
 
-- **Market Data**: Finnhub, Financial Modeling Prep, Polygon.io, Alpha Vantage.
+- **Market Data**: Finnhub, Polygon.io, Twelve Data, Financial Modeling Prep, Alpha Vantage.
 - **News Data**: NewsAPI, GDELT (real-time global news).
 - **AI/LLM Integration**: OpenAI API (primary), Groq, Together.ai, AIML API, OpenRouter (fallback) via an LLM Router for intelligent task routing and function calling.
 - **Data Sources & Enrichment**: Valyu.ai (9 financial datasets), Hugging Face (FinBERT sentiment analysis), GDELT (news sentiment). Data Fusion Engine combines these sources with conflict resolution.

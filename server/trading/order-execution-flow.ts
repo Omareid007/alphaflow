@@ -16,6 +16,7 @@ import { safeParseFloat } from "../utils/numeric";
 import { performanceTracker } from "../lib/performance-metrics";
 import { cacheQuickQuote, getQuickQuote, cacheAccountSnapshot, getAccountSnapshot, cacheTradability, getTradability } from "../lib/order-execution-cache";
 import { emitEvent } from "../lib/webhook-emitter";
+import { sendNotification } from "../lib/notification-service";
 import {
   CreateOrderSchema,
   validateOrderTypeCombination,
@@ -353,6 +354,14 @@ class OrderExecutionEngine {
             timestamp: new Date().toISOString(),
           }).catch(err => console.error('[Webhook] Order submitted event failed:', err));
           
+          sendNotification('trade.order.submitted', {
+            orderId: order.id,
+            symbol: params.symbol,
+            side: params.side,
+            qty: params.qty,
+            price: params.limit_price || 'market',
+          }).catch(err => console.error('[Notification] Order submitted failed:', err));
+          
           break;
         } catch (error) {
           const classifiedError = classifyError(error as Error, `Attempt ${state.attempts}`);
@@ -368,6 +377,14 @@ class OrderExecutionEngine {
             }
             
             state.status = "failed";
+            
+            sendNotification('trade.order.rejected', {
+              symbol: params.symbol,
+              side: params.side,
+              qty: params.qty,
+              reason: classifiedError.message,
+            }).catch(err => console.error('[Notification] Order rejected failed:', err));
+            
             return {
               success: false,
               state,
@@ -423,6 +440,14 @@ class OrderExecutionEngine {
         status: monitoredOrder.status,
         timestamp: new Date().toISOString(),
       }).catch(err => console.error('[Webhook] Order filled event failed:', err));
+      
+      sendNotification('trade.order.filled', {
+        orderId: monitoredOrder.id,
+        symbol: monitoredOrder.symbol,
+        side: monitoredOrder.side,
+        qty: monitoredOrder.filled_qty,
+        price: monitoredOrder.filled_avg_price,
+      }).catch(err => console.error('[Notification] Order filled failed:', err));
       
       return {
         success: true,
