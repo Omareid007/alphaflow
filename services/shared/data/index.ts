@@ -6,3 +6,4 @@
 export * from './sentiment-fusion';
 export * from './market-regime-ml';
 export * from './technical-indicators';
+export * from './order-book-analyzer';
