@@ -34,8 +34,9 @@ Preferred communication style: Simple, everyday language.
 - **Pre-Trade Guard**: Validates buying power, market session, and symbol tradability before order submission. Extended hours trading uses limit orders with extended_hours flag.
 - **AI Learning Feedback Loop**: Records decision features and trade outcomes for continuous calibration. Daily calibration analysis runs automatically to identify patterns in wins/losses.
 - **Unified Analytics Endpoint**: `/api/analytics/summary` provides synchronized account, risk, and daily performance data.
-- **Stock Universe**: Expanded coverage across all 11 GICS sectors (Technology, Financials, Healthcare, Consumer, Energy, Industrials, Materials, Utilities, Real Estate, Communication Services).
+- **Stock Universe**: Expanded coverage across all 11 GICS sectors (Technology, Financials, Healthcare, Consumer, Energy, Industrials, Materials, Utilities, Real Estate, Communication Services). ETFs (SPY, QQQ, etc.) removed from all strategy watchlists to avoid Finnhub data gaps.
 - **Crypto Trading**: Limited to Alpaca-tradable cryptos (BTC, ETH, SOL, DOGE, SHIB, AVAX).
+- **Position Closure Safety**: Orchestrator automatically cancels pending orders for a symbol before closing positions, preventing "insufficient qty available" errors when bracket orders hold shares.
 
 ## External Dependencies
 
