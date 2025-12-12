@@ -19,6 +19,10 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.67.2",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
+    "@opentelemetry/sdk-node": "^0.208.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
@@ -48,6 +52,7 @@
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.5",
     "lightweight-charts": "^5.0.9",
+    "nats": "^2.29.3",
     "openai": "^6.10.0",
     "p-limit": "^7.2.0",
     "p-retry": "^7.1.0",
