@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
 ### Database
 - **ORM**: Drizzle ORM with PostgreSQL dialect, `drizzle-kit` for migrations, Zod for validation.
 - **Core Tables**: `users`, `strategies`, `trades`, `positions`, `aiDecisions`, `agentStatus`.
+- **AI Learning Tables**: `ai_decision_features` (feature vectors for each decision), `ai_trade_outcomes` (execution metrics and P&L tracking), `ai_calibration_log` (model improvement history and recommendations).
 
 ### Key Architectural Decisions
 - **Monorepo Structure**: `client/`, `server/`, `shared/` for code organization, type sharing, and simplified deployment.
@@ -30,7 +31,11 @@ Preferred communication style: Simple, everyday language.
 - **AI Decision Transparency**: All AI decisions are logged with detailed reasoning, market context, and confidence scores.
 - **Adaptive Risk Mode**: Implemented for strategies like Moving Average Crossover, allowing automatic adjustment of risk profiles (conservative/balanced/aggressive) based on real-time market intelligence (volatility, trend strength, signal agreement, data quality). This includes backend services for preset selection and frontend UI for configuration and status display.
 - **Consolidated Order Execution**: Centralized order execution utilities in `server/trading/order-execution-flow.ts` for consistency and reusability across the system.
+- **Pre-Trade Guard**: Validates buying power, market session, and symbol tradability before order submission. Extended hours trading uses limit orders with extended_hours flag.
+- **AI Learning Feedback Loop**: Records decision features and trade outcomes for continuous calibration. Daily calibration analysis runs automatically to identify patterns in wins/losses.
 - **Unified Analytics Endpoint**: `/api/analytics/summary` provides synchronized account, risk, and daily performance data.
+- **Stock Universe**: Expanded coverage across all 11 GICS sectors (Technology, Financials, Healthcare, Consumer, Energy, Industrials, Materials, Utilities, Real Estate, Communication Services).
+- **Crypto Trading**: Limited to Alpaca-tradable cryptos (BTC, ETH, SOL, DOGE, SHIB, AVAX).
 
 ## External Dependencies
 

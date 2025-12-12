@@ -8,6 +8,7 @@ import { safeParseFloat } from "../utils/numeric";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
 import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } from "../trading/order-execution-flow";
+import { recordDecisionFeatures, recordTradeOutcome, updateTradeOutcomeOnClose, runCalibrationAnalysis } from "../ai/learning-service";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
@@ -82,14 +83,41 @@ const DEFAULT_RISK_LIMITS: RiskLimits = {
 
 const WATCHLIST = {
   stocks: [
-    "AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA",
-    "JPM", "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD",
-    "CVX", "ABBV", "MRK", "KO", "PEP", "COST", "TMO", "AVGO",
-    "ORCL", "ACN", "MCD", "CSCO", "ABT", "DHR", "NKE", "TXN",
-    "NEE", "PM", "UPS", "LIN", "RTX", "HON", "QCOM", "COP",
-    "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
+    // Technology
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", "CRM",
+    "AMD", "INTC", "IBM", "CSCO", "ADBE", "NFLX", "PYPL", "NOW", "UBER", "ABNB",
+    // Financials
+    "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP",
+    "C", "USB", "PNC", "TFC", "COF", "SPGI", "ICE", "CME", "MCO", "MSCI",
+    // Healthcare
+    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
+    "AMGN", "GILD", "ISRG", "VRTX", "REGN", "MDT", "SYK", "BSX", "ZTS", "CI",
+    // Consumer Discretionary
+    "HD", "NKE", "MCD", "SBUX", "LOW", "TJX", "BKNG", "CMG", "LULU", "YUM",
+    "MAR", "HLT", "DPZ", "ORLY", "AZO", "ROST", "ULTA", "EBAY", "ETSY", "DKNG",
+    // Consumer Staples
+    "WMT", "PG", "KO", "PEP", "COST", "PM", "MO", "EL", "CL", "MDLZ",
+    "KMB", "GIS", "K", "HSY", "SJM", "KHC", "STZ", "TAP", "CLX", "CHD",
+    // Energy
+    "CVX", "XOM", "COP", "SLB", "EOG", "PXD", "MPC", "VLO", "PSX", "OXY",
+    "KMI", "WMB", "HAL", "BKR", "DVN", "FANG", "HES", "MRO", "APA", "OKE",
+    // Industrials
+    "UPS", "RTX", "HON", "BA", "CAT", "GE", "DE", "LMT", "UNP", "MMM",
+    "FDX", "NSC", "CSX", "WM", "RSG", "EMR", "ITW", "ETN", "ROK", "CMI",
+    // Materials
+    "LIN", "APD", "SHW", "ECL", "NEM", "FCX", "NUE", "DD", "PPG", "DOW",
+    "VMC", "MLM", "ALB", "CF", "MOS", "FMC", "IP", "AVY", "SEE", "PKG",
+    // Utilities
+    "NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "PEG", "ED",
+    "WEC", "ES", "AWK", "ATO", "NI", "CMS", "LNT", "EVRG", "DTE", "AEE",
+    // Real Estate
+    "AMT", "PLD", "CCI", "EQIX", "PSA", "SPG", "O", "WELL", "DLR", "AVB",
+    "EQR", "VTR", "ARE", "UDR", "MAA", "ESS", "PEAK", "INVH", "IRM", "REG",
+    // Communication Services
+    "DIS", "CMCSA", "VZ", "T", "TMUS", "CHTR", "NFLX", "EA", "TTWO", "WBD",
+    "PARA", "FOX", "FOXA", "LYV", "MTCH", "ZG", "PINS", "SNAP", "ROKU", "TTD",
   ],
-  crypto: ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "DOT", "LINK", "AVAX", "MATIC", "LTC"],
+  crypto: ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX"],
 };
 
 function isCryptoSymbol(symbol: string): boolean {
@@ -121,6 +149,115 @@ const STALE_HEARTBEAT_THRESHOLD_MS = 120000;
 const AUTO_RESTART_DELAY_MS = 5000;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
+interface PreTradeCheck {
+  canTrade: boolean;
+  reason?: string;
+  marketSession: "regular" | "pre-market" | "after-hours" | "closed";
+  availableBuyingPower: number;
+  requiredBuyingPower: number;
+  useExtendedHours: boolean;
+  useLimitOrder: boolean;
+  limitPrice?: number;
+}
+
+async function preTradeGuard(
+  symbol: string,
+  side: "buy" | "sell",
+  orderValue: number,
+  isCrypto: boolean
+): Promise<PreTradeCheck> {
+  try {
+    const account = await alpaca.getAccount();
+    const availableBuyingPower = safeParseFloat(account.buying_power);
+    const marketStatus = await alpaca.getMarketStatus();
+    
+    const result: PreTradeCheck = {
+      canTrade: false,
+      marketSession: marketStatus.session,
+      availableBuyingPower,
+      requiredBuyingPower: orderValue,
+      useExtendedHours: false,
+      useLimitOrder: false,
+    };
+
+    if (side === "buy" && orderValue > availableBuyingPower) {
+      result.reason = `Insufficient buying power ($${availableBuyingPower.toFixed(2)} available < $${orderValue.toFixed(2)} required)`;
+      return result;
+    }
+
+    if (isCrypto) {
+      result.canTrade = true;
+      return result;
+    }
+
+    if (marketStatus.session === "regular") {
+      result.canTrade = true;
+      return result;
+    }
+
+    if (marketStatus.session === "closed") {
+      result.canTrade = false;
+      result.reason = `Market is closed (next open: ${marketStatus.nextOpen})`;
+      return result;
+    }
+
+    if (marketStatus.isExtendedHours) {
+      result.useExtendedHours = true;
+      result.useLimitOrder = true;
+      
+      try {
+        const snapshots = await alpaca.getSnapshots([symbol]);
+        const snapshot = snapshots[symbol];
+        if (snapshot?.latestTrade?.p) {
+          result.limitPrice = Math.round(snapshot.latestTrade.p * 100) / 100;
+          result.canTrade = true;
+          return result;
+        } else {
+          result.reason = `Cannot get current price for ${symbol} during extended hours`;
+          return result;
+        }
+      } catch (error) {
+        result.reason = `Failed to get market price for extended hours order: ${error}`;
+        return result;
+      }
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      canTrade: false,
+      reason: `Pre-trade check failed: ${error}`,
+      marketSession: "closed",
+      availableBuyingPower: 0,
+      requiredBuyingPower: orderValue,
+      useExtendedHours: false,
+      useLimitOrder: false,
+    };
+  }
+}
+
+async function isSymbolTradable(symbol: string, isCrypto: boolean): Promise<{ tradable: boolean; reason?: string }> {
+  try {
+    if (isCrypto) {
+      const normalizedSymbol = normalizeCryptoSymbol(symbol);
+      const assets = await alpaca.getAssets("active", "crypto");
+      const found = assets.find(a => a.symbol === normalizedSymbol && a.tradable);
+      if (!found) {
+        return { tradable: false, reason: `Crypto ${normalizedSymbol} is not tradable on Alpaca` };
+      }
+      return { tradable: true };
+    } else {
+      const asset = await alpaca.getAsset(symbol);
+      if (!asset.tradable) {
+        return { tradable: false, reason: `Stock ${symbol} is not tradable` };
+      }
+      return { tradable: true };
+    }
+  } catch (error) {
+    return { tradable: false, reason: `Symbol validation failed: ${error}` };
+  }
+}
+
 class AutonomousOrchestrator {
   private state: OrchestratorState;
   private config: OrchestratorConfig;
@@ -133,6 +270,7 @@ class AutonomousOrchestrator {
   private lastHeartbeat: Date | null = null;
   private autoStartEnabled = true;
   private isAutoStarting = false;
+  private lastCalibrationDate: string | null = null;
 
   constructor() {
     this.config = { ...DEFAULT_CONFIG };
@@ -537,6 +675,15 @@ class AutonomousOrchestrator {
         log.info("Orchestrator", `Analysis cycle: cleaned up ${canceledOrderCount} stale pending orders`);
       }
 
+      const today = new Date().toISOString().split("T")[0];
+      if (this.lastCalibrationDate !== today) {
+        this.lastCalibrationDate = today;
+        runCalibrationAnalysis(30).catch(err => 
+          log.error("Orchestrator", `Calibration failed: ${err}`)
+        );
+        log.info("Orchestrator", "Daily AI calibration triggered");
+      }
+
       if (this.checkDailyLossLimit()) {
         await this.activateKillSwitch("Daily loss limit exceeded");
         return;
@@ -577,6 +724,12 @@ class AutonomousOrchestrator {
               marketContext: JSON.stringify(data),
               status: "pending",
             });
+            
+            recordDecisionFeatures(aiDecision.id, symbol, {
+              volatility: data.priceChangePercent24h ? Math.abs(data.priceChangePercent24h) / 10 : undefined,
+              priceChangePercent: data.priceChangePercent24h,
+              marketCondition: this.state.mode,
+            }).catch(err => log.error("Orchestrator", `Failed to record features: ${err}`));
             
             this.state.pendingSignals.set(symbol, { ...decision, aiDecisionId: aiDecision.id });
           }
@@ -748,7 +901,6 @@ class AutonomousOrchestrator {
     try {
       const account = await alpaca.getAccount();
       const portfolioValue = safeParseFloat(account.portfolio_value);
-      const buyingPower = safeParseFloat(account.buying_power);
 
       const positionSizePercent = Math.min(
         (decision.suggestedQuantity || 0.05) * 100,
@@ -769,23 +921,57 @@ class AutonomousOrchestrator {
         };
       }
 
-      if (positionValue > buyingPower) {
+      const isCrypto = isCryptoSymbol(symbol);
+      const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+
+      const tradableCheck = await isSymbolTradable(symbol, isCrypto);
+      if (!tradableCheck.tradable) {
+        log.warn("Orchestrator", `Symbol ${symbol} not tradable: ${tradableCheck.reason}`);
         return {
           success: false,
           action: "skip",
-          reason: `Insufficient buying power ($${buyingPower.toFixed(2)} < $${positionValue.toFixed(2)})`,
+          reason: tradableCheck.reason || "Symbol not tradable",
           symbol,
         };
       }
 
-      const isCrypto = isCryptoSymbol(symbol);
-      const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
-      
-      let initialOrder;
+      const preCheck = await preTradeGuard(symbol, "buy", positionValue, isCrypto);
+      if (!preCheck.canTrade) {
+        log.warn("Orchestrator", `Pre-trade check failed for ${symbol}: ${preCheck.reason}`);
+        return {
+          success: false,
+          action: "skip",
+          reason: preCheck.reason || "Pre-trade check failed",
+          symbol,
+        };
+      }
+
+      let initialOrder: AlpacaOrder;
       const hasBracketParams = decision.targetPrice && decision.stopLoss && !isCrypto;
       
-      if (hasBracketParams && decision.targetPrice && decision.stopLoss) {
-        log.info("Orchestrator", `Using bracket order for ${symbol}: TP=$${decision.targetPrice}, SL=$${decision.stopLoss}`);
+      if (preCheck.useExtendedHours && preCheck.useLimitOrder && preCheck.limitPrice) {
+        log.info("Orchestrator", `Extended hours limit order for ${symbol} @ $${preCheck.limitPrice}`);
+        const estimatedQty = Math.floor(positionValue / preCheck.limitPrice);
+        if (estimatedQty < 1) {
+          return {
+            success: false,
+            action: "skip",
+            reason: `Position value too small for whole share order ($${positionValue.toFixed(2)} at $${preCheck.limitPrice})`,
+            symbol,
+          };
+        }
+        const orderParams: CreateOrderParams = {
+          symbol: brokerSymbol,
+          qty: estimatedQty.toString(),
+          side: "buy",
+          type: "limit",
+          time_in_force: "day",
+          limit_price: preCheck.limitPrice.toFixed(2),
+          extended_hours: true,
+        };
+        initialOrder = await alpaca.createOrder(orderParams);
+      } else if (hasBracketParams && decision.targetPrice && decision.stopLoss) {
+        log.info("Orchestrator", `Bracket order for ${symbol}: TP=$${decision.targetPrice.toFixed(2)}, SL=$${decision.stopLoss.toFixed(2)}`);
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
           const estimatedQty = (positionValue / currentPrice).toFixed(6);
@@ -794,7 +980,7 @@ class AutonomousOrchestrator {
             qty: estimatedQty,
             side: "buy",
             type: "market",
-            time_in_force: "day",
+            time_in_force: "gtc",
             take_profit_price: decision.targetPrice.toFixed(2),
             stop_loss_price: decision.stopLoss.toFixed(2),
           });
@@ -878,7 +1064,7 @@ class AutonomousOrchestrator {
         }
       }
 
-      await storage.createTrade({
+      const trade = await storage.createTrade({
         symbol,
         side: "buy",
         quantity: filledQty.toString(),
@@ -886,6 +1072,21 @@ class AutonomousOrchestrator {
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
       });
+
+      if (decision.aiDecisionId) {
+        const marketStatus = await alpaca.getMarketStatus();
+        recordTradeOutcome({
+          decisionId: decision.aiDecisionId,
+          tradeId: trade.id,
+          symbol,
+          action: "buy",
+          predictionConfidence: decision.confidence,
+          entryPrice: filledPrice,
+          quantity: filledQty,
+          marketSessionAtEntry: marketStatus.session,
+          strategyId: undefined,
+        }).catch(err => log.error("Orchestrator", `Failed to record trade outcome: ${err}`));
+      }
 
       this.state.dailyTradeCount++;
 
@@ -1011,6 +1212,7 @@ class AutonomousOrchestrator {
       }
 
       const pnl = (filledPrice - position.entryPrice) * filledQty;
+      const exitReason = decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
 
       await storage.createTrade({
         symbol,
@@ -1021,6 +1223,16 @@ class AutonomousOrchestrator {
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
       });
+
+      if (decision.aiDecisionId) {
+        const marketStatus = await alpaca.getMarketStatus();
+        updateTradeOutcomeOnClose(
+          decision.aiDecisionId,
+          filledPrice,
+          exitReason,
+          marketStatus.session
+        ).catch(err => log.error("Orchestrator", `Failed to update trade outcome: ${err}`));
+      }
 
       this.state.dailyPnl += pnl;
       this.state.dailyTradeCount++;
