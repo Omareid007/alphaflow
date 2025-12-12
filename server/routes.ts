@@ -12,7 +12,7 @@ import {
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
-import { alpaca } from "./connectors/alpaca";
+import { alpaca, AlpacaOrder } from "./connectors/alpaca";
 import { coinmarketcap } from "./connectors/coinmarketcap";
 import { newsapi } from "./connectors/newsapi";
 import { uaeMarkets } from "./connectors/uae-markets";
@@ -1998,6 +1998,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to close all positions:", error);
       res.status(500).json({ error: "Failed to close all positions" });
+    }
+  });
+
+  // Emergency liquidation endpoint - closes ALL positions including fractional shares
+  app.post("/api/risk/emergency-liquidate", async (req, res) => {
+    try {
+      console.log("[EMERGENCY] Initiating full portfolio liquidation...");
+      
+      // Step 1: Activate kill switch to prevent new trades
+      await storage.updateAgentStatus({ killSwitchActive: true, isRunning: false });
+      console.log("[EMERGENCY] Kill switch activated");
+      
+      // Step 2: Get count of open orders before cancelling
+      const openOrders = await alpaca.getOrders("open", 100);
+      const orderCount = openOrders.length;
+      
+      // Step 3: Cancel all open orders
+      await alpaca.cancelAllOrders();
+      console.log(`[EMERGENCY] Cancelled ${orderCount} orders`);
+      
+      // Step 4: Close all positions using Alpaca's DELETE with cancel_orders=true
+      // This handles fractional shares correctly
+      const closeResult = await alpaca.closeAllPositions();
+      console.log(`[EMERGENCY] Submitted close orders for ${closeResult.length} positions`);
+      
+      // Step 5: Sync database with Alpaca state
+      await alpacaTradingEngine.syncPositionsFromAlpaca();
+      console.log("[EMERGENCY] Synced positions from Alpaca");
+      
+      res.json({
+        success: true,
+        killSwitchActivated: true,
+        ordersCancelled: orderCount,
+        positionsClosing: closeResult.length,
+        closeOrders: closeResult.map((order: AlpacaOrder) => ({
+          symbol: order.symbol,
+          qty: order.qty,
+          status: order.status,
+          type: order.type,
+        })),
+        message: `Emergency liquidation initiated: ${orderCount} orders cancelled, ${closeResult.length} positions closing`,
+      });
+    } catch (error) {
+      console.error("[EMERGENCY] Liquidation failed:", error);
+      res.status(500).json({ error: "Emergency liquidation failed: " + String(error) });
     }
   });
 

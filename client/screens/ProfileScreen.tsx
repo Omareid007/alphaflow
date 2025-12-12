@@ -205,15 +205,19 @@ function RiskManagementCard({
   isLoading,
   onToggleKillSwitch,
   onCloseAllPositions,
+  onEmergencyLiquidate,
   isTogglingKillSwitch,
   isClosingPositions,
+  isEmergencyLiquidating,
 }: {
   settings: RiskSettings | undefined;
   isLoading: boolean;
   onToggleKillSwitch: (activate: boolean) => void;
   onCloseAllPositions: () => void;
+  onEmergencyLiquidate: () => void;
   isTogglingKillSwitch: boolean;
   isClosingPositions: boolean;
+  isEmergencyLiquidating: boolean;
 }) {
   const { theme } = useTheme();
   const killSwitchActive = settings?.killSwitchActive ?? false;
@@ -322,6 +326,25 @@ function RiskManagementCard({
           </>
         )}
       </Pressable>
+
+      <Pressable
+        style={[styles.emergencyButton, { 
+          opacity: isEmergencyLiquidating ? 0.6 : 1,
+        }]}
+        onPress={onEmergencyLiquidate}
+        disabled={isEmergencyLiquidating}
+      >
+        {isEmergencyLiquidating ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <>
+            <Feather name="alert-triangle" size={18} color="#FFFFFF" />
+            <ThemedText style={styles.emergencyButtonText}>
+              Emergency Liquidate All
+            </ThemedText>
+          </>
+        )}
+      </Pressable>
     </Card>
   );
 }
@@ -379,6 +402,26 @@ export default function ProfileScreen() {
     },
   });
 
+  const emergencyLiquidateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/risk/emergency-liquidate", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/positions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trading/portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/risk/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status"] });
+      Alert.alert(
+        "Emergency Liquidation",
+        data.message || `Liquidation initiated: ${data.ordersCancelled} orders cancelled, ${data.positionsClosing} positions closing`
+      );
+    },
+    onError: (error) => {
+      Alert.alert("Error", "Emergency liquidation failed: " + String(error));
+    },
+  });
+
   const handleToggleKillSwitch = (activate: boolean) => {
     if (activate) {
       Alert.alert(
@@ -408,6 +451,21 @@ export default function ProfileScreen() {
           text: "Close All", 
           style: "destructive",
           onPress: () => closeAllMutation.mutate(),
+        },
+      ]
+    );
+  };
+
+  const handleEmergencyLiquidate = () => {
+    Alert.alert(
+      "Emergency Liquidation",
+      "This will:\n\n1. Activate the kill switch\n2. Cancel ALL open orders\n3. Close ALL positions (including fractional shares)\n\nThis is a complete portfolio liquidation. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "LIQUIDATE ALL", 
+          style: "destructive",
+          onPress: () => emergencyLiquidateMutation.mutate(),
         },
       ]
     );
@@ -463,8 +521,10 @@ export default function ProfileScreen() {
         isLoading={isLoadingRisk}
         onToggleKillSwitch={handleToggleKillSwitch}
         onCloseAllPositions={handleCloseAllPositions}
+        onEmergencyLiquidate={handleEmergencyLiquidate}
         isTogglingKillSwitch={killSwitchMutation.isPending}
         isClosingPositions={closeAllMutation.isPending}
+        isEmergencyLiquidating={emergencyLiquidateMutation.isPending}
       />
 
       <Card elevation={1} style={styles.settingsCard}>
@@ -694,5 +754,20 @@ const styles = StyleSheet.create({
   closeAllText: {
     ...Typography.body,
     fontWeight: "600",
+  },
+  emergencyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
+    backgroundColor: BrandColors.error,
+  },
+  emergencyButtonText: {
+    ...Typography.body,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
