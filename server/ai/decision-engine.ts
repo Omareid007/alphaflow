@@ -257,6 +257,7 @@ export interface AIDecision {
   targetPrice?: number;
   stopLoss?: number;
   trailingStopPercent?: number;
+  aiDecisionId?: string;
 }
 
 function isRateLimitOrQuotaError(error: unknown): boolean {

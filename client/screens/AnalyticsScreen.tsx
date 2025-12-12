@@ -77,11 +77,31 @@ interface AnalyticsSummary {
   realizedPnl: string;
   winRate: string;
   totalTrades: number;
+  closedTradesCount: number;
   winningTrades: number;
   losingTrades: number;
   openPositions: number;
   unrealizedPnl: string;
   isAgentRunning: boolean;
+  dailyPnl: string;
+  dailyTradeCount: number;
+  dailyWinningTrades: number;
+  dailyLosingTrades: number;
+  dailyRealizedPnl: string;
+  account: {
+    equity: string;
+    cash: string;
+    buyingPower: string;
+    lastEquity: string;
+    portfolioValue: string;
+  };
+  riskControls: {
+    maxPositionSizePercent: number;
+    maxTotalExposurePercent: number;
+    maxPositionsCount: number;
+    dailyLossLimitPercent: number;
+    killSwitchActive: boolean;
+  };
 }
 
 function PerformanceMetrics() {
@@ -191,6 +211,10 @@ function WinRateCard() {
   const winRate = parseFloat(summary?.winRate ?? "0");
   const winCount = summary?.winningTrades ?? 0;
   const lossCount = summary?.losingTrades ?? 0;
+  const dailyWins = summary?.dailyWinningTrades ?? 0;
+  const dailyLosses = summary?.dailyLosingTrades ?? 0;
+  const dailyTotal = dailyWins + dailyLosses;
+  const dailyWinRate = dailyTotal > 0 ? ((dailyWins / dailyTotal) * 100) : 0;
 
   return (
     <Card elevation={1} style={styles.winRateCard}>
@@ -207,6 +231,9 @@ function WinRateCard() {
           <ThemedText style={[styles.winRateValue, { fontFamily: Fonts?.mono }]}>{winRate.toFixed(0)}%</ThemedText>
         </View>
         <View style={styles.winRateStats}>
+          <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary, marginBottom: Spacing.xs, fontWeight: "600" }]}>
+            All Time
+          </ThemedText>
           <View style={styles.winRateStat}>
             <View style={[styles.winIndicator, { backgroundColor: BrandColors.success }]} />
             <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary }]}>Wins: {winCount}</ThemedText>
@@ -214,6 +241,17 @@ function WinRateCard() {
           <View style={styles.winRateStat}>
             <View style={[styles.winIndicator, { backgroundColor: BrandColors.error }]} />
             <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary }]}>Losses: {lossCount}</ThemedText>
+          </View>
+          <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary, marginTop: Spacing.sm, marginBottom: Spacing.xs, fontWeight: "600" }]}>
+            Today ({dailyWinRate.toFixed(0)}%)
+          </ThemedText>
+          <View style={styles.winRateStat}>
+            <View style={[styles.winIndicator, { backgroundColor: BrandColors.success }]} />
+            <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary }]}>Wins: {dailyWins}</ThemedText>
+          </View>
+          <View style={styles.winRateStat}>
+            <View style={[styles.winIndicator, { backgroundColor: BrandColors.error }]} />
+            <ThemedText style={[styles.winRateLabel, { color: theme.textSecondary }]}>Losses: {dailyLosses}</ThemedText>
           </View>
         </View>
       </View>
@@ -397,12 +435,17 @@ function TradeCard({
   onToggle: () => void;
 }) {
   const { theme } = useTheme();
-  const pnl = trade.pnl ? parseFloat(trade.pnl) : 0;
+  const hasPnl = trade.pnl !== null && trade.pnl !== undefined && trade.pnl !== "";
+  const pnl = hasPnl ? parseFloat(trade.pnl!) : 0;
   const isProfit = pnl >= 0;
+  const isOpenPosition = trade.side === "buy" && !hasPnl;
 
-  const formatCurrency = (value: string | number | null) => {
-    if (value === null) return "$0.00";
+  const formatPnlValue = (value: string | number | null | undefined, side: string) => {
+    if (value === null || value === undefined || value === "") {
+      return side === "buy" ? "Open" : "--";
+    }
     const num = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(num)) return side === "buy" ? "Open" : "--";
     const formatted = Math.abs(num).toFixed(2);
     return num >= 0 ? `$${formatted}` : `-$${formatted}`;
   };
@@ -458,10 +501,13 @@ function TradeCard({
             <ThemedText 
               style={[
                 styles.tradePnlValue, 
-                { color: isProfit ? BrandColors.success : BrandColors.error, fontFamily: Fonts?.mono }
+                { 
+                  color: isOpenPosition ? BrandColors.neutral : (isProfit ? BrandColors.success : BrandColors.error), 
+                  fontFamily: Fonts?.mono 
+                }
               ]}
             >
-              {formatCurrency(trade.pnl)}
+              {formatPnlValue(trade.pnl, trade.side)}
             </ThemedText>
             <Feather 
               name={isExpanded ? "chevron-up" : "chevron-down"} 

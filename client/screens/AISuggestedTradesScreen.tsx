@@ -98,7 +98,7 @@ export default function AISuggestedTradesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("list" as ViewMode);
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(0);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
@@ -806,7 +806,7 @@ export default function AISuggestedTradesScreen() {
           <View style={styles.paginationHeader}>
             <View style={styles.pageInfo}>
               <ThemedText style={[styles.pageInfoText, { color: theme.textSecondary }]}>
-                {filteredDecisions.length} {viewMode === "grouped" ? "symbols" : "trades"}
+                {filteredDecisions.length} decisions
               </ThemedText>
               <Pressable 
                 onPress={() => setShowPageSizeMenu(!showPageSizeMenu)}

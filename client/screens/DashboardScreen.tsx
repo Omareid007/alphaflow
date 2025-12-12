@@ -21,6 +21,7 @@ import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigat
 
 interface AnalyticsSummary {
   totalTrades: number;
+  closedTradesCount: number;
   totalPnl: string;
   realizedPnl: string;
   winRate: string;
@@ -31,6 +32,23 @@ interface AnalyticsSummary {
   isAgentRunning: boolean;
   dailyPnl: string;
   dailyTradeCount: number;
+  dailyWinningTrades: number;
+  dailyLosingTrades: number;
+  dailyRealizedPnl: string;
+  account: {
+    equity: string;
+    cash: string;
+    buyingPower: string;
+    lastEquity: string;
+    portfolioValue: string;
+  };
+  riskControls: {
+    maxPositionSizePercent: number;
+    maxTotalExposurePercent: number;
+    maxPositionsCount: number;
+    dailyLossLimitPercent: number;
+    killSwitchActive: boolean;
+  };
 }
 
 interface CryptoMarketData {

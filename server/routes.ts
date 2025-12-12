@@ -1260,12 +1260,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/summary", async (req, res) => {
     try {
-      const trades = await storage.getTrades(1000);
+      const trades = await storage.getTrades(5000);
       const orchestratorState = orchestrator.getState();
+      const riskLimits = orchestrator.getRiskLimits();
       
       let alpacaPositions: any[] = [];
       let unrealizedPnl = 0;
       let dailyPnlFromAccount = 0;
+      let accountData = {
+        equity: "0",
+        cash: "0",
+        buyingPower: "0",
+        lastEquity: "0",
+        portfolioValue: "0",
+      };
       
       try {
         alpacaPositions = await alpaca.getPositions();
@@ -1276,6 +1284,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastEquity = safeParseFloat(account.last_equity, 0);
         
         dailyPnlFromAccount = portfolioValue - lastEquity;
+        
+        accountData = {
+          equity: account.equity || "0",
+          cash: account.cash || "0",
+          buyingPower: account.buying_power || "0",
+          lastEquity: account.last_equity || "0",
+          portfolioValue: account.portfolio_value || "0",
+        };
       } catch (e) {
         console.error("Failed to fetch Alpaca data for analytics:", e);
       }
@@ -1305,9 +1321,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return executedAt >= todayStart;
       });
       const dailyTradeCount = todaysTrades.length;
+      
+      const dailyWinningTrades = todaysTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
+      const dailyLosingTrades = todaysTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
+      const dailyRealizedPnl = todaysTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
 
       res.json({
         totalTrades: trades.length,
+        closedTradesCount: closedTrades.length,
         totalPnl: totalPnl.toFixed(2),
         realizedPnl: realizedPnl.toFixed(2),
         winRate: winRate.toFixed(1),
@@ -1318,6 +1339,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAgentRunning: orchestratorState.isRunning,
         dailyPnl: dailyPnlFromAccount.toFixed(2),
         dailyTradeCount: dailyTradeCount,
+        dailyWinningTrades: dailyWinningTrades.length,
+        dailyLosingTrades: dailyLosingTrades.length,
+        dailyRealizedPnl: dailyRealizedPnl.toFixed(2),
+        account: accountData,
+        riskControls: {
+          maxPositionSizePercent: riskLimits.maxPositionSizePercent,
+          maxTotalExposurePercent: riskLimits.maxTotalExposurePercent,
+          maxPositionsCount: riskLimits.maxPositionsCount,
+          dailyLossLimitPercent: riskLimits.dailyLossLimitPercent,
+          killSwitchActive: riskLimits.killSwitchActive,
+        },
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get analytics summary" });

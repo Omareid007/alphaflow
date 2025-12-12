@@ -646,16 +646,17 @@ class AutonomousOrchestrator {
           );
 
           if (decision.confidence >= 0.7 && decision.action !== "hold") {
-            this.state.pendingSignals.set(symbol, decision);
-
-            await storage.createAiDecision({
+            const aiDecision = await storage.createAiDecision({
               strategyId: strategy?.id || null,
               symbol,
               action: decision.action,
               confidence: decision.confidence.toString(),
               reasoning: decision.reasoning,
               marketContext: JSON.stringify(data),
+              status: "pending",
             });
+            
+            this.state.pendingSignals.set(symbol, { ...decision, aiDecisionId: aiDecision.id });
           }
         } catch (error) {
           log.error("Orchestrator", `Analysis failed for ${symbol}`, { error: String(error) });
@@ -715,8 +716,44 @@ class AutonomousOrchestrator {
 
   private async processSignals(): Promise<void> {
     for (const [symbol, decision] of this.state.pendingSignals.entries()) {
-      const result = await this.executeSignal(symbol, decision);
+      let result: ExecutionResult;
+      try {
+        result = await this.executeSignal(symbol, decision);
+      } catch (error) {
+        result = {
+          success: false,
+          action: "skip",
+          reason: `Execution error: ${String(error)}`,
+          symbol,
+        };
+        log.error("Orchestrator", `Error executing signal for ${symbol}`, { error: String(error) });
+      }
+      
       this.state.executionHistory.push(result);
+      
+      if (decision.aiDecisionId) {
+        try {
+          if (result.success && result.action !== "hold" && result.action !== "skip") {
+            await storage.updateAiDecision(decision.aiDecisionId, {
+              status: "executed",
+              filledPrice: result.price?.toString(),
+              filledAt: new Date(),
+            });
+          } else if (result.action === "hold") {
+            await storage.updateAiDecision(decision.aiDecisionId, {
+              status: "skipped",
+              skipReason: "Hold action - no trade executed",
+            });
+          } else {
+            await storage.updateAiDecision(decision.aiDecisionId, {
+              status: "skipped",
+              skipReason: result.reason || "Trade not executed",
+            });
+          }
+        } catch (e) {
+          log.error("Orchestrator", `Failed to update AI decision status for ${decision.aiDecisionId}`, { error: String(e) });
+        }
+      }
 
       if (this.state.executionHistory.length > 100) {
         this.state.executionHistory = this.state.executionHistory.slice(-100);
