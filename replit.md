@@ -92,10 +92,21 @@ The platform is being transformed into an event-driven microservices architectur
 - **API Gateway**: Express-based gateway with auth, rate limiting, request routing, CORS, and health endpoints (`services/api-gateway/index.ts`)
 - **Docker Infrastructure**: 6 service-specific Dockerfiles + base template in `docker/`
 - **CI/CD Pipelines**: GitHub Actions workflows for lint, test, build, deploy in `.github/workflows/`
-- **NATS JetStream**: Event bus configuration in `infrastructure/nats/`
-- **Service Placeholders**: Health-check enabled services in `services/*/index.ts`
+- **NATS JetStream**: Event bus configuration with 6 streams (MARKET, TRADE, AI, ANALYTICS, ORCHESTRATOR, SYSTEM) in `infrastructure/nats/`
+- **Service Placeholders**: All 5 core services migrated to Express + shared packages with EventBus integration (`services/*/index.ts`)
 - **Shared Event Types**: TypeScript event definitions in `services/shared/events/`
 - **Database Schemas**: Per-service PostgreSQL schemas via `docker/init-db/`
+
+### Services Directory Structure (Updated Dec 2025)
+All microservices now use the shared packages consistently:
+- `services/trading-engine/` - Express + EventBus + Logger + Health (port 3001)
+- `services/ai-decision/` - Express + EventBus + Logger + Health (port 3002)
+- `services/market-data/` - Express + EventBus + Logger + Health (port 3003)
+- `services/analytics/` - Express + EventBus + Logger + Health (port 3004)
+- `services/orchestrator/` - Express + EventBus + Logger + Health (port 3005)
+- `services/event-bridge/` - n8n webhook bridge with Telegram/Slack support (port 3006)
+- `services/api-gateway/` - Auth, rate limiting, routing (port 5000)
+- `services/shared/` - Common utilities (events, common packages)
 
 ### Phase 3 Deliverables (Complete - Dec 2025)
 - **Performance Optimization**: Connection pooling (max 20, min 5), performance metrics tracking, order execution cache with sub-50ms validation (`server/lib/performance-metrics.ts`, `server/lib/order-execution-cache.ts`)
