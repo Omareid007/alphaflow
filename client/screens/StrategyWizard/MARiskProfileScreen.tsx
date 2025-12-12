@@ -1,5 +1,5 @@
-import React from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,6 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { useWizard } from "./context";
 import type { StrategyWizardParamList } from "@/navigation/StrategyWizardNavigator";
@@ -69,15 +70,46 @@ export default function MARiskProfileScreen() {
   const { data, updateData } = useWizard();
 
   const selectedPresetId = data.movingAverageParams?.presetId || "";
+  const adaptiveRiskEnabled = data.movingAverageParams?.adaptiveRiskEnabled || false;
+  const adaptiveRiskIntervalMinutes = data.movingAverageParams?.adaptiveRiskIntervalMinutes || 15;
+
+  const intervalOptions = [
+    { value: 5, label: "5 min" },
+    { value: 10, label: "10 min" },
+    { value: 15, label: "15 min" },
+    { value: 30, label: "30 min" },
+    { value: 60, label: "60 min" },
+  ];
 
   const handleSelectPreset = (preset: Preset) => {
+    const presetId = preset.id as "conservative" | "balanced" | "aggressive";
     updateData({
       movingAverageParams: {
+        ...data.movingAverageParams,
         presetId: preset.id,
         fastPeriod: preset.fastPeriod,
         slowPeriod: preset.slowPeriod,
         allocationPct: preset.allocationPct,
         riskLimitPct: preset.riskLimitPct,
+        basePresetId: presetId,
+      },
+    });
+  };
+
+  const handleToggleAdaptiveRisk = (value: boolean) => {
+    updateData({
+      movingAverageParams: {
+        ...data.movingAverageParams,
+        adaptiveRiskEnabled: value,
+      },
+    });
+  };
+
+  const handleIntervalChange = (interval: number) => {
+    updateData({
+      movingAverageParams: {
+        ...data.movingAverageParams,
+        adaptiveRiskIntervalMinutes: interval,
       },
     });
   };
@@ -172,6 +204,84 @@ export default function MARiskProfileScreen() {
             );
           })}
         </View>
+
+        <Card elevation={1} style={styles.adaptiveCard}>
+          <View style={styles.adaptiveHeader}>
+            <View style={styles.adaptiveInfo}>
+              <View style={[styles.adaptiveIconContainer, { backgroundColor: BrandColors.primaryLight + "20" }]}>
+                <Feather name="sliders" size={20} color={BrandColors.primaryLight} />
+              </View>
+              <View style={styles.adaptiveTextContainer}>
+                <ThemedText style={styles.adaptiveTitle}>Adaptive Risk Mode</ThemedText>
+                <ThemedText style={[styles.adaptiveDesc, { color: theme.textSecondary }]}>
+                  Auto-adjusts risk based on market conditions
+                </ThemedText>
+              </View>
+            </View>
+            <Switch
+              value={adaptiveRiskEnabled}
+              onValueChange={handleToggleAdaptiveRisk}
+              trackColor={{ false: theme.backgroundSecondary, true: BrandColors.primaryLight + "60" }}
+              thumbColor={adaptiveRiskEnabled ? BrandColors.primaryLight : theme.textSecondary}
+            />
+          </View>
+          {adaptiveRiskEnabled ? (
+            <View style={styles.adaptiveDetails}>
+              <View style={[styles.adaptiveDivider, { backgroundColor: BrandColors.cardBorder }]} />
+              
+              <View style={styles.adaptiveIntervalSection}>
+                <ThemedText style={[styles.intervalLabel, { color: theme.textSecondary }]}>
+                  Check Interval
+                </ThemedText>
+                <View style={styles.intervalButtons}>
+                  {intervalOptions.map((option) => {
+                    const isSelected = adaptiveRiskIntervalMinutes === option.value;
+                    return (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => handleIntervalChange(option.value)}
+                        style={[
+                          styles.intervalButton,
+                          {
+                            backgroundColor: isSelected
+                              ? BrandColors.primaryLight + "20"
+                              : theme.backgroundSecondary,
+                            borderColor: isSelected ? BrandColors.primaryLight : "transparent",
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.intervalButtonText,
+                            { color: isSelected ? BrandColors.primaryLight : theme.textSecondary },
+                          ]}
+                        >
+                          {option.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              
+              <View style={styles.adaptiveBaseInfo}>
+                <ThemedText style={[styles.basePresetLabel, { color: theme.textSecondary }]}>
+                  Base Preset
+                </ThemedText>
+                <ThemedText style={styles.basePresetValue}>
+                  {PRESETS.find(p => p.id === selectedPresetId)?.name || "Balanced"}
+                </ThemedText>
+              </View>
+              
+              <View style={styles.adaptiveNote}>
+                <Feather name="info" size={14} color={theme.textSecondary} style={{ marginRight: Spacing.xs }} />
+                <ThemedText style={[styles.adaptiveNoteText, { color: theme.textSecondary }]}>
+                  The system will shift between presets based on market volatility, trend strength, and sentiment every {adaptiveRiskIntervalMinutes} minutes.
+                </ThemedText>
+              </View>
+            </View>
+          ) : null}
+        </Card>
       </ScrollView>
 
       <View
@@ -269,5 +379,86 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     width: "100%",
+  },
+  adaptiveCard: {
+    marginTop: Spacing.xl,
+    padding: Spacing.lg,
+  },
+  adaptiveHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  adaptiveInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  adaptiveIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  adaptiveTextContainer: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  adaptiveTitle: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  adaptiveDesc: {
+    ...Typography.small,
+    marginTop: 2,
+  },
+  adaptiveDetails: {},
+  adaptiveDivider: {
+    height: 1,
+    marginVertical: Spacing.md,
+  },
+  adaptiveNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  adaptiveNoteText: {
+    ...Typography.small,
+    flex: 1,
+    lineHeight: 18,
+  },
+  adaptiveIntervalSection: {
+    marginBottom: Spacing.md,
+  },
+  intervalLabel: {
+    ...Typography.small,
+    marginBottom: Spacing.xs,
+  },
+  intervalButtons: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  intervalButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+  },
+  intervalButtonText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  adaptiveBaseInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  basePresetLabel: {
+    ...Typography.small,
+  },
+  basePresetValue: {
+    ...Typography.body,
+    fontWeight: "600",
   },
 });

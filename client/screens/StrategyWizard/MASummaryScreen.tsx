@@ -177,6 +177,26 @@ export default function MASummaryScreen() {
             <ThemedText style={styles.summaryValue}>{presetName}</ThemedText>
           </View>
 
+          <View style={styles.summaryRow}>
+            <ThemedText style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+              Adaptive Risk
+            </ThemedText>
+            <View style={styles.adaptiveStatusContainer}>
+              {params?.adaptiveRiskEnabled ? (
+                <>
+                  <View style={[styles.adaptiveStatusDot, { backgroundColor: BrandColors.success }]} />
+                  <ThemedText style={[styles.summaryValue, { color: BrandColors.success }]}>
+                    Enabled ({params?.adaptiveRiskIntervalMinutes || 15}min)
+                  </ThemedText>
+                </>
+              ) : (
+                <ThemedText style={[styles.summaryValue, { color: theme.textSecondary }]}>
+                  Disabled
+                </ThemedText>
+              )}
+            </View>
+          </View>
+
           <View style={[styles.divider, { backgroundColor: BrandColors.cardBorder }]} />
 
           <ThemedText style={styles.paramsTitle}>Parameters</ThemedText>
@@ -380,6 +400,16 @@ const styles = StyleSheet.create({
   summaryValue: {
     ...Typography.body,
     fontWeight: "600",
+  },
+  adaptiveStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  adaptiveStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   paramsTitle: {
     ...Typography.h4,

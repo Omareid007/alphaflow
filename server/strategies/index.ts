@@ -1,15 +1,27 @@
 export {
   MovingAverageCrossoverConfig,
   MovingAveragePreset,
+  PresetId,
   MOVING_AVERAGE_PRESETS,
+  ADAPTIVE_DEFAULTS,
   PARAMETER_BOUNDS as MA_PARAMETER_BOUNDS,
   STRATEGY_SCHEMA as MA_STRATEGY_SCHEMA,
   normalizeMovingAverageConfig,
+  applyPresetToConfig,
   BacktestTrade as MABacktestTrade,
   BacktestMetrics as MABacktestMetrics,
   MovingAverageBacktestResult,
   backtestMovingAverageStrategy,
 } from "./moving-average-crossover";
+
+export {
+  ADAPTIVE_THRESHOLDS,
+  AdaptiveRiskDecision,
+  UpdateResult,
+  choosePresetFromMarket,
+  updateStrategyRiskIfNeeded,
+  getAdaptiveRiskStatus,
+} from "./adaptive-risk-service";
 
 export {
   MeanReversionScalperConfig,

@@ -9,7 +9,20 @@ export interface MovingAverageCrossoverConfig {
   riskLimitPct: number;
   universe?: string;
   createdAt: string;
+  adaptiveRiskEnabled?: boolean;
+  basePresetId?: "conservative" | "balanced" | "aggressive";
+  currentPresetId?: "conservative" | "balanced" | "aggressive";
+  adaptiveRiskIntervalMinutes?: number;
+  lastAdaptiveUpdateAt?: string | null;
+  lastPresetChangeAt?: string | null;
+  lastPresetChangeReason?: string | null;
 }
+
+export type PresetId = "conservative" | "balanced" | "aggressive";
+
+export const ADAPTIVE_DEFAULTS = {
+  intervalMinutes: 15,
+};
 
 export interface MovingAveragePreset {
   id: string;
@@ -76,7 +89,11 @@ export const STRATEGY_SCHEMA = {
 export function normalizeMovingAverageConfig(
   input: Partial<MovingAverageCrossoverConfig>
 ): MovingAverageCrossoverConfig {
-  const preset = MOVING_AVERAGE_PRESETS.find(p => p.id === "balanced")!;
+  const adaptiveRiskEnabled = input.adaptiveRiskEnabled ?? false;
+  const basePresetId = input.basePresetId as PresetId | undefined;
+  const currentPresetId = input.currentPresetId ?? basePresetId;
+  
+  const preset = MOVING_AVERAGE_PRESETS.find(p => p.id === (currentPresetId || "balanced"))!;
   
   let fastPeriod = input.fastPeriod ?? preset.fastPeriod;
   let slowPeriod = input.slowPeriod ?? preset.slowPeriod;
@@ -92,7 +109,10 @@ export function normalizeMovingAverageConfig(
     fastPeriod = Math.max(PARAMETER_BOUNDS.fastPeriod.min, slowPeriod - 5);
   }
 
-  return {
+  const effectiveBasePresetId = basePresetId || "balanced";
+  const effectiveCurrentPresetId = currentPresetId || effectiveBasePresetId;
+  
+  const config: MovingAverageCrossoverConfig = {
     id: input.id || `ma_${Date.now()}`,
     symbol: input.symbol?.toUpperCase() || "SPY",
     fastPeriod,
@@ -101,6 +121,37 @@ export function normalizeMovingAverageConfig(
     riskLimitPct,
     universe: input.universe || "US_EQUITY",
     createdAt: input.createdAt || new Date().toISOString(),
+    adaptiveRiskEnabled,
+    basePresetId: effectiveBasePresetId,
+    currentPresetId: effectiveCurrentPresetId,
+    adaptiveRiskIntervalMinutes: input.adaptiveRiskIntervalMinutes ?? ADAPTIVE_DEFAULTS.intervalMinutes,
+    lastAdaptiveUpdateAt: input.lastAdaptiveUpdateAt ?? null,
+    lastPresetChangeAt: input.lastPresetChangeAt ?? null,
+    lastPresetChangeReason: input.lastPresetChangeReason ?? null,
+  };
+
+  return config;
+}
+
+export function applyPresetToConfig(
+  config: MovingAverageCrossoverConfig,
+  presetId: PresetId,
+  reason: string
+): MovingAverageCrossoverConfig {
+  const preset = MOVING_AVERAGE_PRESETS.find(p => p.id === presetId);
+  if (!preset) {
+    return config;
+  }
+
+  return {
+    ...config,
+    fastPeriod: preset.fastPeriod,
+    slowPeriod: preset.slowPeriod,
+    allocationPct: preset.allocationPct,
+    riskLimitPct: preset.riskLimitPct,
+    currentPresetId: presetId,
+    lastPresetChangeAt: new Date().toISOString(),
+    lastPresetChangeReason: reason,
   };
 }
 
@@ -179,7 +230,11 @@ export async function backtestMovingAverageStrategy(
   config: MovingAverageCrossoverConfig,
   lookbackDays: number = 365
 ): Promise<MovingAverageBacktestResult> {
-  const normalizedConfig = normalizeMovingAverageConfig(config);
+  let normalizedConfig = normalizeMovingAverageConfig(config);
+  
+  const { updateStrategyRiskIfNeeded } = await import("./adaptive-risk-service");
+  const adaptiveResult = await updateStrategyRiskIfNeeded(normalizedConfig);
+  normalizedConfig = adaptiveResult.config;
   
   const now = new Date();
   const from = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);

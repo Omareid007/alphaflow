@@ -15,6 +15,9 @@ export interface MovingAverageParameters {
   allocationPct: number;
   riskLimitPct: number;
   presetId?: string;
+  adaptiveRiskEnabled?: boolean;
+  basePresetId?: "conservative" | "balanced" | "aggressive";
+  adaptiveRiskIntervalMinutes?: number;
 }
 
 export interface AdaptiveSettings {
@@ -106,6 +109,8 @@ const defaultWizardData: WizardData = {
     allocationPct: 0.10,
     riskLimitPct: 0.10,
     presetId: "balanced",
+    adaptiveRiskEnabled: false,
+    basePresetId: "balanced",
   },
   adaptiveSettings: {
     useMarketSentiment: true,

@@ -121,3 +121,25 @@ Preferred communication style: Simple, everyday language.
 - **$0.00 Display Fix**: Trade ledger now shows "Open" for buy legs with null P&L instead of misleading $0.00
 - **Interface Updates**: AnalyticsSummary interface updated in DashboardScreen and AnalyticsScreen
 - **Key Files Modified**: `server/routes.ts`, `server/autonomous/orchestrator.ts`, `client/screens/DashboardScreen.tsx`, `client/screens/AnalyticsScreen.tsx`, `client/screens/AISuggestedTradesScreen.tsx`
+
+### Adaptive Risk Mode for Moving Average Crossover Strategy (December 12, 2025)
+- **Feature Overview**: New adaptive risk mode that automatically shifts between conservative/balanced/aggressive presets based on real-time market intelligence from the Data Fusion Engine
+- **Backend Implementation**:
+  - Extended `MovingAverageCrossoverConfig` interface with `adaptiveRiskEnabled`, `basePresetId`, `currentPresetId`, `lastPresetChangeAt`, `lastPresetChangeReason` fields
+  - Added `applyPresetToConfig()` helper function for preset application
+  - Created `server/strategies/adaptive-risk-service.ts` with:
+    - `choosePresetFromMarket()` - deterministic preset selector using volatility, trend strength, signal agreement, and data quality thresholds
+    - `updateStrategyRiskIfNeeded()` - updates strategy config if market conditions warrant a preset change
+    - `getAdaptiveRiskStatus()` - returns human-readable status
+  - `ADAPTIVE_THRESHOLDS` constants for volatility (low: 0.15, high: 0.40), trend strength (weak: 0.25, strong: 0.60), signal agreement (low: 0.40, high: 0.70)
+- **Frontend Implementation**:
+  - Updated wizard context with `adaptiveRiskEnabled` and `basePresetId` fields in `MovingAverageParameters`
+  - Added adaptive risk toggle section in `MARiskProfileScreen.tsx` with Switch component and info note
+  - Added "Adaptive Risk" row in `MASummaryScreen.tsx` showing enabled/disabled status
+  - Added "Adaptive" tag in `StrategiesScreen.tsx` for strategies with adaptive risk enabled
+- **Backward Compatibility**: When `adaptiveRiskEnabled=false`, behavior is identical to existing production code
+- **Selection Logic**:
+  - Conservative: High volatility (>=40%) OR weak trend (<25%) OR low data quality (<50%)
+  - Aggressive: Low volatility (<=15%) AND strong trend (>=60%) AND high signal agreement (>=70%) AND bullish sentiment
+  - Balanced: Default for all other conditions
+- **Key Files Modified**: `server/strategies/moving-average-crossover.ts`, `server/strategies/adaptive-risk-service.ts`, `server/strategies/index.ts`, `client/screens/StrategyWizard/context.tsx`, `client/screens/StrategyWizard/MARiskProfileScreen.tsx`, `client/screens/StrategyWizard/MASummaryScreen.tsx`, `client/screens/StrategiesScreen.tsx`

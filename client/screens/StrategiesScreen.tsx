@@ -105,6 +105,16 @@ function getAssetTypes(assets: string[] | null): ("crypto" | "stock")[] {
   return types;
 }
 
+function getAdaptiveRiskFromParams(parameters: string | null): boolean {
+  if (!parameters) return false;
+  try {
+    const parsed = JSON.parse(parameters);
+    return parsed?.movingAverageParams?.adaptiveRiskEnabled === true;
+  } catch {
+    return false;
+  }
+}
+
 function StrategyCard({ 
   strategy, 
   onToggle,
@@ -116,6 +126,7 @@ function StrategyCard({
 }) {
   const { theme } = useTheme();
   const assetTypes = getAssetTypes(strategy.assets);
+  const hasAdaptiveRisk = getAdaptiveRiskFromParams(strategy.parameters);
 
   return (
     <Card 
@@ -167,6 +178,14 @@ function StrategyCard({
             </ThemedText>
           </View>
         ))}
+        {hasAdaptiveRisk ? (
+          <View style={[styles.assetTag, { borderColor: BrandColors.primaryLight }]}>
+            <Feather name="sliders" size={10} color={BrandColors.primaryLight} style={{ marginRight: 4 }} />
+            <ThemedText style={[styles.assetTagText, { color: BrandColors.primaryLight }]}>
+              Adaptive
+            </ThemedText>
+          </View>
+        ) : null}
       </View>
     </Card>
   );
