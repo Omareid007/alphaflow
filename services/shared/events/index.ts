@@ -7,3 +7,4 @@ export * from './types';
 export * from './client';
 export * from './schemas';
 export * from './ring-buffer';
+export * from './event-journal';
