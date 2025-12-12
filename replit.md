@@ -135,8 +135,9 @@ Preferred communication style: Simple, everyday language.
 - **Frontend Implementation**:
   - Updated wizard context with `adaptiveRiskEnabled` and `basePresetId` fields in `MovingAverageParameters`
   - Added adaptive risk toggle section in `MARiskProfileScreen.tsx` with Switch component and info note
-  - Added "Adaptive Risk" row in `MASummaryScreen.tsx` showing enabled/disabled status
+  - Added "Adaptive Risk" row in `MASummaryScreen.tsx` showing enabled/disabled status with interval (e.g., "Enabled (15min)")
   - Added "Adaptive" tag in `StrategiesScreen.tsx` for strategies with adaptive risk enabled
+  - Added **current risk profile badge** on strategy cards: color-coded badge (Conservative=blue, Balanced=purple, Aggressive=orange) with dot indicator, displayed next to Active/Inactive status for adaptive-enabled strategies
 - **Backward Compatibility**: When `adaptiveRiskEnabled=false`, behavior is identical to existing production code
 - **Selection Logic**:
   - Conservative: High volatility (>=40%) OR weak trend (<25%) OR low data quality (<50%)

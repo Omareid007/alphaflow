@@ -115,6 +115,49 @@ function getAdaptiveRiskFromParams(parameters: string | null): boolean {
   }
 }
 
+type PresetId = "conservative" | "balanced" | "aggressive";
+
+interface AdaptiveRiskInfo {
+  enabled: boolean;
+  currentPreset: PresetId;
+  basePreset: PresetId;
+}
+
+function getAdaptiveRiskInfo(parameters: string | null): AdaptiveRiskInfo {
+  const defaultInfo: AdaptiveRiskInfo = { 
+    enabled: false, 
+    currentPreset: "balanced", 
+    basePreset: "balanced" 
+  };
+  
+  if (!parameters) return defaultInfo;
+  try {
+    const parsed = JSON.parse(parameters);
+    const maParams = parsed?.movingAverageParams;
+    if (!maParams?.adaptiveRiskEnabled) return defaultInfo;
+    
+    return {
+      enabled: true,
+      currentPreset: (maParams.currentPresetId || maParams.basePresetId || "balanced") as PresetId,
+      basePreset: (maParams.basePresetId || "balanced") as PresetId,
+    };
+  } catch {
+    return defaultInfo;
+  }
+}
+
+const PRESET_COLORS: Record<PresetId, string> = {
+  conservative: "#3B82F6",
+  balanced: "#8B5CF6",
+  aggressive: "#F59E0B",
+};
+
+const PRESET_LABELS: Record<PresetId, string> = {
+  conservative: "Conservative",
+  balanced: "Balanced",
+  aggressive: "Aggressive",
+};
+
 function StrategyCard({ 
   strategy, 
   onToggle,
@@ -127,6 +170,7 @@ function StrategyCard({
   const { theme } = useTheme();
   const assetTypes = getAssetTypes(strategy.assets);
   const hasAdaptiveRisk = getAdaptiveRiskFromParams(strategy.parameters);
+  const adaptiveInfo = getAdaptiveRiskInfo(strategy.parameters);
 
   return (
     <Card 
@@ -139,6 +183,14 @@ function StrategyCard({
           <Feather name={getStrategyIcon(strategy.type)} size={24} color={BrandColors.primaryLight} />
         </View>
         <View style={styles.statusContainer}>
+          {adaptiveInfo.enabled ? (
+            <View style={[styles.statusBadge, { backgroundColor: PRESET_COLORS[adaptiveInfo.currentPreset] + "20", marginRight: 8 }]}>
+              <View style={[styles.statusDot, { backgroundColor: PRESET_COLORS[adaptiveInfo.currentPreset] }]} />
+              <ThemedText style={[styles.statusText, { color: PRESET_COLORS[adaptiveInfo.currentPreset] }]}>
+                {PRESET_LABELS[adaptiveInfo.currentPreset]}
+              </ThemedText>
+            </View>
+          ) : null}
           {isToggling ? (
             <ActivityIndicator size="small" color={BrandColors.primaryLight} />
           ) : strategy.isActive ? (
