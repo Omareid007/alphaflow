@@ -103,6 +103,11 @@ Comprehensive architecture documentation is available in the `docs/` directory:
 - `docs/N8N_INTEGRATION_GUIDE.md` - Workflow automation
 - `docs/COMPETITIVE_BENCHMARKING.md` - Feature comparison with competitors
 
+### Operational Readiness
+- `docs/SLA_SLO_TARGETS.md` - Service level objectives and error budgets per service
+- `docs/TRADING_SAGA_SEQUENCES.md` - Sequence diagrams for trading sagas with compensation flows
+- `docs/DATA_MIGRATION_STRATEGY.md` - Dual-write/CDC migration patterns with 6-week timeline
+
 ## External Dependencies
 
 - **Market Data**: Finnhub, Financial Modeling Prep, Polygon.io, Alpha Vantage.
