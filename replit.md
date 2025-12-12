@@ -72,13 +72,21 @@ The platform is being transformed into an event-driven microservices architectur
 - **Pre-Trade Guard**: Validates buying power, market session, symbol tradability
 - **AI Learning Feedback Loop**: Records features and outcomes for calibration
 
-#### Microservices Transformation (Planned)
+#### Microservices Transformation (Phase 1 Complete)
 - **Event-Driven Communication**: NATS JetStream for async messaging between services
 - **Database per Service**: PostgreSQL with per-service schemas
 - **Container Standards**: Node.js 22 Alpine, Kubernetes orchestration
 - **Schema Registry**: Event versioning and backward compatibility
 - **OpenTelemetry**: Distributed tracing across services
 - **Circuit Breakers**: Fault isolation and graceful degradation
+
+### Phase 1 Deliverables (Complete - Dec 2025)
+- **Docker Infrastructure**: 6 service-specific Dockerfiles + base template in `docker/`
+- **CI/CD Pipelines**: GitHub Actions workflows for lint, test, build, deploy in `.github/workflows/`
+- **NATS JetStream**: Event bus configuration in `infrastructure/nats/`
+- **Service Placeholders**: Health-check enabled services in `services/*/index.ts`
+- **Shared Event Types**: TypeScript event definitions in `services/shared/events/`
+- **Database Schemas**: Per-service PostgreSQL schemas via `docker/init-db/`
 
 ## Architecture Documentation
 
