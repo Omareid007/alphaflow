@@ -108,7 +108,7 @@ class MarketConditionAnalyzer {
     };
 
     try {
-      const watchlistStocks = ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA", "SPY", "QQQ"];
+      const watchlistStocks = ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
       const stockQuotes = await finnhub.getMultipleQuotes(watchlistStocks);
 
       for (const [symbol, quote] of stockQuotes.entries()) {

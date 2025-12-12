@@ -71,7 +71,7 @@ export const STRATEGY_SCHEMA = {
   presets: MEAN_REVERSION_PRESETS,
   parameterBounds: PARAMETER_BOUNDS,
   supportedSymbols: [
-    "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
     "V", "UNH", "JNJ", "WMT", "PG", "MA", "HD", "CVX", "ABBV", "MRK",
     "KO", "PEP", "COST", "TMO", "AVGO", "ORCL", "ACN", "MCD", "CSCO", "ABT",
     "AMD", "INTC", "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS",
@@ -98,7 +98,7 @@ export function normalizeMeanReversionConfig(
 
   return {
     id: input.id || `mrs_${Date.now()}`,
-    symbol: input.symbol?.toUpperCase() || "SPY",
+    symbol: input.symbol?.toUpperCase() || "AAPL",
     lookbackPeriod,
     deviationThreshold,
     allocationPct,

@@ -49,12 +49,12 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
   const [selectedActivity, setSelectedActivity] = useState<AgentActivity | null>(null);
 
   const { data: recentDecisions, isLoading: isLoadingDecisions } = useQuery<any[]>({
-    queryKey: ["/api/ai/decisions", { limit: 5 }],
+    queryKey: ["/api/ai-decisions?limit=5"],
     refetchInterval: 10000,
   });
 
   const { data: recentTrades, isLoading: isLoadingTrades } = useQuery<any[]>({
-    queryKey: ["/api/trades", { limit: 5 }],
+    queryKey: ["/api/trades?limit=5"],
     refetchInterval: 10000,
   });
 

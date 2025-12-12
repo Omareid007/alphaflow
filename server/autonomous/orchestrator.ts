@@ -1139,6 +1139,23 @@ class AutonomousOrchestrator {
       const isCrypto = isCryptoSymbol(symbol);
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
 
+      try {
+        const openOrders = await alpaca.getOpenOrders();
+        const symbolOrders = openOrders.filter(o => o.symbol === brokerSymbol);
+        for (const order of symbolOrders) {
+          try {
+            await alpaca.cancelOrder(order.id);
+            log.info("Orchestrator", `Canceled pending order ${order.id} for ${symbol} before closing`);
+          } catch {
+          }
+        }
+        if (symbolOrders.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (err) {
+        log.warn("Orchestrator", `Failed to cancel orders for ${symbol}: ${err}`);
+      }
+
       let initialOrder;
       if (partialPercent >= 100) {
         initialOrder = await alpaca.closePosition(brokerSymbol);
