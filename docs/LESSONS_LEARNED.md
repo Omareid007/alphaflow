@@ -243,6 +243,23 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 
 **Reference:** See `docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md` for deep-dive on orchestrator.
 
+### Order Execution Utility Consolidation (December 2025)
+
+- **Date:** 2025-12-12
+- **Task:** Consolidated duplicate order execution functions into shared module
+- **Area:** orchestrator | infra
+- **What worked:** 
+  - Created single source of truth in `server/trading/order-execution-flow.ts`
+  - Unified function naming: `waitForAlpacaOrderFill`, `cancelExpiredOrders`
+  - Exported `OrderFillResult` interface for type sharing
+- **Issues/Pitfalls:**
+  - Had duplicate implementations in orchestrator.ts and order-execution-flow.ts
+  - Different function names caused confusion (`waitForOrderFill` vs `waitForAlpacaOrderFill`)
+- **Recommendations:**
+  - Always search for existing utilities before implementing new ones
+  - Keep order-execution utilities in `server/trading/order-execution-flow.ts`
+  - Use consistent naming with verb + target pattern (e.g., `waitForAlpacaOrderFill`)
+
 ---
 
 ### 4.10 Development-Time Agent Orchestration Lessons
@@ -281,8 +298,9 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 | 2024-12-11 | Initial document creation with foundational structure | Governance update task |
 | 2024-12-11 | Added sections 4.7-4.10 (AI, Connectors, Orchestrator, Agent Orchestration) | Extended governance task |
 | 2024-12-11 | Extended Area values template with new categories | Extended governance task |
+| 2025-12-12 | Added lesson on order execution utility consolidation | Code cleanup task |
 
 ---
 
-*Document Version: 1.1*  
+*Document Version: 1.2*  
 *Last Updated: December 2024*
