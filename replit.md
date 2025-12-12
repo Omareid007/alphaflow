@@ -107,3 +107,17 @@ Preferred communication style: Simple, everyday language.
   - Added `fuseTechnicalData()`, `calculateVolatilityWithTechnicals()`, `calculateSignalAgreementWithTechnicals()` functions
   - Enhanced `calculateTrendStrength()` to incorporate technical signals
 - **Key Files Modified**: `server/ai/decision-engine.ts`, `server/connectors/finnhub.ts`, `server/connectors/coingecko.ts`, `server/autonomous/orchestrator.ts`, `server/ai/data-fusion-engine.ts`
+
+### Data Consistency & AI Decision Lifecycle Fixes (December 12, 2025)
+- **Unified Analytics Endpoint**: `/api/analytics/summary` now returns synchronized data including:
+  - Account totals (equity, cash, buyingPower, lastEquity, portfolioValue) from Alpaca
+  - Risk controls (maxPositionSizePercent, maxTotalExposurePercent, maxPositionsCount, dailyLossLimitPercent, killSwitchActive) from orchestrator
+  - Daily stats (dailyWinningTrades, dailyLosingTrades, dailyRealizedPnl)
+  - Removed hardcoded default stopLoss/takeProfit percentages - uses actual orchestrator values
+- **AI Decision Lifecycle Fix**: Orchestrator now properly updates AI decision status:
+  - `executed` status with filledPrice and filledAt for successful trades
+  - `skipped` status with skipReason for hold actions, failures, and errors
+  - Error handling wrapper around executeSignal prevents decisions getting stuck in pending
+- **$0.00 Display Fix**: Trade ledger now shows "Open" for buy legs with null P&L instead of misleading $0.00
+- **Interface Updates**: AnalyticsSummary interface updated in DashboardScreen and AnalyticsScreen
+- **Key Files Modified**: `server/routes.ts`, `server/autonomous/orchestrator.ts`, `client/screens/DashboardScreen.tsx`, `client/screens/AnalyticsScreen.tsx`, `client/screens/AISuggestedTradesScreen.tsx`
