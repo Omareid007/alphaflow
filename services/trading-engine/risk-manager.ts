@@ -195,6 +195,10 @@ export class RiskManager {
     return { ...this.riskLimits };
   }
 
+  getPortfolioSnapshot(): PortfolioSnapshot {
+    return { ...this.portfolioSnapshot };
+  }
+
   updateRiskLimits(limits: Partial<RiskLimits>): void {
     this.riskLimits = { ...this.riskLimits, ...limits };
     logger.info('Risk limits updated', { limits: this.riskLimits });

@@ -92,6 +92,14 @@ async function initializeService(): Promise<void> {
         orderRequest.quantity,
         result.filledPrice
       );
+
+      const orderValue = orderRequest.quantity * result.filledPrice;
+      const cashDelta = orderRequest.side === 'buy' ? -orderValue : orderValue;
+      riskManager.updatePortfolioSnapshot({
+        cashBalance: riskManager.getPortfolioSnapshot().cashBalance + cashDelta,
+        positionsValue: positionManager.getTotalExposure(),
+        totalEquity: riskManager.getPortfolioSnapshot().totalEquity + (orderRequest.side === 'sell' ? orderValue : 0),
+      });
     }
   });
 
@@ -202,6 +210,14 @@ function createApp(): express.Express {
           orderRequest.quantity,
           result.filledPrice
         );
+
+        const orderValue = orderRequest.quantity * result.filledPrice;
+        const cashDelta = orderRequest.side === 'buy' ? -orderValue : orderValue;
+        riskManager.updatePortfolioSnapshot({
+          cashBalance: riskManager.getPortfolioSnapshot().cashBalance + cashDelta,
+          positionsValue: positionManager.getTotalExposure(),
+          totalEquity: riskManager.getPortfolioSnapshot().totalEquity + (orderRequest.side === 'sell' ? orderValue : 0),
+        });
       }
 
       res.status(result.success ? 201 : 400).json(result);
