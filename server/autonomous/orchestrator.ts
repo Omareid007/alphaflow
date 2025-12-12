@@ -286,7 +286,7 @@ class AutonomousOrchestrator {
 
     this.heartbeatTimer = setInterval(async () => {
       await this.performHeartbeat();
-    }, HEARTBEAT_INTERVAL_MS);
+    }, HEARTBEAT_INTERVAL_MS) as unknown as NodeJS.Timeout;
 
     log.info("Orchestrator", "Heartbeat started");
   }
@@ -534,14 +534,14 @@ class AutonomousOrchestrator {
         log.error("Orchestrator", "Analysis cycle error", { error: String(err) });
         this.state.errors.push(`Analysis error: ${err.message}`);
       });
-    }, this.config.analysisIntervalMs);
+    }, this.config.analysisIntervalMs) as unknown as NodeJS.Timeout;
 
     this.positionTimer = setInterval(() => {
       this.runPositionManagementCycle().catch((err) => {
         log.error("Orchestrator", "Position management error", { error: String(err) });
         this.state.errors.push(`Position mgmt error: ${err.message}`);
       });
-    }, this.config.positionCheckIntervalMs);
+    }, this.config.positionCheckIntervalMs) as unknown as NodeJS.Timeout;
 
     await this.runAnalysisCycle();
     await this.runPositionManagementCycle();
