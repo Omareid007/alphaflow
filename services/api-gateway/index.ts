@@ -23,17 +23,26 @@ interface RouteConfig {
   path: string;
   methods: string[];
   target: string;
+  port: number;
   rateLimit?: { requests: number; windowMs: number };
   requiresAuth?: boolean;
 }
 
+const SERVICE_PORTS: Record<string, number> = {
+  'market-data': 3003,
+  'trading-engine': 3001,
+  'ai-decision': 3002,
+  'analytics': 3004,
+  'orchestrator': 3005,
+};
+
 const ROUTES: RouteConfig[] = [
-  { path: '/api/v1/market', methods: ['GET'], target: 'market-data', rateLimit: { requests: 100, windowMs: 60000 } },
-  { path: '/api/v1/trades', methods: ['GET', 'POST'], target: 'trading-engine', requiresAuth: true },
-  { path: '/api/v1/positions', methods: ['GET'], target: 'trading-engine', requiresAuth: true },
-  { path: '/api/v1/decisions', methods: ['GET'], target: 'ai-decision', requiresAuth: true },
-  { path: '/api/v1/analytics', methods: ['GET'], target: 'analytics', requiresAuth: true },
-  { path: '/api/v1/strategies', methods: ['GET', 'POST', 'PUT', 'DELETE'], target: 'orchestrator', requiresAuth: true },
+  { path: '/api/v1/market', methods: ['GET'], target: 'market-data', port: 3003, rateLimit: { requests: 100, windowMs: 60000 } },
+  { path: '/api/v1/trades', methods: ['GET', 'POST'], target: 'trading-engine', port: 3001, requiresAuth: true },
+  { path: '/api/v1/positions', methods: ['GET'], target: 'trading-engine', port: 3001, requiresAuth: true },
+  { path: '/api/v1/decisions', methods: ['GET', 'POST'], target: 'ai-decision', port: 3002, requiresAuth: true },
+  { path: '/api/v1/analytics', methods: ['GET'], target: 'analytics', port: 3004, requiresAuth: true },
+  { path: '/api/v1/strategies', methods: ['GET', 'POST', 'PUT', 'DELETE'], target: 'orchestrator', port: 3005, requiresAuth: true },
 ];
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
@@ -160,31 +169,78 @@ async function proxyHandler(req: Request, res: Response): Promise<void> {
   }
 
   const requestId = (req as any).requestId;
+  const targetUrl = `http://localhost:${route.port}`;
+  const targetPath = req.path.replace(`/api/v1/${route.path.split('/').pop()}`, '');
 
-  // Publish routing event for observability
-  try {
-    await eventBus.publish('system.health.check', {
-      service: route.target,
-      status: 'healthy',
-      uptime: 0,
-      memory: { used: 0, total: 1 },
-      checkedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.warn('Failed to publish routing event', { requestId, target: route.target });
-  }
-
-  // In full implementation, this would proxy to the actual service
-  // For now, return a placeholder response indicating the route was found
-  res.json({
-    gateway: SERVICE_NAME,
-    targetService: route.target,
-    path: req.path,
-    method: req.method,
+  logger.debug('Proxying request', {
     requestId,
-    message: 'Route configured, service routing pending full microservices deployment',
-    timestamp: new Date().toISOString(),
+    target: route.target,
+    port: route.port,
+    path: req.path,
   });
+
+  try {
+    const proxyUrl = `${targetUrl}${req.path}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Request-Id': requestId,
+      'X-Forwarded-For': req.ip || 'unknown',
+    };
+
+    if ((req as any).userId) {
+      headers['X-User-Id'] = (req as any).userId;
+    }
+
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers,
+    };
+
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    const response = await fetch(proxyUrl, fetchOptions);
+    const contentType = response.headers.get('content-type');
+    
+    res.status(response.status);
+
+    for (const [key, value] of response.headers.entries()) {
+      if (!['content-encoding', 'transfer-encoding', 'content-length'].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    }
+
+    if (contentType?.includes('application/json')) {
+      const data = await response.json();
+      res.json(data);
+    } else {
+      const text = await response.text();
+      res.send(text);
+    }
+
+  } catch (error) {
+    logger.error('Proxy request failed', error instanceof Error ? error : undefined, {
+      requestId,
+      target: route.target,
+      port: route.port,
+    });
+
+    if ((error as any).code === 'ECONNREFUSED') {
+      res.status(503).json({
+        error: 'Service unavailable',
+        service: route.target,
+        message: `Service ${route.target} is not running on port ${route.port}`,
+        requestId,
+      });
+    } else {
+      res.status(502).json({
+        error: 'Bad gateway',
+        message: 'Failed to proxy request to downstream service',
+        requestId,
+      });
+    }
+  }
 }
 
 async function initializeService(): Promise<void> {
