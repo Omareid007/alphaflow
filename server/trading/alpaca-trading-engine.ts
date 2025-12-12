@@ -91,10 +91,10 @@ export interface StrategyRunState {
 }
 
 class AlpacaTradingEngine {
-  private strategyRunners: Map<string, NodeJS.Timeout> = new Map();
+  private strategyRunners: Map<string, ReturnType<typeof setInterval>> = new Map();
   private strategyStates: Map<string, StrategyRunState> = new Map();
   private checkIntervalMs = 60000;
-  private backgroundGeneratorInterval: NodeJS.Timeout | null = null;
+  private backgroundGeneratorInterval: ReturnType<typeof setInterval> | null = null;
   private backgroundGeneratorIntervalMs = 120000;
   private initialized = false;
   private autoStartStrategyId: string | null = null;
@@ -918,6 +918,11 @@ class AlpacaTradingEngine {
     const isConnected = await this.isAlpacaConnected();
     if (!isConnected) {
       return { success: false, error: "Alpaca API not connected" };
+    }
+
+    const agentStatus = await storage.getAgentStatus();
+    if (agentStatus?.killSwitchActive) {
+      return { success: false, error: "Kill switch is active - trading disabled" };
     }
 
     if (this.strategyRunners.has(strategyId)) {
