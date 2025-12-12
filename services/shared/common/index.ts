@@ -8,3 +8,8 @@ export * from './config';
 export * from './health';
 export * from './telemetry';
 export * from './secrets';
+export * from './circuit-breaker';
+export * from './kill-switch';
+export * from './dead-letter-queue';
+export * from './market-regime';
+export * from './bulkhead';

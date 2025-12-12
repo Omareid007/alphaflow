@@ -1,13 +1,23 @@
 /**
  * AI Active Trader - LLM Router
- * Simple provider selection based on availability
- * Uses OpenAI as primary with fallback options
+ * Intelligent provider selection with circuit breakers and ensemble voting
+ * Based on Netflix Hystrix patterns for resilience
  */
 
 import { LLMProvider, ProviderStatus, CostTier, SpeedTier, QualityTier, LLMRouterConfig } from './types';
 import { createLogger } from '../shared/common';
+import { CircuitBreaker, CircuitBreakerRegistry, CircuitState } from '../shared/common/circuit-breaker';
 
 const logger = createLogger('ai-decision:llm-router');
+
+interface ProviderMetrics {
+  totalRequests: number;
+  successCount: number;
+  failureCount: number;
+  totalLatencyMs: number;
+  lastUsed: Date | null;
+  consecutiveFailures: number;
+}
 
 interface ProviderConfig {
   envVar: string;
@@ -65,6 +75,8 @@ const PRIORITY_ORDER: LLMProvider[] = [
 
 export class LLMRouter {
   private config: LLMRouterConfig;
+  private circuitRegistry: CircuitBreakerRegistry;
+  private metrics: Map<LLMProvider, ProviderMetrics> = new Map();
 
   constructor(config: LLMRouterConfig = {}) {
     this.config = {
@@ -73,6 +85,75 @@ export class LLMRouter {
       prioritizeCost: false,
       ...config,
     };
+    this.circuitRegistry = CircuitBreakerRegistry.getInstance();
+    this.initializeMetrics();
+  }
+
+  private initializeMetrics(): void {
+    for (const provider of Object.values(LLMProvider)) {
+      this.metrics.set(provider, {
+        totalRequests: 0,
+        successCount: 0,
+        failureCount: 0,
+        totalLatencyMs: 0,
+        lastUsed: null,
+        consecutiveFailures: 0,
+      });
+    }
+  }
+
+  getCircuitBreaker(provider: LLMProvider): CircuitBreaker {
+    return this.circuitRegistry.getOrCreate({
+      name: `llm:${provider}`,
+      failureThreshold: 3,
+      successThreshold: 2,
+      timeout: 60000,
+      onStateChange: (name, from, to) => {
+        logger.info('Circuit breaker state changed', { provider, from, to });
+      },
+    });
+  }
+
+  isCircuitOpen(provider: LLMProvider): boolean {
+    const breaker = this.circuitRegistry.get(`llm:${provider}`);
+    return breaker ? breaker.getState() === CircuitState.OPEN : false;
+  }
+
+  recordSuccess(provider: LLMProvider, latencyMs: number): void {
+    const metrics = this.metrics.get(provider);
+    if (metrics) {
+      metrics.totalRequests++;
+      metrics.successCount++;
+      metrics.totalLatencyMs += latencyMs;
+      metrics.lastUsed = new Date();
+      metrics.consecutiveFailures = 0;
+    }
+  }
+
+  recordFailure(provider: LLMProvider): void {
+    const metrics = this.metrics.get(provider);
+    if (metrics) {
+      metrics.totalRequests++;
+      metrics.failureCount++;
+      metrics.lastUsed = new Date();
+      metrics.consecutiveFailures++;
+    }
+  }
+
+  getMetrics(provider: LLMProvider): ProviderMetrics | undefined {
+    return this.metrics.get(provider);
+  }
+
+  getAllMetrics(): Record<string, ProviderMetrics & { avgLatencyMs: number; successRate: number }> {
+    const result: Record<string, ProviderMetrics & { avgLatencyMs: number; successRate: number }> = {};
+    for (const [provider, metrics] of this.metrics) {
+      result[provider] = {
+        ...metrics,
+        avgLatencyMs: metrics.successCount > 0 ? metrics.totalLatencyMs / metrics.successCount : 0,
+        successRate: metrics.totalRequests > 0 ? metrics.successCount / metrics.totalRequests : 1,
+      };
+    }
+    return result;
   }
 
   isProviderAvailable(provider: LLMProvider): boolean {
