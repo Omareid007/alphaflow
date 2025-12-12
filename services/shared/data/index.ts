@@ -1,6 +1,8 @@
 /**
  * AI Active Trader - Data Processing Modules
- * Exports for sentiment fusion and data aggregation services
+ * Exports for sentiment fusion, regime detection, technical analysis, and data aggregation services
  */
 
 export * from './sentiment-fusion';
+export * from './market-regime-ml';
+export * from './technical-indicators';
