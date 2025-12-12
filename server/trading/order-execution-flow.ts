@@ -998,3 +998,95 @@ export async function reconcileOrderBook(): Promise<{
   
   return result;
 }
+
+// ============================================================================
+// SHARED ORDER HELPERS (Unified functions for consistent naming)
+// ============================================================================
+
+const ORDER_FILL_POLL_INTERVAL_MS = 500;
+const ORDER_FILL_TIMEOUT_MS = 30000;
+const STALE_ORDER_TIMEOUT_MS = 5 * 60 * 1000;
+
+export interface OrderFillResult {
+  order: AlpacaOrder | null;
+  timedOut: boolean;
+  hasFillData: boolean;
+  isFullyFilled: boolean;
+}
+
+/**
+ * Wait for an Alpaca order to fill with polling and timeout
+ * Unified function replacing duplicate implementations
+ */
+export async function waitForAlpacaOrderFill(orderId: string, timeoutMs = ORDER_FILL_TIMEOUT_MS): Promise<OrderFillResult> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const order = await alpaca.getOrder(orderId);
+      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+      const hasFillData = filledPrice > 0 && filledQty > 0;
+      
+      if (order.status === "filled" && hasFillData) {
+        return { order, timedOut: false, hasFillData: true, isFullyFilled: true };
+      }
+      
+      if (TERMINAL_STATUSES.includes(order.status as typeof TERMINAL_STATUSES[number])) {
+        console.log(`[OrderFlow] Order ${orderId} ended with status: ${order.status}`);
+        return { order, timedOut: false, hasFillData, isFullyFilled: false };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, ORDER_FILL_POLL_INTERVAL_MS));
+    } catch (error) {
+      console.error(`[OrderFlow] Error polling order ${orderId}:`, error);
+      await new Promise(resolve => setTimeout(resolve, ORDER_FILL_POLL_INTERVAL_MS));
+    }
+  }
+  
+  console.log(`[OrderFlow] Order ${orderId} fill timeout after ${timeoutMs}ms`);
+  try {
+    const finalOrder = await alpaca.getOrder(orderId);
+    const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
+    const filledQty = safeParseFloat(finalOrder.filled_qty, 0);
+    const hasFillData = filledPrice > 0 && filledQty > 0;
+    const isFullyFilled = finalOrder.status === "filled" && hasFillData;
+    return { order: finalOrder, timedOut: true, hasFillData, isFullyFilled };
+  } catch {
+    return { order: null, timedOut: true, hasFillData: false, isFullyFilled: false };
+  }
+}
+
+/**
+ * Cancel orders older than the specified timeout
+ * Unified function replacing duplicate implementations
+ */
+export async function cancelExpiredOrders(maxAgeMs = STALE_ORDER_TIMEOUT_MS): Promise<number> {
+  let canceledCount = 0;
+  try {
+    const openOrders = await alpaca.getOrders("open", 100);
+    const now = Date.now();
+    
+    for (const order of openOrders) {
+      const createdAt = new Date(order.created_at).getTime();
+      const orderAge = now - createdAt;
+      
+      if (orderAge > maxAgeMs) {
+        try {
+          await alpaca.cancelOrder(order.id);
+          canceledCount++;
+          console.log(`[OrderFlow] Canceled expired order ${order.id} for ${order.symbol} (age: ${Math.floor(orderAge / 1000)}s)`);
+        } catch (error) {
+          console.warn(`[OrderFlow] Failed to cancel expired order ${order.id}:`, error);
+        }
+      }
+    }
+    
+    if (canceledCount > 0) {
+      console.log(`[OrderFlow] Canceled ${canceledCount} expired pending orders`);
+    }
+  } catch (error) {
+    console.error("[OrderFlow] Error checking for expired orders:", error);
+  }
+  return canceledCount;
+}

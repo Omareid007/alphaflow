@@ -7,88 +7,10 @@ import type { Strategy } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
+import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } from "../trading/order-execution-flow";
 
-const FILL_POLL_INTERVAL_MS = 500;
-const FILL_TIMEOUT_MS = 30000;
-const STALE_ORDER_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
-
-interface OrderFillResult {
-  order: AlpacaOrder | null;
-  timedOut: boolean;
-  hasFillData: boolean;
-  isFullyFilled: boolean;
-}
-
-async function waitForOrderFill(orderId: string): Promise<OrderFillResult> {
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < FILL_TIMEOUT_MS) {
-    try {
-      const order = await alpaca.getOrder(orderId);
-      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
-      const filledQty = safeParseFloat(order.filled_qty, 0);
-      const hasFillData = filledPrice > 0 && filledQty > 0;
-      
-      if (order.status === "filled" && hasFillData) {
-        return { order, timedOut: false, hasFillData: true, isFullyFilled: true };
-      }
-      
-      if (["canceled", "expired", "rejected", "suspended"].includes(order.status)) {
-        log.warn("Orchestrator", `Order ${orderId} ended with status: ${order.status}`);
-        return { order, timedOut: false, hasFillData, isFullyFilled: false };
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
-    } catch (error) {
-      log.error("Orchestrator", `Error polling order ${orderId}`, { error: String(error) });
-      await new Promise(resolve => setTimeout(resolve, FILL_POLL_INTERVAL_MS));
-    }
-  }
-  
-  log.warn("Orchestrator", `Order ${orderId} fill timeout after ${FILL_TIMEOUT_MS}ms`);
-  try {
-    const finalOrder = await alpaca.getOrder(orderId);
-    const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
-    const filledQty = safeParseFloat(finalOrder.filled_qty, 0);
-    const hasFillData = filledPrice > 0 && filledQty > 0;
-    const isFullyFilled = finalOrder.status === "filled" && hasFillData;
-    return { order: finalOrder, timedOut: true, hasFillData, isFullyFilled };
-  } catch {
-    return { order: null, timedOut: true, hasFillData: false, isFullyFilled: false };
-  }
-}
-
-async function cancelStaleOrders(): Promise<number> {
-  let canceledCount = 0;
-  try {
-    const openOrders = await alpaca.getOrders("open", 100);
-    const now = Date.now();
-    
-    for (const order of openOrders) {
-      const createdAt = new Date(order.created_at).getTime();
-      const orderAge = now - createdAt;
-      
-      if (orderAge > STALE_ORDER_TIMEOUT_MS) {
-        try {
-          await alpaca.cancelOrder(order.id);
-          canceledCount++;
-          log.info("Orchestrator", `Canceled stale order ${order.id} for ${order.symbol} (age: ${Math.floor(orderAge / 1000)}s)`);
-        } catch (error) {
-          log.warn("Orchestrator", `Failed to cancel stale order ${order.id}`, { error: String(error) });
-        }
-      }
-    }
-    
-    if (canceledCount > 0) {
-      log.info("Orchestrator", `Canceled ${canceledCount} stale pending orders`);
-    }
-  } catch (error) {
-    log.error("Orchestrator", "Error checking for stale orders", { error: String(error) });
-  }
-  return canceledCount;
-}
 
 export interface OrchestratorConfig {
   analysisIntervalMs: number;
@@ -610,7 +532,7 @@ class AutonomousOrchestrator {
         return;
       }
 
-      const canceledOrderCount = await cancelStaleOrders();
+      const canceledOrderCount = await cancelExpiredOrders();
       if (canceledOrderCount > 0) {
         log.info("Orchestrator", `Analysis cycle: cleaned up ${canceledOrderCount} stale pending orders`);
       }
@@ -898,7 +820,7 @@ class AutonomousOrchestrator {
         initialOrder = await alpaca.createOrder(orderParams);
       }
       
-      const fillResult = await waitForOrderFill(initialOrder.id);
+      const fillResult = await waitForAlpacaOrderFill(initialOrder.id);
       
       if (!fillResult.order) {
         log.error("Orchestrator", `Order ${initialOrder.id} - no order data received`);
@@ -1030,7 +952,7 @@ class AutonomousOrchestrator {
         });
       }
 
-      const fillResult = await waitForOrderFill(initialOrder.id);
+      const fillResult = await waitForAlpacaOrderFill(initialOrder.id);
       
       if (!fillResult.order) {
         log.error("Orchestrator", `Close order ${initialOrder.id} - no order data received`);
