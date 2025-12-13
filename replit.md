@@ -80,11 +80,17 @@ The platform includes a comprehensive algorithm framework inspired by LEAN, Naut
 - Phase 0: NATS JetStream integration (9 tests), OpenTelemetry wiring (16 tests)
 - Phase 1: Service templates, API Gateway, per-service database schemas
 - Phase 2: Dual-write repositories (11 tests), Market Data extraction, Trading Engine persistence (13 tests), Feature flag routing (23 tests)
+- Phase 3: AI Decision, Analytics, and Orchestrator service extraction (all standalone with routes and health checks)
+- Infrastructure: GitHub Actions CI/CD pipelines, Kubernetes deployment manifests, HashiCorp Vault integration
+- API Contracts: OpenAPI 3.1 specs for trading-engine, ai-decision, and market-data services
 
-**Remaining:**
-- AI Decision, Analytics, and Orchestrator service extraction
-- CI/CD pipelines for Kubernetes deployment
-- Vault secrets management integration
+**Infrastructure Ready:**
+- All 6 microservices have standalone Express servers with REST APIs
+- Health checks registered at /health/live, /health/ready, /health/startup
+- Event bus integration via NATS JetStream
+- Docker Compose for local development
+- Kubernetes manifests with Vault Agent Injector annotations
+- GitHub Actions workflows for build, test, and deploy
 
 ### UI/UX Decisions
 - **Framework**: React Native with Expo SDK 54, React Navigation v7, TanStack Query.
