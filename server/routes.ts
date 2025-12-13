@@ -93,6 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delay async initializations to let server start first
   setTimeout(() => {
     console.log("[Routes] Starting delayed initializations...");
+    coordinator.start().catch(err => 
+      console.error("Failed to start trading coordinator:", err)
+    );
     alpacaTradingEngine.initialize().catch(err => 
       console.error("Failed to initialize Alpaca trading engine:", err)
     );
@@ -3008,14 +3011,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/stats", authMiddleware, (req, res) => {
     res.json(getNotificationStats());
   });
-
-  coordinator.start().catch(err => 
-    console.error("Failed to start trading coordinator:", err)
-  );
-
-  orchestrator.autoStart().catch(err => 
-    console.error("Failed to auto-start orchestrator:", err)
-  );
 
   const httpServer = createServer(app);
 

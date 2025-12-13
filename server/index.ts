@@ -43,13 +43,15 @@ function setupCors(app: express.Application) {
 
     const origin = req.header("origin");
 
-    if (origin && origins.has(origin)) {
-      res.header("Access-Control-Allow-Origin", origin);
+    // Allow requests with no origin (native apps like Expo Go, same-origin, curl, etc.)
+    // or with an origin matching our allowed Replit domains
+    if (!origin || origins.has(origin)) {
+      res.header("Access-Control-Allow-Origin", origin || "*");
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
     }
 

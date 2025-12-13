@@ -29,19 +29,11 @@ pool.on('connect', () => {
   console.log('[DB Pool] New client connected');
 });
 
-let connectionCount = 0;
-const originalConnect = pool.connect.bind(pool);
-pool.connect = async function() {
-  connectionCount++;
-  return originalConnect();
-};
-
 export function getPoolStats() {
   return {
     totalCount: pool.totalCount,
     idleCount: pool.idleCount,
     waitingCount: pool.waitingCount,
-    connectionCount,
   };
 }
 

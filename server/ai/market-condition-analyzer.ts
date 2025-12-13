@@ -44,7 +44,10 @@ class MarketConditionAnalyzer {
 
   async initialize(): Promise<void> {
     console.log("[MarketAnalyzer] Initializing market condition analyzer...");
-    await this.runAnalysis();
+    // Run initial analysis in background (non-blocking) to prevent startup hangs
+    this.runAnalysis().catch(err => {
+      console.error("[MarketAnalyzer] Initial analysis failed:", err);
+    });
     this.startPeriodicAnalysis();
   }
 
