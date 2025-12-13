@@ -32,162 +32,172 @@
 
 ---
 
+## Stability Legend
+
+| Stability | Description |
+|-----------|-------------|
+| **Stable** | Production-ready, breaking changes only in major versions |
+| **Experimental** | Subject to change, use with caution in production |
+| **Internal** | For system use only, may change without notice |
+
+---
+
 ## 1. Authentication
 
-| Endpoint | Method | Purpose | Auth Required |
-|----------|--------|---------|---------------|
-| `/api/auth/signup` | POST | Create new user account | No |
-| `/api/auth/login` | POST | Login and create session | No |
-| `/api/auth/logout` | POST | Destroy session | No |
-| `/api/auth/me` | GET | Get current user | Yes |
+| Endpoint | Method | Purpose | Auth Required | Stability |
+|----------|--------|---------|---------------|-----------|
+| `/api/auth/signup` | POST | Create new user account | No | Stable |
+| `/api/auth/login` | POST | Login and create session | No | Stable |
+| `/api/auth/logout` | POST | Destroy session | No | Stable |
+| `/api/auth/me` | GET | Get current user | Yes | Stable |
 
 ---
 
 ## 2. Agent Control
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/agent/status` | GET | Get agent running status and stats |
-| `/api/agent/toggle` | POST | Toggle agent on/off |
-| `/api/agent/market-analysis` | GET | Get latest market analysis |
-| `/api/agent/market-analysis/refresh` | POST | Force refresh market analysis |
-| `/api/agent/dynamic-limits` | GET | Get current dynamic order limits |
-| `/api/agent/set-limits` | POST | Update order limits |
-| `/api/agent/health` | GET | Health check with uptime info |
-| `/api/agent/auto-start` | POST | Enable/disable auto-start |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/agent/status` | GET | Get agent running status and stats | Stable |
+| `/api/agent/toggle` | POST | Toggle agent on/off | Stable |
+| `/api/agent/market-analysis` | GET | Get latest market analysis | Stable |
+| `/api/agent/market-analysis/refresh` | POST | Force refresh market analysis | Stable |
+| `/api/agent/dynamic-limits` | GET | Get current dynamic order limits | Experimental |
+| `/api/agent/set-limits` | POST | Update order limits | Experimental |
+| `/api/agent/health` | GET | Health check with uptime info | Stable |
+| `/api/agent/auto-start` | POST | Enable/disable auto-start | Stable |
 
 ---
 
 ## 3. Autonomous Orchestrator
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/autonomous/state` | GET | Full orchestrator state |
-| `/api/autonomous/start` | POST | Start autonomous trading |
-| `/api/autonomous/stop` | POST | Stop autonomous trading |
-| `/api/autonomous/kill-switch` | POST | Emergency stop all trading |
-| `/api/autonomous/risk-limits` | PUT | Update risk parameters |
-| `/api/autonomous/mode` | POST | Set mode (autonomous/semi-auto/manual) |
-| `/api/autonomous/execution-history` | GET | Get execution history |
-| `/api/autonomous/close-position` | POST | Close specific position |
-| `/api/autonomous/execute-trades` | POST | Execute pending AI signals |
-| `/api/autonomous/open-orders` | GET | Get all open orders |
-| `/api/autonomous/cancel-stale-orders` | POST | Cancel old unfilled orders |
-| `/api/autonomous/cancel-all-orders` | POST | Cancel all open orders |
-| `/api/autonomous/reconcile-positions` | GET | Compare DB vs Alpaca positions |
-| `/api/autonomous/sync-positions` | POST | Sync positions from Alpaca to DB |
-| `/api/autonomous/close-all-positions` | POST | Liquidate all positions |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/autonomous/state` | GET | Full orchestrator state | Stable |
+| `/api/autonomous/start` | POST | Start autonomous trading | Stable |
+| `/api/autonomous/stop` | POST | Stop autonomous trading | Stable |
+| `/api/autonomous/kill-switch` | POST | Emergency stop all trading | Stable |
+| `/api/autonomous/risk-limits` | PUT | Update risk parameters | Stable |
+| `/api/autonomous/mode` | POST | Set mode (autonomous/semi-auto/manual) | Stable |
+| `/api/autonomous/execution-history` | GET | Get execution history | Stable |
+| `/api/autonomous/close-position` | POST | Close specific position | Stable |
+| `/api/autonomous/execute-trades` | POST | Execute pending AI signals | Experimental |
+| `/api/autonomous/open-orders` | GET | Get all open orders | Stable |
+| `/api/autonomous/cancel-stale-orders` | POST | Cancel old unfilled orders | Stable |
+| `/api/autonomous/cancel-all-orders` | POST | Cancel all open orders | Stable |
+| `/api/autonomous/reconcile-positions` | GET | Compare DB vs Alpaca positions | Internal |
+| `/api/autonomous/sync-positions` | POST | Sync positions from Alpaca to DB | Internal |
+| `/api/autonomous/close-all-positions` | POST | Liquidate all positions | Stable |
 
 ---
 
 ## 4. Strategies
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/strategies` | GET | List all strategies |
-| `/api/strategies/:id` | GET | Get specific strategy |
-| `/api/strategies` | POST | Create new strategy |
-| `/api/strategies/:id` | PATCH | Update strategy |
-| `/api/strategies/:id/toggle` | POST | Activate/deactivate strategy |
-| `/api/strategies/:id/start` | POST | Start strategy execution |
-| `/api/strategies/:id/stop` | POST | Stop strategy execution |
-| `/api/strategies/:id/status` | GET | Get strategy status |
-| `/api/strategies/all-schemas` | GET | Get all strategy JSON schemas |
-| `/api/strategies/moving-average/schema` | GET | Moving average strategy schema |
-| `/api/strategies/moving-average/backtest` | POST | Backtest moving average |
-| `/api/strategies/moving-average/ai-validate` | POST | AI validation of MA strategy |
-| `/api/strategies/mean-reversion/schema` | GET | Mean reversion schema |
-| `/api/strategies/mean-reversion/backtest` | POST | Backtest mean reversion |
-| `/api/strategies/momentum/schema` | GET | Momentum strategy schema |
-| `/api/strategies/momentum/backtest` | POST | Backtest momentum |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/strategies` | GET | List all strategies | Stable |
+| `/api/strategies/:id` | GET | Get specific strategy | Stable |
+| `/api/strategies` | POST | Create new strategy | Stable |
+| `/api/strategies/:id` | PATCH | Update strategy | Stable |
+| `/api/strategies/:id/toggle` | POST | Activate/deactivate strategy | Stable |
+| `/api/strategies/:id/start` | POST | Start strategy execution | Experimental |
+| `/api/strategies/:id/stop` | POST | Stop strategy execution | Experimental |
+| `/api/strategies/:id/status` | GET | Get strategy status | Stable |
+| `/api/strategies/all-schemas` | GET | Get all strategy JSON schemas | Stable |
+| `/api/strategies/moving-average/schema` | GET | Moving average strategy schema | Stable |
+| `/api/strategies/moving-average/backtest` | POST | Backtest moving average | Experimental |
+| `/api/strategies/moving-average/ai-validate` | POST | AI validation of MA strategy | Experimental |
+| `/api/strategies/mean-reversion/schema` | GET | Mean reversion schema | Stable |
+| `/api/strategies/mean-reversion/backtest` | POST | Backtest mean reversion | Experimental |
+| `/api/strategies/momentum/schema` | GET | Momentum strategy schema | Stable |
+| `/api/strategies/momentum/backtest` | POST | Backtest momentum | Experimental |
 
 ---
 
 ## 5. Trades & Positions
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/trades` | GET | List trades (with limit) |
-| `/api/trades/enriched` | GET | Trades with AI decisions attached |
-| `/api/trades/symbols` | GET | Distinct traded symbols |
-| `/api/trades/:id` | GET | Get specific trade |
-| `/api/trades/:id/enriched` | GET | Trade with AI decision |
-| `/api/trades` | POST | Create trade record |
-| `/api/positions` | GET | **Primary** - Live Alpaca positions |
-| `/api/positions/broker` | GET | Direct broker positions |
-| `/api/positions/:id` | GET | Get DB position by ID |
-| `/api/positions` | POST | Create position record |
-| `/api/positions/:id` | PATCH | Update position |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/trades` | GET | List trades (with limit) | Stable |
+| `/api/trades/enriched` | GET | Trades with AI decisions attached | Stable |
+| `/api/trades/symbols` | GET | Distinct traded symbols | Stable |
+| `/api/trades/:id` | GET | Get specific trade | Stable |
+| `/api/trades/:id/enriched` | GET | Trade with AI decision | Stable |
+| `/api/trades` | POST | Create trade record | Stable |
+| `/api/positions` | GET | **Primary** - Live Alpaca positions | Stable |
+| `/api/positions/broker` | GET | Direct broker positions | Stable |
+| `/api/positions/:id` | GET | Get DB position by ID | Stable |
+| `/api/positions` | POST | Create position record | Internal |
+| `/api/positions/:id` | PATCH | Update position | Internal |
 
 ---
 
 ## 6. Analytics
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/analytics/summary` | GET | P&L summary (realized + unrealized) |
-| `/api/analytics/performance` | GET | Performance metrics |
-| `/api/analytics/equity-curve` | GET | Equity over time |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/analytics/summary` | GET | P&L summary (realized + unrealized) | Stable |
+| `/api/analytics/performance` | GET | Performance metrics | Stable |
+| `/api/analytics/equity-curve` | GET | Equity over time | Stable |
 
 ---
 
 ## 7. AI Decisions
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/ai-decisions` | GET | List AI decisions |
-| `/api/ai-decisions` | POST | Create AI decision |
-| `/api/ai/suggest-trades` | POST | Generate AI trade suggestions |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/ai-decisions` | GET | List AI decisions | Stable |
+| `/api/ai-decisions` | POST | Create AI decision | Internal |
+| `/api/ai/suggest-trades` | POST | Generate AI trade suggestions | Stable |
 
 ---
 
 ## 8. Alpaca Broker
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/alpaca/account` | GET | Account info (balance, equity) |
-| `/api/alpaca/positions` | GET | Raw Alpaca positions |
-| `/api/alpaca/orders` | GET | All orders |
-| `/api/alpaca/orders` | POST | Place new order |
-| `/api/alpaca/orders/:orderId` | DELETE | Cancel order |
-| `/api/alpaca/assets` | GET | Tradeable assets |
-| `/api/alpaca/assets/search` | GET | Search assets |
-| `/api/alpaca/bars` | GET | OHLC bar data |
-| `/api/alpaca/snapshots` | GET | Latest quotes/trades |
-| `/api/alpaca/health` | GET | Alpaca connection health |
-| `/api/alpaca/clock` | GET | Market clock |
-| `/api/alpaca/market-status` | GET | Market open/closed status |
-| `/api/alpaca/portfolio-history` | GET | Historical portfolio values |
-| `/api/alpaca/top-stocks` | GET | Top movers (stocks) |
-| `/api/alpaca/top-crypto` | GET | Top movers (crypto) |
-| `/api/alpaca/top-etfs` | GET | Top ETFs |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/alpaca/account` | GET | Account info (balance, equity) | Stable |
+| `/api/alpaca/positions` | GET | Raw Alpaca positions | Stable |
+| `/api/alpaca/orders` | GET | All orders | Stable |
+| `/api/alpaca/orders` | POST | Place new order | Stable |
+| `/api/alpaca/orders/:orderId` | DELETE | Cancel order | Stable |
+| `/api/alpaca/assets` | GET | Tradeable assets | Stable |
+| `/api/alpaca/assets/search` | GET | Search assets | Stable |
+| `/api/alpaca/bars` | GET | OHLC bar data | Stable |
+| `/api/alpaca/snapshots` | GET | Latest quotes/trades | Stable |
+| `/api/alpaca/health` | GET | Alpaca connection health | Stable |
+| `/api/alpaca/clock` | GET | Market clock | Stable |
+| `/api/alpaca/market-status` | GET | Market open/closed status | Stable |
+| `/api/alpaca/portfolio-history` | GET | Historical portfolio values | Stable |
+| `/api/alpaca/top-stocks` | GET | Top movers (stocks) | Stable |
+| `/api/alpaca/top-crypto` | GET | Top movers (crypto) | Stable |
+| `/api/alpaca/top-etfs` | GET | Top ETFs | Stable |
 
 ---
 
 ## 9. Market Data
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/finnhub/quote/:symbol` | GET | Stock quote |
-| `/api/finnhub/quotes` | GET | Multiple quotes |
-| `/api/coingecko/prices` | GET | Crypto prices |
-| `/api/coingecko/markets` | GET | Crypto market data |
-| `/api/coingecko/trending` | GET | Trending coins |
-| `/api/cmc/listings` | GET | CoinMarketCap listings |
-| `/api/cmc/quotes` | GET | CoinMarketCap quotes |
-| `/api/cmc/global` | GET | Global crypto metrics |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/finnhub/quote/:symbol` | GET | Stock quote | Stable |
+| `/api/finnhub/quotes` | GET | Multiple quotes | Stable |
+| `/api/coingecko/prices` | GET | Crypto prices | Stable |
+| `/api/coingecko/markets` | GET | Crypto market data | Stable |
+| `/api/coingecko/trending` | GET | Trending coins | Stable |
+| `/api/cmc/listings` | GET | CoinMarketCap listings | Stable |
+| `/api/cmc/quotes` | GET | CoinMarketCap quotes | Stable |
+| `/api/cmc/global` | GET | Global crypto metrics | Stable |
 
 ---
 
 ## 10. News
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/news/headlines` | GET | Top financial headlines |
-| `/api/news/search` | GET | Search news articles |
-| `/api/news/market` | GET | Market-specific news |
-| `/api/news/crypto` | GET | Crypto news |
-| `/api/news/stock/:symbol` | GET | News for specific stock |
+| Endpoint | Method | Purpose | Stability |
+|----------|--------|---------|-----------|
+| `/api/news/headlines` | GET | Top financial headlines | Stable |
+| `/api/news/search` | GET | Search news articles | Stable |
+| `/api/news/market` | GET | Market-specific news | Stable |
+| `/api/news/crypto` | GET | Crypto news | Stable |
+| `/api/news/stock/:symbol` | GET | News for specific stock | Stable |
 
 ---
 

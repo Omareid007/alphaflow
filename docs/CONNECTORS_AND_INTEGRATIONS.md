@@ -42,7 +42,26 @@ AI Active Trader integrates with multiple external services for market data, tra
 
 ## 2. Connector Inventory
 
+### Connector Status Summary
+
+| Connector | Purpose | Status | Provider Doc |
+|-----------|---------|--------|--------------|
+| Alpaca | Broker, trading execution | Implemented | [ALPACA_CAPABILITIES.md](providers/ALPACA_CAPABILITIES.md) |
+| Finnhub | Stock quotes, fundamentals | Implemented | [FINNHUB_CAPABILITIES.md](providers/FINNHUB_CAPABILITIES.md) |
+| CoinGecko | Crypto prices | Implemented | [COINGECKO_CAPABILITIES.md](providers/COINGECKO_CAPABILITIES.md) |
+| NewsAPI | News headlines | Implemented | - |
+| CoinMarketCap | Crypto market data | Implemented | - |
+| OpenAI | AI decisions | Implemented | [OPENAI_CAPABILITIES.md](providers/OPENAI_CAPABILITIES.md) |
+| Groq | AI fallback | Partially Implemented | - |
+| Together.ai | AI fallback | Partially Implemented | - |
+
+**Status Legend:** Implemented | Partially Implemented | Planned | Deprecated
+
+---
+
 ### 2.1 Alpaca (Broker)
+
+**Status:** Implemented
 
 **Purpose:** Paper trading execution, account management, position tracking
 
@@ -72,6 +91,8 @@ await alpacaConnector.submitOrder({ symbol, qty, side, type });
 
 ### 2.2 Finnhub (Stock Market Data)
 
+**Status:** Implemented
+
 **Purpose:** Real-time stock quotes, company fundamentals, market status
 
 | Attribute | Value |
@@ -90,6 +111,8 @@ await alpacaConnector.submitOrder({ symbol, qty, side, type });
 
 ### 2.3 CoinGecko (Crypto Prices)
 
+**Status:** Implemented
+
 **Purpose:** Cryptocurrency price data, market caps, volume
 
 | Attribute | Value |
@@ -106,6 +129,8 @@ await alpacaConnector.submitOrder({ symbol, qty, side, type });
 ---
 
 ### 2.4 NewsAPI (News Headlines)
+
+**Status:** Implemented
 
 **Purpose:** Real-time news headlines for sentiment analysis
 
@@ -125,6 +150,8 @@ await alpacaConnector.submitOrder({ symbol, qty, side, type });
 ---
 
 ### 2.5 CoinMarketCap (Crypto Data)
+
+**Status:** Implemented
 
 **Purpose:** Comprehensive cryptocurrency market data
 

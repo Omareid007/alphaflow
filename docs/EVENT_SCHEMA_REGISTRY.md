@@ -1,6 +1,34 @@
 # Event Schema Registry
 
-> **Purpose:** Define and version all event schemas for inter-service communication in the AI Active Trader microservices architecture.
+> **Canonical document for event schemas, producers, consumers, and NATS subjects.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md)
+
+---
+
+## Event Routing Summary
+
+| Event Type | Producer | Consumers | NATS Subject |
+|------------|----------|-----------|--------------|
+| `market.quote.received` | Market Data Service | AI Decision, Analytics | `market.quote.>` |
+| `market.bar.closed` | Market Data Service | AI Decision, Orchestrator | `market.bar.>` |
+| `market.news.published` | Market Data Service | AI Decision | `market.news.>` |
+| `market.session.changed` | Market Data Service | Orchestrator, Trading Engine | `market.session.>` |
+| `trade.order.submitted` | Trading Engine | Analytics, Orchestrator | `trade.order.submitted` |
+| `trade.order.filled` | Trading Engine | Analytics, AI Decision | `trade.order.filled` |
+| `trade.order.rejected` | Trading Engine | Orchestrator, AI Decision | `trade.order.rejected` |
+| `trade.order.cancelled` | Trading Engine | Analytics | `trade.order.cancelled` |
+| `trade.position.updated` | Trading Engine | Analytics, AI Decision | `trade.position.>` |
+| `trade.position.closed` | Trading Engine | Analytics | `trade.position.closed` |
+| `ai.decision.generated` | AI Decision Service | Orchestrator, Trading Engine | `ai.decision.generated` |
+| `ai.decision.validated` | AI Decision Service | Orchestrator | `ai.decision.validated` |
+| `ai.calibration.completed` | AI Decision Service | Analytics | `ai.calibration.completed` |
+| `analytics.pnl.calculated` | Analytics Service | Orchestrator | `analytics.pnl.>` |
+| `analytics.metrics.snapshot` | Analytics Service | API Gateway | `analytics.metrics.snapshot` |
+| `orchestrator.cycle.started` | Orchestrator Service | All services | `orchestrator.cycle.started` |
+| `orchestrator.cycle.completed` | Orchestrator Service | Analytics | `orchestrator.cycle.completed` |
+| `system.heartbeat` | All services | Orchestrator | `system.heartbeat.>` |
+| `system.error.occurred` | All services | Orchestrator, Analytics | `system.error.>` |
 
 ---
 
