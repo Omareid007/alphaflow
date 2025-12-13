@@ -485,6 +485,26 @@ export class TransactionCostAnalyzer {
       return true;
     });
 
+    if (filteredTrades.length === 0) {
+      return {
+        period: { start: startDate || new Date(), end: endDate || new Date() },
+        tradeCount: 0,
+        totalVolume: 0,
+        totalNotional: 0,
+        averageMetrics: {
+          implementationShortfallBps: 0,
+          marketImpactBps: 0,
+          timingCostBps: 0,
+          spreadCostBps: 0,
+          commissionBps: 0,
+          totalCostBps: 0,
+        },
+        bySymbol: new Map(),
+        byOrderType: new Map(),
+        byTimeOfDay: new Map(),
+      };
+    }
+
     const bySymbol = new Map<string, { tradeCount: number; avgCostBps: number; totalCostAmount: number }>();
     const byOrderType = new Map<string, { tradeCount: number; avgCostBps: number; avgExecutionTime: number }>();
     const byTimeOfDay = new Map<number, { tradeCount: number; avgCostBps: number; avgSpreadBps: number }>();

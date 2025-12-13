@@ -1,6 +1,9 @@
 /**
  * AI Active Trader - Backtesting Engine
  * Core event-driven simulation engine for strategy backtesting
+ * 
+ * ISOLATION: This engine uses a factory pattern to create isolated algorithm instances.
+ * The original/live algorithm is never modified during backtesting.
  */
 
 import { createLogger } from '../common';
@@ -21,6 +24,11 @@ import { createAlpacaCommission } from './commission-model';
 import type { SlippageModel, SlippageResult, SlippageContext } from './slippage-model';
 import { createRealisticSlippage } from './slippage-model';
 import { PerformanceAnalyzer, TradeRecord, PerformanceMetrics } from './performance-analyzer';
+
+/**
+ * Factory function type for creating isolated algorithm instances
+ */
+export type AlgorithmFactory = () => AlgorithmFramework;
 
 const logger = createLogger('backtesting-engine');
 
@@ -164,17 +172,39 @@ export class BacktestEngine {
   }
 
   /**
-   * Run the backtest
+   * Run the backtest using an algorithm factory for complete isolation
    * 
-   * IMPORTANT: Pass a fresh/dedicated AlgorithmFramework instance for backtesting.
-   * The algorithm's state will be reset and modified during the backtest.
-   * Do NOT pass a live trading algorithm instance.
+   * The factory creates a fresh algorithm instance that is used exclusively
+   * for this backtest. No external algorithm state is modified.
    * 
    * @param dataFeed - Historical data feed
-   * @param algorithm - Fresh algorithm framework instance (will be reset)
+   * @param algorithmFactory - Factory function that creates a fresh algorithm instance
+   * @returns Backtest result with metrics and trades
+   */
+  async runWithFactory(dataFeed: DataFeed, algorithmFactory: AlgorithmFactory): Promise<BacktestResult> {
+    const algorithm = algorithmFactory();
+    return this.runInternal(dataFeed, algorithm);
+  }
+
+  /**
+   * Run the backtest with a provided algorithm instance
+   * 
+   * WARNING: This will reset and modify the provided algorithm instance.
+   * For production use, prefer runWithFactory() for complete isolation.
+   * 
+   * @param dataFeed - Historical data feed
+   * @param algorithm - Algorithm framework instance (will be reset and modified)
    * @returns Backtest result with metrics and trades
    */
   async run(dataFeed: DataFeed, algorithm: AlgorithmFramework): Promise<BacktestResult> {
+    logger.warn('Using run() modifies the provided algorithm. Consider runWithFactory() for isolation.');
+    return this.runInternal(dataFeed, algorithm);
+  }
+
+  /**
+   * Internal backtest execution
+   */
+  private async runInternal(dataFeed: DataFeed, algorithm: AlgorithmFramework): Promise<BacktestResult> {
     const startTime = Date.now();
     logger.info('Starting backtest', { name: this.config.name });
 
@@ -239,6 +269,7 @@ export class BacktestEngine {
     }
 
     this.closeAllPositions(dataFeed.getCurrentTime() || new Date());
+    this.updatePortfolioValues();
 
     const executionTimeMs = Date.now() - startTime;
     const metrics = this.analyzer.analyze(this.config.initialCapital);
@@ -512,7 +543,7 @@ export class BacktestEngine {
   }
 
   /**
-   * Close a position
+   * Close a position (handles full and partial exits with prorated costs)
    */
   private closePosition(
     symbol: string,
@@ -526,12 +557,16 @@ export class BacktestEngine {
     if (!position) return;
 
     const closeQty = Math.min(quantity, position.quantity);
+    const closeFraction = closeQty / position.quantity;
+    
     const pnl = position.side === 'long'
       ? (exitPrice - position.averageCost) * closeQty
       : (position.averageCost - exitPrice) * closeQty;
 
-    const totalCommission = position.commission + commission.commission;
-    const totalSlippage = position.slippage + slippage.slippageAmount;
+    const proratedEntryCommission = position.commission * closeFraction;
+    const proratedEntrySlippage = position.slippage * closeFraction;
+    const totalCommission = proratedEntryCommission + commission.commission;
+    const totalSlippage = proratedEntrySlippage + slippage.slippageAmount;
     const netPnl = pnl - totalCommission;
 
     this.portfolio.totalRealizedPnL += netPnl;
@@ -556,14 +591,19 @@ export class BacktestEngine {
 
     this.analyzer.addTrade(trade);
 
-    if (closeQty >= position.quantity) {
+    const isFullExit = closeQty >= position.quantity;
+    
+    if (isFullExit) {
       this.activePositions.delete(symbol);
       this.portfolio.positions.delete(symbol);
     } else {
       position.quantity -= closeQty;
+      position.commission -= proratedEntryCommission;
+      position.slippage -= proratedEntrySlippage;
     }
 
-    this.emitEvent('position_closed', { trade, remainingQty: position.quantity - closeQty });
+    const remainingQty = isFullExit ? 0 : position.quantity;
+    this.emitEvent('position_closed', { trade, remainingQty });
   }
 
   /**
@@ -715,7 +755,21 @@ export function createBacktestEngine(config: Partial<BacktestConfig> & { name: s
 }
 
 /**
- * Run a simple backtest with minimal configuration
+ * Run a backtest with an algorithm factory for complete isolation
+ */
+export async function runBacktestWithFactory(
+  name: string,
+  dataFeed: DataFeed,
+  algorithmFactory: AlgorithmFactory,
+  initialCapital: number = 100000
+): Promise<BacktestResult> {
+  const engine = new BacktestEngine({ name, initialCapital });
+  return engine.runWithFactory(dataFeed, algorithmFactory);
+}
+
+/**
+ * Run a simple backtest (WARNING: modifies the provided algorithm)
+ * @deprecated Use runBacktestWithFactory for isolation
  */
 export async function runBacktest(
   name: string,
