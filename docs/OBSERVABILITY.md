@@ -1,6 +1,21 @@
 # Observability Guide
 
-This document describes the logging, monitoring, and observability infrastructure for AI Active Trader.
+> **Canonical document for logging, monitoring, tracing, and observability infrastructure.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ARCHITECTURE.md](ARCHITECTURE.md) (system design), [TESTING.md](TESTING.md) (test strategy)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
+| Test strategy | [TESTING.md](TESTING.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+
+---
 
 ## Table of Contents
 

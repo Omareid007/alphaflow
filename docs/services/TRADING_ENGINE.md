@@ -3,6 +3,8 @@
 > **Domain:** Order Execution & Position Management  
 > **Owner:** Trading Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [CONNECTORS_AND_INTEGRATIONS.md](../CONNECTORS_AND_INTEGRATIONS.md), [API_REFERENCE.md](../API_REFERENCE.md), [FINANCIAL_METRICS.md](../FINANCIAL_METRICS.md)
 
 ---
 

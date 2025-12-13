@@ -1,8 +1,19 @@
 # Lessons Learned
 
-> **Purpose**  
-> This document captures practical lessons from previous tasks to make future work smarter, safer, and more efficient.  
-> It is an **optional, supplementary guideline** that complements `docs/AGENT_EXECUTION_GUIDE.md`.
+> **Canonical document for patterns, anti-patterns, and retrospectives from project development.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) (governance rules)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| AI agent governance | [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) |
+| Product overview | [APP_OVERVIEW.md](APP_OVERVIEW.md) |
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Test strategy | [TESTING.md](TESTING.md) |
 
 ---
 
@@ -276,6 +287,28 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 
 **Reference:** See `docs/AGENT_EXECUTION_GUIDE.md` Section 17 for role usage rules.
 
+### Documentation Consolidation Refactor (December 2025)
+
+- **Date:** 2025-12-13
+- **Task:** Consolidated 18+ documentation files with standardized headers and cross-references
+- **Area:** documentation | agent_orchestration
+- **What worked:**
+  - Created INDEX.md as single front door with role-based reading paths
+  - Established canonical document pattern: one topic, one home
+  - Added API_REFERENCE.md for centralized REST endpoint list
+  - Standardized header format across all docs with canonical reference tables
+  - Cross-linked service docs to their canonical sources
+- **Issues/Pitfalls:**
+  - Documentation had grown organically without consistent navigation
+  - Duplicate information scattered across multiple documents
+  - No clear entry point for different reader roles (developers, AI agents, QA, DevOps)
+- **Recommendations:**
+  - Always start docs with canonical references table
+  - Use INDEX.md as the discovery starting point
+  - Link to canonical sources instead of duplicating content
+  - Apply status labels (Implemented/Partial/Planned) to features
+  - Break large documentation tasks into phases: index creation, consolidation, cross-referencing, quality pass
+
 ---
 
 ## 5. Improvement Backlog
@@ -299,6 +332,7 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 | 2024-12-11 | Added sections 4.7-4.10 (AI, Connectors, Orchestrator, Agent Orchestration) | Extended governance task |
 | 2024-12-11 | Extended Area values template with new categories | Extended governance task |
 | 2025-12-12 | Added lesson on order execution utility consolidation | Code cleanup task |
+| 2025-12-13 | Added lesson on documentation consolidation refactor | Documentation cleanup task |
 
 ---
 

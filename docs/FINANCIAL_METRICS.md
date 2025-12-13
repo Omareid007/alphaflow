@@ -1,7 +1,19 @@
 # Financial Metrics Documentation
 
-> **Purpose**  
-> This document defines all financial calculations, P&L formulas, and business metrics used in the AI Active Trader application. Any changes to financial logic MUST be reflected here first.
+> **Canonical document for P&L formulas, performance metrics, and financial calculations.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ARCHITECTURE.md](ARCHITECTURE.md) (system design), [APP_OVERVIEW.md](APP_OVERVIEW.md) (product overview)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Product overview | [APP_OVERVIEW.md](APP_OVERVIEW.md) |
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
+| Test strategy | [TESTING.md](TESTING.md) |
 
 ---
 

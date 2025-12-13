@@ -1,8 +1,36 @@
 # AI Agent Execution Guide
 
-> **Purpose**  
-> This document defines how any AI coding agent (e.g. Replit Agent) MUST operate in this repository.  
-> Every time the agent receives a new task, it MUST first read and follow this guide, then consult the project overview docs (e.g. `docs/APP_OVERVIEW.md`) before touching the code.
+> **Canonical document for AI agent governance, workflow rules, and execution standards.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [LESSONS_LEARNED.md](LESSONS_LEARNED.md) (patterns), [APP_OVERVIEW.md](APP_OVERVIEW.md) (product context)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| Documentation index | [INDEX.md](INDEX.md) |
+| Product overview | [APP_OVERVIEW.md](APP_OVERVIEW.md) |
+| Lessons & patterns | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) |
+| C4 architecture | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Test strategy | [TESTING.md](TESTING.md) |
+
+---
+
+## Quick Checklist (Before Every Task)
+
+Use this checklist before starting any significant task:
+
+- [ ] Read this guide (AGENT_EXECUTION_GUIDE.md)
+- [ ] Check [INDEX.md](INDEX.md) for relevant docs based on your task type
+- [ ] Classify the task (bugfix, feature, refactor, infra, UI/UX, meta)
+- [ ] Identify primary roles needed
+- [ ] Create short action plan (3-8 steps)
+- [ ] Open only files needed for the task
+- [ ] Complete: implement → test → document
+- [ ] Update LESSONS_LEARNED.md if significant
+- [ ] Run completion checklist (Section 10)
 
 ---
 

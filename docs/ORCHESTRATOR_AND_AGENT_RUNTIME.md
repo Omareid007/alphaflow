@@ -1,7 +1,21 @@
 # Orchestrator & Agent Runtime
 
-> **Purpose**  
-> Deep-dive documentation on the trading orchestrator, agent runtime behavior, cycle management, and safety mechanisms.
+> **Canonical document for trading agent runtime behavior, cycle management, and safety mechanisms.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ARCHITECTURE.md](ARCHITECTURE.md) (system design), [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) (governance rules)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| AI agent governance rules | [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) |
+| LLM providers & routing | [AI_MODELS_AND_PROVIDERS.md](AI_MODELS_AND_PROVIDERS.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| P&L formulas & metrics | [FINANCIAL_METRICS.md](FINANCIAL_METRICS.md) |
+| Logging & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
 
 ---
 

@@ -1,7 +1,20 @@
 # Connectors & External Integrations
 
-> **Purpose**  
-> Deep-dive documentation on external API connectors, integration patterns, error handling, and best practices.
+> **Canonical document for external API connectors, integration patterns, and provider capabilities.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [AI_MODELS_AND_PROVIDERS.md](AI_MODELS_AND_PROVIDERS.md) (LLM providers), [ARCHITECTURE.md](ARCHITECTURE.md) (system design)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| LLM providers & routing | [AI_MODELS_AND_PROVIDERS.md](AI_MODELS_AND_PROVIDERS.md) |
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
+| Observability & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
 
 ---
 

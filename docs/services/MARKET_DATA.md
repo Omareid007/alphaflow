@@ -3,6 +3,8 @@
 > **Domain:** Data Ingestion & Distribution  
 > **Owner:** Platform Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [CONNECTORS_AND_INTEGRATIONS.md](../CONNECTORS_AND_INTEGRATIONS.md), [API_REFERENCE.md](../API_REFERENCE.md), [ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ---
 

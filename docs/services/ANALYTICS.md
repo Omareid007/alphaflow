@@ -3,6 +3,8 @@
 > **Domain:** Reporting & Performance Metrics  
 > **Owner:** Analytics Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [FINANCIAL_METRICS.md](../FINANCIAL_METRICS.md), [API_REFERENCE.md](../API_REFERENCE.md), [OBSERVABILITY.md](../OBSERVABILITY.md)
 
 ---
 

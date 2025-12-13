@@ -3,6 +3,8 @@
 > **Domain:** Intelligence & Decision Generation  
 > **Owner:** AI Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [AI_MODELS_AND_PROVIDERS.md](../AI_MODELS_AND_PROVIDERS.md), [API_REFERENCE.md](../API_REFERENCE.md), [ORCHESTRATOR_AND_AGENT_RUNTIME.md](../ORCHESTRATOR_AND_AGENT_RUNTIME.md)
 
 ---
 

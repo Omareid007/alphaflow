@@ -1,5 +1,22 @@
 # Microservices Transformation Roadmap
 
+> **Canonical document for microservices migration phases, progress tracking, and transformation strategy.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ARCHITECTURE.md](ARCHITECTURE.md) (system design), [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) (external APIs)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| C4 architecture diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
+| Observability & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
+
+---
+
 > **Vision:** Transform AI Active Trader into a modular, event-driven platform with plug-and-play services that can be independently developed, deployed, and scaled.
 
 ---

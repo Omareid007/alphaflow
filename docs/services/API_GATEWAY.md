@@ -3,6 +3,8 @@
 > **Domain:** External Interface  
 > **Owner:** Platform Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [ARCHITECTURE.md](../ARCHITECTURE.md), [API_REFERENCE.md](../API_REFERENCE.md), [OBSERVABILITY.md](../OBSERVABILITY.md)
 
 ---
 

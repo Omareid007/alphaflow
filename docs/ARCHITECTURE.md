@@ -1,7 +1,15 @@
 # System Architecture Documentation
 
-> **Purpose**  
-> This document describes the system architecture, component relationships, data flows, and integration patterns for the AI Active Trader application.
+> **This is the canonical document for system architecture, C4 diagrams, and component relationships.**  
+> For the complete documentation index, see [INDEX.md](INDEX.md).
+
+| Topic | Canonical Document |
+|-------|-------------------|
+| Product overview & features | [APP_OVERVIEW.md](APP_OVERVIEW.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
+| Logging & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
+| Microservices migration | [MICROSERVICES_ROADMAP.md](MICROSERVICES_ROADMAP.md) |
 
 ---
 

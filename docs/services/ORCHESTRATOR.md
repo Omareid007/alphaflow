@@ -3,6 +3,8 @@
 > **Domain:** Trading Cycle Coordination  
 > **Owner:** Platform Team  
 > **Status:** Design
+>
+> [INDEX.md](../INDEX.md) | Canonical: [ORCHESTRATOR_AND_AGENT_RUNTIME.md](../ORCHESTRATOR_AND_AGENT_RUNTIME.md), [API_REFERENCE.md](../API_REFERENCE.md), [ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ---
 

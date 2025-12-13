@@ -1,7 +1,19 @@
 # AI Models & Providers
 
-> **Purpose**  
-> Deep-dive documentation on AI models, providers, configurations, and best practices for the AI Active Trader application.
+> **Canonical document for LLM providers, model selection, intelligent routing, and AI decision transparency.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) (runtime), [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) (data sources)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| Observability & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
+| AI agent governance | [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) |
 
 ---
 

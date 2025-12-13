@@ -1,7 +1,19 @@
 # Testing Documentation
 
-> **Purpose**  
-> This document defines the testing strategy, test categories, execution commands, and human-executable test scenarios for the AI Active Trader application.
+> **Canonical document for test strategy, test categories, execution commands, and test backlog.**
+>
+> Start here: [INDEX.md](INDEX.md) | Related: [FINANCIAL_METRICS.md](FINANCIAL_METRICS.md) (formulas to test), [OBSERVABILITY.md](OBSERVABILITY.md) (logging)
+
+---
+
+## Canonical References
+
+| Topic | Go To |
+|-------|-------|
+| P&L formulas & metrics | [FINANCIAL_METRICS.md](FINANCIAL_METRICS.md) |
+| Logging & tracing | [OBSERVABILITY.md](OBSERVABILITY.md) |
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
+| AI agent governance | [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) |
 
 ---
 

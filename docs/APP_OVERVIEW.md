@@ -1,6 +1,16 @@
 # AI Active Trader - Application Overview
 
-> **This document is the canonical entry point for all engineers joining this project.** It provides a complete technical handover covering architecture, operations, and development practices.
+> **This document provides the product overview and business context for AI Active Trader.**  
+> For the complete documentation index, see [INDEX.md](INDEX.md).
+
+| Topic | Canonical Document |
+|-------|-------------------|
+| System architecture & C4 diagrams | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| AI/LLM providers & model routing | [AI_MODELS_AND_PROVIDERS.md](AI_MODELS_AND_PROVIDERS.md) |
+| External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| P&L formulas & metrics | [FINANCIAL_METRICS.md](FINANCIAL_METRICS.md) |
+| REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
+| Trading agent runtime | [ORCHESTRATOR_AND_AGENT_RUNTIME.md](ORCHESTRATOR_AND_AGENT_RUNTIME.md) |
 
 ---
 
