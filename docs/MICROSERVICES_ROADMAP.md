@@ -402,6 +402,12 @@ A comprehensive event-driven backtesting engine inspired by QuantConnect LEAN, B
 - Trade-by-trade analysis and equity curve generation
 - Configurable warmup periods
 
+**Execution Methods:**
+| Method | Description | Use When |
+|--------|-------------|----------|
+| `runWithFactory()` | Creates fresh algorithm instance per run, ensures isolation | **Recommended** for production, parallel runs |
+| `run()` | Uses provided instance, caller manages state | Testing, single run scenarios |
+
 ```typescript
 import { 
   BacktestEngine, 
@@ -417,7 +423,9 @@ const engine = new BacktestEngine({
   slippageModel: createRealisticSlippage(),
 });
 
-const result = await engine.runWithFactory(dataFeed, () => myAlgorithm);
+// Recommended: Factory pattern ensures algorithm isolation between runs
+// Factory must return a ready-to-run AlgorithmFramework instance
+const result = await engine.runWithFactory(dataFeed, () => createMomentumAlgorithm('MyStrategy'));
 console.log(result.metrics); // { sharpeRatio, maxDrawdown, winRate, ... }
 ```
 
@@ -671,8 +679,35 @@ Central AI data hub integrating RAG cache, vector store, and prompt registry for
 **RAG Cache Features:**
 - LRU eviction policy with configurable max size (default 10K entries)
 - TTL-based expiration (default 1 hour)
-- Cache hit rate tracking
-- Automatic cleanup of expired entries
+- Cache hit rate tracking via `getHitRate()`
+- Automatic cleanup of expired entries via `cleanupExpired()`
+- Access count tracking for frequently accessed analyses
+
+**Production Behavior:**
+
+| Behavior | Configuration | Details |
+|----------|---------------|---------|
+| Semantic Search Toggle | `enableSemanticSearch: boolean` | When disabled, skips vector store operations, logs warning |
+| Embedding Fallback | Automatic | Uses deterministic hash-based embeddings if OpenAI API fails |
+| Embedding Cache | 1000 entries max | Per-text caching reduces redundant API calls |
+| Cache Stats | `getStats()` | Returns hit rate, size, evictions for monitoring |
+| Stale Cleanup | `cleanupExpired()` | Removes expired analyses from cache and vector store |
+
+**Operational Notes:**
+- Stats are in-memory only; export to external monitoring for production telemetry
+- `cleanupExpired()` must be scheduled externally (e.g., setInterval or cron job)
+
+```typescript
+// Monitor cache performance (in-memory stats)
+const stats = fabric.getStats();
+// stats: { analysisCount: 150, cacheHitRate: 0.82, vectorStoreSize: 120 }
+
+// Schedule periodic cleanup (caller responsibility)
+setInterval(() => {
+  const removed = fabric.cleanupExpired();
+  console.log(`Cleaned ${removed} stale analyses`);
+}, 300000); // Every 5 minutes
+```
 
 **Prompt Registry Templates:**
 
