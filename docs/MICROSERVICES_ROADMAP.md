@@ -345,9 +345,11 @@ interface OrchestratorService {
 
 | Feature | Priority | Status | Target |
 |---------|----------|--------|--------|
-| Backtesting Engine | High | ⏳ Pending | Q1 2025 |
+| Backtesting Engine | High | ✅ Done | `services/shared/backtesting/` |
+| Algorithm Framework | High | ✅ Done | `services/shared/algorithm-framework/` |
+| Transaction Cost Analysis | High | ✅ Done | `services/shared/analytics/` |
 | Historical Data Access | High | ✅ Partial | Expand |
-| Strategy Versioning | Medium | ⏳ Pending | Q2 2025 |
+| Strategy Versioning | Medium | ✅ Done | `services/shared/strategies/` |
 | Team Collaboration | Medium | ⏳ Pending | Q2 2025 |
 | Alpha Marketplace | Low | ⏳ Pending | Q3 2025 |
 
@@ -371,6 +373,353 @@ interface OrchestratorService {
 | Reddit API | Social sentiment | Medium | ⏳ Pending |
 | Anthropic Claude | Alternative LLM | Low | ⏳ Pending |
 | DeepSeek | Cost-effective LLM | Low | ⏳ Pending |
+
+---
+
+## Phase 4: Advanced Features (Implemented)
+
+The following advanced trading infrastructure features have been implemented in `services/shared/` and are available for use across all microservices.
+
+### 4.1 Backtesting Engine (`services/shared/backtesting/`)
+
+A comprehensive event-driven backtesting engine inspired by QuantConnect LEAN, Backtrader, and Zipline.
+
+**Components:**
+
+| Module | Description | Status |
+|--------|-------------|--------|
+| `backtesting-engine.ts` | Core simulation engine with factory pattern for algorithm isolation | ✅ Done |
+| `data-feed.ts` | Historical data replay with multiple timeframes | ✅ Done |
+| `fill-model.ts` | Fill simulation (immediate, realistic, volume-participation) | ✅ Done |
+| `commission-model.ts` | Commission structures (flat, percentage, tiered, Alpaca) | ✅ Done |
+| `slippage-model.ts` | Slippage modeling (fixed, volume-based, volatility-based) | ✅ Done |
+| `performance-analyzer.ts` | Metrics calculation (Sharpe, Sortino, Calmar, drawdowns) | ✅ Done |
+
+**Key Features:**
+- Event-driven simulation matching live trading flow
+- Factory pattern for isolated algorithm instances (`runWithFactory`)
+- Prorated partial exit handling for accurate cost tracking
+- Trade-by-trade analysis and equity curve generation
+- Configurable warmup periods
+
+```typescript
+import { 
+  BacktestEngine, 
+  createDataFeed, 
+  createAlpacaCommission,
+  createRealisticSlippage 
+} from 'services/shared/backtesting';
+
+const engine = new BacktestEngine({
+  name: 'MyBacktest',
+  initialCapital: 100000,
+  commissionModel: createAlpacaCommission(),
+  slippageModel: createRealisticSlippage(),
+});
+
+const result = await engine.runWithFactory(dataFeed, () => myAlgorithm);
+console.log(result.metrics); // { sharpeRatio, maxDrawdown, winRate, ... }
+```
+
+### 4.2 Algorithm Framework (`services/shared/algorithm-framework/`)
+
+A QuantConnect LEAN-inspired modular trading pipeline with pluggable components.
+
+**Pipeline Architecture:**
+
+```
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│   Universe    │───▶│     Alpha     │───▶│   Portfolio   │───▶│   Execution   │───▶│     Risk      │
+│   Selection   │    │  Generation   │    │ Construction  │    │    Module     │    │  Management   │
+└───────────────┘    └───────────────┘    └───────────────┘    └───────────────┘    └───────────────┘
+```
+
+**Modules:**
+
+| Module | Description | Built-in Implementations |
+|--------|-------------|--------------------------|
+| Universe Selection | Filter tradable securities | Momentum, Value, Low Volatility, Sector |
+| Alpha Generation | Generate trading signals | Momentum, Mean Reversion, Multi-Factor, ML-based |
+| Portfolio Construction | Position sizing | Equal Weight, Risk Parity, Mean-Variance, Black-Litterman, HRP |
+| Execution | Order management | Immediate, TWAP, VWAP, Smart Routing |
+| Risk Management | Risk controls | Conservative, Moderate, Aggressive, VaR-based |
+
+**Portfolio Construction Methods:**
+- **Equal Weight**: Simple 1/N allocation
+- **Risk Parity**: Allocate inversely proportional to volatility
+- **Mean-Variance**: Classic Markowitz optimization
+- **Black-Litterman**: Bayesian approach with investor views
+- **Hierarchical Risk Parity (HRP)**: ML-based clustering for diversification
+
+```typescript
+import { AlgorithmFramework, createMomentumAlgorithm } from 'services/shared/algorithm-framework';
+
+const algorithm = createMomentumAlgorithm('MyMomentumStrategy');
+const result = await algorithm.run(securities, currentTime);
+// result: { insights, targets, orders, riskAlerts, metrics }
+```
+
+### 4.3 Transaction Cost Analysis (`services/shared/analytics/`)
+
+Comprehensive TCA module for analyzing execution quality and trading costs.
+
+**Metrics Calculated:**
+
+| Metric | Description |
+|--------|-------------|
+| Implementation Shortfall | Arrival price vs execution price |
+| Market Impact | Temporary and permanent price impact |
+| Timing Cost | Delay cost from order to execution |
+| Spread Cost | Bid-ask spread contribution |
+| Commission Cost | Broker fees and commissions |
+
+**Features:**
+- Execution quality scoring (A-F grades)
+- Benchmark comparisons (arrival, VWAP, TWAP)
+- Slippage breakdown by cause (market movement, spread crossing, impact, timing)
+- Aggregated statistics by symbol, order type, time of day
+- Broker comparison and fee structure analysis
+
+```typescript
+import { TransactionCostAnalyzer, BrokerComparisonAnalyzer } from 'services/shared/analytics';
+
+const analyzer = new TransactionCostAnalyzer();
+const metrics = analyzer.analyzeTrade(execution);
+// metrics: { implementationShortfall, marketImpact, timingCost, spreadCost, ... }
+
+const quality = analyzer.calculateExecutionQuality(execution);
+// quality: { overallScore: 85, grade: 'B', feedback: [...] }
+```
+
+### 4.4 Pre-built Strategy Templates
+
+Factory functions for common quantitative strategies:
+
+| Strategy | Description | Components |
+|----------|-------------|------------|
+| `createMomentumAlgorithm()` | Trend-following | Momentum Universe + Momentum Alpha + Mean-Variance Portfolio |
+| `createValueAlgorithm()` | Mean reversion | Value Universe + Mean Reversion Alpha + Equal Weight Portfolio |
+| `createMultiFactorAlgorithm()` | Multi-factor | Low Vol Universe + Multi-Factor Alpha + Risk Parity Portfolio |
+
+### 4.5 Strategy Versioning (`services/shared/strategies/strategy-versioning.ts`)
+
+Git-like version control for trading strategies with A/B testing and automatic rollback.
+
+**Features:**
+- Semantic versioning (major.minor.patch) for strategies
+- Git-like branching for strategy variants (main, experimental, conservative)
+- A/B testing framework with statistical significance testing
+- Automatic rollback on performance degradation
+- Changelog and version history tracking
+- Performance metrics per version (Sharpe, Sortino, drawdown, win rate)
+
+```typescript
+import { StrategyVersionManager, ABTestManager } from 'services/shared/strategies/strategy-versioning';
+
+const versionManager = new StrategyVersionManager();
+const version = await versionManager.createVersion({
+  strategyId: 'momentum-v1',
+  version: { major: 1, minor: 2, patch: 0 },
+  branch: 'main',
+  parameters: { lookback: 20, threshold: 0.02 },
+});
+
+// A/B test new version vs current
+const abTest = new ABTestManager();
+const test = await abTest.createTest('momentum-v1', 'v1.1.0', 'v1.2.0', { trafficSplit: 0.5 });
+```
+
+### 4.6 Alpha Decay Modeling (`services/shared/strategies/alpha-decay.ts`)
+
+Quantitative analysis of signal decay for optimal holding periods.
+
+**Features:**
+- Signal half-life estimation from historical returns
+- Decay models: Exponential, Hyperbolic, Power Law, Linear
+- Optimal holding period calculation (balancing alpha vs transaction costs)
+- Breakeven and max profitable holding periods
+- Turnover optimization
+
+| Analysis Output | Description |
+|-----------------|-------------|
+| Half-life | Time for signal to decay to 50% |
+| Optimal Duration | Best holding period for net alpha |
+| Alpha Capture Efficiency | Net alpha / gross alpha ratio |
+| Annualized Return | Expected return at optimal holding |
+
+### 4.7 Market Regime Detection ML (`services/shared/data/market-regime-ml.ts`)
+
+Advanced machine learning for market regime classification.
+
+**Algorithms:**
+- **Hidden Markov Model (HMM)**: Probabilistic regime inference with Baum-Welch and Viterbi
+- **Bayesian Online Changepoint Detection (BOCD)**: Real-time regime shift detection
+
+**Regime Types:**
+
+| Regime | Description |
+|--------|-------------|
+| `TRENDING_UP` | Bullish trend |
+| `TRENDING_DOWN` | Bearish trend |
+| `MEAN_REVERTING` | Range-bound oscillation |
+| `HIGH_VOLATILITY` | Elevated volatility |
+| `LOW_VOLATILITY` | Compressed volatility |
+| `BREAKOUT` | Volatility expansion |
+| `CONSOLIDATION` | Tightening range |
+
+**Features Extracted:**
+- Returns, Volatility, Skewness, Kurtosis
+- Hurst exponent (trend persistence)
+- Autocorrelation, Mean reversion speed
+- Transition probability matrix
+
+```typescript
+import { MLRegimeDetector, HiddenMarkovModel } from 'services/shared/data/market-regime-ml';
+
+const detector = new MLRegimeDetector();
+const result = await detector.detectRegime(priceData);
+// result: { currentRegime: 'trending_up', confidence: 0.85, changepointProbability: 0.12, ... }
+```
+
+### 4.8 Multi-Source Sentiment Fusion (`services/shared/data/sentiment-fusion.ts`)
+
+Aggregates sentiment from multiple sources with intelligent fusion.
+
+**Supported Sources:**
+
+| Source | Data Type | Weight |
+|--------|-----------|--------|
+| GDELT | Geopolitical events | 0.2 |
+| NewsAPI | Financial news | 0.25 |
+| FinBERT | NLP sentiment | 0.25 |
+| Twitter/X | Social sentiment | 0.1 |
+| Reddit | Social sentiment | 0.1 |
+| StockTwits | Trader sentiment | 0.1 |
+
+**Fusion Features:**
+- Source-weighted aggregation with reliability multipliers
+- Time-decay for recency bias
+- Conflict detection between sources (divergence metric)
+- Sentiment momentum and trend tracking
+- Market regime-aware signal adjustment
+
+```typescript
+import { SentimentFusionEngine } from 'services/shared/data/sentiment-fusion';
+
+const engine = new SentimentFusionEngine();
+const fused = await engine.fuseSentiment('AAPL');
+// fused: { fusedScore: 0.65, polarity: 'bullish', confidence: 0.82, divergence: 0.15, ... }
+```
+
+### 4.9 LLM Trading Governance (`services/shared/strategies/llm-governance.ts`)
+
+Guardrails and safety framework for AI trading decisions.
+
+**Components:**
+- Prompt template registry with versioning
+- Trading guardrails (position limits, loss limits, volatility limits)
+- Decision evaluation and scoring
+- Audit trail for all LLM interactions
+- Rate limiting and cost tracking
+- Prompt injection protection
+
+**Guardrail Types:**
+
+| Guardrail | Description | Action |
+|-----------|-------------|--------|
+| `max_position_size` | Limit position size | block/warn |
+| `max_loss_limit` | Daily loss threshold | block |
+| `confidence_threshold` | Minimum AI confidence | block |
+| `volatility_limit` | Max market volatility | warn |
+| `concentration_limit` | Portfolio concentration | block |
+| `prompt_injection` | Detect injection attacks | block |
+
+### 4.10 Intelligence Fabric (`services/intelligence-fabric/`)
+
+Central AI data hub integrating RAG cache, vector store, and prompt registry for efficient financial data analysis with minimal storage overhead.
+
+**Design Philosophy:**
+- Store only AI summaries and analysis, not raw data
+- Cache aggressively to minimize redundant API calls
+- Enable semantic search across historical analyses
+
+**Components:**
+
+| Module | Description | Status |
+|--------|-------------|--------|
+| `index.ts` | IntelligenceFabric orchestration class | ✅ Done |
+| `vector-store.ts` | In-memory vector store with OpenAI embeddings | ✅ Done |
+| `rag-cache.ts` | LRU cache with TTL for analysis results | ✅ Done |
+| `prompt-registry.ts` | Centralized prompt management for analysis | ✅ Done |
+
+**IntelligenceFabric Class:**
+
+| Method | Description |
+|--------|-------------|
+| `ingestAndAnalyze()` | Process raw data and generate AI summary |
+| `semanticSearch()` | Find related analyses using embeddings |
+| `getRecentAnalyses()` | Retrieve recent analyses by type |
+| `getSymbolAnalyses()` | Get all analyses for a specific symbol |
+| `cleanupExpired()` | Remove stale cache entries |
+
+**Vector Store Features:**
+- OpenAI `text-embedding-3-small` for embeddings (1536 dimensions)
+- Cosine similarity search with configurable threshold
+- Fallback embedding generation if API unavailable
+- Embedding cache to reduce API calls
+
+**RAG Cache Features:**
+- LRU eviction policy with configurable max size (default 10K entries)
+- TTL-based expiration (default 1 hour)
+- Cache hit rate tracking
+- Automatic cleanup of expired entries
+
+**Prompt Registry Templates:**
+
+| Template ID | Purpose |
+|-------------|---------|
+| `document` | Financial document analysis (10-K, reports) |
+| `table` | Data table pattern identification |
+| `timeseries` | Price/volume time series analysis |
+| `news` | News sentiment and market impact |
+| `report` | Earnings report interpretation |
+| `market` | Market regime and sector analysis |
+| `sentiment` | Sentiment scoring and drivers |
+| `fundamental` | Valuation and financial health |
+| `technical` | Chart patterns and indicators |
+
+```typescript
+import { createIntelligenceFabric } from 'services/intelligence-fabric';
+
+const fabric = createIntelligenceFabric({
+  ragCacheMaxSize: 10000,
+  ragCacheTTLMs: 3600000,
+  vectorStoreDimensions: 1536,
+  enableSemanticSearch: true,
+});
+
+// Ingest and analyze data
+const analysis = await fabric.ingestAndAnalyze({
+  source: 'finnhub',
+  type: 'news',
+  symbol: 'AAPL',
+  rawData: newsArticles,
+});
+
+// Semantic search across analyses
+const related = await fabric.semanticSearch('Apple earnings guidance', 10);
+```
+
+**Relationship to LLM Governance:**
+- `services/intelligence-fabric/` handles data analysis prompts and RAG
+- `services/shared/strategies/llm-governance.ts` handles trading decision prompts with guardrails
+- Both share similar patterns but serve different purposes
+
+**Future Enhancements (Planned):**
+- External vector store integration (pgvector, Qdrant, Pinecone)
+- Multi-model prompt adaptation (Claude, Gemini, local models)
+- Prompt A/B testing with statistical significance
+- Dynamic prompt optimization based on trading performance
 
 ---
 
