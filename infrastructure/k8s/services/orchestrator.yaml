@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: ai-trader
+  labels:
+    app: orchestrator
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: orchestration
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+        version: ${IMAGE_TAG}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9005"
+    spec:
+      serviceAccountName: ai-trader-service
+      containers:
+        - name: orchestrator
+          image: ghcr.io/${GITHUB_REPOSITORY}/orchestrator:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3005
+              name: http
+            - containerPort: 9005
+              name: metrics
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3005"
+            - name: NATS_URL
+              value: nats://nats-lb.ai-trader.svc.cluster.local:4222
+            - name: NATS_ENABLED
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-url
+                  key: url
+            - name: TRADING_ENGINE_URL
+              value: http://trading-engine.ai-trader.svc.cluster.local:3001
+            - name: AI_DECISION_URL
+              value: http://ai-decision.ai-trader.svc.cluster.local:3002
+            - name: MARKET_DATA_URL
+              value: http://market-data.ai-trader.svc.cluster.local:3003
+            - name: ANALYTICS_URL
+              value: http://analytics.ai-trader.svc.cluster.local:3004
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.ai-trader.svc.cluster.local:4318
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3005
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: ai-trader
+  labels:
+    app: orchestrator
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3005
+      targetPort: 3005
+    - name: metrics
+      port: 9005
+      targetPort: 9005
+  selector:
+    app: orchestrator

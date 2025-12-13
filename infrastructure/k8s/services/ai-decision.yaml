@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-decision
+  namespace: ai-trader
+  labels:
+    app: ai-decision
+    app.kubernetes.io/name: ai-decision
+    app.kubernetes.io/component: ai
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-decision
+  template:
+    metadata:
+      labels:
+        app: ai-decision
+        version: ${IMAGE_TAG}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9002"
+    spec:
+      serviceAccountName: ai-trader-service
+      containers:
+        - name: ai-decision
+          image: ghcr.io/${GITHUB_REPOSITORY}/ai-decision:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3002
+              name: http
+            - containerPort: 9002
+              name: metrics
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3002"
+            - name: NATS_URL
+              value: nats://nats-lb.ai-trader.svc.cluster.local:4222
+            - name: NATS_ENABLED
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-url
+                  key: url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-credentials
+                  key: openai-api-key
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-credentials
+                  key: groq-api-key
+            - name: TOGETHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-credentials
+                  key: together-api-key
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.ai-trader.svc.cluster.local:4318
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3002
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-decision
+  namespace: ai-trader
+  labels:
+    app: ai-decision
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3002
+      targetPort: 3002
+    - name: metrics
+      port: 9002
+      targetPort: 9002
+  selector:
+    app: ai-decision
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-decision-hpa
+  namespace: ai-trader
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-decision
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

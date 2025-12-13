@@ -58,22 +58,57 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig.yaml
           echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
       
-      - name: Deploy infrastructure
+      - name: Set deployment variables
         run: |
-          kubectl apply -f infrastructure/k8s/namespace.yaml
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${{ needs.determine-environment.outputs.environment }}" >> $GITHUB_ENV
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> $GITHUB_ENV
+      
+      - name: Deploy namespace and network policies
+        run: kubectl apply -f infrastructure/k8s/namespace.yaml
+      
+      - name: Deploy secrets and service accounts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DOCKER_CONFIG_JSON: ${{ secrets.DOCKER_CONFIG_JSON }}
+        run: |
+          # Apply service account (no substitution needed)
+          kubectl apply -f infrastructure/k8s/common/service-account.yaml
+          
+          # Substitute and apply secrets
+          envsubst < infrastructure/k8s/common/secrets.yaml | kubectl apply -f -
+          envsubst < infrastructure/k8s/postgres/secrets.yaml | kubectl apply -f -
+      
+      - name: Deploy infrastructure (NATS, PostgreSQL)
+        run: |
           kubectl apply -f infrastructure/k8s/nats/
-          kubectl apply -f infrastructure/k8s/postgres/
+          kubectl apply -f infrastructure/k8s/postgres/deployment.yaml
+          kubectl apply -f infrastructure/k8s/postgres/service.yaml
+      
+      - name: Wait for infrastructure
+        run: |
+          kubectl rollout status statefulset/nats -n ai-trader --timeout=180s || true
+          kubectl rollout status statefulset/postgres -n ai-trader --timeout=180s || true
       
       - name: Deploy services
         run: |
-          # Set image tags
-          export IMAGE_TAG=${{ github.sha }}
-          export ENVIRONMENT=${{ needs.determine-environment.outputs.environment }}
-          
-          # Apply service manifests
+          # Apply service manifests with variable substitution
           for service in api-gateway trading-engine ai-decision market-data analytics orchestrator; do
             envsubst < infrastructure/k8s/services/${service}.yaml | kubectl apply -f -
           done
+      
+      - name: Deploy ingress
+        run: kubectl apply -f infrastructure/k8s/ingress.yaml
       
       - name: Wait for rollout
         run: |

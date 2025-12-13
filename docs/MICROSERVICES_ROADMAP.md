@@ -65,7 +65,7 @@
 | ADR-001: Microservices Architecture | Architect | ✅ Done | Team approved |
 | ADR-002: Event Bus Selection | Architect | ✅ Done | NATS selected |
 | ADR-003: Container Standards | Architect | ✅ Done | Dockerfile templates |
-| Infrastructure sandbox | DevOps | 🔄 In Progress | K8s namespace available |
+| Infrastructure sandbox | DevOps | ✅ Done | K8s namespace and manifests in `infrastructure/k8s/` |
 | NATS JetStream PoC | Backend | ✅ Done | 9 smoke tests passing |
 | Schema registry setup | Backend | ✅ Done | Zod validation integrated |
 | OpenTelemetry integration | Backend | ✅ Done | 16 smoke tests passing |
@@ -91,7 +91,8 @@
 |------|-------|--------|---------------------|
 | Service template repository | Platform | ✅ Done | Template with Dockerfile, health checks, config |
 | Shared TypeScript packages | Platform | ✅ Done | `services/shared/common`, `services/shared/events` |
-| GitHub Actions workflows | DevOps | ⏳ Pending | Build, test, deploy pipelines |
+| GitHub Actions workflows | DevOps | ✅ Done | Build, test, deploy pipelines in `.github/workflows/` |
+| Kubernetes manifests | DevOps | ✅ Done | All services deployable via `infrastructure/k8s/` |
 | API Gateway (Express) | Platform | ✅ Done | Reverse proxy, auth middleware, rate limiting |
 | Secrets management (Vault) | DevOps | ⏳ Pending | Secrets injected at runtime |
 | OpenTelemetry Collector | DevOps | ✅ Done | Traces, metrics, context propagation |
@@ -120,7 +121,8 @@ packages/
 ### Exit Criteria
 - [x] New service created in <5 minutes from template
 - [x] Events published with schema validation
-- [ ] CI/CD deploys to staging on merge
+- [x] CI/CD deploys to staging on merge (GitHub Actions configured)
+- [x] Kubernetes manifests ready for all services
 - [ ] Secrets injected at runtime via Vault
 
 ---

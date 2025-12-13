@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-engine
+  namespace: ai-trader
+  labels:
+    app: trading-engine
+    app.kubernetes.io/name: trading-engine
+    app.kubernetes.io/component: trading
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: trading-engine
+  template:
+    metadata:
+      labels:
+        app: trading-engine
+        version: ${IMAGE_TAG}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9001"
+    spec:
+      serviceAccountName: ai-trader-service
+      containers:
+        - name: trading-engine
+          image: ghcr.io/${GITHUB_REPOSITORY}/trading-engine:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+              name: http
+            - containerPort: 9001
+              name: metrics
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3001"
+            - name: NATS_URL
+              value: nats://nats-lb.ai-trader.svc.cluster.local:4222
+            - name: NATS_ENABLED
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-url
+                  key: url
+            - name: ALPACA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: api-key
+            - name: ALPACA_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: secret-key
+            - name: ALPACA_PAPER
+              value: "true"
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.ai-trader.svc.cluster.local:4318
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-engine
+  namespace: ai-trader
+  labels:
+    app: trading-engine
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+    - name: metrics
+      port: 9001
+      targetPort: 9001
+  selector:
+    app: trading-engine
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: trading-engine-hpa
+  namespace: ai-trader
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: trading-engine
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trading-engine-pdb
+  namespace: ai-trader
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: trading-engine

@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: ai-trader
+  labels:
+    app: nats
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/component: messaging
+spec:
+  serviceName: nats
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: nats
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: nats
+          image: nats:2.10-alpine
+          args:
+            - "--cluster_name=ai-trader-nats"
+            - "--cluster=nats://0.0.0.0:6222"
+            - "--routes=nats://nats-0.nats.ai-trader.svc.cluster.local:6222,nats://nats-1.nats.ai-trader.svc.cluster.local:6222,nats://nats-2.nats.ai-trader.svc.cluster.local:6222"
+            - "--http_port=8222"
+            - "--js"
+            - "--sd=/data"
+          ports:
+            - containerPort: 4222
+              name: client
+            - containerPort: 6222
+              name: cluster
+            - containerPort: 8222
+              name: monitor
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: nats-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: nats-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 10Gi

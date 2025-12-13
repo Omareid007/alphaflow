@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics
+  namespace: ai-trader
+  labels:
+    app: analytics
+    app.kubernetes.io/name: analytics
+    app.kubernetes.io/component: analytics
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: analytics
+  template:
+    metadata:
+      labels:
+        app: analytics
+        version: ${IMAGE_TAG}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9004"
+    spec:
+      serviceAccountName: ai-trader-service
+      containers:
+        - name: analytics
+          image: ghcr.io/${GITHUB_REPOSITORY}/analytics:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3004
+              name: http
+            - containerPort: 9004
+              name: metrics
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3004"
+            - name: NATS_URL
+              value: nats://nats-lb.ai-trader.svc.cluster.local:4222
+            - name: NATS_ENABLED
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-url
+                  key: url
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.ai-trader.svc.cluster.local:4318
+          resources:
+            requests:
+              cpu: 150m
+              memory: 384Mi
+            limits:
+              cpu: 750m
+              memory: 768Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3004
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics
+  namespace: ai-trader
+  labels:
+    app: analytics
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3004
+      targetPort: 3004
+    - name: metrics
+      port: 9004
+      targetPort: 9004
+  selector:
+    app: analytics
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: analytics-hpa
+  namespace: ai-trader
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: analytics
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
