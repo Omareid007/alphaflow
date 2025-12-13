@@ -94,13 +94,33 @@ async function runSmokeTest(): Promise<void> {
     console.log(`     Errors: ${invalidResult.errors?.errors.length} validation errors`);
   }
 
-  // Test 6: Event log (in-memory mode)
-  console.log('\nTest 6: Event log (in-memory mode)...');
+  // Test 6: Schema validation on publish
+  console.log('\nTest 6: Schema validation on publish...');
+  try {
+    await publisher.publish('market.quote.received', {
+      symbol: '', // Invalid: empty symbol
+      bidPrice: -1, // Invalid: negative price
+      askPrice: 150.30,
+      bidSize: 100,
+      askSize: 200,
+      timestamp: 'invalid-date', // Invalid: not ISO datetime
+    } as any);
+    console.log('  ❌ Expected validation error but none thrown');
+  } catch (error: any) {
+    if (error.message.includes('Schema validation failed')) {
+      console.log('  ✅ Schema validation correctly rejected invalid event');
+    } else {
+      console.log(`  ❌ Unexpected error: ${error.message}`);
+    }
+  }
+
+  // Test 7: Event log (in-memory mode)
+  console.log('\nTest 7: Event log (in-memory mode)...');
   const eventLog = publisher.getEventLog();
   console.log(`  ✅ Event log contains ${eventLog.length} events`);
 
-  // Test 7: Saga support
-  console.log('\nTest 7: Saga correlation...');
+  // Test 8: Saga support
+  console.log('\nTest 8: Saga correlation...');
   const saga = publisher.startSaga('trade-execution', 3, 30000);
   console.log(`  ✅ Started saga: ${saga.correlationId}`);
   console.log(`     Type: ${saga.sagaType}, Steps: ${saga.totalSteps}`);
@@ -109,7 +129,7 @@ async function runSmokeTest(): Promise<void> {
   console.log(`  ✅ Advanced saga to step ${nextStep.step}`);
 
   // Cleanup
-  console.log('\nTest 8: Disconnect...');
+  console.log('\nTest 9: Disconnect...');
   await publisher.disconnect();
   await subscriber.disconnect();
   console.log('  ✅ Disconnected');

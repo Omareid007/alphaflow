@@ -7,8 +7,9 @@
  * - In-memory event bus for development without NATS
  */
 
-import { connect, NatsConnection, JetStreamClient, JetStreamManager, PubAck, JsMsg, ConsumerConfig, AckPolicy, DeliverPolicy, StringCodec } from 'nats';
+import { connect, NatsConnection, JetStreamClient, JetStreamManager, PubAck, JsMsg, ConsumerConfig, AckPolicy, DeliverPolicy, StringCodec, RetentionPolicy, StorageType } from 'nats';
 import { EventMap, EventType, EventMetadata, SagaCorrelation } from './types';
+import { validateEvent, EventSchemas } from './schemas';
 
 const sc = StringCodec();
 
@@ -100,7 +101,21 @@ export interface EventBusConfig {
   url?: string;
   useInMemory?: boolean;
   serviceName: string;
+  validateOnPublish?: boolean;
+  validateOnConsume?: boolean;
 }
+
+/**
+ * Stream configurations for JetStream
+ */
+const STREAM_CONFIGS = [
+  { name: 'MARKET', subjects: ['market.>'] },
+  { name: 'TRADE', subjects: ['trade.>'] },
+  { name: 'AI', subjects: ['ai.>'] },
+  { name: 'ANALYTICS', subjects: ['analytics.>'] },
+  { name: 'ORCHESTRATOR', subjects: ['orchestrator.>'] },
+  { name: 'SYSTEM', subjects: ['system.>'] },
+];
 
 /**
  * EventBus client for typed event publishing and subscribing
@@ -112,14 +127,21 @@ export class EventBusClient {
   private serviceName: string;
   private useInMemory: boolean;
   private connected: boolean = false;
+  private validateOnPublish: boolean;
+  private validateOnConsume: boolean;
+  private streamsInitialized: boolean = false;
 
   constructor(config: EventBusConfig | string) {
     if (typeof config === 'string') {
       this.serviceName = config;
       this.useInMemory = process.env.NATS_URL ? false : true;
+      this.validateOnPublish = true;
+      this.validateOnConsume = true;
     } else {
       this.serviceName = config.serviceName;
       this.useInMemory = config.useInMemory ?? !process.env.NATS_URL;
+      this.validateOnPublish = config.validateOnPublish ?? true;
+      this.validateOnConsume = config.validateOnConsume ?? true;
     }
   }
 
@@ -148,6 +170,10 @@ export class EventBusClient {
 
       this.jetstream = this.connection.jetstream();
       this.jsm = await this.connection.jetstreamManager();
+      
+      // Initialize streams if not already done
+      await this.initializeStreams();
+      
       this.connected = true;
 
       console.log(`[EventBus] ${this.serviceName} connected to NATS JetStream`);
@@ -194,6 +220,55 @@ export class EventBusClient {
   }
 
   /**
+   * Initialize JetStream streams if they don't exist
+   */
+  private async initializeStreams(): Promise<void> {
+    if (this.streamsInitialized || !this.jsm) return;
+
+    for (const config of STREAM_CONFIGS) {
+      try {
+        await this.jsm.streams.info(config.name);
+        console.log(`[EventBus] Stream ${config.name} already exists`);
+      } catch {
+        try {
+          await this.jsm.streams.add({
+            name: config.name,
+            subjects: config.subjects,
+            retention: RetentionPolicy.Limits,
+            storage: StorageType.File,
+            max_msgs: 100000,
+            max_age: 7 * 24 * 60 * 60 * 1000000000, // 7 days in nanoseconds
+            max_bytes: 1024 * 1024 * 1024, // 1GB
+            duplicate_window: 2 * 60 * 1000000000, // 2 minutes for dedup
+          });
+          console.log(`[EventBus] Created stream ${config.name} with subjects ${config.subjects}`);
+        } catch (err) {
+          console.warn(`[EventBus] Could not create stream ${config.name}: ${err}`);
+        }
+      }
+    }
+
+    this.streamsInitialized = true;
+  }
+
+  /**
+   * Validate event against schema
+   */
+  private validateEventData<T extends EventType>(
+    eventType: T,
+    event: unknown
+  ): void {
+    if (!this.validateOnPublish) return;
+
+    const result = validateEvent(eventType, event);
+    if (!result.success) {
+      throw new Error(
+        `[EventBus] Schema validation failed for ${eventType}: ${result.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
+    }
+  }
+
+  /**
    * Create event metadata
    */
   private createMetadata(eventType: EventType, correlationId?: string, causationId?: string): EventMetadata {
@@ -229,6 +304,9 @@ export class EventBusClient {
       metadata,
       payload,
     };
+
+    // Validate event against schema before publishing
+    this.validateEventData(eventType, event);
 
     const data = sc.encode(JSON.stringify(event));
     
@@ -273,6 +351,9 @@ export class EventBusClient {
       correlation,
       payload,
     };
+
+    // Validate saga event against schema before publishing
+    this.validateEventData(eventType, event);
 
     const data = sc.encode(JSON.stringify(event));
     
