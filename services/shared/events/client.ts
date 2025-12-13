@@ -5,11 +5,14 @@
  * Supports:
  * - Real NATS JetStream connection for production
  * - In-memory event bus for development without NATS
+ * - OpenTelemetry tracing for distributed tracing
  */
 
 import { connect, NatsConnection, JetStreamClient, JetStreamManager, PubAck, JsMsg, ConsumerConfig, AckPolicy, DeliverPolicy, StringCodec, RetentionPolicy, StorageType } from 'nats';
 import { EventMap, EventType, EventMetadata, SagaCorrelation } from './types';
 import { validateEvent, EventSchemas } from './schemas';
+import { getTracer, withSpan, addSpanAttributes, SpanKind, getTraceContextHeaders, extractTraceContext, addSpanEvent } from '../common/telemetry';
+import { context } from '@opentelemetry/api';
 
 const sc = StringCodec();
 
@@ -284,7 +287,7 @@ export class EventBusClient {
   }
 
   /**
-   * Publish a typed event
+   * Publish a typed event with distributed tracing
    */
   async publish<T extends EventType>(
     eventType: T,
@@ -298,34 +301,58 @@ export class EventBusClient {
       throw new Error(`[EventBus] ${this.serviceName} not connected`);
     }
 
-    const metadata = this.createMetadata(eventType, options?.correlationId, options?.causationId);
+    const tracer = getTracer(this.serviceName);
     
-    const event = {
-      metadata,
-      payload,
-    };
+    return withSpan(tracer, `eventbus.publish.${eventType}`, async (span) => {
+      const metadata = this.createMetadata(eventType, options?.correlationId, options?.causationId);
+      
+      // Add trace context to metadata for propagation
+      const traceContext = getTraceContextHeaders();
+      const enrichedMetadata = {
+        ...metadata,
+        traceId: traceContext['traceparent'] || undefined,
+      };
+      
+      const event = {
+        metadata: enrichedMetadata,
+        payload,
+      };
 
-    // Validate event against schema before publishing
-    this.validateEventData(eventType, event);
+      // Validate event against schema before publishing
+      this.validateEventData(eventType, event);
 
-    const data = sc.encode(JSON.stringify(event));
-    
-    if (this.useInMemory) {
-      return await inMemoryBus.publish(eventType, data);
-    }
-
-    if (this.jetstream) {
-      try {
-        const ack = await this.jetstream.publish(eventType, data);
-        console.log(`[EventBus] Published ${eventType} to stream ${ack.stream}, seq ${ack.seq}`);
-        return ack;
-      } catch (error) {
-        console.error(`[EventBus] Failed to publish ${eventType}:`, error);
-        throw error;
+      span.setAttribute('messaging.system', 'nats');
+      span.setAttribute('messaging.destination', eventType);
+      span.setAttribute('messaging.operation', 'publish');
+      span.setAttribute('event.id', metadata.eventId);
+      if (options?.correlationId) {
+        span.setAttribute('event.correlation_id', options.correlationId);
       }
-    }
 
-    return null;
+      const data = sc.encode(JSON.stringify(event));
+      
+      if (this.useInMemory) {
+        const result = await inMemoryBus.publish(eventType, data);
+        span.setAttribute('messaging.destination.stream', result.stream);
+        span.setAttribute('messaging.message.sequence', result.seq);
+        return result;
+      }
+
+      if (this.jetstream) {
+        try {
+          const ack = await this.jetstream.publish(eventType, data);
+          span.setAttribute('messaging.destination.stream', ack.stream);
+          span.setAttribute('messaging.message.sequence', ack.seq);
+          console.log(`[EventBus] Published ${eventType} to stream ${ack.stream}, seq ${ack.seq}`);
+          return ack;
+        } catch (error) {
+          console.error(`[EventBus] Failed to publish ${eventType}:`, error);
+          throw error;
+        }
+      }
+
+      return null;
+    }, { kind: SpanKind.PRODUCER });
   }
 
   /**
