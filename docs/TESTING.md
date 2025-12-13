@@ -16,6 +16,9 @@
 7. [E2E Testing Guidelines](#7-e2e-testing-guidelines)
 8. [Test Data Management](#8-test-data-management)
 9. [Known Testing Gaps](#9-known-testing-gaps)
+10. [Current State (December 2025)](#10-current-state-december-2025)
+11. [Enhancements Compared to Previous Version](#11-enhancements-compared-to-previous-version)
+12. [Old vs New - Summary of Changes](#12-old-vs-new---summary-of-changes)
 
 ---
 
@@ -504,4 +507,111 @@ Tests should clean up after themselves when modifying data:
 
 ---
 
-*Last Updated: December 2024*
+## 10. Current State (December 2025)
+
+### 10.1 Existing Test Suites
+
+The current automated test coverage across the codebase:
+
+| Test Suite | Location | Tests | Status |
+|------------|----------|-------|--------|
+| **Numeric Utilities** | `server/utils/numeric.test.ts` | 39 | Passing |
+| **Feature Flags** | `services/shared/common/feature-flags.test.ts` | 23 | Passing |
+| **Trading Engine Persistence** | `services/trading-engine/repositories/persistence.test.ts` | 13 | Passing |
+
+**Total Test Count:** 75 automated tests
+
+### 10.2 Feature Flag Testing
+
+The strangler fig pattern implementation includes:
+- Traffic splitting verification (0-100% rollout)
+- User whitelist/blacklist testing
+- Metrics tracking for routing decisions
+- Rollback safety testing
+
+### 10.3 Infrastructure Ready for Testing
+
+The following infrastructure is implemented but awaiting test suites:
+
+| Component | Implementation | Test Status |
+|-----------|----------------|-------------|
+| **OpenTelemetry** | `services/shared/common/telemetry.ts` (406 lines) | Planned |
+| **NATS JetStream** | `services/shared/events/nats-jetstream.ts` | Planned |
+| **Dual-Write Repositories** | `server/repositories/` | Planned |
+
+### 10.4 Recommended Test Additions
+
+Priority test suites to implement:
+
+1. **OpenTelemetry Tests** - Verify span creation, context propagation, exporter configuration
+2. **NATS JetStream Tests** - Message publishing/subscription, consumer groups, replay
+3. **Dual-Write Tests** - Consistency verification, failure handling, read preferences
+
+---
+
+## 11. Enhancements Compared to Previous Version
+
+### 11.1 From Manual to Automated
+
+| Aspect | Before (Dec 2024) | After (Dec 2025) |
+|--------|-------------------|------------------|
+| **Test Count** | 39 tests (numeric only) | 75 tests across 3 test suites |
+| **Infrastructure Tests** | None | Feature flags (23 tests) |
+| **Microservices Tests** | N/A | Trading engine persistence (13 tests) |
+| **CI/CD Integration** | Manual | GitHub Actions workflows configured |
+
+### 11.2 New Test Categories
+
+1. **Feature Flag Tests** (Implemented)
+   - Traffic splitting verification
+   - User whitelist/blacklist testing
+   - Rollout percentage control
+
+2. **Microservices Persistence Tests** (Implemented)
+   - Trading engine order persistence
+   - Position state management
+   - Database transaction handling
+
+3. **Infrastructure Ready for Tests** (Planned)
+   - OpenTelemetry span verification
+   - NATS JetStream event testing
+   - Dual-write consistency checks
+
+### 11.3 Test Data Improvements
+
+- Unique ID generation with `nanoid` for test isolation
+- Test fixtures for domain objects
+- Vitest configuration for microservices
+
+---
+
+## 12. Old vs New - Summary of Changes
+
+| Component | Old Approach | New Approach |
+|-----------|--------------|--------------|
+| **Test Runner** | Vitest only | Vitest + GitHub Actions CI/CD |
+| **Coverage Areas** | Numeric utilities (39 tests) | Numeric + feature flags + persistence (75 tests) |
+| **Database Testing** | Shared dev database | Vitest mocks + persistence tests |
+| **Integration Testing** | Manual curl commands | Manual + automated persistence tests |
+| **Event Testing** | N/A | NATS JetStream implemented (tests planned) |
+| **Observability Testing** | N/A | OpenTelemetry implemented (tests planned) |
+| **Feature Flag Testing** | N/A | Traffic splitting verification (23 tests) |
+
+---
+
+## Related Governance Docs
+
+| Document | Relevance |
+|----------|-----------|
+| `FINANCIAL_METRICS.md` | P&L calculation formulas for metrics testing |
+| `AI_MODELS_AND_PROVIDERS.md` | AI response parsing and mocking patterns |
+| `CONNECTORS_AND_INTEGRATIONS.md` | Connector testing patterns (mocking, error handling) |
+| `ORCHESTRATOR_AND_AGENT_RUNTIME.md` | Orchestrator test scenarios (kill switch, risk limits) |
+| `AGENT_EXECUTION_GUIDE.md` | Sections 14-16 define testing expectations by component |
+| `LESSONS_LEARNED.md` | Section 4.4 for testing lessons |
+| `OBSERVABILITY.md` | OpenTelemetry testing patterns |
+
+---
+
+*Last Updated: December 2025*
+*Version: 2.0.0 (Microservices Migration)*

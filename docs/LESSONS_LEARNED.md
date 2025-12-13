@@ -302,5 +302,149 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 
 ---
 
-*Document Version: 1.2*  
-*Last Updated: December 2024*
+## 7. Current State (December 2025)
+
+### 7.1 Microservices Migration Lessons
+
+The transition from monolith to microservices introduced several key lessons:
+
+#### Strangler Fig Pattern Success
+
+- **Date:** 2025-12
+- **Task:** Implement feature flags for gradual traffic migration
+- **Area:** infra | architecture
+- **What worked:**
+  - Traffic splitting with 0-100% rollout control
+  - User whitelist for beta testing before full rollout
+  - Metrics tracking for routing decisions
+  - Automatic rollback on error rate thresholds
+- **Issues/Pitfalls:**
+  - Initial complexity in dual-write synchronization
+  - Cache invalidation across both systems
+- **Recommendations:**
+  - Always implement feature flags before extracting services
+  - Start with read-only traffic before writes
+  - Monitor error rates obsessively during rollout
+
+#### Dual-Write Repository Pattern
+
+- **Date:** 2025-12
+- **Task:** Synchronize data between monolith and microservice databases
+- **Area:** infra | api
+- **What worked:**
+  - Abstract repository interface for transparent switching
+  - Primary/secondary write with consistency checks
+  - Automatic fallback on secondary failure
+- **Issues/Pitfalls:**
+  - Eventual consistency caused UI confusion
+  - Transaction boundaries don't span databases
+- **Recommendations:**
+  - Accept eventual consistency or use saga pattern
+  - Log all dual-write discrepancies for analysis
+  - Test failure modes explicitly (11 tests added)
+
+#### Event-Driven Communication (NATS JetStream)
+
+- **Date:** 2025-12
+- **Task:** Implement asynchronous service communication
+- **Area:** infra | orchestrator
+- **What worked:**
+  - Durable subscriptions prevent message loss
+  - Consumer groups enable horizontal scaling
+  - Dead letter queues capture failed messages
+- **Issues/Pitfalls:**
+  - Message ordering not guaranteed across partitions
+  - Duplicate delivery requires idempotent handlers
+- **Recommendations:**
+  - Include idempotency keys in all events
+  - Implement at-least-once with deduplication
+  - Test replay scenarios (9 tests added)
+
+#### OpenTelemetry Integration
+
+- **Date:** 2025-12
+- **Task:** Add distributed tracing across services
+- **Area:** infra | observability
+- **What worked:**
+  - Auto-instrumentation reduced manual work
+  - Context propagation "just works" for HTTP
+  - Trace ID correlation simplified debugging
+- **Issues/Pitfalls:**
+  - NATS required manual context injection
+  - High cardinality attributes bloat storage
+- **Recommendations:**
+  - Limit custom span attributes to essential data
+  - Propagate context explicitly for non-HTTP protocols
+  - Test span creation and propagation (16 tests added)
+
+### 7.2 Algorithm Framework Lessons
+
+#### Backtesting Engine
+
+- **Date:** 2025-12
+- **Task:** Build event-driven backtesting with realistic fills
+- **Area:** testing | metrics
+- **What worked:**
+  - Factory pattern for isolated algorithm instances
+  - Prorated partial exit handling
+  - Realistic slippage/commission models
+- **Recommendations:**
+  - Always use `runWithFactory` for backtests
+  - Verify P&L with manual calculations on sample trades
+
+#### Transaction Cost Analysis (TCA)
+
+- **Date:** 2025-12
+- **Task:** Implement execution quality scoring
+- **Area:** metrics | analytics
+- **What worked:**
+  - Implementation shortfall breakdown
+  - A-F grading scale for quick assessment
+  - Broker comparison reporting
+- **Recommendations:**
+  - Capture arrival price at decision time
+  - Log all fill events for post-trade analysis
+
+---
+
+## 8. Enhancements Compared to Previous Version
+
+### 8.1 Lesson Coverage Expansion
+
+| Category | Before (Dec 2024) | After (Dec 2025) |
+|----------|-------------------|------------------|
+| **Prompting** | 1 lesson | 1 lesson |
+| **Architecture** | 1 lesson | 1 lesson + microservices patterns |
+| **Implementation** | 1 lesson | 2 lessons (order execution) |
+| **Testing** | 1 lesson | 1 lesson + 111 automated tests |
+| **DevOps/Infra** | 1 lesson | 5 lessons (feature flags, dual-write, NATS, OpenTelemetry, Kubernetes) |
+| **Domain-Specific** | 1 lesson | 3 lessons (TCA, backtesting, regime detection) |
+| **AI Models** | 1 lesson | 1 lesson |
+| **Connectors** | 1 lesson | 1 lesson |
+| **Orchestrator** | 2 lessons | 2 lessons |
+| **Agent Orchestration** | 1 lesson | 1 lesson |
+
+### 8.2 New Categories
+
+1. **Microservices Migration** - Strangler fig, dual-write, event-driven
+2. **Algorithm Framework** - Backtesting, TCA, strategy versioning
+3. **Observability** - OpenTelemetry, distributed tracing
+
+---
+
+## 9. Old vs New - Summary of Changes
+
+| Aspect | Old Approach | New Approach |
+|--------|--------------|--------------|
+| **Lesson Scope** | Monolith-focused | Monolith + Microservices |
+| **Infrastructure Lessons** | Basic (ports, DB) | Advanced (event bus, tracing, feature flags) |
+| **Testing Lessons** | Manual verification | Automated test patterns |
+| **Architecture Patterns** | Adapter pattern | Adapter + Strangler Fig + Event-Driven |
+| **Failure Handling** | Error logging | Circuit breakers, retries, dead letters |
+| **Monitoring** | Cycle ID correlation | Full distributed tracing |
+
+---
+
+*Document Version: 2.0*  
+*Last Updated: December 2025*
+*Version: 2.0.0 (Microservices Migration)*

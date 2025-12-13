@@ -1426,13 +1426,126 @@ MAX_DAILY_TRADES=100       # Rate limiting
 
 ---
 
+## Current State (December 2025)
+
+This section documents the current implementation state and evolution of the platform.
+
+### Microservices Architecture
+
+The platform has evolved from the monolith described above to an event-driven microservices architecture. Both architectures currently coexist during the migration phase.
+
+| Architecture | Location | Status |
+|--------------|----------|--------|
+| Legacy Monolith | `server/` | Active, being deprecated |
+| Microservices | `services/` | Production-ready |
+
+**Microservices:**
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| API Gateway | 3000 | Authentication, rate limiting, routing |
+| Trading Engine | 3001 | Orders, positions, risk management |
+| AI Decision | 3002 | LLM router, circuit breakers, decision logging |
+| Market Data | 3003 | Multi-connector routing, caching |
+| Analytics | 3004 | P&L, equity curves, metrics |
+| Orchestrator | 3005 | Cycle management, saga coordination |
+
+### Shared Libraries (`services/shared/`)
+
+Professional-grade shared libraries have been added:
+
+| Library | Purpose |
+|---------|---------|
+| Algorithm Framework | Base trading algorithm with portfolio/risk management |
+| Backtesting Engine | Event-driven simulation with realistic fill/slippage models |
+| Transaction Cost Analysis | Implementation shortfall, market impact, execution quality |
+| Market Regime Detection | HMM and BOCD for trend/volatility identification |
+| Sentiment Fusion | Multi-source fusion (news, social, technical) |
+| Strategy Versioning | A/B testing, semantic versioning, rollback |
+| LLM Governance | Pre-trade validation, position limits, cooldowns |
+
+### Infrastructure Updates
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| NATS JetStream | `services/shared/events/` | Event-driven messaging |
+| OpenTelemetry | `services/shared/common/telemetry.ts` | Distributed tracing |
+| Feature Flags | `services/shared/common/feature-flags.ts` | Strangler fig pattern |
+| Dual-Write | `services/shared/repositories/` | Migration data consistency |
+| CI/CD | `.github/workflows/` | GitHub Actions pipelines |
+| Kubernetes | `infrastructure/k8s/` | Deployment manifests |
+| Vault | `infrastructure/vault/` | Secrets management |
+
+### Test Coverage
+
+Comprehensive test suites have been added:
+- Feature flags: 23 tests
+- Trading engine persistence: 13 tests
+- Dual-write repositories: 11 tests
+- NATS JetStream: 9 tests
+- OpenTelemetry: 16 tests
+- Numeric utilities: 39 tests
+
+---
+
+## Enhancements Compared to Previous Version
+
+### Architecture Enhancements
+
+| Previous (v2.0) | Current (v3.0) |
+|-----------------|----------------|
+| Monolithic Express server | 6 standalone microservices + legacy monolith |
+| Console.log with prefixes | OpenTelemetry distributed tracing |
+| Direct database access | Dual-write repositories for safe migration |
+| Single provider AI | Intelligent LLM Router with circuit breakers |
+| No inter-service events | NATS JetStream event bus |
+| Manual deployment | Kubernetes + GitHub Actions CI/CD |
+
+### New Capabilities
+
+1. **Professional Algorithm Framework**: Inspired by LEAN, NautilusTrader, Freqtrade
+2. **Backtesting Engine**: Event-driven with factory pattern for isolated instances
+3. **Transaction Cost Analysis (TCA)**: Execution quality scoring (A-F grades)
+4. **Portfolio Construction**: Black-Litterman, Risk Parity, HRP methods
+5. **Market Regime Detection**: HMM and BOCD for adaptive strategies
+6. **Sentiment Fusion**: Multi-source intelligence combining news, social, technical
+7. **Strategy Versioning**: A/B testing, branching, rollback support
+8. **LLM Governance**: Pre-trade validation with position limits and cooldowns
+
+### Infrastructure Improvements
+
+1. **Health Checks**: `/health/live`, `/health/ready`, `/health/startup` endpoints
+2. **API Contracts**: OpenAPI 3.1 specifications in `contracts/`
+3. **Vault Integration**: HashiCorp Vault for production secrets
+4. **Docker Compose**: Local development environment in `services/docker-compose.yml`
+
+---
+
+## Old vs New - Summary of Changes
+
+| Area | Old Approach | New Approach |
+|------|--------------|--------------|
+| **Architecture** | Monolith in `server/` | Microservices in `services/` + legacy coexistence |
+| **Communication** | Direct function calls | NATS JetStream + REST APIs |
+| **Database** | Single shared connection | Per-service schemas with dual-write migration |
+| **AI Integration** | Single OpenAI/OpenRouter client | LLM Router with multi-provider support |
+| **Observability** | `console.log` with prefixes | OpenTelemetry distributed tracing |
+| **Configuration** | Environment variables only | Feature flags + Vault secrets |
+| **Deployment** | Manual Replit | Kubernetes + GitHub Actions |
+| **Testing** | Limited coverage | 100+ automated tests |
+| **Risk Management** | Basic limits | Adaptive risk with LLM governance |
+
+---
+
 ## Document Changelog
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | Dec 2024 | 1.0 | Agent | Initial comprehensive documentation |
 | Dec 2024 | 2.0 | Agent | Enhanced with appendices, API reference, troubleshooting guide |
+| Dec 2025 | 3.0 | Agent | Added microservices architecture, shared libraries, current state sections |
 
 ---
 
-*Last updated: December 2024*
+*Last updated: December 2025*  
+*Baseline Version: 2.0 (December 2024)*

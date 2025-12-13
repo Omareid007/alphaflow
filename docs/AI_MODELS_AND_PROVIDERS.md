@@ -17,6 +17,9 @@
 8. [Prompt Patterns](#8-prompt-patterns)
 9. [Cost & Token Management](#9-cost--token-management)
 10. [Testing AI Logic](#10-testing-ai-logic)
+11. [Current State (December 2025)](#11-current-state-december-2025)
+12. [Enhancements Compared to Previous Version](#12-enhancements-compared-to-previous-version)
+13. [Old vs New - Summary of Changes](#13-old-vs-new---summary-of-changes)
 
 ---
 
@@ -446,4 +449,179 @@ describe("Data Fusion Engine", () => {
 
 ---
 
-*Last Updated: December 2024*
+## 11. Current State (December 2025)
+
+### 11.1 AI Decision Service Implementation
+
+The AI Decision Service has been extracted as a standalone microservice (`services/ai-decision/`) running on port 3002:
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| Service Entry | `services/ai-decision/index.ts` | Express server with health checks |
+| LLM Router | `services/ai-decision/llm-router.ts` | Intelligent provider selection with circuit breakers |
+| Decision Engine | `services/ai-decision/decision-engine.ts` | Core decision logic |
+| Types | `services/ai-decision/types.ts` | Type definitions for AI decisions |
+
+### 11.2 LLM Router Architecture
+
+The `LLMRouter` class provides resilient multi-provider routing:
+
+```typescript
+const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig> = {
+  [LLMProvider.OPENAI]: {
+    envVar: 'OPENAI_API_KEY',
+    costTier: 'premium',
+    speedTier: 'moderate',
+    qualityTier: 'excellent',
+    defaultModel: 'gpt-4o-mini',
+  },
+  [LLMProvider.GROQ]: {
+    envVar: 'GROQ_API_KEY',
+    costTier: 'cheap',
+    speedTier: 'fast',
+    qualityTier: 'good',
+    defaultModel: 'llama-3.1-8b-instant',
+  },
+  // Together, AIMLAPI, OpenRouter...
+};
+```
+
+**Provider Selection Logic:**
+1. Check for preferred provider (if configured)
+2. Sort by speed tier (if `prioritizeSpeed: true`)
+3. Sort by cost tier (if `prioritizeCost: true`)
+4. Fall back to default priority order: OpenAI → Groq → Together → AIMLAPI → OpenRouter
+
+### 11.3 Circuit Breaker Integration
+
+Each provider has a dedicated circuit breaker for resilience:
+
+```typescript
+getCircuitBreaker(provider: LLMProvider): CircuitBreaker {
+  return this.circuitRegistry.getOrCreate({
+    name: `llm:${provider}`,
+    failureThreshold: 3,
+    successThreshold: 2,
+    timeout: 60000,
+  });
+}
+```
+
+### 11.4 Health Check Integration
+
+LLM provider availability is monitored via health checks:
+
+```typescript
+healthChecker.registerCheck('llm-providers', async () => {
+  const available = llmRouter.getAvailableProviders();
+  return {
+    status: available.length > 0 ? 'pass' : 'warn',
+    message: `${available.length} LLM provider(s) available`,
+  };
+});
+```
+
+### 11.5 Provider Metrics Tracking
+
+The router tracks per-provider metrics:
+
+```typescript
+interface ProviderMetrics {
+  totalRequests: number;
+  successCount: number;
+  failureCount: number;
+  totalLatencyMs: number;
+  lastUsed: Date | null;
+  consecutiveFailures: number;
+}
+```
+
+---
+
+## 12. Enhancements Compared to Previous Version
+
+| Aspect | Previous (Monolith) | Current (Microservices) |
+|--------|---------------------|-------------------------|
+| **Service Location** | `server/ai/` directory | `services/ai-decision/` standalone |
+| **Provider Resilience** | Manual retry logic | Circuit breakers with automatic recovery |
+| **Provider Selection** | Simple fallback chain | Tiered selection (speed/cost/quality) |
+| **Health Monitoring** | None | Health check endpoints for all providers |
+| **Metrics Tracking** | Basic logging | Per-provider metrics with latency tracking |
+| **Configuration** | Hardcoded priorities | Runtime-configurable router options |
+| **Fallback Behavior** | Sequential retry | Priority-aware fallback with circuit state |
+
+### Key Improvements
+
+1. **Circuit Breaker Pattern**: Prevents cascade failures when a provider is down
+2. **Tiered Provider Selection**: Choose providers based on speed, cost, or quality requirements
+3. **Metrics Collection**: Track success rates, latencies, and failure patterns per provider
+4. **Health Check Integration**: Proactive monitoring of provider availability
+5. **Standalone Service**: Independent scaling and deployment of AI capabilities
+
+---
+
+## 13. Old vs New - Summary of Changes
+
+### Architecture Changes
+
+| Category | Old Approach | New Approach |
+|----------|--------------|--------------|
+| **Deployment** | Embedded in monolith | Standalone microservice on port 3002 |
+| **Communication** | Direct function calls | REST API + NATS events |
+| **Resilience** | Try-catch with retries | Circuit breakers per provider |
+| **Scaling** | Entire app scales together | AI service scales independently |
+
+### API Changes
+
+| Endpoint | Purpose | Status |
+|----------|---------|--------|
+| `GET /health/live` | Liveness probe | ✅ Implemented |
+| `GET /health/ready` | Readiness check | ✅ Implemented |
+| `GET /health/startup` | Startup check | ✅ Implemented |
+| `POST /analyze` | Request AI analysis | ✅ Implemented |
+| `GET /providers` | List available providers | ✅ Implemented |
+
+### Configuration Changes
+
+**New Environment Variables:**
+- `LLM_PRIORITIZE_SPEED`: Enable speed-first provider selection
+- `LLM_PRIORITIZE_COST`: Enable cost-first provider selection
+- `LLM_PREFERRED_PROVIDER`: Force specific provider
+
+### File Structure Changes
+
+```
+# Old (Monolith)
+server/
+  ai/
+    llmClient.ts
+    llmRouter.ts
+    openaiClient.ts
+    groqClient.ts
+    ...
+
+# New (Microservices)
+services/
+  ai-decision/
+    index.ts          # Service entry point
+    llm-router.ts     # Enhanced router with circuit breakers
+    decision-engine.ts # Core decision logic
+    types.ts          # Type definitions
+```
+
+---
+
+## Related Documentation
+
+| Document | Relevance |
+|----------|-----------|
+| `AGENT_EXECUTION_GUIDE.md` | Section 14: AI Models & Provider Governance |
+| `CONNECTORS_AND_INTEGRATIONS.md` | Data source connectors |
+| `ORCHESTRATOR_AND_AGENT_RUNTIME.md` | AI integration in trading loop |
+| `ARCHITECTURE.md` | AI layer in system design |
+| `TESTING.md` | AI-related test patterns |
+
+---
+
+*Last Updated: December 2025*
+*Version: 2.0.0 (Microservices Migration)*

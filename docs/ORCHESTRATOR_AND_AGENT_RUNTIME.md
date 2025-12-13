@@ -14,6 +14,10 @@
 5. [Integration Points](#5-integration-points)
 6. [Failure Handling](#6-failure-handling)
 7. [Testing](#7-testing)
+8. [Microservices Orchestrator (December 2025)](#8-microservices-orchestrator-december-2025)
+9. [Current State (December 2025)](#9-current-state-december-2025)
+10. [Enhancements Compared to Previous Version](#10-enhancements-compared-to-previous-version)
+11. [Old vs New - Summary of Changes](#11-old-vs-new---summary-of-changes)
 
 ---
 
@@ -382,4 +386,244 @@ describe("Kill Switch", () => {
 
 ---
 
-*Last Updated: December 2024*
+## 8. Microservices Orchestrator (December 2025)
+
+The orchestrator has been extracted into a standalone microservice as part of the microservices migration. The new orchestrator service provides enhanced capabilities including saga-based transaction coordination, event-driven communication, and multiple operational modes.
+
+**Core location:** `services/orchestrator/`
+
+### 8.1 Orchestrator Service Architecture
+
+```
+services/orchestrator/
+├── index.ts              # Express server, routes, event subscriptions
+├── cycle-manager.ts      # Trading cycle lifecycle management
+├── saga-coordinator.ts   # Distributed transaction coordination
+└── types.ts              # Type definitions
+```
+
+### 8.2 Operational Modes
+
+The microservice orchestrator supports three operational modes:
+
+| Mode | Behavior | AI Decision Handling |
+|------|----------|---------------------|
+| **AUTONOMOUS** | Fully automated trading | Executes trades automatically if confidence >= threshold |
+| **SEMI_AUTO** | Requires confirmation | Queues decisions for approval before execution |
+| **MANUAL** | No automatic execution | Stores decisions for manual review |
+
+```typescript
+enum OrchestratorMode {
+  AUTONOMOUS = 'autonomous',
+  SEMI_AUTO = 'semi_auto',
+  MANUAL = 'manual'
+}
+
+// Default: MANUAL mode with 0.7 confidence threshold
+let orchestratorMode: OrchestratorMode = OrchestratorMode.MANUAL;
+const confidenceThreshold = 0.7;
+```
+
+### 8.3 Cycle Manager
+
+The CycleManager handles trading cycle lifecycle with event-driven coordination:
+
+```typescript
+interface TradingCycle {
+  cycleId: string;
+  status: 'running' | 'paused' | 'completed' | 'failed';
+  startedAt: Date;
+  completedAt?: Date;
+  symbols: string[];
+  decisionsCount: number;
+  tradesCount: number;
+  cycleType: 'analysis' | 'execution' | 'maintenance';
+}
+
+class CycleManager {
+  // Start a new trading cycle
+  async startCycle(symbols: string[], cycleType: CycleType): Promise<TradingCycle>;
+  
+  // Stop current cycle
+  async stopCycle(): Promise<TradingCycle | null>;
+  
+  // Pause/resume cycle
+  pauseCycle(): boolean;
+  resumeCycle(): boolean;
+  
+  // Track metrics
+  incrementDecisions(): void;
+  incrementTrades(): void;
+  
+  // Query state
+  getCurrentCycle(): TradingCycle | null;
+  getCycleHistory(): TradingCycle[];
+}
+```
+
+**Event Publishing:**
+- `orchestrator.cycle.started` - Cycle begins
+- `orchestrator.cycle.completed` - Cycle ends
+- `orchestrator.cycle.paused` - Cycle paused
+- `orchestrator.cycle.resumed` - Cycle resumed
+
+### 8.4 Saga Coordinator
+
+The SagaCoordinator manages distributed transactions for trade execution:
+
+```typescript
+interface SagaState {
+  sagaId: string;
+  type: string;
+  currentStep: number;
+  totalSteps: number;
+  status: 'running' | 'completed' | 'compensating' | 'compensated' | 'failed';
+  steps: SagaStep[];
+  startedAt: Date;
+  completedAt?: Date;
+  correlationId: string;
+  initialData: Record<string, unknown>;
+  error?: string;
+}
+
+// Trade Execution Saga Steps
+const tradeExecutionSaga = [
+  'validate-risk',      // Check risk limits
+  'submit-order',       // Submit to broker
+  'confirm-fill',       // Wait for fill confirmation
+  'update-position'     // Update position records
+];
+```
+
+**Saga Lifecycle:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TRADE EXECUTION SAGA                              │
+│                                                                       │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │
+│  │ validate-risk │───▶│ submit-order │───▶│ confirm-fill │          │
+│  └──────────────┘    └──────────────┘    └──────┬───────┘          │
+│         │                   │                    │                   │
+│         │                   │                    ▼                   │
+│         │                   │           ┌──────────────┐            │
+│         │                   │           │update-position│            │
+│         │                   │           └──────┬───────┘            │
+│         │                   │                  │                     │
+│         │ (failure)         │ (failure)        ▼                    │
+│         │                   │           ┌──────────────┐            │
+│         └───────────────────┴──────────▶│ COMPENSATION │            │
+│                                         │ (rollback)   │            │
+│                                         └──────────────┘            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Saga Features:**
+- Automatic timeout handling (default: 5 minutes)
+- Step-by-step compensation on failure
+- Correlation ID propagation for tracing
+- Event publishing for observability
+
+### 8.5 Event Subscriptions
+
+The orchestrator subscribes to events from other microservices:
+
+| Event | Source | Handler |
+|-------|--------|---------|
+| `ai-decision.decision.generated` | AI Decision Service | `handleAIDecision()` |
+| `trading-engine.order.filled` | Trading Engine | `handleOrderFilled()` |
+| `trading-engine.order.failed` | Trading Engine | `handleOrderFailed()` |
+
+### 8.6 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health/live` | GET | Liveness probe |
+| `/health/ready` | GET | Readiness probe |
+| `/health/startup` | GET | Startup probe |
+| `/cycles/current` | GET | Get current cycle |
+| `/cycles/history` | GET | Get cycle history |
+| `/cycles/start` | POST | Start new cycle |
+| `/cycles/stop` | POST | Stop current cycle |
+| `/sagas/active` | GET | List active sagas |
+| `/sagas/:id` | GET | Get saga status |
+| `/strategies` | GET | List active strategies |
+| `/mode` | GET | Get orchestrator mode |
+| `/mode` | PUT | Set orchestrator mode |
+
+---
+
+## 9. Current State (December 2025)
+
+### 9.1 Dual Architecture
+
+The orchestrator currently exists in two forms:
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| **Monolith Orchestrator** | `server/autonomous/orchestrator.ts` | Active (primary) |
+| **Microservice Orchestrator** | `services/orchestrator/` | Ready (feature-flagged) |
+
+Traffic routing between the two is controlled by feature flags using the strangler fig pattern.
+
+### 9.2 Feature Comparison
+
+| Feature | Monolith | Microservice |
+|---------|----------|--------------|
+| Timer-based cycles | Yes | Yes |
+| Kill switch | Yes | Yes |
+| Risk limits | Yes | Yes |
+| Event-driven coordination | No | Yes (NATS) |
+| Saga transactions | No | Yes |
+| Multiple modes | No | Yes (3 modes) |
+| Health probes | Basic | Comprehensive |
+| Distributed tracing | Request ID | OpenTelemetry |
+
+### 9.3 Self-Healing Orchestrator
+
+The shared library includes a self-healing orchestrator for resilience:
+
+**Location:** `services/shared/common/self-healing-orchestrator.ts`
+
+Features:
+- Exponential backoff with jitter
+- Circuit breaker integration
+- Automatic recovery attempts
+- Health status monitoring
+
+---
+
+## 10. Enhancements Compared to Previous Version
+
+| Aspect | Previous (Monolith) | Current (Microservice) |
+|--------|---------------------|------------------------|
+| **Architecture** | Single server process | Standalone microservice |
+| **Communication** | Internal function calls | Event-driven (NATS) |
+| **Transactions** | Direct DB writes | Saga-based distributed tx |
+| **Modes** | Always autonomous | Manual, Semi-Auto, Autonomous |
+| **Confidence Filter** | Hardcoded | Configurable threshold |
+| **Cycle Types** | Single type | Analysis, Execution, Maintenance |
+| **Failure Recovery** | Try-catch with retries | Saga compensation |
+| **Observability** | Logs with cycle IDs | Events + OpenTelemetry traces |
+| **Scaling** | Vertical only | Horizontal with state coordination |
+
+---
+
+## 11. Old vs New - Summary of Changes
+
+| Category | Before | After |
+|----------|--------|-------|
+| **Entry Point** | `server/autonomous/orchestrator.ts` | `services/orchestrator/index.ts` |
+| **State Storage** | In-memory + DB sync | Event-sourced + DB |
+| **Trade Execution** | Direct broker calls | Saga workflow |
+| **AI Integration** | Sync function calls | Async event subscription |
+| **Cycle Management** | Timer intervals | CycleManager class |
+| **Error Handling** | Error counter + restart | Saga compensation |
+| **Configuration** | Environment variables | Shared config module |
+| **Health Checks** | Single endpoint | Three-tier probes |
+| **Logging** | Custom logger | Structured with context |
+
+---
+
+*Last Updated: December 2025*  
+*Version: 2.0.0 (Microservices Migration)*

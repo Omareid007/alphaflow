@@ -228,11 +228,13 @@ When in doubt, align with the patterns and conventions already used in the main 
 - Include useful context in logs (e.g. operation, user/session, correlation ID).
 - NEVER log secrets or very large payloads unless necessary and anonymised.
 
-**Current State (December 2024):**  
-This codebase currently uses `console.log` with `[ModuleName]` prefixes (e.g., `[Orchestrator]`, `[Alpaca]`). This is acceptable as a temporary baseline. Future work should introduce a centralized logging utility with:
-- Consistent formatting
-- Log levels (info/warn/error)
-- Secret redaction
+**Current State (December 2025):**  
+The microservices in `services/` use OpenTelemetry for distributed tracing:
+- Structured spans with context propagation
+- Integration with NATS JetStream events
+- Telemetry SDK in `services/shared/common/telemetry.ts`
+
+The legacy monolith (`server/`) still uses `console.log` with `[ModuleName]` prefixes (e.g., `[Orchestrator]`, `[Alpaca]`). When working in microservices, prefer OpenTelemetry spans over console logging.
 
 ---
 
@@ -359,6 +361,9 @@ Before you consider a task done, you MUST verify:
 | Testing | `docs/TESTING.md` | Test strategy, commands, scenarios |
 | Lessons Learned | `docs/LESSONS_LEARNED.md` | Patterns, anti-patterns, continuous improvement |
 | Observability | `docs/OBSERVABILITY.md` | Logging infrastructure and monitoring |
+| Microservices Roadmap | `docs/MICROSERVICES_ROADMAP.md` | Migration phases and progress |
+| AI Models & Providers | `docs/AI_MODELS_AND_PROVIDERS.md` | LLM configuration and provider details |
+| Connectors & Integrations | `docs/CONNECTORS_AND_INTEGRATIONS.md` | External service integrations |
 
 ---
 
@@ -927,5 +932,171 @@ For any non-trivial task:
 
 ---
 
-*Document Version: 1.2*  
-*Last Updated: December 2024*
+## 18. Current State (December 2025)
+
+This section documents the current implementation state of the codebase, including the microservices migration progress and new capabilities.
+
+### 18.1 Microservices Architecture
+
+The platform has transitioned from a monolith to an event-driven microservices architecture. All 6 core services are now production-ready:
+
+| Service | Port | Location | Purpose |
+|---------|------|----------|---------|
+| API Gateway | 3000 | `services/api-gateway/` | Authentication, rate limiting, routing |
+| Trading Engine | 3001 | `services/trading-engine/` | Orders, positions, risk management |
+| AI Decision | 3002 | `services/ai-decision/` | LLM router, circuit breakers, decision logging |
+| Market Data | 3003 | `services/market-data/` | Multi-connector routing, caching |
+| Analytics | 3004 | `services/analytics/` | P&L, equity curves, metrics |
+| Orchestrator | 3005 | `services/orchestrator/` | Cycle management, saga coordination |
+
+**Inter-Service Communication:**
+- NATS JetStream for event-driven messaging (`services/shared/events/`)
+- REST APIs for synchronous requests (OpenAPI 3.1 specs in `contracts/`)
+
+### 18.2 Shared Libraries (`services/shared/`)
+
+The platform includes comprehensive shared libraries:
+
+| Library | Location | Purpose |
+|---------|----------|---------|
+| Algorithm Framework | `algorithm-framework/` | Base trading algorithm with portfolio/risk management |
+| Backtesting Engine | `backtesting/` | Event-driven simulation with fill/slippage models |
+| Analytics | `analytics/` | Transaction Cost Analysis (TCA), execution quality |
+| Data Processing | `data/` | Order book analyzer, regime detection, sentiment fusion |
+| Strategies | `strategies/` | Versioning, A/B testing, LLM governance |
+| Events | `events/` | NATS JetStream client, event sourcing |
+| Common | `common/` | Telemetry, feature flags, logging, config |
+
+### 18.3 Observability with OpenTelemetry
+
+**Current State:**
+The codebase has transitioned from console.log to structured OpenTelemetry:
+- Distributed tracing across microservices (`services/shared/common/telemetry.ts`)
+- Span context propagation for correlation
+- Integration with NATS JetStream for event tracing
+
+**Usage:**
+```typescript
+import { getTelemetry } from '@shared/common/telemetry';
+
+const tracer = getTelemetry().getTracer('my-service');
+const span = tracer.startSpan('operation-name');
+try {
+  // ... operation
+  span.setStatus({ code: SpanStatusCode.OK });
+} finally {
+  span.end();
+}
+```
+
+### 18.4 Feature Flags & Strangler Fig Pattern
+
+Traffic splitting between monolith and microservices uses feature flags (`services/shared/common/feature-flags.ts`):
+- Rollout percentage control (0-100%)
+- User whitelist/blacklist for beta testing
+- Gradual rollout schedule generation
+- Metrics tracking for routing decisions
+
+**Dual-write repositories** (`services/shared/repositories/dual-write-repository.ts`) ensure data consistency during migration.
+
+### 18.5 Infrastructure & Deployment
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| CI/CD | `.github/workflows/` | GitHub Actions pipelines |
+| Kubernetes | `infrastructure/k8s/` | Deployment manifests |
+| Vault | `infrastructure/vault/` | HashiCorp Vault integration |
+| Docker | `services/docker-compose.yml` | Local development |
+
+### 18.6 Test Coverage
+
+Significant test coverage has been added:
+- Feature flags: 23 tests
+- Trading engine persistence: 13 tests
+- Dual-write repositories: 11 tests
+- NATS JetStream: 9 tests
+- OpenTelemetry: 16 tests
+- Numeric utilities: 39 tests
+
+Run tests with: `npm test` or `npx vitest`
+
+---
+
+## 19. Enhancements Compared to Previous Version
+
+### 19.1 Architecture Enhancements
+
+| Previous (v1.2) | Current (v1.3) |
+|-----------------|----------------|
+| Monolithic Express server | 6 standalone microservices |
+| Console.log with prefixes | OpenTelemetry distributed tracing |
+| Direct database access | Dual-write repositories for migration |
+| Single provider AI | Intelligent LLM Router with circuit breakers |
+| No inter-service events | NATS JetStream event bus |
+
+### 19.2 New Capabilities
+
+1. **Algorithm Framework**: Professional trading algorithm base class inspired by LEAN, NautilusTrader
+2. **Backtesting Engine**: Event-driven simulation with realistic fill/slippage/commission models
+3. **Transaction Cost Analysis**: Implementation shortfall, market impact, execution quality scoring
+4. **Market Regime Detection**: HMM and BOCD for trend/volatility regime identification
+5. **Sentiment Fusion**: Multi-source fusion (news, social, technical indicators)
+6. **Strategy Versioning**: A/B testing, semantic versioning, rollback support
+7. **LLM Governance**: Pre-trade validation, position limits, cooldowns
+
+### 19.3 Infrastructure Improvements
+
+1. **Kubernetes-ready**: Full deployment manifests with Vault Agent Injector
+2. **CI/CD pipelines**: GitHub Actions for build, test, and deploy
+3. **Health checks**: `/health/live`, `/health/ready`, `/health/startup` endpoints
+4. **API contracts**: OpenAPI 3.1 specifications for all services
+
+---
+
+## 20. Old vs New - Summary of Changes
+
+| Area | Old Approach | New Approach |
+|------|--------------|--------------|
+| **Architecture** | Monolith in `server/` | Microservices in `services/` |
+| **Communication** | Direct function calls | NATS JetStream + REST APIs |
+| **Database** | Single shared connection | Per-service schemas with dual-write |
+| **AI Integration** | Single OpenAI/OpenRouter client | LLM Router with multi-provider support |
+| **Logging** | `console.log` with prefixes | OpenTelemetry distributed tracing |
+| **Configuration** | Environment variables only | Feature flags + Vault secrets |
+| **Deployment** | Manual or basic scripts | Kubernetes + GitHub Actions |
+| **Testing** | Limited unit tests | Comprehensive test suites (100+ tests) |
+
+---
+
+## 21. Additional Documentation Resources
+
+### 21.1 Microservices Documentation
+
+| Document | Path | Purpose |
+|----------|------|---------|
+| Microservices Roadmap | `docs/MICROSERVICES_ROADMAP.md` | Migration phases and progress |
+| Service-specific docs | `docs/services/*.md` | Per-service documentation |
+| ADRs | `docs/adr/*.md` | Architecture Decision Records |
+
+### 21.2 API Contracts
+
+| Contract | Location | Purpose |
+|----------|----------|---------|
+| Trading Engine | `contracts/trading-engine-openapi.yaml` | Order/position management APIs |
+| AI Decision | `contracts/ai-decision-openapi.yaml` | Decision generation APIs |
+| Market Data | `contracts/market-data-openapi.yaml` | Price/quote streaming APIs |
+
+### 21.3 Shared Library Documentation
+
+Refer to `services/shared/README.md` for comprehensive documentation of:
+- Algorithm framework usage
+- Backtesting engine guide
+- Transaction cost analysis
+- Event bus integration
+- Telemetry setup
+
+---
+
+*Document Version: 1.3*  
+*Last Updated: December 2025*  
+*Baseline Version: 1.2 (December 2024)*

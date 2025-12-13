@@ -2,6 +2,23 @@
 
 This document describes the logging, monitoring, and observability infrastructure for AI Active Trader.
 
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Log Levels](#log-levels)
+3. [Log Categories](#log-categories)
+4. [Log Format](#log-format)
+5. [Usage](#usage)
+6. [Correlation IDs](#correlation-ids)
+7. [Secret Redaction](#secret-redaction)
+8. [In-Memory Buffer](#in-memory-buffer)
+9. [API Endpoints](#api-endpoints)
+10. [Current State (December 2025)](#10-current-state-december-2025)
+11. [Enhancements Compared to Previous Version](#11-enhancements-compared-to-previous-version)
+12. [Old vs New - Summary of Changes](#12-old-vs-new---summary-of-changes)
+
+---
+
 ## Overview
 
 The application uses a centralized logging system designed for production readiness with the following features:
@@ -248,6 +265,137 @@ Planned observability improvements:
 
 ---
 
+## 10. Current State (December 2025)
+
+### 10.1 OpenTelemetry Integration
+
+The platform now includes full OpenTelemetry integration for distributed tracing:
+
+**Implementation Location:** `services/shared/common/telemetry.ts`
+
+```typescript
+import { trace, context, SpanStatusCode } from '@opentelemetry/api';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter({
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces'
+  }),
+  instrumentations: [getNodeAutoInstrumentations()]
+});
+```
+
+### 10.2 Tracing Capabilities
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **OTLP HTTP Exporter** | Implemented | Exports traces to OpenTelemetry collector |
+| **Auto-Instrumentation** | Implemented | HTTP, Express, pg, and other libraries |
+| **Context Propagation** | Implemented | Trace IDs flow across service boundaries |
+| **Custom Spans** | Available | Manual span creation for business logic |
+| **Test Coverage** | Planned | Tests for span creation, attributes, context propagation |
+
+### 10.3 Span Creation Pattern
+
+```typescript
+import { trace, SpanStatusCode } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('ai-decision-service');
+
+async function analyzeMarket(symbol: string) {
+  return tracer.startActiveSpan('analyzeMarket', async (span) => {
+    try {
+      span.setAttribute('symbol', symbol);
+      span.setAttribute('service.name', 'ai-decision');
+      
+      const result = await performAnalysis(symbol);
+      
+      span.setAttribute('confidence', result.confidence);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+### 10.4 Service-Level Instrumentation
+
+Each microservice is instrumented:
+
+| Service | Instrumentation | Trace Attributes |
+|---------|-----------------|------------------|
+| **API Gateway** | HTTP, routing | request.path, user.id, rate_limit.remaining |
+| **Market Data** | HTTP, caching | symbol, provider, cache.hit |
+| **Trading Engine** | Database, orders | order.id, position.id, execution.time |
+| **AI Decision** | LLM calls | model, confidence, decision.action |
+| **Analytics** | Calculations | metric.type, time_range |
+| **Orchestrator** | Sagas, cycles | cycle.id, saga.step |
+
+### 10.5 Metrics (Planned)
+
+Prometheus metrics are planned for v2.1:
+
+- `trading_orders_total` - Counter of orders by status
+- `trading_pnl_daily` - Gauge of daily P&L
+- `ai_decision_latency_seconds` - Histogram of AI response times
+- `market_data_requests_total` - Counter of market data fetches by provider
+
+---
+
+## 11. Enhancements Compared to Previous Version
+
+### 11.1 From Logging to Full Observability
+
+| Aspect | Before (Dec 2024) | After (Dec 2025) |
+|--------|-------------------|------------------|
+| **Logging** | Structured JSON logs | Structured JSON + correlation IDs |
+| **Tracing** | Cycle ID correlation only | Full distributed tracing (OpenTelemetry) |
+| **Metrics** | None | Planned (Prometheus integration) |
+| **Alerting** | None | Planned (threshold-based alerts) |
+
+### 11.2 Distributed Tracing Benefits
+
+1. **Cross-Service Visibility**
+   - Trace requests from API Gateway through all services
+   - Identify bottlenecks in service chains
+
+2. **Root Cause Analysis**
+   - Pinpoint failures to specific service/operation
+   - Correlate errors with upstream events
+
+3. **Performance Optimization**
+   - Measure latency at each service hop
+   - Identify slow database queries or LLM calls
+
+### 11.3 Context Propagation
+
+Trace context flows automatically via:
+- HTTP headers (W3C Trace Context)
+- NATS message headers
+- Database connection context
+
+---
+
+## 12. Old vs New - Summary of Changes
+
+| Component | Old Approach | New Approach |
+|-----------|--------------|--------------|
+| **Logging** | Custom logger with categories | Custom logger + OpenTelemetry spans |
+| **Correlation** | Cycle ID only | Trace ID + Span ID + Cycle ID |
+| **Tracing Backend** | None | OTLP collector (Jaeger, Tempo, etc.) |
+| **Instrumentation** | Manual | Auto + Manual hybrid |
+| **Cross-Service Tracing** | N/A | Full trace propagation |
+| **Test Coverage** | None | Tests planned for telemetry |
+
+---
+
 ## Related Governance Docs
 
 | Document | Relevance |
@@ -257,3 +405,9 @@ Planned observability improvements:
 | `CONNECTORS_AND_INTEGRATIONS.md` | Deep-dive on connector logging |
 | `ORCHESTRATOR_AND_AGENT_RUNTIME.md` | Cycle ID correlation and orchestrator logging |
 | `LESSONS_LEARNED.md` | Practical lessons on logging and observability |
+| `TESTING.md` | OpenTelemetry test patterns |
+
+---
+
+*Last Updated: December 2025*
+*Version: 2.0.0 (Microservices Migration)*

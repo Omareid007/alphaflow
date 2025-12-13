@@ -17,6 +17,10 @@
 8. [Security Architecture](#8-security-architecture)
 9. [Deployment Architecture](#9-deployment-architecture)
 10. [Observability Architecture](#10-observability-architecture)
+11. [Microservices Architecture (December 2025)](#11-microservices-architecture-december-2025)
+12. [Current State (December 2025)](#12-current-state-december-2025)
+13. [Enhancements Compared to Previous Version](#13-enhancements-compared-to-previous-version)
+14. [Old vs New - Summary of Changes](#14-old-vs-new---summary-of-changes)
 
 ---
 
@@ -733,7 +737,324 @@ See [OBSERVABILITY.md](./OBSERVABILITY.md) for complete logging documentation.
 | 2024 | Alpaca as primary | Best paper trading API, supports stocks + crypto |
 | 2024 | OpenAI + fallback | Reliable AI with OpenRouter as backup |
 | 2024 | Centralized logger | Production readiness with correlation IDs |
+| 2025 | Microservices migration | Event-driven architecture for scalability |
+| 2025 | NATS JetStream | Reliable async messaging between services |
+| 2025 | Feature flags | Strangler fig pattern for gradual migration |
+| 2025 | OpenTelemetry | Distributed tracing across microservices |
 
 ---
 
-*Last Updated: December 2024*
+## 11. Microservices Architecture (December 2025)
+
+The platform is transitioning from a monolith to an event-driven microservices architecture using the Strangler Fig pattern. This section documents the current state of the migration.
+
+### 11.1 Target Microservices Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MICROSERVICES LAYER                                 │
+│                                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ API Gateway  │  │ Trading      │  │ AI Decision  │  │ Market Data  │    │
+│  │ :3000        │  │ Engine :3001 │  │ Service:3002 │  │ Service:3003 │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+│         │                 │                 │                 │             │
+│         │                 │                 │                 │             │
+│  ┌──────┴─────────────────┴─────────────────┴─────────────────┴──────┐     │
+│  │                        NATS JetStream                              │     │
+│  │                     (Event Bus / Message Broker)                   │     │
+│  └──────┬─────────────────┬─────────────────┬─────────────────┬──────┘     │
+│         │                 │                 │                 │             │
+│  ┌──────┴───────┐  ┌──────┴───────┐  ┌──────┴───────┐  ┌──────┴───────┐    │
+│  │ Analytics    │  │ Orchestrator │  │ Event Bridge │  │ Intelligence │    │
+│  │ Service:3004 │  │ Service:3005 │  │ Service:3006 │  │ Fabric       │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           SHARED LIBRARIES                                    │
+│  services/shared/                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ Algorithm    │  │ Backtesting  │  │ Analytics    │  │ Data         │    │
+│  │ Framework    │  │ Engine       │  │ (TCA)        │  │ Processing   │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ Strategies   │  │ Events       │  │ Common       │  │ Repositories │    │
+│  │ (Versioning) │  │ (Sourcing)   │  │ (Telemetry)  │  │ (Dual-Write) │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 Service Registry
+
+| Service | Port | Responsibility | Status |
+|---------|------|----------------|--------|
+| **api-gateway** | 3000 | Auth, rate limiting, routing, tenant mgmt | Ready |
+| **trading-engine** | 3001 | Orders, positions, risk management | Ready |
+| **ai-decision** | 3002 | LLM routing, data fusion, decisions | Ready |
+| **market-data** | 3003 | Data ingestion, caching, streaming | Ready |
+| **analytics** | 3004 | P&L calculations, metrics, reports | Ready |
+| **orchestrator** | 3005 | Trading cycles, sagas, scheduling | Ready |
+| **event-bridge** | 3006 | External integrations, n8n webhooks | Ready |
+| **intelligence-fabric** | - | RAG cache, vector store, prompt registry | Ready |
+
+### 11.3 Event-Driven Communication (NATS JetStream)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    EVENT STREAMS                                      │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  MARKET_DATA Stream                                          │    │
+│  │  • market.quote.{symbol}    - Real-time price quotes         │    │
+│  │  • market.bar.{symbol}      - OHLCV candles                  │    │
+│  │  • market.news.{symbol}     - News events                    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  TRADING Stream                                               │    │
+│  │  • order.created            - New order submitted            │    │
+│  │  • order.filled             - Order executed                 │    │
+│  │  • position.opened          - New position opened            │    │
+│  │  • position.closed          - Position closed                │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  AI_DECISIONS Stream                                          │    │
+│  │  • decision.requested       - Analysis requested             │    │
+│  │  • decision.generated       - AI decision produced           │    │
+│  │  • decision.executed        - Trade executed from decision   │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  SYSTEM Stream                                                │    │
+│  │  • heartbeat.{service}      - Service health checks          │    │
+│  │  • error.{service}          - Error notifications            │    │
+│  │  • metric.{service}         - Performance metrics            │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.4 Feature Flags for Traffic Splitting
+
+The migration uses feature flags to gradually shift traffic from monolith to microservices:
+
+```typescript
+// services/shared/common/feature-flags.ts
+interface FeatureFlag {
+  name: string;
+  enabled: boolean;
+  rolloutPercentage: number;  // 0-100
+  userWhitelist: string[];
+  userBlacklist: string[];
+}
+
+// Strangler fig pattern routing
+async function routeRequest(userId: string, feature: string) {
+  const flag = await getFeatureFlag(feature);
+  
+  if (!flag.enabled) return 'monolith';
+  if (flag.userBlacklist.includes(userId)) return 'monolith';
+  if (flag.userWhitelist.includes(userId)) return 'microservice';
+  
+  const hash = hashUserId(userId);
+  return hash < flag.rolloutPercentage ? 'microservice' : 'monolith';
+}
+```
+
+Current feature flag coverage: **23 tests passing**
+
+### 11.5 Shared Libraries Architecture
+
+```
+services/shared/
+├── algorithm-framework/          # Trading algorithm base classes
+│   ├── alpha-generation.ts       # Signal generation
+│   ├── execution.ts              # Order execution logic
+│   ├── portfolio-construction.ts # Black-Litterman, Risk Parity, HRP
+│   ├── risk-management.ts        # Position sizing, limits
+│   └── universe-selection.ts     # Asset filtering
+│
+├── backtesting/                  # Event-driven simulation engine
+│   ├── backtesting-engine.ts     # Core simulation loop
+│   ├── fill-model.ts             # Realistic order fills
+│   ├── slippage-model.ts         # Slippage simulation
+│   ├── commission-model.ts       # Fee structures
+│   └── performance-analyzer.ts   # Sharpe, Sortino, drawdown
+│
+├── analytics/                    # Transaction Cost Analysis
+│   └── transaction-cost-analysis.ts  # Implementation shortfall, TCA
+│
+├── data/                         # Data processing pipelines
+│   ├── order-book-analyzer.ts    # Level 2 data, liquidity
+│   ├── market-regime-ml.ts       # HMM, BOCD regime detection
+│   ├── sentiment-fusion.ts       # Multi-source sentiment
+│   └── technical-indicators.ts   # SMA, EMA, RSI, MACD, ATR
+│
+├── strategies/                   # Strategy management
+│   ├── strategy-versioning.ts    # A/B testing, rollback
+│   ├── alpha-decay.ts            # Signal half-life estimation
+│   └── llm-governance.ts         # Pre-trade validation, limits
+│
+├── events/                       # Event sourcing infrastructure
+│   ├── client.ts                 # NATS JetStream client
+│   ├── event-journal.ts          # Audit trail, replay
+│   ├── ring-buffer.ts            # High-performance buffer
+│   └── schemas.ts                # Event type definitions
+│
+├── common/                       # Cross-cutting concerns
+│   ├── telemetry.ts              # OpenTelemetry integration
+│   ├── feature-flags.ts          # Strangler fig routing
+│   ├── circuit-breaker.ts        # Fault isolation
+│   ├── self-healing-orchestrator.ts  # Exponential backoff
+│   ├── service-base.ts           # Base class for services
+│   └── health.ts                 # Health check endpoints
+│
+├── repositories/                 # Data access patterns
+│   └── dual-write-repository.ts  # Write to both monolith + microservice
+│
+└── database/                     # Per-service schemas
+    ├── trading-schema.ts         # Trading engine tables
+    ├── ai-schema.ts              # AI decision tables
+    ├── analytics-schema.ts       # Analytics tables
+    └── orchestrator-schema.ts    # Orchestrator tables
+```
+
+### 11.6 Dual-Write Repository Pattern
+
+During migration, writes go to both monolith and microservice databases:
+
+```typescript
+class DualWriteRepository<T> {
+  async create(data: T): Promise<T> {
+    // Phase 1: Write to monolith (primary)
+    const monolithResult = await this.monolithRepo.create(data);
+    
+    // Phase 2: Async write to microservice (shadow)
+    if (this.featureFlag.microserviceWriteEnabled) {
+      this.eventBus.publish('data.created', {
+        entity: this.entityName,
+        data: monolithResult,
+        timestamp: new Date(),
+      });
+    }
+    
+    return monolithResult;
+  }
+}
+```
+
+Current dual-write coverage: **11 tests passing**
+
+### 11.7 Observability with OpenTelemetry
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DISTRIBUTED TRACING                                │
+│                                                                       │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
+│  │ API Gateway │───▶│ Trading Eng │───▶│ AI Decision │             │
+│  │  Span A     │    │  Span B     │    │  Span C     │             │
+│  └─────────────┘    └──────┬──────┘    └──────┬──────┘             │
+│         │                  │                  │                     │
+│         │                  │                  │                     │
+│         └──────────────────┴──────────────────┘                     │
+│                            │                                         │
+│                            ▼                                         │
+│                  ┌─────────────────────┐                            │
+│                  │   OTLP Collector    │                            │
+│                  │   :4318 (HTTP)      │                            │
+│                  └──────────┬──────────┘                            │
+│                             │                                        │
+│              ┌──────────────┼──────────────┐                        │
+│              ▼              ▼              ▼                        │
+│       ┌───────────┐  ┌───────────┐  ┌───────────┐                  │
+│       │   Jaeger  │  │   Tempo   │  │  Grafana  │                  │
+│       │  (Traces) │  │  (Traces) │  │  (Viz)    │                  │
+│       └───────────┘  └───────────┘  └───────────┘                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Telemetry integration: **16 tests passing**
+
+---
+
+## 12. Current State (December 2025)
+
+### 12.1 Migration Progress Summary
+
+| Phase | Status | Components |
+|-------|--------|------------|
+| **Phase 0** | Complete | NATS JetStream (9 tests), OpenTelemetry (16 tests) |
+| **Phase 1** | Complete | Service templates, API Gateway, per-service DB schemas |
+| **Phase 2** | Complete | Dual-write repos (11 tests), Market Data extraction, Trading Engine persistence (13 tests), Feature flags (23 tests) |
+| **Phase 3** | Complete | AI Decision, Analytics, Orchestrator service extraction |
+| **Infrastructure** | Ready | GitHub Actions CI/CD, Kubernetes manifests, HashiCorp Vault |
+
+### 12.2 Production Readiness Checklist
+
+| Capability | Monolith | Microservices |
+|------------|----------|---------------|
+| REST API Endpoints | Yes | Yes (all 6 services) |
+| Health Checks | Basic | Comprehensive (live/ready/startup) |
+| Database Access | Direct Drizzle | Per-service schemas |
+| Event Communication | N/A | NATS JetStream |
+| Distributed Tracing | N/A | OpenTelemetry |
+| Feature Flags | N/A | Strangler fig pattern |
+| Circuit Breakers | N/A | Implemented |
+| Secret Management | process.env | HashiCorp Vault ready |
+
+### 12.3 Test Coverage
+
+| Component | Tests | Status |
+|-----------|-------|--------|
+| Feature flags | 23 | Passing |
+| Numeric utilities | 39 | Passing |
+| OpenTelemetry | 16 | Passing |
+| Trading engine persistence | 13 | Passing |
+| Dual-write repositories | 11 | Passing |
+| NATS JetStream | 9 | Passing |
+
+---
+
+## 13. Enhancements Compared to Previous Version
+
+| Aspect | Previous (Monolith) | Current (Microservices) |
+|--------|---------------------|------------------------|
+| **Architecture** | Single Express server | 7+ independent services |
+| **Communication** | Internal function calls | NATS JetStream events |
+| **Database** | Single shared schema | Per-service schemas |
+| **Scaling** | Vertical only | Horizontal per-service |
+| **Deployment** | All-or-nothing | Independent service deploys |
+| **Tracing** | Request IDs only | Distributed tracing (OTEL) |
+| **Resilience** | Try/catch | Circuit breakers, self-healing |
+| **Traffic Control** | None | Feature flag routing |
+| **Algorithm Framework** | Basic | LEAN-inspired with HRP, TCA |
+| **Backtesting** | None | Event-driven simulation |
+| **AI Governance** | None | Pre-trade validation, cooldowns |
+
+---
+
+## 14. Old vs New - Summary of Changes
+
+| Category | Before | After |
+|----------|--------|-------|
+| **Codebase Structure** | `server/` monolith | `server/` + `services/` microservices |
+| **External Integrations** | Direct API calls | Adapter pattern with fallbacks |
+| **Market Data** | Finnhub only | Multi-provider (Finnhub, Polygon, adapters) |
+| **AI Models** | OpenAI only | LLM Router (OpenAI, Groq, Together, AIML) |
+| **Event Handling** | Synchronous | Async NATS JetStream |
+| **Configuration** | Hardcoded defaults | Environment-driven with Vault |
+| **Health Checks** | Single /health endpoint | /health/live, /ready, /startup per service |
+| **Logging** | Console with categories | Structured logging with context propagation |
+| **Observability** | Basic correlation IDs | Full OpenTelemetry instrumentation |
+| **Testing** | Unit tests only | Unit + Integration + Smoke tests |
+| **CI/CD** | Manual | GitHub Actions workflows |
+| **Deployment** | Replit only | Replit + Kubernetes manifests |
+
+---
+
+*Last Updated: December 2025*  
+*Version: 2.0.0 (Microservices Migration)*

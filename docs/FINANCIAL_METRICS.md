@@ -16,6 +16,9 @@
 7. [Numeric Examples](#7-numeric-examples)
 8. [Implementation Reference](#8-implementation-reference)
 9. [Metric to UI Mapping](#9-metric-to-ui-mapping)
+10. [Current State (December 2025)](#10-current-state-december-2025)
+11. [Enhancements Compared to Previous Version](#11-enhancements-compared-to-previous-version)
+12. [Old vs New - Summary of Changes](#12-old-vs-new---summary-of-changes)
 
 ---
 
@@ -526,4 +529,228 @@ This table shows where each financial metric is displayed in the application.
 
 ---
 
-*Last Updated: December 2024*
+## 10. Current State (December 2025)
+
+### 10.1 Advanced Metrics Now Implemented
+
+The shared backtesting library (`services/shared/backtesting/`) now includes full implementations of previously planned metrics:
+
+| Metric | Implementation | Location |
+|--------|---------------|----------|
+| **Sharpe Ratio** | ✅ Implemented | `performance-analyzer.ts` |
+| **Sortino Ratio** | ✅ Implemented | `performance-analyzer.ts` |
+| **Calmar Ratio** | ✅ Implemented | `performance-analyzer.ts` |
+| **Max Drawdown** | ✅ Implemented | `performance-analyzer.ts` |
+| **Profit Factor** | ✅ Implemented | `performance-analyzer.ts` |
+| **CAGR** | ✅ Implemented | `performance-analyzer.ts` |
+| **Expectancy** | ✅ Implemented | `performance-analyzer.ts` |
+
+### 10.2 PerformanceAnalyzer Class
+
+```typescript
+// services/shared/backtesting/performance-analyzer.ts
+export class PerformanceAnalyzer {
+  constructor(riskFreeRate: number = 0.05, tradingDaysPerYear: number = 252);
+  addEquityPoint(point: EquityPoint): void;
+  addTrade(trade: TradeRecord): void;
+  analyze(initialCapital: number): PerformanceMetrics;
+  getTradeAnalysis(): TradeAnalysis;
+}
+```
+
+### 10.3 Complete PerformanceMetrics Interface
+
+```typescript
+export interface PerformanceMetrics {
+  // Returns
+  totalReturn: number;
+  totalReturnPercent: number;
+  annualizedReturn: number;
+  cagr: number;
+
+  // Risk-Adjusted Returns
+  sharpeRatio: number;
+  sortinoRatio: number;
+  calmarRatio: number;
+  informationRatio?: number;
+
+  // Drawdown Analysis
+  maxDrawdown: number;
+  maxDrawdownPercent: number;
+  averageDrawdown: number;
+  maxDrawdownDuration: number;
+  averageDrawdownDuration: number;
+
+  // Volatility Metrics
+  volatility: number;
+  annualizedVolatility: number;
+  downsideDeviation: number;
+  skewness: number;
+  kurtosis: number;
+
+  // Trade Statistics
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  profitFactor: number;
+  expectancy: number;
+  payoffRatio: number;
+  averageWin: number;
+  averageLoss: number;
+  largestWin: number;
+  largestLoss: number;
+  averageHoldingPeriod: number;
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+
+  // Metadata
+  riskFreeRate: number;
+  tradingDays: number;
+  startDate: Date;
+  endDate: Date;
+  initialCapital: number;
+  finalEquity: number;
+}
+```
+
+### 10.4 Trade Analysis Breakdown
+
+```typescript
+export interface TradeAnalysis {
+  bySymbol: Map<string, { trades, winRate, totalPnl, avgPnl }>;
+  bySide: {
+    long: { trades, winRate, totalPnl };
+    short: { trades, winRate, totalPnl };
+  };
+  byMonth: Map<string, { trades, pnl, winRate }>;
+  byDayOfWeek: Map<number, { trades, pnl, winRate }>;
+}
+```
+
+### 10.5 Ratio Calculations
+
+**Sharpe Ratio:**
+```typescript
+private calculateSharpe(returns: number[]): number {
+  const dailyRiskFree = this.riskFreeRate / this.tradingDaysPerYear;
+  const excessReturns = returns.map(r => r - dailyRiskFree);
+  const avgExcess = mean(excessReturns);
+  const stdDev = calculateStdDev(excessReturns);
+  return (avgExcess / stdDev) * Math.sqrt(this.tradingDaysPerYear);
+}
+```
+
+**Sortino Ratio:**
+```typescript
+private calculateSortino(returns: number[]): number {
+  const dailyRiskFree = this.riskFreeRate / this.tradingDaysPerYear;
+  const excessReturns = returns.map(r => r - dailyRiskFree);
+  const avgExcess = mean(excessReturns);
+  const downsideDev = calculateDownsideDeviation(returns);
+  return (avgExcess / downsideDev) * Math.sqrt(this.tradingDaysPerYear);
+}
+```
+
+### 10.6 Drawdown Period Identification
+
+The analyzer automatically tracks drawdown periods:
+
+```typescript
+interface DrawdownPeriod {
+  startDate: Date;
+  endDate?: Date;
+  recoveryDate?: Date;
+  peakEquity: number;
+  troughEquity: number;
+  drawdownPercent: number;
+  durationDays: number;
+  recoveryDays?: number;
+}
+```
+
+---
+
+## 11. Enhancements Compared to Previous Version
+
+| Metric | Previous | Current |
+|--------|----------|---------|
+| **Sharpe Ratio** | Not implemented | ✅ Fully implemented with configurable risk-free rate |
+| **Sortino Ratio** | Not implemented | ✅ Downside-only deviation |
+| **Max Drawdown** | Not implemented | ✅ With duration and recovery tracking |
+| **Profit Factor** | Not implemented | ✅ Gross profit / gross loss |
+| **CAGR** | Not implemented | ✅ Annualized compound growth |
+| **Expectancy** | Not implemented | ✅ Average expected P&L per trade |
+| **Trade Analysis** | Basic | ✅ By symbol, side, month, day of week |
+| **Short Positions** | Not supported | ✅ Fully supported in backtesting |
+
+### Key Improvements
+
+1. **Backtesting Engine**: Full event-driven simulation with realistic fills
+2. **Equity Curve Tracking**: Daily equity points with automatic drawdown calculation
+3. **Trade Record System**: Complete trade lifecycle with entry/exit tracking
+4. **Multi-Dimensional Analysis**: Performance breakdown by multiple factors
+5. **Report Generation**: Human-readable metrics summaries
+
+---
+
+## 12. Old vs New - Summary of Changes
+
+### Metrics Implementation Status
+
+| Category | Old (Dec 2024) | New (Dec 2025) |
+|----------|----------------|----------------|
+| P&L Calculations | ✅ Basic | ✅ Enhanced with cost basis |
+| Win Rate | ✅ Implemented | ✅ Unchanged |
+| Portfolio Metrics | ✅ Basic | ✅ Enhanced |
+| Risk Metrics | ❌ Planned | ✅ Fully implemented |
+| Advanced Ratios | ❌ Not started | ✅ Sharpe, Sortino, Calmar |
+| Drawdown Analysis | ❌ Not started | ✅ With period tracking |
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `services/shared/backtesting/performance-analyzer.ts` | Full metrics implementation |
+| `services/shared/backtesting/simulation-engine.ts` | Backtesting engine |
+| `services/shared/analytics/` | Transaction cost analysis |
+
+### API Changes
+
+| Endpoint | Change |
+|----------|--------|
+| `/api/analytics/summary` | Added `totalPnl` field (Dec 2025) |
+| `/api/backtest/run` | New endpoint for backtesting |
+| `/api/backtest/results` | Retrieve backtest results |
+
+### Known Limitations Resolved
+
+| Issue | Status |
+|-------|--------|
+| Historical trade prices = 0 | Fixed for new trades |
+| Short positions | ✅ Now supported in backtesting |
+| Sharpe/Sortino ratios | ✅ Now implemented |
+| Max drawdown | ✅ Now implemented |
+
+### Remaining Limitations
+
+1. **Fees and Commissions:** Configurable in backtesting, not yet in live trading
+2. **Dividends:** Still not tracked
+3. **Currency:** USD only
+4. **Live Advanced Metrics:** Sharpe/Sortino only in backtesting, not real-time
+
+---
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| Dec 2024 | Initial documentation of all financial formulas |
+| Dec 2025 | Added PerformanceAnalyzer with Sharpe, Sortino, drawdown |
+| Dec 2025 | Added trade analysis by symbol, side, month, day |
+| Dec 2025 | Added Current State, Enhancements, Old vs New sections |
+
+---
+
+*Last Updated: December 2025*
+*Version: 2.0.0 (Microservices Migration)*
