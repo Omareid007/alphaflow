@@ -639,5 +639,17 @@ Features:
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Modifying the orchestrator cycle flow or timing
+- Changing state management (in-memory, database, event-sourced)
+- Updating safety mechanisms (kill switch, risk limits)
+- Adding or modifying saga workflows
+- Changing integration points with AI or broker services
+- Updating failure handling or recovery strategies
+
+---
+
 *Last Updated: December 2025*  
 *Version: 2.0.0 (Microservices Migration)*

@@ -764,5 +764,17 @@ interface DrawdownPeriod {
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Modifying P&L calculation formulas in `numeric.ts`
+- Adding new performance metrics (Sharpe, Sortino, drawdown, etc.)
+- Changing how trades are classified (win/loss, side, asset type)
+- Updating the PerformanceAnalyzer or analytics endpoints
+- Adding support for new asset classes or fee structures
+- Fixing calculation bugs that affect displayed values
+
+---
+
 *Last Updated: December 2025*
 *Version: 2.0.0 (Microservices Migration)*

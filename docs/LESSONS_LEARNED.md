@@ -298,16 +298,20 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
   - Added API_REFERENCE.md for centralized REST endpoint list
   - Standardized header format across all docs with canonical reference tables
   - Cross-linked service docs to their canonical sources
+  - Added "When to Update This Document" sections to 8 key docs (maintainability hooks)
+  - Validated all cross-references and links across documentation
 - **Issues/Pitfalls:**
   - Documentation had grown organically without consistent navigation
   - Duplicate information scattered across multiple documents
   - No clear entry point for different reader roles (developers, AI agents, QA, DevOps)
+  - Documents lacked guidance on when they needed updating
 - **Recommendations:**
   - Always start docs with canonical references table
   - Use INDEX.md as the discovery starting point
   - Link to canonical sources instead of duplicating content
   - Apply status labels (Implemented/Partial/Planned) to features
   - Break large documentation tasks into phases: index creation, consolidation, cross-referencing, quality pass
+  - Include "When to Update This Document" section at bottom of each key doc
 
 ---
 
@@ -333,6 +337,7 @@ Add new lessons to the appropriate subsection in **Section 4 (Categorised Lesson
 | 2024-12-11 | Extended Area values template with new categories | Extended governance task |
 | 2025-12-12 | Added lesson on order execution utility consolidation | Code cleanup task |
 | 2025-12-13 | Added lesson on documentation consolidation refactor | Documentation cleanup task |
+| 2025-12-13 | Added "When to Update" sections to 8 key docs, validated links | Documentation refactor Phase E-F |
 
 ---
 

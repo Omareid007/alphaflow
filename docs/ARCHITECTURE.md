@@ -1064,5 +1064,17 @@ Telemetry integration: **16 tests passing**
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding or removing services in the microservices architecture
+- Changing inter-service communication patterns (REST, NATS, etc.)
+- Modifying the database design or adding new tables
+- Updating deployment architecture or infrastructure
+- Adding new external system integrations
+- Changing security architecture or authentication flows
+
+---
+
 *Last Updated: December 2025*  
 *Version: 2.0.0 (Microservices Migration)*

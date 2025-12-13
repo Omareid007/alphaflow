@@ -625,5 +625,17 @@ Priority test suites to implement:
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding new test suites or significantly expanding coverage
+- Changing the test framework or runner configuration
+- Adding new test categories (unit, integration, E2E)
+- Updating test data management practices
+- Documenting new human-executable test scenarios
+- Resolving items from the test debt backlog
+
+---
+
 *Last Updated: December 2025*
 *Version: 2.0.0 (Microservices Migration)*

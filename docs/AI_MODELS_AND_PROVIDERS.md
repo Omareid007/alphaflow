@@ -635,5 +635,17 @@ services/
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding or removing an LLM provider (OpenAI, Groq, Together.ai, etc.)
+- Changing model defaults or routing priorities in `llm-router.ts`
+- Modifying the Data Fusion Engine or enrichment pipeline
+- Updating prompt patterns or decision log formats
+- Adding new environment variables for AI configuration
+- Changing circuit breaker or fallback behavior
+
+---
+
 *Last Updated: December 2025*
 *Version: 2.0.0 (Microservices Migration)*

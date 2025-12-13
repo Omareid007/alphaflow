@@ -424,5 +424,17 @@ Trace context flows automatically via:
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding new log categories or changing log levels
+- Modifying the logging format or structured output
+- Updating OpenTelemetry configuration or span attributes
+- Adding new tracing instrumentation to services
+- Implementing metrics collection (Prometheus, StatsD)
+- Changing correlation ID or context propagation patterns
+
+---
+
 *Last Updated: December 2025*
 *Version: 2.0.0 (Microservices Migration)*

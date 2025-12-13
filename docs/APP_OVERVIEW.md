@@ -1557,5 +1557,17 @@ Comprehensive test suites have been added:
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding major new features or screens to the application
+- Changing the core tech stack or dependencies
+- Modifying the system architecture or deployment approach
+- Updating environment variables or configuration requirements
+- Adding or removing external integrations
+- Resolving known issues or completing planned features
+
+---
+
 *Last updated: December 2025*  
 *Baseline Version: 2.0 (December 2024)*

@@ -576,5 +576,17 @@ catch (e) {
 
 ---
 
+## When to Update This Document
+
+Update this document when:
+- Adding a new external connector (market data, news, broker)
+- Changing API endpoints or authentication methods for existing connectors
+- Modifying rate limiting, caching, or retry strategies
+- Updating connector status (Implemented/Partial/Planned/Deprecated)
+- Adding or modifying adapter patterns or interfaces
+- Changing error handling or fallback behavior for any connector
+
+---
+
 *Last Updated: December 2025*
 *Version: 2.0.0 (Microservices Migration)*
