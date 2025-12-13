@@ -15,3 +15,4 @@ export * from './market-regime';
 export * from './bulkhead';
 export * from './health-sentinel';
 export * from './object-pool';
+export * from './service-base';

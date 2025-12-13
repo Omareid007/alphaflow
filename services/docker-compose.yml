@@ -1,0 +1,195 @@
+# AI Active Trader - Docker Compose for Local Development
+# Run with: docker-compose up -d
+
+version: '3.8'
+
+services:
+  nats:
+    image: nats:latest
+    container_name: aitrader-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["--jetstream", "--http_port", "8222"]
+    healthcheck:
+      test: ["CMD", "nats-server", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: aitrader-postgres
+    environment:
+      POSTGRES_USER: aitrader
+      POSTGRES_PASSWORD: aitrader_dev
+      POSTGRES_DB: aitrader
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aitrader"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+        SERVICE_PORT: 3000
+    container_name: aitrader-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      API_GATEWAY_PORT: 3000
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+      OTEL_ENABLED: "false"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  trading-engine:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: trading-engine
+        SERVICE_PORT: 3001
+    container_name: aitrader-trading-engine
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      TRADING_ENGINE_PORT: 3001
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+      ALPACA_API_KEY: ${ALPACA_API_KEY:-}
+      ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  market-data:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: market-data
+        SERVICE_PORT: 3003
+    container_name: aitrader-market-data
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: development
+      MARKET_DATA_PORT: 3003
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+
+  ai-decision:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: ai-decision
+        SERVICE_PORT: 3002
+    container_name: aitrader-ai-decision
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      AI_DECISION_PORT: 3002
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  analytics:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: analytics
+        SERVICE_PORT: 3004
+    container_name: aitrader-analytics
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      ANALYTICS_PORT: 3004
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE_NAME: orchestrator
+        SERVICE_PORT: 3005
+    container_name: aitrader-orchestrator
+    ports:
+      - "3005:3005"
+    environment:
+      NODE_ENV: development
+      ORCHESTRATOR_PORT: 3005
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+      DATABASE_URL: postgresql://aitrader:aitrader_dev@postgres:5432/aitrader
+      LOG_LEVEL: info
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      trading-engine:
+        condition: service_started
+      market-data:
+        condition: service_started
+      ai-decision:
+        condition: service_started
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: aitrader-network
