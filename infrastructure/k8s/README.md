@@ -115,17 +115,63 @@ Each service has a HorizontalPodAutoscaler configured:
 
 ## Secrets Management
 
-In production, secrets should be managed via HashiCorp Vault with the Vault Agent Injector.
+### Development/Staging
 
-The `secrets.yaml` files use environment variable substitution (`${VAR}`) for templating.
-Replace with Vault annotations for production:
+For development and staging environments, secrets are managed via Kubernetes Secrets with environment variable substitution:
+
+```bash
+# Set secrets as environment variables
+export DATABASE_URL="postgresql://..."
+export ALPACA_API_KEY="..."
+
+# Apply with substitution
+envsubst < infrastructure/k8s/common/secrets.yaml | kubectl apply -f -
+```
+
+### Production (Vault)
+
+In production, secrets are managed via HashiCorp Vault with the Vault Agent Injector. All service manifests include Vault annotations for automatic secret injection:
 
 ```yaml
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "ai-trader"
-  vault.hashicorp.com/agent-inject-secret-db: "secret/data/ai-trader/database"
+  vault.hashicorp.com/agent-inject-secret-database: "secret/data/ai-trader/database"
+  vault.hashicorp.com/agent-inject-template-database: |
+    {{- with secret "secret/data/ai-trader/database" -}}
+    export DATABASE_URL="{{ .Data.data.url }}"
+    {{- end }}
 ```
+
+#### Setting up Vault
+
+1. **Configure Vault Kubernetes Auth**:
+   ```bash
+   cd infrastructure/vault
+   ./kubernetes-auth.sh
+   ```
+
+2. **Create Secrets in Vault**:
+   ```bash
+   export DATABASE_URL="postgresql://..."
+   export ALPACA_API_KEY="..."
+   # ... set all required secrets
+   ./setup-secrets.sh
+   ```
+
+3. **Deploy Services**: Services automatically authenticate and receive secrets via the Vault Agent sidecar.
+
+See `infrastructure/vault/README.md` for detailed Vault setup instructions.
+
+### Secret Paths
+
+| Vault Path | Secrets |
+|------------|---------|
+| `secret/ai-trader/database` | DATABASE_URL |
+| `secret/ai-trader/alpaca` | ALPACA_API_KEY, ALPACA_SECRET_KEY |
+| `secret/ai-trader/llm` | OPENAI_API_KEY, GROQ_API_KEY, etc. |
+| `secret/ai-trader/market-data` | FINNHUB_API_KEY, POLYGON_API_KEY |
+| `secret/ai-trader/session` | SESSION_SECRET |
 
 ## Monitoring
 

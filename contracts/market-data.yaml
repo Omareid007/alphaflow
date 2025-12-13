@@ -1,0 +1,777 @@
+openapi: 3.1.0
+info:
+  title: AI Active Trader - Market Data API
+  description: |
+    Market Data service for real-time and historical market data ingestion.
+    Aggregates data from multiple providers (Finnhub, Polygon, Alpaca, etc.)
+    with intelligent caching and streaming capabilities.
+  version: 1.0.0
+  contact:
+    name: AI Active Trader Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3003
+    description: Local development
+  - url: http://market-data.ai-trader.svc.cluster.local:3003
+    description: Kubernetes internal
+
+tags:
+  - name: Quotes
+    description: Real-time quote data
+  - name: Bars
+    description: Historical OHLCV bar data
+  - name: News
+    description: Financial news
+  - name: Company
+    description: Company information
+  - name: Search
+    description: Symbol search
+  - name: Connectors
+    description: Data connector management
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/quotes/{symbol}:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 10
+
+    get:
+      tags: [Quotes]
+      summary: Get real-time quote
+      operationId: getQuote
+      parameters:
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [finnhub, polygon, alpaca, auto]
+            default: auto
+      responses:
+        '200':
+          description: Quote data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketQuote'
+        '404':
+          description: Symbol not found
+        '503':
+          description: Provider unavailable
+
+  /api/v1/quotes:
+    post:
+      tags: [Quotes]
+      summary: Get quotes for multiple symbols
+      operationId: getBatchQuotes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbols]
+              properties:
+                symbols:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 50
+                provider:
+                  type: string
+                  enum: [finnhub, polygon, alpaca, auto]
+                  default: auto
+      responses:
+        '200':
+          description: Batch quotes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quotes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketQuote'
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        symbol:
+                          type: string
+                        error:
+                          type: string
+
+  /api/v1/bars/{symbol}:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Bars]
+      summary: Get historical bars
+      operationId: getBars
+      parameters:
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M]
+            default: 1d
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 10000
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [finnhub, polygon, alpaca, auto]
+            default: auto
+      responses:
+        '200':
+          description: Bar data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bars:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketBar'
+                  symbol:
+                    type: string
+                  timeframe:
+                    type: string
+                  count:
+                    type: integer
+
+  /api/v1/news:
+    get:
+      tags: [News]
+      summary: Get market news
+      operationId: getNews
+      parameters:
+        - name: symbol
+          in: query
+          schema:
+            type: string
+          description: Filter by symbol (optional)
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [general, business, technology, earnings, merger]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [finnhub, newsapi, gdelt, auto]
+            default: auto
+      responses:
+        '200':
+          description: News articles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  articles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketNews'
+                  total:
+                    type: integer
+
+  /api/v1/company/{symbol}:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Company]
+      summary: Get company profile
+      operationId: getCompanyProfile
+      responses:
+        '200':
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProfile'
+        '404':
+          description: Company not found
+
+  /api/v1/company/{symbol}/financials:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Company]
+      summary: Get company financials
+      operationId: getFinancials
+      parameters:
+        - name: statement
+          in: query
+          schema:
+            type: string
+            enum: [income, balance, cashflow]
+            default: income
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [annual, quarterly]
+            default: quarterly
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 4
+            maximum: 20
+      responses:
+        '200':
+          description: Financial statements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Financials'
+
+  /api/v1/search:
+    get:
+      tags: [Search]
+      summary: Search for symbols
+      operationId: searchSymbols
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [stock, etf, crypto, forex, all]
+            default: all
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SymbolSearchResult'
+
+  /api/v1/technicals/{symbol}:
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Bars]
+      summary: Get technical indicators
+      operationId: getTechnicalIndicators
+      parameters:
+        - name: indicators
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [sma, ema, rsi, macd, bollinger, atr, vwap]
+            default: [sma, rsi, macd]
+        - name: period
+          in: query
+          schema:
+            type: integer
+            default: 14
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 1d]
+            default: 1d
+      responses:
+        '200':
+          description: Technical indicators
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalIndicators'
+
+  /api/v1/connectors:
+    get:
+      tags: [Connectors]
+      summary: List data connectors
+      operationId: listConnectors
+      responses:
+        '200':
+          description: Connector status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connectors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConnectorStatus'
+
+  /api/v1/connectors/{connectorId}/refresh:
+    parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    post:
+      tags: [Connectors]
+      summary: Refresh connector cache
+      operationId: refreshConnector
+      responses:
+        '200':
+          description: Cache refreshed
+        '404':
+          description: Connector not found
+
+  /api/v1/streaming/subscribe:
+    post:
+      tags: [Quotes]
+      summary: Subscribe to real-time updates
+      operationId: subscribe
+      description: |
+        Subscribe to real-time market data updates via WebSocket.
+        Returns a subscription ID to use for the WebSocket connection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbols]
+              properties:
+                symbols:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 100
+                dataTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [quotes, trades, bars]
+                  default: [quotes]
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptionId:
+                    type: string
+                  wsUrl:
+                    type: string
+                    format: uri
+
+  /api/v1/streaming/unsubscribe:
+    post:
+      tags: [Quotes]
+      summary: Unsubscribe from updates
+      operationId: unsubscribe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscriptionId]
+              properties:
+                subscriptionId:
+                  type: string
+      responses:
+        '200':
+          description: Unsubscribed
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        connectors:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    MarketQuote:
+      type: object
+      required: [symbol, currentPrice, timestamp]
+      properties:
+        symbol:
+          type: string
+        currentPrice:
+          type: number
+        bidPrice:
+          type: number
+        askPrice:
+          type: number
+        bidSize:
+          type: number
+        askSize:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        open:
+          type: number
+        previousClose:
+          type: number
+        volume:
+          type: number
+        change:
+          type: number
+        changePercent:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [finnhub, polygon, alpaca, twelvedata]
+
+    MarketBar:
+      type: object
+      required: [symbol, open, high, low, close, volume, timestamp]
+      properties:
+        symbol:
+          type: string
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: number
+        vwap:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M]
+        source:
+          type: string
+
+    MarketNews:
+      type: object
+      properties:
+        id:
+          type: string
+        headline:
+          type: string
+        summary:
+          type: string
+        source:
+          type: string
+        url:
+          type: string
+          format: uri
+        image:
+          type: string
+          format: uri
+        category:
+          type: string
+        relatedSymbols:
+          type: array
+          items:
+            type: string
+        sentiment:
+          type: number
+          minimum: -1
+          maximum: 1
+        publishedAt:
+          type: string
+          format: date-time
+        provider:
+          type: string
+
+    CompanyProfile:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        exchange:
+          type: string
+        industry:
+          type: string
+        sector:
+          type: string
+        country:
+          type: string
+        currency:
+          type: string
+        marketCap:
+          type: number
+        shareOutstanding:
+          type: number
+        ipo:
+          type: string
+          format: date
+        logo:
+          type: string
+          format: uri
+        weburl:
+          type: string
+          format: uri
+        phone:
+          type: string
+        description:
+          type: string
+        employees:
+          type: integer
+
+    Financials:
+      type: object
+      properties:
+        symbol:
+          type: string
+        statement:
+          type: string
+          enum: [income, balance, cashflow]
+        period:
+          type: string
+          enum: [annual, quarterly]
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    SymbolSearchResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [stock, etf, crypto, forex, index]
+        exchange:
+          type: string
+        currency:
+          type: string
+
+    TechnicalIndicators:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        calculatedAt:
+          type: string
+          format: date-time
+        indicators:
+          type: object
+          properties:
+            sma:
+              type: object
+              properties:
+                value:
+                  type: number
+                period:
+                  type: integer
+            ema:
+              type: object
+              properties:
+                value:
+                  type: number
+                period:
+                  type: integer
+            rsi:
+              type: object
+              properties:
+                value:
+                  type: number
+                period:
+                  type: integer
+                signal:
+                  type: string
+                  enum: [oversold, neutral, overbought]
+            macd:
+              type: object
+              properties:
+                macd:
+                  type: number
+                signal:
+                  type: number
+                histogram:
+                  type: number
+            bollinger:
+              type: object
+              properties:
+                upper:
+                  type: number
+                middle:
+                  type: number
+                lower:
+                  type: number
+            atr:
+              type: object
+              properties:
+                value:
+                  type: number
+                period:
+                  type: integer
+            vwap:
+              type: object
+              properties:
+                value:
+                  type: number
+
+    ConnectorStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [finnhub, polygon, alpaca, twelvedata, newsapi, gdelt, coingecko]
+        available:
+          type: boolean
+        rateLimitRemaining:
+          type: integer
+        rateLimitReset:
+          type: string
+          format: date-time
+        cacheStats:
+          type: object
+          properties:
+            quotes:
+              type: integer
+            bars:
+              type: integer
+            news:
+              type: integer
+        lastError:
+          type: string
+        lastSuccessAt:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

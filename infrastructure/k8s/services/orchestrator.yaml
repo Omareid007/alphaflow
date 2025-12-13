@@ -6,15 +6,15 @@ metadata:
   labels:
     app: orchestrator
     app.kubernetes.io/name: orchestrator
-    app.kubernetes.io/component: orchestration
+    app.kubernetes.io/component: backend
     environment: ${ENVIRONMENT}
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: orchestrator
-  strategy:
-    type: Recreate
   template:
     metadata:
       labels:
@@ -23,12 +23,26 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9005"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "ai-trader"
+        vault.hashicorp.com/agent-inject-secret-database: "secret/data/ai-trader/database"
+        vault.hashicorp.com/agent-inject-template-database: |
+          {{- with secret "secret/data/ai-trader/database" -}}
+          export DATABASE_URL="{{ .Data.data.url }}"
+          {{- end }}
     spec:
       serviceAccountName: ai-trader-service
       containers:
         - name: orchestrator
           image: ghcr.io/${GITHUB_REPOSITORY}/orchestrator:${IMAGE_TAG}
           imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              if [ -f /vault/secrets/database ]; then
+                source /vault/secrets/database
+              fi
+              exec node dist/index.js
           ports:
             - containerPort: 3005
               name: http
@@ -41,21 +55,12 @@ spec:
               value: "3005"
             - name: NATS_URL
               value: nats://nats-lb.ai-trader.svc.cluster.local:4222
-            - name: NATS_ENABLED
-              value: "true"
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: database-url
-                  key: url
-            - name: TRADING_ENGINE_URL
-              value: http://trading-engine.ai-trader.svc.cluster.local:3001
-            - name: AI_DECISION_URL
-              value: http://ai-decision.ai-trader.svc.cluster.local:3002
-            - name: MARKET_DATA_URL
-              value: http://market-data.ai-trader.svc.cluster.local:3003
-            - name: ANALYTICS_URL
-              value: http://analytics.ai-trader.svc.cluster.local:3004
+            - name: VAULT_ADDR
+              value: http://vault.vault.svc.cluster.local:8200
+            - name: VAULT_ROLE
+              value: ai-trader
+            - name: VAULT_SECRETS_PATH
+              value: /vault/secrets
             - name: LOG_LEVEL
               value: info
             - name: OTEL_ENABLED
@@ -75,6 +80,7 @@ spec:
               port: 3005
             initialDelaySeconds: 10
             periodSeconds: 15
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health/ready

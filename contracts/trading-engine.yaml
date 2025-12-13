@@ -1,0 +1,701 @@
+openapi: 3.1.0
+info:
+  title: AI Active Trader - Trading Engine API
+  description: |
+    Trading Engine service for order execution, position management, and risk controls.
+    Integrates with Alpaca brokerage for paper and live trading.
+  version: 1.0.0
+  contact:
+    name: AI Active Trader Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: http://trading-engine.ai-trader.svc.cluster.local:3001
+    description: Kubernetes internal
+
+tags:
+  - name: Orders
+    description: Order placement and management
+  - name: Positions
+    description: Position tracking and management
+  - name: Risk
+    description: Risk management and controls
+  - name: Portfolio
+    description: Portfolio information and rebalancing
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      summary: List orders
+      operationId: listOrders
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, submitted, filled, partially_filled, cancelled, rejected]
+        - name: symbol
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  total:
+                    type: integer
+
+    post:
+      tags: [Orders]
+      summary: Submit a new order
+      operationId: submitOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201':
+          description: Order submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          description: Invalid order request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Risk check failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskCheckFailure'
+
+    delete:
+      tags: [Orders]
+      summary: Cancel all open orders
+      operationId: cancelAllOrders
+      responses:
+        '200':
+          description: All orders cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cancelledCount:
+                    type: integer
+
+  /api/v1/orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Orders]
+      summary: Get order details
+      operationId: getOrder
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+
+    delete:
+      tags: [Orders]
+      summary: Cancel an order
+      operationId: cancelOrder
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+        '409':
+          description: Order cannot be cancelled (already filled/cancelled)
+
+  /api/v1/positions:
+    get:
+      tags: [Positions]
+      summary: List open positions
+      operationId: listPositions
+      parameters:
+        - name: symbol
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of positions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  positions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Position'
+
+    post:
+      tags: [Positions]
+      summary: Create a position manually
+      operationId: createPosition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PositionRequest'
+      responses:
+        '201':
+          description: Position created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+
+  /api/v1/positions/{positionId}:
+    parameters:
+      - name: positionId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Positions]
+      summary: Get position details
+      operationId: getPosition
+      responses:
+        '200':
+          description: Position details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+        '404':
+          description: Position not found
+
+    patch:
+      tags: [Positions]
+      summary: Update position
+      operationId: updatePosition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PositionUpdate'
+      responses:
+        '200':
+          description: Position updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+
+    delete:
+      tags: [Positions]
+      summary: Delete position
+      operationId: deletePosition
+      responses:
+        '204':
+          description: Position deleted
+
+  /api/v1/positions/{positionId}/close:
+    parameters:
+      - name: positionId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    post:
+      tags: [Positions]
+      summary: Close a position
+      operationId: closePosition
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                exitPrice:
+                  type: number
+                  description: Optional exit price (uses market price if not provided)
+      responses:
+        '200':
+          description: Position closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  realizedPnl:
+                    type: number
+
+  /api/v1/positions/close-all:
+    post:
+      tags: [Positions]
+      summary: Close all open positions
+      operationId: closeAllPositions
+      responses:
+        '200':
+          description: All positions closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  closedCount:
+                    type: integer
+                  totalRealizedPnl:
+                    type: number
+
+  /api/v1/risk/limits:
+    get:
+      tags: [Risk]
+      summary: Get current risk limits
+      operationId: getRiskLimits
+      responses:
+        '200':
+          description: Risk limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskLimits'
+
+    put:
+      tags: [Risk]
+      summary: Update risk limits
+      operationId: updateRiskLimits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskLimits'
+      responses:
+        '200':
+          description: Risk limits updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskLimits'
+
+  /api/v1/risk/check:
+    post:
+      tags: [Risk]
+      summary: Pre-trade risk check
+      operationId: checkRisk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '200':
+          description: Risk check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskCheckResult'
+
+  /api/v1/portfolio/account:
+    get:
+      tags: [Portfolio]
+      summary: Get account information
+      operationId: getAccount
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountInfo'
+
+  /api/v1/portfolio/history:
+    get:
+      tags: [Portfolio]
+      summary: Get portfolio history
+      operationId: getPortfolioHistory
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [1D, 1W, 1M, 3M, 1Y, all]
+            default: 1M
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1Min, 5Min, 15Min, 1H, 1D]
+            default: 1D
+      responses:
+        '200':
+          description: Portfolio history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioHistory'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              latency:
+                type: number
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
+    Order:
+      type: object
+      required: [orderId, symbol, side, quantity, orderType, status]
+      properties:
+        orderId:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+        orderType:
+          type: string
+          enum: [market, limit, stop, stop_limit, trailing_stop]
+        limitPrice:
+          type: number
+        stopPrice:
+          type: number
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        timeInForce:
+          type: string
+          enum: [day, gtc, ioc, fok]
+          default: day
+        status:
+          type: string
+          enum: [pending, submitted, filled, partially_filled, cancelled, rejected, expired]
+        filledQuantity:
+          type: number
+        filledPrice:
+          type: number
+        decisionId:
+          type: string
+        strategyId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderRequest:
+      type: object
+      required: [symbol, side, quantity, orderType]
+      properties:
+        symbol:
+          type: string
+          minLength: 1
+          maxLength: 10
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+          minimum: 0.0001
+        orderType:
+          type: string
+          enum: [market, limit, stop, stop_limit, trailing_stop]
+        limitPrice:
+          type: number
+          minimum: 0
+        stopPrice:
+          type: number
+          minimum: 0
+        stopLoss:
+          type: number
+          minimum: 0
+        takeProfit:
+          type: number
+          minimum: 0
+        timeInForce:
+          type: string
+          enum: [day, gtc, ioc, fok]
+          default: day
+        decisionId:
+          type: string
+        strategyId:
+          type: string
+        extendedHours:
+          type: boolean
+          default: false
+
+    OrderResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orderId:
+          type: string
+        order:
+          $ref: '#/components/schemas/Order'
+        error:
+          type: string
+
+    Position:
+      type: object
+      required: [positionId, symbol, side, quantity, entryPrice]
+      properties:
+        positionId:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        quantity:
+          type: number
+        entryPrice:
+          type: number
+        currentPrice:
+          type: number
+        marketValue:
+          type: number
+        costBasis:
+          type: number
+        unrealizedPnl:
+          type: number
+        unrealizedPnlPercent:
+          type: number
+        openedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PositionRequest:
+      type: object
+      required: [symbol, side, quantity, entryPrice]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        quantity:
+          type: number
+        entryPrice:
+          type: number
+
+    PositionUpdate:
+      type: object
+      properties:
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        notes:
+          type: string
+
+    RiskLimits:
+      type: object
+      properties:
+        maxPositionSizePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          default: 10
+        maxTotalExposurePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          default: 80
+        maxPositionsCount:
+          type: integer
+          minimum: 1
+          default: 20
+        dailyLossLimitPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          default: 5
+
+    RiskCheckResult:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type: string
+        riskScore:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    RiskCheckFailure:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          const: false
+        reason:
+          type: string
+        violatedLimit:
+          type: string
+
+    AccountInfo:
+      type: object
+      properties:
+        accountId:
+          type: string
+        status:
+          type: string
+        cash:
+          type: number
+        buyingPower:
+          type: number
+        portfolioValue:
+          type: number
+        equity:
+          type: number
+        lastEquity:
+          type: number
+        daytradeCount:
+          type: integer
+        patternDayTrader:
+          type: boolean
+
+    PortfolioHistory:
+      type: object
+      properties:
+        timestamps:
+          type: array
+          items:
+            type: string
+            format: date-time
+        equity:
+          type: array
+          items:
+            type: number
+        profitLoss:
+          type: array
+          items:
+            type: number
+        profitLossPct:
+          type: array
+          items:
+            type: number
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

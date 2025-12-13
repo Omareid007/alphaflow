@@ -1,0 +1,747 @@
+openapi: 3.1.0
+info:
+  title: AI Active Trader - AI Decision API
+  description: |
+    AI Decision service for generating trading decisions using LLM analysis.
+    Routes requests to multiple LLM providers (OpenAI, Groq, Together.ai, etc.)
+    and provides explainable trading recommendations.
+  version: 1.0.0
+  contact:
+    name: AI Active Trader Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3002
+    description: Local development
+  - url: http://ai-decision.ai-trader.svc.cluster.local:3002
+    description: Kubernetes internal
+
+tags:
+  - name: Decisions
+    description: AI trading decision generation
+  - name: Analysis
+    description: Market analysis endpoints
+  - name: Prompts
+    description: Prompt template management
+  - name: Models
+    description: LLM model management
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/decisions:
+    get:
+      tags: [Decisions]
+      summary: List recent AI decisions
+      operationId: listDecisions
+      parameters:
+        - name: symbol
+          in: query
+          schema:
+            type: string
+        - name: strategyId
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [buy, sell, hold]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of AI decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIDecision'
+                  total:
+                    type: integer
+
+    post:
+      tags: [Decisions]
+      summary: Generate a new AI trading decision
+      operationId: generateDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '200':
+          description: AI decision generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIDecision'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: LLM service unavailable
+
+  /api/v1/decisions/{decisionId}:
+    parameters:
+      - name: decisionId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Decisions]
+      summary: Get decision details
+      operationId: getDecision
+      responses:
+        '200':
+          description: Decision details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIDecision'
+        '404':
+          description: Decision not found
+
+  /api/v1/decisions/{decisionId}/feedback:
+    parameters:
+      - name: decisionId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    post:
+      tags: [Decisions]
+      summary: Provide feedback on a decision
+      operationId: provideFeedback
+      description: Submit outcome feedback to improve future decisions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionFeedback'
+      responses:
+        '200':
+          description: Feedback recorded
+        '404':
+          description: Decision not found
+
+  /api/v1/analysis/sentiment:
+    post:
+      tags: [Analysis]
+      summary: Analyze sentiment for a symbol
+      operationId: analyzeSentiment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol]
+              properties:
+                symbol:
+                  type: string
+                sources:
+                  type: array
+                  items:
+                    type: string
+                    enum: [news, social, technical]
+                  default: [news, social, technical]
+      responses:
+        '200':
+          description: Sentiment analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentAnalysis'
+
+  /api/v1/analysis/market-regime:
+    get:
+      tags: [Analysis]
+      summary: Get current market regime
+      operationId: getMarketRegime
+      responses:
+        '200':
+          description: Market regime analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketRegime'
+
+  /api/v1/analysis/opportunity:
+    post:
+      tags: [Analysis]
+      summary: Analyze a trading opportunity
+      operationId: analyzeOpportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpportunityRequest'
+      responses:
+        '200':
+          description: Opportunity analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpportunityAnalysis'
+
+  /api/v1/prompts:
+    get:
+      tags: [Prompts]
+      summary: List available prompt templates
+      operationId: listPrompts
+      responses:
+        '200':
+          description: List of prompts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prompts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PromptTemplate'
+
+    post:
+      tags: [Prompts]
+      summary: Create a new prompt template
+      operationId: createPrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptTemplateCreate'
+      responses:
+        '201':
+          description: Prompt created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+
+  /api/v1/prompts/{promptId}:
+    parameters:
+      - name: promptId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Prompts]
+      summary: Get prompt template
+      operationId: getPrompt
+      responses:
+        '200':
+          description: Prompt template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+
+    put:
+      tags: [Prompts]
+      summary: Update prompt template
+      operationId: updatePrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptTemplateCreate'
+      responses:
+        '200':
+          description: Prompt updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+
+    delete:
+      tags: [Prompts]
+      summary: Delete prompt template
+      operationId: deletePrompt
+      responses:
+        '204':
+          description: Prompt deleted
+
+  /api/v1/models:
+    get:
+      tags: [Models]
+      summary: List available LLM models
+      operationId: listModels
+      responses:
+        '200':
+          description: Available models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LLMModel'
+
+  /api/v1/models/status:
+    get:
+      tags: [Models]
+      summary: Get LLM provider status
+      operationId: getModelStatus
+      responses:
+        '200':
+          description: Provider status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderStatus'
+
+  /api/v1/doc-assistant:
+    post:
+      tags: [Analysis]
+      summary: Ask the documentation assistant
+      operationId: askDocAssistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Documentation answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocAssistantResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+
+    AIDecision:
+      type: object
+      required: [decisionId, symbol, action, confidence]
+      properties:
+        decisionId:
+          type: string
+        symbol:
+          type: string
+        action:
+          type: string
+          enum: [buy, sell, hold]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        reasoning:
+          type: array
+          items:
+            type: string
+        alternatives:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                enum: [buy, sell, hold]
+              confidence:
+                type: number
+        targetPrice:
+          type: number
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        positionSize:
+          type: number
+          description: Recommended position size as percentage
+        timeHorizon:
+          type: string
+          enum: [intraday, swing, position]
+        riskReward:
+          type: number
+        dataQuality:
+          type: number
+          minimum: 0
+          maximum: 1
+        modelUsed:
+          type: string
+        tokensUsed:
+          type: integer
+        latencyMs:
+          type: integer
+        strategyId:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    DecisionRequest:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+        strategyId:
+          type: string
+        analysisType:
+          type: string
+          enum: [full, quick, sentiment]
+          default: full
+        priority:
+          type: string
+          enum: [high, normal, low]
+          default: normal
+        maxLatencyMs:
+          type: integer
+          description: Maximum acceptable latency
+        preferredModel:
+          type: string
+        includeNews:
+          type: boolean
+          default: true
+        includeTechnicals:
+          type: boolean
+          default: true
+        includeSentiment:
+          type: boolean
+          default: true
+        additionalContext:
+          type: string
+          maxLength: 2000
+
+    DecisionFeedback:
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [profitable, loss, neutral]
+        realizedPnl:
+          type: number
+        realizedPnlPercent:
+          type: number
+        holdingPeriod:
+          type: integer
+          description: Duration in minutes
+        notes:
+          type: string
+
+    SentimentAnalysis:
+      type: object
+      properties:
+        symbol:
+          type: string
+        overallSentiment:
+          type: number
+          minimum: -1
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        sources:
+          type: object
+          properties:
+            news:
+              $ref: '#/components/schemas/SourceSentiment'
+            social:
+              $ref: '#/components/schemas/SourceSentiment'
+            technical:
+              $ref: '#/components/schemas/SourceSentiment'
+        trending:
+          type: boolean
+        volumeAnomaly:
+          type: boolean
+        analyzedAt:
+          type: string
+          format: date-time
+
+    SourceSentiment:
+      type: object
+      properties:
+        score:
+          type: number
+          minimum: -1
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        sampleSize:
+          type: integer
+        topKeywords:
+          type: array
+          items:
+            type: string
+
+    MarketRegime:
+      type: object
+      properties:
+        regime:
+          type: string
+          enum: [bull, bear, sideways, volatile, crisis]
+        confidence:
+          type: number
+        volatilityLevel:
+          type: string
+          enum: [low, normal, high, extreme]
+        trendStrength:
+          type: number
+          minimum: 0
+          maximum: 1
+        riskAppetite:
+          type: string
+          enum: [risk_on, neutral, risk_off]
+        sectorRotation:
+          type: array
+          items:
+            type: object
+            properties:
+              sector:
+                type: string
+              momentum:
+                type: number
+        detectedAt:
+          type: string
+          format: date-time
+
+    OpportunityRequest:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+        currentPrice:
+          type: number
+        historicalBars:
+          type: array
+          items:
+            type: object
+        newsArticles:
+          type: array
+          items:
+            type: object
+        companyProfile:
+          type: object
+
+    OpportunityAnalysis:
+      type: object
+      properties:
+        symbol:
+          type: string
+        opportunityScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        recommendation:
+          type: string
+          enum: [strong_buy, buy, hold, sell, strong_sell]
+        keyFactors:
+          type: array
+          items:
+            type: object
+            properties:
+              factor:
+                type: string
+              impact:
+                type: string
+                enum: [positive, negative, neutral]
+              weight:
+                type: number
+        technicalSignals:
+          type: object
+        fundamentalSignals:
+          type: object
+        sentimentSignals:
+          type: object
+
+    PromptTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        template:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PromptTemplateCreate:
+      type: object
+      required: [name, category, template]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        template:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
+
+    LLMModel:
+      type: object
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          enum: [openai, groq, together, anthropic, openrouter]
+        name:
+          type: string
+        contextWindow:
+          type: integer
+        maxOutputTokens:
+          type: integer
+        costPer1kTokens:
+          type: number
+        capabilities:
+          type: array
+          items:
+            type: string
+
+    ProviderStatus:
+      type: object
+      properties:
+        provider:
+          type: string
+        available:
+          type: boolean
+        latencyMs:
+          type: integer
+        rateLimitRemaining:
+          type: integer
+        lastError:
+          type: string
+        lastCheckedAt:
+          type: string
+          format: date-time
+
+    DocAssistantResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        references:
+          type: array
+          items:
+            type: string
+        toolsUsed:
+          type: array
+          items:
+            type: string
+        tokensUsed:
+          type: integer
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

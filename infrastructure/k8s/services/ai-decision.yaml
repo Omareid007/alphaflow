@@ -6,7 +6,7 @@ metadata:
   labels:
     app: ai-decision
     app.kubernetes.io/name: ai-decision
-    app.kubernetes.io/component: ai
+    app.kubernetes.io/component: backend
     environment: ${ENVIRONMENT}
 spec:
   replicas: 2
@@ -21,12 +21,37 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9002"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "ai-trader"
+        vault.hashicorp.com/agent-inject-secret-database: "secret/data/ai-trader/database"
+        vault.hashicorp.com/agent-inject-template-database: |
+          {{- with secret "secret/data/ai-trader/database" -}}
+          export DATABASE_URL="{{ .Data.data.url }}"
+          {{- end }}
+        vault.hashicorp.com/agent-inject-secret-llm: "secret/data/ai-trader/llm"
+        vault.hashicorp.com/agent-inject-template-llm: |
+          {{- with secret "secret/data/ai-trader/llm" -}}
+          export OPENAI_API_KEY="{{ .Data.data.openai_api_key }}"
+          export GROQ_API_KEY="{{ .Data.data.groq_api_key }}"
+          export TOGETHER_API_KEY="{{ .Data.data.together_api_key }}"
+          export ANTHROPIC_API_KEY="{{ .Data.data.anthropic_api_key }}"
+          {{- end }}
     spec:
       serviceAccountName: ai-trader-service
       containers:
         - name: ai-decision
           image: ghcr.io/${GITHUB_REPOSITORY}/ai-decision:${IMAGE_TAG}
           imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              if [ -f /vault/secrets/database ]; then
+                source /vault/secrets/database
+              fi
+              if [ -f /vault/secrets/llm ]; then
+                source /vault/secrets/llm
+              fi
+              exec node dist/index.js
           ports:
             - containerPort: 3002
               name: http
@@ -39,28 +64,12 @@ spec:
               value: "3002"
             - name: NATS_URL
               value: nats://nats-lb.ai-trader.svc.cluster.local:4222
-            - name: NATS_ENABLED
-              value: "true"
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: database-url
-                  key: url
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-credentials
-                  key: openai-api-key
-            - name: GROQ_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-credentials
-                  key: groq-api-key
-            - name: TOGETHER_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-credentials
-                  key: together-api-key
+            - name: VAULT_ADDR
+              value: http://vault.vault.svc.cluster.local:8200
+            - name: VAULT_ROLE
+              value: ai-trader
+            - name: VAULT_SECRETS_PATH
+              value: /vault/secrets
             - name: LOG_LEVEL
               value: info
             - name: OTEL_ENABLED
@@ -80,6 +89,7 @@ spec:
               port: 3002
             initialDelaySeconds: 10
             periodSeconds: 15
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -132,3 +142,14 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-decision-pdb
+  namespace: ai-trader
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-decision
