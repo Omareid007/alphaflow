@@ -68,6 +68,24 @@ The platform includes a comprehensive algorithm framework inspired by LEAN, Naut
 - **Events** (`events/`):
   - Event Sourcing & Journaling for audit trail and replay
 
+- **Feature Flags** (`common/feature-flags.ts`):
+  - Strangler fig pattern for traffic splitting between monolith and microservices
+  - Rollout percentage control (0-100%)
+  - User whitelist/blacklist for beta testing
+  - Gradual rollout schedule generation
+  - Metrics tracking for routing decisions
+
+### Microservices Migration Progress (December 2025)
+**Completed:**
+- Phase 0: NATS JetStream integration (9 tests), OpenTelemetry wiring (16 tests)
+- Phase 1: Service templates, API Gateway, per-service database schemas
+- Phase 2: Dual-write repositories (11 tests), Market Data extraction, Trading Engine persistence (13 tests), Feature flag routing (23 tests)
+
+**Remaining:**
+- AI Decision, Analytics, and Orchestrator service extraction
+- CI/CD pipelines for Kubernetes deployment
+- Vault secrets management integration
+
 ### UI/UX Decisions
 - **Framework**: React Native with Expo SDK 54, React Navigation v7, TanStack Query.
 - **Styling**: Custom themed components supporting dark/light mode, Reanimated 4 for animations, BrandColors palette, and elevation-based cards.
