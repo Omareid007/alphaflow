@@ -33,6 +33,41 @@ The platform is transitioning to an event-driven microservices architecture comp
 - **Observability**: OpenTelemetry for distributed tracing and performance metrics.
 - **Fault Isolation**: Circuit breakers to enhance system resilience.
 
+### Algorithm Framework & Shared Libraries (`services/shared/`)
+The platform includes a comprehensive algorithm framework inspired by LEAN, NautilusTrader, and Freqtrade:
+
+- **Algorithm Framework** (`algorithm-framework/`): Core trading algorithm base class with portfolio management, risk management, and order execution.
+  - **Portfolio Construction**: Black-Litterman model, Factor-based allocation, Risk Parity, Hierarchical Risk Parity (HRP), Constrained Optimizer.
+
+- **Backtesting Engine** (`backtesting/`): Event-driven simulation engine with:
+  - Factory pattern for isolated algorithm instances (`runWithFactory`)
+  - Realistic fill, slippage, and commission models
+  - Performance analytics (Sharpe, Sortino, max drawdown, win rate)
+  - Prorated partial exit handling for accurate cost tracking
+
+- **Analytics** (`analytics/`): Transaction Cost Analysis (TCA) including:
+  - Implementation shortfall, market impact, timing cost, spread cost
+  - Execution quality scoring (A-F grades)
+  - Broker comparison and fee structure analysis
+
+- **Data Processing** (`data/`):
+  - Order Book Depth Analyzer (Level 2 data, liquidity estimation, imbalance detection)
+  - Market Regime Detection (HMM, BOCD for trend/volatility regimes)
+  - Multi-Source Sentiment Fusion (news, social, technical indicators)
+  - Technical Indicators Library (SMA, EMA, RSI, MACD, Bollinger, ATR, etc.)
+
+- **Strategies** (`strategies/`):
+  - Strategy Versioning with A/B testing, rollback, semantic versioning, branching
+  - Alpha Decay Modeling (signal half-life estimation, optimal holding periods)
+  - LLM Trading Governance (pre-trade validation, position limits, cooldowns)
+
+- **Common Utilities** (`common/`):
+  - Self-Healing Orchestrator with exponential backoff and circuit breakers
+  - Structured logging with context propagation
+
+- **Events** (`events/`):
+  - Event Sourcing & Journaling for audit trail and replay
+
 ### UI/UX Decisions
 - **Framework**: React Native with Expo SDK 54, React Navigation v7, TanStack Query.
 - **Styling**: Custom themed components supporting dark/light mode, Reanimated 4 for animations, BrandColors palette, and elevation-based cards.
