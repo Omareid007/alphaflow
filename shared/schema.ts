@@ -373,3 +373,76 @@ export type LlmRoleConfig = typeof llmRoleConfigs.$inferSelect;
 
 export type InsertLlmCall = z.infer<typeof insertLlmCallSchema>;
 export type LlmCall = typeof llmCalls.$inferSelect;
+
+export const workItemTypes = [
+  "ORDER_SUBMIT",
+  "ORDER_CANCEL",
+  "ORDER_SYNC",
+  "POSITION_CLOSE",
+  "KILL_SWITCH",
+  "DECISION_EVALUATION",
+] as const;
+
+export type WorkItemType = typeof workItemTypes[number];
+
+export const workItemStatuses = [
+  "PENDING",
+  "RUNNING",
+  "SUCCEEDED",
+  "FAILED",
+  "DEAD_LETTER",
+] as const;
+
+export type WorkItemStatus = typeof workItemStatuses[number];
+
+export const workItems = pgTable("work_items", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  type: text("type").notNull(),
+  status: text("status").default("PENDING").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  maxAttempts: integer("max_attempts").default(3).notNull(),
+  nextRunAt: timestamp("next_run_at").defaultNow().notNull(),
+  lastError: text("last_error"),
+  payload: text("payload"),
+  idempotencyKey: text("idempotency_key").unique(),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id),
+  brokerOrderId: text("broker_order_id"),
+  symbol: text("symbol"),
+  result: text("result"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const workItemRuns = pgTable("work_item_runs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workItemId: varchar("work_item_id").references(() => workItems.id).notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  status: text("status").default("RUNNING").notNull(),
+  error: text("error"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkItemSchema = createInsertSchema(workItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  attempts: true,
+});
+
+export const insertWorkItemRunSchema = createInsertSchema(workItemRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWorkItem = z.infer<typeof insertWorkItemSchema>;
+export type WorkItem = typeof workItems.$inferSelect;
+
+export type InsertWorkItemRun = z.infer<typeof insertWorkItemRunSchema>;
+export type WorkItemRun = typeof workItemRuns.$inferSelect;

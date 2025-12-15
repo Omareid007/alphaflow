@@ -3885,6 +3885,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/work-items", authMiddleware, async (req, res) => {
+    try {
+      const { status, type, limit } = req.query;
+      const limitNum = parseInt(limit as string) || 50;
+      const items = await storage.getWorkItems(limitNum, status as any);
+      
+      const filteredItems = type 
+        ? items.filter(i => i.type === type)
+        : items;
+
+      const counts = {
+        PENDING: await storage.getWorkItemCount("PENDING"),
+        RUNNING: await storage.getWorkItemCount("RUNNING"),
+        SUCCEEDED: await storage.getWorkItemCount("SUCCEEDED"),
+        FAILED: await storage.getWorkItemCount("FAILED"),
+        DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER"),
+      };
+
+      res.json({
+        items: filteredItems,
+        counts,
+        total: items.length,
+      });
+    } catch (error) {
+      console.error("Failed to get work items:", error);
+      res.status(500).json({ error: "Failed to get work items" });
+    }
+  });
+
+  app.post("/api/admin/work-items/retry", authMiddleware, async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Work item ID required" });
+      }
+
+      const item = await storage.getWorkItem(id);
+      if (!item) {
+        return res.status(404).json({ error: "Work item not found" });
+      }
+
+      if (item.status !== "DEAD_LETTER" && item.status !== "FAILED") {
+        return res.status(400).json({ error: "Can only retry DEAD_LETTER or FAILED items" });
+      }
+
+      await storage.updateWorkItem(id, {
+        status: "PENDING",
+        attempts: 0,
+        nextRunAt: new Date(),
+        lastError: null,
+      });
+
+      res.json({ success: true, message: "Work item queued for retry" });
+    } catch (error) {
+      console.error("Failed to retry work item:", error);
+      res.status(500).json({ error: "Failed to retry work item" });
+    }
+  });
+
+  app.post("/api/admin/work-items/dead-letter", authMiddleware, async (req, res) => {
+    try {
+      const { id, reason } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Work item ID required" });
+      }
+
+      const item = await storage.getWorkItem(id);
+      if (!item) {
+        return res.status(404).json({ error: "Work item not found" });
+      }
+
+      await storage.updateWorkItem(id, {
+        status: "DEAD_LETTER",
+        lastError: reason || "Manually moved to dead letter",
+      });
+
+      res.json({ success: true, message: "Work item moved to dead letter" });
+    } catch (error) {
+      console.error("Failed to dead-letter work item:", error);
+      res.status(500).json({ error: "Failed to dead-letter work item" });
+    }
+  });
+
+  app.get("/api/admin/orchestrator-health", authMiddleware, async (req, res) => {
+    try {
+      const agentStatusData = await storage.getAgentStatus();
+      const counts = {
+        PENDING: await storage.getWorkItemCount("PENDING"),
+        RUNNING: await storage.getWorkItemCount("RUNNING"),
+        FAILED: await storage.getWorkItemCount("FAILED"),
+        DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER"),
+      };
+
+      const recentErrors = await storage.getWorkItems(5, "FAILED");
+      
+      res.json({
+        isRunning: agentStatusData?.isRunning || false,
+        killSwitchActive: agentStatusData?.killSwitchActive || false,
+        lastHeartbeat: agentStatusData?.lastHeartbeat || null,
+        queueDepth: counts,
+        totalPending: counts.PENDING + counts.RUNNING,
+        recentErrors: recentErrors.map(e => ({
+          id: e.id,
+          type: e.type,
+          symbol: e.symbol,
+          error: e.lastError,
+          createdAt: e.createdAt,
+        })),
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get orchestrator health:", error);
+      res.status(500).json({ error: "Failed to get orchestrator health" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

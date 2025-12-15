@@ -1,0 +1,136 @@
+You are Replit Agent working inside the AI Active Trader repo.
+
+GOAL (Task #4):
+Make the orchestrator production-grade:
+- idempotent (no duplicate orders)
+- durable (survives restarts without losing or duplicating work)
+- retry-safe (backoff + classification)
+- kill-switch correct (prevents new orders and cancels open ones reliably)
+- fully auditable (every side effect is traceable to a decision + an idempotency key)
+
+NON-NEGOTIABLE RULES:
+- No mock/demo data. No “pretend” state transitions.
+- You must read docs/ first and update them last to match actual code.
+- Every “side-effecting” action (place order, cancel order, close position) must be idempotent.
+- Every claimed fix must be proven via commands + curl output.
+
+STEP 0 — READ FIRST (no code changes)
+1) Read:
+   - docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md
+   - docs/TRADING_SAGA_SEQUENCES.md
+   - docs/API_REFERENCE.md
+   - docs/TESTING.md
+2) Inspect:
+   - server/autonomous/orchestrator.ts
+   - server/trading/alpaca-trading-engine.ts
+   - server/trading/paper-trading-engine.ts (if still present)
+   - DB schema for ai_decisions/trades/positions/events
+3) Output a short factual summary:
+   - what triggers exist today
+   - how decisions are persisted
+   - where retries happen
+   - where duplicate side effects can occur
+
+STEP 1 — DEFINE THE “DURABLE WORK MODEL”
+Implement a durable work queue concept using DB tables (minimal additions):
+A) work_items
+   - id (uuid)
+   - type (e.g., DECISION_EVALUATION, ORDER_SUBMIT, ORDER_SYNC, CANCEL_ALL, CLOSE_POSITION)
+   - status (PENDING, RUNNING, SUCCEEDED, FAILED, DEAD_LETTER)
+   - attempts (int)
+   - nextRunAt (timestamp)
+   - lastError (text)
+   - payload (json)
+   - idempotencyKey (text UNIQUE)
+   - createdAt/updatedAt
+B) work_runs (optional but recommended)
+   - records each attempt with timestamps + result summaries
+
+RULE:
+- All orchestrator actions that can have external side effects must be represented as work_items.
+- A worker loop claims PENDING items with SELECT ... FOR UPDATE SKIP LOCKED semantics (or equivalent), marks RUNNING, executes, then SUCCEEDED/FAILED.
+
+STEP 2 — IDENTITY + IDEMPOTENCY (NO DOUBLE ORDERS)
+A) Create a deterministic idempotencyKey for each “Order Submit” work item:
+   - hash(strategyId + symbol + side + signalHash + timeframeBucket)
+B) Store idempotencyKey on:
+   - work_items.idempotencyKey (unique)
+   - the ai_decision row (decisionId -> idempotencyKey)
+C) When placing an Alpaca order:
+   - set Alpaca client_order_id = idempotencyKey
+   - before placing, check if an Alpaca order already exists for that client_order_id:
+     - if exists, DO NOT create a new one; link it and proceed with sync.
+(Alpaca supports identifying/querying orders by client-provided order id in their docs.)
+
+STEP 3 — RETRY CLASSIFICATION + BACKOFF
+Implement a retry policy:
+- transient errors: network timeout, 429 rate limit, 5xx -> retry with exponential backoff + jitter
+- permanent errors: 4xx validation, “symbol not tradable”, “insufficient buying power” -> mark FAILED and surface reason to UI
+- max attempts per type:
+  - ORDER_SUBMIT: 3
+  - ORDER_SYNC: infinite but low frequency with backoff
+  - CANCEL_ALL: 3
+
+Persist retry state in DB via work_items.attempts and nextRunAt (durable across restarts).
+
+STEP 4 — KILL SWITCH (REAL BEHAVIOR)
+Implement a canonical “Trading Kill Switch”:
+- When enabled:
+  1) stop scheduling new ORDER_SUBMIT work items
+  2) cancel all open Alpaca orders via:
+     - DELETE /v2/orders (cancel all open orders)
+  3) optionally close positions depending on configuration
+(Use Alpaca documented cancel endpoints. Single-order cancel is DELETE /v2/orders/{order_id}.)
+Store kill-switch events in DB and expose in /api/activity/timeline.
+
+STEP 5 — ORDER SYNC LOOP (BROKER TRUTH REFRESH)
+- Create a scheduled work item: ORDER_SYNC (e.g., every 15–60 seconds configurable)
+- It pulls open orders + recently closed orders, updates:
+  - trades/decisions brokerStatus
+  - fill timestamps/avg fill price when available
+- Ensure idempotent upserts keyed by brokerOrderId.
+
+STEP 6 — AUDITABILITY (NO “MYSTERY STATES”)
+- Every state transition in ai_decisions must reference:
+  - work_item.id
+  - idempotencyKey
+  - brokerOrderId (if applicable)
+- Add an endpoint:
+  GET /api/admin/work-items?status=...&type=...
+- Add an endpoint:
+  POST /api/admin/work-items/retry { id }
+  POST /api/admin/work-items/dead-letter { id }
+
+STEP 7 — UI MINIMAL REFLECTION (ONLY WHAT’S NEEDED)
+- Add a small “Orchestrator Health” card (Admin/Settings):
+  - queue depth by status
+  - last sync time
+  - kill-switch state
+  - last errors (top 5)
+Do not redesign the whole UI here (that was Task #3). Just reflect the new reality.
+
+STEP 8 — TESTS + PROOF (MUST RUN)
+A) Add smoke test script:
+- creates a fake decision record (without mock market data)
+- schedules ORDER_SUBMIT work item (idempotencyKey known)
+- verifies:
+  - duplicate submission attempts do NOT create duplicates (same client_order_id)
+  - retry works on simulated 429/timeout (mock network failure allowed ONLY for retry behavior, not for trading results)
+B) Run and paste output:
+- server boot
+- curl /api/admin/work-items
+- curl /api/activity/timeline (shows orchestrator events)
+
+STEP 9 — DOCS UPDATE (MUST MATCH CODE)
+Update:
+- docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md (durable queue model, idempotency, retries)
+- docs/TRADING_SAGA_SEQUENCES.md (decision→work_item→broker order mapping)
+- docs/API_REFERENCE.md (new admin endpoints)
+- docs/TESTING.md (smoke test steps)
+If docs previously claimed features not present, fix the docs accordingly.
+
+DELIVERABLES:
+- Files changed list
+- Commands run + outputs
+- Curl examples
+- A short plan for Task #5 (tradability gate + normalized data layer) based on what you found

@@ -7,6 +7,8 @@ import {
   positions,
   aiDecisions,
   agentStatus,
+  workItems,
+  workItemRuns,
   type User,
   type InsertUser,
   type Strategy,
@@ -18,6 +20,12 @@ import {
   type AiDecision,
   type InsertAiDecision,
   type AgentStatus,
+  type WorkItem,
+  type InsertWorkItem,
+  type WorkItemRun,
+  type InsertWorkItemRun,
+  type WorkItemType,
+  type WorkItemStatus,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -359,6 +367,98 @@ export class DatabaseStorage implements IStorage {
       }).returning();
       return status;
     }
+  }
+
+  async createWorkItem(item: InsertWorkItem): Promise<WorkItem> {
+    const [workItem] = await db.insert(workItems).values(item).returning();
+    return workItem;
+  }
+
+  async getWorkItem(id: string): Promise<WorkItem | undefined> {
+    const [item] = await db.select().from(workItems).where(eq(workItems.id, id));
+    return item;
+  }
+
+  async getWorkItemByIdempotencyKey(key: string): Promise<WorkItem | null> {
+    const [item] = await db.select().from(workItems).where(eq(workItems.idempotencyKey, key));
+    return item || null;
+  }
+
+  async updateWorkItem(id: string, updates: Partial<WorkItem>): Promise<WorkItem | undefined> {
+    const [item] = await db
+      .update(workItems)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(workItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async claimNextWorkItem(types?: WorkItemType[]): Promise<WorkItem | null> {
+    const now = new Date();
+    const conditions = [
+      eq(workItems.status, "PENDING"),
+      lte(workItems.nextRunAt, now),
+    ];
+    
+    const query = db
+      .select()
+      .from(workItems)
+      .where(and(...conditions))
+      .orderBy(workItems.nextRunAt)
+      .limit(1);
+    
+    const [item] = await query;
+    
+    if (!item) return null;
+    
+    if (types && types.length > 0 && !types.includes(item.type as WorkItemType)) {
+      return null;
+    }
+    
+    const [claimed] = await db
+      .update(workItems)
+      .set({ status: "RUNNING", updatedAt: new Date() })
+      .where(and(eq(workItems.id, item.id), eq(workItems.status, "PENDING")))
+      .returning();
+    
+    return claimed || null;
+  }
+
+  async getWorkItemCount(status?: WorkItemStatus, type?: WorkItemType): Promise<number> {
+    const conditions = [];
+    if (status) conditions.push(eq(workItems.status, status));
+    if (type) conditions.push(eq(workItems.type, type));
+    
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(workItems)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    
+    return Number(result[0]?.count || 0);
+  }
+
+  async getWorkItems(limit: number = 50, status?: WorkItemStatus): Promise<WorkItem[]> {
+    const conditions = status ? [eq(workItems.status, status)] : [];
+    
+    return db
+      .select()
+      .from(workItems)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(workItems.createdAt))
+      .limit(limit);
+  }
+
+  async createWorkItemRun(run: InsertWorkItemRun): Promise<WorkItemRun> {
+    const [itemRun] = await db.insert(workItemRuns).values(run).returning();
+    return itemRun;
+  }
+
+  async getWorkItemRuns(workItemId: string): Promise<WorkItemRun[]> {
+    return db
+      .select()
+      .from(workItemRuns)
+      .where(eq(workItemRuns.workItemId, workItemId))
+      .orderBy(desc(workItemRuns.createdAt));
   }
 }
 
