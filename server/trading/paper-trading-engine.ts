@@ -1,5 +1,6 @@
 import { storage } from "../storage";
 import { aiDecisionEngine, type MarketData, type AIDecision } from "../ai/decision-engine";
+import { generateTraceId } from "../ai/llmGateway";
 import { coingecko } from "../connectors/coingecko";
 import { finnhub } from "../connectors/finnhub";
 import type { Trade, Position } from "@shared/schema";
@@ -337,8 +338,10 @@ export class PaperTradingEngine {
 
   async analyzeAndExecute(
     symbol: string,
-    strategyId?: string
+    strategyId?: string,
+    traceId?: string
   ): Promise<{ decision: AIDecision; tradeResult?: TradeResult }> {
+    const effectiveTraceId = traceId || generateTraceId();
     const marketData = await this.getMarketDataForSymbol(symbol);
     if (!marketData) {
       throw new Error(`Could not get market data for ${symbol}`);
@@ -362,7 +365,8 @@ export class PaperTradingEngine {
       symbol,
       marketData,
       undefined,
-      strategyContext
+      strategyContext,
+      { traceId: effectiveTraceId }
     );
 
     await storage.createAiDecision({
@@ -371,6 +375,7 @@ export class PaperTradingEngine {
       action: decision.action,
       confidence: decision.confidence.toString(),
       reasoning: decision.reasoning,
+      traceId: effectiveTraceId,
       marketContext: JSON.stringify({
         marketData,
         riskLevel: decision.riskLevel,

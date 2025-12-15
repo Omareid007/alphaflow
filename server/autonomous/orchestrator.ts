@@ -272,6 +272,7 @@ class AutonomousOrchestrator {
   private autoStartEnabled = true;
   private isAutoStarting = false;
   private lastCalibrationDate: string | null = null;
+  private currentTraceId: string | null = null;
 
   constructor() {
     this.config = { ...DEFAULT_CONFIG };
@@ -659,9 +660,10 @@ class AutonomousOrchestrator {
     this.isProcessing = true;
     const cycleId = log.generateCycleId();
     log.setCycleId(cycleId);
+    this.currentTraceId = cycleId;
 
     try {
-      log.info("Orchestrator", "Running analysis cycle...", { cycleId });
+      log.info("Orchestrator", "Running analysis cycle...", { cycleId, traceId: cycleId });
       this.state.lastAnalysisTime = new Date();
 
       await this.loadRiskLimitsFromDB();
@@ -712,7 +714,8 @@ class AutonomousOrchestrator {
                   type: strategy.type,
                   parameters: strategy.parameters ? JSON.parse(strategy.parameters) : undefined,
                 }
-              : undefined
+              : undefined,
+            { traceId: this.currentTraceId || undefined }
           );
 
           if (decision.confidence >= 0.7 && decision.action !== "hold") {
@@ -724,6 +727,7 @@ class AutonomousOrchestrator {
               reasoning: decision.reasoning,
               marketContext: JSON.stringify(data),
               status: "pending",
+              traceId: this.currentTraceId,
             });
             
             recordDecisionFeatures(aiDecision.id, symbol, {
@@ -1083,6 +1087,7 @@ class AutonomousOrchestrator {
         price: filledPrice.toString(),
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
+        traceId: this.currentTraceId,
       });
 
       if (decision.aiDecisionId) {
@@ -1261,6 +1266,7 @@ class AutonomousOrchestrator {
         pnl: pnl.toString(),
         status: "completed",
         notes: `AI autonomous: ${decision.reasoning}`,
+        traceId: this.currentTraceId,
       });
 
       if (decision.aiDecisionId) {

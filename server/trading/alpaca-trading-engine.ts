@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { alpaca, type AlpacaOrder, type AlpacaPosition, type CreateOrderParams, type BracketOrderParams, type MarketStatus } from "../connectors/alpaca";
 import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } from "../ai/decision-engine";
+import { generateTraceId } from "../ai/llmGateway";
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
 import { eventBus, logger, type TradeExecutedEvent, type StrategySignalEvent, type PositionEvent } from "../orchestration";
@@ -301,13 +302,14 @@ class AlpacaTradingEngine {
         return;
       }
 
-      console.log("Generating background AI suggestions...");
+      const batchTraceId = generateTraceId();
+      console.log(`Generating background AI suggestions... (batchTraceId: ${batchTraceId})`);
       
       const symbolsToAnalyze = this.DEFAULT_WATCHLIST.slice(0, 5);
       
       for (const symbol of symbolsToAnalyze) {
         try {
-          await this.analyzeSymbol(symbol);
+          await this.analyzeSymbol(symbol, undefined, batchTraceId);
           console.log(`Generated AI suggestion for ${symbol}`);
         } catch (err) {
           console.log(`Could not analyze ${symbol}:`, (err as Error).message);
@@ -595,8 +597,10 @@ class AlpacaTradingEngine {
 
   async analyzeSymbol(
     symbol: string,
-    strategyId?: string
+    strategyId?: string,
+    traceId?: string
   ): Promise<{ decision: AIDecision; marketData: MarketData; fusedIntelligence?: FusedMarketIntelligence; enhancedLog?: EnhancedDecisionLog }> {
+    const effectiveTraceId = traceId || generateTraceId();
     const marketData = await this.getMarketDataForSymbol(symbol);
     if (!marketData) {
       throw new Error(`Could not get market data for ${symbol}`);
@@ -668,7 +672,8 @@ class AlpacaTradingEngine {
       symbol,
       marketData,
       newsContext,
-      strategyContext
+      strategyContext,
+      { traceId: effectiveTraceId }
     );
 
     // Create enhanced decision log with full transparency
@@ -687,6 +692,7 @@ class AlpacaTradingEngine {
       action: decision.action,
       confidence: decision.confidence.toString(),
       reasoning: decision.reasoning,
+      traceId: effectiveTraceId,
       marketContext: JSON.stringify({
         marketData,
         newsContext,
@@ -861,9 +867,11 @@ class AlpacaTradingEngine {
 
   async analyzeAndExecute(
     symbol: string,
-    strategyId?: string
+    strategyId?: string,
+    traceId?: string
   ): Promise<{ decision: AIDecision; tradeResult?: AlpacaTradeResult }> {
-    const { decision, marketData } = await this.analyzeSymbol(symbol, strategyId);
+    const effectiveTraceId = traceId || generateTraceId();
+    const { decision, marketData } = await this.analyzeSymbol(symbol, strategyId, effectiveTraceId);
 
     const agentStatus = await storage.getAgentStatus();
     if (!agentStatus?.isRunning) {
@@ -1048,10 +1056,11 @@ class AlpacaTradingEngine {
         const assets = currentStrategy.assets || [];
         let lastSuccessfulDecision: AIDecision | undefined;
         let lastError: string | undefined;
+        const runTraceId = generateTraceId();
         
         for (const asset of assets) {
           try {
-            const result = await this.analyzeAndExecute(asset, strategyId);
+            const result = await this.analyzeAndExecute(asset, strategyId, runTraceId);
             lastSuccessfulDecision = result.decision;
           } catch (assetError) {
             const errorMsg = (assetError as Error).message || String(assetError);

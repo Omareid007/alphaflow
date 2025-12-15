@@ -39,6 +39,7 @@ export const trades = pgTable("trades", {
   pnl: numeric("pnl"),
   status: text("status").default("completed").notNull(),
   notes: text("notes"),
+  traceId: text("trace_id"),
 });
 
 export const positions = pgTable("positions", {

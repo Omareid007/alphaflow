@@ -3,12 +3,13 @@
 > **Audit Date:** December 2025
 > **Scope:** Phase 0+1 Infrastructure Audit
 > **Goal:** Identify discrepancies between documented features and actual implementation
+> **Last Updated:** December 15, 2025
 
 ---
 
 ## Executive Summary
 
-This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. The most significant finding is that the **Orchestrator bypasses the Work Queue** for order execution, violating the durable execution contract.
+This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. **Two critical gaps have been fixed** (G2, G3). The remaining critical gap (G1) requires the **Orchestrator to use Work Queue** for durable order execution.
 
 ---
 
@@ -16,11 +17,11 @@ This audit identified **3 critical gaps** and **2 moderate gaps** between docume
 
 ### Critical Gaps (P0)
 
-| ID | Documented Feature | Doc Reference | Schema | Implementation | Gap Description | Impact |
+| ID | Documented Feature | Doc Reference | Schema | Implementation | Gap Description | Status |
 |----|-------------------|---------------|--------|----------------|-----------------|--------|
-| **G1** | Orchestrator uses Work Queue for durable order execution | WORK_QUEUE_ARCHITECTURE.md | ✅ work_items, work_item_runs | ❌ NOT USED | `orchestrator.ts` calls `alpaca.createOrder()` directly (~5 locations). Work queue exists but is bypassed. | Orders are not durable; system cannot recover from crashes during order submission |
-| **G2** | End-to-end traceId propagation | OBSERVABILITY.md, INDEX.md | ✅ trades.traceId, llm_calls.traceId, ai_decisions (implicit) | ⚠️ PARTIAL | `llmGateway.ts` logs traceId correctly, but `orchestrator.ts` has ZERO traceId references. Traceability chain is broken. | Cannot trace AI decision → LLM calls → trade execution. Debugging is impossible. |
-| **G3** | Work Queue worker runs automatically | WORK_QUEUE_ARCHITECTURE.md | N/A | ❌ NEVER STARTED | `workQueue.startWorker()` exists but is NEVER called anywhere. Worker is not running. | Work items pile up in PENDING state forever - queue is completely non-functional |
+| **G1** | Orchestrator uses Work Queue for durable order execution | WORK_QUEUE_ARCHITECTURE.md | ✅ work_items, work_item_runs | ❌ NOT USED | `orchestrator.ts` calls `alpaca.createOrder()` directly (~5 locations). Work queue exists but is bypassed. | **OPEN** - Requires refactor |
+| **G2** | End-to-end traceId propagation | OBSERVABILITY.md, INDEX.md | ✅ trades.traceId, llm_calls.traceId, ai_decisions.traceId | ✅ FIXED | TraceId now propagated through: orchestrator cycles, background AI batches, strategy runs, manual API calls, paper trading. | **FIXED** - Primary paths complete |
+| **G3** | Work Queue worker runs automatically | WORK_QUEUE_ARCHITECTURE.md | N/A | ✅ FIXED | `workQueue.startWorker()` now called in `server/routes.ts` during initialization. | **FIXED** - Worker runs on startup |
 
 ### Moderate Gaps (P1)
 
@@ -66,45 +67,46 @@ await workQueue.enqueue({
 
 ---
 
-### G2: No traceId in Orchestrator
+### G2: End-to-End TraceId Propagation ✅ FIXED
 
-**Evidence:**
-```bash
-$ grep -c "traceId" server/autonomous/orchestrator.ts
-0
-```
+**Status:** Fixed as of December 15, 2025
+
+**Implementation:**
+- Added `traceId` field to `trades` table schema
+- Orchestrator generates `cycleId` as traceId for each analysis cycle
+- TraceId passed to `aiDecisionEngine.analyzeOpportunity()` options
+- TraceId saved to `ai_decisions` and `trades` tables
+- Background AI suggestion batches use shared `batchTraceId`
+- Strategy runs use shared `runTraceId` per execution cycle
+- Manual API calls and paper trading generate per-request traceId
 
 **Current Flow:**
 ```
-AI Decision → ? → Trade
+Orchestrator (cycleId/traceId)
      ↓
-LLM Gateway (has traceId) → llm_calls table
+AI Decision Engine (traceId) → LLM Gateway (traceId) → Trade (traceId)
+     ↓                             ↓                       ↓
+ai_decisions.traceId          llm_calls.traceId       trades.traceId
 ```
 
-**Expected Flow:**
-```
-Orchestrator generates traceId
-     ↓
-AI Decision (traceId) → LLM Gateway (traceId) → Trade (traceId)
-     ↓                       ↓                      ↓
-ai_decisions table      llm_calls table        trades table
-```
-
-**Fix Required:** Generate traceId at orchestrator cycle start, pass through all components.
+**Remaining Edge Cases:**
+- Some internal calibration/learning routines may still generate fresh traceIds
+- Order execution flow handlers for Alpaca fills may need additional wiring
 
 ---
 
-### G3: Work Queue Worker Startup
+### G3: Work Queue Worker Startup ✅ FIXED
 
-**Evidence:** Worker exists but startup unclear:
+**Status:** Fixed as of December 15, 2025
+
+**Implementation:**
 ```typescript
-// server/lib/work-queue.ts
-startWorker(intervalMs = 5000): void {
-  // Implementation exists
-}
+// server/routes.ts (initialization)
+workQueue.startWorker();
+log.info("Routes", "Work queue worker started with 5s poll interval");
 ```
 
-**Verification Needed:** Check server startup to confirm `workQueue.startWorker()` is called.
+**Verification:** Worker confirmed running in server logs.
 
 ---
 

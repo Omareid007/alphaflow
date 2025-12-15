@@ -20,6 +20,7 @@ import { valyu } from "./connectors/valyu";
 import { huggingface } from "./connectors/huggingface";
 import { gdelt } from "./connectors/gdelt";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
+import { generateTraceId } from "./ai/llmGateway";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 // DEPRECATED: paperTradingEngine is no longer used in UI paths - Alpaca is source of truth
 // import { paperTradingEngine } from "./trading/paper-trading-engine";
@@ -120,6 +121,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     orchestrator.autoStart().catch(err =>
       console.error("Failed to auto-start orchestrator:", err)
     );
+    // Start the work queue worker for durable order execution
+    workQueue.startWorker(5000);
+    console.log("[Routes] Work queue worker started with 5s poll interval");
   }, 2000);
 
   // Bootstrap admin user deferred to background to not block startup
@@ -1895,11 +1899,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      const traceId = generateTraceId();
       const decision = await aiDecisionEngine.analyzeOpportunity(
         symbol,
         marketData as MarketData,
         newsContext as NewsContext | undefined,
-        strategy
+        strategy,
+        { traceId }
       );
 
       const aiDecisionRecord = await storage.createAiDecision({
@@ -1908,6 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: decision.action,
         confidence: decision.confidence.toString(),
         reasoning: decision.reasoning,
+        traceId,
         marketContext: JSON.stringify({
           marketData,
           newsContext,
