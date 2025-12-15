@@ -1,0 +1,44 @@
+Enhance LLM strategy to support “parallel roles + fallback”, minimizing cost without sacrificing performance.
+
+DECISION
+- Use OpenRouter as the primary router (single API integration) and optionally allow direct-provider keys (Anthropic, DeepSeek, Z.ai, Moonshot) behind feature flags.
+- Use routing + fallback:
+  - Primary “Decision Model” (high quality)
+  - Secondary “Reasoning/Analyst Model” (best value)
+  - Tertiary “Fast/cheap summarizer” model
+  - Automatic fallback if a provider errors or budget exceeded
+
+ROLE MAP (implement as config)
+- market_news_summarizer: cheap + fast model
+- technical_analyst: strong reasoning model
+- risk_manager: conservative / instruction-following model
+- execution_planner: deterministic / tool-use friendly model
+- post_trade_reporter: cheap summarizer
+
+PRICING-AWARE DEFAULTS (keep configurable)
+- DeepSeek models are very low cost per token with cache hit/miss pricing; ideal for “Analyst/Reasoner” and bulk analysis.
+- Z.ai GLM-4.6 supports large context; good for long multi-source synthesis.
+- Claude is premium; reserve for “final decision / risk manager / governance checks”.
+(Keep all of this behind budgets set in Prompt 1.)
+
+IMPLEMENTATION
+1) Add a single LLM abstraction:
+   llm.invoke({role, messages, tools, max_tokens, temperature, budgetPolicy, fallbackChain})
+2) Add fallbackChain examples:
+   - risk_manager: [Claude] -> [GLM-4.6] -> [DeepSeek Chat]
+   - technical_analyst: [DeepSeek Reasoner] -> [GLM-4.5 Air] -> [DeepSeek Chat]
+3) Persist:
+   - prompts, responses, token counts, and cost estimates into DB for reuse + audit.
+4) UI:
+   - “Model Router” page:
+     - set per-role model chain
+     - show cost estimates + last 20 calls
+5) Docs updates:
+   - Update docs/AI_MODELS_AND_PROVIDERS.md with:
+     - roles
+     - routing/fallback
+     - budgeting + caching behavior
+     - examples
+
+SAFETY/QUALITY
+- Add a “Citations/Provenance mode” to force the model to cite internal stored sources (Valyu/GDELT/News) rather than hallucinate.

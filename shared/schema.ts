@@ -296,3 +296,68 @@ export type ExternalApiCacheEntry = typeof externalApiCacheEntries.$inferSelect;
 
 export type InsertExternalApiUsageCounter = z.infer<typeof insertExternalApiUsageCounterSchema>;
 export type ExternalApiUsageCounter = typeof externalApiUsageCounters.$inferSelect;
+
+export const llmRoles = [
+  "market_news_summarizer",
+  "technical_analyst",
+  "risk_manager",
+  "execution_planner",
+  "post_trade_reporter",
+] as const;
+
+export type LLMRole = typeof llmRoles[number];
+
+export const llmRoleConfigs = pgTable("llm_role_configs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  role: text("role").notNull().unique(),
+  description: text("description"),
+  fallbackChain: text("fallback_chain").notNull(),
+  maxTokens: integer("max_tokens").default(1000),
+  temperature: numeric("temperature").default("0.3"),
+  enableCitations: boolean("enable_citations").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const llmCalls = pgTable("llm_calls", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  role: text("role").notNull(),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  totalTokens: integer("total_tokens"),
+  estimatedCost: numeric("estimated_cost"),
+  latencyMs: integer("latency_ms"),
+  status: text("status").default("success").notNull(),
+  errorMessage: text("error_message"),
+  systemPrompt: text("system_prompt"),
+  userPrompt: text("user_prompt"),
+  response: text("response"),
+  cacheHit: boolean("cache_hit").default(false).notNull(),
+  fallbackUsed: boolean("fallback_used").default(false).notNull(),
+  fallbackReason: text("fallback_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLlmRoleConfigSchema = createInsertSchema(llmRoleConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLlmCallSchema = createInsertSchema(llmCalls).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLlmRoleConfig = z.infer<typeof insertLlmRoleConfigSchema>;
+export type LlmRoleConfig = typeof llmRoleConfigs.$inferSelect;
+
+export type InsertLlmCall = z.infer<typeof insertLlmCallSchema>;
+export type LlmCall = typeof llmCalls.$inferSelect;
