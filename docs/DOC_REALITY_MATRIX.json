@@ -1,0 +1,321 @@
+{
+  "generatedAt": "2025-12-15T23:55:00.000Z",
+  "auditScope": "Admin Center Infrastructure Audit - Phase A Complete",
+  "summary": {
+    "verified": 19,
+    "partial": 3,
+    "missing": 5,
+    "docOutdated": 1
+  },
+  "matrix": [
+    {
+      "id": "WQ-1",
+      "doc": "WORK_QUEUE_ARCHITECTURE.md",
+      "claim": "Durable work queue with PostgreSQL persistence",
+      "status": "VERIFIED",
+      "codeRef": "shared/schema.ts:271-296, server/lib/work-queue.ts:45",
+      "evidence": "work_items table with status, item_type, payload columns"
+    },
+    {
+      "id": "WQ-2",
+      "doc": "WORK_QUEUE_ARCHITECTURE.md",
+      "claim": "Idempotency keys prevent duplicate execution",
+      "status": "VERIFIED",
+      "codeRef": "shared/schema.ts:277",
+      "evidence": "idempotency_key varchar column with unique constraint"
+    },
+    {
+      "id": "WQ-3",
+      "doc": "WORK_QUEUE_ARCHITECTURE.md",
+      "claim": "Dead letter queue for failed items",
+      "status": "VERIFIED",
+      "codeRef": "server/lib/work-queue.ts:150",
+      "evidence": "DEAD_LETTER status and moveToDeadLetter function"
+    },
+    {
+      "id": "WQ-4",
+      "doc": "WORK_QUEUE_ARCHITECTURE.md",
+      "claim": "Admin API endpoints for work items",
+      "status": "VERIFIED",
+      "codeRef": "server/routes.ts:4112-4195",
+      "evidence": "GET /api/admin/work-items, POST /api/admin/work-items/retry, POST /api/admin/work-items/dead-letter"
+    },
+    {
+      "id": "OBS-1",
+      "doc": "OBSERVABILITY.md",
+      "claim": "Structured JSON logging with correlation IDs",
+      "status": "VERIFIED",
+      "codeRef": "server/utils/logger.ts:35",
+      "evidence": "Logger class with requestId, cycleId correlation fields"
+    },
+    {
+      "id": "OBS-2",
+      "doc": "OBSERVABILITY.md",
+      "claim": "OpenTelemetry integration for distributed tracing",
+      "status": "PARTIAL",
+      "codeRef": "services/shared/common/telemetry.ts:1",
+      "evidence": "OTel setup exists in services/shared only",
+      "gap": "Main Express server (server/index.ts) lacks OTel SDK initialization"
+    },
+    {
+      "id": "OBS-3",
+      "doc": "OBSERVABILITY.md",
+      "claim": "Custom spans for orchestrator, work item, LLM calls",
+      "status": "MISSING",
+      "codeRef": "N/A - not implemented",
+      "evidence": "No tracer.startActiveSpan() calls in main server code",
+      "gap": "Need custom spans in orchestrator.ts:runCycle, work-queue.ts:processNext, llmGateway.ts:call"
+    },
+    {
+      "id": "SOT-1",
+      "doc": "SOURCE_OF_TRUTH_CONTRACT.md",
+      "claim": "Alpaca is primary source of truth for positions/orders",
+      "status": "VERIFIED",
+      "codeRef": "server/routes.ts:1850-1900",
+      "evidence": "GET /api/positions fetches from alpacaConnector.getPositions()"
+    },
+    {
+      "id": "SOT-2",
+      "doc": "SOURCE_OF_TRUTH_CONTRACT.md",
+      "claim": "Data source metadata in API responses",
+      "status": "VERIFIED",
+      "codeRef": "server/routes.ts:1892",
+      "evidence": "Response includes source: 'alpaca_live', fetchedAt, alpacaStatus metadata"
+    },
+    {
+      "id": "AI-1",
+      "doc": "AI_MODELS_AND_PROVIDERS.md",
+      "claim": "Multi-provider LLM architecture",
+      "status": "VERIFIED",
+      "codeRef": "server/ai/llmGateway.ts:50",
+      "evidence": "LLMGateway with OpenAI, Groq, Together, AIML, OpenRouter providers"
+    },
+    {
+      "id": "AI-2",
+      "doc": "AI_MODELS_AND_PROVIDERS.md",
+      "claim": "Role-based routing with fallback chains",
+      "status": "VERIFIED",
+      "codeRef": "server/ai/roleBasedRouter.ts:25-80",
+      "evidence": "RoleConfig interface with model, fallbackChain[], roleBasedLLMCall function"
+    },
+    {
+      "id": "AI-3",
+      "doc": "AI_MODELS_AND_PROVIDERS.md",
+      "claim": "LLM call logging to llm_calls table",
+      "status": "VERIFIED",
+      "codeRef": "shared/schema.ts:320-345",
+      "evidence": "llm_calls table with provider, model, tokensUsed, latencyMs, traceId columns"
+    },
+    {
+      "id": "ORCH-1",
+      "doc": "ORCHESTRATOR_AND_AGENT_RUNTIME.md",
+      "claim": "Autonomous orchestrator with cycle management",
+      "status": "VERIFIED",
+      "codeRef": "server/autonomous/orchestrator.ts:45, :562, :793",
+      "evidence": "Orchestrator class with start(), stop(), runCycle(), heartbeat"
+    },
+    {
+      "id": "ORCH-2",
+      "doc": "ORCHESTRATOR_AND_AGENT_RUNTIME.md",
+      "claim": "Kill switch for emergency stop",
+      "status": "VERIFIED",
+      "codeRef": "server/autonomous/orchestrator.ts:150",
+      "evidence": "killSwitchActive flag, setKillSwitch(), KILL_SWITCH work item type"
+    },
+    {
+      "id": "ORCH-3",
+      "doc": "ORCHESTRATOR_AND_AGENT_RUNTIME.md",
+      "claim": "Risk limits enforcement",
+      "status": "VERIFIED",
+      "codeRef": "server/autonomous/orchestrator.ts:380",
+      "evidence": "validateRisk() with maxPositionSizePercent, maxTotalExposurePercent, dailyLossLimitPercent"
+    },
+    {
+      "id": "SAGA-1",
+      "doc": "TRADING_SAGA_SEQUENCES.md",
+      "claim": "Event-driven saga patterns with NATS events",
+      "status": "DOC-OUTDATED",
+      "codeRef": "N/A - describes future state",
+      "evidence": "Doc describes market.quote.received, ai.decision.generated events that don't exist",
+      "resolution": "Mark doc header as 'FUTURE STATE - Describes target microservices architecture'"
+    },
+    {
+      "id": "BUDGET-1",
+      "doc": "API_BUDGETING_AND_CACHING.md",
+      "claim": "callExternal wrapper with budget/cache",
+      "status": "VERIFIED",
+      "codeRef": "server/lib/callExternal.ts:45-180",
+      "evidence": "callExternal() with L1/L2 cache lookup, budget check, provenance tracking"
+    },
+    {
+      "id": "BUDGET-2",
+      "doc": "API_BUDGETING_AND_CACHING.md",
+      "claim": "Per-provider rate limits and policies",
+      "status": "VERIFIED",
+      "codeRef": "server/lib/apiPolicy.ts:15-80",
+      "evidence": "PROVIDER_POLICIES object with maxRequestsPerMinute, cacheFreshDurationMs per provider"
+    },
+    {
+      "id": "G4-1",
+      "doc": "AUDIT_DOC_VS_IMPLEMENTATION_GAP.md",
+      "claim": "Orders vs Trades vs Fills separation",
+      "status": "VERIFIED",
+      "codeRef": "shared/schema.ts:180-250",
+      "evidence": "orders table (22 fields), fills table (12 fields), ORDER_SUBMIT/SYNC handlers"
+    },
+    {
+      "id": "UI-1",
+      "doc": "UI_INFORMATION_ARCHITECTURE.md",
+      "claim": "Canonical data contracts in shared/types/ui-contracts.ts",
+      "status": "VERIFIED",
+      "codeRef": "shared/types/ui-contracts.ts:1-284",
+      "evidence": "TimelineEvent (lines 59-79), DecisionViewModel (99-115), LedgerItemStatus (120-125), AlpacaOrderStatus (15-30)"
+    },
+    {
+      "id": "UI-2",
+      "doc": "UI_INFORMATION_ARCHITECTURE.md",
+      "claim": "Unified timeline endpoint /api/activity/timeline",
+      "status": "VERIFIED",
+      "codeRef": "server/routes.ts:1332",
+      "evidence": "GET /api/activity/timeline endpoint exists, returns TimelineEvent array"
+    },
+    {
+      "id": "UI-3",
+      "doc": "UI_INFORMATION_ARCHITECTURE.md",
+      "claim": "Status mappings for Alpaca order statuses",
+      "status": "VERIFIED",
+      "codeRef": "client/screens/AISuggestedTradesScreen.tsx:45",
+      "evidence": "Status color mapping for filled, pending, submitted, accepted, etc."
+    },
+    {
+      "id": "ADMIN-1",
+      "doc": "WORK_QUEUE_ARCHITECTURE.md",
+      "claim": "Admin APIs for orchestrator health",
+      "status": "VERIFIED",
+      "codeRef": "server/routes.ts:4195",
+      "evidence": "GET /api/admin/orchestrator-health endpoint"
+    },
+    {
+      "id": "ADMIN-2",
+      "doc": "Multiple docs",
+      "claim": "Admin navigation with dedicated screens",
+      "status": "VERIFIED",
+      "codeRef": "client/navigation/AdminStackNavigator.tsx:1-44",
+      "evidence": "AdminStackNavigator with Admin, ApiBudget, ModelRouter screens"
+    },
+    {
+      "id": "ADMIN-3",
+      "doc": "Implied by WordPress-like architecture",
+      "claim": "Admin Module Registry with pluggable modules",
+      "status": "MISSING",
+      "codeRef": "N/A - not implemented",
+      "evidence": "No registerAdminModule function or registry exists",
+      "gap": "Need server/admin/registry.ts and client/admin/registry.ts"
+    },
+    {
+      "id": "ADMIN-4",
+      "doc": "Implied by multi-user system",
+      "claim": "RBAC/Capability system for admin access",
+      "status": "MISSING",
+      "codeRef": "N/A - not implemented",
+      "evidence": "authMiddleware exists but no role-based capabilities",
+      "gap": "Need requireCapability middleware and useCapability hook"
+    },
+    {
+      "id": "ADMIN-5",
+      "doc": "Implied by admin system",
+      "claim": "Admin Settings table for module configuration",
+      "status": "MISSING",
+      "codeRef": "N/A - not implemented",
+      "evidence": "No admin_settings table in shared/schema.ts",
+      "gap": "Need key/value settings with module_id, scope columns"
+    },
+    {
+      "id": "ADMIN-6",
+      "doc": "Implied by admin operations",
+      "claim": "Orchestrator control APIs (pause/resume/run-now)",
+      "status": "MISSING",
+      "codeRef": "N/A - not implemented",
+      "evidence": "Only agent start/stop in routes.ts:352, no pause/resume/run-now",
+      "gap": "Need POST /api/admin/orchestrator/{pause,resume,run-now} endpoints"
+    }
+  ],
+  "integrationPlan": {
+    "moduleRegistry": {
+      "description": "How WordPress-like registry integrates with existing AdminStackNavigator",
+      "existingAdminScreenSections": [
+        {
+          "key": "budget",
+          "component": "ApiBudgetNavCard",
+          "line": 427,
+          "proposedModule": "api-budget",
+          "navGroup": "system",
+          "route": "ApiBudget"
+        },
+        {
+          "key": "modelRouter",
+          "component": "ModelRouterNavCard",
+          "line": 449,
+          "proposedModule": "model-router",
+          "navGroup": "ai",
+          "route": "ModelRouter"
+        },
+        {
+          "key": "connectors",
+          "component": "ConnectorHealthCard",
+          "line": 77,
+          "proposedModule": "connector-health",
+          "navGroup": "system",
+          "route": null,
+          "notes": "Inline card, needs extraction to separate screen"
+        },
+        {
+          "key": "fusion",
+          "component": "DataFusionCard",
+          "line": 130,
+          "proposedModule": "data-fusion",
+          "navGroup": "ai",
+          "route": null,
+          "notes": "Inline card, needs extraction to separate screen"
+        },
+        {
+          "key": "ai",
+          "component": "AIConfigCard",
+          "line": 231,
+          "proposedModule": "ai-config",
+          "navGroup": "ai",
+          "route": null,
+          "notes": "Inline card, needs extraction to separate screen"
+        },
+        {
+          "key": "keys",
+          "component": "APIKeysCard",
+          "line": 336,
+          "proposedModule": "api-keys",
+          "navGroup": "system",
+          "route": null,
+          "notes": "Inline card, needs extraction to separate screen"
+        }
+      ],
+      "implementationSteps": [
+        "1. Create shared/types/admin-module.ts with AdminModule interface",
+        "2. Create server/admin/registry.ts with registerAdminModule() and getModules()",
+        "3. Create client/admin/registry.ts mirroring server modules",
+        "4. Pre-register existing modules: api-budget, model-router",
+        "5. Update AdminStackNavigator to generate screens from registry",
+        "6. Add navGroup-based section headers in AdminScreen",
+        "7. Implement capability checks before rendering nav items"
+      ],
+      "sharedState": [
+        "AdminScreen uses queryClient for cache invalidation across modules",
+        "Theme context shared via useTheme hook - no changes needed",
+        "Navigation types in AdminStackParamList - will need dynamic extension"
+      ],
+      "navigationChanges": [
+        "AdminStackParamList needs to become dynamic or use a generic route type",
+        "AdminStackNavigator.tsx screens will be generated from registry",
+        "New screens extracted from inline cards will be registered as modules"
+      ]
+    }
+  }
+}

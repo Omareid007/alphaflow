@@ -1,0 +1,254 @@
+{
+  "generatedAt": "2025-12-15T23:45:00.000Z",
+  "version": "1.1.0",
+  "priorityRationale": "Foundation-first: Module Registry and RBAC are prerequisites for all other admin features. They establish the architecture that other modules plug into.",
+  "backlog": [
+    {
+      "id": "ADM-001",
+      "title": "Admin Module Registry (WordPress-like plugin architecture)",
+      "description": "Create registerAdminModule with id, title, icon, route, navGroup, capability, settingsSchema, healthChecks. Both server and client registries.",
+      "priority": "P0",
+      "order": 1,
+      "risk": "medium",
+      "effort": "large",
+      "dependencies": [],
+      "hardDependencies": [],
+      "dependents": ["ADM-002", "ADM-003", "ADM-004", "ADM-005"],
+      "status": "pending",
+      "phase": "B1",
+      "acceptance": [
+        "registerAdminModule function exists on server and client",
+        "Existing screens (ApiBudget, ModelRouter) registered as modules",
+        "AdminStackNavigator dynamically renders from registry",
+        "Module can define settingsSchema and healthCheck"
+      ]
+    },
+    {
+      "id": "ADM-002",
+      "title": "RBAC/Capabilities System",
+      "description": "Implement user role -> capability list mapping with backend endpoint guards (requireCapability middleware) and frontend route guards (useCapability hook).",
+      "priority": "P0",
+      "order": 2,
+      "risk": "medium",
+      "effort": "medium",
+      "dependencies": ["ADM-001"],
+      "hardDependencies": ["ADM-001"],
+      "dependents": ["ADM-003", "ADM-004"],
+      "status": "pending",
+      "phase": "B2",
+      "acceptance": [
+        "Capabilities defined: admin:read, admin:write, admin:danger, trading:*",
+        "requireCapability middleware guards admin endpoints",
+        "useCapability hook hides unauthorized nav items",
+        "User role stored in session/JWT"
+      ]
+    },
+    {
+      "id": "ADM-003",
+      "title": "Admin Settings Framework",
+      "description": "Settings page reads module settingsSchema, renders pages/sections/fields, persists to admin_settings table. Supports string, number, boolean, select field types.",
+      "priority": "P1",
+      "order": 3,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": ["ADM-001", "ADM-002"],
+      "hardDependencies": ["ADM-001"],
+      "status": "pending",
+      "phase": "B3",
+      "acceptance": [
+        "admin_settings table created with module_id, key, value, scope",
+        "SettingsScreen dynamically renders from module schemas",
+        "Changes persist and take effect immediately",
+        "Settings API: GET/PUT /api/admin/settings/:moduleId"
+      ]
+    },
+    {
+      "id": "ADM-004",
+      "title": "Global Admin Search",
+      "description": "Search across traceId, decisionId, work_item id, orderId, brokerOrderId, symbol. Returns linked results with navigation.",
+      "priority": "P1",
+      "order": 4,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": ["ADM-001"],
+      "hardDependencies": ["ADM-001"],
+      "status": "pending",
+      "phase": "B4",
+      "acceptance": [
+        "Search bar in admin header",
+        "Queries decisions, orders, work_items, trades tables",
+        "Results grouped by type with deep links",
+        "Fuzzy matching on symbol names"
+      ]
+    },
+    {
+      "id": "ADM-005",
+      "title": "System Overview API",
+      "description": "GET /api/admin/overview returning orchestrator status, queue depth, LLM counts, provider budgets, error rates, last cycle time. Aggregates multiple sources.",
+      "priority": "P0",
+      "order": 5,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "pending",
+      "phase": "C1",
+      "acceptance": [
+        "Single endpoint aggregates: orchestrator state, work queue depth, LLM call counts, provider budget remaining, recent error count",
+        "Includes lastCycleTime, isRunning, killSwitchActive",
+        "Response under 200ms",
+        "Used by admin dashboard widget"
+      ]
+    },
+    {
+      "id": "ADM-006",
+      "title": "Orchestrator Control APIs",
+      "description": "GET status, POST pause, POST resume, POST run-now for orchestrator control. Pause stops after current cycle, run-now triggers immediate cycle.",
+      "priority": "P0",
+      "order": 6,
+      "risk": "medium",
+      "effort": "small",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "pending",
+      "phase": "C2",
+      "acceptance": [
+        "GET /api/admin/orchestrator/status returns full state",
+        "POST /api/admin/orchestrator/pause stops gracefully",
+        "POST /api/admin/orchestrator/resume restarts",
+        "POST /api/admin/orchestrator/run-now triggers immediate cycle",
+        "All actions logged with userId, reason"
+      ]
+    },
+    {
+      "id": "ADM-007",
+      "title": "Work Queue Console APIs",
+      "description": "Enhance existing work-items endpoints with cancel action, status filtering, pagination cursor. Add /api/admin/work-items/:id/cancel.",
+      "priority": "P1",
+      "order": 7,
+      "risk": "low",
+      "effort": "small",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "partial",
+      "phase": "C3",
+      "acceptance": [
+        "POST /api/admin/work-items/:id/cancel moves to CANCELLED status",
+        "Filter by status, item_type, createdAt range",
+        "Cursor-based pagination"
+      ]
+    },
+    {
+      "id": "ADM-008",
+      "title": "Trading Truth Console APIs",
+      "description": "Comprehensive trading data endpoints: decisions list, order lifecycle, fills, position history. Includes manual reconcile trigger.",
+      "priority": "P0",
+      "order": 8,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "partial",
+      "phase": "C6",
+      "acceptance": [
+        "GET /api/admin/decisions with filtering",
+        "GET /api/admin/orders with broker status, fills inline",
+        "POST /api/admin/orders/reconcile triggers Alpaca sync",
+        "Response includes source metadata"
+      ]
+    },
+    {
+      "id": "ADM-009",
+      "title": "OpenTelemetry Main Server Integration",
+      "description": "Add OTel auto-instrumentation to main Express server. Add custom spans for orchestrator cycles, work item processing, LLM calls.",
+      "priority": "P1",
+      "order": 9,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "pending",
+      "phase": "D1",
+      "acceptance": [
+        "OTel SDK initialized in server/index.ts",
+        "HTTP spans auto-captured for all routes",
+        "Custom spans in orchestrator.runCycle, workQueue.process, llmGateway.call",
+        "Spans include traceId for correlation",
+        "Exportable to Jaeger/Tempo"
+      ]
+    },
+    {
+      "id": "ADM-010",
+      "title": "Trade Forensics Report Generator",
+      "description": "Generate diagnostic report with stuck work items, duplicate orders, missing confirmations, latency distribution, decision->fill traceability.",
+      "priority": "P1",
+      "order": 10,
+      "risk": "low",
+      "effort": "medium",
+      "dependencies": [],
+      "hardDependencies": [],
+      "status": "pending",
+      "phase": "E1",
+      "acceptance": [
+        "GET /api/admin/forensics/report returns diagnostic JSON",
+        "Identifies stuck items (pending > 5 min)",
+        "Detects duplicate brokerOrderIds",
+        "Calculates decision-to-fill latency percentiles",
+        "UI screen to view report"
+      ]
+    },
+    {
+      "id": "G5",
+      "title": "Event-Driven Saga Patterns (NATS Events)",
+      "description": "Implement NATS JetStream events: market.quote.received, ai.decision.generated, trade.order.submitted. Per TRADING_SAGA_SEQUENCES.md.",
+      "priority": "P2",
+      "order": 100,
+      "risk": "high",
+      "effort": "xlarge",
+      "dependencies": ["microservices migration"],
+      "hardDependencies": [],
+      "status": "future",
+      "phase": "Phase 3",
+      "notes": "Documented as future state. Requires microservices migration completion."
+    }
+  ],
+  "topMismatches": [
+    {
+      "id": "M1",
+      "issue": "No WordPress-like Admin Module Registry",
+      "matrixRef": "ADMIN-3",
+      "resolution": "Implement ADM-001 first - foundation for all admin features"
+    },
+    {
+      "id": "M2",
+      "issue": "No RBAC/capability system for admin",
+      "matrixRef": "ADMIN-4",
+      "resolution": "Implement ADM-002 after module registry"
+    },
+    {
+      "id": "M3",
+      "issue": "No orchestrator control APIs (pause/resume/run-now)",
+      "matrixRef": "ADMIN-6",
+      "resolution": "Implement ADM-006 in Phase C"
+    },
+    {
+      "id": "M4",
+      "issue": "OTel not integrated into main Express server",
+      "matrixRef": "OBS-2",
+      "resolution": "Implement ADM-009 in Phase D"
+    },
+    {
+      "id": "M5",
+      "issue": "TRADING_SAGA_SEQUENCES.md describes NATS events that don't exist",
+      "matrixRef": "SAGA-1",
+      "resolution": "Mark doc as FUTURE STATE, implement G5 in Phase 3 of microservices migration"
+    }
+  ],
+  "prioritizedNextItems": [
+    "ADM-001: Admin Module Registry (FOUNDATION - must come first)",
+    "ADM-002: RBAC/Capabilities (FOUNDATION - depends on ADM-001)",
+    "ADM-005: System Overview API (enables dashboard)",
+    "ADM-006: Orchestrator Control APIs (critical for operations)",
+    "ADM-008: Trading Truth Console (order visibility)"
+  ]
+}
