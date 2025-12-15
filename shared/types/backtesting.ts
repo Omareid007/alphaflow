@@ -17,6 +17,8 @@ export interface DataProvenance {
   cacheHitRate: number;
   dataPulledAt: string;
   barsCountBySymbol: Record<string, number>;
+  timeframe: string;
+  dateRange: { start: string; end: string };
   nextPageTokensUsed?: number;
 }
 

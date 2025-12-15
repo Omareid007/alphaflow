@@ -2,6 +2,8 @@ import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, ScrollView } 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -12,6 +14,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
 import type { Trade, Strategy, AiDecision } from "@shared/schema";
+import type { AnalyticsStackParamList } from "@/navigation/AnalyticsStackNavigator";
 
 interface EnrichedTrade extends Trade {
   aiDecision?: AiDecision | null;
@@ -745,6 +748,34 @@ function TradeLedger() {
   );
 }
 
+type NavigationProp = NativeStackNavigationProp<AnalyticsStackParamList>;
+
+function BacktestsLink() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
+
+  return (
+    <Card 
+      elevation={1} 
+      style={styles.backtestsLinkCard}
+      onPress={() => navigation.navigate("Backtests")}
+    >
+      <View style={styles.backtestsLinkContent}>
+        <View style={[styles.backtestsIconContainer, { backgroundColor: BrandColors.primaryLight + "20" }]}>
+          <Feather name="bar-chart" size={24} color={BrandColors.primaryLight} />
+        </View>
+        <View style={styles.backtestsLinkText}>
+          <ThemedText style={styles.backtestsLinkTitle}>Backtests</ThemedText>
+          <ThemedText style={[styles.backtestsLinkSubtitle, { color: theme.textSecondary }]}>
+            Test strategies on historical data
+          </ThemedText>
+        </View>
+        <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+      </View>
+    </Card>
+  );
+}
+
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -752,6 +783,7 @@ export default function AnalyticsScreen() {
   const { theme } = useTheme();
 
   const sections = [
+    { key: "backtests", component: <BacktestsLink /> },
     { key: "metrics", component: <PerformanceMetrics /> },
     { key: "equity", component: <EquityCurveCard /> },
     { key: "winrate", component: <WinRateCard /> },
@@ -1134,5 +1166,31 @@ const styles = StyleSheet.create({
   errorText: {
     ...Typography.body,
     textAlign: "center",
+  },
+  backtestsLinkCard: {
+    borderWidth: 1,
+    borderColor: BrandColors.cardBorder,
+  },
+  backtestsLinkContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  backtestsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backtestsLinkText: {
+    flex: 1,
+  },
+  backtestsLinkTitle: {
+    ...Typography.h4,
+    marginBottom: Spacing.xs,
+  },
+  backtestsLinkSubtitle: {
+    ...Typography.caption,
   },
 });
