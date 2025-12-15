@@ -1,12 +1,14 @@
-import { View, FlatList, StyleSheet, Switch, Pressable } from "react-native";
+import { View, FlatList, StyleSheet, Switch, Pressable, RefreshControl, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AdminStackParamList } from "@/navigation/AdminStackNavigator";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/query-client";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
@@ -15,17 +17,34 @@ import { Card } from "@/components/Card";
 
 interface ConnectorStatus {
   name: string;
-  status: "healthy" | "warning" | "error" | "offline";
-  lastSync: string;
-  callsRemaining?: number;
+  provider: string;
+  type: string;
+  hasApiKey: boolean;
+  status: "healthy" | "warning" | "error" | "offline" | "disabled" | "checking";
+  lastSync: string | null;
+  callsRemaining: number | null;
 }
 
-const connectors: ConnectorStatus[] = [
-  { name: "Finnhub", status: "healthy", lastSync: "Just now", callsRemaining: 58 },
-  { name: "CoinGecko", status: "healthy", lastSync: "2 min ago", callsRemaining: 28 },
-  { name: "GDELT News", status: "healthy", lastSync: "5 min ago" },
-  { name: "Alpaca Paper", status: "offline", lastSync: "Not connected" },
-];
+interface ApiKeyStatus {
+  name: string;
+  key: string;
+  category: string;
+  configured: boolean;
+}
+
+interface DataFusionStatus {
+  intelligenceScore: number;
+  activeSources: number;
+  totalSources: number;
+  dataSources: Array<{ name: string; provider: string; active: boolean }>;
+  embeddingsCount: number;
+  capabilities: {
+    marketData: boolean;
+    newsAnalysis: boolean;
+    sentimentAnalysis: boolean;
+    tradingCapability: boolean;
+  };
+}
 
 function getStatusColor(status: ConnectorStatus["status"]) {
   switch (status) {
@@ -36,59 +55,97 @@ function getStatusColor(status: ConnectorStatus["status"]) {
     case "error":
       return BrandColors.error;
     case "offline":
+    case "disabled":
       return BrandColors.neutral;
+    case "checking":
+      return BrandColors.primaryLight;
+  }
+}
+
+function getCategoryIcon(category: string): keyof typeof Feather.glyphMap {
+  switch (category) {
+    case "brokerage": return "briefcase";
+    case "market_data": return "trending-up";
+    case "crypto": return "dollar-sign";
+    case "news": return "file-text";
+    case "data": return "database";
+    case "ai": return "cpu";
+    default: return "key";
   }
 }
 
 function ConnectorHealthCard() {
   const { theme } = useTheme();
+  const { data, isLoading } = useQuery<{ connectors: ConnectorStatus[] }>({
+    queryKey: ["/api/admin/connectors-health"],
+    refetchInterval: 30000,
+  });
+
+  const connectors = data?.connectors || [];
 
   return (
     <Card elevation={1} style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
         <Feather name="database" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.sectionTitle}>Connector Health</ThemedText>
+        {isLoading ? <ActivityIndicator size="small" color={BrandColors.primaryLight} /> : null}
       </View>
-      {connectors.map((connector, index) => (
-        <View
-          key={connector.name}
-          style={[
-            styles.connectorRow,
-            index < connectors.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder },
-          ]}
-        >
-          <View style={styles.connectorInfo}>
-            <View style={styles.connectorNameRow}>
-              <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(connector.status) }]} />
-              <ThemedText style={styles.connectorName}>{connector.name}</ThemedText>
-            </View>
-            <ThemedText style={[styles.connectorSync, { color: theme.textSecondary }]}>
-              {connector.lastSync}
-            </ThemedText>
-          </View>
-          {connector.callsRemaining !== undefined ? (
-            <View style={styles.callsRemaining}>
-              <ThemedText style={[styles.callsValue, { fontFamily: Fonts?.mono }]}>
-                {connector.callsRemaining}
+      {connectors.length === 0 && !isLoading ? (
+        <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
+          No connectors configured
+        </ThemedText>
+      ) : (
+        connectors.map((connector, index) => (
+          <View
+            key={connector.name}
+            style={[
+              styles.connectorRow,
+              index < connectors.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder },
+            ]}
+          >
+            <View style={styles.connectorInfo}>
+              <View style={styles.connectorNameRow}>
+                <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(connector.status) }]} />
+                <ThemedText style={styles.connectorName}>{connector.name}</ThemedText>
+              </View>
+              <ThemedText style={[styles.connectorSync, { color: theme.textSecondary }]}>
+                {connector.lastSync || "Not connected"}
               </ThemedText>
-              <ThemedText style={[styles.callsLabel, { color: theme.textSecondary }]}>calls/min</ThemedText>
             </View>
-          ) : null}
-        </View>
-      ))}
+            {connector.callsRemaining !== null ? (
+              <View style={styles.callsRemaining}>
+                <ThemedText style={[styles.callsValue, { fontFamily: Fonts?.mono }]}>
+                  {connector.callsRemaining}
+                </ThemedText>
+                <ThemedText style={[styles.callsLabel, { color: theme.textSecondary }]}>calls/min</ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ))
+      )}
     </Card>
   );
 }
 
 function DataFusionCard() {
   const { theme } = useTheme();
-  const fusionScore = 0.72;
+  const { data, isLoading } = useQuery<DataFusionStatus>({
+    queryKey: ["/api/admin/data-fusion-status"],
+    refetchInterval: 30000,
+  });
+
+  const fusionScore = data?.intelligenceScore || 0;
+  const activeSources = data?.activeSources || 0;
+  const totalSources = data?.totalSources || 7;
+  const dataSources = data?.dataSources || [];
+  const capabilities = data?.capabilities || { marketData: false, newsAnalysis: false, sentimentAnalysis: false, tradingCapability: false };
 
   return (
     <Card elevation={1} style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
         <Feather name="layers" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.sectionTitle}>Data Fusion Engine</ThemedText>
+        {isLoading ? <ActivityIndicator size="small" color={BrandColors.primaryLight} /> : null}
       </View>
       <View style={styles.fusionContent}>
         <View style={styles.fusionMetric}>
@@ -113,13 +170,53 @@ function DataFusionCard() {
         </View>
         <View style={styles.fusionStats}>
           <View style={styles.fusionStat}>
-            <ThemedText style={[styles.fusionStatValue, { fontFamily: Fonts?.mono }]}>3</ThemedText>
+            <ThemedText style={[styles.fusionStatValue, { fontFamily: Fonts?.mono }]}>{activeSources}</ThemedText>
             <ThemedText style={[styles.fusionStatLabel, { color: theme.textSecondary }]}>Active Sources</ThemedText>
           </View>
           <View style={styles.fusionStat}>
-            <ThemedText style={[styles.fusionStatValue, { fontFamily: Fonts?.mono }]}>0</ThemedText>
-            <ThemedText style={[styles.fusionStatLabel, { color: theme.textSecondary }]}>Embeddings</ThemedText>
+            <ThemedText style={[styles.fusionStatValue, { fontFamily: Fonts?.mono }]}>{totalSources}</ThemedText>
+            <ThemedText style={[styles.fusionStatLabel, { color: theme.textSecondary }]}>Total Sources</ThemedText>
           </View>
+        </View>
+        <View style={styles.capabilitiesSection}>
+          <ThemedText style={[styles.capabilitiesTitle, { color: theme.textSecondary }]}>Capabilities</ThemedText>
+          <View style={styles.capabilitiesGrid}>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.marketData ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.marketData ? theme.text : theme.textSecondary }]}>
+                Market Data
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.newsAnalysis ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.newsAnalysis ? theme.text : theme.textSecondary }]}>
+                News Analysis
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.sentimentAnalysis ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.sentimentAnalysis ? theme.text : theme.textSecondary }]}>
+                Sentiment
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.tradingCapability ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.tradingCapability ? theme.text : theme.textSecondary }]}>
+                Trading
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+        <View style={styles.dataSourcesList}>
+          <ThemedText style={[styles.dataSourcesTitle, { color: theme.textSecondary }]}>Data Sources</ThemedText>
+          {dataSources.map((source) => (
+            <View key={source.provider} style={styles.dataSourceRow}>
+              <View style={[styles.dataSourceDot, { backgroundColor: source.active ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.dataSourceName, { color: source.active ? theme.text : theme.textSecondary }]}>
+                {source.name}
+              </ThemedText>
+            </View>
+          ))}
         </View>
       </View>
     </Card>
@@ -130,6 +227,7 @@ function AIConfigCard() {
   const { theme } = useTheme();
   const [autoTrade, setAutoTrade] = useState(false);
   const [riskMode, setRiskMode] = useState(false);
+  const [showExplanations, setShowExplanations] = useState(true);
 
   return (
     <Card elevation={1} style={styles.sectionCard}>
@@ -137,12 +235,30 @@ function AIConfigCard() {
         <Feather name="cpu" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.sectionTitle}>AI Configuration</ThemedText>
       </View>
+      
+      {showExplanations ? (
+        <View style={[styles.explanationBox, { backgroundColor: BrandColors.aiLayer + "15" }]}>
+          <Feather name="info" size={16} color={BrandColors.aiLayer} />
+          <ThemedText style={[styles.explanationText, { color: theme.textSecondary }]}>
+            These settings control how the AI makes trading decisions. Auto-Execute allows the AI to place trades automatically without your approval. Conservative Mode requires higher confidence before recommending trades.
+          </ThemedText>
+        </View>
+      ) : null}
+
       <View style={styles.configRow}>
         <View style={styles.configInfo}>
           <ThemedText style={styles.configLabel}>Auto-Execute Trades</ThemedText>
           <ThemedText style={[styles.configDescription, { color: theme.textSecondary }]}>
-            Automatically execute AI-recommended trades
+            When enabled, the AI will automatically execute trades it recommends without waiting for your approval. Trades follow your strategy rules and risk limits.
           </ThemedText>
+          {autoTrade ? (
+            <View style={[styles.warningBadge, { backgroundColor: BrandColors.warning + "20" }]}>
+              <Feather name="alert-triangle" size={12} color={BrandColors.warning} />
+              <ThemedText style={[styles.warningText, { color: BrandColors.warning }]}>
+                Trades will execute automatically
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
         <Switch
           value={autoTrade}
@@ -154,8 +270,22 @@ function AIConfigCard() {
         <View style={styles.configInfo}>
           <ThemedText style={styles.configLabel}>Conservative Mode</ThemedText>
           <ThemedText style={[styles.configDescription, { color: theme.textSecondary }]}>
-            Higher confidence threshold for trades
+            Raises the confidence threshold from 70% to 85% before making trade recommendations. Best for volatile markets or when you want fewer, higher-quality signals.
           </ThemedText>
+          {riskMode ? (
+            <View style={[styles.infoBadge, { backgroundColor: BrandColors.success + "20" }]}>
+              <Feather name="shield" size={12} color={BrandColors.success} />
+              <ThemedText style={[styles.infoText, { color: BrandColors.success }]}>
+                85% confidence required
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={[styles.infoBadge, { backgroundColor: BrandColors.neutral + "30" }]}>
+              <ThemedText style={[styles.infoText, { color: theme.textSecondary }]}>
+                70% confidence threshold
+              </ThemedText>
+            </View>
+          )}
         </View>
         <Switch
           value={riskMode}
@@ -169,40 +299,89 @@ function AIConfigCard() {
 
 function APIKeysCard() {
   const { theme } = useTheme();
+  const { data, isLoading } = useQuery<{ apiKeys: ApiKeyStatus[]; summary: { total: number; configured: number; missing: number } }>({
+    queryKey: ["/api/admin/api-keys-status"],
+    refetchInterval: 60000,
+  });
 
-  const apiKeys = [
-    { name: "Alpaca API", configured: false },
-    { name: "Finnhub API", configured: false },
-    { name: "CoinGecko API", configured: false },
-  ];
+  const apiKeys = data?.apiKeys || [];
+  const summary = data?.summary || { total: 0, configured: 0, missing: 0 };
+
+  const groupedKeys = apiKeys.reduce((acc, key) => {
+    if (!acc[key.category]) acc[key.category] = [];
+    acc[key.category].push(key);
+    return acc;
+  }, {} as Record<string, ApiKeyStatus[]>);
+
+  const categoryLabels: Record<string, string> = {
+    brokerage: "Brokerage",
+    market_data: "Market Data",
+    crypto: "Cryptocurrency",
+    news: "News",
+    data: "Data Enrichment",
+    ai: "AI/LLM Providers",
+  };
 
   return (
     <Card elevation={1} style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
         <Feather name="key" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.sectionTitle}>API Keys</ThemedText>
+        {isLoading ? <ActivityIndicator size="small" color={BrandColors.primaryLight} /> : null}
       </View>
-      {apiKeys.map((key, index) => (
-        <View
-          key={key.name}
-          style={[
-            styles.apiKeyRow,
-            index < apiKeys.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder },
-          ]}
-        >
-          <ThemedText style={styles.apiKeyName}>{key.name}</ThemedText>
-          <View style={styles.apiKeyStatus}>
-            {key.configured ? (
-              <Feather name="check-circle" size={18} color={BrandColors.success} />
-            ) : (
-              <Feather name="alert-circle" size={18} color={BrandColors.warning} />
-            )}
-            <ThemedText
-              style={[styles.apiKeyStatusText, { color: key.configured ? BrandColors.success : BrandColors.warning }]}
-            >
-              {key.configured ? "Configured" : "Required"}
+      
+      <View style={styles.apiSummary}>
+        <View style={styles.apiSummaryItem}>
+          <ThemedText style={[styles.apiSummaryValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>
+            {summary.configured}
+          </ThemedText>
+          <ThemedText style={[styles.apiSummaryLabel, { color: theme.textSecondary }]}>Configured</ThemedText>
+        </View>
+        <View style={styles.apiSummaryItem}>
+          <ThemedText style={[styles.apiSummaryValue, { color: BrandColors.warning, fontFamily: Fonts?.mono }]}>
+            {summary.missing}
+          </ThemedText>
+          <ThemedText style={[styles.apiSummaryLabel, { color: theme.textSecondary }]}>Missing</ThemedText>
+        </View>
+        <View style={styles.apiSummaryItem}>
+          <ThemedText style={[styles.apiSummaryValue, { fontFamily: Fonts?.mono }]}>
+            {summary.total}
+          </ThemedText>
+          <ThemedText style={[styles.apiSummaryLabel, { color: theme.textSecondary }]}>Total</ThemedText>
+        </View>
+      </View>
+
+      {Object.entries(groupedKeys).map(([category, keys]) => (
+        <View key={category} style={styles.apiCategory}>
+          <View style={styles.apiCategoryHeader}>
+            <Feather name={getCategoryIcon(category)} size={14} color={theme.textSecondary} />
+            <ThemedText style={[styles.apiCategoryTitle, { color: theme.textSecondary }]}>
+              {categoryLabels[category] || category}
             </ThemedText>
           </View>
+          {keys.map((key, index) => (
+            <View
+              key={key.key}
+              style={[
+                styles.apiKeyRow,
+                index < keys.length - 1 && { borderBottomWidth: 1, borderBottomColor: BrandColors.cardBorder },
+              ]}
+            >
+              <ThemedText style={styles.apiKeyName}>{key.name}</ThemedText>
+              <View style={styles.apiKeyStatus}>
+                {key.configured ? (
+                  <Feather name="check-circle" size={18} color={BrandColors.success} />
+                ) : (
+                  <Feather name="alert-circle" size={18} color={BrandColors.warning} />
+                )}
+                <ThemedText
+                  style={[styles.apiKeyStatusText, { color: key.configured ? BrandColors.success : BrandColors.warning }]}
+                >
+                  {key.configured ? "Active" : "Required"}
+                </ThemedText>
+              </View>
+            </View>
+          ))}
         </View>
       ))}
     </Card>
@@ -262,6 +441,18 @@ export default function AdminScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/connectors-health"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys-status"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/data-fusion-status"] }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient]);
 
   const sections = [
     { key: "budget", component: <ApiBudgetNavCard /> },
@@ -285,6 +476,9 @@ export default function AdminScreen() {
       data={sections}
       keyExtractor={(item) => item.key}
       renderItem={({ item }) => item.component}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     />
   );
 }
@@ -302,6 +496,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...Typography.h4,
+    flex: 1,
   },
   connectorRow: {
     flexDirection: "row",
@@ -338,6 +533,11 @@ const styles = StyleSheet.create({
   },
   callsLabel: {
     ...Typography.small,
+  },
+  emptyText: {
+    ...Typography.body,
+    textAlign: "center",
+    paddingVertical: Spacing.lg,
   },
   fusionContent: {
     gap: Spacing.lg,
@@ -379,10 +579,64 @@ const styles = StyleSheet.create({
   fusionStatLabel: {
     ...Typography.small,
   },
+  capabilitiesSection: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+    paddingTop: Spacing.lg,
+  },
+  capabilitiesTitle: {
+    ...Typography.small,
+    marginBottom: Spacing.sm,
+  },
+  capabilitiesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  capabilityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: BrandColors.cardBorder,
+    borderRadius: BorderRadius.xs,
+  },
+  capabilityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  capabilityText: {
+    ...Typography.small,
+  },
+  dataSourcesList: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+    paddingTop: Spacing.lg,
+  },
+  dataSourcesTitle: {
+    ...Typography.small,
+    marginBottom: Spacing.sm,
+  },
+  dataSourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  dataSourceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dataSourceName: {
+    ...Typography.small,
+  },
   configRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: Spacing.md,
   },
   configInfo: {
@@ -396,12 +650,82 @@ const styles = StyleSheet.create({
   },
   configDescription: {
     ...Typography.small,
+    marginBottom: Spacing.sm,
+  },
+  explanationBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.md,
+  },
+  explanationText: {
+    ...Typography.small,
+    flex: 1,
+  },
+  warningBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xs,
+    alignSelf: "flex-start",
+  },
+  warningText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  infoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.xs,
+    alignSelf: "flex-start",
+  },
+  infoText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  apiSummary: {
+    flexDirection: "row",
+    gap: Spacing.xl,
+    marginBottom: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.cardBorder,
+  },
+  apiSummaryItem: {
+    alignItems: "center",
+  },
+  apiSummaryValue: {
+    ...Typography.h3,
+  },
+  apiSummaryLabel: {
+    ...Typography.small,
+  },
+  apiCategory: {
+    marginBottom: Spacing.md,
+  },
+  apiCategoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  apiCategoryTitle: {
+    ...Typography.small,
+    fontWeight: "500",
   },
   apiKeyRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingLeft: Spacing.lg,
   },
   apiKeyName: {
     ...Typography.body,
