@@ -101,6 +101,17 @@ export class OpenAIClient implements LLMClient {
       }
     }
 
+    if (req.responseFormat) {
+      if (req.responseFormat.type === "json_object") {
+        body.response_format = { type: "json_object" };
+      } else if (req.responseFormat.type === "json_schema" && req.responseFormat.json_schema) {
+        body.response_format = {
+          type: "json_schema",
+          json_schema: req.responseFormat.json_schema,
+        };
+      }
+    }
+
     const startTime = Date.now();
 
     try {

@@ -62,6 +62,7 @@ import { roleBasedRouter, getAllRoleConfigs, updateRoleConfig, getRecentCalls, g
 import { tradabilityService } from "./services/tradability-service";
 import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
+import { tracesRouter } from "./routes/traces";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -146,6 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("[Routes] Continuing registration (admin bootstrap deferred)...");
 
   app.use("/api/backtests", backtestsRouter);
+  app.use("/api/traces", tracesRouter);
 
   app.post("/api/auth/signup", async (req, res) => {
     try {
