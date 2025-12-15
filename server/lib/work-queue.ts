@@ -76,6 +76,7 @@ export interface WorkQueueService {
   markSucceeded(id: string, result?: string): Promise<void>;
   markFailed(id: string, error: string, retryable?: boolean): Promise<void>;
   markDeadLetter(id: string, reason: string): Promise<void>;
+  getById(id: string): Promise<WorkItem | null>;
   getByIdempotencyKey(key: string): Promise<WorkItem | null>;
   getPendingCount(type?: WorkItemType): Promise<number>;
   getRecentItems(limit?: number, status?: WorkItemStatus): Promise<WorkItem[]>;
@@ -149,6 +150,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
     });
   }
 
+  async getById(id: string): Promise<WorkItem | null> {
+    const item = await storage.getWorkItem(id);
+    return item || null;
+  }
+
   async getByIdempotencyKey(key: string): Promise<WorkItem | null> {
     return storage.getWorkItemByIdempotencyKey(key);
   }
@@ -179,7 +185,28 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
   async processOrderSubmit(item: WorkItem): Promise<void> {
     const payload = JSON.parse(item.payload || "{}");
-    const { symbol, side, qty, type, time_in_force, limit_price, stop_price, extended_hours } = payload;
+    const { 
+      symbol, 
+      side, 
+      qty, 
+      notional,
+      type, 
+      time_in_force, 
+      limit_price, 
+      stop_price, 
+      extended_hours,
+      order_class,
+      take_profit_limit_price,
+      stop_loss_stop_price,
+      traceId,
+    } = payload;
+
+    log.info("work-queue", `Processing ORDER_SUBMIT for ${symbol} ${side}`, { 
+      traceId, 
+      workItemId: item.id,
+      symbol,
+      side,
+    });
 
     const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
     if (!tradabilityCheck.tradable) {
@@ -196,7 +223,7 @@ class WorkQueueServiceImpl implements WorkQueueService {
     const existingOrder = existingOrders.find(o => o.client_order_id === clientOrderId);
 
     if (existingOrder) {
-      log.info("work-queue", `Order already exists for client_order_id ${clientOrderId}: ${existingOrder.id}`);
+      log.info("work-queue", `Order already exists for client_order_id ${clientOrderId}: ${existingOrder.id}`, { traceId });
       await storage.updateWorkItem(item.id, {
         brokerOrderId: existingOrder.id,
         result: JSON.stringify({ orderId: existingOrder.id, status: existingOrder.status }),
@@ -205,16 +232,30 @@ class WorkQueueServiceImpl implements WorkQueueService {
       return;
     }
 
-    const order = await alpaca.createOrder({
+    const orderParams: any = {
       symbol,
-      qty,
       side,
       type: type || "market",
       time_in_force: time_in_force || "day",
-      limit_price,
-      stop_price,
       client_order_id: clientOrderId,
-      extended_hours,
+    };
+
+    if (qty) orderParams.qty = qty;
+    if (notional) orderParams.notional = notional;
+    if (limit_price) orderParams.limit_price = limit_price;
+    if (stop_price) orderParams.stop_price = stop_price;
+    if (extended_hours) orderParams.extended_hours = extended_hours;
+    if (order_class) orderParams.order_class = order_class;
+    if (take_profit_limit_price) orderParams.take_profit = { limit_price: take_profit_limit_price };
+    if (stop_loss_stop_price) orderParams.stop_loss = { stop_price: stop_loss_stop_price };
+
+    const order = await alpaca.createOrder(orderParams);
+
+    log.info("work-queue", `ORDER_SUBMIT succeeded: ${order.id}`, { 
+      traceId, 
+      workItemId: item.id,
+      orderId: order.id,
+      status: order.status,
     });
 
     await storage.updateWorkItem(item.id, { brokerOrderId: order.id });

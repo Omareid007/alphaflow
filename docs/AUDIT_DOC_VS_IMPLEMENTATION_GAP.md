@@ -9,7 +9,12 @@
 
 ## Executive Summary
 
-This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. **Two critical gaps have been fixed** (G2, G3). The remaining critical gap (G1) requires the **Orchestrator to use Work Queue** for durable order execution.
+This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. **All 3 critical gaps have been fixed** (G1, G2, G3). The moderate gaps remain documented for future work.
+
+### Phase 0+1 Fixes Completed:
+- ✅ **G1**: Orchestrator now uses Work Queue for all order operations (durable execution)
+- ✅ **G2**: End-to-end traceId propagation across AI decisions, LLM calls, and trades
+- ✅ **G3**: Work queue worker starts automatically on server initialization
 
 ---
 
@@ -19,7 +24,7 @@ This audit identified **3 critical gaps** and **2 moderate gaps** between docume
 
 | ID | Documented Feature | Doc Reference | Schema | Implementation | Gap Description | Status |
 |----|-------------------|---------------|--------|----------------|-----------------|--------|
-| **G1** | Orchestrator uses Work Queue for durable order execution | WORK_QUEUE_ARCHITECTURE.md | ✅ work_items, work_item_runs | ❌ NOT USED | `orchestrator.ts` calls `alpaca.createOrder()` directly (~5 locations). Work queue exists but is bypassed. | **OPEN** - Requires refactor |
+| **G1** | Orchestrator uses Work Queue for durable order execution | WORK_QUEUE_ARCHITECTURE.md | ✅ work_items, work_item_runs | ✅ FIXED | All order operations now go through work queue with idempotency keys, polling, and traceId propagation. | **FIXED** - Full integration |
 | **G2** | End-to-end traceId propagation | OBSERVABILITY.md, INDEX.md | ✅ trades.traceId, llm_calls.traceId, ai_decisions.traceId | ✅ FIXED | TraceId now propagated through: orchestrator cycles, background AI batches, strategy runs, manual API calls, paper trading. | **FIXED** - Primary paths complete |
 | **G3** | Work Queue worker runs automatically | WORK_QUEUE_ARCHITECTURE.md | N/A | ✅ FIXED | `workQueue.startWorker()` now called in `server/routes.ts` during initialization. | **FIXED** - Worker runs on startup |
 
@@ -45,25 +50,33 @@ This audit identified **3 critical gaps** and **2 moderate gaps** between docume
 
 ## Critical Gap Details
 
-### G1: Orchestrator Bypasses Work Queue
+### G1: Orchestrator Uses Work Queue ✅ FIXED
 
-**Evidence:**
-```typescript
-// server/autonomous/orchestrator.ts (lines 984, 990, 1008, 1018, 1186)
-initialOrder = await alpaca.createOrder(orderParams);
-// Direct call - no work queue!
+**Status:** Fixed as of December 15, 2025
+
+**Implementation:**
+- Added `queueOrderExecution()` helper that enqueues ORDER_SUBMIT work items
+- Added `queueOrderCancellation()` helper for ORDER_CANCEL work items
+- All order operations now go through work queue with:
+  - Idempotency keys (5-minute time buckets for orders, 1-minute for cancellations)
+  - Polling mechanism (2s intervals, 60s timeout)
+  - TraceId propagation through work item payload
+  - Proper result extraction from work item result
+
+**Order Types Covered:**
+- Extended hours limit orders
+- Bracket orders (with take_profit and stop_loss)
+- Default market orders
+- Partial close sell orders
+- Order cancellations (rebalance, position close)
+
+**Log Evidence:**
 ```
-
-**Expected (per WORK_QUEUE_ARCHITECTURE.md):**
-```typescript
-await workQueue.enqueue({
-  type: "ORDER_SUBMIT",
-  payload: JSON.stringify(orderParams),
-  idempotencyKey: generateIdempotencyKey({...}),
-});
+[Orchestrator] Queuing ORDER_SUBMIT for JPM sell {"traceId":"cyc-cpkzk44z","idempotencyKey":"..."}
+[work-queue] Processing ORDER_SUBMIT for JPM sell {"traceId":"cyc-cpkzk44z"}
+[work-queue] ORDER_SUBMIT succeeded: 59c3d70d-4339-4bd9-af02-5347d6a03956
+[Orchestrator] ORDER_SUBMIT succeeded: 59c3d70d-4339-4bd9-af02-5347d6a03956
 ```
-
-**Fix Required:** Refactor orchestrator to use work queue for all order operations.
 
 ---
 

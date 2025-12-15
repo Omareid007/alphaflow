@@ -3,13 +3,14 @@ import { aiDecisionEngine, AIDecision, MarketData } from "../ai/decision-engine"
 import { finnhub } from "../connectors/finnhub";
 import { coingecko } from "../connectors/coingecko";
 import { storage } from "../storage";
-import type { Strategy } from "@shared/schema";
+import type { Strategy, WorkItem } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
 import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } from "../trading/order-execution-flow";
 import { recordDecisionFeatures, recordTradeOutcome, updateTradeOutcomeOnClose, runCalibrationAnalysis } from "../ai/learning-service";
 import { tradabilityService } from "../services/tradability-service";
+import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
@@ -143,6 +144,214 @@ function normalizeCryptoSymbol(symbol: string): string {
     return `${base}/USD`;
   }
   return upperSymbol;
+}
+
+const QUEUE_POLL_INTERVAL_MS = 2000;
+const QUEUE_POLL_TIMEOUT_MS = 60000;
+
+interface QueuedOrderResult {
+  orderId: string;
+  status: string;
+  workItemId: string;
+}
+
+async function queueOrderExecution(params: {
+  orderParams: CreateOrderParams;
+  traceId: string | null;
+  strategyId?: string;
+  symbol: string;
+  side: "buy" | "sell";
+  decisionId?: string;
+}): Promise<QueuedOrderResult> {
+  const { orderParams, traceId, strategyId, symbol, side, decisionId } = params;
+  
+  const timestampBucket = Math.floor(Date.now() / 300000).toString();
+  const idempotencyKey = generateIdempotencyKey({
+    strategyId: strategyId || "autonomous",
+    symbol,
+    side,
+    timeframeBucket: timestampBucket,
+  });
+
+  log.info("Orchestrator", `Queuing ORDER_SUBMIT for ${symbol} ${side}`, { 
+    traceId, 
+    idempotencyKey,
+    symbol,
+    side,
+  });
+
+  const normalizedOrderParams = {
+    symbol: orderParams.symbol,
+    side: orderParams.side,
+    type: orderParams.type || "market",
+    time_in_force: orderParams.time_in_force || "day",
+    ...(orderParams.qty && { qty: orderParams.qty }),
+    ...(orderParams.notional && { notional: orderParams.notional }),
+    ...(orderParams.limit_price && { limit_price: orderParams.limit_price }),
+    ...(orderParams.stop_price && { stop_price: orderParams.stop_price }),
+    ...(orderParams.extended_hours !== undefined && { extended_hours: orderParams.extended_hours }),
+    ...(orderParams.order_class && { order_class: orderParams.order_class }),
+    ...(orderParams.take_profit_limit_price && { take_profit_limit_price: orderParams.take_profit_limit_price }),
+    ...(orderParams.stop_loss_stop_price && { stop_loss_stop_price: orderParams.stop_loss_stop_price }),
+  };
+
+  const workItem = await workQueue.enqueue({
+    type: "ORDER_SUBMIT",
+    symbol,
+    idempotencyKey,
+    decisionId: decisionId || null,
+    payload: JSON.stringify({
+      ...normalizedOrderParams,
+      traceId,
+      strategyId,
+    }),
+    maxAttempts: 3,
+  });
+
+  log.info("Orchestrator", `Work item created: ${workItem.id}`, { 
+    traceId, 
+    workItemId: workItem.id,
+    status: workItem.status,
+  });
+
+  if (workItem.status === "SUCCEEDED" && workItem.result) {
+    const result = JSON.parse(workItem.result);
+    log.info("Orchestrator", `Order already succeeded (duplicate): ${result.orderId}`, { traceId });
+    return {
+      orderId: result.orderId,
+      status: result.status || "filled",
+      workItemId: workItem.id,
+    };
+  }
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < QUEUE_POLL_TIMEOUT_MS) {
+    await new Promise(resolve => setTimeout(resolve, QUEUE_POLL_INTERVAL_MS));
+    
+    const updatedItem = await workQueue.getById(workItem.id);
+    if (!updatedItem) {
+      throw new Error(`Work item ${workItem.id} not found during polling`);
+    }
+
+    if (updatedItem.status === "SUCCEEDED") {
+      const result = updatedItem.result ? JSON.parse(updatedItem.result) : {};
+      const orderStatus = result.status || "accepted";
+      const validSuccessStates = ["filled", "accepted", "new", "pending_new", "partially_filled", "queued"];
+      
+      if (validSuccessStates.includes(orderStatus.toLowerCase()) || result.orderId || updatedItem.brokerOrderId) {
+        log.info("Orchestrator", `ORDER_SUBMIT succeeded: ${result.orderId || updatedItem.brokerOrderId}`, { 
+          traceId, 
+          workItemId: workItem.id,
+          orderId: result.orderId,
+          orderStatus,
+        });
+        return {
+          orderId: result.orderId || updatedItem.brokerOrderId || "",
+          status: orderStatus,
+          workItemId: workItem.id,
+        };
+      }
+    }
+
+    if (updatedItem.brokerOrderId && !updatedItem.result) {
+      log.info("Orchestrator", `ORDER_SUBMIT has broker order ID: ${updatedItem.brokerOrderId}`, { 
+        traceId, 
+        workItemId: workItem.id,
+      });
+      return {
+        orderId: updatedItem.brokerOrderId,
+        status: "accepted",
+        workItemId: workItem.id,
+      };
+    }
+
+    if (updatedItem.status === "DEAD_LETTER") {
+      log.error("Orchestrator", `ORDER_SUBMIT failed permanently: ${updatedItem.lastError}`, { 
+        traceId, 
+        workItemId: workItem.id,
+      });
+      throw new Error(`Order submission failed: ${updatedItem.lastError || "Unknown error"}`);
+    }
+
+    log.info("Orchestrator", `Polling work item ${workItem.id}: ${updatedItem.status}`, { 
+      traceId,
+      attempts: updatedItem.attempts,
+    });
+  }
+
+  throw new Error(`Order submission timed out after ${QUEUE_POLL_TIMEOUT_MS}ms`);
+}
+
+async function queueOrderCancellation(params: {
+  orderId: string;
+  traceId: string | null;
+  symbol: string;
+  strategyId?: string;
+}): Promise<void> {
+  const { orderId, traceId, symbol, strategyId } = params;
+
+  const timestampBucket = Math.floor(Date.now() / 60000).toString();
+  const idempotencyKey = generateIdempotencyKey({
+    strategyId: strategyId || "autonomous",
+    symbol,
+    side: `cancel-${orderId}`,
+    timeframeBucket: timestampBucket,
+  });
+
+  log.info("Orchestrator", `Queuing ORDER_CANCEL for order ${orderId}`, { 
+    traceId, 
+    orderId,
+    symbol,
+    idempotencyKey,
+  });
+
+  const workItem = await workQueue.enqueue({
+    type: "ORDER_CANCEL",
+    symbol,
+    idempotencyKey,
+    payload: JSON.stringify({ orderId, traceId }),
+    maxAttempts: 3,
+  });
+
+  if (workItem.status === "SUCCEEDED") {
+    log.info("Orchestrator", `Order cancellation already succeeded (duplicate)`, { traceId, orderId });
+    return;
+  }
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < QUEUE_POLL_TIMEOUT_MS) {
+    await new Promise(resolve => setTimeout(resolve, QUEUE_POLL_INTERVAL_MS));
+    
+    const updatedItem = await workQueue.getById(workItem.id);
+    if (!updatedItem) {
+      throw new Error(`Cancel work item ${workItem.id} not found during polling`);
+    }
+
+    if (updatedItem.status === "SUCCEEDED") {
+      log.info("Orchestrator", `ORDER_CANCEL succeeded for order ${orderId}`, { traceId });
+      return;
+    }
+
+    if (updatedItem.status === "CANCELLED") {
+      log.info("Orchestrator", `ORDER_CANCEL completed with CANCELLED status for order ${orderId}`, { traceId });
+      return;
+    }
+
+    if (updatedItem.status === "DEAD_LETTER") {
+      const errorLower = (updatedItem.lastError || "").toLowerCase();
+      if (errorLower.includes("already") || errorLower.includes("cancel") || errorLower.includes("not found")) {
+        log.info("Orchestrator", `ORDER_CANCEL completed (order already cancelled or not found): ${orderId}`, { traceId });
+        return;
+      }
+      log.warn("Orchestrator", `ORDER_CANCEL failed: ${updatedItem.lastError}`, { 
+        traceId, 
+        orderId,
+      });
+      return;
+    }
+  }
+
+  log.warn("Orchestrator", `Order cancellation timed out for ${orderId}`, { traceId });
 }
 
 const HEARTBEAT_INTERVAL_MS = 30000;
@@ -962,7 +1171,7 @@ class AutonomousOrchestrator {
         };
       }
 
-      let initialOrder: AlpacaOrder;
+      let queuedResult: QueuedOrderResult;
       const hasBracketParams = decision.targetPrice && decision.stopLoss && !isCrypto;
       
       if (preCheck.useExtendedHours && preCheck.useLimitOrder && preCheck.limitPrice) {
@@ -985,20 +1194,34 @@ class AutonomousOrchestrator {
           limit_price: preCheck.limitPrice.toFixed(2),
           extended_hours: true,
         };
-        initialOrder = await alpaca.createOrder(orderParams);
+        queuedResult = await queueOrderExecution({
+          orderParams,
+          traceId: this.currentTraceId,
+          symbol,
+          side: "buy",
+          decisionId: decision.aiDecisionId,
+        });
       } else if (hasBracketParams && decision.targetPrice && decision.stopLoss) {
         log.info("Orchestrator", `Bracket order for ${symbol}: TP=$${decision.targetPrice.toFixed(2)}, SL=$${decision.stopLoss.toFixed(2)}`);
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
           const estimatedQty = (positionValue / currentPrice).toFixed(6);
-          initialOrder = await alpaca.createBracketOrder({
+          const orderParams: CreateOrderParams = {
             symbol: brokerSymbol,
             qty: estimatedQty,
             side: "buy",
             type: "market",
             time_in_force: "gtc",
-            take_profit_price: decision.targetPrice.toFixed(2),
-            stop_loss_price: decision.stopLoss.toFixed(2),
+            take_profit_limit_price: decision.targetPrice.toFixed(2),
+            stop_loss_stop_price: decision.stopLoss.toFixed(2),
+            order_class: "bracket",
+          };
+          queuedResult = await queueOrderExecution({
+            orderParams,
+            traceId: this.currentTraceId,
+            symbol,
+            side: "buy",
+            decisionId: decision.aiDecisionId,
           });
         } else {
           log.warn("Orchestrator", `Bracket order fallback - invalid price/value for ${symbol}`);
@@ -1009,7 +1232,13 @@ class AutonomousOrchestrator {
             type: "market",
             time_in_force: "day",
           };
-          initialOrder = await alpaca.createOrder(orderParams);
+          queuedResult = await queueOrderExecution({
+            orderParams,
+            traceId: this.currentTraceId,
+            symbol,
+            side: "buy",
+            decisionId: decision.aiDecisionId,
+          });
         }
       } else {
         const orderParams: CreateOrderParams = {
@@ -1019,25 +1248,31 @@ class AutonomousOrchestrator {
           type: "market",
           time_in_force: isCrypto ? "gtc" : "day",
         };
-        initialOrder = await alpaca.createOrder(orderParams);
+        queuedResult = await queueOrderExecution({
+          orderParams,
+          traceId: this.currentTraceId,
+          symbol,
+          side: "buy",
+          decisionId: decision.aiDecisionId,
+        });
       }
       
-      const fillResult = await waitForAlpacaOrderFill(initialOrder.id);
+      const fillResult = await waitForAlpacaOrderFill(queuedResult.orderId);
       
       if (!fillResult.order) {
-        log.error("Orchestrator", `Order ${initialOrder.id} - no order data received`);
+        log.error("Orchestrator", `Order ${queuedResult.orderId} - no order data received`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
           action: "buy",
           reason: "Order failed - no response from broker",
           symbol,
-          orderId: initialOrder.id,
+          orderId: queuedResult.orderId,
         };
       }
       
       if (!fillResult.hasFillData) {
-        log.error("Orchestrator", `Order ${initialOrder.id} has no fill data, syncing positions`);
+        log.error("Orchestrator", `Order ${queuedResult.orderId} has no fill data, syncing positions`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -1046,12 +1281,12 @@ class AutonomousOrchestrator {
             ? "Order fill timed out - position sync triggered" 
             : "Order rejected or no fill data",
           symbol,
-          orderId: initialOrder.id,
+          orderId: queuedResult.orderId,
         };
       }
       
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        log.warn("Orchestrator", `Order ${initialOrder.id} timed out with partial fill, using available data`);
+        log.warn("Orchestrator", `Order ${queuedResult.orderId} timed out with partial fill, using available data`);
       }
       
       const order = fillResult.order;
@@ -1161,8 +1396,12 @@ class AutonomousOrchestrator {
         const symbolOrders = openOrders.filter(o => o.symbol === brokerSymbol);
         for (const order of symbolOrders) {
           try {
-            await alpaca.cancelOrder(order.id);
-            log.info("Orchestrator", `Canceled pending order ${order.id} for ${symbol} before closing`);
+            await queueOrderCancellation({
+              orderId: order.id,
+              traceId: this.currentTraceId,
+              symbol,
+            });
+            log.info("Orchestrator", `Queued cancellation for pending order ${order.id} for ${symbol} before closing`);
           } catch {
           }
         }
@@ -1173,9 +1412,10 @@ class AutonomousOrchestrator {
         log.warn("Orchestrator", `Failed to cancel orders for ${symbol}: ${err}`);
       }
 
-      let initialOrder;
+      let orderId: string;
       if (partialPercent >= 100) {
-        initialOrder = await alpaca.closePosition(brokerSymbol);
+        const initialOrder = await alpaca.closePosition(brokerSymbol);
+        orderId = initialOrder.id;
       } else {
         const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
         if (!tradabilityCheck.tradable) {
@@ -1188,31 +1428,39 @@ class AutonomousOrchestrator {
           };
         }
         const closeQty = (position.quantity * partialPercent) / 100;
-        initialOrder = await alpaca.createOrder({
+        const orderParams: CreateOrderParams = {
           symbol: brokerSymbol,
           qty: closeQty.toString(),
           side: "sell",
           type: "market",
           time_in_force: isCrypto ? "gtc" : "day",
+        };
+        const queuedResult = await queueOrderExecution({
+          orderParams,
+          traceId: this.currentTraceId,
+          symbol,
+          side: "sell",
+          decisionId: decision.aiDecisionId,
         });
+        orderId = queuedResult.orderId;
       }
 
-      const fillResult = await waitForAlpacaOrderFill(initialOrder.id);
+      const fillResult = await waitForAlpacaOrderFill(orderId);
       
       if (!fillResult.order) {
-        log.error("Orchestrator", `Close order ${initialOrder.id} - no order data received`);
+        log.error("Orchestrator", `Close order ${orderId} - no order data received`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
           action: "sell",
           reason: "Close order failed - no response from broker",
           symbol,
-          orderId: initialOrder.id,
+          orderId,
         };
       }
       
       if (!fillResult.hasFillData) {
-        log.error("Orchestrator", `Close order ${initialOrder.id} has no fill data, syncing positions`);
+        log.error("Orchestrator", `Close order ${orderId} has no fill data, syncing positions`);
         await this.syncPositionsFromBroker();
         return {
           success: false,
@@ -1221,12 +1469,12 @@ class AutonomousOrchestrator {
             ? "Close order fill timed out - position sync triggered" 
             : "Close order rejected or no fill data",
           symbol,
-          orderId: initialOrder.id,
+          orderId,
         };
       }
       
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        log.warn("Orchestrator", `Close order ${initialOrder.id} timed out with partial fill, using available data`);
+        log.warn("Orchestrator", `Close order ${orderId} timed out with partial fill, using available data`);
       }
       
       const order = fillResult.order;
