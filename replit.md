@@ -53,6 +53,17 @@ Added proper data model separation:
    - `GET /api/fills/order/:orderId` - Fills for specific order
    - `POST /api/orders/sync` - Trigger manual sync
 
+5. **Real-time Order Tracking**:
+   - Alpaca WebSocket stream processes trade_updates in real-time
+   - 5-minute periodic reconciler syncs orders/fills from Alpaca API
+   - ON CONFLICT upsert handling prevents race conditions
+
+6. **Order Ledger UI** (`client/components/OrdersTable.tsx`):
+   - Displays full order lifecycle with broker status badges
+   - Expandable rows show broker order ID and fills
+   - Header always renders immediately (loading state inside container)
+   - Uses explicit queryFn with getApiUrl() for native client support
+
 See `docs/AUDIT_DOC_VS_IMPLEMENTATION_GAP.md` for full audit details.
 
 ## System Architecture
