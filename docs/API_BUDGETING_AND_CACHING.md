@@ -265,3 +265,136 @@ try {
   }
 }
 ```
+
+## Valyu Retrieval-Based Budgeting
+
+### Why Retrieval-Based?
+
+Valyu charges per **retrieval** (each result returned), not per request. A single API call returning 10 results costs 10x more than one returning 1 result. The retrieval-based budget system tracks `response.results.length` to accurately reflect costs.
+
+### Monthly Budgets by Tier
+
+| Tier | Monthly Limit | Max Price | Sources |
+|------|---------------|-----------|---------|
+| Web | 2,000 retrievals | $4.00 | All non-Valyu sources |
+| Finance | 500 retrievals | $5.00 | `valyu/*` sources (valyu/valyu-earnings-US, valyu/valyu-financial-ratios-US, etc.) |
+| Proprietary | 100 retrievals | $10.00 | Sources containing "proprietary" |
+
+### Source Tier Classification
+
+The system automatically classifies sources into tiers:
+
+```typescript
+function classifySourceTier(sources?: string[]): "web" | "finance" | "proprietary" {
+  // 1. If any source contains "proprietary" → proprietary tier
+  // 2. If any source starts with "valyu/" → finance tier
+  // 3. Otherwise → web tier
+}
+```
+
+### Query Shaping Defaults
+
+To control costs, the connector applies these defaults:
+
+- `max_num_results`: 5 (instead of 10)
+- `relevance_threshold`: 0.7 (filters low-quality results)
+- `max_price`: Capped per tier (web: $4.00, finance: $5.00, proprietary: $10.00)
+- **Concurrency**: Maximum 5 concurrent requests via p-limit
+
+### API Endpoints
+
+#### GET /api/admin/valyu-budget
+
+Returns current retrieval usage and limits:
+
+```json
+{
+  "statuses": [
+    {
+      "tier": "web",
+      "used": 150,
+      "limit": 2000,
+      "remaining": 1850,
+      "resetDate": "2026-01-01T00:00:00.000Z",
+      "lastCallTime": 1734305000000
+    },
+    {
+      "tier": "finance",
+      "used": 45,
+      "limit": 500,
+      "remaining": 455,
+      "resetDate": "2026-01-01T00:00:00.000Z",
+      "lastCallTime": 1734304500000
+    },
+    {
+      "tier": "proprietary",
+      "used": 0,
+      "limit": 100,
+      "remaining": 100,
+      "resetDate": "2026-01-01T00:00:00.000Z",
+      "lastCallTime": null
+    }
+  ],
+  "config": {
+    "webRetrievalsPerMonth": 2000,
+    "financeRetrievalsPerMonth": 500,
+    "proprietaryRetrievalsPerMonth": 100
+  }
+}
+```
+
+#### PUT /api/admin/valyu-budget
+
+Update monthly limits:
+
+```bash
+curl -X PUT /api/admin/valyu-budget \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webRetrievalsPerMonth": 3000,
+    "financeRetrievalsPerMonth": 750
+  }'
+```
+
+### Database Schema
+
+Retrieval counts are persisted in `valyu_retrieval_counters`:
+
+```sql
+CREATE TABLE valyu_retrieval_counters (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_tier TEXT NOT NULL,        -- 'web' | 'finance' | 'proprietary'
+  month_key TEXT NOT NULL,          -- '2025-12' format
+  retrieval_count INTEGER DEFAULT 0,
+  last_updated TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Changing Limits
+
+**Via API:**
+```typescript
+await apiRequest("PUT", "/api/admin/valyu-budget", {
+  webRetrievalsPerMonth: 3000,
+  financeRetrievalsPerMonth: 1000,
+  proprietaryRetrievalsPerMonth: 200,
+});
+```
+
+**Via Code:**
+```typescript
+import { updateValyuBudgetConfig } from "./lib/valyuBudget";
+
+updateValyuBudgetConfig({
+  webRetrievalsPerMonth: 3000,
+  financeRetrievalsPerMonth: 1000,
+});
+```
+
+### Monitoring
+
+The Admin UI (Admin > API Budgets & Cache) displays:
+- Valyu Retrieval Budgets card with per-tier usage bars
+- Remaining retrievals per tier
+- Last call timestamp per tier
+- Monthly reset date

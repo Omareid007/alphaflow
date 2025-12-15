@@ -3154,6 +3154,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/valyu-budget", authMiddleware, async (req, res) => {
+    try {
+      const { getValyuBudgetStatus, getValyuBudgetConfig } = await import("./lib/valyuBudget");
+      const statuses = await getValyuBudgetStatus();
+      const config = getValyuBudgetConfig();
+      res.json({ statuses, config });
+    } catch (error) {
+      console.error("Failed to get Valyu budget status:", error);
+      res.status(500).json({ error: "Failed to get Valyu budget status" });
+    }
+  });
+
+  app.put("/api/admin/valyu-budget", authMiddleware, async (req, res) => {
+    try {
+      const { updateValyuBudgetConfig, getValyuBudgetConfig } = await import("./lib/valyuBudget");
+      const { webRetrievalsPerMonth, financeRetrievalsPerMonth, proprietaryRetrievalsPerMonth } = req.body;
+      
+      const updates: { 
+        webRetrievalsPerMonth?: number; 
+        financeRetrievalsPerMonth?: number; 
+        proprietaryRetrievalsPerMonth?: number;
+      } = {};
+      
+      if (webRetrievalsPerMonth !== undefined) updates.webRetrievalsPerMonth = webRetrievalsPerMonth;
+      if (financeRetrievalsPerMonth !== undefined) updates.financeRetrievalsPerMonth = financeRetrievalsPerMonth;
+      if (proprietaryRetrievalsPerMonth !== undefined) updates.proprietaryRetrievalsPerMonth = proprietaryRetrievalsPerMonth;
+      
+      updateValyuBudgetConfig(updates);
+      const config = getValyuBudgetConfig();
+      
+      res.json({ success: true, config, message: "Valyu budget limits updated" });
+    } catch (error) {
+      console.error("Failed to update Valyu budget:", error);
+      res.status(500).json({ error: "Failed to update Valyu budget" });
+    }
+  });
+
   // ============================================================
   // Admin API - Connector Health & Status
   // ============================================================

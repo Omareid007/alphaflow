@@ -8,13 +8,22 @@
  * - SEC filings (10-K, 10-Q, 8-K in markdown)
  * - Insider trading data
  * 
- * Pricing: $1.50 per 1,000 queries
+ * Pricing: Per retrieval (result count), not per request
  * 
  * @see docs/CONNECTORS_AND_INTEGRATIONS.md
+ * @see docs/API_BUDGETING_AND_CACHING.md#valyu-retrieval-based-budgeting
  */
 
+import pLimit from "p-limit";
 import { ApiCache } from "../lib/api-cache";
 import { log } from "../utils/logger";
+import {
+  classifySourceTier,
+  checkValyuBudget,
+  recordValyuRetrievals,
+  getMaxPriceForTier,
+  type ValyuSourceTier,
+} from "../lib/valyuBudget";
 
 const VALYU_BASE_URL = "https://api.valyu.ai/v1";
 
@@ -126,6 +135,10 @@ export interface MarketMoversData {
   rawData: string;
 }
 
+const concurrencyLimit = pLimit(5);
+const DEFAULT_MAX_RESULTS = 5;
+const DEFAULT_RELEVANCE_THRESHOLD = 0.7;
+
 class ValyuConnector {
   private searchCache = new ApiCache<ValyuResponse>({
     freshDuration: 15 * 60 * 1000,
@@ -195,75 +208,103 @@ class ValyuConnector {
       sources?: string[];
       maxResults?: number;
       maxPrice?: number;
+      relevanceThreshold?: number;
     } = {}
   ): Promise<ValyuResponse> {
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error("VALYU_API_KEY is not configured");
-    }
+    return concurrencyLimit(async () => {
+      const apiKey = this.getApiKey();
+      if (!apiKey) {
+        throw new Error("VALYU_API_KEY is not configured");
+      }
 
-    const cacheKey = `search_${query}_${JSON.stringify(options)}`;
-    const cached = this.searchCache.get(cacheKey);
-    if (cached?.isFresh) {
-      return cached.data;
-    }
-
-    await this.throttle();
-
-    const body: Record<string, unknown> = {
-      query,
-      max_num_results: options.maxResults ?? 10,
-      max_price: options.maxPrice ?? 10,
-    };
-
-    if (options.sources && options.sources.length > 0) {
-      body.included_sources = options.sources;
-    }
-
-    try {
-      const response = await fetch(`${VALYU_BASE_URL}/deepsearch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        log.error("Valyu", "API request failed", {
-          statusCode: response.status,
-          error: errorText,
-        });
-
+      const tier: ValyuSourceTier = classifySourceTier(options.sources);
+      const budgetCheck = await checkValyuBudget(tier);
+      if (!budgetCheck.allowed) {
+        log.warn("Valyu", budgetCheck.reason || "Budget exhausted");
+        const cacheKey = `search_${query}_${JSON.stringify(options)}`;
         const stale = this.searchCache.getStale(cacheKey);
         if (stale) {
-          log.warn("Valyu", `Serving stale data for query: ${query}`);
+          log.info("Valyu", "Serving stale cached data due to budget limit");
           return stale;
         }
-
-        throw new Error(`Valyu API error: ${response.status} - ${errorText}`);
+        throw new Error(budgetCheck.reason || "Valyu budget exhausted");
       }
 
-      const data = (await response.json()) as ValyuResponse;
-      this.searchCache.set(cacheKey, data);
+      const tierMaxPrice = getMaxPriceForTier(tier);
+      const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
+      const maxPrice = Math.min(options.maxPrice ?? tierMaxPrice, tierMaxPrice);
+      const relevanceThreshold = options.relevanceThreshold ?? DEFAULT_RELEVANCE_THRESHOLD;
 
-      log.info("Valyu", "Search completed", {
-        query: query.substring(0, 50),
-        resultsCount: data.results.length,
-        cost: data.total_deduction_dollars,
-      });
-
-      return data;
-    } catch (error) {
-      const stale = this.searchCache.getStale(cacheKey);
-      if (stale) {
-        log.warn("Valyu", `Error fetching, serving stale data for: ${query}`);
-        return stale;
+      const cacheKey = `search_${query}_${JSON.stringify({ ...options, maxResults, maxPrice })}`;
+      const cached = this.searchCache.get(cacheKey);
+      if (cached?.isFresh) {
+        return cached.data;
       }
-      throw error;
-    }
+
+      await this.throttle();
+
+      const body: Record<string, unknown> = {
+        query,
+        max_num_results: maxResults,
+        max_price: maxPrice,
+        relevance_threshold: relevanceThreshold,
+      };
+
+      if (options.sources && options.sources.length > 0) {
+        body.included_sources = options.sources;
+      }
+
+      try {
+        const response = await fetch(`${VALYU_BASE_URL}/deepsearch`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "Unknown error");
+          log.error("Valyu", "API request failed", {
+            statusCode: response.status,
+            error: errorText,
+          });
+
+          const stale = this.searchCache.getStale(cacheKey);
+          if (stale) {
+            log.warn("Valyu", `Serving stale data for query: ${query}`);
+            return stale;
+          }
+
+          throw new Error(`Valyu API error: ${response.status} - ${errorText}`);
+        }
+
+        const data = (await response.json()) as ValyuResponse;
+        this.searchCache.set(cacheKey, data);
+
+        const retrievalCount = data.results.length;
+        if (retrievalCount > 0) {
+          await recordValyuRetrievals(tier, retrievalCount);
+        }
+
+        log.info("Valyu", "Search completed", {
+          query: query.substring(0, 50),
+          resultsCount: retrievalCount,
+          tier,
+          cost: data.total_deduction_dollars,
+        });
+
+        return data;
+      } catch (error) {
+        const stale = this.searchCache.getStale(cacheKey);
+        if (stale) {
+          log.warn("Valyu", `Error fetching, serving stale data for: ${query}`);
+          return stale;
+        }
+        throw error;
+      }
+    });
   }
 
   async getEarnings(symbol: string): Promise<EarningsData> {

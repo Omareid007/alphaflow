@@ -33,6 +33,24 @@ interface ProvidersResponse {
   providers: Record<string, ProviderStatus>;
 }
 
+interface ValyuBudgetStatus {
+  tier: "web" | "finance" | "proprietary";
+  used: number;
+  limit: number;
+  remaining: number;
+  resetDate: string;
+  lastCallTime: number | null;
+}
+
+interface ValyuBudgetResponse {
+  statuses: ValyuBudgetStatus[];
+  config: {
+    webRetrievalsPerMonth: number;
+    financeRetrievalsPerMonth: number;
+    proprietaryRetrievalsPerMonth: number;
+  };
+}
+
 function getStatusColor(status: ProviderStatus): string {
   if (!status.enabled) return BrandColors.neutral;
   if (!status.budgetStatus.allowed) return BrandColors.error;
@@ -187,6 +205,11 @@ export default function ApiBudgetScreen() {
     refetchInterval: 30000,
   });
 
+  const { data: valyuBudget } = useQuery<ValyuBudgetResponse>({
+    queryKey: ["/api/admin/valyu-budget"],
+    refetchInterval: 30000,
+  });
+
   const toggleMutation = useMutation({
     mutationFn: async ({ provider, enabled }: { provider: string; enabled: boolean }) => {
       setTogglingProvider(provider);
@@ -299,10 +322,81 @@ export default function ApiBudgetScreen() {
         <RefreshControl refreshing={false} onRefresh={refetch} tintColor={BrandColors.primaryLight} />
       }
       ListHeaderComponent={
-        <View style={styles.header}>
-          <Feather name="activity" size={24} color={BrandColors.primaryLight} />
-          <ThemedText style={styles.headerTitle}>API Budget Manager</ThemedText>
-        </View>
+        <>
+          <View style={styles.header}>
+            <Feather name="activity" size={24} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.headerTitle}>API Budget Manager</ThemedText>
+          </View>
+          {valyuBudget?.statuses && valyuBudget.statuses.length > 0 ? (
+            <Card elevation={1} style={[styles.providerCard, { marginBottom: Spacing.lg }]}>
+              <View style={styles.providerHeader}>
+                <View style={styles.providerNameRow}>
+                  <Feather name="database" size={16} color={BrandColors.primaryLight} />
+                  <ThemedText style={styles.providerName}>Valyu Retrieval Budgets</ThemedText>
+                </View>
+                <ThemedText style={[styles.budgetLabel, { color: theme.textSecondary }]}>
+                  Monthly
+                </ThemedText>
+              </View>
+              {valyuBudget.statuses.map((status) => {
+                const usagePercent = status.limit > 0 
+                  ? Math.min((status.used / status.limit) * 100, 100) 
+                  : 0;
+                const tierLabel = status.tier === "web" 
+                  ? "Web" 
+                  : status.tier === "finance" 
+                    ? "Finance (valyu/*)" 
+                    : "Proprietary";
+                return (
+                  <View key={status.tier} style={styles.budgetSection}>
+                    <View style={styles.budgetLabelRow}>
+                      <ThemedText style={[styles.budgetLabel, { color: theme.textSecondary }]}>
+                        {tierLabel}
+                      </ThemedText>
+                      <ThemedText style={[styles.budgetValue, { fontFamily: Fonts?.mono }]}>
+                        {status.used}/{status.limit}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${usagePercent}%`,
+                            backgroundColor: usagePercent > 90 
+                              ? BrandColors.error 
+                              : usagePercent > 70 
+                                ? BrandColors.warning 
+                                : BrandColors.success,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.statsRow}>
+                      <View style={styles.stat}>
+                        <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono, color: status.remaining > 0 ? BrandColors.success : BrandColors.error }]}>
+                          {status.remaining}
+                        </ThemedText>
+                        <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Remaining</ThemedText>
+                      </View>
+                      <View style={styles.stat}>
+                        <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>
+                          {formatLastCall(status.lastCallTime)}
+                        </ThemedText>
+                        <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Last Call</ThemedText>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary, marginTop: Spacing.sm }]}>
+                Resets: {valyuBudget.statuses[0]?.resetDate 
+                  ? new Date(valyuBudget.statuses[0].resetDate).toLocaleDateString() 
+                  : "N/A"}
+              </ThemedText>
+            </Card>
+          ) : null}
+        </>
       }
     />
   );

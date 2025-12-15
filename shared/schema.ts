@@ -209,6 +209,16 @@ export const externalApiUsageCounters = pgTable("external_api_usage_counters", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const valyuRetrievalCounters = pgTable("valyu_retrieval_counters", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sourceTier: text("source_tier").notNull(),
+  monthKey: text("month_key").notNull(),
+  retrievalCount: integer("retrieval_count").default(0).notNull(),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
 export const insertAiDecisionFeaturesSchema = createInsertSchema(aiDecisionFeatures).omit({
   id: true,
   createdAt: true,
