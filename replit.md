@@ -55,6 +55,34 @@ The platform uses **Alpaca Paper Trading** as the single source of truth for all
 - `/api/trading/portfolio` → Use `/api/account` and `/api/positions`
 - `/api/trading/balance` → Use `/api/account`
 
+### Durable Work Queue (December 2025)
+The platform uses a **PostgreSQL-backed durable work queue** for reliable order execution. See `docs/WORK_QUEUE_ARCHITECTURE.md` for full details.
+
+**Key Features:**
+- **Idempotency**: Unique `idempotency_key` per order prevents duplicates across restarts
+- **Retry with Backoff**: Exponential backoff (2s, 4s, 8s, 16s, 32s) with jitter for transient errors
+- **Error Classification**: Distinguishes transient (rate limits, timeouts) from permanent (insufficient funds, invalid symbol) errors
+- **Dead Letter Queue**: Failed items after max attempts moved to DEAD_LETTER for manual review
+- **Audit Trail**: All execution attempts logged in `work_item_runs` table
+
+**Work Item Types:**
+- `ORDER_SUBMIT` - Submit order to Alpaca with client_order_id enforcement
+- `ORDER_CANCEL` - Cancel existing order
+- `POSITION_CLOSE` - Close full or partial position
+- `ORDER_SYNC` - Reconcile orders from broker
+- `KILL_SWITCH` - Emergency stop all trading
+
+**Admin Endpoints:**
+- `GET /api/admin/work-items` - View queue status with counts per status
+- `POST /api/admin/work-items/retry` - Retry failed/dead-lettered items
+- `POST /api/admin/work-items/dead-letter` - Manually dead-letter an item
+- `GET /api/admin/orchestrator-health` - Queue depth and recent errors
+
+**Key Files:**
+- `server/lib/work-queue.ts` - Work queue service implementation
+- `shared/schema.ts` - `work_items` and `work_item_runs` tables
+- `server/storage.ts` - Database operations for work items
+
 ### Algorithm Framework & Shared Libraries (`services/shared/`)
 The platform includes a comprehensive algorithm framework inspired by LEAN, NautilusTrader, and Freqtrade:
 
