@@ -119,6 +119,21 @@ The platform includes a comprehensive algorithm framework inspired by LEAN, Naut
 - **Styling**: Custom themed components supporting dark/light mode, Reanimated 4 for animations, BrandColors palette, and elevation-based cards.
 - **Platform Support**: iOS, Android, and Web.
 
+### UI Information Architecture (December 2025)
+See `docs/UI_INFORMATION_ARCHITECTURE.md` for full details.
+
+**Key Files:**
+- `shared/types/ui-contracts.ts` - Canonical UI type definitions (TimelineEvent, LedgerItem, DecisionViewModel)
+- `client/components/ActivityFlowWidget.tsx` - Unified activity timeline using `/api/activity/timeline`
+- `client/screens/AISuggestedTradesScreen.tsx` - Proper broker status mapping (Alpaca statuses)
+
+**New Endpoints:**
+- `GET /api/activity/timeline` - Unified activity feed composing AI decisions, broker orders, and fills
+
+**Status Mapping:**
+- All UI statuses now map to real Alpaca order lifecycle (new, accepted, filled, canceled, rejected, etc.)
+- Deprecated: `pending_execution` status - use `pending` or `submitted`
+
 ## External Dependencies
 
 - **Market Data Providers**: Finnhub, Polygon.io, Twelve Data, Financial Modeling Prep, Alpha Vantage.

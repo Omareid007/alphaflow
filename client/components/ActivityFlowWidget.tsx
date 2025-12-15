@@ -6,24 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
-
-interface AgentActivity {
-  id: string;
-  type: "analysis" | "decision" | "trade" | "error" | "health" | "data_fetch";
-  symbol?: string;
-  action?: string;
-  message: string;
-  timestamp: string;
-  status: "success" | "pending" | "error";
-}
-
-interface OrchestratorStatus {
-  isRunning: boolean;
-  currentPhase: string;
-  lastCycleTime: string;
-  cycleCount: number;
-  activeSymbols: string[];
-}
+import type { TimelineEvent, TimelineResponse } from "@shared/types/ui-contracts";
 
 interface ActivityFlowWidgetProps {
   agentStatus?: {
@@ -35,80 +18,35 @@ interface ActivityFlowWidgetProps {
   };
 }
 
-const nodeConfig: Record<string, { icon: "activity" | "cpu" | "trending-up" | "alert-circle" | "heart" | "download"; color: string }> = {
-  analysis: { icon: "activity", color: BrandColors.primaryLight },
-  decision: { icon: "cpu", color: BrandColors.aiLayer },
-  trade: { icon: "trending-up", color: BrandColors.success },
-  error: { icon: "alert-circle", color: BrandColors.error },
-  health: { icon: "heart", color: BrandColors.success },
-  data_fetch: { icon: "download", color: BrandColors.warning },
+const categoryConfig: Record<string, { icon: "activity" | "cpu" | "trending-up" | "alert-circle" | "heart" | "download" | "shield" | "package"; color: string; label: string }> = {
+  decision: { icon: "cpu", color: BrandColors.aiLayer, label: "Decision" },
+  order: { icon: "package", color: BrandColors.primaryLight, label: "Order" },
+  fill: { icon: "trending-up", color: BrandColors.success, label: "Fill" },
+  position: { icon: "activity", color: BrandColors.primaryLight, label: "Position" },
+  risk: { icon: "shield", color: BrandColors.warning, label: "Risk" },
+  system: { icon: "alert-circle", color: BrandColors.error, label: "System" },
+  data_fetch: { icon: "download", color: BrandColors.warning, label: "Data" },
+};
+
+const statusColors: Record<string, string> = {
+  success: BrandColors.success,
+  pending: BrandColors.warning,
+  warning: BrandColors.warning,
+  error: BrandColors.error,
+  info: BrandColors.neutral,
 };
 
 export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
   const { theme } = useTheme();
-  const [selectedActivity, setSelectedActivity] = useState<AgentActivity | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
 
-  const { data: recentDecisions, isLoading: isLoadingDecisions } = useQuery<any[]>({
-    queryKey: ["/api/ai-decisions?limit=5"],
+  const { data: timelineData, isLoading } = useQuery<TimelineResponse>({
+    queryKey: ["/api/activity/timeline?limit=10"],
     refetchInterval: 10000,
   });
 
-  const { data: recentTrades, isLoading: isLoadingTrades } = useQuery<any[]>({
-    queryKey: ["/api/trades?limit=5"],
-    refetchInterval: 10000,
-  });
-
-  const activities: AgentActivity[] = [];
-
-  if (agentStatus?.isRunning) {
-    activities.push({
-      id: "heartbeat",
-      type: "health",
-      message: "Agent running",
-      timestamp: agentStatus.lastHeartbeat || new Date().toISOString(),
-      status: "success",
-    });
-  }
-
-  if (recentDecisions && recentDecisions.length > 0) {
-    recentDecisions.slice(0, 3).forEach((decision, idx) => {
-      activities.push({
-        id: `decision-${idx}`,
-        type: "decision",
-        symbol: decision.symbol,
-        action: decision.action,
-        message: `${decision.action} ${decision.symbol} (${Math.round((decision.confidence || 0) * 100)}%)`,
-        timestamp: decision.timestamp || decision.createdAt,
-        status: "success",
-      });
-    });
-  }
-
-  if (recentTrades && recentTrades.length > 0) {
-    recentTrades.slice(0, 3).forEach((trade, idx) => {
-      activities.push({
-        id: `trade-${idx}`,
-        type: "trade",
-        symbol: trade.symbol,
-        action: trade.side,
-        message: `${trade.side.toUpperCase()} ${trade.quantity} ${trade.symbol} @ $${trade.price}`,
-        timestamp: trade.executedAt || trade.createdAt,
-        status: trade.status === "filled" ? "success" : trade.status === "rejected" ? "error" : "pending",
-      });
-    });
-  }
-
-  if (agentStatus?.errorMessage) {
-    activities.push({
-      id: "error",
-      type: "error",
-      message: agentStatus.errorMessage.slice(0, 50),
-      timestamp: new Date().toISOString(),
-      status: "error",
-    });
-  }
-
-  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const events = timelineData?.events || [];
+  const alpacaStatus = timelineData?.meta?.alpacaStatus || "unavailable";
 
   const formatTime = (isoString: string): string => {
     const date = new Date(isoString);
@@ -124,7 +62,14 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
     return date.toLocaleDateString();
   };
 
-  const isLoading = isLoadingDecisions || isLoadingTrades;
+  const getStatusIcon = (status: string): "check" | "x" | "clock" | "info" => {
+    switch (status) {
+      case "success": return "check";
+      case "error": return "x";
+      case "pending": return "clock";
+      default: return "info";
+    }
+  };
 
   return (
     <Card elevation={1} style={styles.card}>
@@ -139,18 +84,31 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
         </View>
       </View>
 
-      <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-        Real-time orchestrator activity
-      </ThemedText>
+      <View style={styles.subtitleRow}>
+        <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+          Real-time orchestrator activity
+        </ThemedText>
+        <View style={[
+          styles.alpacaBadge, 
+          { backgroundColor: alpacaStatus === "live" ? BrandColors.success + "20" : BrandColors.warning + "20" }
+        ]}>
+          <ThemedText style={[
+            styles.alpacaBadgeText, 
+            { color: alpacaStatus === "live" ? BrandColors.success : BrandColors.warning }
+          ]}>
+            {alpacaStatus === "live" ? "Broker Live" : "Broker Offline"}
+          </ThemedText>
+        </View>
+      </View>
 
-      {isLoading && activities.length === 0 ? (
+      {isLoading && events.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={BrandColors.primaryLight} />
           <ThemedText style={[styles.loadingText, { color: theme.textSecondary }]}>
             Loading activity...
           </ThemedText>
         </View>
-      ) : activities.length === 0 ? (
+      ) : events.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Feather name="inbox" size={24} color={theme.textSecondary} />
           <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
@@ -159,15 +117,16 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
         </View>
       ) : (
         <ScrollView style={styles.activityList} showsVerticalScrollIndicator={false}>
-          {activities.slice(0, 6).map((activity, index) => {
-            const config = nodeConfig[activity.type] || nodeConfig.analysis;
-            const isLast = index === activities.length - 1 || index === 5;
+          {events.slice(0, 6).map((event, index) => {
+            const config = categoryConfig[event.category] || categoryConfig.decision;
+            const isLast = index === events.length - 1 || index === 5;
+            const statusColor = statusColors[event.status] || BrandColors.neutral;
             
             return (
               <Pressable 
-                key={activity.id} 
+                key={event.id} 
                 style={styles.activityItem}
-                onPress={() => setSelectedActivity(activity)}
+                onPress={() => setSelectedEvent(event)}
               >
                 <View style={styles.nodeColumn}>
                   <View style={[styles.node, { backgroundColor: config.color + "20", borderColor: config.color }]}>
@@ -181,23 +140,32 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
                 <View style={styles.activityContent}>
                   <View style={styles.activityHeader}>
                     <ThemedText style={styles.activityMessage} numberOfLines={1}>
-                      {activity.message}
+                      {event.title}
                     </ThemedText>
                     <Feather name="chevron-right" size={14} color={theme.textSecondary} style={styles.activityChevron} />
                     <View style={[
                       styles.miniStatus,
-                      { backgroundColor: activity.status === "success" ? BrandColors.success + "20" : activity.status === "error" ? BrandColors.error + "20" : BrandColors.warning + "20" }
+                      { backgroundColor: statusColor + "20" }
                     ]}>
                       <Feather
-                        name={activity.status === "success" ? "check" : activity.status === "error" ? "x" : "clock"}
+                        name={getStatusIcon(event.status)}
                         size={10}
-                        color={activity.status === "success" ? BrandColors.success : activity.status === "error" ? BrandColors.error : BrandColors.warning}
+                        color={statusColor}
                       />
                     </View>
                   </View>
-                  <ThemedText style={[styles.activityTime, { color: theme.textSecondary }]}>
-                    {formatTime(activity.timestamp)}
-                  </ThemedText>
+                  <View style={styles.activityMeta}>
+                    <ThemedText style={[styles.activityTime, { color: theme.textSecondary }]}>
+                      {formatTime(event.ts)}
+                    </ThemedText>
+                    {event.provenance?.provider ? (
+                      <View style={[styles.providerBadge, { backgroundColor: theme.textSecondary + "15" }]}>
+                        <ThemedText style={[styles.providerText, { color: theme.textSecondary }]}>
+                          {event.provenance.provider}
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </Pressable>
             );
@@ -227,34 +195,34 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
       ) : null}
 
       <Modal
-        visible={selectedActivity !== null}
+        visible={selectedEvent !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedActivity(null)}
+        onRequestClose={() => setSelectedEvent(null)}
       >
         <View style={styles.modalOverlay}>
           <Pressable 
             style={styles.modalBackdrop}
-            onPress={() => setSelectedActivity(null)}
+            onPress={() => setSelectedEvent(null)}
           />
           <View style={[styles.modalContent, { backgroundColor: theme.backgroundSecondary }]}>
-            {selectedActivity ? (
+            {selectedEvent ? (
               <>
                 <View style={styles.modalHeader}>
                   <View style={[
                     styles.modalIcon,
-                    { backgroundColor: (nodeConfig[selectedActivity.type]?.color || BrandColors.primaryLight) + "20" }
+                    { backgroundColor: (categoryConfig[selectedEvent.category]?.color || BrandColors.primaryLight) + "20" }
                   ]}>
                     <Feather 
-                      name={nodeConfig[selectedActivity.type]?.icon || "activity"} 
+                      name={categoryConfig[selectedEvent.category]?.icon || "activity"} 
                       size={20} 
-                      color={nodeConfig[selectedActivity.type]?.color || BrandColors.primaryLight} 
+                      color={categoryConfig[selectedEvent.category]?.color || BrandColors.primaryLight} 
                     />
                   </View>
                   <ThemedText style={styles.modalTitle}>
-                    {selectedActivity.type.charAt(0).toUpperCase() + selectedActivity.type.slice(1)} Details
+                    {categoryConfig[selectedEvent.category]?.label || "Event"} Details
                   </ThemedText>
-                  <Pressable onPress={() => setSelectedActivity(null)} style={styles.modalClose}>
+                  <Pressable onPress={() => setSelectedEvent(null)} style={styles.modalClose}>
                     <Feather name="x" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
@@ -262,56 +230,86 @@ export function ActivityFlowWidget({ agentStatus }: ActivityFlowWidgetProps) {
                 <View style={[styles.modalDivider, { backgroundColor: theme.textSecondary + "20" }]} />
 
                 <View style={styles.modalBody}>
-                  {selectedActivity.symbol ? (
+                  <View style={styles.modalRow}>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Title</ThemedText>
+                    <ThemedText style={styles.modalValue}>{selectedEvent.title}</ThemedText>
+                  </View>
+
+                  {selectedEvent.subtitle ? (
                     <View style={styles.modalRow}>
-                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Symbol</ThemedText>
-                      <ThemedText style={styles.modalValue}>{selectedActivity.symbol}</ThemedText>
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Details</ThemedText>
+                      <ThemedText style={styles.modalValue}>{selectedEvent.subtitle}</ThemedText>
                     </View>
                   ) : null}
                   
-                  {selectedActivity.action ? (
+                  {selectedEvent.entityLinks?.symbol ? (
                     <View style={styles.modalRow}>
-                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Action</ThemedText>
-                      <ThemedText style={[
-                        styles.modalValue,
-                        { color: selectedActivity.action.toLowerCase() === "buy" ? BrandColors.success : selectedActivity.action.toLowerCase() === "sell" ? BrandColors.error : theme.text }
-                      ]}>
-                        {selectedActivity.action.toUpperCase()}
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Symbol</ThemedText>
+                      <ThemedText style={[styles.modalValue, { color: BrandColors.primaryLight }]}>
+                        {selectedEvent.entityLinks.symbol}
                       </ThemedText>
                     </View>
                   ) : null}
-
-                  <View style={styles.modalRow}>
-                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Message</ThemedText>
-                    <ThemedText style={styles.modalValue}>{selectedActivity.message}</ThemedText>
-                  </View>
 
                   <View style={styles.modalRow}>
                     <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Status</ThemedText>
                     <View style={[
                       styles.modalStatusBadge,
-                      { backgroundColor: selectedActivity.status === "success" ? BrandColors.success + "20" : selectedActivity.status === "error" ? BrandColors.error + "20" : BrandColors.warning + "20" }
+                      { backgroundColor: (statusColors[selectedEvent.status] || BrandColors.neutral) + "20" }
                     ]}>
                       <ThemedText style={[
                         styles.modalStatusText,
-                        { color: selectedActivity.status === "success" ? BrandColors.success : selectedActivity.status === "error" ? BrandColors.error : BrandColors.warning }
+                        { color: statusColors[selectedEvent.status] || BrandColors.neutral }
                       ]}>
-                        {selectedActivity.status.toUpperCase()}
+                        {selectedEvent.status.toUpperCase()}
                       </ThemedText>
                     </View>
                   </View>
 
                   <View style={styles.modalRow}>
-                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Timestamp</ThemedText>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Source</ThemedText>
                     <ThemedText style={[styles.modalValue, { color: theme.textSecondary }]}>
-                      {new Date(selectedActivity.timestamp).toLocaleString()}
+                      {selectedEvent.provenance?.provider || "Unknown"}
                     </ThemedText>
                   </View>
+
+                  {selectedEvent.provenance?.cacheStatus && selectedEvent.provenance.cacheStatus !== "unknown" ? (
+                    <View style={styles.modalRow}>
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Cache</ThemedText>
+                      <View style={[
+                        styles.cacheBadge,
+                        { backgroundColor: selectedEvent.provenance.cacheStatus === "fresh" ? BrandColors.success + "20" : BrandColors.warning + "20" }
+                      ]}>
+                        <ThemedText style={[
+                          styles.cacheText,
+                          { color: selectedEvent.provenance.cacheStatus === "fresh" ? BrandColors.success : BrandColors.warning }
+                        ]}>
+                          {selectedEvent.provenance.cacheStatus.toUpperCase()}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.modalRow}>
+                    <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Timestamp</ThemedText>
+                    <ThemedText style={[styles.modalValue, { color: theme.textSecondary }]}>
+                      {new Date(selectedEvent.ts).toLocaleString()}
+                    </ThemedText>
+                  </View>
+
+                  {selectedEvent.entityLinks?.brokerOrderId ? (
+                    <View style={styles.modalRow}>
+                      <ThemedText style={[styles.modalLabel, { color: theme.textSecondary }]}>Order ID</ThemedText>
+                      <ThemedText style={[styles.modalValue, { color: theme.textSecondary, fontSize: 11 }]} numberOfLines={1}>
+                        {selectedEvent.entityLinks.brokerOrderId}
+                      </ThemedText>
+                    </View>
+                  ) : null}
                 </View>
 
                 <Pressable 
                   style={[styles.modalButton, { backgroundColor: BrandColors.primaryLight + "15" }]}
-                  onPress={() => setSelectedActivity(null)}
+                  onPress={() => setSelectedEvent(null)}
                 >
                   <ThemedText style={[styles.modalButtonText, { color: BrandColors.primaryLight }]}>
                     Close
@@ -341,9 +339,23 @@ const styles = StyleSheet.create({
     ...Typography.h4,
     flex: 1,
   },
+  subtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.md,
+  },
   subtitle: {
     ...Typography.small,
-    marginBottom: Spacing.md,
+  },
+  alpacaBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  alpacaBadgeText: {
+    fontSize: 9,
+    fontWeight: "600",
   },
   statusBadge: {
     flexDirection: "row",
@@ -420,6 +432,12 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
   },
+  activityMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginTop: 2,
+  },
   miniStatus: {
     width: 16,
     height: 16,
@@ -430,6 +448,15 @@ const styles = StyleSheet.create({
   activityTime: {
     ...Typography.small,
     fontSize: 10,
+  },
+  providerBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  providerText: {
+    fontSize: 8,
+    fontWeight: "500",
   },
   statsRow: {
     flexDirection: "row",
@@ -520,6 +547,15 @@ const styles = StyleSheet.create({
   },
   modalStatusText: {
     ...Typography.small,
+    fontWeight: "600",
+  },
+  cacheBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  cacheText: {
+    fontSize: 10,
     fontWeight: "600",
   },
   modalButton: {

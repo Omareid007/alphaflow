@@ -122,9 +122,17 @@ export default function AISuggestedTradesScreen() {
   const normalizeStatus = (status: string | null | undefined): string => {
     if (!status) return "suggested";
     const s = status.toLowerCase();
-    if (s === "executed" || s === "filled") return "executed";
-    if (s === "pending" || s === "pending_execution") return "pending";
-    if (s === "skipped") return "skipped";
+    // Map all filled/executed states to "executed"
+    if (s === "executed" || s === "filled" || s === "partially_filled") return "executed";
+    // Map all pending/in-progress broker states to "pending"
+    if (s === "pending" || s === "pending_execution" || s === "submitted" || 
+        s === "new" || s === "pending_new" || s === "accepted" ||
+        s === "pending_cancel" || s === "pending_replace") return "pending";
+    // Map skip/cancel/reject states to "skipped"
+    if (s === "skipped" || s === "canceled" || s === "rejected" || 
+        s === "expired" || s === "done_for_day") return "skipped";
+    // Map approval states to "suggested" for filtering
+    if (s === "proposed" || s === "approved") return "suggested";
     return "suggested";
   };
 
@@ -275,34 +283,68 @@ export default function AISuggestedTradesScreen() {
   };
 
   const getStatusColor = (status: string | null | undefined) => {
-    switch (status) {
+    if (!status) return BrandColors.neutral;
+    const s = status.toLowerCase();
+    switch (s) {
       case "executed":
       case "filled":
         return BrandColors.success;
+      case "partially_filled":
+        return BrandColors.success;
       case "pending":
       case "pending_execution":
+      case "submitted":
+      case "new":
+      case "pending_new":
+      case "accepted":
         return BrandColors.warning;
       case "skipped":
+      case "canceled":
+      case "expired":
+      case "rejected":
         return BrandColors.error;
       case "analyzing":
         return BrandColors.aiLayer;
+      case "proposed":
+      case "approved":
+        return BrandColors.primaryLight;
       default:
         return BrandColors.neutral;
     }
   };
 
   const getStatusLabel = (status: string | null | undefined) => {
-    switch (status) {
+    if (!status) return "SUGGESTED";
+    const s = status.toLowerCase();
+    switch (s) {
       case "executed":
       case "filled":
         return "FILLED";
+      case "partially_filled":
+        return "PARTIAL";
       case "pending":
       case "pending_execution":
+      case "pending_new":
         return "PENDING";
+      case "submitted":
+      case "new":
+        return "SUBMITTED";
+      case "accepted":
+        return "ACCEPTED";
       case "skipped":
         return "SKIPPED";
+      case "canceled":
+        return "CANCELED";
+      case "expired":
+        return "EXPIRED";
+      case "rejected":
+        return "REJECTED";
       case "analyzing":
         return "ANALYZING";
+      case "proposed":
+        return "PROPOSED";
+      case "approved":
+        return "APPROVED";
       default:
         return "SUGGESTED";
     }
