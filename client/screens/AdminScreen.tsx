@@ -1,9 +1,12 @@
-import { View, FlatList, StyleSheet, Switch } from "react-native";
+import { View, FlatList, StyleSheet, Switch, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AdminStackParamList } from "@/navigation/AdminStackNavigator";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constants/theme";
@@ -206,6 +209,30 @@ function APIKeysCard() {
   );
 }
 
+function ApiBudgetNavCard() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
+
+  return (
+    <Pressable onPress={() => navigation.navigate("ApiBudget")}>
+      <Card elevation={1} style={styles.sectionCard}>
+        <View style={styles.navCardContent}>
+          <View style={styles.navCardLeft}>
+            <View style={styles.sectionHeader}>
+              <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.sectionTitle}>API Budgets & Cache</ThemedText>
+            </View>
+            <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
+              Monitor rate limits, budget usage, and cache status for all providers
+            </ThemedText>
+          </View>
+          <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -213,6 +240,7 @@ export default function AdminScreen() {
   const { theme } = useTheme();
 
   const sections = [
+    { key: "budget", component: <ApiBudgetNavCard /> },
     { key: "connectors", component: <ConnectorHealthCard /> },
     { key: "fusion", component: <DataFusionCard /> },
     { key: "ai", component: <AIConfigCard /> },
@@ -361,5 +389,16 @@ const styles = StyleSheet.create({
   apiKeyStatusText: {
     ...Typography.small,
     fontWeight: "500",
+  },
+  navCardContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  navCardLeft: {
+    flex: 1,
+  },
+  navCardDescription: {
+    ...Typography.small,
   },
 });
