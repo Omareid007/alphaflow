@@ -1,0 +1,36 @@
+Implement a unified “API Budget Manager + Persistent Cache” across ALL external providers.
+
+GOALS
+- Enforce per-provider budgets (per minute + per day/week).
+- Persist fetched responses so future analyses reuse stored data instead of re-calling APIs.
+- If budget exceeded: return cached + mark “stale” + optionally trigger fallback provider.
+- Add observability: last call time, calls remaining, cache hit rate.
+
+REQUIRED DEFAULT BUDGETS (configurable)
+- Valyu: MAX 1 call/week (hard cap). Store results and reuse indefinitely unless user forces refresh.
+- Alpaca: cap to 180 req/min (safety under 200 req/min). (Docs mention throttling ~200/min). 
+- Finnhub: cap to 50 req/min (safety under ~60/min).
+- Twelve Data: cap to 6 credits/min AND 700/day (safety under 8/min, 800/day).
+- LLMs (OpenRouter/direct): add token budgets per day + max req/min.
+
+IMPLEMENTATION DETAILS
+1) Add a DB-backed table (or reuse existing DB layer) for:
+   - api_usage(provider, window_start, window_type, count, tokens_in, tokens_out, cost_estimate)
+   - api_cache(provider, cache_key, payload_json, created_at, expires_at, tags, source_provenance)
+2) Replace the current in-memory cache for external calls with a layered cache:
+   - L1 memory (short TTL)
+   - L2 DB persistent (long TTL / indefinite for Valyu)
+3) Create a single wrapper:
+   callExternal({provider, endpoint, params, budgetPolicy, cachePolicy}) -> {data, provenance, cacheStatus}
+4) Apply the wrapper to ALL connectors in server/connectors/*.
+5) Add admin UI panel:
+   - “API Budgets & Cache” screen:
+     - show budgets, usage, last call
+     - “Force refresh” button per provider (disabled for Valyu unless admin confirms)
+6) Update docs:
+   - Update docs/CONNECTORS_AND_INTEGRATIONS.md with Budgeting + Caching section
+   - Add docs/API_BUDGETING_AND_CACHING.md explaining design, tables, and fallback logic
+
+VALIDATION
+- Unit tests for budget windows (minute/day/week).
+- E2E smoke test: run app; ensure no connector calls bypass the wrapper.

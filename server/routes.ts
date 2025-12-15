@@ -47,7 +47,7 @@ import {
 } from "./lib/webhook-emitter";
 import { getAllUsageStats, getUsageStats } from "./lib/apiBudget";
 import { getCacheStats, getAllCacheEntries, purgeExpiredCache, invalidateCache } from "./lib/persistentApiCache";
-import { getAllProviderPolicies, getProviderPolicy } from "./lib/apiPolicy";
+import { getAllProviderPolicies, getProviderPolicy, enableProvider, disableProvider } from "./lib/apiPolicy";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -3077,6 +3077,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to purge API cache:", error);
       res.status(500).json({ error: "Failed to purge API cache" });
+    }
+  });
+
+  app.get("/api/admin/provider-status", authMiddleware, async (req, res) => {
+    try {
+      const { getAllProviderStatuses } = await import("./lib/callExternal");
+      const statuses = await getAllProviderStatuses();
+      res.json({ providers: statuses });
+    } catch (error) {
+      console.error("Failed to get provider statuses:", error);
+      res.status(500).json({ error: "Failed to get provider statuses" });
+    }
+  });
+
+  app.post("/api/admin/provider/:provider/force-refresh", authMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const { cacheKey, confirmValyu } = req.body;
+      
+      if (provider.toLowerCase() === "valyu" && !confirmValyu) {
+        return res.status(400).json({ 
+          error: "Valyu force refresh requires explicit confirmation",
+          message: "Set confirmValyu: true to force refresh Valyu data (1 call/week limit)"
+        });
+      }
+
+      if (cacheKey) {
+        await invalidateCache(provider, cacheKey);
+        res.json({ 
+          success: true, 
+          message: `Cache invalidated for ${provider}:${cacheKey}. Next request will fetch fresh data.`
+        });
+      } else {
+        await invalidateCache(provider);
+        res.json({ 
+          success: true, 
+          message: `All cache entries invalidated for ${provider}. Next requests will fetch fresh data.`
+        });
+      }
+    } catch (error) {
+      console.error("Failed to force refresh provider:", error);
+      res.status(500).json({ error: "Failed to force refresh provider" });
+    }
+  });
+
+  app.patch("/api/admin/provider/:provider/toggle", authMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const { enabled } = req.body;
+      
+      if (enabled === true) {
+        enableProvider(provider);
+      } else if (enabled === false) {
+        disableProvider(provider);
+      } else {
+        return res.status(400).json({ error: "enabled must be true or false" });
+      }
+
+      const policy = getProviderPolicy(provider);
+      res.json({ 
+        success: true, 
+        provider,
+        enabled: policy.enabled,
+        message: `Provider ${provider} is now ${policy.enabled ? 'enabled' : 'disabled'}`
+      });
+    } catch (error) {
+      console.error("Failed to toggle provider:", error);
+      res.status(500).json({ error: "Failed to toggle provider" });
     }
   });
 

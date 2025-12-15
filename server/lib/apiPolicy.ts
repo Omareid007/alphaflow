@@ -28,8 +28,8 @@ const defaultPolicy: Omit<ProviderPolicy, "provider"> = {
 const providerPolicies: Record<string, ProviderPolicy> = {
   alpaca: {
     provider: "alpaca",
-    maxRequestsPerMinute: 150,
-    minRequestIntervalMs: 350,
+    maxRequestsPerMinute: 180,
+    minRequestIntervalMs: 333,
     cacheFreshDurationMs: 30 * 1000,
     cacheStaleDurationMs: 60 * 60 * 1000,
     priority: 10,
@@ -38,7 +38,7 @@ const providerPolicies: Record<string, ProviderPolicy> = {
   finnhub: {
     provider: "finnhub",
     maxRequestsPerMinute: 50,
-    minRequestIntervalMs: 1100,
+    minRequestIntervalMs: 1200,
     cacheFreshDurationMs: 60 * 1000,
     cacheStaleDurationMs: 30 * 60 * 1000,
     priority: 8,
@@ -47,6 +47,7 @@ const providerPolicies: Record<string, ProviderPolicy> = {
   coingecko: {
     provider: "coingecko",
     maxRequestsPerMinute: 10,
+    maxRequestsPerDay: 500,
     minRequestIntervalMs: 2100,
     cacheFreshDurationMs: 60 * 1000,
     cacheStaleDurationMs: 30 * 60 * 1000,
@@ -84,7 +85,8 @@ const providerPolicies: Record<string, ProviderPolicy> = {
   twelvedata: {
     provider: "twelvedata",
     maxRequestsPerMinute: 6,
-    minRequestIntervalMs: 8000,
+    maxRequestsPerDay: 700,
+    minRequestIntervalMs: 10000,
     cacheFreshDurationMs: 60 * 1000,
     cacheStaleDurationMs: 5 * 60 * 1000,
     priority: 5,
@@ -95,7 +97,7 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerWeek: 1,
     minRequestIntervalMs: 60000,
     cacheFreshDurationMs: 7 * 24 * 60 * 60 * 1000,
-    cacheStaleDurationMs: 30 * 24 * 60 * 60 * 1000,
+    cacheStaleDurationMs: 90 * 24 * 60 * 60 * 1000,
     priority: 2,
     enabled: true,
   },
@@ -133,6 +135,7 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     provider: "groq",
     maxRequestsPerMinute: 30,
     maxTokensPerMinute: 30000,
+    maxTokensPerDay: 500000,
     minRequestIntervalMs: 200,
     cacheFreshDurationMs: 60 * 60 * 1000,
     cacheStaleDurationMs: 24 * 60 * 60 * 1000,
@@ -143,6 +146,7 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     provider: "together",
     maxRequestsPerMinute: 60,
     maxTokensPerMinute: 60000,
+    maxTokensPerDay: 800000,
     minRequestIntervalMs: 100,
     cacheFreshDurationMs: 60 * 60 * 1000,
     cacheStaleDurationMs: 24 * 60 * 60 * 1000,
