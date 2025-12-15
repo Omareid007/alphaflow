@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, numeric, boolean, integer, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, numeric, boolean, integer, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -697,3 +697,31 @@ export interface TradabilityCheck {
   shortable?: boolean;
   lastSyncedAt?: Date;
 }
+
+export const adminSettings = pgTable("admin_settings", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  namespace: text("namespace").notNull(),
+  key: text("key").notNull(),
+  value: jsonb("value").notNull(),
+  description: text("description"),
+  isSecret: boolean("is_secret").default(false).notNull(),
+  isReadOnly: boolean("is_read_only").default(false).notNull(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("admin_settings_namespace_idx").on(table.namespace),
+  index("admin_settings_key_idx").on(table.key),
+  unique("admin_settings_namespace_key_unique").on(table.namespace, table.key),
+]);
+
+export const insertAdminSettingSchema = createInsertSchema(adminSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAdminSetting = z.infer<typeof insertAdminSettingSchema>;
+export type AdminSetting = typeof adminSettings.$inferSelect;

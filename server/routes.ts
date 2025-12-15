@@ -68,6 +68,7 @@ import backtestsRouter from "./routes/backtests";
 import { tracesRouter } from "./routes/traces";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
+import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -4411,6 +4412,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to check capability:", error);
       res.status(500).json({ error: "Failed to check capability" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN SETTINGS ENDPOINTS
+  // ============================================================================
+
+  app.get("/api/admin/settings", authMiddleware, async (req, res) => {
+    try {
+      const { namespace } = req.query;
+      const namespaceFilter = typeof namespace === "string" ? namespace : undefined;
+      const settings = await listSettings(namespaceFilter);
+      const sanitized = settings.map(sanitizeSettingForResponse);
+      res.json({
+        settings: sanitized,
+        count: sanitized.length,
+      });
+    } catch (error) {
+      console.error("Failed to list settings:", error);
+      res.status(500).json({ error: "Failed to list settings" });
+    }
+  });
+
+  app.get("/api/admin/settings/:namespace/:key", authMiddleware, async (req, res) => {
+    try {
+      const { namespace, key } = req.params;
+      const setting = await getSettingFull(namespace, key);
+      if (!setting) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      const sanitized = sanitizeSettingForResponse(setting);
+      res.json(sanitized);
+    } catch (error) {
+      console.error("Failed to get setting:", error);
+      res.status(500).json({ error: "Failed to get setting" });
+    }
+  });
+
+  app.put("/api/admin/settings/:namespace/:key", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { namespace, key } = req.params;
+      const { value, description, isSecret, isReadOnly } = req.body;
+      if (value === undefined) {
+        return res.status(400).json({ error: "Value is required" });
+      }
+      const setting = await setSetting(namespace, key, value, {
+        description,
+        isSecret,
+        isReadOnly,
+        userId: req.userId,
+      });
+      res.json(sanitizeSettingForResponse(setting));
+    } catch (error: any) {
+      if (error.message?.includes("read-only")) {
+        return res.status(403).json({ error: error.message });
+      }
+      console.error("Failed to set setting:", error);
+      res.status(500).json({ error: "Failed to set setting" });
+    }
+  });
+
+  app.delete("/api/admin/settings/:namespace/:key", authMiddleware, requireCapability("admin:danger"), async (req, res) => {
+    try {
+      const { namespace, key } = req.params;
+      const deleted = await deleteSetting(namespace, key);
+      if (!deleted) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json({ success: true, message: `Deleted ${namespace}:${key}` });
+    } catch (error: any) {
+      if (error.message?.includes("read-only")) {
+        return res.status(403).json({ error: error.message });
+      }
+      console.error("Failed to delete setting:", error);
+      res.status(500).json({ error: "Failed to delete setting" });
     }
   });
 
