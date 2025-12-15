@@ -118,6 +118,8 @@ export async function recordUsage(
   const windowTypes: WindowType[] = ["minute", "hour", "day", "week"];
   const policy = getProviderPolicy(provider);
   
+  const isCacheHit = options.isCacheHit === true;
+  
   for (const windowType of windowTypes) {
     const limit = getLimitForWindow(policy, windowType);
     if (limit === undefined) continue;
@@ -125,11 +127,13 @@ export async function recordUsage(
     const { start, end } = getWindowBoundaries(windowType);
     const counterKey = getCounterKey(provider, windowType);
 
-    const cached = inMemoryCounters.get(counterKey);
-    if (cached && cached.windowStart === start.getTime()) {
-      cached.count++;
-    } else {
-      inMemoryCounters.set(counterKey, { count: 1, windowStart: start.getTime() });
+    if (!isCacheHit) {
+      const cached = inMemoryCounters.get(counterKey);
+      if (cached && cached.windowStart === start.getTime()) {
+        cached.count++;
+      } else {
+        inMemoryCounters.set(counterKey, { count: 1, windowStart: start.getTime() });
+      }
     }
 
     try {
@@ -148,17 +152,19 @@ export async function recordUsage(
 
       if (existing.length > 0) {
         const record = existing[0];
-        const newRequestCount = record.requestCount + 1;
+        const newRequestCount = isCacheHit ? record.requestCount : record.requestCount + 1;
         const newTokenCount = (record.tokenCount || 0) + (options.tokens || 0);
         const newErrorCount = record.errorCount + (options.isError ? 1 : 0);
         const newRateLimitHits = record.rateLimitHits + (options.isRateLimited ? 1 : 0);
-        const newCacheHits = record.cacheHits + (options.isCacheHit ? 1 : 0);
+        const newCacheHits = record.cacheHits + (isCacheHit ? 1 : 0);
         const newCacheMisses = record.cacheMisses + (options.isCacheHit === false ? 1 : 0);
         
         let newAvgLatency = record.avgLatencyMs;
-        if (options.latencyMs !== undefined) {
-          const prevTotal = parseFloat(record.avgLatencyMs || "0") * (record.requestCount - (options.isCacheHit ? 0 : 1));
-          newAvgLatency = String((prevTotal + options.latencyMs) / (newRequestCount - newCacheHits || 1));
+        if (options.latencyMs !== undefined && !isCacheHit) {
+          const prevAvg = parseFloat(record.avgLatencyMs || "0");
+          const prevCount = record.requestCount - record.cacheHits;
+          const newCount = prevCount + 1;
+          newAvgLatency = String(((prevAvg * prevCount) + options.latencyMs) / newCount);
         }
 
         await db
@@ -180,13 +186,13 @@ export async function recordUsage(
           windowType,
           windowStart: start,
           windowEnd: end,
-          requestCount: 1,
+          requestCount: isCacheHit ? 0 : 1,
           tokenCount: options.tokens || 0,
           errorCount: options.isError ? 1 : 0,
           rateLimitHits: options.isRateLimited ? 1 : 0,
-          cacheHits: options.isCacheHit ? 1 : 0,
+          cacheHits: isCacheHit ? 1 : 0,
           cacheMisses: options.isCacheHit === false ? 1 : 0,
-          avgLatencyMs: options.latencyMs !== undefined ? String(options.latencyMs) : null,
+          avgLatencyMs: (options.latencyMs !== undefined && !isCacheHit) ? String(options.latencyMs) : null,
         });
       }
     } catch (error) {

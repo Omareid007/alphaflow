@@ -70,6 +70,11 @@ export async function fetchWithBudgetAndCache<T>(
 
   const startTime = Date.now();
 
+  const policy = getProviderPolicy(provider);
+  if (!policy.enabled) {
+    throw new ProviderDisabledError(provider);
+  }
+
   if (!skipCache) {
     const cached = await getFromCache<T>(provider, cacheKey);
     if (cached) {
