@@ -2,7 +2,7 @@ import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
-import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus } from "@shared/schema";
+import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus, InsertOrder, InsertFill } from "@shared/schema";
 import crypto from "crypto";
 
 const RETRY_DELAYS_MS: Record<WorkItemType, number[]> = {
@@ -258,6 +258,30 @@ class WorkQueueServiceImpl implements WorkQueueService {
       status: order.status,
     });
 
+    const orderData: InsertOrder = {
+      broker: "alpaca",
+      brokerOrderId: order.id,
+      clientOrderId: clientOrderId,
+      symbol,
+      side,
+      type: type || "market",
+      timeInForce: time_in_force || "day",
+      qty: qty?.toString(),
+      notional: notional?.toString(),
+      limitPrice: limit_price?.toString(),
+      stopPrice: stop_price?.toString(),
+      status: order.status,
+      submittedAt: new Date(order.submitted_at || Date.now()),
+      updatedAt: new Date(),
+      filledQty: order.filled_qty?.toString(),
+      filledAvgPrice: order.filled_avg_price?.toString(),
+      traceId,
+      workItemId: item.id,
+      rawJson: order,
+    };
+
+    await storage.upsertOrderByBrokerOrderId(order.id, orderData);
+
     await storage.updateWorkItem(item.id, { brokerOrderId: order.id });
     await this.markSucceeded(item.id, JSON.stringify({ orderId: order.id, status: order.status }));
   }
@@ -276,29 +300,95 @@ class WorkQueueServiceImpl implements WorkQueueService {
   }
 
   async processOrderSync(item: WorkItem): Promise<void> {
+    const payload = JSON.parse(item.payload || "{}");
+    const traceId = payload.traceId || `sync-${Date.now()}`;
+    
+    log.info("work-queue", "Starting order sync", { traceId, workItemId: item.id });
+
     const [openOrders, recentOrders] = await Promise.all([
       alpaca.getOrders("open", 100),
       alpaca.getOrders("closed", 50),
     ]);
 
     const allOrders = [...openOrders, ...recentOrders];
-    let syncedCount = 0;
+    let ordersUpserted = 0;
+    let fillsCreated = 0;
 
-    for (const order of allOrders) {
-      if (order.client_order_id) {
-        const workItem = await this.getByIdempotencyKey(order.client_order_id);
-        if (workItem && !workItem.brokerOrderId) {
-          await storage.updateWorkItem(workItem.id, {
-            brokerOrderId: order.id,
-            result: JSON.stringify({ status: order.status, filled_qty: order.filled_qty }),
-          });
-          syncedCount++;
+    for (const alpacaOrder of allOrders) {
+      try {
+        const orderData: Partial<InsertOrder> = {
+          broker: "alpaca",
+          brokerOrderId: alpacaOrder.id,
+          clientOrderId: alpacaOrder.client_order_id || undefined,
+          symbol: alpacaOrder.symbol,
+          side: alpacaOrder.side,
+          type: alpacaOrder.type || alpacaOrder.order_type || "market",
+          timeInForce: alpacaOrder.time_in_force,
+          qty: alpacaOrder.qty,
+          notional: alpacaOrder.notional || undefined,
+          limitPrice: alpacaOrder.limit_price || undefined,
+          stopPrice: alpacaOrder.stop_price || undefined,
+          status: alpacaOrder.status,
+          submittedAt: new Date(alpacaOrder.submitted_at),
+          updatedAt: new Date(alpacaOrder.updated_at || Date.now()),
+          filledAt: alpacaOrder.filled_at ? new Date(alpacaOrder.filled_at) : undefined,
+          filledQty: alpacaOrder.filled_qty,
+          filledAvgPrice: alpacaOrder.filled_avg_price || undefined,
+          traceId,
+          rawJson: alpacaOrder,
+        };
+
+        if (alpacaOrder.client_order_id) {
+          const workItem = await storage.getWorkItemByIdempotencyKey(alpacaOrder.client_order_id);
+          if (workItem) {
+            orderData.workItemId = workItem.id;
+          }
         }
+
+        await storage.upsertOrderByBrokerOrderId(alpacaOrder.id, orderData);
+        ordersUpserted++;
+
+        if (alpacaOrder.filled_at && parseFloat(alpacaOrder.filled_qty) > 0) {
+          const existingFills = await storage.getFillsByBrokerOrderId(alpacaOrder.id);
+          if (existingFills.length === 0) {
+            const dbOrder = await storage.getOrderByBrokerOrderId(alpacaOrder.id);
+            
+            const fillData: InsertFill = {
+              broker: "alpaca",
+              brokerOrderId: alpacaOrder.id,
+              orderId: dbOrder?.id,
+              symbol: alpacaOrder.symbol,
+              side: alpacaOrder.side,
+              qty: alpacaOrder.filled_qty,
+              price: alpacaOrder.filled_avg_price || "0",
+              occurredAt: new Date(alpacaOrder.filled_at),
+              traceId,
+              rawJson: {
+                filled_qty: alpacaOrder.filled_qty,
+                filled_avg_price: alpacaOrder.filled_avg_price,
+                filled_at: alpacaOrder.filled_at,
+              },
+            };
+            await storage.createFill(fillData);
+            fillsCreated++;
+          }
+        }
+      } catch (error) {
+        log.warn("work-queue", `Failed to sync order ${alpacaOrder.id}: ${error}`, { traceId });
       }
     }
 
+    log.info("work-queue", `Order sync completed`, { 
+      traceId, 
+      ordersUpserted, 
+      fillsCreated,
+      openOrders: openOrders.length,
+      recentOrders: recentOrders.length,
+    });
+
     await this.markSucceeded(item.id, JSON.stringify({
-      syncedCount,
+      ordersUpserted,
+      fillsCreated,
       openOrders: openOrders.length,
       recentOrders: recentOrders.length,
       syncedAt: new Date().toISOString(),

@@ -9,12 +9,15 @@
 
 ## Executive Summary
 
-This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. **All 3 critical gaps have been fixed** (G1, G2, G3). The moderate gaps remain documented for future work.
+This audit identified **3 critical gaps** and **2 moderate gaps** between documented architecture and actual implementation. **All 3 critical gaps have been fixed** (G1, G2, G3), and **G4 (Orders vs Trades vs Fills) has been fixed** in Phase 2.
 
 ### Phase 0+1 Fixes Completed:
 - ✅ **G1**: Orchestrator now uses Work Queue for all order operations (durable execution)
 - ✅ **G2**: End-to-end traceId propagation across AI decisions, LLM calls, and trades
 - ✅ **G3**: Work queue worker starts automatically on server initialization
+
+### Phase 2 Fixes Completed:
+- ✅ **G4**: Orders vs Trades vs Fills separation - New `orders` and `fills` tables with proper lifecycle tracking
 
 ---
 
@@ -30,10 +33,10 @@ This audit identified **3 critical gaps** and **2 moderate gaps** between docume
 
 ### Moderate Gaps (P1)
 
-| ID | Documented Feature | Doc Reference | Schema | Implementation | Gap Description | Impact |
+| ID | Documented Feature | Doc Reference | Schema | Implementation | Gap Description | Status |
 |----|-------------------|---------------|--------|----------------|-----------------|--------|
-| **G4** | Orders vs Trades vs Fills distinction | TRADING_SAGA_SEQUENCES.md, SOURCE_OF_TRUTH_CONTRACT.md | ⚠️ trades only | ⚠️ CONFLATED | Only `trades` table exists. No separate `orders` or `fills` tables. `work_items.ORDER_SUBMIT` has `brokerOrderId` but lifecycle unclear. | Data model conflates intent (order) with execution (trade) with confirmation (fill) |
-| **G5** | Event-driven saga patterns | TRADING_SAGA_SEQUENCES.md | N/A | ❌ FUTURE STATE | Documents NATS events like `market.quote.received`, `ai.decision.generated` but these don't exist. Orchestrator runs synchronously. | Documentation describes Phase 2 microservices, not current monolith |
+| **G4** | Orders vs Trades vs Fills distinction | TRADING_SAGA_SEQUENCES.md, SOURCE_OF_TRUTH_CONTRACT.md | ✅ orders, fills tables | ✅ FIXED | Added `orders` and `fills` tables. ORDER_SUBMIT and ORDER_SYNC handlers upsert to orders table and create fills for filled orders. | **FIXED** - Full separation |
+| **G5** | Event-driven saga patterns | TRADING_SAGA_SEQUENCES.md | N/A | ❌ FUTURE STATE | Documents NATS events like `market.quote.received`, `ai.decision.generated` but these don't exist. Orchestrator runs synchronously. | Documentation describes Phase 3 microservices |
 
 ### Verified Working (No Gap)
 
@@ -123,22 +126,67 @@ log.info("Routes", "Work queue worker started with 5s poll interval");
 
 ---
 
+### G4: Orders vs Trades vs Fills Separation ✅ FIXED
+
+**Status:** Fixed as of December 15, 2025
+
+**Implementation:**
+
+1. **New `orders` table** (22 fields):
+   - brokerOrderId (unique), clientOrderId (unique)
+   - symbol, side, type, timeInForce, qty, notional
+   - limitPrice, stopPrice, status
+   - submittedAt, updatedAt, filledAt, filledQty, filledAvgPrice
+   - traceId, decisionId (FK), tradeIntentId (FK), workItemId (FK)
+   - rawJson (full Alpaca order snapshot)
+
+2. **New `fills` table** (12 fields):
+   - brokerOrderId, brokerFillId (unique)
+   - orderId (FK to orders)
+   - symbol, side, qty, price, occurredAt
+   - traceId, rawJson
+
+3. **Updated ORDER_SUBMIT handler**:
+   - Upserts order to `orders` table after successful Alpaca submission
+   - Links workItemId for full traceability
+
+4. **Updated ORDER_SYNC handler**:
+   - Fetches open/closed orders from Alpaca
+   - Upserts each to `orders` table
+   - Creates fill records for filled orders
+
+5. **New API endpoints**:
+   - `GET /api/orders` - Orders from database with source metadata
+   - `GET /api/orders/:id` - Single order with fills
+   - `GET /api/fills` - All fills
+   - `GET /api/fills/order/:orderId` - Fills for specific order
+   - `POST /api/orders/sync` - Trigger manual sync
+
+**Data Model Distinction:**
+- `trades` table = AI trade intents (what the AI decided to do)
+- `orders` table = Broker order lifecycle (what was actually submitted)
+- `fills` table = Execution confirmations (what actually happened)
+
+---
+
 ## Recommendations
 
-### Phase 0 (Immediate)
-1. Verify work queue worker is running at startup
-2. Add traceId generation in orchestrator
-3. Wire orchestrator to use work queue for ORDER_SUBMIT
+### Phase 0+1 (COMPLETED)
+1. ✅ Verify work queue worker is running at startup
+2. ✅ Add traceId generation in orchestrator
+3. ✅ Wire orchestrator to use work queue for ORDER_SUBMIT
+4. ✅ Add traceId to all trades/orders created
 
-### Phase 1 (This Sprint)
+### Phase 2 (COMPLETED)
+1. ✅ Added `orders` table for Order→Trade distinction
+2. ✅ Added `fills` table for broker fill confirmations
+3. ✅ ORDER_SUBMIT/ORDER_SYNC handlers upsert to orders table
+4. ✅ Created new API endpoints for orders/fills
+
+### Phase 3 (Future)
 1. Implement POSITION_CLOSE and DECISION_EVALUATION work item handlers (defined in schema but not processed)
-2. Add traceId to all trades/orders created
-3. Document actual data model lifecycle (trades table usage)
-
-### Phase 2 (Future)
-1. Consider adding `orders` table if Order→Trade distinction needed
-2. Add `fills` table for broker fill confirmations
-3. Implement NATS event publishing (per MICROSERVICES_ROADMAP.md)
+2. Implement NATS event publishing (per MICROSERVICES_ROADMAP.md)
+3. UI improvements to display order lifecycle and fills
 
 ---
 

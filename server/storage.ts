@@ -10,6 +10,8 @@ import {
   workItems,
   workItemRuns,
   brokerAssets,
+  orders,
+  fills,
   type User,
   type InsertUser,
   type Strategy,
@@ -30,6 +32,10 @@ import {
   type BrokerAsset,
   type InsertBrokerAsset,
   type AssetClass,
+  type Order,
+  type InsertOrder,
+  type Fill,
+  type InsertFill,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -79,6 +85,16 @@ export interface IStorage {
 
   getAgentStatus(): Promise<AgentStatus | undefined>;
   updateAgentStatus(updates: Partial<AgentStatus>): Promise<AgentStatus>;
+
+  createOrder(order: InsertOrder): Promise<Order>;
+  upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrder>): Promise<Order>;
+  getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined>;
+  getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined>;
+  getOrdersByStatus(status: string, limit?: number): Promise<Order[]>;
+  getRecentOrders(limit?: number): Promise<Order[]>;
+  createFill(fill: InsertFill): Promise<Fill>;
+  getFillsByOrderId(orderId: string): Promise<Fill[]>;
+  getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -561,6 +577,55 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(brokerAssets.symbol)
       .limit(limit);
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [result] = await db.insert(orders).values(order).returning();
+    return result;
+  }
+
+  async upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrder>): Promise<Order> {
+    const existing = await this.getOrderByBrokerOrderId(brokerOrderId);
+    if (existing) {
+      const [updated] = await db.update(orders)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(orders.brokerOrderId, brokerOrderId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as InsertOrder).returning();
+    return created;
+  }
+
+  async getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined> {
+    const [result] = await db.select().from(orders).where(eq(orders.brokerOrderId, brokerOrderId)).limit(1);
+    return result;
+  }
+
+  async getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined> {
+    const [result] = await db.select().from(orders).where(eq(orders.clientOrderId, clientOrderId)).limit(1);
+    return result;
+  }
+
+  async getOrdersByStatus(status: string, limit = 100): Promise<Order[]> {
+    return db.select().from(orders).where(eq(orders.status, status)).limit(limit).orderBy(desc(orders.createdAt));
+  }
+
+  async getRecentOrders(limit = 50): Promise<Order[]> {
+    return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+  }
+
+  async createFill(fill: InsertFill): Promise<Fill> {
+    const [result] = await db.insert(fills).values(fill).returning();
+    return result;
+  }
+
+  async getFillsByOrderId(orderId: string): Promise<Fill[]> {
+    return db.select().from(fills).where(eq(fills.orderId, orderId)).orderBy(desc(fills.occurredAt));
+  }
+
+  async getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]> {
+    return db.select().from(fills).where(eq(fills.brokerOrderId, brokerOrderId)).orderBy(desc(fills.occurredAt));
   }
 }
 

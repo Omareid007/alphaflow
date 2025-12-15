@@ -9,6 +9,7 @@ import {
   insertTradeSchema,
   insertPositionSchema,
   insertAiDecisionSchema,
+  type Fill,
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
@@ -1557,6 +1558,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Orders from database (with source metadata)
+  app.get("/api/orders", async (req, res) => {
+    const fetchedAt = new Date();
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const status = req.query.status as string;
+      
+      let orders;
+      if (status) {
+        orders = await storage.getOrdersByStatus(status, limit);
+      } else {
+        orders = await storage.getRecentOrders(limit);
+      }
+      
+      res.json({
+        orders,
+        _source: {
+          type: "database",
+          table: "orders",
+          fetchedAt: fetchedAt.toISOString(),
+          note: "Orders stored in local database, synced from broker"
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  // Get fills
+  app.get("/api/fills", async (req, res) => {
+    const fetchedAt = new Date();
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      // Get recent fills - we'll need to add a method for this
+      const orders = await storage.getRecentOrders(100);
+      const orderIds = orders.map(o => o.id);
+      
+      let allFills: Fill[] = [];
+      for (const orderId of orderIds) {
+        const fills = await storage.getFillsByOrderId(orderId);
+        allFills = allFills.concat(fills);
+      }
+      
+      // Sort by occurredAt descending and limit
+      allFills.sort((a, b) => 
+        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+      );
+      allFills = allFills.slice(0, limit);
+      
+      res.json({
+        fills: allFills,
+        _source: {
+          type: "database",
+          table: "fills",
+          fetchedAt: fetchedAt.toISOString(),
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch fills:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  // Get fills for a specific order
+  app.get("/api/fills/order/:orderId", async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      
+      // Try by database order ID first
+      let fills = await storage.getFillsByOrderId(orderId);
+      
+      // If not found, try by brokerOrderId
+      if (fills.length === 0) {
+        fills = await storage.getFillsByBrokerOrderId(orderId);
+      }
+      
+      res.json({
+        fills,
+        _source: {
+          type: "database",
+          table: "fills",
+          fetchedAt: new Date().toISOString(),
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch fills:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
+  // Trigger order sync manually
+  app.post("/api/orders/sync", async (req, res) => {
+    try {
+      const traceId = `api-sync-${Date.now()}`;
+      
+      // Enqueue an ORDER_SYNC work item
+      const workItem = await workQueue.enqueue({
+        type: "ORDER_SYNC",
+        payload: JSON.stringify({ traceId }),
+        maxAttempts: 3,
+      });
+      
+      res.json({
+        success: true,
+        workItemId: workItem.id,
+        message: "Order sync enqueued",
+        traceId,
+      });
+    } catch (error) {
+      console.error("Failed to enqueue order sync:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   // Returns LIVE Alpaca orders (source of truth per SOURCE_OF_TRUTH_CONTRACT.md)
   app.get("/api/orders/recent", async (req, res) => {
     const fetchedAt = new Date();
@@ -1582,6 +1699,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         _source: createUnavailableSourceMetadata(),
         message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
       });
+    }
+  });
+
+  // Get single order by ID (must come after all specific /api/orders/* routes)
+  app.get("/api/orders/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Try by database ID first, then by brokerOrderId
+      let order = await storage.getOrderByBrokerOrderId(id);
+      
+      if (!order) {
+        // Could also try by ID if needed
+        const orders = await storage.getRecentOrders(1000);
+        order = orders.find(o => o.id === id);
+      }
+      
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      // Fetch fills for this order
+      const fills = await storage.getFillsByOrderId(order.id);
+      
+      res.json({
+        order,
+        fills,
+        _source: {
+          type: "database",
+          table: "orders",
+          fetchedAt: new Date().toISOString(),
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch order:", error);
+      res.status(500).json({ error: String(error) });
     }
   });
 

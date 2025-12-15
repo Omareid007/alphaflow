@@ -26,6 +26,33 @@ Completed comprehensive documentation vs implementation audit with all critical 
 
 3. **Work Queue Worker Startup (G3 Fixed)**: Worker now starts automatically during server initialization in `routes.ts`.
 
+### Phase 2: Orders vs Trades vs Fills Separation (G4 Fixed)
+Added proper data model separation:
+
+1. **New `orders` table** (22 fields): Stores broker order lifecycle with:
+   - brokerOrderId, clientOrderId (unique indexes)
+   - Full order parameters (symbol, side, type, qty, prices)
+   - Status lifecycle (new, accepted, filled, canceled, etc.)
+   - Links to ai_decisions, trades, work_items via foreign keys
+   - rawJson for full Alpaca order snapshot
+
+2. **New `fills` table** (12 fields): Stores execution confirmations with:
+   - brokerOrderId, brokerFillId (unique)
+   - orderId (FK to orders)
+   - qty, price, occurredAt
+   - traceId for full traceability
+
+3. **Updated handlers**:
+   - ORDER_SUBMIT upserts to orders table after Alpaca submission
+   - ORDER_SYNC reconciles orders/fills from Alpaca
+
+4. **New API endpoints**:
+   - `GET /api/orders` - Orders from database with source metadata
+   - `GET /api/orders/:id` - Single order with fills
+   - `GET /api/fills` - All fills
+   - `GET /api/fills/order/:orderId` - Fills for specific order
+   - `POST /api/orders/sync` - Trigger manual sync
+
 See `docs/AUDIT_DOC_VS_IMPLEMENTATION_GAP.md` for full audit details.
 
 ## System Architecture
