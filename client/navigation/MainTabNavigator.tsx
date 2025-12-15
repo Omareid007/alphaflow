@@ -11,7 +11,9 @@ import AnalyticsStackNavigator from "@/navigation/AnalyticsStackNavigator";
 import StrategiesStackNavigator from "@/navigation/StrategiesStackNavigator";
 import AutoStackNavigator from "@/navigation/AutoStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
+import AdminStackNavigator from "@/navigation/AdminStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { apiRequest } from "@/lib/query-client";
 import type { AgentStatus } from "@shared/schema";
@@ -22,12 +24,14 @@ export type MainTabParamList = {
   StrategiesTab: undefined;
   AutoTab: undefined;
   ProfileTab: undefined;
+  AdminTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabContent() {
   const { theme, isDark } = useTheme();
+  const { user } = useAuth();
 
   return (
     <Tab.Navigator
@@ -105,6 +109,18 @@ function MainTabContent() {
           ),
         }}
       />
+      {user?.isAdmin ? (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminStackNavigator}
+          options={{
+            title: "Admin",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      ) : null}
     </Tab.Navigator>
   );
 }

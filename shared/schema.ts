@@ -9,6 +9,7 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
 });
 
 export const strategies = pgTable("strategies", {
@@ -224,6 +225,9 @@ export const insertAiCalibrationLogSchema = createInsertSchema(aiCalibrationLog)
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  isAdmin: true,
+}).extend({
+  isAdmin: z.boolean().optional(),
 });
 
 export const insertStrategySchema = createInsertSchema(strategies).omit({

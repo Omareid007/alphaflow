@@ -5,6 +5,7 @@ import { apiRequest, getApiUrl } from "@/lib/query-client";
 interface User {
   id: string;
   username: string;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {

@@ -111,14 +111,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setTimeout(async () => {
     try {
       console.log("[Bootstrap] Checking for admin user...");
-      const adminUser = await storage.getUserByUsername("Omar");
+      const adminUser = await storage.getUserByUsername("admintest");
       console.log("[Bootstrap] Admin user check complete:", adminUser ? "exists" : "not found");
       if (!adminUser) {
-        const hashedPassword = await bcrypt.hash("test1234", 10);
-        await storage.createUser({ username: "Omar", password: hashedPassword });
-        console.log("[Bootstrap] Created admin user: Omar");
+        const hashedPassword = await bcrypt.hash("admin1234", 10);
+        await storage.createUser({ username: "admintest", password: hashedPassword, isAdmin: true });
+        console.log("[Bootstrap] Created admin user: admintest");
       } else {
-        console.log("[Bootstrap] Admin user Omar already exists");
+        if (!adminUser.isAdmin) {
+          await storage.updateUser(adminUser.id, { isAdmin: true });
+          console.log("[Bootstrap] Promoted admintest to admin");
+        } else {
+          console.log("[Bootstrap] Admin user admintest already exists");
+        }
       }
     } catch (err) {
       console.error("[Bootstrap] Failed to create admin user:", err);
@@ -157,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.cookie("session", sessionId, getCookieOptions());
 
-      res.status(201).json({ id: user.id, username: user.username });
+      res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
       console.error("Signup error:", error);
       res.status(500).json({ error: "Failed to create account" });
@@ -188,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.cookie("session", sessionId, getCookieOptions());
 
-      res.json({ id: user.id, username: user.username });
+      res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ error: "Failed to login" });
@@ -231,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User not found" });
       }
 
-      res.json({ id: user.id, username: user.username });
+      res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
       res.status(500).json({ error: "Failed to get user" });
     }
