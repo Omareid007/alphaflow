@@ -48,6 +48,7 @@ import {
 import { getAllUsageStats, getUsageStats } from "./lib/apiBudget";
 import { getCacheStats, getAllCacheEntries, purgeExpiredCache, invalidateCache } from "./lib/persistentApiCache";
 import { getAllProviderPolicies, getProviderPolicy, enableProvider, disableProvider } from "./lib/apiPolicy";
+import { roleBasedRouter, getAllRoleConfigs, updateRoleConfig, getRecentCalls, getCallStats, type RoleConfig } from "./ai/roleBasedRouter";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -3150,6 +3151,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to toggle provider:", error);
       res.status(500).json({ error: "Failed to toggle provider" });
+    }
+  });
+
+  // ============================================================
+  // Admin API - Model Router (Role-Based LLM Routing)
+  // ============================================================
+
+  app.get("/api/admin/model-router/configs", authMiddleware, async (req, res) => {
+    try {
+      const configs = await getAllRoleConfigs();
+      const availableProviders = roleBasedRouter.getAvailableProviders();
+      res.json({ configs, availableProviders });
+    } catch (error) {
+      console.error("Failed to get role configs:", error);
+      res.status(500).json({ error: "Failed to get role configurations" });
+    }
+  });
+
+  app.put("/api/admin/model-router/configs/:role", authMiddleware, async (req, res) => {
+    try {
+      const { role } = req.params;
+      const validRoles = ["market_news_summarizer", "technical_analyst", "risk_manager", "execution_planner", "post_trade_reporter"];
+      
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(", ")}` });
+      }
+
+      const updates = req.body as Partial<RoleConfig>;
+      const updated = await updateRoleConfig(role as any, updates);
+      res.json({ success: true, config: updated });
+    } catch (error) {
+      console.error("Failed to update role config:", error);
+      res.status(500).json({ error: "Failed to update role configuration" });
+    }
+  });
+
+  app.get("/api/admin/model-router/calls", authMiddleware, async (req, res) => {
+    try {
+      const { role, limit } = req.query;
+      const limitNum = parseInt(limit as string) || 20;
+      const roleFilter = typeof role === "string" ? role as any : undefined;
+      
+      const calls = await getRecentCalls(limitNum, roleFilter);
+      res.json({ calls, count: calls.length });
+    } catch (error) {
+      console.error("Failed to get recent LLM calls:", error);
+      res.status(500).json({ error: "Failed to get recent LLM calls" });
+    }
+  });
+
+  app.get("/api/admin/model-router/stats", authMiddleware, async (req, res) => {
+    try {
+      const stats = await getCallStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to get LLM call stats:", error);
+      res.status(500).json({ error: "Failed to get LLM call statistics" });
     }
   });
 

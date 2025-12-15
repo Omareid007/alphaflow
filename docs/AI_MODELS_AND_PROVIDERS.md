@@ -23,15 +23,16 @@
 2. [Multi-Provider Architecture](#2-multi-provider-architecture)
 3. [Provider Configuration](#3-provider-configuration)
 4. [LLM Router](#4-llm-router)
-5. [Data Sources & Enrichment](#5-data-sources--enrichment)
-6. [Data Fusion Engine](#6-data-fusion-engine)
-7. [Enhanced Decision Logging](#7-enhanced-decision-logging)
-8. [Prompt Patterns](#8-prompt-patterns)
-9. [Cost & Token Management](#9-cost--token-management)
-10. [Testing AI Logic](#10-testing-ai-logic)
-11. [Current State (December 2025)](#11-current-state-december-2025)
-12. [Enhancements Compared to Previous Version](#12-enhancements-compared-to-previous-version)
-13. [Old vs New - Summary of Changes](#13-old-vs-new---summary-of-changes)
+5. [Role-Based Routing](#5-role-based-routing)
+6. [Data Sources & Enrichment](#6-data-sources--enrichment)
+7. [Data Fusion Engine](#7-data-fusion-engine)
+8. [Enhanced Decision Logging](#8-enhanced-decision-logging)
+9. [Prompt Patterns](#9-prompt-patterns)
+10. [Cost & Token Management](#10-cost--token-management)
+11. [Testing AI Logic](#11-testing-ai-logic)
+12. [Current State (December 2025)](#12-current-state-december-2025)
+13. [Enhancements Compared to Previous Version](#13-enhancements-compared-to-previous-version)
+14. [Old vs New - Summary of Changes](#14-old-vs-new---summary-of-changes)
 
 ---
 
@@ -158,9 +159,109 @@ const providers = llmRouter.getAvailableProviders();
 
 ---
 
-## 5. Data Sources & Enrichment
+## 5. Role-Based Routing
 
-### 5.1 Market Data Connectors
+The Role-Based Router (`server/ai/roleBasedRouter.ts`) routes LLM requests based on functional roles, with per-role fallback chains, budget-aware routing, and comprehensive call logging.
+
+### 5.1 Available Roles
+
+| Role | Description | Primary Use Case |
+|------|-------------|------------------|
+| `market_news_summarizer` | Cheap + fast model for summarizing news | News digests, headline analysis |
+| `technical_analyst` | Strong reasoning model for technical analysis | Chart patterns, indicator analysis |
+| `risk_manager` | Conservative, instruction-following model | Risk assessment, position sizing |
+| `execution_planner` | Deterministic, tool-use friendly model | Trade execution planning |
+| `post_trade_reporter` | Cheap summarizer for reports | Post-trade summaries, P&L reports |
+
+### 5.2 Fallback Chain Configuration
+
+Each role has a prioritized fallback chain of providers/models:
+
+```typescript
+const riskManagerConfig: RoleConfig = {
+  role: "risk_manager",
+  description: "Conservative, instruction-following model for risk assessment",
+  fallbackChain: [
+    { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+    { provider: "openrouter", model: "google/gemini-pro-1.5", costPer1kTokens: 0.00125 },
+  ],
+  maxTokens: 1500,
+  temperature: 0.1,
+  enableCitations: true,
+};
+```
+
+### 5.3 Budgeting and Cost Tracking
+
+The router tracks costs per call and aggregates statistics:
+
+- **Per-call cost estimation**: Based on token usage and model pricing
+- **Role-level aggregation**: Total cost and average latency per role
+- **Provider-level metrics**: Success rate and cost per provider
+- **Database logging**: All calls logged to `llm_calls` table
+
+```typescript
+// Get call statistics
+const stats = await getCallStats();
+// Returns: { total, totalCost, byRole: {...}, byProvider: {...} }
+
+// Get recent calls with optional role filter
+const calls = await getRecentCalls(20, "risk_manager");
+```
+
+### 5.4 Citations/Provenance Mode
+
+When `enableCitations: true` is set for a role, the router automatically injects citation instructions:
+
+```typescript
+// System prompt is augmented with:
+"IMPORTANT: Always cite your sources. Reference internal data (market data, news feeds, analysis) rather than external knowledge. Format citations as [Source: X]."
+```
+
+This is enabled by default for `risk_manager` to ensure traceable reasoning.
+
+### 5.5 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/model-router/configs` | GET | Get all role configurations |
+| `/api/admin/model-router/configs/:role` | PUT | Update a role configuration |
+| `/api/admin/model-router/calls` | GET | Get recent LLM calls (optional `?role=` filter) |
+| `/api/admin/model-router/stats` | GET | Get call statistics |
+
+### 5.6 Usage Examples
+
+```typescript
+import { roleBasedLLMCall } from "./ai/roleBasedRouter";
+
+// Make a role-based call
+const response = await roleBasedLLMCall({
+  role: "technical_analyst",
+  system: "You are an expert technical analyst.",
+  messages: [{ role: "user", content: "Analyze AAPL chart patterns" }],
+});
+
+// Response includes role metadata
+console.log(response.role);          // "technical_analyst"
+console.log(response.provider);      // "openrouter"
+console.log(response.estimatedCost); // 0.00012
+console.log(response.fallbackUsed);  // false
+```
+
+### 5.7 Admin UI
+
+The Model Router screen in the Admin panel provides:
+- Active provider status
+- Role configuration cards with fallback chains
+- Call statistics (total calls, cost by role/provider)
+- Recent calls table with status, latency, and cost
+
+---
+
+## 6. Data Sources & Enrichment
+
+### 6.1 Market Data Connectors
 
 | Connector | Data Type | Location |
 |-----------|-----------|----------|

@@ -233,6 +233,30 @@ function ApiBudgetNavCard() {
   );
 }
 
+function ModelRouterNavCard() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
+
+  return (
+    <Pressable onPress={() => navigation.navigate("ModelRouter")}>
+      <Card elevation={1} style={styles.sectionCard}>
+        <View style={styles.navCardContent}>
+          <View style={styles.navCardLeft}>
+            <View style={styles.sectionHeader}>
+              <Feather name="git-branch" size={20} color={BrandColors.aiLayer} />
+              <ThemedText style={styles.sectionTitle}>LLM Model Router</ThemedText>
+            </View>
+            <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
+              Role-based routing, fallback chains, cost tracking, and call logs
+            </ThemedText>
+          </View>
+          <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -241,6 +265,7 @@ export default function AdminScreen() {
 
   const sections = [
     { key: "budget", component: <ApiBudgetNavCard /> },
+    { key: "modelRouter", component: <ModelRouterNavCard /> },
     { key: "connectors", component: <ConnectorHealthCard /> },
     { key: "fusion", component: <DataFusionCard /> },
     { key: "ai", component: <AIConfigCard /> },
