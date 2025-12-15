@@ -9,6 +9,7 @@ import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
 import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } from "../trading/order-execution-flow";
 import { recordDecisionFeatures, recordTradeOutcome, updateTradeOutcomeOnClose, runCalibrationAnalysis } from "../ai/learning-service";
+import { tradabilityService } from "../services/tradability-service";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
@@ -946,6 +947,17 @@ class AutonomousOrchestrator {
         };
       }
 
+      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      if (!tradabilityCheck.tradable) {
+        log.warn("Orchestrator", `Symbol ${symbol} not tradable: ${tradabilityCheck.reason}`);
+        return {
+          success: false,
+          action: "skip",
+          reason: `Symbol not tradable: ${tradabilityCheck.reason || 'Not in broker universe'}`,
+          symbol,
+        };
+      }
+
       let initialOrder: AlpacaOrder;
       const hasBracketParams = decision.targetPrice && decision.stopLoss && !isCrypto;
       
@@ -1160,6 +1172,16 @@ class AutonomousOrchestrator {
       if (partialPercent >= 100) {
         initialOrder = await alpaca.closePosition(brokerSymbol);
       } else {
+        const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+        if (!tradabilityCheck.tradable) {
+          log.warn("Orchestrator", `Cannot partial close ${symbol}: not tradable`);
+          return {
+            success: false,
+            action: "sell",
+            reason: `Symbol not tradable: ${tradabilityCheck.reason || 'Not in broker universe'}`,
+            symbol,
+          };
+        }
         const closeQty = (position.quantity * partialPercent) / 100;
         initialOrder = await alpaca.createOrder({
           symbol: brokerSymbol,

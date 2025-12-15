@@ -13,6 +13,7 @@ import { gdelt } from "../connectors/gdelt";
 import { log } from "../utils/logger";
 import { cacheQuickQuote, cacheTradability, cacheAccountSnapshot, getOrderCacheStats } from "../lib/order-execution-cache";
 import { performanceTracker } from "../lib/performance-metrics";
+import { tradabilityService } from "../services/tradability-service";
 
 export interface AlpacaTradeRequest {
   symbol: string;
@@ -388,6 +389,11 @@ class AlpacaTradingEngine {
       const riskCheck = await this.checkRiskLimits(symbol, side, quantity);
       if (!riskCheck.allowed) {
         return { success: false, error: riskCheck.reason };
+      }
+
+      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      if (!tradabilityCheck.tradable) {
+        return { success: false, error: `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}` };
       }
 
       const alpacaSymbol = this.normalizeSymbolForAlpaca(symbol, true);
