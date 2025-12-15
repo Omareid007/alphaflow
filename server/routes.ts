@@ -66,6 +66,7 @@ import { tradabilityService } from "./services/tradability-service";
 import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
 import { tracesRouter } from "./routes/traces";
+import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -110,6 +111,10 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("[Routes] Starting route registration...");
+  
+  // Initialize admin module registry
+  initializeDefaultModules();
+  console.log("[Routes] Admin module registry initialized");
   
   // Delay async initializations to let server start first
   setTimeout(() => {
@@ -4222,6 +4227,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get orchestrator health:", error);
       res.status(500).json({ error: "Failed to get orchestrator health" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN MODULE REGISTRY ENDPOINTS
+  // ============================================================================
+
+  app.get("/api/admin/modules", authMiddleware, async (req, res) => {
+    try {
+      const modules = getModules();
+      res.json({
+        modules,
+        count: modules.length,
+      });
+    } catch (error) {
+      console.error("Failed to get admin modules:", error);
+      res.status(500).json({ error: "Failed to get admin modules" });
+    }
+  });
+
+  app.get("/api/admin/modules/:id", authMiddleware, async (req, res) => {
+    try {
+      const module = getModule(req.params.id);
+      if (!module) {
+        return res.status(404).json({ error: "Module not found" });
+      }
+      res.json(module);
+    } catch (error) {
+      console.error("Failed to get admin module:", error);
+      res.status(500).json({ error: "Failed to get admin module" });
+    }
+  });
+
+  app.get("/api/admin/overview", authMiddleware, async (req, res) => {
+    try {
+      const overview = await getAdminOverview();
+      
+      const agentStatusData = await storage.getAgentStatus();
+      const queueCounts = {
+        PENDING: await storage.getWorkItemCount("PENDING"),
+        RUNNING: await storage.getWorkItemCount("RUNNING"),
+        FAILED: await storage.getWorkItemCount("FAILED"),
+        DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER"),
+      };
+
+      const llmStats = await getCallStats();
+      const allUsage = await getAllUsageStats();
+
+      res.json({
+        ...overview,
+        orchestrator: {
+          isRunning: agentStatusData?.isRunning || false,
+          killSwitchActive: agentStatusData?.killSwitchActive || false,
+          lastHeartbeat: agentStatusData?.lastHeartbeat || null,
+        },
+        workQueue: {
+          pending: queueCounts.PENDING,
+          running: queueCounts.RUNNING,
+          failed: queueCounts.FAILED,
+          deadLetter: queueCounts.DEAD_LETTER,
+        },
+        llm: {
+          totalCalls: llmStats.total,
+          successRate: llmStats.byProvider && Object.keys(llmStats.byProvider).length > 0
+            ? Object.values(llmStats.byProvider).reduce((acc, p) => acc + (p.successRate || 0), 0) / Object.keys(llmStats.byProvider).length
+            : 0,
+          avgLatency: llmStats.byRole && Object.keys(llmStats.byRole).length > 0
+            ? Object.values(llmStats.byRole).reduce((acc, r) => acc + (r.avgLatency || 0), 0) / Object.keys(llmStats.byRole).length
+            : 0,
+        },
+        providers: Object.keys(allUsage).map(provider => ({
+          provider,
+          callsUsed: allUsage[provider]?.length || 0,
+        })),
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get admin overview:", error);
+      res.status(500).json({ error: "Failed to get admin overview" });
     }
   });
 
