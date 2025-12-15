@@ -3155,6 +3155,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================
+  // Admin API - Connector Health & Status
+  // ============================================================
+
+  app.get("/api/admin/connectors-health", authMiddleware, async (req, res) => {
+    try {
+      const { getAllProviderStatuses } = await import("./lib/callExternal");
+      const providerStatuses = await getAllProviderStatuses();
+      
+      const connectors = [
+        {
+          name: "Alpaca Paper",
+          provider: "alpaca",
+          type: "brokerage",
+          hasApiKey: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY),
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "Finnhub",
+          provider: "finnhub",
+          type: "market_data",
+          hasApiKey: !!process.env.FINNHUB_API_KEY,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "CoinGecko",
+          provider: "coingecko",
+          type: "crypto_data",
+          hasApiKey: true,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "CoinMarketCap",
+          provider: "coinmarketcap",
+          type: "crypto_data",
+          hasApiKey: !!process.env.COINMARKETCAP_API_KEY,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "GDELT News",
+          provider: "gdelt",
+          type: "news",
+          hasApiKey: true,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "NewsAPI",
+          provider: "newsapi",
+          type: "news",
+          hasApiKey: !!process.env.NEWS_API_KEY,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "Valyu AI",
+          provider: "valyu",
+          type: "data_enrichment",
+          hasApiKey: !!process.env.VALYU_API_KEY,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+        {
+          name: "Hugging Face",
+          provider: "huggingface",
+          type: "ai_sentiment",
+          hasApiKey: !!process.env.HUGGINGFACE_API_KEY,
+          status: "checking" as string,
+          lastSync: null as string | null,
+          callsRemaining: null as number | null,
+        },
+      ];
+
+      for (const connector of connectors) {
+        const providerStatus = providerStatuses[connector.provider];
+        if (providerStatus) {
+          if (!connector.hasApiKey) {
+            connector.status = "offline";
+            connector.lastSync = "Not configured";
+          } else if (!providerStatus.enabled) {
+            connector.status = "disabled";
+            connector.lastSync = "Disabled";
+          } else if (!providerStatus.budgetStatus.allowed) {
+            connector.status = "warning";
+            connector.lastSync = "Rate limited";
+            connector.callsRemaining = 0;
+          } else {
+            connector.status = "healthy";
+            if (providerStatus.lastCallTime) {
+              const ago = Date.now() - providerStatus.lastCallTime;
+              if (ago < 60000) connector.lastSync = "Just now";
+              else if (ago < 3600000) connector.lastSync = `${Math.floor(ago / 60000)} min ago`;
+              else connector.lastSync = `${Math.floor(ago / 3600000)} hr ago`;
+            } else {
+              connector.lastSync = "Ready";
+            }
+            if (providerStatus.policy.maxRequestsPerMinute) {
+              connector.callsRemaining = Math.max(0, providerStatus.policy.maxRequestsPerMinute - providerStatus.budgetStatus.currentCount);
+            }
+          }
+        }
+      }
+
+      res.json({ connectors });
+    } catch (error) {
+      console.error("Failed to get connector health:", error);
+      res.status(500).json({ error: "Failed to get connector health" });
+    }
+  });
+
+  app.get("/api/admin/api-keys-status", authMiddleware, async (req, res) => {
+    try {
+      const { getAvailableProviders } = await import("./ai/index");
+      const aiProviders = getAvailableProviders();
+
+      const apiKeys = [
+        { name: "Alpaca API", key: "ALPACA_API_KEY", category: "brokerage", configured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) },
+        { name: "Finnhub API", key: "FINNHUB_API_KEY", category: "market_data", configured: !!process.env.FINNHUB_API_KEY },
+        { name: "CoinMarketCap API", key: "COINMARKETCAP_API_KEY", category: "crypto", configured: !!process.env.COINMARKETCAP_API_KEY },
+        { name: "NewsAPI", key: "NEWS_API_KEY", category: "news", configured: !!process.env.NEWS_API_KEY },
+        { name: "Valyu API", key: "VALYU_API_KEY", category: "data", configured: !!process.env.VALYU_API_KEY },
+        { name: "Hugging Face API", key: "HUGGINGFACE_API_KEY", category: "ai", configured: !!process.env.HUGGINGFACE_API_KEY },
+        { name: "OpenAI API", key: "OPENAI_API_KEY", category: "ai", configured: aiProviders.includes("openai") },
+        { name: "Groq API", key: "GROQ_API_KEY", category: "ai", configured: aiProviders.includes("groq") },
+        { name: "Together API", key: "TOGETHER_API_KEY", category: "ai", configured: aiProviders.includes("together") },
+        { name: "AIML API", key: "AIMLAPI_KEY", category: "ai", configured: aiProviders.includes("aimlapi") },
+        { name: "OpenRouter API", key: "OPENROUTER_API_KEY", category: "ai", configured: !!process.env.OPENROUTER_API_KEY },
+      ];
+
+      const summary = {
+        total: apiKeys.length,
+        configured: apiKeys.filter(k => k.configured).length,
+        missing: apiKeys.filter(k => !k.configured).length,
+        byCategory: {
+          brokerage: apiKeys.filter(k => k.category === "brokerage"),
+          market_data: apiKeys.filter(k => k.category === "market_data"),
+          crypto: apiKeys.filter(k => k.category === "crypto"),
+          news: apiKeys.filter(k => k.category === "news"),
+          data: apiKeys.filter(k => k.category === "data"),
+          ai: apiKeys.filter(k => k.category === "ai"),
+        }
+      };
+
+      res.json({ apiKeys, summary });
+    } catch (error) {
+      console.error("Failed to get API keys status:", error);
+      res.status(500).json({ error: "Failed to get API keys status" });
+    }
+  });
+
+  app.get("/api/admin/data-fusion-status", authMiddleware, async (req, res) => {
+    try {
+      const { getAllProviderStatuses } = await import("./lib/callExternal");
+      const providerStatuses = await getAllProviderStatuses();
+      
+      const activeProviders = Object.entries(providerStatuses).filter(
+        ([_, status]) => status.enabled && status.budgetStatus.allowed
+      );
+
+      const dataSources = [
+        { name: "Market Prices", provider: "finnhub", active: !!process.env.FINNHUB_API_KEY && providerStatuses.finnhub?.enabled },
+        { name: "Crypto Prices", provider: "coingecko", active: providerStatuses.coingecko?.enabled },
+        { name: "News Feed", provider: "gdelt", active: providerStatuses.gdelt?.enabled },
+        { name: "News Headlines", provider: "newsapi", active: !!process.env.NEWS_API_KEY && providerStatuses.newsapi?.enabled },
+        { name: "Sentiment Analysis", provider: "huggingface", active: !!process.env.HUGGINGFACE_API_KEY && providerStatuses.huggingface?.enabled },
+        { name: "Financial Data", provider: "valyu", active: !!process.env.VALYU_API_KEY && providerStatuses.valyu?.enabled },
+        { name: "Trade Execution", provider: "alpaca", active: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) && providerStatuses.alpaca?.enabled },
+      ];
+
+      const activeSourcesCount = dataSources.filter(s => s.active).length;
+      const totalSources = dataSources.length;
+      const intelligenceScore = activeSourcesCount / totalSources;
+
+      const fusionMetrics = {
+        intelligenceScore,
+        activeSources: activeSourcesCount,
+        totalSources,
+        dataSources,
+        embeddingsCount: 0,
+        lastFusionRun: null as string | null,
+        capabilities: {
+          marketData: dataSources.some(s => s.provider === "finnhub" && s.active) || dataSources.some(s => s.provider === "coingecko" && s.active),
+          newsAnalysis: dataSources.some(s => (s.provider === "gdelt" || s.provider === "newsapi") && s.active),
+          sentimentAnalysis: dataSources.some(s => s.provider === "huggingface" && s.active),
+          tradingCapability: dataSources.some(s => s.provider === "alpaca" && s.active),
+        }
+      };
+
+      res.json(fusionMetrics);
+    } catch (error) {
+      console.error("Failed to get data fusion status:", error);
+      res.status(500).json({ error: "Failed to get data fusion status" });
+    }
+  });
+
+  // ============================================================
   // Admin API - Model Router (Role-Based LLM Routing)
   // ============================================================
 
