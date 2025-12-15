@@ -1,3 +1,4 @@
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { ApiCache } from "../lib/api-cache";
 import { log } from "../utils/logger";
 
@@ -83,63 +84,79 @@ export interface SocialSentimentAggregate {
   buzzScore: number;
 }
 
+interface StockTwitsApiResponse {
+  response?: { status: number };
+  errors?: Array<{ message: string }>;
+  symbol?: StockTwitsStream["symbol"];
+  messages?: StockTwitsMessage[];
+  cursor?: StockTwitsStream["cursor"];
+  symbols?: Array<{ symbol: string }>;
+}
+
+interface RedditApiResponse {
+  data?: {
+    children?: Array<{
+      data: {
+        id: string;
+        title: string;
+        selftext: string;
+        author: string;
+        score: number;
+        upvote_ratio: number;
+        num_comments: number;
+        created_utc: number;
+        subreddit: string;
+        url: string;
+        permalink: string;
+      };
+    }>;
+  };
+}
+
 class SocialSentimentClient {
-  private cache: ApiCache<unknown>;
-  private rateLimitDelay = 3000;
-  private lastStockTwitsRequest = 0;
-  private lastRedditRequest = 0;
+  private l1Cache: ApiCache<unknown>;
 
   constructor() {
-    this.cache = new ApiCache({ freshDuration: 120000, staleDuration: 600000 });
-  }
-
-  private async rateLimitedFetch(url: string, lastRequestTime: number): Promise<{ response: Response | null; newTime: number }> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-    
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastRequest));
-    }
-    
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'AI-Active-Trader/1.0',
-        },
-      });
-      return { response, newTime: Date.now() };
-    } catch (error) {
-      log.error("SocialSentiment", `Fetch error: ${error}`);
-      return { response: null, newTime: Date.now() };
-    }
+    this.l1Cache = new ApiCache({ freshDuration: 120000, staleDuration: 600000 });
   }
 
   async getStockTwitsStream(symbol: string, limit = 30): Promise<StockTwitsStream | null> {
-    const cacheKey = `stocktwits:stream:${symbol}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached && cached.data !== null) return cached.data as StockTwitsStream;
-
-    const url = `${STOCKTWITS_BASE_URL}/streams/symbol/${symbol}.json?limit=${limit}`;
+    const cacheKey = buildCacheKey("stocktwits", "stream", symbol);
     
-    const { response, newTime } = await this.rateLimitedFetch(url, this.lastStockTwitsRequest);
-    this.lastStockTwitsRequest = newTime;
-    
-    if (!response?.ok) {
-      log.warn("SocialSentiment", `StockTwits stream failed for ${symbol}`);
-      return null;
+    const l1Cached = this.l1Cache.get(cacheKey);
+    if (l1Cached && l1Cached.data !== null) {
+      return l1Cached.data as StockTwitsStream;
     }
 
+    const url = `${STOCKTWITS_BASE_URL}/streams/symbol/${symbol}.json?limit=${limit}`;
+
     try {
-      const data = await response.json();
+      const result = await connectorFetch<StockTwitsApiResponse>(url, {
+        provider: "stocktwits",
+        endpoint: `stream/${symbol}`,
+        cacheKey,
+        headers: {
+          "User-Agent": "AI-Active-Trader/1.0",
+          Accept: "application/json",
+        },
+      });
+
+      const data = result.data;
       if (data.response?.status !== 200) {
         log.warn("SocialSentiment", `StockTwits API error: ${data.errors?.[0]?.message}`);
         return null;
       }
-      
-      this.cache.set(cacheKey, data);
-      return data;
+
+      const stream: StockTwitsStream = {
+        symbol: data.symbol!,
+        messages: data.messages || [],
+        cursor: data.cursor!,
+      };
+
+      this.l1Cache.set(cacheKey, stream);
+      return stream;
     } catch (error) {
-      log.error("SocialSentiment", `StockTwits parse error: ${error}`);
+      log.error("SocialSentiment", `StockTwits stream error for ${symbol}: ${error}`);
       return null;
     }
   }
@@ -171,7 +188,7 @@ class SocialSentimentClient {
 
     const bullishRatio = bullish / total;
     let sentiment: "bullish" | "bearish" | "neutral";
-    
+
     if (bullishRatio > 0.6) sentiment = "bullish";
     else if (bullishRatio < 0.4) sentiment = "bearish";
     else sentiment = "neutral";
@@ -187,44 +204,47 @@ class SocialSentimentClient {
   }
 
   async getRedditPosts(subreddit: string, query: string, limit = 25): Promise<RedditPost[]> {
-    const cacheKey = `reddit:${subreddit}:${query}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached && Array.isArray(cached.data) && cached.data.length > 0) {
-      return cached.data as RedditPost[];
+    const cacheKey = buildCacheKey("reddit", subreddit, query);
+    
+    const l1Cached = this.l1Cache.get(cacheKey);
+    if (l1Cached && Array.isArray(l1Cached.data) && l1Cached.data.length > 0) {
+      return l1Cached.data as RedditPost[];
     }
 
     const url = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(query)}&restrict_sr=on&sort=new&limit=${limit}`;
-    
-    const { response, newTime } = await this.rateLimitedFetch(url, this.lastRedditRequest);
-    this.lastRedditRequest = newTime;
-    
-    if (!response?.ok) {
-      log.warn("SocialSentiment", `Reddit search failed for ${query} in r/${subreddit}`);
-      return [];
-    }
 
     try {
-      const data = await response.json();
-      const posts: RedditPost[] = data.data?.children?.map((child: any) => ({
-        id: child.data.id,
-        title: child.data.title,
-        selftext: child.data.selftext,
-        author: child.data.author,
-        score: child.data.score,
-        upvote_ratio: child.data.upvote_ratio,
-        num_comments: child.data.num_comments,
-        created_utc: child.data.created_utc,
-        subreddit: child.data.subreddit,
-        url: child.data.url,
-        permalink: `https://reddit.com${child.data.permalink}`,
-      })) || [];
-      
+      const result = await connectorFetch<RedditApiResponse>(url, {
+        provider: "reddit",
+        endpoint: `search/${subreddit}/${query}`,
+        cacheKey,
+        headers: {
+          "User-Agent": "AI-Active-Trader/1.0",
+          Accept: "application/json",
+        },
+      });
+
+      const posts: RedditPost[] =
+        result.data.data?.children?.map((child) => ({
+          id: child.data.id,
+          title: child.data.title,
+          selftext: child.data.selftext,
+          author: child.data.author,
+          score: child.data.score,
+          upvote_ratio: child.data.upvote_ratio,
+          num_comments: child.data.num_comments,
+          created_utc: child.data.created_utc,
+          subreddit: child.data.subreddit,
+          url: child.data.url,
+          permalink: `https://reddit.com${child.data.permalink}`,
+        })) || [];
+
       if (posts.length > 0) {
-        this.cache.set(cacheKey, posts);
+        this.l1Cache.set(cacheKey, posts);
       }
       return posts;
     } catch (error) {
-      log.error("SocialSentiment", `Reddit parse error: ${error}`);
+      log.error("SocialSentiment", `Reddit search error for ${query} in r/${subreddit}: ${error}`);
       return [];
     }
   }
@@ -235,7 +255,7 @@ class SocialSentimentClient {
     avgUpvoteRatio: number;
     recentPosts: RedditPost[];
   } | null> {
-    const subreddits = ['wallstreetbets', 'stocks', 'investing', 'options'];
+    const subreddits = ["wallstreetbets", "stocks", "investing", "options"];
     const allPosts: RedditPost[] = [];
 
     for (const subreddit of subreddits) {
@@ -246,8 +266,8 @@ class SocialSentimentClient {
     if (allPosts.length === 0) return null;
 
     const last24h = Date.now() / 1000 - 86400;
-    const recentPosts = allPosts.filter(p => p.created_utc > last24h);
-    
+    const recentPosts = allPosts.filter((p) => p.created_utc > last24h);
+
     const avgScore = allPosts.reduce((sum, p) => sum + p.score, 0) / allPosts.length;
     const avgUpvoteRatio = allPosts.reduce((sum, p) => sum + p.upvote_ratio, 0) / allPosts.length;
 
@@ -289,16 +309,16 @@ class SocialSentimentClient {
     }
 
     const normalizedSentiment = sentimentWeight > 0 ? sentimentScore / sentimentWeight : 0;
-    
+
     let overallSentiment: "bullish" | "bearish" | "neutral";
     if (normalizedSentiment > 0.3) overallSentiment = "bullish";
     else if (normalizedSentiment < -0.3) overallSentiment = "bearish";
     else overallSentiment = "neutral";
 
-    const confidenceScore = Math.min(100, Math.round(
-      (buzzScore / 100) * 50 + 
-      Math.abs(normalizedSentiment) * 50
-    ));
+    const confidenceScore = Math.min(
+      100,
+      Math.round((buzzScore / 100) * 50 + Math.abs(normalizedSentiment) * 50)
+    );
 
     return {
       symbol,
@@ -314,29 +334,40 @@ class SocialSentimentClient {
   }
 
   async getTrendingSymbols(): Promise<string[]> {
-    const cacheKey = "stocktwits:trending";
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached.data as string[];
+    const cacheKey = buildCacheKey("stocktwits", "trending");
+    
+    const l1Cached = this.l1Cache.get(cacheKey);
+    if (l1Cached) {
+      return l1Cached.data as string[];
+    }
 
     const url = `${STOCKTWITS_BASE_URL}/trending/symbols.json`;
-    
-    const { response, newTime } = await this.rateLimitedFetch(url, this.lastStockTwitsRequest);
-    this.lastStockTwitsRequest = newTime;
-    
-    if (!response?.ok) {
-      log.warn("SocialSentiment", "Failed to fetch trending symbols");
-      return [];
-    }
 
     try {
-      const data = await response.json();
-      const symbols = data.symbols?.map((s: any) => s.symbol) || [];
-      this.cache.set(cacheKey, symbols);
+      const result = await connectorFetch<StockTwitsApiResponse>(url, {
+        provider: "stocktwits",
+        endpoint: "trending",
+        cacheKey,
+        headers: {
+          "User-Agent": "AI-Active-Trader/1.0",
+          Accept: "application/json",
+        },
+      });
+
+      const symbols = result.data.symbols?.map((s) => s.symbol) || [];
+      this.l1Cache.set(cacheKey, symbols);
       return symbols;
     } catch (error) {
-      log.error("SocialSentiment", `Trending parse error: ${error}`);
+      log.error("SocialSentiment", `Trending symbols error: ${error}`);
       return [];
     }
+  }
+
+  getConnectionStatus(): { connected: boolean; providers: string[] } {
+    return {
+      connected: true,
+      providers: ["stocktwits", "reddit"],
+    };
   }
 }
 

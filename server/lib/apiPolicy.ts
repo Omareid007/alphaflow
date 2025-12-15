@@ -169,6 +169,24 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     priority: 8,
     enabled: envBool("TOGETHER_ENABLED", true),
   },
+  stocktwits: {
+    provider: "stocktwits",
+    maxRequestsPerHour: envInt("STOCKTWITS_RATE_LIMIT_PER_HOUR", 200),
+    minRequestIntervalMs: envInt("STOCKTWITS_MIN_INTERVAL_MS", 3000),
+    cacheFreshDurationMs: envInt("STOCKTWITS_CACHE_FRESH_MS", 5 * 60 * 1000),
+    cacheStaleDurationMs: envInt("STOCKTWITS_CACHE_STALE_MS", 15 * 60 * 1000),
+    priority: 4,
+    enabled: envBool("STOCKTWITS_ENABLED", true),
+  },
+  reddit: {
+    provider: "reddit",
+    maxRequestsPerMinute: envInt("REDDIT_RATE_LIMIT_PER_MIN", 60),
+    minRequestIntervalMs: envInt("REDDIT_MIN_INTERVAL_MS", 1000),
+    cacheFreshDurationMs: envInt("REDDIT_CACHE_FRESH_MS", 5 * 60 * 1000),
+    cacheStaleDurationMs: envInt("REDDIT_CACHE_STALE_MS", 30 * 60 * 1000),
+    priority: 3,
+    enabled: envBool("REDDIT_ENABLED", true),
+  },
 };
 
 export function getProviderPolicy(provider: string): ProviderPolicy {

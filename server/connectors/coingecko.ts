@@ -1,4 +1,5 @@
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
@@ -116,66 +117,45 @@ class CoinGeckoConnector {
     freshDuration: 5 * 60 * 1000,
     staleDuration: 60 * 60 * 1000,
   });
-  
-  private lastRequestTime = 0;
-  private minRequestInterval = 2100;
-  private rateLimitedUntil = 0;
+
+  private pendingRefreshes = new Set<string>();
 
   private getApiKey(): string | undefined {
     return process.env.COINGECKO_API_KEY;
   }
 
-  private async throttle(): Promise<void> {
-    const now = Date.now();
-    
-    if (now < this.rateLimitedUntil) {
-      const waitTime = this.rateLimitedUntil - now;
-      log.warn("CoinGecko", `Rate limited, waiting ${waitTime}ms`);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-    
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
-    }
-    this.lastRequestTime = Date.now();
-  }
-
-  private pendingRefreshes = new Set<string>();
-
-  private async fetchWithRetry<T>(
+  private async fetchWithL1Cache<T>(
     url: string,
+    endpoint: string,
     cacheKey: string,
-    cache: ApiCache<T>,
-    retries = 3
+    cache: ApiCache<T>
   ): Promise<T> {
     const cached = cache.get(cacheKey);
     if (cached?.isFresh) {
+      log.debug("CoinGecko", `L1 cache HIT (fresh) for ${cacheKey}`);
       return cached.data;
     }
 
     if (cached && !cached.isFresh) {
       if (!this.pendingRefreshes.has(cacheKey)) {
         this.pendingRefreshes.add(cacheKey);
-        this.backgroundRefresh(url, cacheKey, cache, retries);
+        this.backgroundRefresh(url, endpoint, cacheKey, cache);
       }
-      log.debug("CoinGecko", `Serving stale data for ${cacheKey}, refreshing in background`);
+      log.debug("CoinGecko", `Serving stale L1 data for ${cacheKey}, refreshing in background`);
       return cached.data;
     }
 
-    return this.doFetch(url, cacheKey, cache, retries);
+    return this.doFetch(url, endpoint, cacheKey, cache);
   }
 
   private async backgroundRefresh<T>(
     url: string,
+    endpoint: string,
     cacheKey: string,
-    cache: ApiCache<T>,
-    retries: number
+    cache: ApiCache<T>
   ): Promise<void> {
     try {
-      await this.doFetch(url, cacheKey, cache, retries);
+      await this.doFetch(url, endpoint, cacheKey, cache);
     } catch (error) {
       log.warn("CoinGecko", `Background refresh failed for ${cacheKey}`);
     } finally {
@@ -185,60 +165,36 @@ class CoinGeckoConnector {
 
   private async doFetch<T>(
     url: string,
+    endpoint: string,
     cacheKey: string,
-    cache: ApiCache<T>,
-    retries: number
+    cache: ApiCache<T>
   ): Promise<T> {
-    await this.throttle();
-
     const apiKey = this.getApiKey();
     const separator = url.includes("?") ? "&" : "?";
     const fullUrl = apiKey
       ? `${url}${separator}x_cg_demo_api_key=${apiKey}`
       : url;
 
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(fullUrl, {
-          headers: {
-            Accept: "application/json",
-          },
-        });
+    const externalCacheKey = buildCacheKey("coingecko", endpoint, cacheKey);
 
-        if (response.status === 429) {
-          this.rateLimitedUntil = Date.now() + Math.pow(2, i + 1) * 1000;
-          
-          const stale = cache.getStale(cacheKey);
-          if (stale) {
-            log.debug("CoinGecko", `Rate limited, serving stale data for ${cacheKey}`);
-            return stale;
-          }
-          
-          const waitTime = Math.pow(2, i) * 1000;
-          log.warn("CoinGecko", `Rate limited, waiting ${waitTime}ms`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
-        }
+    try {
+      const result = await connectorFetch<T>(fullUrl, {
+        provider: "coingecko",
+        endpoint: endpoint,
+        cacheKey: externalCacheKey,
+        headers: { Accept: "application/json" },
+      });
 
-        if (!response.ok) {
-          throw new Error(`CoinGecko API error: ${response.status}`);
-        }
-
-        const data = await response.json() as T;
-        cache.set(cacheKey, data);
-        return data;
-      } catch (error) {
-        const stale = cache.getStale(cacheKey);
-        if (stale && i === retries - 1) {
-          log.debug("CoinGecko", `Error fetching, serving stale data for ${cacheKey}`);
-          return stale;
-        }
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+      cache.set(cacheKey, result.data);
+      return result.data;
+    } catch (error) {
+      const stale = cache.getStale(cacheKey);
+      if (stale) {
+        log.debug("CoinGecko", `Error fetching, serving stale L1 data for ${cacheKey}`);
+        return stale;
       }
+      throw error;
     }
-
-    throw new Error("Failed to fetch from CoinGecko after retries");
   }
 
   async getMarkets(
@@ -247,9 +203,9 @@ class CoinGeckoConnector {
     page = 1,
     order = "market_cap_desc"
   ): Promise<CoinPrice[]> {
-    const cacheKey = `markets_${vsCurrency}_${perPage}_${page}_${order}`;
+    const cacheKey = buildCacheKey("coingecko", "markets", vsCurrency, perPage, page, order);
     const url = `${COINGECKO_BASE_URL}/coins/markets?vs_currency=${vsCurrency}&order=${order}&per_page=${perPage}&page=${page}&sparkline=false`;
-    return this.fetchWithRetry<CoinPrice[]>(url, cacheKey, this.marketsCache);
+    return this.fetchWithL1Cache<CoinPrice[]>(url, "/coins/markets", cacheKey, this.marketsCache);
   }
 
   async getSimplePrice(
@@ -260,9 +216,9 @@ class CoinGeckoConnector {
     include24hChange = true
   ): Promise<SimplePriceData> {
     const ids = coinIds.join(",");
-    const cacheKey = `simple_${ids}_${vsCurrencies}`;
+    const cacheKey = buildCacheKey("coingecko", "simple", ids, vsCurrencies);
     const url = `${COINGECKO_BASE_URL}/simple/price?ids=${ids}&vs_currencies=${vsCurrencies}&include_market_cap=${includeMarketCap}&include_24hr_vol=${include24hVol}&include_24hr_change=${include24hChange}&include_last_updated_at=true`;
-    return this.fetchWithRetry<SimplePriceData>(url, cacheKey, this.priceCache);
+    return this.fetchWithL1Cache<SimplePriceData>(url, "/simple/price", cacheKey, this.priceCache);
   }
 
   async getMarketChart(
@@ -270,33 +226,33 @@ class CoinGeckoConnector {
     vsCurrency = "usd",
     days: number | string = 7
   ): Promise<MarketChartData> {
-    const cacheKey = `chart_${coinId}_${vsCurrency}_${days}`;
+    const cacheKey = buildCacheKey("coingecko", "chart", coinId, vsCurrency, days);
     const url = `${COINGECKO_BASE_URL}/coins/${coinId}/market_chart?vs_currency=${vsCurrency}&days=${days}`;
-    return this.fetchWithRetry<MarketChartData>(url, cacheKey, this.chartCache);
+    return this.fetchWithL1Cache<MarketChartData>(url, `/coins/${coinId}/market_chart`, cacheKey, this.chartCache);
   }
 
   async getTrending(): Promise<TrendingResult> {
-    const cacheKey = "trending";
+    const cacheKey = buildCacheKey("coingecko", "trending");
     const url = `${COINGECKO_BASE_URL}/search/trending`;
-    return this.fetchWithRetry<TrendingResult>(url, cacheKey, this.trendingCache);
+    return this.fetchWithL1Cache<TrendingResult>(url, "/search/trending", cacheKey, this.trendingCache);
   }
 
   async getGlobalData(): Promise<GlobalMarketData> {
-    const cacheKey = "global";
+    const cacheKey = buildCacheKey("coingecko", "global");
     const url = `${COINGECKO_BASE_URL}/global`;
-    return this.fetchWithRetry<GlobalMarketData>(url, cacheKey, this.globalCache);
+    return this.fetchWithL1Cache<GlobalMarketData>(url, "/global", cacheKey, this.globalCache);
   }
 
   async getCoinList(): Promise<CoinListItem[]> {
-    const cacheKey = "coinlist";
+    const cacheKey = buildCacheKey("coingecko", "coinlist");
     const url = `${COINGECKO_BASE_URL}/coins/list`;
-    return this.fetchWithRetry<CoinListItem[]>(url, cacheKey, this.coinListCache);
+    return this.fetchWithL1Cache<CoinListItem[]>(url, "/coins/list", cacheKey, this.coinListCache);
   }
 
   async searchCoins(query: string): Promise<SearchResult> {
-    const cacheKey = `search_${query}`;
+    const cacheKey = buildCacheKey("coingecko", "search", query);
     const url = `${COINGECKO_BASE_URL}/search?query=${encodeURIComponent(query)}`;
-    return this.fetchWithRetry<SearchResult>(url, cacheKey, this.searchCache);
+    return this.fetchWithL1Cache<SearchResult>(url, "/search", cacheKey, this.searchCache);
   }
 
   async getOHLC(
@@ -304,9 +260,9 @@ class CoinGeckoConnector {
     vsCurrency = "usd",
     days: 1 | 7 | 14 | 30 | 90 | 180 | 365 | "max" = 7
   ): Promise<OHLCData[]> {
-    const cacheKey = `ohlc_${coinId}_${vsCurrency}_${days}`;
+    const cacheKey = buildCacheKey("coingecko", "ohlc", coinId, vsCurrency, days);
     const url = `${COINGECKO_BASE_URL}/coins/${coinId}/ohlc?vs_currency=${vsCurrency}&days=${days}`;
-    const rawData = await this.fetchWithRetry<OHLCRaw>(url, cacheKey, this.ohlcCache);
+    const rawData = await this.fetchWithL1Cache<OHLCRaw>(url, `/coins/${coinId}/ohlc`, cacheKey, this.ohlcCache);
     return rawData.map(([timestamp, open, high, low, close]) => ({
       timestamp,
       open,

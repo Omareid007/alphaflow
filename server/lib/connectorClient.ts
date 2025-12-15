@@ -5,13 +5,10 @@ export interface ConnectorResponse<T> {
   data: T;
   provenance: {
     provider: string;
-    cacheHit: boolean;
-    cacheAgeMs: number | null;
-    budgetStatus: {
-      remaining: number;
-      windowType: string;
-    };
+    cacheStatus: "fresh" | "stale" | "miss";
+    budgetRemaining: number;
     latencyMs: number;
+    usedFallback: boolean;
     timestamp: number;
   };
 }
@@ -88,27 +85,20 @@ export async function connectorFetch<T>(
 
   const result: CallExternalResult<T> = await callExternal(fetcher, callExternalOptions);
 
-  const latencyMs = Date.now() - startTime;
-  const cacheHit = result.provenance.cacheStatus !== "miss";
-  const cacheAgeMs = cacheHit ? latencyMs : null;
-
   log.debug("ConnectorClient", `${provider}:${endpoint}`, {
-    cacheHit,
+    cacheStatus: result.provenance.cacheStatus,
     budgetRemaining: result.provenance.budgetRemaining,
-    latencyMs,
+    latencyMs: result.provenance.latencyMs,
   });
 
   return {
     data: result.data,
     provenance: {
       provider,
-      cacheHit,
-      cacheAgeMs,
-      budgetStatus: {
-        remaining: result.provenance.budgetRemaining,
-        windowType: "minute",
-      },
-      latencyMs,
+      cacheStatus: result.provenance.cacheStatus,
+      budgetRemaining: result.provenance.budgetRemaining,
+      latencyMs: result.provenance.latencyMs,
+      usedFallback: result.provenance.usedFallback,
       timestamp: Date.now(),
     },
   };

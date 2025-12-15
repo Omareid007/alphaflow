@@ -1,7 +1,10 @@
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
+import { getProviderStatus } from "../lib/callExternal";
 import { log } from "../utils/logger";
 
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
+const PROVIDER = "twelvedata";
 
 export interface TwelveDataQuote {
   symbol: string;
@@ -108,71 +111,69 @@ export interface TwelveDataProfile {
 
 class TwelveDataClient {
   private apiKey: string | null = null;
-  private cache: ApiCache<unknown>;
-  private rateLimitDelay = 8000;
-  private lastRequestTime = 0;
+  private l1Cache: ApiCache<unknown>;
 
   constructor() {
     this.apiKey = process.env.TWELVE_DATA_API_KEY || null;
-    this.cache = new ApiCache({ freshDuration: 60000, staleDuration: 300000 });
+    this.l1Cache = new ApiCache({ freshDuration: 30000, staleDuration: 60000 });
   }
 
   isConfigured(): boolean {
     return !!this.apiKey;
   }
 
-  private async rateLimitedFetch(url: string): Promise<Response> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastRequest));
-    }
-    
-    this.lastRequestTime = Date.now();
-    return fetch(url);
+  async getConnectionStatus(): Promise<{
+    configured: boolean;
+    enabled: boolean;
+    budgetStatus: {
+      allowed: boolean;
+      currentCount: number;
+      limit: number;
+      windowType: string;
+    };
+  }> {
+    const status = await getProviderStatus(PROVIDER);
+    return {
+      configured: this.isConfigured(),
+      enabled: status.enabled,
+      budgetStatus: status.budgetStatus,
+    };
   }
 
-  private async fetchWithRetry<T>(url: string, cacheKey?: string): Promise<T | null> {
+  private async fetchFromApi<T>(
+    endpoint: string,
+    cacheKey: string
+  ): Promise<T | null> {
     if (!this.apiKey) {
       log.warn("TwelveData", "API key not configured");
       return null;
     }
 
-    if (cacheKey) {
-      const cached = this.cache.get(cacheKey);
-      if (cached) return cached.data as T;
+    const l1Cached = this.l1Cache.get(cacheKey);
+    if (l1Cached) {
+      log.debug("TwelveData", `L1 cache hit for ${cacheKey}`);
+      return l1Cached.data as T;
     }
 
     try {
-      const fullUrl = url.includes("?") 
-        ? `${url}&apikey=${this.apiKey}`
-        : `${url}?apikey=${this.apiKey}`;
-      
-      const response = await this.rateLimitedFetch(fullUrl);
-      
-      if (response.status === 429) {
-        log.warn("TwelveData", "Rate limited, backing off");
-        await new Promise(resolve => setTimeout(resolve, 60000));
-        return null;
-      }
-      
-      if (!response.ok) {
-        log.error("TwelveData", `HTTP error: ${response.status}`);
-        return null;
-      }
+      const url = `${TWELVE_DATA_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}apikey=${this.apiKey}`;
 
-      const data = await response.json() as T;
-      
+      const result = await connectorFetch<T>(url, {
+        provider: PROVIDER,
+        endpoint,
+        cacheKey,
+        headers: { Accept: "application/json" },
+      });
+
+      const data = result.data;
+
       if ((data as any).status === "error") {
         log.error("TwelveData", `API error: ${(data as any).message}`);
         return null;
       }
-      
-      if (cacheKey) {
-        this.cache.set(cacheKey, data);
-      }
-      
+
+      this.l1Cache.set(cacheKey, data);
+
       return data;
     } catch (error) {
       log.error("TwelveData", `Fetch error: ${error}`);
@@ -181,11 +182,9 @@ class TwelveDataClient {
   }
 
   async getQuote(symbol: string): Promise<TwelveDataQuote | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/quote?symbol=${symbol}`;
-    return this.fetchWithRetry<TwelveDataQuote>(
-      url, 
-      `twelvedata:quote:${symbol}`
-    );
+    const endpoint = `/quote?symbol=${symbol}`;
+    const cacheKey = buildCacheKey(PROVIDER, "quote", symbol);
+    return this.fetchFromApi<TwelveDataQuote>(endpoint, cacheKey);
   }
 
   async getTimeSeries(
@@ -195,110 +194,86 @@ class TwelveDataClient {
     startDate?: string,
     endDate?: string
   ): Promise<TwelveDataTimeSeries | null> {
-    let url = `${TWELVE_DATA_BASE_URL}/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputSize}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
-    
-    return this.fetchWithRetry<TwelveDataTimeSeries>(
-      url,
-      `twelvedata:ts:${symbol}:${interval}:${outputSize}`
-    );
+    let endpoint = `/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputSize}`;
+    if (startDate) endpoint += `&start_date=${startDate}`;
+    if (endDate) endpoint += `&end_date=${endDate}`;
+
+    const cacheKey = buildCacheKey(PROVIDER, "ts", symbol, interval, outputSize);
+    return this.fetchFromApi<TwelveDataTimeSeries>(endpoint, cacheKey);
   }
 
   async searchSymbols(query: string, outputSize = 20): Promise<TwelveDataSymbol[]> {
-    const url = `${TWELVE_DATA_BASE_URL}/symbol_search?symbol=${encodeURIComponent(query)}&outputsize=${outputSize}`;
-    const response = await this.fetchWithRetry<{ data: TwelveDataSymbol[] }>(
-      url,
-      `twelvedata:search:${query}`
-    );
+    const endpoint = `/symbol_search?symbol=${encodeURIComponent(query)}&outputsize=${outputSize}`;
+    const cacheKey = buildCacheKey(PROVIDER, "search", query);
+    const response = await this.fetchFromApi<{ data: TwelveDataSymbol[] }>(endpoint, cacheKey);
     return response?.data || [];
   }
 
   async getProfile(symbol: string): Promise<TwelveDataProfile | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/profile?symbol=${symbol}`;
-    return this.fetchWithRetry<TwelveDataProfile>(
-      url,
-      `twelvedata:profile:${symbol}`
-    );
+    const endpoint = `/profile?symbol=${symbol}`;
+    const cacheKey = buildCacheKey(PROVIDER, "profile", symbol);
+    return this.fetchFromApi<TwelveDataProfile>(endpoint, cacheKey);
   }
 
   async getEarnings(symbol: string): Promise<TwelveDataEarnings | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/earnings?symbol=${symbol}`;
-    return this.fetchWithRetry<TwelveDataEarnings>(
-      url,
-      `twelvedata:earnings:${symbol}`
-    );
+    const endpoint = `/earnings?symbol=${symbol}`;
+    const cacheKey = buildCacheKey(PROVIDER, "earnings", symbol);
+    return this.fetchFromApi<TwelveDataEarnings>(endpoint, cacheKey);
   }
 
   async getRSI(symbol: string, interval = "1day", timePeriod = 14): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/rsi?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:rsi:${symbol}:${interval}`
-    );
+    const endpoint = `/rsi?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
+    const cacheKey = buildCacheKey(PROVIDER, "rsi", symbol, interval, timePeriod);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getMACD(symbol: string, interval = "1day"): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/macd?symbol=${symbol}&interval=${interval}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:macd:${symbol}:${interval}`
-    );
+    const endpoint = `/macd?symbol=${symbol}&interval=${interval}`;
+    const cacheKey = buildCacheKey(PROVIDER, "macd", symbol, interval);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getSMA(symbol: string, interval = "1day", timePeriod = 20): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/sma?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:sma:${symbol}:${interval}`
-    );
+    const endpoint = `/sma?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
+    const cacheKey = buildCacheKey(PROVIDER, "sma", symbol, interval, timePeriod);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getEMA(symbol: string, interval = "1day", timePeriod = 20): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/ema?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:ema:${symbol}:${interval}`
-    );
+    const endpoint = `/ema?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
+    const cacheKey = buildCacheKey(PROVIDER, "ema", symbol, interval, timePeriod);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getBBands(symbol: string, interval = "1day", timePeriod = 20): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/bbands?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:bbands:${symbol}:${interval}`
-    );
+    const endpoint = `/bbands?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
+    const cacheKey = buildCacheKey(PROVIDER, "bbands", symbol, interval, timePeriod);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getATR(symbol: string, interval = "1day", timePeriod = 14): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/atr?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:atr:${symbol}:${interval}`
-    );
+    const endpoint = `/atr?symbol=${symbol}&interval=${interval}&time_period=${timePeriod}`;
+    const cacheKey = buildCacheKey(PROVIDER, "atr", symbol, interval, timePeriod);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getStoch(symbol: string, interval = "1day"): Promise<TwelveDataTechnicalIndicator[] | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/stoch?symbol=${symbol}&interval=${interval}`;
-    const response = await this.fetchWithRetry<{ values: TwelveDataTechnicalIndicator[] }>(
-      url,
-      `twelvedata:stoch:${symbol}:${interval}`
-    );
+    const endpoint = `/stoch?symbol=${symbol}&interval=${interval}`;
+    const cacheKey = buildCacheKey(PROVIDER, "stoch", symbol, interval);
+    const response = await this.fetchFromApi<{ values: TwelveDataTechnicalIndicator[] }>(endpoint, cacheKey);
     return response?.values || null;
   }
 
   async getPrice(symbol: string): Promise<{ price: string } | null> {
-    const url = `${TWELVE_DATA_BASE_URL}/price?symbol=${symbol}`;
-    return this.fetchWithRetry<{ price: string }>(
-      url,
-      `twelvedata:price:${symbol}`
-    );
+    const endpoint = `/price?symbol=${symbol}`;
+    const cacheKey = buildCacheKey(PROVIDER, "price", symbol);
+    return this.fetchFromApi<{ price: string }>(endpoint, cacheKey);
   }
 }
 

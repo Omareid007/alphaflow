@@ -1,7 +1,9 @@
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const CMC_BASE_URL = "https://pro-api.coinmarketcap.com";
+const PROVIDER = "coinmarketcap";
 
 export interface CMCCryptocurrency {
   id: number;
@@ -170,139 +172,20 @@ class CoinMarketCapConnector {
     freshDuration: 60 * 60 * 1000,
     staleDuration: 24 * 60 * 60 * 1000,
   });
-  
-  private lastRequestTime = 0;
-  private minRequestInterval = 1000;
-  private rateLimitedUntil = 0;
 
   private getApiKey(): string | undefined {
     return process.env.COINMARKETCAP_API_KEY;
   }
 
-  private async throttle(): Promise<void> {
-    const now = Date.now();
-    
-    if (now < this.rateLimitedUntil) {
-      const waitTime = this.rateLimitedUntil - now;
-      log.warn("CMC", `Rate limited, waiting ${waitTime}ms`);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-    
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
-    }
-    this.lastRequestTime = Date.now();
-  }
-
-  private pendingRefreshes = new Set<string>();
-
-  private async fetchWithRetry<T, R>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<R>,
-    extractData: (response: T) => R,
-    retries = 3
-  ): Promise<R> {
+  private getAuthHeaders(): Record<string, string> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      const stale = cache.getStale(cacheKey);
-      if (stale) {
-        log.debug("CMC", `No API key, serving stale data for ${cacheKey}`);
-        return stale;
-      }
       throw new Error("COINMARKETCAP_API_KEY is not configured");
     }
-
-    const cached = cache.get(cacheKey);
-    if (cached?.isFresh) {
-      return cached.data;
-    }
-
-    if (cached && !cached.isFresh) {
-      if (!this.pendingRefreshes.has(cacheKey)) {
-        this.pendingRefreshes.add(cacheKey);
-        this.backgroundRefresh(url, cacheKey, cache, extractData, retries);
-      }
-      log.debug("CMC", `Serving stale data for ${cacheKey}, refreshing in background`);
-      return cached.data;
-    }
-
-    return this.doFetch(url, cacheKey, cache, extractData, retries);
-  }
-
-  private async backgroundRefresh<T, R>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<R>,
-    extractData: (response: T) => R,
-    retries: number
-  ): Promise<void> {
-    try {
-      await this.doFetch(url, cacheKey, cache, extractData, retries);
-    } catch (error) {
-      log.warn("CMC", `Background refresh failed for ${cacheKey}`);
-    } finally {
-      this.pendingRefreshes.delete(cacheKey);
-    }
-  }
-
-  private async doFetch<T, R>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<R>,
-    extractData: (response: T) => R,
-    retries: number
-  ): Promise<R> {
-    const apiKey = this.getApiKey()!;
-    await this.throttle();
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(url, {
-          headers: {
-            "X-CMC_PRO_API_KEY": apiKey,
-            Accept: "application/json",
-          },
-        });
-
-        if (response.status === 429) {
-          this.rateLimitedUntil = Date.now() + Math.pow(2, i + 1) * 1000;
-          
-          const stale = cache.getStale(cacheKey);
-          if (stale) {
-            log.debug("CMC", `Rate limited, serving stale data for ${cacheKey}`);
-            return stale;
-          }
-          
-          const waitTime = Math.pow(2, i) * 1000;
-          log.warn("CMC", `Rate limited, waiting ${waitTime}ms`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
-        }
-
-        if (!response.ok) {
-          throw new Error(`CoinMarketCap API error: ${response.status}`);
-        }
-
-        const jsonResponse = await response.json() as T;
-        const data = extractData(jsonResponse);
-        cache.set(cacheKey, data);
-        return data;
-      } catch (error) {
-        const stale = cache.getStale(cacheKey);
-        if (stale && i === retries - 1) {
-          log.debug("CMC", `Error fetching, serving stale data for ${cacheKey}`);
-          return stale;
-        }
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
-      }
-    }
-
-    throw new Error("Failed to fetch from CoinMarketCap after retries");
+    return {
+      "X-CMC_PRO_API_KEY": apiKey,
+      Accept: "application/json",
+    };
   }
 
   async getLatestListings(
@@ -311,73 +194,157 @@ class CoinMarketCapConnector {
     sort = "market_cap",
     sortDir: "asc" | "desc" = "desc"
   ): Promise<CMCCryptocurrency[]> {
-    const cacheKey = `listings_${start}_${limit}_${sort}_${sortDir}`;
-    const url = `${CMC_BASE_URL}/v1/cryptocurrency/listings/latest?start=${start}&limit=${limit}&sort=${sort}&sort_dir=${sortDir}&convert=USD`;
+    const l1CacheKey = `listings_${start}_${limit}_${sort}_${sortDir}`;
     
-    return this.fetchWithRetry<CMCListingsResponse, CMCCryptocurrency[]>(
-      url,
-      cacheKey,
-      this.listingsCache,
-      (response) => {
-        if (response.status.error_code !== 0) {
-          throw new Error(response.status.error_message || "CoinMarketCap API error");
-        }
-        return response.data;
+    const l1Cached = this.listingsCache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
+      return l1Cached.data;
+    }
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      const stale = this.listingsCache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("CMC", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
-    );
+      throw new Error("COINMARKETCAP_API_KEY is not configured");
+    }
+
+    const url = `${CMC_BASE_URL}/v1/cryptocurrency/listings/latest?start=${start}&limit=${limit}&sort=${sort}&sort_dir=${sortDir}&convert=USD`;
+    const cacheKey = buildCacheKey(PROVIDER, "listings", start, limit, sort, sortDir);
+
+    const result = await connectorFetch<CMCListingsResponse>(url, {
+      provider: PROVIDER,
+      endpoint: "listings/latest",
+      cacheKey,
+      headers: this.getAuthHeaders(),
+    });
+
+    if (result.data.status.error_code !== 0) {
+      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+    }
+
+    const data = result.data.data;
+    this.listingsCache.set(l1CacheKey, data);
+    return data;
   }
 
   async getQuotes(ids: number[]): Promise<{ [id: string]: CMCCryptocurrency }> {
     const idsParam = ids.join(",");
-    const cacheKey = `quotes_${idsParam}`;
-    const url = `${CMC_BASE_URL}/v1/cryptocurrency/quotes/latest?id=${idsParam}&convert=USD`;
+    const l1CacheKey = `quotes_${idsParam}`;
     
-    return this.fetchWithRetry<CMCQuotesResponse, { [id: string]: CMCCryptocurrency }>(
-      url,
-      cacheKey,
-      this.quotesCache,
-      (response) => {
-        if (response.status.error_code !== 0) {
-          throw new Error(response.status.error_message || "CoinMarketCap API error");
-        }
-        return response.data;
+    const l1Cached = this.quotesCache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
+      return l1Cached.data;
+    }
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      const stale = this.quotesCache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("CMC", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
-    );
+      throw new Error("COINMARKETCAP_API_KEY is not configured");
+    }
+
+    const url = `${CMC_BASE_URL}/v1/cryptocurrency/quotes/latest?id=${idsParam}&convert=USD`;
+    const cacheKey = buildCacheKey(PROVIDER, "quotes", idsParam);
+
+    const result = await connectorFetch<CMCQuotesResponse>(url, {
+      provider: PROVIDER,
+      endpoint: "quotes/latest",
+      cacheKey,
+      headers: this.getAuthHeaders(),
+    });
+
+    if (result.data.status.error_code !== 0) {
+      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+    }
+
+    const data = result.data.data;
+    this.quotesCache.set(l1CacheKey, data);
+    return data;
   }
 
   async getQuotesBySymbols(symbols: string[]): Promise<{ [id: string]: CMCCryptocurrency }> {
     const symbolsParam = symbols.join(",");
-    const cacheKey = `quotes_symbols_${symbolsParam}`;
-    const url = `${CMC_BASE_URL}/v1/cryptocurrency/quotes/latest?symbol=${symbolsParam}&convert=USD`;
+    const l1CacheKey = `quotes_symbols_${symbolsParam}`;
     
-    return this.fetchWithRetry<CMCQuotesResponse, { [id: string]: CMCCryptocurrency }>(
-      url,
-      cacheKey,
-      this.quotesCache,
-      (response) => {
-        if (response.status.error_code !== 0) {
-          throw new Error(response.status.error_message || "CoinMarketCap API error");
-        }
-        return response.data;
+    const l1Cached = this.quotesCache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
+      return l1Cached.data;
+    }
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      const stale = this.quotesCache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("CMC", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
-    );
+      throw new Error("COINMARKETCAP_API_KEY is not configured");
+    }
+
+    const url = `${CMC_BASE_URL}/v1/cryptocurrency/quotes/latest?symbol=${symbolsParam}&convert=USD`;
+    const cacheKey = buildCacheKey(PROVIDER, "quotes_symbols", symbolsParam);
+
+    const result = await connectorFetch<CMCQuotesResponse>(url, {
+      provider: PROVIDER,
+      endpoint: "quotes/latest/symbols",
+      cacheKey,
+      headers: this.getAuthHeaders(),
+    });
+
+    if (result.data.status.error_code !== 0) {
+      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+    }
+
+    const data = result.data.data;
+    this.quotesCache.set(l1CacheKey, data);
+    return data;
   }
 
   async getGlobalMetrics(): Promise<CMCGlobalMetrics["data"]> {
-    const cacheKey = "global_metrics";
-    const url = `${CMC_BASE_URL}/v1/global-metrics/quotes/latest?convert=USD`;
+    const l1CacheKey = "global_metrics";
     
-    return this.fetchWithRetry<CMCGlobalMetrics, CMCGlobalMetrics["data"]>(
-      url,
-      cacheKey,
-      this.globalCache,
-      (response) => {
-        if (response.status.error_code !== 0) {
-          throw new Error(response.status.error_message || "CoinMarketCap API error");
-        }
-        return response.data;
+    const l1Cached = this.globalCache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
+      return l1Cached.data;
+    }
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      const stale = this.globalCache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("CMC", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
-    );
+      throw new Error("COINMARKETCAP_API_KEY is not configured");
+    }
+
+    const url = `${CMC_BASE_URL}/v1/global-metrics/quotes/latest?convert=USD`;
+    const cacheKey = buildCacheKey(PROVIDER, "global_metrics");
+
+    const result = await connectorFetch<CMCGlobalMetrics>(url, {
+      provider: PROVIDER,
+      endpoint: "global-metrics/quotes/latest",
+      cacheKey,
+      headers: this.getAuthHeaders(),
+    });
+
+    if (result.data.status.error_code !== 0) {
+      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+    }
+
+    const data = result.data.data;
+    this.globalCache.set(l1CacheKey, data);
+    return data;
   }
 
   async getCryptoMap(
@@ -385,20 +352,41 @@ class CoinMarketCapConnector {
     limit = 5000,
     sort = "cmc_rank"
   ): Promise<CMCMapItem[]> {
-    const cacheKey = `map_${start}_${limit}_${sort}`;
-    const url = `${CMC_BASE_URL}/v1/cryptocurrency/map?start=${start}&limit=${limit}&sort=${sort}`;
+    const l1CacheKey = `map_${start}_${limit}_${sort}`;
     
-    return this.fetchWithRetry<CMCMapResponse, CMCMapItem[]>(
-      url,
-      cacheKey,
-      this.mapCache,
-      (response) => {
-        if (response.status.error_code !== 0) {
-          throw new Error(response.status.error_message || "CoinMarketCap API error");
-        }
-        return response.data;
+    const l1Cached = this.mapCache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
+      return l1Cached.data;
+    }
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      const stale = this.mapCache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("CMC", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
-    );
+      throw new Error("COINMARKETCAP_API_KEY is not configured");
+    }
+
+    const url = `${CMC_BASE_URL}/v1/cryptocurrency/map?start=${start}&limit=${limit}&sort=${sort}`;
+    const cacheKey = buildCacheKey(PROVIDER, "map", start, limit, sort);
+
+    const result = await connectorFetch<CMCMapResponse>(url, {
+      provider: PROVIDER,
+      endpoint: "cryptocurrency/map",
+      cacheKey,
+      headers: this.getAuthHeaders(),
+    });
+
+    if (result.data.status.error_code !== 0) {
+      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+    }
+
+    const data = result.data.data;
+    this.mapCache.set(l1CacheKey, data);
+    return data;
   }
 
   async searchCryptos(query: string, limit = 20): Promise<CMCMapItem[]> {

@@ -1,7 +1,9 @@
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const POLYGON_BASE_URL = "https://api.polygon.io";
+const PROVIDER = "polygon";
 
 export interface PolygonQuote {
   ticker: string;
@@ -115,82 +117,74 @@ export interface PolygonNews {
 
 class PolygonClient {
   private apiKey: string | null = null;
-  private cache: ApiCache<unknown>;
-  private rateLimitDelay = 12000;
-  private lastRequestTime = 0;
+  private l1Cache: ApiCache<unknown>;
 
   constructor() {
     this.apiKey = process.env.POLYGON_API_KEY || null;
-    this.cache = new ApiCache({ freshDuration: 60000, staleDuration: 300000 });
+    this.l1Cache = new ApiCache({ freshDuration: 60000, staleDuration: 300000 });
   }
 
   isConfigured(): boolean {
     return !!this.apiKey;
   }
 
-  private async rateLimitedFetch(url: string): Promise<Response> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastRequest));
-    }
-    
-    this.lastRequestTime = Date.now();
-    return fetch(url);
+  getConnectionStatus(): { configured: boolean; provider: string } {
+    return {
+      configured: this.isConfigured(),
+      provider: PROVIDER,
+    };
   }
 
-  private async fetchWithRetry<T>(url: string, cacheKey?: string): Promise<T | null> {
+  private async fetchWithBudget<T>(
+    url: string,
+    endpoint: string,
+    cacheKey: string
+  ): Promise<T | null> {
     if (!this.apiKey) {
       log.warn("Polygon", "API key not configured");
       return null;
     }
 
-    if (cacheKey) {
-      const cached = this.cache.get(cacheKey);
-      if (cached) return cached.data as T;
+    const l1Cached = this.l1Cache.get(cacheKey);
+    if (l1Cached) {
+      log.debug("Polygon", `L1 cache hit for ${cacheKey}`);
+      return l1Cached.data as T;
     }
 
     try {
-      const fullUrl = url.includes("?") 
+      const fullUrl = url.includes("?")
         ? `${url}&apiKey=${this.apiKey}`
         : `${url}?apiKey=${this.apiKey}`;
-      
-      const response = await this.rateLimitedFetch(fullUrl);
-      
-      if (response.status === 429) {
-        log.warn("Polygon", "Rate limited, backing off");
-        await new Promise(resolve => setTimeout(resolve, 60000));
-        return null;
-      }
-      
-      if (!response.ok) {
-        log.error("Polygon", `HTTP error: ${response.status}`);
-        return null;
-      }
 
-      const data = await response.json() as T;
-      
-      if (cacheKey) {
-        this.cache.set(cacheKey, data);
-      }
-      
-      return data;
+      const result = await connectorFetch<T>(fullUrl, {
+        provider: PROVIDER,
+        endpoint,
+        cacheKey,
+        headers: { Accept: "application/json" },
+      });
+
+      this.l1Cache.set(cacheKey, result.data);
+
+      return result.data;
     } catch (error) {
-      log.error("Polygon", `Fetch error: ${error}`);
+      log.error("Polygon", `Fetch error for ${endpoint}: ${error}`);
       return null;
     }
   }
 
   async getQuote(symbol: string): Promise<PolygonQuote | null> {
+    const endpoint = "/v2/aggs/ticker/prev";
+    const cacheKey = buildCacheKey(PROVIDER, "quote", symbol);
     const url = `${POLYGON_BASE_URL}/v2/aggs/ticker/${symbol}/prev`;
-    const response = await this.fetchWithRetry<{ results: PolygonAggregateBar[] }>(
-      url, 
-      `polygon:quote:${symbol}`
+
+    const response = await this.fetchWithBudget<{ results: PolygonAggregateBar[] }>(
+      url,
+      endpoint,
+      cacheKey
     );
-    
+
     if (!response?.results?.[0]) return null;
-    
+
     const bar = response.results[0];
     return {
       ticker: symbol,
@@ -211,57 +205,74 @@ class PolygonClient {
     from: string,
     to: string
   ): Promise<PolygonAggregatesResponse | null> {
+    const endpoint = "/v2/aggs/ticker/range";
+    const cacheKey = buildCacheKey(PROVIDER, "aggs", symbol, multiplier, timespan, from, to);
     const url = `${POLYGON_BASE_URL}/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc`;
-    return this.fetchWithRetry<PolygonAggregatesResponse>(
-      url,
-      `polygon:aggs:${symbol}:${multiplier}:${timespan}:${from}:${to}`
-    );
+
+    return this.fetchWithBudget<PolygonAggregatesResponse>(url, endpoint, cacheKey);
   }
 
   async getTickerDetails(symbol: string): Promise<PolygonTickerDetails | null> {
+    const endpoint = "/v3/reference/tickers";
+    const cacheKey = buildCacheKey(PROVIDER, "details", symbol);
     const url = `${POLYGON_BASE_URL}/v3/reference/tickers/${symbol}`;
-    const response = await this.fetchWithRetry<{ results: PolygonTickerDetails }>(
+
+    const response = await this.fetchWithBudget<{ results: PolygonTickerDetails }>(
       url,
-      `polygon:details:${symbol}`
+      endpoint,
+      cacheKey
     );
     return response?.results || null;
   }
 
   async searchTickers(query: string, type?: string, market?: string): Promise<PolygonTicker[]> {
+    const endpoint = "/v3/reference/tickers/search";
+    const cacheKey = buildCacheKey(PROVIDER, "search", query, type, market);
     let url = `${POLYGON_BASE_URL}/v3/reference/tickers?search=${encodeURIComponent(query)}&active=true&limit=20`;
     if (type) url += `&type=${type}`;
     if (market) url += `&market=${market}`;
-    
-    const response = await this.fetchWithRetry<{ results: PolygonTicker[] }>(
+
+    const response = await this.fetchWithBudget<{ results: PolygonTicker[] }>(
       url,
-      `polygon:search:${query}:${type}:${market}`
+      endpoint,
+      cacheKey
     );
     return response?.results || [];
   }
 
   async getNews(ticker?: string, limit = 10): Promise<PolygonNews[]> {
+    const endpoint = "/v2/reference/news";
+    const cacheKey = buildCacheKey(PROVIDER, "news", ticker || "all", limit);
     let url = `${POLYGON_BASE_URL}/v2/reference/news?limit=${limit}`;
     if (ticker) url += `&ticker=${ticker}`;
-    
-    const response = await this.fetchWithRetry<{ results: PolygonNews[] }>(
+
+    const response = await this.fetchWithBudget<{ results: PolygonNews[] }>(
       url,
-      `polygon:news:${ticker || 'all'}:${limit}`
+      endpoint,
+      cacheKey
     );
     return response?.results || [];
   }
 
   async getLastTrade(symbol: string): Promise<PolygonTrade | null> {
+    const endpoint = "/v2/last/trade";
+    const cacheKey = buildCacheKey(PROVIDER, "lasttrade", symbol);
     const url = `${POLYGON_BASE_URL}/v2/last/trade/${symbol}`;
-    const response = await this.fetchWithRetry<{ results: PolygonTrade }>(
+
+    const response = await this.fetchWithBudget<{ results: PolygonTrade }>(
       url,
-      `polygon:lasttrade:${symbol}`
+      endpoint,
+      cacheKey
     );
     return response?.results || null;
   }
 
   async getMarketStatus(): Promise<{ market: string; serverTime: string; exchanges: Record<string, string> } | null> {
+    const endpoint = "/v1/marketstatus/now";
+    const cacheKey = buildCacheKey(PROVIDER, "marketstatus");
     const url = `${POLYGON_BASE_URL}/v1/marketstatus/now`;
-    return this.fetchWithRetry(url, "polygon:marketstatus");
+
+    return this.fetchWithBudget(url, endpoint, cacheKey);
   }
 
   async getDailyOpenClose(symbol: string, date: string): Promise<{
@@ -274,8 +285,11 @@ class PolygonClient {
     afterHours: number;
     preMarket: number;
   } | null> {
+    const endpoint = "/v1/open-close";
+    const cacheKey = buildCacheKey(PROVIDER, "openclose", symbol, date);
     const url = `${POLYGON_BASE_URL}/v1/open-close/${symbol}/${date}`;
-    return this.fetchWithRetry(url, `polygon:openclose:${symbol}:${date}`);
+
+    return this.fetchWithBudget(url, endpoint, cacheKey);
   }
 }
 

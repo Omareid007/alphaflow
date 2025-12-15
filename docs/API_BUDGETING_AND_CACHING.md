@@ -236,6 +236,58 @@ disableProvider("valyu"); // Disable expensive provider
 enableProvider("valyu"); // Re-enable when needed
 ```
 
+## Connector Integration Status
+
+### Scope
+This integration covers **active monolith connectors** in `server/connectors/` that power the production trading engine. The future microservices in `services/*` are pending separate integration work as they approach activation.
+
+### Integrated Connectors
+All market data connectors in the active monolith have been refactored to use `callExternal()`:
+
+| Connector | Provider(s) | Status | Notes |
+|-----------|-------------|--------|-------|
+| `server/connectors/finnhub.ts` | finnhub | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/coingecko.ts` | coingecko | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/newsapi.ts` | newsapi | ✅ Integrated | L1 Map cache + callExternal |
+| `server/connectors/polygon.ts` | polygon | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/coinmarketcap.ts` | coinmarketcap | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/huggingface.ts` | huggingface | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/gdelt.ts` | gdelt | ✅ Integrated | L1 ApiCache + callExternal |
+| `server/connectors/valyu.ts` | valyu | ✅ Integrated | Retrieval-based budgeting |
+| `server/connectors/twelvedata.ts` | twelvedata | ✅ Integrated | L1 ApiCache + callExternal, 6/min 700/day |
+| `server/connectors/social-sentiment.ts` | stocktwits, reddit | ✅ Integrated | L1 cache + callExternal per provider |
+
+### Connector Architecture
+
+Each connector uses a two-tier caching strategy:
+
+1. **L1 (ApiCache)**: Fast in-memory cache checked first
+2. **L2 (callExternal)**: Database-backed cache + budget enforcement
+
+```
+Request → L1 Cache Check → callExternal() → L2 Cache → Budget Check → API Call
+           ↓ hit                              ↓ hit        ↓ exceeded
+        Return data                       Return data   Return stale/error
+```
+
+### Using connectorFetch Helper
+
+The `connectorFetch` helper simplifies callExternal usage:
+
+```typescript
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
+
+const result = await connectorFetch<QuoteData>(url, {
+  provider: "finnhub",
+  endpoint: "/quote",
+  cacheKey: buildCacheKey("finnhub", "quote", symbol),
+  headers: { Accept: "application/json" },
+});
+
+// result.data contains the API response
+// result.provenance contains cache/budget metadata
+```
+
 ## Best Practices
 
 1. **Always use callExternal()** for external API calls to ensure budget compliance
@@ -244,6 +296,17 @@ enableProvider("valyu"); // Re-enable when needed
 4. **Monitor budget usage** via Admin UI before hitting limits
 5. **Use forceRefresh sparingly** especially for expensive providers like Valyu
 6. **Test with reduced limits** in development to catch budget issues early
+
+### Future Work
+
+The following areas are pending integration as they approach production:
+
+| Area | Status | Notes |
+|------|--------|-------|
+| `services/market-data` | Pending | Microservice uses direct fetch; integrate when activated |
+| `services/trading-engine` | Pending | Microservice uses direct fetch; integrate when activated |
+| `services/ai-decision` | Pending | LLM routing; integrate when activated |
+| Cache age tracking | Pending | Add cache entry timestamps to callExternal for accurate age reporting |
 
 ## Error Handling
 

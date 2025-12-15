@@ -1,4 +1,5 @@
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
@@ -148,143 +149,94 @@ class FinnhubConnector {
     freshDuration: 5 * 60 * 1000,
     staleDuration: 30 * 60 * 1000,
   });
-  
-  private lastRequestTime = 0;
-  private minRequestInterval = 1100;
-  private rateLimitedUntil = 0;
+
+  private pendingRefreshes = new Set<string>();
 
   private getApiKey(): string | undefined {
     return process.env.FINNHUB_API_KEY;
   }
 
-  private async throttle(): Promise<void> {
-    const now = Date.now();
-    
-    if (now < this.rateLimitedUntil) {
-      const waitTime = this.rateLimitedUntil - now;
-      log.warn("Finnhub", `Rate limited, waiting ${waitTime}ms`);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-    
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
-    }
-    this.lastRequestTime = Date.now();
-  }
-
-  private pendingRefreshes = new Set<string>();
-
-  private async fetchWithRetry<T>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<T>,
-    retries = 3
+  private async fetchWithL1Cache<T>(
+    endpoint: string,
+    l1CacheKey: string,
+    l1Cache: ApiCache<T>
   ): Promise<T> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      const stale = cache.getStale(cacheKey);
+      const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("Finnhub", `No API key, serving stale data for ${cacheKey}`);
+        log.debug("Finnhub", `No API key, serving stale L1 data for ${l1CacheKey}`);
         return stale;
       }
       throw new Error("FINNHUB_API_KEY is not configured");
     }
 
-    const cached = cache.get(cacheKey);
-    if (cached?.isFresh) {
-      return cached.data;
+    const l1Cached = l1Cache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("Finnhub", `L1 cache HIT (fresh) for ${l1CacheKey}`);
+      return l1Cached.data;
     }
 
-    if (cached && !cached.isFresh) {
-      if (!this.pendingRefreshes.has(cacheKey)) {
-        this.pendingRefreshes.add(cacheKey);
-        this.backgroundRefresh(url, cacheKey, cache, retries);
+    if (l1Cached && !l1Cached.isFresh) {
+      if (!this.pendingRefreshes.has(l1CacheKey)) {
+        this.pendingRefreshes.add(l1CacheKey);
+        this.backgroundRefresh(endpoint, l1CacheKey, l1Cache);
       }
-      log.debug("Finnhub", `Serving stale data for ${cacheKey}, refreshing in background`);
-      return cached.data;
+      log.debug("Finnhub", `Serving stale L1 data for ${l1CacheKey}, refreshing in background`);
+      return l1Cached.data;
     }
 
-    return this.doFetch(url, cacheKey, cache, retries);
+    return this.doFetch(endpoint, l1CacheKey, l1Cache);
   }
 
   private async backgroundRefresh<T>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<T>,
-    retries: number
+    endpoint: string,
+    l1CacheKey: string,
+    l1Cache: ApiCache<T>
   ): Promise<void> {
     try {
-      await this.doFetch(url, cacheKey, cache, retries);
+      await this.doFetch(endpoint, l1CacheKey, l1Cache);
     } catch (error) {
-      log.warn("Finnhub", `Background refresh failed for ${cacheKey}`);
+      log.warn("Finnhub", `Background refresh failed for ${l1CacheKey}`);
     } finally {
-      this.pendingRefreshes.delete(cacheKey);
+      this.pendingRefreshes.delete(l1CacheKey);
     }
   }
 
   private async doFetch<T>(
-    url: string,
-    cacheKey: string,
-    cache: ApiCache<T>,
-    retries: number
+    endpoint: string,
+    l1CacheKey: string,
+    l1Cache: ApiCache<T>
   ): Promise<T> {
     const apiKey = this.getApiKey()!;
-    await this.throttle();
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const fullUrl = `${FINNHUB_BASE_URL}${endpoint}${separator}token=${apiKey}`;
+    const cacheKey = buildCacheKey("finnhub", l1CacheKey);
 
-    const separator = url.includes("?") ? "&" : "?";
-    const fullUrl = `${url}${separator}token=${apiKey}`;
+    try {
+      const result = await connectorFetch<T>(fullUrl, {
+        provider: "finnhub",
+        endpoint: endpoint,
+        cacheKey: cacheKey,
+        headers: { Accept: "application/json" },
+      });
 
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(fullUrl, {
-          headers: {
-            Accept: "application/json",
-          },
-        });
-
-        if (response.status === 429) {
-          this.rateLimitedUntil = Date.now() + Math.pow(2, i + 1) * 1000;
-          
-          const stale = cache.getStale(cacheKey);
-          if (stale) {
-            log.debug("Finnhub", `Rate limited, serving stale data for ${cacheKey}`);
-            return stale;
-          }
-          
-          const waitTime = Math.pow(2, i) * 1000;
-          log.warn("Finnhub", `Rate limited, waiting ${waitTime}ms`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
-        }
-
-        if (!response.ok) {
-          throw new Error(`Finnhub API error: ${response.status}`);
-        }
-
-        const data = await response.json() as T;
-        cache.set(cacheKey, data);
-        return data;
-      } catch (error) {
-        const stale = cache.getStale(cacheKey);
-        if (stale && i === retries - 1) {
-          log.debug("Finnhub", `Error fetching, serving stale data for ${cacheKey}`);
-          return stale;
-        }
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+      l1Cache.set(l1CacheKey, result.data);
+      return result.data;
+    } catch (error) {
+      const stale = l1Cache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("Finnhub", `Error fetching, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
+      throw error;
     }
-
-    throw new Error("Failed to fetch from Finnhub after retries");
   }
 
   async getQuote(symbol: string): Promise<StockQuote> {
-    const cacheKey = `quote_${symbol}`;
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}`;
-    return this.fetchWithRetry<StockQuote>(url, cacheKey, this.quoteCache);
+    const l1CacheKey = `quote_${symbol}`;
+    const endpoint = `/quote?symbol=${symbol.toUpperCase()}`;
+    return this.fetchWithL1Cache<StockQuote>(endpoint, l1CacheKey, this.quoteCache);
   }
 
   async getCandles(
@@ -297,27 +249,27 @@ class FinnhubConnector {
     const fromTime = from || now - 30 * 24 * 60 * 60;
     const toTime = to || now;
 
-    const cacheKey = `candles_${symbol}_${resolution}_${fromTime}_${toTime}`;
-    const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${symbol.toUpperCase()}&resolution=${resolution}&from=${fromTime}&to=${toTime}`;
-    return this.fetchWithRetry<StockCandle>(url, cacheKey, this.candleCache);
+    const l1CacheKey = `candles_${symbol}_${resolution}_${fromTime}_${toTime}`;
+    const endpoint = `/stock/candle?symbol=${symbol.toUpperCase()}&resolution=${resolution}&from=${fromTime}&to=${toTime}`;
+    return this.fetchWithL1Cache<StockCandle>(endpoint, l1CacheKey, this.candleCache);
   }
 
   async getCompanyProfile(symbol: string): Promise<CompanyProfile> {
-    const cacheKey = `profile_${symbol}`;
-    const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol.toUpperCase()}`;
-    return this.fetchWithRetry<CompanyProfile>(url, cacheKey, this.profileCache);
+    const l1CacheKey = `profile_${symbol}`;
+    const endpoint = `/stock/profile2?symbol=${symbol.toUpperCase()}`;
+    return this.fetchWithL1Cache<CompanyProfile>(endpoint, l1CacheKey, this.profileCache);
   }
 
   async searchSymbols(query: string): Promise<SymbolSearchResult> {
-    const cacheKey = `search_${query}`;
-    const url = `${FINNHUB_BASE_URL}/search?q=${encodeURIComponent(query)}`;
-    return this.fetchWithRetry<SymbolSearchResult>(url, cacheKey, this.searchCache);
+    const l1CacheKey = `search_${query}`;
+    const endpoint = `/search?q=${encodeURIComponent(query)}`;
+    return this.fetchWithL1Cache<SymbolSearchResult>(endpoint, l1CacheKey, this.searchCache);
   }
 
   async getMarketNews(category = "general"): Promise<MarketNews[]> {
-    const cacheKey = `news_${category}`;
-    const url = `${FINNHUB_BASE_URL}/news?category=${category}`;
-    return this.fetchWithRetry<MarketNews[]>(url, cacheKey, this.newsCache);
+    const l1CacheKey = `news_${category}`;
+    const endpoint = `/news?category=${category}`;
+    return this.fetchWithL1Cache<MarketNews[]>(endpoint, l1CacheKey, this.newsCache);
   }
 
   async getMultipleQuotes(symbols: string[]): Promise<Map<string, StockQuote>> {
@@ -338,15 +290,15 @@ class FinnhubConnector {
   }
 
   async getBasicFinancials(symbol: string): Promise<BasicFinancials> {
-    const cacheKey = `financials_${symbol}`;
-    const url = `${FINNHUB_BASE_URL}/stock/metric?symbol=${symbol.toUpperCase()}&metric=all`;
-    return this.fetchWithRetry<BasicFinancials>(url, cacheKey, this.financialsCache);
+    const l1CacheKey = `financials_${symbol}`;
+    const endpoint = `/stock/metric?symbol=${symbol.toUpperCase()}&metric=all`;
+    return this.fetchWithL1Cache<BasicFinancials>(endpoint, l1CacheKey, this.financialsCache);
   }
 
   async getTechnicalIndicator(symbol: string, resolution = "D"): Promise<TechnicalIndicator> {
-    const cacheKey = `technical_${symbol}_${resolution}`;
-    const url = `${FINNHUB_BASE_URL}/scan/technical-indicator?symbol=${symbol.toUpperCase()}&resolution=${resolution}`;
-    return this.fetchWithRetry<TechnicalIndicator>(url, cacheKey, this.technicalCache);
+    const l1CacheKey = `technical_${symbol}_${resolution}`;
+    const endpoint = `/scan/technical-indicator?symbol=${symbol.toUpperCase()}&resolution=${resolution}`;
+    return this.fetchWithL1Cache<TechnicalIndicator>(endpoint, l1CacheKey, this.technicalCache);
   }
 
   async getKeyMetrics(symbol: string): Promise<{

@@ -13,6 +13,7 @@
  */
 
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const HF_INFERENCE_URL = "https://api-inference.huggingface.co/models";
@@ -53,10 +54,6 @@ class HuggingFaceConnector {
     staleDuration: 60 * 60 * 1000,
   });
 
-  private lastRequestTime = 0;
-  private minRequestInterval = 200;
-  private rateLimitedUntil = 0;
-
   private getApiKey(): string | undefined {
     return process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
   }
@@ -65,100 +62,53 @@ class HuggingFaceConnector {
     return !!this.getApiKey();
   }
 
-  private async throttle(): Promise<void> {
-    const now = Date.now();
-
-    if (now < this.rateLimitedUntil) {
-      const waitTime = this.rateLimitedUntil - now;
-      log.warn("HuggingFace", `Rate limited, waiting ${waitTime}ms`);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
-    }
-    this.lastRequestTime = Date.now();
-  }
-
   private async callModel<T>(
     modelId: string,
     inputs: string | string[],
-    cacheKey: string,
-    cache: ApiCache<T>,
-    retries = 3
+    l1CacheKey: string,
+    l1Cache: ApiCache<T>
   ): Promise<T> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      const stale = cache.getStale(cacheKey);
+      const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("HuggingFace", `No API key, serving stale data for ${cacheKey}`);
+        log.debug("HuggingFace", `No API key, serving stale L1 data for ${l1CacheKey}`);
         return stale;
       }
       throw new Error("HUGGINGFACE_API_KEY is not configured");
     }
 
-    const cached = cache.get(cacheKey);
-    if (cached?.isFresh) {
-      return cached.data;
+    const l1Cached = l1Cache.get(l1CacheKey);
+    if (l1Cached?.isFresh) {
+      log.debug("HuggingFace", `L1 cache hit for ${l1CacheKey}`);
+      return l1Cached.data;
     }
 
-    await this.throttle();
+    const url = `${HF_INFERENCE_URL}/${modelId}`;
+    const cacheKey = buildCacheKey("huggingface", modelId, l1CacheKey);
 
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(`${HF_INFERENCE_URL}/${modelId}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({ inputs }),
-        });
+    try {
+      const result = await connectorFetch<T>(url, {
+        provider: "huggingface",
+        endpoint: `model/${modelId}`,
+        cacheKey,
+        method: "POST",
+        body: { inputs },
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
 
-        if (response.status === 429) {
-          this.rateLimitedUntil = Date.now() + Math.pow(2, i + 1) * 1000;
-
-          const stale = cache.getStale(cacheKey);
-          if (stale) {
-            log.debug("HuggingFace", `Rate limited, serving stale data for ${cacheKey}`);
-            return stale;
-          }
-
-          const waitTime = Math.pow(2, i) * 1000;
-          log.warn("HuggingFace", `Rate limited, waiting ${waitTime}ms`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
-        }
-
-        if (response.status === 503) {
-          const waitTime = 5000 * (i + 1);
-          log.warn("HuggingFace", `Model loading, waiting ${waitTime}ms`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
-        }
-
-        if (!response.ok) {
-          throw new Error(`HuggingFace API error: ${response.status}`);
-        }
-
-        const data = (await response.json()) as T;
-        cache.set(cacheKey, data);
-        return data;
-      } catch (error) {
-        const stale = cache.getStale(cacheKey);
-        if (stale && i === retries - 1) {
-          log.debug("HuggingFace", `Error fetching, serving stale data for ${cacheKey}`);
-          return stale;
-        }
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+      l1Cache.set(l1CacheKey, result.data);
+      return result.data;
+    } catch (error) {
+      const stale = l1Cache.getStale(l1CacheKey);
+      if (stale) {
+        log.debug("HuggingFace", `Error fetching, serving stale L1 data for ${l1CacheKey}`);
+        return stale;
       }
+      throw error;
     }
-
-    throw new Error("Failed to call HuggingFace after retries");
   }
 
   async analyzeSentiment(
@@ -172,12 +122,12 @@ class HuggingFaceConnector {
     };
 
     const modelId = modelIds[model];
-    const cacheKey = `sentiment_${model}_${text.substring(0, 50)}`;
+    const l1CacheKey = `sentiment_${model}_${text.substring(0, 50)}`;
 
     const result = await this.callModel<RawSentimentResponse>(
       modelId,
       text,
-      cacheKey,
+      l1CacheKey,
       this.rawSentimentCache
     );
 
@@ -234,8 +184,8 @@ class HuggingFaceConnector {
     newsHeadlines: string[],
     priceChange?: number
   ): Promise<EnrichmentSignal> {
-    const cacheKey = `enrichment_${symbol}_${Date.now() % (15 * 60 * 1000)}`;
-    const cached = this.enrichmentCache.get(cacheKey);
+    const l1CacheKey = `enrichment_${symbol}_${Date.now() % (15 * 60 * 1000)}`;
+    const cached = this.enrichmentCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
@@ -292,7 +242,7 @@ class HuggingFaceConnector {
       timestamp: new Date(),
     };
 
-    this.enrichmentCache.set(cacheKey, signal);
+    this.enrichmentCache.set(l1CacheKey, signal);
 
     log.info("HuggingFace", "Generated enrichment signal", {
       symbol,

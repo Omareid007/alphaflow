@@ -18,10 +18,10 @@
  */
 
 import { ApiCache } from "../lib/api-cache";
+import { connectorFetch, buildCacheKey } from "../lib/connectorClient";
 import { log } from "../utils/logger";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
-const GDELT_CONTEXT_API = "https://api.gdeltproject.org/api/v2/context/context";
 
 export interface GdeltArticle {
   url: string;
@@ -102,6 +102,40 @@ interface GdeltSearchOptions {
   maxRecords?: number;
 }
 
+interface GdeltRawArticle {
+  url?: string;
+  title?: string;
+  domain?: string;
+  language?: string;
+  seendate?: string;
+  socialimage?: string;
+  tone?: string | number;
+}
+
+interface GdeltRawArticlesResponse {
+  articles?: GdeltRawArticle[];
+}
+
+interface GdeltRawTimelinePoint {
+  date?: string;
+  value?: string | number;
+}
+
+interface GdeltRawTimelineResponse {
+  timeline?: GdeltRawTimelinePoint[];
+}
+
+interface GdeltRawTonePoint {
+  date?: string;
+  tone?: string | number;
+  tonescore?: string | number;
+  negtonescore?: string | number;
+}
+
+interface GdeltRawToneResponse {
+  timeline?: GdeltRawTonePoint[];
+}
+
 class GdeltConnector {
   private articleCache = new ApiCache<GdeltSearchResponse>({
     freshDuration: 10 * 60 * 1000,
@@ -123,21 +157,8 @@ class GdeltConnector {
     staleDuration: 30 * 60 * 1000,
   });
 
-  private lastRequestTime = 0;
-  private minRequestInterval = 500;
-
   isAvailable(): boolean {
     return true;
-  }
-
-  private async throttle(): Promise<void> {
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
-    }
-    this.lastRequestTime = Date.now();
   }
 
   private buildUrl(query: string, options: GdeltSearchOptions = {}): string {
@@ -166,47 +187,43 @@ class GdeltConnector {
     query: string,
     options: GdeltSearchOptions = {}
   ): Promise<GdeltSearchResponse> {
-    const cacheKey = `articles_${query}_${JSON.stringify(options)}`;
-    const cached = this.articleCache.get(cacheKey);
+    const l1CacheKey = `articles_${query}_${JSON.stringify(options)}`;
+    const cached = this.articleCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
 
-    await this.throttle();
-
     const url = this.buildUrl(query, { ...options, mode: "ArtList" });
+    const cacheKey = buildCacheKey("gdelt", "articles", query, options.timespan || "24hours");
 
     try {
-      const response = await fetch(url);
+      const response = await connectorFetch<GdeltRawArticlesResponse>(url, {
+        provider: "gdelt",
+        endpoint: "searchArticles",
+        cacheKey,
+        headers: { Accept: "application/json" },
+      });
 
-      if (!response.ok) {
-        log.warn("GDELT", `API returned ${response.status} for query: ${query}`);
-        const stale = this.articleCache.getStale(cacheKey);
-        if (stale) return stale;
-        return { articles: [], totalResults: 0 };
-      }
-
-      const data = await response.json();
-      
+      const data = response.data;
       const result: GdeltSearchResponse = {
-        articles: (data.articles || []).map((a: Record<string, unknown>) => ({
-          url: a.url as string,
-          title: a.title as string,
-          domain: a.domain as string,
-          language: a.language as string,
-          seenDate: a.seendate as string,
-          socialImage: a.socialimage as string | undefined,
+        articles: (data.articles || []).map((a) => ({
+          url: a.url || "",
+          title: a.title || "",
+          domain: a.domain || "",
+          language: a.language || "",
+          seenDate: a.seendate || "",
+          socialImage: a.socialimage,
           tone: a.tone ? parseFloat(String(a.tone)) : undefined,
         })),
         totalResults: data.articles?.length || 0,
       };
 
-      this.articleCache.set(cacheKey, result);
+      this.articleCache.set(l1CacheKey, result);
       log.info("GDELT", "Articles fetched", { query, count: result.totalResults });
       return result;
     } catch (error) {
       log.error("GDELT", "Failed to fetch articles", { query, error: String(error) });
-      const stale = this.articleCache.getStale(cacheKey);
+      const stale = this.articleCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { articles: [], totalResults: 0 };
     }
@@ -216,42 +233,38 @@ class GdeltConnector {
     query: string,
     timespan: GdeltTimespan = "24hours"
   ): Promise<GdeltVolumeResponse> {
-    const cacheKey = `volume_${query}_${timespan}`;
-    const cached = this.volumeCache.get(cacheKey);
+    const l1CacheKey = `volume_${query}_${timespan}`;
+    const cached = this.volumeCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
 
-    await this.throttle();
-
     const url = this.buildUrl(query, { mode: "TimelineVol", timespan });
+    const cacheKey = buildCacheKey("gdelt", "volume", query, timespan);
 
     try {
-      const response = await fetch(url);
+      const response = await connectorFetch<GdeltRawTimelineResponse>(url, {
+        provider: "gdelt",
+        endpoint: "getVolumeTimeline",
+        cacheKey,
+        headers: { Accept: "application/json" },
+      });
 
-      if (!response.ok) {
-        log.warn("GDELT", `Volume API returned ${response.status}`);
-        const stale = this.volumeCache.getStale(cacheKey);
-        if (stale) return stale;
-        return { timeline: [], query };
-      }
-
-      const data = await response.json();
-      
+      const data = response.data;
       const result: GdeltVolumeResponse = {
-        timeline: (data.timeline || []).map((t: Record<string, unknown>) => ({
-          date: t.date as string,
+        timeline: (data.timeline || []).map((t) => ({
+          date: t.date || "",
           value: parseFloat(String(t.value || 0)),
         })),
         query,
       };
 
-      this.volumeCache.set(cacheKey, result);
+      this.volumeCache.set(l1CacheKey, result);
       log.info("GDELT", "Volume timeline fetched", { query, points: result.timeline.length });
       return result;
     } catch (error) {
       log.error("GDELT", "Failed to fetch volume", { query, error: String(error) });
-      const stale = this.volumeCache.getStale(cacheKey);
+      const stale = this.volumeCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { timeline: [], query };
     }
@@ -261,30 +274,26 @@ class GdeltConnector {
     query: string,
     timespan: GdeltTimespan = "24hours"
   ): Promise<GdeltToneResponse> {
-    const cacheKey = `tone_${query}_${timespan}`;
-    const cached = this.toneCache.get(cacheKey);
+    const l1CacheKey = `tone_${query}_${timespan}`;
+    const cached = this.toneCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
 
-    await this.throttle();
-
     const url = this.buildUrl(query, { mode: "TimelineTone", timespan });
+    const cacheKey = buildCacheKey("gdelt", "tone", query, timespan);
 
     try {
-      const response = await fetch(url);
+      const response = await connectorFetch<GdeltRawToneResponse>(url, {
+        provider: "gdelt",
+        endpoint: "getToneTimeline",
+        cacheKey,
+        headers: { Accept: "application/json" },
+      });
 
-      if (!response.ok) {
-        log.warn("GDELT", `Tone API returned ${response.status}`);
-        const stale = this.toneCache.getStale(cacheKey);
-        if (stale) return stale;
-        return { timeline: [], query, averageTone: 0 };
-      }
-
-      const data = await response.json();
-      
-      const timeline: GdeltToneTimeline[] = (data.timeline || []).map((t: Record<string, unknown>) => ({
-        date: t.date as string,
+      const data = response.data;
+      const timeline: GdeltToneTimeline[] = (data.timeline || []).map((t) => ({
+        date: t.date || "",
         tone: parseFloat(String(t.tone || 0)),
         positiveScore: parseFloat(String(t.tonescore || 0)),
         negativeScore: parseFloat(String(t.negtonescore || 0)),
@@ -300,12 +309,12 @@ class GdeltConnector {
         averageTone: avgTone,
       };
 
-      this.toneCache.set(cacheKey, result);
+      this.toneCache.set(l1CacheKey, result);
       log.info("GDELT", "Tone timeline fetched", { query, avgTone: avgTone.toFixed(2) });
       return result;
     } catch (error) {
       log.error("GDELT", "Failed to fetch tone", { query, error: String(error) });
-      const stale = this.toneCache.getStale(cacheKey);
+      const stale = this.toneCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { timeline: [], query, averageTone: 0 };
     }
@@ -319,8 +328,8 @@ class GdeltConnector {
       ? `${symbol} OR "${companyName}" stock`
       : `${symbol} stock`;
 
-    const cacheKey = `sentiment_${symbol}`;
-    const cached = this.sentimentCache.get(cacheKey);
+    const l1CacheKey = `sentiment_${symbol}`;
+    const cached = this.sentimentCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
@@ -362,7 +371,7 @@ class GdeltConnector {
       timestamp: new Date(),
     };
 
-    this.sentimentCache.set(cacheKey, result);
+    this.sentimentCache.set(l1CacheKey, result);
     log.info("GDELT", "Symbol sentiment analyzed", {
       symbol,
       sentiment,
@@ -459,8 +468,8 @@ class GdeltConnector {
     const fullName = cryptoNameMap[cryptoName.toUpperCase()] || cryptoName;
     const query = `${fullName} cryptocurrency`;
     
-    const cacheKey = `crypto_sentiment_${cryptoName}`;
-    const cached = this.sentimentCache.get(cacheKey);
+    const l1CacheKey = `crypto_sentiment_${cryptoName}`;
+    const cached = this.sentimentCache.get(l1CacheKey);
     if (cached?.isFresh) {
       return cached.data;
     }
@@ -499,7 +508,7 @@ class GdeltConnector {
       timestamp: new Date(),
     };
 
-    this.sentimentCache.set(cacheKey, result);
+    this.sentimentCache.set(l1CacheKey, result);
     return result;
   }
 
@@ -511,7 +520,7 @@ class GdeltConnector {
         this.volumeCache.size() +
         this.toneCache.size() +
         this.sentimentCache.size(),
-      lastRequest: this.lastRequestTime > 0 ? new Date(this.lastRequestTime) : null,
+      lastRequest: null,
     };
   }
 
