@@ -67,10 +67,13 @@ import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
 import { tracesRouter } from "./routes/traces";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
+import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
+import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
   interface Request {
     userId?: string;
+    rbac?: RBACContext;
   }
 }
 
@@ -107,6 +110,33 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 
   req.userId = session.userId;
   next();
+}
+
+function requireCapability(...capabilities: AdminCapability[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await storage.getUser(req.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    const rbacContext = createRBACContext(user);
+    req.rbac = rbacContext;
+
+    const hasRequiredCapability = capabilities.some(cap => hasCapability(rbacContext, cap));
+    if (!hasRequiredCapability) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: `Requires one of: ${capabilities.join(", ")}`,
+        userCapabilities: rbacContext.capabilities,
+      });
+    }
+
+    next();
+  };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -3616,7 +3646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/api-cache/purge", authMiddleware, async (req, res) => {
+  app.post("/api/admin/api-cache/purge", authMiddleware, requireCapability("admin:danger"), async (req, res) => {
     try {
       const { provider, key, expiredOnly } = req.body;
       
@@ -3654,7 +3684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/provider/:provider/force-refresh", authMiddleware, async (req, res) => {
+  app.post("/api/admin/provider/:provider/force-refresh", authMiddleware, requireCapability("admin:danger"), async (req, res) => {
     try {
       const { provider } = req.params;
       const { cacheKey, confirmValyu } = req.body;
@@ -3685,7 +3715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/provider/:provider/toggle", authMiddleware, async (req, res) => {
+  app.patch("/api/admin/provider/:provider/toggle", authMiddleware, requireCapability("admin:write"), async (req, res) => {
     try {
       const { provider } = req.params;
       const { enabled } = req.body;
@@ -4143,7 +4173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/work-items/retry", authMiddleware, async (req, res) => {
+  app.post("/api/admin/work-items/retry", authMiddleware, requireCapability("admin:write"), async (req, res) => {
     try {
       const { id } = req.body;
       if (!id) {
@@ -4173,7 +4203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/work-items/dead-letter", authMiddleware, async (req, res) => {
+  app.post("/api/admin/work-items/dead-letter", authMiddleware, requireCapability("admin:danger"), async (req, res) => {
     try {
       const { id, reason } = req.body;
       if (!id) {
@@ -4247,6 +4277,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/modules/accessible", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const rbacContext = createRBACContext(user);
+      const allModules = getModules();
+      const accessibleModules = filterModulesByCapability(allModules, rbacContext);
+      res.json({
+        modules: accessibleModules,
+        count: accessibleModules.length,
+        totalModules: allModules.length,
+        userRole: rbacContext.role,
+      });
+    } catch (error) {
+      console.error("Failed to get accessible modules:", error);
+      res.status(500).json({ error: "Failed to get accessible modules" });
+    }
+  });
+
   app.get("/api/admin/modules/:id", authMiddleware, async (req, res) => {
     try {
       const module = getModule(req.params.id);
@@ -4306,6 +4357,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get admin overview:", error);
       res.status(500).json({ error: "Failed to get admin overview" });
+    }
+  });
+
+  // ============================================================================
+  // RBAC ENDPOINTS
+  // ============================================================================
+
+  app.get("/api/admin/rbac/me", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const rbacContext = createRBACContext(user);
+      res.json({
+        userId: rbacContext.userId,
+        username: rbacContext.username,
+        role: rbacContext.role,
+        isAdmin: rbacContext.isAdmin,
+        capabilities: rbacContext.capabilities,
+      });
+    } catch (error) {
+      console.error("Failed to get RBAC context:", error);
+      res.status(500).json({ error: "Failed to get RBAC context" });
+    }
+  });
+
+  app.get("/api/admin/rbac/roles", authMiddleware, async (req, res) => {
+    try {
+      const roles = getAllRoles().map(role => getRoleInfo(role));
+      res.json({ roles });
+    } catch (error) {
+      console.error("Failed to get roles:", error);
+      res.status(500).json({ error: "Failed to get roles" });
+    }
+  });
+
+  app.get("/api/admin/rbac/check/:capability", authMiddleware, async (req, res) => {
+    try {
+      const { capability } = req.params;
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const rbacContext = createRBACContext(user);
+      const hasIt = hasCapability(rbacContext, capability as AdminCapability);
+      res.json({
+        capability,
+        hasCapability: hasIt,
+        userRole: rbacContext.role,
+      });
+    } catch (error) {
+      console.error("Failed to check capability:", error);
+      res.status(500).json({ error: "Failed to check capability" });
     }
   });
 
