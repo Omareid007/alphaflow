@@ -172,6 +172,40 @@ export const aiCalibrationLog = pgTable("ai_calibration_log", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const externalApiCacheEntries = pgTable("external_api_cache_entries", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull(),
+  cacheKey: text("cache_key").notNull(),
+  responseJson: text("response_json").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  staleUntilAt: timestamp("stale_until_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  hitCount: integer("hit_count").default(0).notNull(),
+  lastAccessedAt: timestamp("last_accessed_at").defaultNow().notNull(),
+});
+
+export const externalApiUsageCounters = pgTable("external_api_usage_counters", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull(),
+  windowType: text("window_type").notNull(),
+  windowStart: timestamp("window_start").notNull(),
+  windowEnd: timestamp("window_end").notNull(),
+  requestCount: integer("request_count").default(0).notNull(),
+  tokenCount: integer("token_count").default(0),
+  errorCount: integer("error_count").default(0).notNull(),
+  rateLimitHits: integer("rate_limit_hits").default(0).notNull(),
+  cacheHits: integer("cache_hits").default(0).notNull(),
+  cacheMisses: integer("cache_misses").default(0).notNull(),
+  avgLatencyMs: numeric("avg_latency_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertAiDecisionFeaturesSchema = createInsertSchema(aiDecisionFeatures).omit({
   id: true,
   createdAt: true,
@@ -238,3 +272,23 @@ export type AiTradeOutcomes = typeof aiTradeOutcomes.$inferSelect;
 
 export type InsertAiCalibrationLog = z.infer<typeof insertAiCalibrationLogSchema>;
 export type AiCalibrationLog = typeof aiCalibrationLog.$inferSelect;
+
+export const insertExternalApiCacheEntrySchema = createInsertSchema(externalApiCacheEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  hitCount: true,
+  lastAccessedAt: true,
+});
+
+export const insertExternalApiUsageCounterSchema = createInsertSchema(externalApiUsageCounters).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalApiCacheEntry = z.infer<typeof insertExternalApiCacheEntrySchema>;
+export type ExternalApiCacheEntry = typeof externalApiCacheEntries.$inferSelect;
+
+export type InsertExternalApiUsageCounter = z.infer<typeof insertExternalApiUsageCounterSchema>;
+export type ExternalApiUsageCounter = typeof externalApiUsageCounters.$inferSelect;
