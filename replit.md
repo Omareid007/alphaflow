@@ -6,6 +6,28 @@ AI Active Trader is a mobile-first application designed for configuring and mana
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (December 2025)
+
+### Phase 0+1 Infrastructure Audit & Fixes
+Completed comprehensive documentation vs implementation audit with all critical gaps fixed:
+
+1. **Work Queue Integration (G1 Fixed)**: All order operations (submit, cancel) now route through the durable PostgreSQL-backed work queue with:
+   - Idempotency keys (5-minute time buckets for orders)
+   - Polling mechanism for synchronous workflow
+   - Automatic retry with exponential backoff
+   - Dead-letter queue for failed operations
+
+2. **TraceId Propagation (G2 Fixed)**: End-to-end traceability across:
+   - Orchestrator cycles (`cyc-*` prefix)
+   - Background AI batches (`batch-*` prefix)
+   - Strategy runs (`run-*` prefix)
+   - Manual API calls (`api-*` prefix)
+   - AI decisions, LLM calls, and trades all linked via traceId
+
+3. **Work Queue Worker Startup (G3 Fixed)**: Worker now starts automatically during server initialization in `routes.ts`.
+
+See `docs/AUDIT_DOC_VS_IMPLEMENTATION_GAP.md` for full audit details.
+
 ## System Architecture
 
 ### Target Architecture
