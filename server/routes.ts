@@ -1134,15 +1134,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Database sync happens async - DB is cache/audit trail only
   app.get("/api/positions", async (req, res) => {
     const fetchedAt = new Date();
+    const DUST_THRESHOLD = 0.0001;
     try {
       const positions = await alpaca.getPositions();
       
+      // Filter out dust positions (< 0.0001 shares) to avoid displaying floating point residuals
+      const filteredPositions = positions.filter(p => {
+        const qty = Math.abs(parseFloat(p.qty || "0"));
+        return qty >= DUST_THRESHOLD;
+      });
+      
       // Sync to database in background (don't block response) - write-behind cache
-      storage.syncPositionsFromAlpaca(positions).catch(err => 
+      storage.syncPositionsFromAlpaca(filteredPositions).catch(err => 
         console.error("Failed to sync positions to database:", err)
       );
       
-      const enrichedPositions = positions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
+      const enrichedPositions = filteredPositions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
       
       res.json({
         positions: enrichedPositions,
@@ -1163,9 +1170,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Alias for /api/positions (backward compatibility) - Uses Alpaca source of truth
   app.get("/api/positions/broker", async (req, res) => {
     const fetchedAt = new Date();
+    const DUST_THRESHOLD = 0.0001;
     try {
       const positions = await alpaca.getPositions();
-      const enrichedPositions = positions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
+      // Filter out dust positions
+      const filteredPositions = positions.filter(p => {
+        const qty = Math.abs(parseFloat(p.qty || "0"));
+        return qty >= DUST_THRESHOLD;
+      });
+      const enrichedPositions = filteredPositions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
       
       res.json({
         positions: enrichedPositions,
@@ -2432,7 +2445,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/alpaca/positions", async (req, res) => {
     try {
       const positions = await alpaca.getPositions();
-      res.json(positions);
+      // Filter out dust positions (< 0.0001 shares) to avoid displaying floating point residuals
+      const DUST_THRESHOLD = 0.0001;
+      const filteredPositions = positions.filter(p => {
+        const qty = Math.abs(parseFloat(p.qty || "0"));
+        return qty >= DUST_THRESHOLD;
+      });
+      res.json(filteredPositions);
     } catch (error) {
       console.error("Failed to get Alpaca positions:", error);
       res.status(500).json({ error: "Failed to get Alpaca positions" });
