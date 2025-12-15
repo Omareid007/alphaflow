@@ -490,6 +490,107 @@ export const insertBrokerAssetSchema = createInsertSchema(brokerAssets).omit({
 export type InsertBrokerAsset = z.infer<typeof insertBrokerAssetSchema>;
 export type BrokerAsset = typeof brokerAssets.$inferSelect;
 
+export const orderStatuses = [
+  'new',
+  'accepted',
+  'pending_new',
+  'partially_filled',
+  'filled',
+  'canceled',
+  'rejected',
+  'expired',
+  'replaced',
+  'pending_cancel',
+  'pending_replace',
+  'stopped',
+  'suspended',
+  'calculated',
+  'done_for_day',
+] as const;
+
+export type OrderStatus = typeof orderStatuses[number];
+
+export const orderTypes = ['market', 'limit', 'stop', 'stop_limit'] as const;
+export type OrderType = typeof orderTypes[number];
+
+export const timeInForceValues = ['day', 'gtc', 'opg', 'cls', 'ioc', 'fok'] as const;
+export type TimeInForce = typeof timeInForceValues[number];
+
+export const orders = pgTable("orders", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  broker: text("broker").notNull(),
+  brokerOrderId: text("broker_order_id").notNull().unique(),
+  clientOrderId: text("client_order_id").unique(),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(),
+  type: text("type").notNull(),
+  timeInForce: text("time_in_force"),
+  qty: numeric("qty"),
+  notional: numeric("notional"),
+  limitPrice: numeric("limit_price"),
+  stopPrice: numeric("stop_price"),
+  status: text("status").notNull(),
+  submittedAt: timestamp("submitted_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  filledAt: timestamp("filled_at"),
+  filledQty: numeric("filled_qty"),
+  filledAvgPrice: numeric("filled_avg_price"),
+  traceId: text("trace_id"),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id),
+  tradeIntentId: varchar("trade_intent_id").references(() => trades.id),
+  workItemId: varchar("work_item_id").references(() => workItems.id),
+  rawJson: jsonb("raw_json"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("orders_broker_order_id_idx").on(table.brokerOrderId),
+  index("orders_client_order_id_idx").on(table.clientOrderId),
+  index("orders_symbol_idx").on(table.symbol),
+  index("orders_status_idx").on(table.status),
+  index("orders_trace_id_idx").on(table.traceId),
+  index("orders_decision_id_idx").on(table.decisionId),
+]);
+
+export const fills = pgTable("fills", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  broker: text("broker").notNull(),
+  brokerOrderId: text("broker_order_id").notNull(),
+  brokerFillId: text("broker_fill_id").unique(),
+  orderId: varchar("order_id").references(() => orders.id),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(),
+  qty: numeric("qty").notNull(),
+  price: numeric("price").notNull(),
+  occurredAt: timestamp("occurred_at").notNull(),
+  traceId: text("trace_id"),
+  rawJson: jsonb("raw_json"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("fills_broker_order_id_idx").on(table.brokerOrderId),
+  index("fills_order_id_idx").on(table.orderId),
+  index("fills_symbol_idx").on(table.symbol),
+  index("fills_trace_id_idx").on(table.traceId),
+]);
+
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFillSchema = createInsertSchema(fills).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof orders.$inferSelect;
+
+export type InsertFill = z.infer<typeof insertFillSchema>;
+export type Fill = typeof fills.$inferSelect;
+
 export const backtestStatuses = ['QUEUED', 'RUNNING', 'DONE', 'FAILED'] as const;
 export type BacktestStatusType = typeof backtestStatuses[number];
 

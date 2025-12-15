@@ -1,0 +1,161 @@
+You are working inside the existing AI Active Trader repo (current codebase). NO MOCK DATA. NO “implemented” claims unless you verify with code + DB + runtime behavior.
+
+GOAL (P0):
+Fix G4 (Orders vs Trades vs Fills conflation) so the system cleanly separates:
+- Intent (AI decision / trade intent)
+- Broker order lifecycle (submitted/canceled/filled/etc)
+- Fill/execution confirmations
+Then update the UI to reflect the real lifecycle with meaningful statuses.
+
+CONSTRAINTS:
+- Alpaca Paper is the single source of truth for live state (orders/positions) per docs.
+- Local DB is audit/cache ONLY; if Alpaca is unavailable, return “unavailable” (or explicit stale) with metadata.
+- Maintain existing Work Queue + idempotency behavior already implemented.
+- Avoid duplication: if any part already exists, enrich and add tests rather than rebuilding.
+
+STEP 0 — READ THESE DOCS FIRST (do not skip):
+- docs/SOURCE_OF_TRUTH_CONTRACT.md
+- docs/TRADING_SAGA_SEQUENCES.md (treat saga/event bus parts as FUTURE unless already implemented)
+- docs/WORK_QUEUE_ARCHITECTURE.md
+- docs/OBSERVABILITY.md
+- docs/UI_INFORMATION_ARCHITECTURE.md
+- docs/TESTING.md
+Also read AUDIT_DOC_VS_IMPLEMENTATION_GAP.md and treat it as a contract: G4 must be resolved.
+
+STEP 1 — BASELINE REALITY CHECK (must produce evidence):
+1) Inspect DB schema in shared/schema.ts:
+   - Confirm we currently have trades table but no orders/fills tables (per audit).
+2) Enumerate the actual API endpoints currently feeding:
+   - Analytics → Trade Ledger
+   - AI Suggested Trades
+   - Auto Trading / Positions
+3) Identify how ORDER_SUBMIT work items currently store brokerOrderId and where it is persisted.
+
+Output a short “Reality Snapshot” in the terminal logs / Replit chat:
+- tables present
+- endpoints involved
+- current data flow from broker → db → ui
+
+STEP 2 — DATA MODEL FIX (minimal but correct):
+Add TWO new tables (and migrations via drizzle):
+A) orders (broker order snapshot / lifecycle)
+   Required fields:
+   - id (pk, internal)
+   - broker (enum: alpaca)
+   - brokerOrderId (unique)
+   - clientOrderId (unique, nullable if not used)
+   - symbol, side, type, timeInForce
+   - qty, notional (nullable), limitPrice/stopPrice (nullable)
+   - status (new/accepted/partially_filled/filled/canceled/rejected/expired/etc)
+   - submittedAt, updatedAt, filledAt (nullable)
+   - filledQty, filledAvgPrice (nullable)
+   - traceId (indexed)
+   - decisionId (fk to ai_decisions if applicable, nullable)
+   - tradeIntentId (fk to trades if you keep using trades as “intent”, nullable)
+   - rawJson (jsonb snapshot from Alpaca)
+   - createdAt, updatedAt (db timestamps)
+
+B) fills (execution confirmations)
+   Minimal viable (don’t overbuild):
+   - id (pk)
+   - broker (alpaca)
+   - brokerOrderId (indexed, fk-ish)
+   - symbol
+   - qty
+   - price
+   - occurredAt
+   - traceId (indexed)
+   - rawJson (jsonb)
+   - createdAt
+
+IMPORTANT:
+- Do NOT break backtesting tables.
+- Keep existing trades table, but redefine its role explicitly:
+  - trades = “trade_intents” (AI intent / action request) OR create a new table trade_intents and migrate.
+  Choose the lowest-risk approach: prefer KEEP + CLARIFY unless the UI absolutely requires rename.
+- Update docs to match the final choice.
+
+STEP 3 — ORDER SUBMISSION: MAKE RETRIES SAFE AND RECONCILABLE
+In the ORDER_SUBMIT work item handler:
+1) Generate and persist a deterministic client_order_id for Alpaca submissions so retries can be reconciled.
+   - Derive from (traceId + tradeIntentId or decisionId + symbol + side) hashed, plus a short prefix.
+   - Store it in the work item payload AND in DB.
+2) Submit to Alpaca with client_order_id.
+3) On success:
+   - Upsert into orders table using brokerOrderId as the unique key.
+   - Update the trade intent record to link brokerOrderId + clientOrderId + latest order status.
+4) On failure:
+   - Persist a failure status on the intent (do not mark as “success”).
+   - Record enough metadata to debug (but no secrets).
+
+Use Alpaca’s “client_order_id” tracking patterns and ability to fetch by client order id to reconcile:
+- Implement a helper to GET order by client_order_id when needed (recovery path).
+
+STEP 4 — ORDER/FILL SYNC (NO STREAM REQUIRED YET, BUT MUST BE CORRECT)
+Implement a broker reconciliation job (can run periodically inside the server process for now):
+- Every N seconds (start with 30–60s):
+  - Fetch open orders + recently updated orders from Alpaca
+  - Upsert orders table (status changes, fills)
+  - If an order transitions to filled/partially_filled and contains fill data:
+    - Insert corresponding fills rows (idempotent insert)
+- Always attach traceId when possible:
+  - If traceId is unknown, still store the order; mark traceId null and allow later linking.
+
+STEP 5 — API CONTRACTS (UI must stop using conflated/misleading sources)
+Create/adjust endpoints:
+- GET /api/orders (ALPACA live + source metadata)
+- GET /api/orders/history (DB audit, paginated)
+- GET /api/fills/history (DB audit, paginated)
+- GET /api/trade-intents (or existing /api/trades but now clearly “intents”)
+Each response MUST include DataSourceMetadata from SOURCE_OF_TRUTH_CONTRACT (source, fetchedAt, isStale, cacheAge).
+
+STEP 6 — UI FIX (minimum viable “meaningful truth”, then iterate)
+Update the UI so “Trade Ledger” stops showing inflated/meaningless rows:
+- Replace with a 2-tab view:
+  1) “Order Intents” (from DB intents table) — shows decision, risk checks, reason, traceId
+  2) “Broker Orders & Fills”:
+     - Orders list (live from Alpaca) + “audit view” (DB history)
+     - Fills list (DB)
+- Remove/replace statuses like pending_execution unless they map to a real lifecycle state.
+Define a single shared lifecycle mapping for UI badges:
+- INTENT_CREATED → QUEUED → SUBMITTING → SUBMITTED → PARTIALLY_FILLED → FILLED
+- Or FAILED / REJECTED / CANCELED
+And ensure each UI state is backed by DB or Alpaca evidence.
+
+Also:
+- Every order row must show:
+  - traceId
+  - decisionId (if exists)
+  - clientOrderId + brokerOrderId
+  - “View factors” link to the AI decision metadata that produced it.
+
+STEP 7 — TESTS (MANDATORY, to stop “done but not done”)
+Add integration tests (see docs/TESTING.md):
+- Order submit through work queue:
+  - ensures idempotency does not create multiple broker orders
+  - ensures DB orders row exists after success
+- Order cancel through work queue:
+  - ensures status updates and is reflected
+- API response includes source metadata
+
+Mock Alpaca ONLY for tests (fixtures), but production code must be real.
+
+STEP 8 — DOCS UPDATE (MUST MATCH REALITY)
+Update these docs to reflect what you actually built:
+- docs/SOURCE_OF_TRUTH_CONTRACT.md (ensure orders + fills described)
+- docs/TRADING_SAGA_SEQUENCES.md (mark event bus parts as FUTURE unless implemented)
+- docs/APP_OVERVIEW.md and docs/API_REFERENCE.md (endpoints)
+- docs/UI_INFORMATION_ARCHITECTURE.md (new screens/tabs)
+- AUDIT_DOC_VS_IMPLEMENTATION_GAP.md: mark G4 as fixed with a short “evidence” section.
+
+DEFINITION OF DONE (must show evidence):
+- DB migrations applied successfully
+- A real Alpaca order submission produces:
+  - trade intent row (or equivalent)
+  - orders row with brokerOrderId and status
+  - later status updates (filled/canceled) appear via sync
+- UI shows the new lifecycle clearly (no fake pending/success)
+- Tests exist and pass
+
+Before finishing, print:
+- “Evidence checklist” with the exact endpoints tested and 1–2 sample IDs (traceId, brokerOrderId).
