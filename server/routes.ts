@@ -3428,6 +3428,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================
+  // Admin API - AI Configuration
+  // ============================================================
+
+  app.get("/api/admin/ai-config", authMiddleware, async (req, res) => {
+    try {
+      const agentStatus = await storage.getAgentStatus();
+      res.json({
+        autoExecuteTrades: agentStatus?.autoExecuteTrades ?? false,
+        conservativeMode: agentStatus?.conservativeMode ?? false,
+      });
+    } catch (error) {
+      console.error("Failed to get AI config:", error);
+      res.status(500).json({ error: "Failed to get AI config" });
+    }
+  });
+
+  app.put("/api/admin/ai-config", authMiddleware, async (req, res) => {
+    try {
+      const { autoExecuteTrades, conservativeMode } = req.body;
+      const updates: { autoExecuteTrades?: boolean; conservativeMode?: boolean } = {};
+      if (typeof autoExecuteTrades === "boolean") updates.autoExecuteTrades = autoExecuteTrades;
+      if (typeof conservativeMode === "boolean") updates.conservativeMode = conservativeMode;
+      
+      await storage.updateAgentStatus(updates);
+      const status = await storage.getAgentStatus();
+      res.json({
+        autoExecuteTrades: status?.autoExecuteTrades ?? false,
+        conservativeMode: status?.conservativeMode ?? false,
+      });
+    } catch (error) {
+      console.error("Failed to update AI config:", error);
+      res.status(500).json({ error: "Failed to update AI config" });
+    }
+  });
+
+  // ============================================================
   // Admin API - Model Router (Role-Based LLM Routing)
   // ============================================================
 

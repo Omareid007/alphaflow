@@ -1,4 +1,4 @@
-import { View, FlatList, StyleSheet, Switch, Pressable, RefreshControl, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, Switch, RefreshControl, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -223,17 +223,51 @@ function DataFusionCard() {
   );
 }
 
+interface AIConfig {
+  autoExecuteTrades: boolean;
+  conservativeMode: boolean;
+}
+
 function AIConfigCard() {
   const { theme } = useTheme();
-  const [autoTrade, setAutoTrade] = useState(false);
-  const [riskMode, setRiskMode] = useState(false);
-  const [showExplanations, setShowExplanations] = useState(true);
+  const queryClient = useQueryClient();
+  const [showExplanations] = useState(true);
+
+  const { data, isLoading } = useQuery<AIConfig>({
+    queryKey: ["/api/admin/ai-config"],
+    refetchInterval: 30000,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (updates: Partial<AIConfig>) => {
+      return apiRequest("/api/admin/ai-config", {
+        method: "PUT",
+        body: JSON.stringify(updates),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/ai-config"] });
+    },
+  });
+
+  const autoTrade = data?.autoExecuteTrades ?? false;
+  const riskMode = data?.conservativeMode ?? false;
+
+  const handleAutoTradeChange = (value: boolean) => {
+    mutation.mutate({ autoExecuteTrades: value });
+  };
+
+  const handleRiskModeChange = (value: boolean) => {
+    mutation.mutate({ conservativeMode: value });
+  };
 
   return (
     <Card elevation={1} style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
         <Feather name="cpu" size={20} color={BrandColors.primaryLight} />
         <ThemedText style={styles.sectionTitle}>AI Configuration</ThemedText>
+        {isLoading || mutation.isPending ? <ActivityIndicator size="small" color={BrandColors.primaryLight} /> : null}
       </View>
       
       {showExplanations ? (
@@ -262,7 +296,8 @@ function AIConfigCard() {
         </View>
         <Switch
           value={autoTrade}
-          onValueChange={setAutoTrade}
+          onValueChange={handleAutoTradeChange}
+          disabled={mutation.isPending}
           trackColor={{ false: BrandColors.cardBorder, true: BrandColors.primaryLight }}
         />
       </View>
@@ -289,7 +324,8 @@ function AIConfigCard() {
         </View>
         <Switch
           value={riskMode}
-          onValueChange={setRiskMode}
+          onValueChange={handleRiskModeChange}
+          disabled={mutation.isPending}
           trackColor={{ false: BrandColors.cardBorder, true: BrandColors.primaryLight }}
         />
       </View>
@@ -393,22 +429,20 @@ function ApiBudgetNavCard() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
   return (
-    <Pressable onPress={() => navigation.navigate("ApiBudget")}>
-      <Card elevation={1} style={styles.sectionCard}>
-        <View style={styles.navCardContent}>
-          <View style={styles.navCardLeft}>
-            <View style={styles.sectionHeader}>
-              <Feather name="activity" size={20} color={BrandColors.primaryLight} />
-              <ThemedText style={styles.sectionTitle}>API Budgets & Cache</ThemedText>
-            </View>
-            <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
-              Monitor rate limits, budget usage, and cache status for all providers
-            </ThemedText>
+    <Card elevation={1} style={styles.sectionCard} onPress={() => navigation.navigate("ApiBudget")}>
+      <View style={styles.navCardContent}>
+        <View style={styles.navCardLeft}>
+          <View style={styles.sectionHeader}>
+            <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.sectionTitle}>API Budgets & Cache</ThemedText>
           </View>
-          <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+          <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
+            Monitor rate limits, budget usage, and cache status for all providers
+          </ThemedText>
         </View>
-      </Card>
-    </Pressable>
+        <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+      </View>
+    </Card>
   );
 }
 
@@ -417,22 +451,20 @@ function ModelRouterNavCard() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
   return (
-    <Pressable onPress={() => navigation.navigate("ModelRouter")}>
-      <Card elevation={1} style={styles.sectionCard}>
-        <View style={styles.navCardContent}>
-          <View style={styles.navCardLeft}>
-            <View style={styles.sectionHeader}>
-              <Feather name="git-branch" size={20} color={BrandColors.aiLayer} />
-              <ThemedText style={styles.sectionTitle}>LLM Model Router</ThemedText>
-            </View>
-            <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
-              Role-based routing, fallback chains, cost tracking, and call logs
-            </ThemedText>
+    <Card elevation={1} style={styles.sectionCard} onPress={() => navigation.navigate("ModelRouter")}>
+      <View style={styles.navCardContent}>
+        <View style={styles.navCardLeft}>
+          <View style={styles.sectionHeader}>
+            <Feather name="git-branch" size={20} color={BrandColors.aiLayer} />
+            <ThemedText style={styles.sectionTitle}>LLM Model Router</ThemedText>
           </View>
-          <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+          <ThemedText style={[styles.navCardDescription, { color: theme.textSecondary }]}>
+            Role-based routing, fallback chains, cost tracking, and call logs
+          </ThemedText>
         </View>
-      </Card>
-    </Pressable>
+        <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+      </View>
+    </Card>
   );
 }
 

@@ -99,6 +99,8 @@ export const agentStatus = pgTable("agent_status", {
   aiConfidenceScore: numeric("ai_confidence_score").default("0.5"),
   autoStartEnabled: boolean("auto_start_enabled").default(true).notNull(),
   lastMarketAnalysis: timestamp("last_market_analysis"),
+  autoExecuteTrades: boolean("auto_execute_trades").default(false).notNull(),
+  conservativeMode: boolean("conservative_mode").default(false).notNull(),
 });
 
 export const aiDecisionFeatures = pgTable("ai_decision_features", {
