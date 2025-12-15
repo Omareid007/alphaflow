@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors, BorderRadius, Fonts } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { getApiUrl } from "@/lib/query-client";
 
 interface OrderFill {
   id: string;
@@ -204,8 +205,16 @@ export function OrdersTable({ limit = 20, showHeader = true }: OrdersTableProps)
   const { theme } = useTheme();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const ordersPath = `/api/orders?limit=${limit}`;
+  
   const { data, isLoading, error, refetch } = useQuery<OrdersResponse>({
-    queryKey: [`/api/orders?limit=${limit}`],
+    queryKey: [ordersPath],
+    queryFn: async () => {
+      const url = new URL(ordersPath, getApiUrl());
+      const res = await fetch(url.toString(), { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
+      return res.json();
+    },
     refetchInterval: 15000,
   });
 
