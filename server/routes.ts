@@ -45,6 +45,9 @@ import {
   SUPPORTED_EVENTS,
   type WebhookConfig,
 } from "./lib/webhook-emitter";
+import { getAllUsageStats, getUsageStats } from "./lib/apiBudget";
+import { getCacheStats, getAllCacheEntries, purgeExpiredCache, invalidateCache } from "./lib/persistentApiCache";
+import { getAllProviderPolicies, getProviderPolicy } from "./lib/apiPolicy";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -3010,6 +3013,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/notifications/stats", authMiddleware, (req, res) => {
     res.json(getNotificationStats());
+  });
+
+  // ============================================================
+  // Admin API - Budget & Cache Management
+  // ============================================================
+
+  app.get("/api/admin/api-usage", authMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.query;
+      
+      if (provider && typeof provider === "string") {
+        const stats = await getUsageStats(provider);
+        const policy = getProviderPolicy(provider);
+        res.json({ provider, stats, policy });
+      } else {
+        const allStats = await getAllUsageStats();
+        const policies = getAllProviderPolicies();
+        res.json({ usage: allStats, policies });
+      }
+    } catch (error) {
+      console.error("Failed to get API usage stats:", error);
+      res.status(500).json({ error: "Failed to get API usage stats" });
+    }
+  });
+
+  app.get("/api/admin/api-cache", authMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.query;
+      const providerFilter = typeof provider === "string" ? provider : undefined;
+      
+      const stats = await getCacheStats(providerFilter);
+      const entries = await getAllCacheEntries(providerFilter);
+      
+      res.json({ stats, entries });
+    } catch (error) {
+      console.error("Failed to get API cache stats:", error);
+      res.status(500).json({ error: "Failed to get API cache stats" });
+    }
+  });
+
+  app.post("/api/admin/api-cache/purge", authMiddleware, async (req, res) => {
+    try {
+      const { provider, key, expiredOnly } = req.body;
+      
+      let purgedCount = 0;
+      let message = "";
+      
+      if (provider && key) {
+        purgedCount = await invalidateCache(provider, key);
+        message = `Invalidated cache for ${provider}:${key}`;
+      } else if (provider && !expiredOnly) {
+        purgedCount = await invalidateCache(provider);
+        message = `Invalidated all cache entries for ${provider}`;
+      } else {
+        purgedCount = await purgeExpiredCache();
+        message = provider 
+          ? `Purged expired cache entries (provider filter not supported for expired purge)`
+          : "Purged all expired cache entries";
+      }
+      
+      res.json({ success: true, purgedCount, message });
+    } catch (error) {
+      console.error("Failed to purge API cache:", error);
+      res.status(500).json({ error: "Failed to purge API cache" });
+    }
   });
 
   const httpServer = createServer(app);
