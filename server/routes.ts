@@ -21,7 +21,8 @@ import { huggingface } from "./connectors/huggingface";
 import { gdelt } from "./connectors/gdelt";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
-import { paperTradingEngine } from "./trading/paper-trading-engine";
+// DEPRECATED: paperTradingEngine is no longer used in UI paths - Alpaca is source of truth
+// import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { 
   orderExecutionEngine,
@@ -33,6 +34,15 @@ import { orchestrator } from "./autonomous/orchestrator";
 import { marketConditionAnalyzer } from "./ai/market-condition-analyzer";
 import { eventBus, logger, coordinator } from "./orchestration";
 import { safeParseFloat } from "./utils/numeric";
+import { 
+  mapAlpacaPositionToEnriched, 
+  mapAlpacaOrderToEnriched,
+  createLiveSourceMetadata,
+  createUnavailableSourceMetadata,
+  type DataSourceMetadata,
+  type EnrichedPosition,
+  type EnrichedOrder,
+} from "@shared/position-mapper";
 import {
   registerWebhook,
   unregisterWebhook,
@@ -1113,68 +1123,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Returns LIVE Alpaca positions (source of truth) - syncs to database for historical tracking
+  // Returns LIVE Alpaca positions (source of truth per SOURCE_OF_TRUTH_CONTRACT.md)
+  // Database sync happens async - DB is cache/audit trail only
   app.get("/api/positions", async (req, res) => {
+    const fetchedAt = new Date();
     try {
       const positions = await alpaca.getPositions();
       
-      // Sync to database in background (don't block response)
+      // Sync to database in background (don't block response) - write-behind cache
       storage.syncPositionsFromAlpaca(positions).catch(err => 
         console.error("Failed to sync positions to database:", err)
       );
       
-      const enrichedPositions = positions.map(p => ({
-        id: p.asset_id,
-        symbol: p.symbol,
-        quantity: p.qty,
-        entryPrice: p.avg_entry_price,
-        currentPrice: p.current_price,
-        unrealizedPnl: p.unrealized_pl,
-        side: safeParseFloat(p.qty, 0) > 0 ? "long" : "short",
-        marketValue: safeParseFloat(p.market_value, 0),
-        unrealizedPnlPercent: safeParseFloat(p.unrealized_plpc, 0) * 100,
-        assetClass: p.asset_class,
-        exchange: p.exchange,
-        costBasis: safeParseFloat(p.cost_basis, 0),
-        changeToday: safeParseFloat(p.change_today, 0) * 100,
-      }));
+      const enrichedPositions = positions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
       
-      res.json(enrichedPositions);
+      res.json({
+        positions: enrichedPositions,
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
-      console.error("Failed to fetch positions:", error);
-      // Fallback to database positions if Alpaca fails
-      try {
-        const dbPositions = await storage.getPositions();
-        res.json(dbPositions);
-      } catch {
-        res.status(500).json({ error: "Failed to get positions" });
-      }
+      console.error("Failed to fetch positions from Alpaca:", error);
+      // Per SOURCE_OF_TRUTH_CONTRACT.md: Do NOT fallback to stale DB data without warning
+      // Return error with source metadata so UI can display appropriate message
+      res.status(503).json({ 
+        error: "Live position data unavailable from Alpaca",
+        _source: createUnavailableSourceMetadata(),
+        message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      });
     }
   });
 
-  // Alias for /api/positions (backward compatibility)
+  // Alias for /api/positions (backward compatibility) - Uses Alpaca source of truth
   app.get("/api/positions/broker", async (req, res) => {
+    const fetchedAt = new Date();
     try {
       const positions = await alpaca.getPositions();
+      const enrichedPositions = positions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
       
-      const enrichedPositions = positions.map(p => ({
-        symbol: p.symbol,
-        quantity: safeParseFloat(p.qty, 0),
-        entryPrice: safeParseFloat(p.avg_entry_price, 0),
-        currentPrice: safeParseFloat(p.current_price, 0),
-        marketValue: safeParseFloat(p.market_value, 0),
-        unrealizedPnl: safeParseFloat(p.unrealized_pl, 0),
-        unrealizedPnlPercent: safeParseFloat(p.unrealized_plpc, 0) * 100,
-        side: safeParseFloat(p.qty, 0) > 0 ? "long" : "short",
-        assetClass: p.asset_class,
-        exchange: p.exchange,
-        costBasis: safeParseFloat(p.cost_basis, 0),
-      }));
-      
-      res.json(enrichedPositions);
+      res.json({
+        positions: enrichedPositions,
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Failed to fetch broker positions:", error);
-      res.status(500).json({ error: "Failed to fetch positions from broker" });
+      res.status(503).json({ 
+        error: "Failed to fetch positions from broker",
+        _source: createUnavailableSourceMetadata(),
+        message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      });
     }
   });
 
@@ -1331,34 +1327,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Returns LIVE Alpaca orders (source of truth per SOURCE_OF_TRUTH_CONTRACT.md)
   app.get("/api/orders/recent", async (req, res) => {
+    const fetchedAt = new Date();
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const orders = await alpaca.getOrders("all", limit);
       
       const enrichedOrders = orders.map(o => ({
-        id: o.id,
-        symbol: o.symbol,
-        side: o.side,
-        type: o.type,
-        status: o.status,
-        quantity: safeParseFloat(o.qty, 0),
-        filledQuantity: safeParseFloat(o.filled_qty, 0),
-        filledPrice: safeParseFloat(o.filled_avg_price, 0),
-        limitPrice: o.limit_price ? safeParseFloat(o.limit_price, 0) : null,
-        stopPrice: o.stop_price ? safeParseFloat(o.stop_price, 0) : null,
-        createdAt: o.created_at,
-        filledAt: o.filled_at,
-        submittedAt: o.submitted_at,
-        timeInForce: o.time_in_force,
+        ...mapAlpacaOrderToEnriched(o, fetchedAt),
         assetClass: o.asset_class,
+        submittedAt: o.submitted_at,
         isAI: true,
       }));
       
-      res.json(enrichedOrders);
+      res.json({
+        orders: enrichedOrders,
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Failed to fetch recent orders:", error);
-      res.status(500).json({ error: "Failed to fetch recent orders" });
+      res.status(503).json({ 
+        error: "Failed to fetch recent orders",
+        _source: createUnavailableSourceMetadata(),
+        message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      });
     }
   });
 
@@ -1887,69 +1880,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEPRECATED: Use /api/alpaca/trade instead - Alpaca is source of truth per SOURCE_OF_TRUTH_CONTRACT.md
+  // This endpoint now routes to Alpaca trading engine
   app.post("/api/trading/execute", async (req, res) => {
     try {
-      const { symbol, side, quantity, price, strategyId, notes } = req.body;
+      const { symbol, side, quantity, strategyId, notes } = req.body;
 
-      if (!symbol || !side || !quantity || !price) {
-        return res.status(400).json({ error: "Symbol, side, quantity, and price are required" });
+      if (!symbol || !side || !quantity) {
+        return res.status(400).json({ error: "Symbol, side, and quantity are required" });
       }
 
       if (!["buy", "sell"].includes(side)) {
         return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
       }
 
-      const result = await paperTradingEngine.executeTrade({
+      console.log(`[DEPRECATED] /api/trading/execute called - redirecting to Alpaca trading engine`);
+      
+      const result = await alpacaTradingEngine.executeAlpacaTrade({
         symbol,
         side,
         quantity: safeParseFloat(quantity),
-        price: safeParseFloat(price),
         strategyId,
-        notes,
       });
 
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-
-      res.json(result);
+      res.json({
+        ...result,
+        _deprecated: true,
+        _message: "Use /api/alpaca/trade endpoint instead",
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Trade execution error:", error);
       res.status(500).json({ error: "Failed to execute trade" });
     }
   });
 
+  // DEPRECATED: Use /api/alpaca/positions/:symbol/close instead - Alpaca is source of truth
   app.post("/api/trading/close/:positionId", async (req, res) => {
     try {
       const { positionId } = req.params;
-      const { currentPrice } = req.body;
+      
+      console.log(`[DEPRECATED] /api/trading/close called - closing position via Alpaca`);
+      
+      // positionId might be a symbol - try to close via Alpaca
+      const result = await alpacaTradingEngine.closeAlpacaPosition(positionId);
 
-      const result = await paperTradingEngine.closePosition(
-        positionId,
-        currentPrice ? safeParseFloat(currentPrice) : undefined
-      );
-
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-
-      res.json(result);
+      res.json({
+        ...result,
+        _deprecated: true,
+        _message: "Use /api/alpaca/positions/:symbol/close endpoint instead",
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Close position error:", error);
       res.status(500).json({ error: "Failed to close position" });
     }
   });
 
+  // DEPRECATED: Use /api/account for Alpaca account data - Alpaca is source of truth
   app.get("/api/trading/portfolio", async (req, res) => {
     try {
-      const summary = await paperTradingEngine.getPortfolioSummary();
-      res.json(summary);
+      console.log(`[DEPRECATED] /api/trading/portfolio called - fetching from Alpaca`);
+      
+      const account = await alpaca.getAccount();
+      const positions = await alpaca.getPositions();
+      const fetchedAt = new Date();
+      
+      const enrichedPositions = positions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
+      const unrealizedPnl = positions.reduce((sum, p) => sum + safeParseFloat(p.unrealized_pl, 0), 0);
+      
+      res.json({
+        cashBalance: safeParseFloat(account.cash, 0),
+        equity: safeParseFloat(account.equity, 0),
+        portfolioValue: safeParseFloat(account.portfolio_value, 0),
+        buyingPower: safeParseFloat(account.buying_power, 0),
+        positionsCount: positions.length,
+        unrealizedPnl,
+        positions: enrichedPositions,
+        _deprecated: true,
+        _message: "Use /api/account and /api/positions endpoints instead",
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Portfolio summary error:", error);
-      res.status(500).json({ error: "Failed to get portfolio summary" });
+      res.status(503).json({ 
+        error: "Failed to get portfolio summary",
+        _source: createUnavailableSourceMetadata(),
+      });
     }
   });
 
+  // DEPRECATED: Use /api/alpaca/analyze-execute instead - Alpaca is source of truth
   app.post("/api/trading/analyze-execute", async (req, res) => {
     try {
       const { symbol, strategyId } = req.body;
@@ -1958,40 +1979,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Symbol is required" });
       }
 
-      const result = await paperTradingEngine.analyzeAndExecute(symbol, strategyId);
-      res.json(result);
+      console.log(`[DEPRECATED] /api/trading/analyze-execute called - using Alpaca engine`);
+      
+      const result = await alpacaTradingEngine.analyzeAndExecute(symbol, strategyId);
+      res.json({
+        ...result,
+        _deprecated: true,
+        _message: "Use /api/alpaca/analyze-execute endpoint instead",
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Analyze and execute error:", error);
       res.status(500).json({ error: "Failed to analyze and execute trade" });
     }
   });
 
+  // DEPRECATED: Prices now always come live from Alpaca - no manual update needed
   app.post("/api/trading/update-prices", async (req, res) => {
-    try {
-      await paperTradingEngine.updatePositionPrices();
-      res.json({ success: true, message: "Position prices updated" });
-    } catch (error) {
-      console.error("Update prices error:", error);
-      res.status(500).json({ error: "Failed to update position prices" });
-    }
+    console.log(`[DEPRECATED] /api/trading/update-prices called - prices come live from Alpaca`);
+    res.json({ 
+      success: true, 
+      message: "Prices are now fetched live from Alpaca. This endpoint is deprecated.",
+      _deprecated: true,
+      _source: createLiveSourceMetadata(),
+    });
   });
 
+  // DEPRECATED: Cannot reset Alpaca paper trading account via API
   app.post("/api/trading/reset", async (req, res) => {
-    try {
-      await paperTradingEngine.resetPortfolio();
-      const cashBalance = await paperTradingEngine.getCashBalance();
-      res.json({ success: true, cashBalance });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reset portfolio" });
-    }
+    console.log(`[DEPRECATED] /api/trading/reset called - Alpaca accounts cannot be reset via API`);
+    res.status(400).json({ 
+      error: "Cannot reset Alpaca paper trading account via API. Use the Alpaca dashboard to reset your paper account.",
+      _deprecated: true,
+    });
   });
 
+  // DEPRECATED: Use /api/account for Alpaca account balance - Alpaca is source of truth
   app.get("/api/trading/balance", async (req, res) => {
     try {
-      const cashBalance = await paperTradingEngine.getCashBalance();
-      res.json({ cashBalance });
+      console.log(`[DEPRECATED] /api/trading/balance called - fetching from Alpaca`);
+      
+      const account = await alpaca.getAccount();
+      res.json({ 
+        cashBalance: safeParseFloat(account.cash, 0),
+        buyingPower: safeParseFloat(account.buying_power, 0),
+        equity: safeParseFloat(account.equity, 0),
+        _deprecated: true,
+        _message: "Use /api/account endpoint instead",
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
-      res.status(500).json({ error: "Failed to get balance" });
+      res.status(503).json({ 
+        error: "Failed to get balance",
+        _source: createUnavailableSourceMetadata(),
+      });
     }
   });
 
@@ -2095,10 +2136,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Close all positions via Alpaca - source of truth per SOURCE_OF_TRUTH_CONTRACT.md
   app.post("/api/risk/close-all", async (req, res) => {
     try {
-      const result = await paperTradingEngine.closeAllPositions();
-      res.json(result);
+      console.log("[RISK] Closing all positions via Alpaca...");
+      const result = await alpacaTradingEngine.closeAllPositions();
+      res.json({
+        ...result,
+        _source: createLiveSourceMetadata(),
+      });
     } catch (error) {
       console.error("Failed to close all positions:", error);
       res.status(500).json({ error: "Failed to close all positions" });

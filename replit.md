@@ -32,6 +32,28 @@ The platform is transitioning to an event-driven microservices architecture comp
 - **Containerization**: Node.js 22 Alpine containers orchestrated with Kubernetes.
 - **Observability**: OpenTelemetry for distributed tracing and performance metrics.
 - **Fault Isolation**: Circuit breakers to enhance system resilience.
+- **Alpaca Source of Truth**: All live position/order data comes from Alpaca Paper Trading API - database is cache/audit trail only. See `docs/SOURCE_OF_TRUTH_CONTRACT.md`.
+
+### Alpaca Source of Truth Contract (December 2025)
+The platform uses **Alpaca Paper Trading** as the single source of truth for all live trading data:
+
+**Principles:**
+- All position and order data displayed in UI comes from Alpaca API
+- Database stores historical snapshots for auditing, not live state
+- API responses include `_source` metadata indicating data freshness (`alpaca_live`, `cache_stale`, `unavailable`)
+- Position sync is write-behind: Alpaca data synced to DB asynchronously
+
+**Key Files:**
+- `docs/SOURCE_OF_TRUTH_CONTRACT.md` - Full contract specification
+- `shared/position-mapper.ts` - Alpaca-to-DB field mapping utilities
+- `server/connectors/alpaca.ts` - Alpaca API connector
+- `server/trading/alpaca-trading-engine.ts` - Trading engine using Alpaca
+
+**Deprecated Endpoints (redirected to Alpaca):**
+- `/api/trading/execute` → Use `/api/alpaca/trade`
+- `/api/trading/close/:id` → Use `/api/alpaca/positions/:symbol/close`
+- `/api/trading/portfolio` → Use `/api/account` and `/api/positions`
+- `/api/trading/balance` → Use `/api/account`
 
 ### Algorithm Framework & Shared Libraries (`services/shared/`)
 The platform includes a comprehensive algorithm framework inspired by LEAN, NautilusTrader, and Freqtrade:
