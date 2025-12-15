@@ -42,6 +42,15 @@ export interface LLMToolChoice {
   function: { name: string };
 }
 
+export interface ResponseFormat {
+  type: "json_object" | "json_schema";
+  json_schema?: {
+    name: string;
+    schema: object;
+    strict?: boolean;
+  };
+}
+
 export interface LLMRequest {
   model?: string;
   system?: string;
@@ -50,6 +59,7 @@ export interface LLMRequest {
   toolChoice?: "auto" | "none" | LLMToolChoice;
   maxTokens?: number;
   temperature?: number;
+  responseFormat?: ResponseFormat;
 }
 
 export interface LLMToolCall {
@@ -60,10 +70,15 @@ export interface LLMToolCall {
 
 export interface LLMResponse {
   text?: string;
+  content?: string;
   toolCalls?: LLMToolCall[];
   raw: unknown;
   model?: string;
-  tokensUsed?: number;
+  tokensUsed?: {
+    prompt?: number;
+    completion?: number;
+    total?: number;
+  } | number;
 }
 
 export interface LLMClient {

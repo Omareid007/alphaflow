@@ -74,6 +74,8 @@ export const aiDecisions = pgTable("ai_decisions", {
   filledPrice: numeric("filled_price"),
   filledAt: timestamp("filled_at"),
   skipReason: text("skip_reason"),
+  traceId: text("trace_id"),
+  metadata: text("metadata"),
 });
 
 export const agentStatus = pgTable("agent_status", {
@@ -354,6 +356,10 @@ export const llmCalls = pgTable("llm_calls", {
   cacheHit: boolean("cache_hit").default(false).notNull(),
   fallbackUsed: boolean("fallback_used").default(false).notNull(),
   fallbackReason: text("fallback_reason"),
+  traceId: text("trace_id"),
+  criticality: text("criticality"),
+  purpose: text("purpose"),
+  metadata: text("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
