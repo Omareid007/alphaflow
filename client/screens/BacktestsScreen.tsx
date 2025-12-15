@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { View, FlatList, StyleSheet, ActivityIndicator, Pressable, Modal, TextInput, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { useHeaderHeight, HeaderButton } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -615,6 +615,16 @@ export default function BacktestsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [showModal, setShowModal] = useState(false);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <HeaderButton onPress={() => setShowModal(true)}>
+          <Feather name="plus" size={24} color={BrandColors.primaryLight} />
+        </HeaderButton>
+      ),
+    });
+  }, [navigation]);
+
   const { data, isLoading, error, refetch } = useQuery<BacktestsResponse>({
     queryKey: ["/api/backtests"],
     refetchInterval: 10000,
@@ -701,15 +711,6 @@ export default function BacktestsScreen() {
           )
         }
       />
-
-      <Pressable
-        onPress={() => setShowModal(true)}
-        style={[styles.fab, { backgroundColor: BrandColors.primaryLight }]}
-        accessibilityLabel="Run new backtest"
-        accessibilityRole="button"
-      >
-        <Feather name="play" size={24} color="#FFFFFF" />
-      </Pressable>
 
       <RunBacktestModal
         visible={showModal}
@@ -879,21 +880,6 @@ const styles = StyleSheet.create({
   },
   mutationErrorText: {
     ...Typography.small,
-  },
-  fab: {
-    position: "absolute",
-    bottom: 100,
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
   modalOverlay: {
     flex: 1,

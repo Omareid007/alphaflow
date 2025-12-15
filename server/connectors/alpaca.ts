@@ -491,19 +491,28 @@ class AlpacaConnector {
     timeframe: string = "1Day",
     start?: string,
     end?: string,
-    limit = 100
+    limit = 100,
+    pageToken?: string
   ): Promise<AlpacaBarsResponse> {
     const symbolsParam = symbols.join(",");
-    const cacheKey = `bars_${symbolsParam}_${timeframe}_${start}_${end}`;
-    const cached = this.getCached<AlpacaBarsResponse>(cacheKey);
-    if (cached) return cached;
+    
+    if (!pageToken) {
+      const cacheKey = `bars_${symbolsParam}_${timeframe}_${start}_${end}`;
+      const cached = this.getCached<AlpacaBarsResponse>(cacheKey);
+      if (cached) return cached;
+    }
 
     let url = `${ALPACA_DATA_URL}/v2/stocks/bars?symbols=${symbolsParam}&timeframe=${timeframe}&limit=${limit}`;
     if (start) url += `&start=${start}`;
     if (end) url += `&end=${end}`;
+    if (pageToken) url += `&page_token=${pageToken}`;
 
     const data = await this.fetchWithRetry<AlpacaBarsResponse>(url);
-    this.setCache(cacheKey, data);
+    
+    if (!pageToken) {
+      const cacheKey = `bars_${symbolsParam}_${timeframe}_${start}_${end}`;
+      this.setCache(cacheKey, data);
+    }
     return data;
   }
 

@@ -38,13 +38,14 @@ async function fetchBarsPage(
   startDate: string,
   endDate: string,
   limit: number,
-  cacheKeySuffix: string
+  cacheKeySuffix: string,
+  pageToken?: string
 ): Promise<CallExternalResult<AlpacaBarsResponse>> {
   const cacheKeyStr = `bars:${symbol}:${timeframe}:${startDate}:${endDate}:${cacheKeySuffix}`;
   const endpoint = `bars/${symbol}/${timeframe}/${startDate}/${endDate}`;
 
   return callExternal<AlpacaBarsResponse>(
-    () => alpaca.getBars([symbol], timeframe, startDate, endDate, limit),
+    () => alpaca.getBars([symbol], timeframe, startDate, endDate, limit, pageToken),
     {
       provider: "alpaca",
       endpoint,
@@ -90,7 +91,8 @@ export async function fetchHistoricalBars(options: {
           startDate,
           endDate,
           BATCH_LIMIT,
-          tokenSuffix
+          tokenSuffix,
+          currentPageToken ?? undefined
         );
 
         totalRequests++;
