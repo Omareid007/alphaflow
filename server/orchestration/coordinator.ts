@@ -239,6 +239,19 @@ class TradingCoordinator {
     this.tradeCount24h = 0;
     logger.info("COORDINATOR", "Statistics reset");
   }
+
+  async triggerReconcileNow(): Promise<{ success: boolean; message: string }> {
+    if (!this.isRunning) {
+      return { success: false, message: "Coordinator is not running" };
+    }
+    logger.info("COORDINATOR", "Manual reconciliation triggered");
+    await this.reconcilePositions();
+    return { success: true, message: "Reconciliation triggered" };
+  }
+
+  getActiveStrategies(): string[] {
+    return Array.from(this.activeStrategies);
+  }
 }
 
 export const coordinator = new TradingCoordinator();

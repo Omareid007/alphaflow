@@ -4492,6 +4492,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // ADMIN ORCHESTRATOR CONTROL ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/orchestrator/status", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const status = coordinator.getStatus();
+      const config = coordinator.getConfig();
+      const activeStrategies = coordinator.getActiveStrategies();
+      
+      res.json({
+        status,
+        config,
+        activeStrategies,
+        source: "coordinator",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Get orchestrator status error:", error);
+      res.status(500).json({ error: "Failed to get orchestrator status" });
+    }
+  });
+
+  app.post("/api/admin/orchestrator/pause", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      await coordinator.stop();
+      res.json({ success: true, message: "Orchestrator paused", isRunning: false });
+    } catch (error) {
+      console.error("Pause orchestrator error:", error);
+      res.status(500).json({ error: "Failed to pause orchestrator" });
+    }
+  });
+
+  app.post("/api/admin/orchestrator/resume", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      await coordinator.start();
+      res.json({ success: true, message: "Orchestrator resumed", isRunning: true });
+    } catch (error) {
+      console.error("Resume orchestrator error:", error);
+      res.status(500).json({ error: "Failed to resume orchestrator" });
+    }
+  });
+
+  app.post("/api/admin/orchestrator/run-now", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const result = await coordinator.triggerReconcileNow();
+      res.json(result);
+    } catch (error) {
+      console.error("Trigger reconcile error:", error);
+      res.status(500).json({ error: "Failed to trigger reconciliation" });
+    }
+  });
+
+  app.put("/api/admin/orchestrator/config", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const updates = req.body;
+      coordinator.updateConfig(updates);
+      res.json({ success: true, config: coordinator.getConfig() });
+    } catch (error) {
+      console.error("Update orchestrator config error:", error);
+      res.status(500).json({ error: "Failed to update configuration" });
+    }
+  });
+
+  app.post("/api/admin/orchestrator/reset-stats", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      coordinator.resetStats();
+      res.json({ success: true, message: "Statistics reset" });
+    } catch (error) {
+      console.error("Reset stats error:", error);
+      res.status(500).json({ error: "Failed to reset statistics" });
+    }
+  });
+
+  // ============================================================================
   // GLOBAL ADMIN SEARCH ENDPOINTS
   // ============================================================================
 
