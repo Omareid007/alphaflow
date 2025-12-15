@@ -11,6 +11,7 @@ export interface HistoricalBar {
   close: number;
   volume: number;
   vwap: number;
+  symbol: string;
 }
 
 export interface FetchBarsResult {
@@ -18,7 +19,7 @@ export interface FetchBarsResult {
   provenance: DataProvenance;
 }
 
-function transformAlpacaBar(bar: AlpacaBar): HistoricalBar {
+function transformAlpacaBar(bar: AlpacaBar, symbol: string): HistoricalBar {
   return {
     ts: bar.t,
     open: bar.o,
@@ -27,6 +28,7 @@ function transformAlpacaBar(bar: AlpacaBar): HistoricalBar {
     close: bar.c,
     volume: bar.v,
     vwap: bar.vw,
+    symbol,
   };
 }
 
@@ -98,7 +100,7 @@ export async function fetchHistoricalBars(options: {
         }
 
         const symbolBars: AlpacaBar[] = fetchResult.data.bars?.[symbol] || [];
-        const transformedBars: HistoricalBar[] = symbolBars.map(transformAlpacaBar);
+        const transformedBars: HistoricalBar[] = symbolBars.map(bar => transformAlpacaBar(bar, symbol));
         allBars[symbol].push(...transformedBars);
         totalBarsForSymbol += transformedBars.length;
 

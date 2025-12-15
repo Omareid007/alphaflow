@@ -16,10 +16,12 @@ router.post("/run", async (req: Request, res: Response) => {
       timeframe = "1Day",
       startDate,
       endDate,
-      initialCash = 100000,
+      initialCash = 10000,
       feesModel = { type: "fixed", value: 1 },
       slippageModel = { type: "bps", value: 5 },
-      executionPriceRule = "NEXT_OPEN"
+      executionPriceRule = "NEXT_OPEN",
+      strategyType = "moving_average_crossover",
+      strategyParams = {}
     } = req.body;
 
     if (!universe || !Array.isArray(universe) || universe.length === 0) {
@@ -27,6 +29,13 @@ router.post("/run", async (req: Request, res: Response) => {
     }
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "startDate and endDate are required" });
+    }
+
+    const validStrategyTypes = ['moving_average_crossover', 'rsi_oscillator', 'buy_and_hold'];
+    if (strategyType && !validStrategyTypes.includes(strategyType)) {
+      return res.status(400).json({ 
+        error: `Invalid strategyType. Must be one of: ${validStrategyTypes.join(', ')}` 
+      });
     }
 
     const result = await runBacktest({
@@ -40,6 +49,16 @@ router.post("/run", async (req: Request, res: Response) => {
       feesModel,
       slippageModel,
       executionPriceRule,
+      strategyType,
+      strategyParams: {
+        fastPeriod: strategyParams.fastPeriod || 10,
+        slowPeriod: strategyParams.slowPeriod || 20,
+        period: strategyParams.period || 14,
+        oversoldThreshold: strategyParams.oversoldThreshold || 30,
+        overboughtThreshold: strategyParams.overboughtThreshold || 70,
+        allocationPct: strategyParams.allocationPct || 10,
+        ...strategyParams
+      }
     });
 
     res.json(result);

@@ -22,3 +22,12 @@ export {
   listBacktestRuns,
   type RunBacktestParams,
 } from "./backtest-runner";
+
+export {
+  createStrategy,
+  createMovingAverageCrossoverStrategy,
+  createRSIStrategy,
+  createBuyAndHoldStrategy,
+  type StrategyType,
+  type StrategyConfig,
+} from "./strategies";

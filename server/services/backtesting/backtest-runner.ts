@@ -2,6 +2,7 @@ import { db } from "../../db";
 import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "../../../shared/schema";
 import { fetchHistoricalBars, type HistoricalBar } from "./historical-data-service";
 import { runSimulation, type StrategySignalGenerator, type SimulationConfig, type StrategySignal } from "./execution-engine";
+import { createStrategy, type StrategyType, type StrategyConfig } from "./strategies";
 import type { BacktestRun, FeesModel, SlippageModel, ExecutionPriceRule } from "../../../shared/types/backtesting";
 import { eq, desc } from "drizzle-orm";
 import { log } from "../../utils/logger";
@@ -18,6 +19,8 @@ export interface RunBacktestParams {
   feesModel: { type: "fixed" | "percentage"; value: number };
   slippageModel: { type: "bps" | "spread_proxy"; value: number };
   executionPriceRule: "NEXT_OPEN" | "NEXT_CLOSE";
+  strategyType?: StrategyType;
+  strategyParams?: Record<string, number>;
 }
 
 function hashConfig(config: Record<string, unknown>): string {
@@ -71,7 +74,11 @@ export async function runBacktest(params: RunBacktestParams): Promise<BacktestRu
     const totalBars = Object.values(bars).reduce((sum, arr) => sum + arr.length, 0);
     log.info("BacktestRunner", `Fetched ${totalBars} total bars for ${params.universe.length} symbols`);
 
-    const signalGenerator = createSignalGenerator(params.strategyConfig, params.initialCash);
+    const strategyConfig: StrategyConfig = {
+      type: params.strategyType || 'moving_average_crossover',
+      params: params.strategyParams || { allocationPct: 10, fastPeriod: 10, slowPeriod: 20 }
+    };
+    const signalGenerator = createStrategy(strategyConfig, params.universe, params.initialCash);
 
     const simConfig: SimulationConfig = {
       runId,
@@ -207,96 +214,6 @@ function mapToBacktestRun(row: typeof backtestRuns.$inferSelect): BacktestRun {
     resultsSummary: row.resultsSummary as BacktestRun["resultsSummary"],
     errorMessage: row.errorMessage,
     runtimeMs: row.runtimeMs,
-  };
-}
-
-function createSignalGenerator(
-  config: Record<string, unknown>,
-  initialCash: number
-): StrategySignalGenerator {
-  const strategyType = (config.strategyType as string) || "moving-average";
-  const fastPeriod = (config.fastPeriod as number) || 7;
-  const slowPeriod = (config.slowPeriod as number) || 20;
-  const allocationPct = (config.allocationPct as number) || 0.1;
-  const symbol = (config.symbol as string) || "";
-
-  if (strategyType === "moving-average") {
-    return createMovingAverageCrossoverGenerator(fastPeriod, slowPeriod, allocationPct, initialCash, symbol);
-  }
-
-  return {
-    onBar: () => [],
-  };
-}
-
-function createMovingAverageCrossoverGenerator(
-  fastPeriod: number,
-  slowPeriod: number,
-  allocationPct: number,
-  initialCash: number,
-  targetSymbol: string
-): StrategySignalGenerator {
-  let previousFastSMA: number | null = null;
-  let previousSlowSMA: number | null = null;
-  let inPosition = false;
-
-  function calculateSMA(prices: number[], period: number): number | null {
-    if (prices.length < period) {
-      return null;
-    }
-    const slice = prices.slice(-period);
-    return slice.reduce((a, b) => a + b, 0) / period;
-  }
-
-  return {
-    onBar(bar: HistoricalBar, barIndex: number, allBarsUpToNow: HistoricalBar[]): StrategySignal[] {
-      const signals: StrategySignal[] = [];
-      const prices = allBarsUpToNow.map((b) => b.close);
-
-      const fastSMA = calculateSMA(prices, fastPeriod);
-      const slowSMA = calculateSMA(prices, slowPeriod);
-
-      if (fastSMA === null || slowSMA === null) {
-        previousFastSMA = fastSMA;
-        previousSlowSMA = slowSMA;
-        return signals;
-      }
-
-      if (previousFastSMA !== null && previousSlowSMA !== null) {
-        const previousFastAboveSlow = previousFastSMA > previousSlowSMA;
-        const currentFastAboveSlow = fastSMA > slowSMA;
-
-        if (!previousFastAboveSlow && currentFastAboveSlow && !inPosition) {
-          const allocationAmount = initialCash * allocationPct;
-          const qty = Math.floor(allocationAmount / bar.close);
-
-          if (qty > 0) {
-            signals.push({
-              symbol: targetSymbol || "AAPL",
-              side: "buy",
-              qty,
-              reason: `Bullish crossover: Fast SMA (${fastSMA.toFixed(2)}) crossed above Slow SMA (${slowSMA.toFixed(2)})`,
-            });
-            inPosition = true;
-          }
-        }
-
-        if (previousFastAboveSlow && !currentFastAboveSlow && inPosition) {
-          signals.push({
-            symbol: targetSymbol || "AAPL",
-            side: "sell",
-            qty: 999999,
-            reason: `Bearish crossover: Fast SMA (${fastSMA.toFixed(2)}) crossed below Slow SMA (${slowSMA.toFixed(2)})`,
-          });
-          inPosition = false;
-        }
-      }
-
-      previousFastSMA = fastSMA;
-      previousSlowSMA = slowSMA;
-
-      return signals;
-    },
   };
 }
 
