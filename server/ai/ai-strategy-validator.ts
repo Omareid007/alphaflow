@@ -1,14 +1,9 @@
-import OpenAI from "openai";
 import pLimit from "p-limit";
 import pRetry from "p-retry";
 import type { MovingAverageCrossoverConfig } from "../strategies/moving-average-crossover";
+import { callLLM, generateTraceId } from "./llmGateway";
 
 const MODEL = "gpt-4o";
-
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
 
 const limit = pLimit(2);
 
@@ -78,17 +73,18 @@ Keep the output tight, data-driven, and free of unnecessary explanation.
     pRetry(
       async () => {
         try {
-          const response = await openai.chat.completions.create({
-            model: MODEL,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            response_format: { type: "json_object" },
-            max_completion_tokens: 1024,
+          const response = await callLLM({
+            role: "risk_manager",
+            criticality: "medium",
+            purpose: "strategy_validation",
+            traceId: generateTraceId(),
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt }],
+            responseFormat: { type: "json_object" },
+            maxTokens: 1024,
           });
 
-          const content = response.choices[0]?.message?.content;
+          const content = response.text;
           if (!content) {
             throw new Error("Empty response from AI");
           }

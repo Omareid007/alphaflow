@@ -1,22 +1,19 @@
-import OpenAI from "openai";
 import pLimit from "p-limit";
 import pRetry from "p-retry";
-import { openRouterProvider } from "./openrouter-provider";
 import { log } from "../utils/logger";
 import { gdelt } from "../connectors/gdelt";
 import { valyu } from "../connectors/valyu";
 import { finnhub } from "../connectors/finnhub";
 import { newsapi } from "../connectors/newsapi";
+import { callLLM, generateTraceId, type Criticality } from "./llmGateway";
+import { LLMTool, LLMMessage } from "./llmClient";
 
-const MODEL = "gpt-4o-mini";
-
-const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+const DATA_QUERY_TOOLS: LLMTool[] = [
   {
     type: "function",
     function: {
       name: "get_news_sentiment",
       description: "Get real-time news sentiment and headlines for a stock or crypto symbol from GDELT (free, updates every 15 min)",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -30,7 +27,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["symbol", "isCrypto"],
-        additionalProperties: false
       }
     }
   },
@@ -39,7 +35,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_financial_ratios",
       description: "Get fundamental financial ratios for a stock (P/E, ROE, debt-to-equity, etc.) from Valyu.ai",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -49,7 +44,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["symbol"],
-        additionalProperties: false
       }
     }
   },
@@ -58,7 +52,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_earnings_data",
       description: "Get recent earnings data (EPS, revenue, surprises) for a stock",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -68,7 +61,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["symbol"],
-        additionalProperties: false
       }
     }
   },
@@ -77,7 +69,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_insider_transactions",
       description: "Get recent insider trading activity (buys/sells by executives)",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -87,7 +78,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["symbol"],
-        additionalProperties: false
       }
     }
   },
@@ -96,7 +86,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_additional_news",
       description: "Get additional news headlines from NewsAPI for broader market context",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -106,7 +95,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["query"],
-        additionalProperties: false
       }
     }
   },
@@ -115,7 +103,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "get_market_quote",
       description: "Get real-time stock quote data from Finnhub",
-      strict: true,
       parameters: {
         type: "object",
         properties: {
@@ -125,7 +112,6 @@ const DATA_QUERY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           }
         },
         required: ["symbol"],
-        additionalProperties: false
       }
     }
   }
@@ -219,10 +205,6 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
   }
 }
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
 
 export interface MarketData {
   symbol: string;
@@ -258,6 +240,7 @@ export interface AIDecision {
   stopLoss?: number;
   trailingStopPercent?: number;
   aiDecisionId?: string;
+  traceId?: string;
 }
 
 function isRateLimitOrQuotaError(error: unknown): boolean {
@@ -274,10 +257,6 @@ function isRateLimitOrQuotaError(error: unknown): boolean {
 }
 
 const limit = pLimit(2);
-
-let useOpenRouterFallback = false;
-let openAIFailureCount = 0;
-const MAX_OPENAI_FAILURES = 3;
 
 export class AIDecisionEngine {
   private getSystemPrompt(): string {
@@ -305,67 +284,48 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
     symbol: string,
     marketData: MarketData,
     newsContext?: NewsContext,
-    strategy?: StrategyContext
+    strategy?: StrategyContext,
+    options?: { criticality?: Criticality; traceId?: string }
   ): Promise<AIDecision> {
     const systemPrompt = this.getSystemPrompt();
     const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
-
-    if (useOpenRouterFallback && openRouterProvider.isAvailable()) {
-      return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
-    }
+    const traceId = options?.traceId || generateTraceId();
+    const criticality = options?.criticality || "medium";
 
     return limit(() =>
       pRetry(
         async () => {
           try {
-            const response = await openai.chat.completions.create({
-              model: MODEL,
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-              ],
-              response_format: { type: "json_object" },
-              max_completion_tokens: 1024,
+            const response = await callLLM({
+              role: "technical_analyst",
+              criticality,
+              purpose: "analyze_trade_opportunity",
+              traceId,
+              symbol,
+              system: systemPrompt,
+              messages: [{ role: "user", content: userPrompt }],
+              responseFormat: { type: "json_object" },
+              maxTokens: 1024,
+              temperature: 0.3,
             });
 
-            const content = response.choices[0]?.message?.content;
+            const content = response.text;
             if (!content) {
-              log.warn("AI", "Empty response from AI for analysis, trying OpenRouter fallback");
-              if (openRouterProvider.isAvailable()) {
-                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
-              }
-              return this.getDefaultDecision("AI returned empty response");
+              log.warn("AI", "Empty response from LLM Gateway", { traceId });
+              return { ...this.getDefaultDecision("AI returned empty response"), traceId };
             }
 
-            openAIFailureCount = 0;
-            const parsed = JSON.parse(content) as AIDecision;
-            return this.validateDecision(parsed);
+            const parsed = (response.json as AIDecision) || JSON.parse(content);
+            return { ...this.validateDecision(parsed), traceId };
           } catch (error) {
             const errorMsg = (error as Error).message || String(error);
-            
-            // Check for empty response or parse errors - use fallback instead of throwing
-            if (errorMsg.includes("Empty response") || errorMsg.includes("JSON")) {
-              log.warn("AI", "Parse/empty error, trying OpenRouter fallback", { error: errorMsg });
-              if (openRouterProvider.isAvailable()) {
-                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
-              }
-              return this.getDefaultDecision(`AI analysis issue: ${errorMsg}`);
-            }
+            log.error("AI", "LLM Gateway failed", { traceId, error: errorMsg });
             
             if (isRateLimitOrQuotaError(error)) {
-              openAIFailureCount++;
-              log.warn("AI", `OpenAI failure ${openAIFailureCount}/${MAX_OPENAI_FAILURES}`, { error: errorMsg });
-              
-              if (openAIFailureCount >= MAX_OPENAI_FAILURES && openRouterProvider.isAvailable()) {
-                log.info("AI", "Switching to OpenRouter fallback");
-                useOpenRouterFallback = true;
-                return this.analyzeWithOpenRouter(systemPrompt, userPrompt);
-              }
               throw error;
             }
-            const abortError = new Error(errorMsg);
-            (abortError as Error & { name: string }).name = 'AbortError';
-            throw abortError;
+            
+            return { ...this.getDefaultDecision(`AI analysis failed: ${errorMsg}`), traceId };
           }
         },
         {
@@ -378,26 +338,12 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
     );
   }
 
-  private async analyzeWithOpenRouter(
-    systemPrompt: string,
-    userPrompt: string
-  ): Promise<AIDecision> {
-    try {
-      const { content, model } = await openRouterProvider.chat(systemPrompt, userPrompt);
-      log.info("AI", `OpenRouter response from ${model}`);
-      const parsed = JSON.parse(content) as AIDecision;
-      return this.validateDecision(parsed);
-    } catch (error) {
-      log.error("AI", "OpenRouter failed", { error: (error as Error).message });
-      return this.getDefaultDecision("OpenRouter analysis failed");
-    }
-  }
-
   async analyzeWithFunctionCalling(
     symbol: string,
     marketData: MarketData,
     newsContext?: NewsContext,
-    strategy?: StrategyContext
+    strategy?: StrategyContext,
+    options?: { criticality?: Criticality; traceId?: string }
   ): Promise<AIDecision & { toolsUsed?: string[] }> {
     const systemPrompt = `You are an expert trading analyst AI assistant for a paper trading application.
 
@@ -416,78 +362,85 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
 
     const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
     const toolsUsed: string[] = [];
+    const traceId = options?.traceId || generateTraceId();
+    const criticality = options?.criticality || "high";
 
     try {
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: systemPrompt },
+      const messages: LLMMessage[] = [
         { role: "user", content: userPrompt },
       ];
 
-      let response = await openai.chat.completions.create({
-        model: MODEL,
+      let response = await callLLM({
+        role: "technical_analyst",
+        criticality,
+        purpose: "analyze_with_tools",
+        traceId,
+        symbol,
+        system: systemPrompt,
         messages,
         tools: DATA_QUERY_TOOLS,
-        tool_choice: "auto",
-        max_completion_tokens: 2048,
-        parallel_tool_calls: false,
+        toolChoice: "auto",
+        maxTokens: 2048,
+        temperature: 0.3,
       });
 
       let iterations = 0;
       const maxIterations = 3;
 
-      while (response.choices[0]?.message?.tool_calls && iterations < maxIterations) {
-        const toolCalls = response.choices[0].message.tool_calls;
-        messages.push(response.choices[0].message);
+      while (response.toolCalls && response.toolCalls.length > 0 && iterations < maxIterations) {
+        for (const toolCall of response.toolCalls) {
+          log.debug("AI", `Function call: ${toolCall.name}`, { args: toolCall.arguments });
+          toolsUsed.push(toolCall.name);
 
-        for (const toolCall of toolCalls) {
-          const funcCall = toolCall as { id: string; type: string; function: { name: string; arguments: string } };
-          const args = JSON.parse(funcCall.function.arguments);
-          log.debug("AI", `Function call: ${funcCall.function.name}`, { args });
-          toolsUsed.push(funcCall.function.name);
-
-          const result = await executeToolCall(funcCall.function.name, args);
+          const result = await executeToolCall(toolCall.name, toolCall.arguments);
           messages.push({
             role: "tool",
-            tool_call_id: funcCall.id,
             content: result,
+            tool_call_id: toolCall.id,
           });
         }
 
-        response = await openai.chat.completions.create({
-          model: MODEL,
+        response = await callLLM({
+          role: "technical_analyst",
+          criticality,
+          purpose: "analyze_with_tools_continue",
+          traceId,
+          symbol,
+          system: systemPrompt,
           messages,
           tools: DATA_QUERY_TOOLS,
-          tool_choice: "auto",
-          max_completion_tokens: 2048,
-          parallel_tool_calls: false,
+          toolChoice: "auto",
+          maxTokens: 2048,
+          temperature: 0.3,
         });
 
         iterations++;
       }
 
-      const content = response.choices[0]?.message?.content;
+      const content = response.text;
       if (!content) {
-        log.warn("AI", "Empty response from function-calling analysis");
-        return { ...this.getDefaultDecision("Empty response"), toolsUsed };
+        log.warn("AI", "Empty response from function-calling analysis", { traceId });
+        return { ...this.getDefaultDecision("Empty response"), toolsUsed, traceId };
       }
 
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        log.warn("AI", "No JSON found in function-calling response");
-        return { ...this.getDefaultDecision("No JSON in response"), toolsUsed };
+        log.warn("AI", "No JSON found in function-calling response", { traceId });
+        return { ...this.getDefaultDecision("No JSON in response"), toolsUsed, traceId };
       }
 
       const parsed = JSON.parse(jsonMatch[0]) as AIDecision;
       log.info("AI", `Function-calling analysis complete`, { 
         symbol, 
         action: parsed.action, 
-        toolsUsed: toolsUsed.length 
+        toolsUsed: toolsUsed.length,
+        traceId,
       });
       
-      return { ...this.validateDecision(parsed), toolsUsed };
+      return { ...this.validateDecision(parsed), toolsUsed, traceId };
     } catch (error) {
-      log.error("AI", "Function-calling analysis failed", { error: (error as Error).message });
-      return { ...await this.analyzeOpportunity(symbol, marketData, newsContext, strategy), toolsUsed };
+      log.error("AI", "Function-calling analysis failed", { error: (error as Error).message, traceId });
+      return { ...await this.analyzeOpportunity(symbol, marketData, newsContext, strategy, { traceId, criticality }), toolsUsed };
     }
   }
 
@@ -623,27 +576,16 @@ Symbol: ${symbol}
     return results;
   }
 
-  getStatus(): { available: boolean; model: string; provider: string; usingFallback: boolean } {
-    const openAIAvailable = !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
-    const openRouterStatus = openRouterProvider.getStatus();
+  getStatus(): { available: boolean; model: string; provider: string; usingGateway: boolean } {
+    const { llmGateway } = require("./llmGateway");
+    const availableProviders = llmGateway.getAvailableProviders();
     
     return {
-      available: openAIAvailable || openRouterStatus.available,
-      model: useOpenRouterFallback ? (openRouterStatus.currentModel || "openrouter") : MODEL,
-      provider: useOpenRouterFallback ? "OpenRouter" : "Replit AI Integrations (OpenAI)",
-      usingFallback: useOpenRouterFallback,
+      available: availableProviders.length > 0,
+      model: "dynamic (gateway-routed)",
+      provider: availableProviders.length > 0 ? availableProviders.join(", ") : "none",
+      usingGateway: true,
     };
-  }
-
-  resetToOpenAI() {
-    useOpenRouterFallback = false;
-    openAIFailureCount = 0;
-    log.info("AI", "Reset to OpenAI primary");
-  }
-
-  forceOpenRouter() {
-    useOpenRouterFallback = true;
-    log.info("AI", "Forced OpenRouter mode");
   }
 }
 

@@ -1,14 +1,9 @@
-import OpenAI from "openai";
 import { storage } from "../storage";
 import { finnhub } from "../connectors/finnhub";
 import { coingecko } from "../connectors/coingecko";
 import { alpaca } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
-
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+import { callLLM, generateTraceId } from "./llmGateway";
 
 export interface MarketConditionAnalysis {
   condition: "bullish" | "bearish" | "neutral" | "volatile" | "uncertain";
@@ -216,20 +211,19 @@ RESPOND WITH VALID JSON ONLY:
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON."
-          },
-          { role: "user", content: prompt }
-        ],
+      const response = await callLLM({
+        role: "risk_manager",
+        criticality: "medium",
+        purpose: "market_condition_analysis",
+        traceId: generateTraceId(),
+        system: "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON.",
+        messages: [{ role: "user", content: prompt }],
+        responseFormat: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 500,
+        maxTokens: 500,
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = response.text;
       if (!content) {
         throw new Error("Empty AI response");
       }

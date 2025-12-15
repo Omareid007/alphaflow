@@ -1,202 +1,41 @@
 # AI Active Trader - Strategy Builder
 
 ## Overview
-AI Active Trader is a mobile-first application for configuring and managing AI-powered paper trading strategies. It integrates real-time market data, news feeds, and advanced AI models to provide explainable trading decisions within a simulated paper trading environment, with ambitions for future real trading capabilities. The project's vision is to leverage AI for adaptive risk management and intelligent trading automation.
+AI Active Trader is a mobile-first application designed for configuring and managing AI-powered paper trading strategies. Its core purpose is to provide explainable trading decisions within a simulated paper trading environment by integrating real-time market data, news feeds, and advanced AI models. The project aims to leverage AI for adaptive risk management and intelligent trading automation, with future ambitions for real trading capabilities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Current Architecture (Monolith)
-The current architecture is a monolith built with React Native (Expo) for the frontend and Express.js (TypeScript) for the backend, utilizing Drizzle ORM for PostgreSQL. Key features include custom themed UI, RESTful APIs, and a repository pattern for data access.
-
-### Target Architecture (Microservices)
-The platform is transitioning to an event-driven microservices architecture composed of seven core services communicating via NATS JetStream:
-- **API Gateway**: Handles authentication, rate limiting, and routing.
-- **Event Bus (NATS JetStream)**: Facilitates asynchronous communication between services.
-- **Market Data Service**: Ingests, caches, and streams market data.
-- **Trading Engine Service**: Manages orders, positions, and risk, integrating with brokerage APIs.
-- **AI Decision Service**: Routes LLM requests, fuses data, and generates trading decisions.
-- **Analytics Service**: Calculates P&L, metrics, and generates reports.
-- **Orchestrator Service**: Coordinates trading cycles, sagas, and strategy scheduling.
+### Target Architecture
+The platform is transitioning from a React Native (Expo) and Express.js (TypeScript) monolith to an event-driven microservices architecture using NATS JetStream for inter-service communication. This architecture includes an API Gateway, Event Bus, Market Data Service, Trading Engine Service, AI Decision Service, Analytics Service, and Orchestrator Service.
 
 ### Key Architectural Decisions
 - **Monorepo Structure**: Organizes `client/`, `server/`, and `shared/` code.
 - **Schema-First Development**: Database schema defined in `shared/schema.ts` with Zod validation.
-- **Adapter Pattern**: Abstracts external APIs for market data, news, and brokers.
-- **AI Decision Transparency**: Logs all AI decisions with reasoning and confidence.
+- **Adapter Pattern**: Abstracts external APIs.
+- **AI Decision Transparency**: All AI decisions are logged with reasoning and confidence.
 - **Adaptive Risk Mode**: Dynamically adjusts risk based on market intelligence.
 - **Event-Driven Communication**: NATS JetStream for inter-service messaging.
-- **Database per Service**: PostgreSQL with dedicated schemas for each microservice.
+- **Database per Service**: PostgreSQL with dedicated schemas.
 - **Containerization**: Node.js 22 Alpine containers orchestrated with Kubernetes.
-- **Observability**: OpenTelemetry for distributed tracing and performance metrics.
-- **Fault Isolation**: Circuit breakers to enhance system resilience.
-- **Alpaca Source of Truth**: All live position/order data comes from Alpaca Paper Trading API - database is cache/audit trail only. See `docs/SOURCE_OF_TRUTH_CONTRACT.md`.
-
-### Alpaca Source of Truth Contract (December 2025)
-The platform uses **Alpaca Paper Trading** as the single source of truth for all live trading data:
-
-**Principles:**
-- All position and order data displayed in UI comes from Alpaca API
-- Database stores historical snapshots for auditing, not live state
-- API responses include `_source` metadata indicating data freshness (`alpaca_live`, `cache_stale`, `unavailable`)
-- Position sync is write-behind: Alpaca data synced to DB asynchronously
-
-**Key Files:**
-- `docs/SOURCE_OF_TRUTH_CONTRACT.md` - Full contract specification
-- `shared/position-mapper.ts` - Alpaca-to-DB field mapping utilities
-- `server/connectors/alpaca.ts` - Alpaca API connector
-- `server/trading/alpaca-trading-engine.ts` - Trading engine using Alpaca
-
-**Deprecated Endpoints (redirected to Alpaca):**
-- `/api/trading/execute` → Use `/api/alpaca/trade`
-- `/api/trading/close/:id` → Use `/api/alpaca/positions/:symbol/close`
-- `/api/trading/portfolio` → Use `/api/account` and `/api/positions`
-- `/api/trading/balance` → Use `/api/account`
-
-### Durable Work Queue (December 2025)
-The platform uses a **PostgreSQL-backed durable work queue** for reliable order execution. See `docs/WORK_QUEUE_ARCHITECTURE.md` for full details.
-
-**Key Features:**
-- **Idempotency**: Unique `idempotency_key` per order prevents duplicates across restarts
-- **Retry with Backoff**: Exponential backoff (2s, 4s, 8s, 16s, 32s) with jitter for transient errors
-- **Error Classification**: Distinguishes transient (rate limits, timeouts) from permanent (insufficient funds, invalid symbol) errors
-- **Dead Letter Queue**: Failed items after max attempts moved to DEAD_LETTER for manual review
-- **Audit Trail**: All execution attempts logged in `work_item_runs` table
-
-**Work Item Types:**
-- `ORDER_SUBMIT` - Submit order to Alpaca with client_order_id enforcement
-- `ORDER_CANCEL` - Cancel existing order
-- `POSITION_CLOSE` - Close full or partial position
-- `ORDER_SYNC` - Reconcile orders from broker
-- `KILL_SWITCH` - Emergency stop all trading
-
-**Admin Endpoints:**
-- `GET /api/admin/work-items` - View queue status with counts per status
-- `POST /api/admin/work-items/retry` - Retry failed/dead-lettered items
-- `POST /api/admin/work-items/dead-letter` - Manually dead-letter an item
-- `GET /api/admin/orchestrator-health` - Queue depth and recent errors
-
-**Key Files:**
-- `server/lib/work-queue.ts` - Work queue service implementation
-- `shared/schema.ts` - `work_items` and `work_item_runs` tables
-- `server/storage.ts` - Database operations for work items
-
-### Backtesting Subsystem (December 2025)
-The platform includes a comprehensive backtesting engine for strategy validation. See `docs/BACKTESTING.md` for full details.
-
-**Key Features:**
-- **Historical Data Pipeline**: Fetches bars from Alpaca `/v2/stocks/bars` with 5k bar batching and budget management via `callExternal`
-- **Deterministic Execution**: t+1 bar fills with NEXT_OPEN (default) or NEXT_CLOSE pricing
-- **Per-Symbol Execution Queues**: Signals for symbol X only execute on symbol X's next bar (prevents cross-symbol look-ahead bias)
-- **Pluggable Fees/Slippage**: Fixed or percentage fees, BPS or spread-proxy slippage models
-- **Complete Metrics**: CAGR, Total Return, Max Drawdown, Sharpe Ratio, Sortino Ratio, Win Rate, Profit Factor
-- **Data Provenance**: Tracks provider, cache hit rate, timeframe, date range, bars count per symbol
-
-**Bias Prevention:**
-- Look-ahead bias: Strategies only see bars 0..t, execute on bar t+1
-- Survivorship bias: Warning displayed in UI and documentation
-- Data snooping: Config hash ensures reproducible runs
-
-**API Endpoints:**
-- `POST /api/backtests/run` - Run a new backtest
-- `GET /api/backtests` - List all backtest runs
-- `GET /api/backtests/:id` - Get single backtest details
-- `GET /api/backtests/:id/equity-curve` - Get equity curve data
-- `GET /api/backtests/:id/trades` - Get trade events
-
-**Database Tables:**
-- `backtest_runs` - Backtest configuration and results summary
-- `backtest_trade_events` - Individual trade executions (BUY/SELL)
-- `backtest_equity_curve` - Portfolio value snapshots over time
-
-**Key Files:**
-- `server/services/backtesting/historical-data-service.ts` - Alpaca bars API integration
-- `server/services/backtesting/execution-engine.ts` - Deterministic simulation engine
-- `server/services/backtesting/backtest-runner.ts` - Orchestrates full backtest lifecycle
-- `server/routes/backtests.ts` - REST API endpoints
-- `client/screens/BacktestsScreen.tsx` - UI list view
-- `client/screens/BacktestDetailScreen.tsx` - UI detail view with metrics and equity curve
-
-### Algorithm Framework & Shared Libraries (`services/shared/`)
-The platform includes a comprehensive algorithm framework inspired by LEAN, NautilusTrader, and Freqtrade:
-
-- **Algorithm Framework** (`algorithm-framework/`): Core trading algorithm base class with portfolio management, risk management, and order execution.
-  - **Portfolio Construction**: Black-Litterman model, Factor-based allocation, Risk Parity, Hierarchical Risk Parity (HRP), Constrained Optimizer.
-
-- **Backtesting Engine** (`backtesting/`): Event-driven simulation engine with:
-  - Factory pattern for isolated algorithm instances (`runWithFactory`)
-  - Realistic fill, slippage, and commission models
-  - Performance analytics (Sharpe, Sortino, max drawdown, win rate)
-  - Prorated partial exit handling for accurate cost tracking
-
-- **Analytics** (`analytics/`): Transaction Cost Analysis (TCA) including:
-  - Implementation shortfall, market impact, timing cost, spread cost
-  - Execution quality scoring (A-F grades)
-  - Broker comparison and fee structure analysis
-
-- **Data Processing** (`data/`):
-  - Order Book Depth Analyzer (Level 2 data, liquidity estimation, imbalance detection)
-  - Market Regime Detection (HMM, BOCD for trend/volatility regimes)
-  - Multi-Source Sentiment Fusion (news, social, technical indicators)
-  - Technical Indicators Library (SMA, EMA, RSI, MACD, Bollinger, ATR, etc.)
-
-- **Strategies** (`strategies/`):
-  - Strategy Versioning with A/B testing, rollback, semantic versioning, branching
-  - Alpha Decay Modeling (signal half-life estimation, optimal holding periods)
-  - LLM Trading Governance (pre-trade validation, position limits, cooldowns)
-
-- **Common Utilities** (`common/`):
-  - Self-Healing Orchestrator with exponential backoff and circuit breakers
-  - Structured logging with context propagation
-
-- **Events** (`events/`):
-  - Event Sourcing & Journaling for audit trail and replay
-
-- **Feature Flags** (`common/feature-flags.ts`):
-  - Strangler fig pattern for traffic splitting between monolith and microservices
-  - Rollout percentage control (0-100%)
-  - User whitelist/blacklist for beta testing
-  - Gradual rollout schedule generation
-  - Metrics tracking for routing decisions
-
-### Microservices Migration Progress (December 2025)
-**Completed:**
-- Phase 0: NATS JetStream integration (9 tests), OpenTelemetry wiring (16 tests)
-- Phase 1: Service templates, API Gateway, per-service database schemas
-- Phase 2: Dual-write repositories (11 tests), Market Data extraction, Trading Engine persistence (13 tests), Feature flag routing (23 tests)
-- Phase 3: AI Decision, Analytics, and Orchestrator service extraction (all standalone with routes and health checks)
-- Infrastructure: GitHub Actions CI/CD pipelines, Kubernetes deployment manifests, HashiCorp Vault integration
-- API Contracts: OpenAPI 3.1 specs for trading-engine, ai-decision, and market-data services
-
-**Infrastructure Ready:**
-- All 6 microservices have standalone Express servers with REST APIs
-- Health checks registered at /health/live, /health/ready, /health/startup
-- Event bus integration via NATS JetStream
-- Docker Compose for local development
-- Kubernetes manifests with Vault Agent Injector annotations
-- GitHub Actions workflows for build, test, and deploy
+- **Observability**: OpenTelemetry for distributed tracing.
+- **Fault Isolation**: Circuit breakers for resilience.
+- **Alpaca Source of Truth**: Alpaca Paper Trading is the single source of truth for live position/order data; the database serves as a cache and audit trail.
+- **Centralized LLM Gateway**: All LLM calls route through `llmGateway.ts` with criticality-based routing, role-based model chains, automatic fallback, and traceId tracking for full traceability.
+- **Durable Work Queue**: PostgreSQL-backed for reliable order execution, featuring idempotency, retry with backoff, error classification, and a dead-letter queue.
+- **Backtesting Subsystem**: Comprehensive engine with historical data pipeline, deterministic execution, per-symbol execution queues, pluggable fees/slippage, and complete performance metrics while preventing biases.
+- **Algorithm Framework**: Core trading algorithm base class with portfolio construction and risk management. Includes an event-driven backtesting engine with realistic fill/slippage/commission models and performance analytics.
+- **Data Processing**: Features Order Book Depth Analyzer, Market Regime Detection, Multi-Source Sentiment Fusion, and a Technical Indicators Library.
+- **Strategies**: Supports strategy versioning with A/B testing and LLM Trading Governance.
+- **Feature Flags**: Implemented for gradual rollout, traffic splitting, and user targeting.
 
 ### UI/UX Decisions
 - **Framework**: React Native with Expo SDK 54, React Navigation v7, TanStack Query.
 - **Styling**: Custom themed components supporting dark/light mode, Reanimated 4 for animations, BrandColors palette, and elevation-based cards.
 - **Platform Support**: iOS, Android, and Web.
-
-### UI Information Architecture (December 2025)
-See `docs/UI_INFORMATION_ARCHITECTURE.md` for full details.
-
-**Key Files:**
-- `shared/types/ui-contracts.ts` - Canonical UI type definitions (TimelineEvent, LedgerItem, DecisionViewModel)
-- `client/components/ActivityFlowWidget.tsx` - Unified activity timeline using `/api/activity/timeline`
-- `client/screens/AISuggestedTradesScreen.tsx` - Proper broker status mapping (Alpaca statuses)
-
-**New Endpoints:**
-- `GET /api/activity/timeline` - Unified activity feed composing AI decisions, broker orders, and fills
-
-**Status Mapping:**
-- All UI statuses now map to real Alpaca order lifecycle (new, accepted, filled, canceled, rejected, etc.)
-- Deprecated: `pending_execution` status - use `pending` or `submitted`
+- **Information Architecture**: Canonical UI type definitions, unified activity timeline, and proper broker status mapping (Alpaca statuses).
 
 ## External Dependencies
 
