@@ -2448,6 +2448,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/alpaca/orders", async (req, res) => {
     try {
+      const { symbol } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      if (!tradabilityCheck.tradable) {
+        return res.status(400).json({
+          error: `Symbol ${symbol} is not tradable`,
+          reason: tradabilityCheck.reason || "Not found in broker universe",
+          tradabilityCheck,
+        });
+      }
+      
       const order = await alpaca.createOrder(req.body);
       res.status(201).json(order);
     } catch (error) {

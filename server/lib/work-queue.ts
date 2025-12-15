@@ -181,6 +181,16 @@ class WorkQueueServiceImpl implements WorkQueueService {
     const payload = JSON.parse(item.payload || "{}");
     const { symbol, side, qty, type, time_in_force, limit_price, stop_price, extended_hours } = payload;
 
+    const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+    if (!tradabilityCheck.tradable) {
+      await this.markFailed(
+        item.id,
+        `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}`,
+        false
+      );
+      return;
+    }
+
     const clientOrderId = item.idempotencyKey || item.id;
     const existingOrders = await alpaca.getOrders("open", 100);
     const existingOrder = existingOrders.find(o => o.client_order_id === clientOrderId);
