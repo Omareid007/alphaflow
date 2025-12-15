@@ -74,6 +74,30 @@ export async function runBacktest(params: RunBacktestParams): Promise<BacktestRu
     const totalBars = Object.values(bars).reduce((sum, arr) => sum + arr.length, 0);
     log.info("BacktestRunner", `Fetched ${totalBars} total bars for ${params.universe.length} symbols`);
 
+    // Validate that we have data to work with
+    if (totalBars === 0) {
+      const symbolsWithData = Object.entries(bars)
+        .filter(([_, symbolBars]) => symbolBars.length > 0)
+        .map(([symbol]) => symbol);
+      const symbolsWithoutData = params.universe.filter(s => !symbolsWithData.includes(s));
+      
+      throw new Error(
+        `No historical data found for the specified date range (${params.startDate} to ${params.endDate}). ` +
+        `Symbols without data: ${symbolsWithoutData.join(', ')}. ` +
+        `Please verify the date range is valid and the symbols are active.`
+      );
+    }
+
+    // Log per-symbol data availability
+    for (const symbol of params.universe) {
+      const symbolBars = bars[symbol] || [];
+      if (symbolBars.length === 0) {
+        log.warn("BacktestRunner", `No bars fetched for symbol ${symbol} - it may be inactive or date range invalid`);
+      } else {
+        log.debug("BacktestRunner", `Symbol ${symbol}: ${symbolBars.length} bars`);
+      }
+    }
+
     const strategyConfig: StrategyConfig = {
       type: params.strategyType || 'moving_average_crossover',
       params: params.strategyParams || { allocationPct: 10, fastPeriod: 10, slowPeriod: 20 }
