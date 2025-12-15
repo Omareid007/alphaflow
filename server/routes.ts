@@ -937,6 +937,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/strategies/backtest", async (req, res) => {
+    try {
+      const { strategyType, symbol, lookbackDays = 365 } = req.body;
+      const parameters = req.body.parameters || {};
+      
+      if (!strategyType || typeof strategyType !== "string") {
+        return res.status(400).json({ 
+          error: "strategyType is required", 
+          message: "Please provide a valid strategy type (e.g., 'moving-average-crossover', 'momentum', 'mean-reversion')" 
+        });
+      }
+      if (!symbol || typeof symbol !== "string") {
+        return res.status(400).json({ 
+          error: "symbol is required",
+          message: "Please provide a valid trading symbol (e.g., 'SPY', 'AAPL')"
+        });
+      }
+
+      let result;
+      
+      switch (strategyType) {
+        case "moving-average-crossover":
+        case "moving-average": {
+          const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } = await import("./strategies/moving-average-crossover");
+          const config = normalizeMovingAverageConfig({ symbol, ...parameters });
+          result = await backtestMovingAverageStrategy(config, lookbackDays);
+          break;
+        }
+        case "mean-reversion":
+        case "mean-reversion-scalper": {
+          const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("./strategies/mean-reversion-scalper");
+          const config = normalizeMeanReversionConfig({ symbol, ...parameters });
+          result = await backtestMeanReversionStrategy(config, lookbackDays);
+          break;
+        }
+        case "momentum":
+        case "momentum-breakout": {
+          const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("./strategies/momentum-strategy");
+          const config = normalizeMomentumConfig({ symbol, ...parameters });
+          result = await backtestMomentumStrategy(config, lookbackDays);
+          break;
+        }
+        case "range-trading":
+        case "breakout": {
+          const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("./strategies/mean-reversion-scalper");
+          const defaultParams = {
+            lookbackPeriod: parameters?.lookbackPeriod ?? 20,
+            deviationThreshold: parameters?.deviationThreshold ?? 2.0,
+            maxHoldingPeriod: parameters?.maxHoldingPeriod ?? 10,
+            ...parameters,
+          };
+          const config = normalizeMeanReversionConfig({ symbol, ...defaultParams });
+          result = await backtestMeanReversionStrategy(config, lookbackDays);
+          break;
+        }
+        default: {
+          const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("./strategies/momentum-strategy");
+          const config = normalizeMomentumConfig({ symbol, ...parameters });
+          result = await backtestMomentumStrategy(config, lookbackDays);
+          break;
+        }
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to run generic backtest:", error);
+      res.status(500).json({ error: (error as Error).message || "Failed to run backtest" });
+    }
+  });
+
   app.post("/api/strategy-config", async (req, res) => {
     try {
       const { normalizeMovingAverageConfig } = await import("./strategies/moving-average-crossover");

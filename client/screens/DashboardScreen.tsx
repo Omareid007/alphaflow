@@ -1045,10 +1045,11 @@ interface UAEMarketSummary {
 
 interface UAEConnectionStatus {
   connected: boolean;
-  dataSource: "mock" | "live";
+  dataSource: "mock" | "live" | "demo";
   cacheSize: number;
-  apiConfigured: boolean;
+  apiConfigured?: boolean;
   isMockData: boolean;
+  isDemoData?: boolean;
 }
 
 function UAEMarketsCard() {
@@ -1184,10 +1185,7 @@ function UAEMarketsCard() {
       <View style={styles.uaeNote}>
         <Feather name="info" size={12} color={theme.textSecondary} />
         <ThemedText style={[styles.uaeNoteText, { color: theme.textSecondary }]}>
-          {status?.isMockData 
-            ? "Sample data for demonstration. Live ADX/DFM API integration coming soon."
-            : "Live market data from UAE exchanges"
-          }
+          UAE market demo data - representative prices for ADX/DFM stocks
         </ThemedText>
       </View>
     </Card>

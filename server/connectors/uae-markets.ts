@@ -299,42 +299,42 @@ const UAE_MARKET_INFO: UAEMarketInfo = {
   notes: "UAE markets operate Sunday-Thursday. First exchange globally to operate under Islamic Sharia principles (DFM).",
 };
 
-function generateMockStocks(): UAEStock[] {
+function generateDemoStocks(): UAEStock[] {
   const now = new Date().toISOString();
   return UAE_STOCK_TEMPLATES.map(template => ({
     symbol: template.symbol,
     name: template.name,
     exchange: template.exchange,
     sector: template.sector,
-    currentPrice: Number((template.basePrice * (1 + (Math.random() - 0.5) * 0.02)).toFixed(2)),
-    change: Number((template.baseChange + (Math.random() - 0.5) * 0.1).toFixed(3)),
-    changePercent: Number((template.baseChangePercent + (Math.random() - 0.5) * 0.3).toFixed(2)),
-    volume: Math.floor(template.baseVolume * (0.85 + Math.random() * 0.3)),
+    currentPrice: template.basePrice,
+    change: template.baseChange,
+    changePercent: template.baseChangePercent,
+    volume: template.baseVolume,
     marketCap: template.marketCap,
     currency: template.currency,
     lastUpdated: now,
   }));
 }
 
-function generateMockSummaries(): UAEMarketSummary[] {
+function generateDemoSummaries(): UAEMarketSummary[] {
   const now = new Date().toISOString();
   return UAE_SUMMARY_TEMPLATES.map(template => ({
     exchange: template.exchange,
     indexName: template.indexName,
-    indexValue: Number((template.baseIndexValue * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2)),
-    change: Number((template.baseChange + (Math.random() - 0.5) * 10).toFixed(2)),
-    changePercent: Number((template.baseChangePercent + (Math.random() - 0.5) * 0.2).toFixed(2)),
-    tradingValue: Math.floor(template.baseTradingValue * (0.9 + Math.random() * 0.2)),
-    tradingVolume: Math.floor(template.baseTradingVolume * (0.9 + Math.random() * 0.2)),
-    advancers: template.advancers + Math.floor((Math.random() - 0.5) * 6),
-    decliners: template.decliners + Math.floor((Math.random() - 0.5) * 6),
-    unchanged: template.unchanged + Math.floor((Math.random() - 0.5) * 4),
+    indexValue: template.baseIndexValue,
+    change: template.baseChange,
+    changePercent: template.baseChangePercent,
+    tradingValue: template.baseTradingValue,
+    tradingVolume: template.baseTradingVolume,
+    advancers: template.advancers,
+    decliners: template.decliners,
+    unchanged: template.unchanged,
     lastUpdated: now,
   }));
 }
 
 export interface UAEMarketsConfig {
-  useMockData?: boolean;
+  useDemoData?: boolean;
 }
 
 class UAEMarketsConnector {
@@ -347,14 +347,6 @@ class UAEMarketsConnector {
     staleDuration: 30 * 60 * 1000,
   });
 
-  private config: UAEMarketsConfig;
-
-  constructor(config: UAEMarketsConfig = {}) {
-    this.config = {
-      useMockData: config.useMockData ?? true,
-    };
-  }
-
   async getTopStocks(exchange?: "ADX" | "DFM"): Promise<UAEStock[]> {
     const cacheKey = `stocks_${exchange || "all"}`;
     const cached = this.stocksCache.get(cacheKey);
@@ -363,13 +355,7 @@ class UAEMarketsConnector {
       return cached.data;
     }
 
-    let stocks: UAEStock[];
-    
-    if (this.config.useMockData) {
-      stocks = generateMockStocks();
-    } else {
-      stocks = generateMockStocks();
-    }
+    let stocks = generateDemoStocks();
 
     if (exchange) {
       stocks = stocks.filter(s => s.exchange === exchange);
@@ -387,13 +373,7 @@ class UAEMarketsConnector {
       return cached.data;
     }
 
-    let summaries: UAEMarketSummary[];
-    
-    if (this.config.useMockData) {
-      summaries = generateMockSummaries();
-    } else {
-      summaries = generateMockSummaries();
-    }
+    let summaries = generateDemoSummaries();
 
     if (exchange) {
       summaries = summaries.filter(s => s.exchange === exchange);
@@ -409,17 +389,17 @@ class UAEMarketsConnector {
 
   getConnectionStatus(): { 
     connected: boolean; 
-    dataSource: "mock" | "live"; 
+    dataSource: "demo"; 
     cacheSize: number;
-    apiConfigured: boolean;
     isMockData: boolean;
+    isDemoData: boolean;
   } {
     return {
       connected: true,
-      dataSource: this.config.useMockData ? "mock" : "live",
+      dataSource: "demo",
       cacheSize: this.stocksCache.size() + this.summaryCache.size(),
-      apiConfigured: !this.config.useMockData,
-      isMockData: this.config.useMockData ?? true,
+      isMockData: true,
+      isDemoData: true,
     };
   }
 
@@ -429,4 +409,4 @@ class UAEMarketsConnector {
   }
 }
 
-export const uaeMarkets = new UAEMarketsConnector({ useMockData: true });
+export const uaeMarkets = new UAEMarketsConnector();

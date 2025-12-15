@@ -25,61 +25,76 @@ export default function BacktestScreen() {
   const [isValidating, setIsValidating] = useState(false);
 
   const handleRunBacktest = async () => {
+    if (!data.strategyType) {
+      Alert.alert("Validation Error", "Please select a strategy type before running backtest");
+      return;
+    }
+    
     setIsRunning(true);
     try {
+      const symbol = data.assets[0] || "SPY";
+      
+      let parameters: Record<string, unknown> = {};
       if (data.strategyType === "moving-average-crossover") {
-        const symbol = data.assets[0] || "SPY";
         const maParams = data.movingAverageParams;
-        const response = await apiRequest(
-          "POST",
-          "/api/strategies/moving-average/backtest",
-          {
-            symbol,
-            fastPeriod: maParams?.fastPeriod ?? 7,
-            slowPeriod: maParams?.slowPeriod ?? 20,
-            allocationPct: maParams?.allocationPct ?? 0.10,
-            riskLimitPct: maParams?.riskLimitPct ?? 0.10,
-          }
-        );
-        const result = (await response.json()) as {
-          metrics: {
-            winRatePct: number;
-            totalReturnPct: number;
-            maxDrawdownPct: number;
-            sharpeRatio: number;
-            sortinoRatio: number;
-            totalTrades: number;
-            annualReturnPct: number;
-            avgWinPct: number;
-            avgLossPct: number;
-            profitFactor: number;
-          };
+        parameters = {
+          fastPeriod: maParams?.fastPeriod ?? 7,
+          slowPeriod: maParams?.slowPeriod ?? 20,
+          allocationPct: maParams?.allocationPct ?? 0.10,
+          riskLimitPct: maParams?.riskLimitPct ?? 0.10,
         };
-        updateBacktestResults({
-          hasRun: true,
-          winRate: result.metrics.winRatePct,
-          totalReturn: result.metrics.totalReturnPct,
-          maxDrawdown: result.metrics.maxDrawdownPct,
-          sharpeRatio: result.metrics.sharpeRatio,
-          totalTrades: result.metrics.totalTrades,
-          annualReturn: result.metrics.annualReturnPct,
-          sortinoRatio: result.metrics.sortinoRatio,
-          avgWin: result.metrics.avgWinPct,
-          avgLoss: result.metrics.avgLossPct,
-          profitFactor: result.metrics.profitFactor,
-        });
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        const mockResults = {
-          hasRun: true,
-          winRate: 58 + Math.random() * 15,
-          totalReturn: 12 + Math.random() * 20,
-          maxDrawdown: 8 + Math.random() * 7,
-          sharpeRatio: 1.2 + Math.random() * 0.8,
-          totalTrades: Math.floor(45 + Math.random() * 30),
+      } else if (data.strategyType === "mean-reversion" || data.strategyType === "range-trading") {
+        parameters = {
+          lookbackPeriod: 20,
+          deviationThreshold: 2.0,
+          maxHoldingPeriod: 10,
         };
-        updateBacktestResults(mockResults);
+      } else if (data.strategyType === "momentum" || data.strategyType === "momentum-breakout") {
+        parameters = {
+          lookbackPeriod: 14,
+          rsiPeriod: 14,
+          momentumThreshold: 0.02,
+        };
       }
+      
+      const response = await apiRequest(
+        "POST",
+        "/api/strategies/backtest",
+        {
+          strategyType: data.strategyType,
+          symbol,
+          parameters,
+          lookbackDays: 90,
+        }
+      );
+      const result = (await response.json()) as {
+        metrics: {
+          winRatePct?: number;
+          totalReturnPct?: number;
+          maxDrawdownPct?: number;
+          sharpeRatio?: number;
+          sortinoRatio?: number;
+          totalTrades?: number;
+          annualReturnPct?: number;
+          avgWinPct?: number;
+          avgLossPct?: number;
+          profitFactor?: number;
+        };
+      };
+      const metrics = result.metrics || {};
+      updateBacktestResults({
+        hasRun: true,
+        winRate: metrics.winRatePct ?? 0,
+        totalReturn: metrics.totalReturnPct ?? 0,
+        maxDrawdown: metrics.maxDrawdownPct ?? 0,
+        sharpeRatio: metrics.sharpeRatio ?? 0,
+        totalTrades: metrics.totalTrades ?? 0,
+        annualReturn: metrics.annualReturnPct ?? 0,
+        sortinoRatio: metrics.sortinoRatio ?? 0,
+        avgWin: metrics.avgWinPct ?? 0,
+        avgLoss: metrics.avgLossPct ?? 0,
+        profitFactor: metrics.profitFactor ?? 0,
+      });
     } catch (error) {
       Alert.alert("Backtest Failed", (error as Error).message || "Unable to run backtest");
     } finally {
