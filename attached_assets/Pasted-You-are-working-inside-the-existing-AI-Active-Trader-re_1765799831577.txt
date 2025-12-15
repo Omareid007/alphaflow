@@ -1,0 +1,141 @@
+You are working inside the existing AI-Active-Trader repo (the Replit “AI Active Trader” app). 
+Goal: enforce sensible per-provider API budgets for EVERY API key + persist fetched data (DB-backed cache) so future analyses reuse stored data instead of re-calling providers. Also update docs/ to reflect every enhancement.
+
+IMPORTANT: Follow the repo’s doc-driven workflow.
+READ FIRST (in this exact order):
+1) docs/INDEX.md
+2) docs/AGENT_EXECUTION_GUIDE.md (use its rules for edits + doc updates)
+3) docs/CONNECTORS_AND_INTEGRATIONS.md (especially the Rate Limiting + Caching sections)
+4) docs/services/MARKET_DATA.md (Caching + Data Freshness)
+5) docs/AI_MODELS_AND_PROVIDERS.md (provider config + env vars)
+6) docs/OBSERVABILITY.md and docs/TESTING.md
+7) docs/providers/CAPABILITY_SUMMARY.md + each provider doc in docs/providers/*.md
+
+Then implement the enhancement in 4 parts:
+
+========================
+PART A — Add a centralized “API Budget + Persistent Cache” layer
+========================
+1) Add DB tables (Drizzle) for:
+   - external_api_cache_entries:
+     provider, cacheKey (unique), method, url, requestFingerprint, responseJson (jsonb), responseMeta (status + headers), createdAt, lastAccessedAt,
+     expiresAt, staleUntilAt
+   - external_api_usage_counters:
+     provider, apiKeyName (optional), windowType (minute/day/week/month), windowStart, requestCount, tokenCount (nullable), lastUpdatedAt
+   Implement in shared/schema.ts + migrations.
+
+2) Create new server lib modules:
+   - server/lib/apiPolicy.ts:
+     A single registry that defines, per provider:
+       * request limits by window (minute/day/week/month)
+       * optional token limits (for LLM providers)
+       * default cache TTL + stale-if-error window
+       * per-operation overrides (e.g., quote vs fundamentals vs news)
+   - server/lib/apiBudget.ts:
+     DB-backed “checkAndConsume()” using transactions/row-locking to prevent race conditions.
+     Must return: allowed(boolean), reason, nextAllowedAt.
+   - server/lib/persistentApiCache.ts:
+     get/set by provider+cacheKey, with expiresAt + staleUntilAt, plus “serve stale when blocked or provider errors”.
+
+3) Add ONE wrapper used by ALL outbound calls:
+   - server/lib/fetchWithBudgetAndCache.ts:
+     Inputs: provider, operation, url, method, headers, body, cacheKeyParts, ttlOverride
+     Flow:
+       a) Try L1 in-memory cache (keep existing ApiCache where sensible).
+       b) Try L2 DB cache (external_api_cache_entries). If fresh -> return cached.
+       c) If not cached/fresh: ask apiBudget.checkAndConsume(provider, window policy)
+          - if blocked: return stale cache if available; else throw a typed “budget exceeded” error.
+       d) If allowed: perform fetch with retries:
+          - Respect 429 and Retry-After when present
+          - Use exponential backoff with jitter
+          - On failure: if stale cache exists, return stale and log a warning
+       e) Persist successful response into DB cache (expiresAt + staleUntilAt).
+       f) Record usage counters (requests; tokens for LLM where available).
+
+========================
+PART B — Enforce new limits across ALL connectors + LLM providers
+========================
+4) Refactor every connector in server/connectors/*.ts to use fetchWithBudgetAndCache():
+   - alpaca.ts
+   - finnhub.ts
+   - coingecko.ts
+   - coinmarketcap.ts
+   - newsapi.ts
+   - polygon.ts
+   - twelvedata.ts
+   - valyu.ts
+   - huggingface.ts
+   - gdelt.ts
+   - uae-markets.ts (if it hits external endpoints)
+   Keep existing parsing logic; only route network calls through the wrapper.
+
+5) Hard requirement: Valyu must be limited to 1 successful “paid data fetch” per WEEK (per API key).
+   - Implement this as a weekly budget window in apiPolicy for provider=valyu
+   - Cache TTL >= 7 days, staleUntil >= 30 days
+   - Add a clear log message when returning cached Valyu results instead of calling the API.
+
+6) For LLM providers (OpenAI / Groq / Together / OpenRouter):
+   - Add budget hooks inside:
+     server/ai/openaiClient.ts
+     server/ai/groqClient.ts
+     server/ai/togetherClient.ts
+     server/ai/openrouterClient.ts
+   - Enforce request limits + optional daily token budget (if tokensUsed exists, record it).
+   - Make sure the app reuses stored prior analysis artifacts (DB/vector store) before re-calling the LLM when possible (do not overbuild; prefer using existing stored decision logs and vector store utilities already in the repo).
+
+7) Set “app-enforced default budgets” (these are our defaults; keep them configurable via env):
+   - alpaca: 150 req/min (soft cap) + cache quotes/bars aggressively (short TTL)
+   - finnhub: 50 req/min (soft cap) + longer TTL for fundamentals
+   - coingecko: 10 req/min (soft cap) + batch endpoints preferred + TTL 60s–5m
+   - coinmarketcap: 20 req/min (soft cap)
+   - newsapi: 80 req/day (soft cap), TTL 6h
+   - polygon: 4 req/min (soft cap)
+   - twelvedata: 6 req/min (soft cap) + daily cap
+   - valyu: 1 req/week
+   - huggingface: conservative cap + rely on cache; expand later
+   - gdelt: conservative cap + rely on cache
+   Make every cap overrideable via env vars (API_BUDGET_*), but keep sane defaults.
+
+========================
+PART C — Admin visibility + safe operations (minimal UI)
+========================
+8) Add minimal admin endpoints (server/routes.ts):
+   - GET /api/admin/api-usage  (current window counters + next reset)
+   - GET /api/admin/api-cache  (summary: entries count by provider, hit rate if available)
+   - POST /api/admin/api-cache/purge?provider=...
+   Ensure these endpoints are protected the same way other admin endpoints are (follow existing patterns).
+
+(If there is already an Admin screen in the client, add a small “API Limits & Cache” panel; otherwise skip UI and keep endpoints + docs.)
+
+========================
+PART D — Update docs for EVERY enhancement (mandatory)
+========================
+9) Update docs to reflect the new system:
+   - docs/CONNECTORS_AND_INTEGRATIONS.md:
+     * Replace/extend the Rate Limiting section to describe “apiPolicy + apiBudget + fetchWithBudgetAndCache”
+     * Document persistent cache behavior + stale-if-error
+     * Add missing env vars used by connectors (COINGECKO_API_KEY, POLYGON_API_KEY, TWELVE_DATA_API_KEY, ALPACA_SECRET_KEY, etc.)
+   - docs/services/MARKET_DATA.md:
+     * Update caching section to match the implemented Postgres-backed cache (mention Redis as future option if needed)
+   - docs/AI_MODELS_AND_PROVIDERS.md:
+     * Add “LLM budgets” (requests + token budget) and where it’s enforced in code
+   - docs/OBSERVABILITY.md:
+     * Add metrics/log fields: cache_hit, cache_stale_served, budget_blocked, retry_count, provider_429
+   - docs/TESTING.md:
+     * Add test cases for: budget blocks, stale served, TTL expiry, concurrency/race safety
+   - docs/providers/CAPABILITY_SUMMARY.md + relevant provider docs:
+     * Add a line: “App-enforced safe cap (default)”
+10) Add a new doc file:
+   - docs/API_BUDGETS_AND_CACHING.md
+   Include: policy table, TTL guidance by operation, and examples of how to add a new provider.
+11) Update docs/INDEX.md to link the new doc.
+
+========================
+Validation
+========================
+12) Add/adjust tests (at least for budget + cache modules). Keep it lightweight but real.
+13) Run typecheck/tests/build as defined in the repo, fix issues, and ensure no connector bypasses the wrapper.
+
+Finally:
+- Provide a short CHANGELOG in your output (files touched + what changed).
+- Ensure docs are updated in the same PR/commit scope as code changes.
