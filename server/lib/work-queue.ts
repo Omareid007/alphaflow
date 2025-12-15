@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
+import { tradabilityService } from "../services/tradability-service";
 import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus } from "@shared/schema";
 import crypto from "crypto";
 
@@ -11,6 +12,7 @@ const RETRY_DELAYS_MS: Record<WorkItemType, number[]> = {
   POSITION_CLOSE: [1000, 5000, 15000],
   KILL_SWITCH: [500, 2000, 5000],
   DECISION_EVALUATION: [2000, 10000, 30000],
+  ASSET_UNIVERSE_SYNC: [60000, 300000, 600000],
 };
 
 const TRANSIENT_ERROR_PATTERNS = [
@@ -279,6 +281,28 @@ class WorkQueueServiceImpl implements WorkQueueService {
     }));
   }
 
+  async processAssetUniverseSync(item: WorkItem): Promise<void> {
+    const payload = JSON.parse(item.payload || "{}");
+    const assetClass = payload.assetClass || "us_equity";
+    
+    log.info("work-queue", `Starting asset universe sync for ${assetClass}`);
+    
+    const result = await tradabilityService.syncAssetUniverse(assetClass);
+    
+    if (result.errors.length > 0) {
+      throw new Error(result.errors.join("; "));
+    }
+    
+    tradabilityService.clearMemoryCache();
+    
+    await this.markSucceeded(item.id, JSON.stringify({
+      assetClass,
+      synced: result.synced,
+      tradable: result.tradable,
+      syncedAt: new Date().toISOString(),
+    }));
+  }
+
   async processItem(item: WorkItem): Promise<void> {
     const startTime = Date.now();
     
@@ -301,6 +325,9 @@ class WorkQueueServiceImpl implements WorkQueueService {
           break;
         case "KILL_SWITCH":
           await this.processKillSwitch(item);
+          break;
+        case "ASSET_UNIVERSE_SYNC":
+          await this.processAssetUniverseSync(item);
           break;
         default:
           log.warn("work-queue", `Unknown work item type: ${item.type}`);

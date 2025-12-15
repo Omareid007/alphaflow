@@ -381,6 +381,7 @@ export const workItemTypes = [
   "POSITION_CLOSE",
   "KILL_SWITCH",
   "DECISION_EVALUATION",
+  "ASSET_UNIVERSE_SYNC",
 ] as const;
 
 export type WorkItemType = typeof workItemTypes[number];
@@ -446,3 +447,50 @@ export type WorkItem = typeof workItems.$inferSelect;
 
 export type InsertWorkItemRun = z.infer<typeof insertWorkItemRunSchema>;
 export type WorkItemRun = typeof workItemRuns.$inferSelect;
+
+export const assetClasses = ["us_equity", "crypto"] as const;
+export type AssetClass = typeof assetClasses[number];
+
+export const brokerAssets = pgTable("broker_assets", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  alpacaId: text("alpaca_id").notNull().unique(),
+  symbol: text("symbol").notNull().unique(),
+  name: text("name").notNull(),
+  assetClass: text("asset_class").notNull(),
+  exchange: text("exchange").notNull(),
+  status: text("status").notNull(),
+  tradable: boolean("tradable").default(false).notNull(),
+  marginable: boolean("marginable").default(false).notNull(),
+  shortable: boolean("shortable").default(false).notNull(),
+  easyToBorrow: boolean("easy_to_borrow").default(false).notNull(),
+  fractionable: boolean("fractionable").default(false).notNull(),
+  minOrderSize: numeric("min_order_size"),
+  minTradeIncrement: numeric("min_trade_increment"),
+  priceIncrement: numeric("price_increment"),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBrokerAssetSchema = createInsertSchema(brokerAssets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBrokerAsset = z.infer<typeof insertBrokerAssetSchema>;
+export type BrokerAsset = typeof brokerAssets.$inferSelect;
+
+export interface TradabilityCheck {
+  symbol: string;
+  tradable: boolean;
+  reason?: string;
+  assetClass?: AssetClass;
+  exchange?: string;
+  fractionable?: boolean;
+  marginable?: boolean;
+  shortable?: boolean;
+  lastSyncedAt?: Date;
+}

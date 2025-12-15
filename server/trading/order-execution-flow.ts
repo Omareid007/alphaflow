@@ -17,6 +17,7 @@ import { performanceTracker } from "../lib/performance-metrics";
 import { cacheQuickQuote, getQuickQuote, cacheAccountSnapshot, getAccountSnapshot, cacheTradability, getTradability } from "../lib/order-execution-cache";
 import { emitEvent } from "../lib/webhook-emitter";
 import { sendNotification } from "../lib/notification-service";
+import { tradabilityService } from "../services/tradability-service";
 import {
   CreateOrderSchema,
   validateOrderTypeCombination,
@@ -475,6 +476,22 @@ class OrderExecutionEngine {
       result.valid = false;
       result.errors.push(`Schema validation failed: ${e.message}`);
       return result;
+    }
+    
+    // Tradability gate - check if symbol is tradable
+    const tradabilityCheck = await tradabilityService.validateSymbolTradable(params.symbol);
+    if (!tradabilityCheck.tradable) {
+      result.valid = false;
+      result.errors.push(`Symbol ${params.symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}`);
+      return result;
+    }
+    
+    // Add warnings for special asset properties
+    if (!tradabilityCheck.fractionable && params.notional) {
+      result.warnings.push(`${params.symbol} does not support fractional trading; use qty instead of notional`);
+    }
+    if (!tradabilityCheck.marginable) {
+      result.warnings.push(`${params.symbol} is not marginable`);
     }
     
     // Type/TIF combination validation

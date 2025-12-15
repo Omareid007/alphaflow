@@ -9,6 +9,7 @@ import {
   agentStatus,
   workItems,
   workItemRuns,
+  brokerAssets,
   type User,
   type InsertUser,
   type Strategy,
@@ -26,6 +27,9 @@ import {
   type InsertWorkItemRun,
   type WorkItemType,
   type WorkItemStatus,
+  type BrokerAsset,
+  type InsertBrokerAsset,
+  type AssetClass,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -459,6 +463,104 @@ export class DatabaseStorage implements IStorage {
       .from(workItemRuns)
       .where(eq(workItemRuns.workItemId, workItemId))
       .orderBy(desc(workItemRuns.createdAt));
+  }
+
+  async getBrokerAsset(symbol: string): Promise<BrokerAsset | undefined> {
+    const [asset] = await db
+      .select()
+      .from(brokerAssets)
+      .where(eq(brokerAssets.symbol, symbol.toUpperCase()));
+    return asset;
+  }
+
+  async getBrokerAssets(
+    assetClass?: AssetClass,
+    tradableOnly: boolean = false,
+    limit: number = 1000
+  ): Promise<BrokerAsset[]> {
+    const conditions = [];
+    if (assetClass) conditions.push(eq(brokerAssets.assetClass, assetClass));
+    if (tradableOnly) conditions.push(eq(brokerAssets.tradable, true));
+    
+    return db
+      .select()
+      .from(brokerAssets)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(brokerAssets.symbol)
+      .limit(limit);
+  }
+
+  async upsertBrokerAsset(asset: InsertBrokerAsset): Promise<BrokerAsset> {
+    const [existing] = await db
+      .select()
+      .from(brokerAssets)
+      .where(eq(brokerAssets.symbol, asset.symbol.toUpperCase()));
+    
+    if (existing) {
+      const [updated] = await db
+        .update(brokerAssets)
+        .set({ ...asset, updatedAt: new Date(), lastSyncedAt: new Date() })
+        .where(eq(brokerAssets.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db
+      .insert(brokerAssets)
+      .values({ ...asset, symbol: asset.symbol.toUpperCase() })
+      .returning();
+    return created;
+  }
+
+  async bulkUpsertBrokerAssets(assets: InsertBrokerAsset[]): Promise<number> {
+    let count = 0;
+    const batchSize = 100;
+    
+    for (let i = 0; i < assets.length; i += batchSize) {
+      const batch = assets.slice(i, i + batchSize);
+      for (const asset of batch) {
+        await this.upsertBrokerAsset(asset);
+        count++;
+      }
+    }
+    
+    return count;
+  }
+
+  async getBrokerAssetCount(assetClass?: AssetClass): Promise<number> {
+    const conditions = assetClass ? [eq(brokerAssets.assetClass, assetClass)] : [];
+    
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(brokerAssets)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    
+    return Number(result[0]?.count || 0);
+  }
+
+  async getLastAssetSyncTime(): Promise<Date | null> {
+    const [result] = await db
+      .select({ lastSynced: sql<Date>`MAX(last_synced_at)` })
+      .from(brokerAssets);
+    return result?.lastSynced || null;
+  }
+
+  async searchBrokerAssets(query: string, limit: number = 20): Promise<BrokerAsset[]> {
+    const searchPattern = `%${query.toUpperCase()}%`;
+    return db
+      .select()
+      .from(brokerAssets)
+      .where(
+        and(
+          eq(brokerAssets.tradable, true),
+          or(
+            like(brokerAssets.symbol, searchPattern),
+            like(sql`UPPER(${brokerAssets.name})`, searchPattern)
+          )
+        )
+      )
+      .orderBy(brokerAssets.symbol)
+      .limit(limit);
   }
 }
 
