@@ -36,6 +36,37 @@ const STATUS_ICONS: Record<BacktestStatus, keyof typeof Feather.glyphMap> = {
   FAILED: "x-circle",
 };
 
+type StrategyType = "ma-crossover" | "rsi-oscillator" | "buy-and-hold";
+
+interface StrategyConfig {
+  type: StrategyType;
+  name: string;
+  description: string;
+  params: {
+    fastPeriod?: number;
+    slowPeriod?: number;
+    rsiPeriod?: number;
+    oversold?: number;
+    overbought?: number;
+    allocationPct: number;
+  };
+}
+
+const STRATEGY_OPTIONS: Record<StrategyType, { name: string; description: string }> = {
+  "ma-crossover": {
+    name: "Moving Average Crossover",
+    description: "Buys when fast moving average crosses above slow, sells on opposite",
+  },
+  "rsi-oscillator": {
+    name: "RSI Oscillator",
+    description: "Buys when RSI indicates oversold (<30), sells when overbought (>70)",
+  },
+  "buy-and-hold": {
+    name: "Buy and Hold",
+    description: "Simply buys at the start and holds throughout",
+  },
+};
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -147,19 +178,41 @@ function BacktestCard({
   );
 }
 
+interface BacktestParams {
+  universe: string[];
+  startDate: string;
+  endDate: string;
+  strategyType: StrategyType;
+  strategyParams: {
+    fastPeriod?: number;
+    slowPeriod?: number;
+    rsiPeriod?: number;
+    oversold?: number;
+    overbought?: number;
+    allocationPct: number;
+  };
+}
+
 interface RunBacktestModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (data: { universe: string[]; startDate: string; endDate: string }) => void;
+  onSubmit: (data: BacktestParams) => void;
   isLoading: boolean;
 }
 
-const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "SPY", "QQQ", "TSLA", "NVDA"];
+const DEFAULT_SYMBOLS = ["AAPL", "GOOGL", "MSFT", "NVDA", "TSLA", "AMZN", "SPY", "QQQ", "META"];
 
 function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktestModalProps) {
   const { theme } = useTheme();
-  const [selectedSymbols, setSelectedSymbols] = useState<string[]>(["AAPL"]);
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>(["AAPL", "SPY"]);
   const [customSymbol, setCustomSymbol] = useState("");
+  const [strategyType, setStrategyType] = useState<StrategyType>("ma-crossover");
+  const [fastPeriod, setFastPeriod] = useState("10");
+  const [slowPeriod, setSlowPeriod] = useState("20");
+  const [rsiPeriod, setRsiPeriod] = useState("14");
+  const [oversold, setOversold] = useState("30");
+  const [overbought, setOverbought] = useState("70");
+  const [allocationPct, setAllocationPct] = useState("10");
 
   const today = new Date();
   const ninetyDaysAgo = new Date(today);
@@ -187,11 +240,125 @@ function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktest
   };
 
   const handleSubmit = () => {
-    onSubmit({
+    const params: BacktestParams = {
       universe: selectedSymbols,
       startDate: defaultStartDate,
       endDate: defaultEndDate,
-    });
+      strategyType,
+      strategyParams: {
+        allocationPct: parseFloat(allocationPct) || 10,
+      },
+    };
+
+    if (strategyType === "ma-crossover") {
+      params.strategyParams.fastPeriod = parseInt(fastPeriod) || 10;
+      params.strategyParams.slowPeriod = parseInt(slowPeriod) || 20;
+    } else if (strategyType === "rsi-oscillator") {
+      params.strategyParams.rsiPeriod = parseInt(rsiPeriod) || 14;
+      params.strategyParams.oversold = parseInt(oversold) || 30;
+      params.strategyParams.overbought = parseInt(overbought) || 70;
+    }
+
+    onSubmit(params);
+  };
+
+  const renderStrategyParams = () => {
+    if (strategyType === "ma-crossover") {
+      return (
+        <View style={styles.paramsContainer}>
+          <View style={styles.paramRow}>
+            <View style={styles.paramItem}>
+              <ThemedText style={[styles.paramLabel, { color: theme.textSecondary }]}>Fast Period</ThemedText>
+              <TextInput
+                style={[styles.paramInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={fastPeriod}
+                onChangeText={setFastPeriod}
+                keyboardType="numeric"
+                placeholder="10"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+            <View style={styles.paramItem}>
+              <ThemedText style={[styles.paramLabel, { color: theme.textSecondary }]}>Slow Period</ThemedText>
+              <TextInput
+                style={[styles.paramInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={slowPeriod}
+                onChangeText={setSlowPeriod}
+                keyboardType="numeric"
+                placeholder="20"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    if (strategyType === "rsi-oscillator") {
+      return (
+        <View style={styles.paramsContainer}>
+          <View style={styles.paramRow}>
+            <View style={styles.paramItem}>
+              <ThemedText style={[styles.paramLabel, { color: theme.textSecondary }]}>RSI Period</ThemedText>
+              <TextInput
+                style={[styles.paramInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={rsiPeriod}
+                onChangeText={setRsiPeriod}
+                keyboardType="numeric"
+                placeholder="14"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+          </View>
+          <View style={styles.paramRow}>
+            <View style={styles.paramItem}>
+              <ThemedText style={[styles.paramLabel, { color: theme.textSecondary }]}>Oversold</ThemedText>
+              <TextInput
+                style={[styles.paramInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={oversold}
+                onChangeText={setOversold}
+                keyboardType="numeric"
+                placeholder="30"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+            <View style={styles.paramItem}>
+              <ThemedText style={[styles.paramLabel, { color: theme.textSecondary }]}>Overbought</ThemedText>
+              <TextInput
+                style={[styles.paramInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={overbought}
+                onChangeText={setOverbought}
+                keyboardType="numeric"
+                placeholder="70"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -211,7 +378,16 @@ function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktest
           </View>
 
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Select Symbols</ThemedText>
+            <View style={[styles.explanationCard, { backgroundColor: BrandColors.primaryLight + "15" }]}>
+              <Feather name="info" size={16} color={BrandColors.primaryLight} />
+              <ThemedText style={[styles.explanationText, { color: theme.text }]}>
+                Run a backtest to see how a strategy would have performed using historical data
+              </ThemedText>
+            </View>
+
+            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              Select Symbols ({selectedSymbols.length} selected)
+            </ThemedText>
             <View style={styles.symbolsGrid}>
               {DEFAULT_SYMBOLS.map((symbol) => (
                 <Pressable
@@ -235,6 +411,9 @@ function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktest
                   ]}>
                     {symbol}
                   </ThemedText>
+                  {selectedSymbols.includes(symbol) ? (
+                    <Feather name="check" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -281,7 +460,68 @@ function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktest
               </View>
             ) : null}
 
-            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: Spacing.lg }]}>
+            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: Spacing.xl }]}>
+              Strategy Type
+            </ThemedText>
+            {(Object.keys(STRATEGY_OPTIONS) as StrategyType[]).map((type) => (
+              <Pressable
+                key={type}
+                onPress={() => setStrategyType(type)}
+                style={[
+                  styles.strategyOption,
+                  {
+                    backgroundColor: strategyType === type 
+                      ? BrandColors.primaryLight + "15" 
+                      : theme.backgroundSecondary,
+                    borderColor: strategyType === type 
+                      ? BrandColors.primaryLight 
+                      : BrandColors.cardBorder,
+                  },
+                ]}
+              >
+                <View style={styles.strategyOptionHeader}>
+                  <View style={[
+                    styles.radioOuter,
+                    { borderColor: strategyType === type ? BrandColors.primaryLight : theme.textSecondary }
+                  ]}>
+                    {strategyType === type ? (
+                      <View style={[styles.radioInner, { backgroundColor: BrandColors.primaryLight }]} />
+                    ) : null}
+                  </View>
+                  <ThemedText style={[styles.strategyName, { color: theme.text }]}>
+                    {STRATEGY_OPTIONS[type].name}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.strategyDescription, { color: theme.textSecondary }]}>
+                  {STRATEGY_OPTIONS[type].description}
+                </ThemedText>
+              </Pressable>
+            ))}
+
+            {renderStrategyParams()}
+
+            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: Spacing.xl }]}>
+              Allocation
+            </ThemedText>
+            <View style={styles.allocationRow}>
+              <TextInput
+                style={[styles.allocationInput, { 
+                  backgroundColor: theme.backgroundSecondary,
+                  color: theme.text,
+                  borderColor: BrandColors.cardBorder,
+                }]}
+                value={allocationPct}
+                onChangeText={setAllocationPct}
+                keyboardType="numeric"
+                placeholder="10"
+                placeholderTextColor={theme.textSecondary}
+              />
+              <ThemedText style={[styles.allocationSuffix, { color: theme.textSecondary }]}>
+                % per position
+              </ThemedText>
+            </View>
+
+            <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: Spacing.xl }]}>
               Date Range
             </ThemedText>
             <View style={styles.dateRangeInfo}>
@@ -299,6 +539,13 @@ function RunBacktestModal({ visible, onClose, onSubmit, isLoading }: RunBacktest
             <ThemedText style={[styles.dateHint, { color: theme.textSecondary }]}>
               Last 90 days of historical data
             </ThemedText>
+
+            <View style={[styles.warningCard, { backgroundColor: BrandColors.warning + "15" }]}>
+              <Feather name="alert-triangle" size={14} color={BrandColors.warning} />
+              <ThemedText style={[styles.warningText, { color: theme.textSecondary }]}>
+                Survivorship bias warning: Backtests only include currently listed stocks and may overstate historical performance.
+              </ThemedText>
+            </View>
           </ScrollView>
 
           <Pressable 
@@ -374,14 +621,14 @@ export default function BacktestsScreen() {
   });
 
   const runBacktestMutation = useMutation({
-    mutationFn: async (params: { universe: string[]; startDate: string; endDate: string }) => {
+    mutationFn: async (params: BacktestParams) => {
       return apiRequest("POST", "/api/backtests/run", {
         universe: params.universe,
         startDate: params.startDate,
         endDate: params.endDate,
         strategyConfig: {
-          type: "mean-reversion",
-          lookbackPeriod: 20,
+          type: params.strategyType,
+          ...params.strategyParams,
         },
       });
     },
@@ -395,7 +642,7 @@ export default function BacktestsScreen() {
     navigation.navigate("BacktestDetail", { id: run.id });
   };
 
-  const handleRunBacktest = (data: { universe: string[]; startDate: string; endDate: string }) => {
+  const handleRunBacktest = (data: BacktestParams) => {
     runBacktestMutation.mutate(data);
   };
 
@@ -658,7 +905,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "100%",
     maxWidth: 400,
-    maxHeight: "80%",
+    maxHeight: "85%",
     borderRadius: BorderRadius.xl,
     overflow: "hidden",
   },
@@ -680,6 +927,18 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     paddingTop: Spacing.lg,
   },
+  explanationCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  explanationText: {
+    ...Typography.caption,
+    flex: 1,
+  },
   sectionLabel: {
     ...Typography.caption,
     fontWeight: "600",
@@ -689,6 +948,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   symbolChip: {
     flexDirection: "row",
@@ -697,27 +957,29 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
+    minWidth: 60,
+    justifyContent: "center",
   },
   symbolChipText: {
-    ...Typography.small,
+    ...Typography.caption,
     fontWeight: "600",
   },
   customSymbolRow: {
     flexDirection: "row",
     gap: Spacing.sm,
-    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   customSymbolInput: {
     flex: 1,
-    height: Spacing.inputHeight,
-    paddingHorizontal: Spacing.md,
+    height: 44,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
+    paddingHorizontal: Spacing.md,
     ...Typography.body,
   },
   addButton: {
-    width: Spacing.inputHeight,
-    height: Spacing.inputHeight,
+    width: 44,
+    height: 44,
     borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
@@ -726,15 +988,90 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  strategyOption: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+  },
+  strategyOptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.sm,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  strategyName: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  strategyDescription: {
+    ...Typography.small,
+    marginLeft: 28,
+  },
+  paramsContainer: {
     marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: "transparent",
+    borderRadius: BorderRadius.sm,
+  },
+  paramRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  paramItem: {
+    flex: 1,
+  },
+  paramLabel: {
+    ...Typography.small,
+    marginBottom: Spacing.xs,
+  },
+  paramInput: {
+    height: 44,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    ...Typography.body,
+    textAlign: "center",
+  },
+  allocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  allocationInput: {
+    width: 80,
+    height: 44,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    ...Typography.body,
+    textAlign: "center",
+  },
+  allocationSuffix: {
+    ...Typography.body,
   },
   dateRangeInfo: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.lg,
-    padding: Spacing.lg,
-    backgroundColor: "transparent",
+    paddingVertical: Spacing.md,
   },
   dateItem: {
     alignItems: "center",
@@ -750,17 +1087,29 @@ const styles = StyleSheet.create({
   dateHint: {
     ...Typography.small,
     textAlign: "center",
-    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  warningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  warningText: {
+    ...Typography.small,
+    flex: 1,
   },
   submitButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.sm,
+    height: 52,
     margin: Spacing.xl,
     marginTop: 0,
-    height: Spacing.buttonHeight,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
   },
   submitButtonText: {
     ...Typography.body,
