@@ -194,7 +194,10 @@ class AlpacaConnector {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private cacheDuration = 30 * 1000;
   private lastRequestTime = 0;
-  private minRequestInterval = 200;
+  private minRequestInterval = 350;
+  private requestQueue: Promise<void> = Promise.resolve();
+  private activeRequests = 0;
+  private maxConcurrentRequests = 3;
 
   private getCredentials(): { apiKey: string; secretKey: string } | null {
     const apiKey = process.env.ALPACA_API_KEY;
@@ -204,14 +207,28 @@ class AlpacaConnector {
   }
 
   private async throttle(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
+    while (this.activeRequests >= this.maxConcurrentRequests) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    this.lastRequestTime = Date.now();
+    this.activeRequests++;
+    
+    const executeThrottle = async () => {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
+        );
+      }
+      this.lastRequestTime = Date.now();
+    };
+    
+    this.requestQueue = this.requestQueue.then(executeThrottle);
+    await this.requestQueue;
+  }
+  
+  private releaseThrottle(): void {
+    this.activeRequests = Math.max(0, this.activeRequests - 1);
   }
 
   private getCached<T>(key: string): T | null {
@@ -229,7 +246,7 @@ class AlpacaConnector {
   private async fetchWithRetry<T>(
     url: string,
     options: RequestInit = {},
-    retries = 3
+    retries = 5
   ): Promise<T> {
     const credentials = this.getCredentials();
     if (!credentials) {
@@ -246,35 +263,40 @@ class AlpacaConnector {
       ...(options.headers as Record<string, string>),
     };
 
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(url, {
-          ...options,
-          headers,
-        });
+    try {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url, {
+            ...options,
+            headers,
+          });
 
-        if (response.status === 429) {
-          const waitTime = Math.pow(2, i) * 1000;
-          log.warn("Alpaca", `Rate limited, waiting ${waitTime}ms`);
+          if (response.status === 429) {
+            const waitTime = Math.min(Math.pow(2, i + 1) * 1000, 16000);
+            log.warn("Alpaca", `Rate limited, waiting ${waitTime}ms (attempt ${i + 1}/${retries})`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+            continue;
+          }
+
+          if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Alpaca API error: ${response.status} - ${errorBody}`);
+          }
+
+          const text = await response.text();
+          if (!text) return {} as T;
+          return JSON.parse(text) as T;
+        } catch (error) {
+          if (i === retries - 1) throw error;
+          const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
           await new Promise((resolve) => setTimeout(resolve, waitTime));
-          continue;
         }
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          throw new Error(`Alpaca API error: ${response.status} - ${errorBody}`);
-        }
-
-        const text = await response.text();
-        if (!text) return {} as T;
-        return JSON.parse(text) as T;
-      } catch (error) {
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
       }
-    }
 
-    throw new Error("Failed to fetch from Alpaca after retries");
+      throw new Error("Failed to fetch from Alpaca after retries");
+    } finally {
+      this.releaseThrottle();
+    }
   }
 
   async getAccount(): Promise<AlpacaAccount> {
