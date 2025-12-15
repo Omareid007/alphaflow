@@ -1,0 +1,119 @@
+You are working inside the existing AI Active Trader repo. DO NOT re-implement Phase 0+1 (G1/G2/G3) — assume the work queue + traceId propagation already exist and only extend them.
+
+Goal (Task 1 / P1 / G4):
+Fix the data model + runtime so we have a real lifecycle:
+AI Decision → Order Intent → Broker Order → Fills → Position impact
+…and the UI uses this lifecycle (no mock statuses like pending_execution without broker linkage).
+
+Hard Requirements:
+- No mock/demo data paths for lifecycle screens.
+- Alpaca paper is the source of truth for orders/positions; DB is the durable audit log + analytics layer.
+- Every entity must carry traceId and link IDs (decisionId, orderId, brokerOrderId, fillId).
+- Keep existing OpenRouter + OpenAI routing (already integrated). Do not duplicate LLM gateway.
+
+Step 0 — Read first (must):
+1) docs/SOURCE_OF_TRUTH_CONTRACT.md
+2) docs/TRADING_SAGA_SEQUENCES.md
+3) docs/EVENT_SCHEMA_REGISTRY.md
+4) docs/WORK_QUEUE_ARCHITECTURE.md
+5) docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md
+6) shared/schema.ts (current tables)
+7) server/lib/work-queue.ts and work item handlers for ORDER_SUBMIT / ORDER_CANCEL
+8) server/trading/alpaca-trading-engine.ts and server/trading/paper-trading-engine.ts (both paths)
+Then produce a short “Reality Check” note in the PR description: what exists today vs what docs claim for Orders/Fills.
+
+Step 1 — Database schema (add missing core tables):
+Add two new tables (Drizzle schema + migration):
+A) orders
+- id (uuid)
+- decisionId (nullable FK ai_decisions.id)
+- traceId (text, indexed)
+- symbol, side, qtyRequested, type, timeInForce, limitPrice, stopPrice, takeProfit, stopLoss (as needed)
+- broker (alpaca)
+- brokerOrderId (text, unique nullable until broker returns)
+- clientOrderId (text, unique)  // use for idempotency & broker mapping
+- status (enum-like text): CREATED, SUBMITTED, ACCEPTED, PARTIALLY_FILLED, FILLED, CANCELED, REJECTED, EXPIRED, REPLACED, UNKNOWN
+- submittedAt, updatedAt, closedAt
+- rawRequest (jsonb), rawBrokerSnapshot (jsonb)
+B) fills
+- id (uuid)
+- orderId (FK orders.id)
+- traceId (text, indexed)
+- brokerTradeId / executionId (text) if available
+- qtyFilled, fillPrice, liquidity (optional), fee (optional)
+- occurredAt
+- rawEvent (jsonb)
+
+Also update existing tables to support linkage:
+- ai_decisions: add orderId (nullable FK orders.id) OR keep executedTradeId but deprecate it in favor of orderId
+- work_items: keep brokerOrderId but ALSO add orderId (FK orders.id) to anchor work item to DB order
+- trades: keep for analytics/backtest, but STOP using trades as “order status”.
+
+Step 2 — Idempotent order creation (before broker call):
+Modify the ORDER_SUBMIT handler flow:
+- When a decision is approved for execution, create an orders row in DB first with status=CREATED.
+- Generate a deterministic clientOrderId (e.g., hash(traceId + decisionId + symbol + side + qty + timeBucket)).
+- Enqueue work_item ORDER_SUBMIT with payload containing orderId + clientOrderId + traceId (NOT only brokerOrderId).
+- In the worker: if orders.brokerOrderId already exists for this orderId/clientOrderId, treat as idempotent success.
+
+Step 3 — Broker submit + persist broker IDs:
+In ORDER_SUBMIT execution:
+- Call Alpaca POST /v2/orders using client_order_id = clientOrderId.
+- Persist brokerOrderId returned by Alpaca to orders.brokerOrderId and status=SUBMITTED/ACCEPTED depending on response.
+- Save raw broker response snapshot into orders.rawBrokerSnapshot.
+
+Step 4 — Real-time fill tracking (WebSocket trade_updates):
+Implement a Trading Stream listener for Alpaca paper that listens to trade_updates and updates DB:
+- Connect to wss://paper-api.alpaca.markets/stream, authenticate, listen to "trade_updates".
+- For each event: map Alpaca order status to our orders.status.
+- On fill / partial_fill events: upsert into fills table (idempotent on brokerTradeId/executionId if provided; otherwise hash(orderId+qty+price+timestamp-rounded)).
+- Update orders totals (filled qty, avg fill price if you store it) and close timestamps when FILLED/CANCELED/EXPIRED/REJECTED.
+- Always include traceId: if you can’t derive it from the stream event, look up by brokerOrderId → orders.traceId.
+
+If a websocket listener already exists, reuse it and only extend mapping + persistence.
+
+Step 5 — Reconciliation job (safety net):
+Add a periodic reconciler (e.g., every 30–60s) to:
+- Fetch open orders from Alpaca (GET /v2/orders?status=open or equivalent)
+- Compare with DB orders in non-terminal states
+- Patch DB orders status if websocket missed events
+- Optionally fetch recently closed orders for the last N minutes to fill any gaps
+
+This reconciler MUST be idempotent and safe to run multiple times.
+
+Step 6 — API endpoints for UI (no more “fake” statuses):
+Add/adjust REST endpoints used by UI:
+- GET /api/orders (filters: status, symbol, traceId, decisionId, time range)
+- GET /api/orders/:id (include fills + linked decision + latest broker snapshot)
+- GET /api/decisions (include linked order status + brokerOrderId)
+Deprecate any UI endpoint that lists “trades” as if they were broker order statuses.
+
+Step 7 — UI wiring (minimal but correct):
+Update the main problem screens:
+- “AI Suggested Trades” must show: Decision → Order status (from orders table), not trades table.
+- “Trade Ledger” must show Orders + Fills (and optionally derived realized PnL), not the old repetitive trades rows.
+- Each row must have: traceId, decisionId, orderId, brokerOrderId, model/provider used, and key factors (confidence, signals).
+If there are repeated/duplicate components, consolidate into a single OrdersTable component and reuse.
+
+Step 8 — Documentation update (must reflect reality):
+Update docs to match implementation:
+- docs/SOURCE_OF_TRUTH_CONTRACT.md: add “orders/fills DB audit log” section + mapping rules
+- docs/TRADING_SAGA_SEQUENCES.md: add “Monolith implementation (Phase 1)” section describing websocket + reconciler (not NATS)
+- docs/EVENT_SCHEMA_REGISTRY.md: add emitted internal event examples for order lifecycle (even if only stored for now)
+
+Step 9 — Verification checklist (must pass):
+- Place 1 buy and 1 sell in paper trading; confirm:
+  a) decision created with traceId
+  b) orders row created before broker submit
+  c) brokerOrderId stored
+  d) trade_updates updates status
+  e) fills rows created (partial fill works if it happens; otherwise confirm fill)
+  f) UI shows consistent states end-to-end
+- Confirm idempotency by forcing retry: same orderId/clientOrderId should not double-submit.
+
+Deliverables:
+- Migrations + schema updates
+- Worker + websocket + reconciler
+- UI changes
+- Docs updates
+- Short “Reality Check” summary in PR notes explaining what was fixed and what remains for Task 2 (events/outbox).

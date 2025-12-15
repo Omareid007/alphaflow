@@ -593,8 +593,19 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
-    const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as InsertOrder).returning();
-    return created;
+    try {
+      const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as InsertOrder).returning();
+      return created;
+    } catch (error: any) {
+      if (error.code === "23505" || error.message?.includes("duplicate")) {
+        const [updated] = await db.update(orders)
+          .set({ ...data, updatedAt: new Date() })
+          .where(eq(orders.brokerOrderId, brokerOrderId))
+          .returning();
+        return updated;
+      }
+      throw error;
+    }
   }
 
   async getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined> {

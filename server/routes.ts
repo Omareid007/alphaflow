@@ -26,6 +26,7 @@ import { dataFusionEngine } from "./fusion/data-fusion-engine";
 // DEPRECATED: paperTradingEngine is no longer used in UI paths - Alpaca is source of truth
 // import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
+import { alpacaStream } from "./trading/alpaca-stream";
 import { 
   orderExecutionEngine,
   identifyUnrealOrders, 
@@ -125,6 +126,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Start the work queue worker for durable order execution
     workQueue.startWorker(5000);
     console.log("[Routes] Work queue worker started with 5s poll interval");
+    
+    // Connect to Alpaca WebSocket for real-time trade updates
+    alpacaStream.connect().catch((err) => {
+      console.error("[Routes] Failed to connect to Alpaca stream:", err);
+    });
+    console.log("[Routes] Alpaca trade updates stream connecting...");
+    
+    // Start periodic order reconciler (every 45 seconds)
+    setInterval(async () => {
+      try {
+        const traceId = `reconcile-${Date.now()}`;
+        await workQueue.enqueue({
+          type: "ORDER_SYNC",
+          payload: { traceId, source: "periodic-reconciler" },
+          traceId,
+          idempotencyKey: `ORDER_SYNC:periodic:${Math.floor(Date.now() / 45000)}`,
+        });
+        console.log("[Routes] Periodic order reconciliation triggered");
+      } catch (err) {
+        console.error("[Routes] Failed to trigger order reconciliation:", err);
+      }
+    }, 45000);
+    console.log("[Routes] Order reconciliation job scheduled (45s interval)");
   }, 2000);
 
   // Bootstrap admin user deferred to background to not block startup

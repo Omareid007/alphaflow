@@ -13,6 +13,7 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { EquityCurveCard } from "@/components/EquityCurveCard";
+import { OrdersTable } from "@/components/OrdersTable";
 import type { Trade, Strategy, AiDecision } from "@shared/schema";
 import type { AnalyticsStackParamList } from "@/navigation/AnalyticsStackNavigator";
 
@@ -787,6 +788,7 @@ export default function AnalyticsScreen() {
     { key: "metrics", component: <PerformanceMetrics /> },
     { key: "equity", component: <EquityCurveCard /> },
     { key: "winrate", component: <WinRateCard /> },
+    { key: "orders", component: <OrdersTable /> },
     { key: "ledger", component: <TradeLedger /> },
   ];
 

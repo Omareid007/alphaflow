@@ -84,6 +84,7 @@ export function FloatingActionButton({ isRunning, hasError, onPress, tabBarHeigh
 
   return (
     <View
+      pointerEvents="box-none"
       style={[
         styles.container,
         {
