@@ -69,6 +69,7 @@ import { tracesRouter } from "./routes/traces";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
+import { globalSearch, getRelatedEntities } from "./admin/global-search";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -4487,6 +4488,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Failed to delete setting:", error);
       res.status(500).json({ error: "Failed to delete setting" });
+    }
+  });
+
+  // ============================================================================
+  // GLOBAL ADMIN SEARCH ENDPOINTS
+  // ============================================================================
+
+  app.get("/api/admin/search", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { q, limit } = req.query;
+      const query = typeof q === "string" ? q : "";
+      const maxResults = typeof limit === "string" && !isNaN(parseInt(limit, 10)) ? parseInt(limit, 10) : 50;
+      
+      if (!query || query.length < 2) {
+        return res.status(400).json({ error: "Search query must be at least 2 characters" });
+      }
+      
+      const results = await globalSearch(query, Math.min(maxResults, 100));
+      res.json(results);
+    } catch (error) {
+      console.error("Failed to perform global search:", error);
+      res.status(500).json({ error: "Failed to perform search" });
+    }
+  });
+
+  app.get("/api/admin/trace/:traceId", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { traceId } = req.params;
+      const related = await getRelatedEntities(traceId);
+      
+      const totalCount = 
+        related.aiDecisions.length +
+        related.trades.length +
+        related.orders.length +
+        related.fills.length +
+        related.llmCalls.length;
+      
+      res.json({
+        traceId,
+        totalEntities: totalCount,
+        ...related,
+      });
+    } catch (error) {
+      console.error("Failed to get related entities:", error);
+      res.status(500).json({ error: "Failed to get related entities" });
     }
   });
 
