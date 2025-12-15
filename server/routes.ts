@@ -3172,6 +3172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "Finnhub",
@@ -3181,6 +3182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "CoinGecko",
@@ -3190,6 +3192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "CoinMarketCap",
@@ -3199,6 +3202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "GDELT News",
@@ -3208,6 +3212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "NewsAPI",
@@ -3217,6 +3222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "Valyu AI",
@@ -3226,6 +3232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
         {
           name: "Hugging Face",
@@ -3235,11 +3242,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "checking" as string,
           lastSync: null as string | null,
           callsRemaining: null as number | null,
+          healthDetails: null as { overall: string; account?: unknown } | null,
         },
       ];
 
+      let alpacaHealthResult: { overall: string; timestamp: string; account: unknown } | null = null;
+      const alpacaConnector = connectors.find(c => c.provider === "alpaca");
+      if (alpacaConnector?.hasApiKey) {
+        try {
+          alpacaHealthResult = await alpaca.healthCheck();
+        } catch (err) {
+          console.error("Alpaca health check failed:", err);
+        }
+      }
+
       for (const connector of connectors) {
         const providerStatus = providerStatuses[connector.provider];
+        
+        if (connector.provider === "alpaca") {
+          if (!connector.hasApiKey) {
+            connector.status = "offline";
+            connector.lastSync = "Not configured";
+          } else if (alpacaHealthResult) {
+            connector.healthDetails = { 
+              overall: alpacaHealthResult.overall,
+              account: alpacaHealthResult.account 
+            };
+            if (alpacaHealthResult.overall === "healthy") {
+              connector.status = "healthy";
+              connector.lastSync = alpacaHealthResult.timestamp ? new Date(alpacaHealthResult.timestamp).toLocaleTimeString() : "Connected";
+            } else if (alpacaHealthResult.overall === "degraded") {
+              connector.status = "warning";
+              connector.lastSync = "Partially connected";
+            } else {
+              connector.status = "offline";
+              connector.lastSync = "Connection failed";
+            }
+          } else {
+            connector.status = "offline";
+            connector.lastSync = "Health check failed";
+          }
+          if (providerStatus?.policy.maxRequestsPerMinute) {
+            connector.callsRemaining = Math.max(0, providerStatus.policy.maxRequestsPerMinute - providerStatus.budgetStatus.currentCount);
+          }
+          continue;
+        }
+
         if (providerStatus) {
           if (!connector.hasApiKey) {
             connector.status = "offline";
@@ -3277,27 +3325,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/api-keys-status", authMiddleware, async (req, res) => {
     try {
-      const { getAvailableProviders } = await import("./ai/index");
-      const aiProviders = getAvailableProviders();
+      const { getAllAvailableProviders } = await import("./ai/index");
+      const aiProviders = getAllAvailableProviders();
+      const providerPolicies = getAllProviderPolicies();
+      
+      const getPolicyEnabled = (provider: string): boolean => {
+        const policy = providerPolicies.find(p => p.provider.toLowerCase() === provider.toLowerCase());
+        return policy?.enabled ?? true;
+      };
 
       const apiKeys = [
-        { name: "Alpaca API", key: "ALPACA_API_KEY", category: "brokerage", configured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) },
-        { name: "Finnhub API", key: "FINNHUB_API_KEY", category: "market_data", configured: !!process.env.FINNHUB_API_KEY },
-        { name: "CoinMarketCap API", key: "COINMARKETCAP_API_KEY", category: "crypto", configured: !!process.env.COINMARKETCAP_API_KEY },
-        { name: "NewsAPI", key: "NEWS_API_KEY", category: "news", configured: !!process.env.NEWS_API_KEY },
-        { name: "Valyu API", key: "VALYU_API_KEY", category: "data", configured: !!process.env.VALYU_API_KEY },
-        { name: "Hugging Face API", key: "HUGGINGFACE_API_KEY", category: "ai", configured: !!process.env.HUGGINGFACE_API_KEY },
-        { name: "OpenAI API", key: "OPENAI_API_KEY", category: "ai", configured: aiProviders.includes("openai") },
-        { name: "Groq API", key: "GROQ_API_KEY", category: "ai", configured: aiProviders.includes("groq") },
-        { name: "Together API", key: "TOGETHER_API_KEY", category: "ai", configured: aiProviders.includes("together") },
-        { name: "AIML API", key: "AIMLAPI_KEY", category: "ai", configured: aiProviders.includes("aimlapi") },
-        { name: "OpenRouter API", key: "OPENROUTER_API_KEY", category: "ai", configured: !!process.env.OPENROUTER_API_KEY },
+        { name: "Alpaca API", key: "ALPACA_API_KEY", category: "brokerage", configured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY), enabled: getPolicyEnabled("alpaca") },
+        { name: "Finnhub API", key: "FINNHUB_API_KEY", category: "market_data", configured: !!process.env.FINNHUB_API_KEY, enabled: getPolicyEnabled("finnhub") },
+        { name: "CoinGecko API", key: "COINGECKO_API_KEY", category: "crypto", configured: true, enabled: getPolicyEnabled("coingecko") },
+        { name: "CoinMarketCap API", key: "COINMARKETCAP_API_KEY", category: "crypto", configured: !!process.env.COINMARKETCAP_API_KEY, enabled: getPolicyEnabled("coinmarketcap") },
+        { name: "NewsAPI", key: "NEWS_API_KEY", category: "news", configured: !!process.env.NEWS_API_KEY, enabled: getPolicyEnabled("newsapi") },
+        { name: "GDELT News", key: "GDELT", category: "news", configured: true, enabled: getPolicyEnabled("gdelt") },
+        { name: "Valyu API", key: "VALYU_API_KEY", category: "data", configured: !!process.env.VALYU_API_KEY, enabled: getPolicyEnabled("valyu") },
+        { name: "Hugging Face API", key: "HUGGINGFACE_API_KEY", category: "ai", configured: !!process.env.HUGGINGFACE_API_KEY, enabled: getPolicyEnabled("huggingface") },
+        { name: "OpenAI API", key: "OPENAI_API_KEY", category: "ai", configured: aiProviders.includes("openai"), enabled: getPolicyEnabled("openai") },
+        { name: "Groq API", key: "GROQ_API_KEY", category: "ai", configured: aiProviders.includes("groq"), enabled: getPolicyEnabled("groq") },
+        { name: "Together API", key: "TOGETHER_API_KEY", category: "ai", configured: aiProviders.includes("together"), enabled: getPolicyEnabled("together") },
+        { name: "AIML API", key: "AIMLAPI_KEY", category: "ai", configured: aiProviders.includes("aimlapi"), enabled: true },
+        { name: "OpenRouter API", key: "OPENROUTER_API_KEY", category: "ai", configured: !!process.env.OPENROUTER_API_KEY, enabled: true },
       ];
 
       const summary = {
         total: apiKeys.length,
         configured: apiKeys.filter(k => k.configured).length,
         missing: apiKeys.filter(k => !k.configured).length,
+        enabled: apiKeys.filter(k => k.enabled).length,
         byCategory: {
           brokerage: apiKeys.filter(k => k.category === "brokerage"),
           market_data: apiKeys.filter(k => k.category === "market_data"),
@@ -3320,9 +3377,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getAllProviderStatuses } = await import("./lib/callExternal");
       const providerStatuses = await getAllProviderStatuses();
       
-      const activeProviders = Object.entries(providerStatuses).filter(
-        ([_, status]) => status.enabled && status.budgetStatus.allowed
-      );
+      const fusionEngineStatus = dataFusionEngine.getStatus();
+      
+      let marketIntelligence = null;
+      try {
+        marketIntelligence = await dataFusionEngine.getMarketIntelligence();
+      } catch (err) {
+        console.error("Failed to get market intelligence:", err);
+      }
 
       const dataSources = [
         { name: "Market Prices", provider: "finnhub", active: !!process.env.FINNHUB_API_KEY && providerStatuses.finnhub?.enabled },
@@ -3334,17 +3396,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: "Trade Execution", provider: "alpaca", active: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) && providerStatuses.alpaca?.enabled },
       ];
 
-      const activeSourcesCount = dataSources.filter(s => s.active).length;
-      const totalSources = dataSources.length;
-      const intelligenceScore = activeSourcesCount / totalSources;
+      const activeSourcesCount = marketIntelligence?.activeSources ?? dataSources.filter(s => s.active).length;
+      const totalSources = marketIntelligence?.totalSources ?? dataSources.length;
+      const intelligenceScore = marketIntelligence?.overall ?? (activeSourcesCount / totalSources);
 
       const fusionMetrics = {
         intelligenceScore,
         activeSources: activeSourcesCount,
         totalSources,
         dataSources,
-        embeddingsCount: 0,
-        lastFusionRun: null as string | null,
+        dataQuality: marketIntelligence?.dataQuality ?? "unknown",
+        components: marketIntelligence?.components ?? null,
+        signals: marketIntelligence?.signals ?? [],
+        embeddingsCount: fusionEngineStatus.cacheSize,
+        lastFusionRun: fusionEngineStatus.lastFusionTime 
+          ? new Date(fusionEngineStatus.lastFusionTime).toISOString() 
+          : null,
         capabilities: {
           marketData: dataSources.some(s => s.provider === "finnhub" && s.active) || dataSources.some(s => s.provider === "coingecko" && s.active),
           newsAnalysis: dataSources.some(s => (s.provider === "gdelt" || s.provider === "newsapi") && s.active),
