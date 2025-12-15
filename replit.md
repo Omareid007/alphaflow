@@ -83,6 +83,42 @@ The platform uses a **PostgreSQL-backed durable work queue** for reliable order 
 - `shared/schema.ts` - `work_items` and `work_item_runs` tables
 - `server/storage.ts` - Database operations for work items
 
+### Backtesting Subsystem (December 2025)
+The platform includes a comprehensive backtesting engine for strategy validation. See `docs/BACKTESTING.md` for full details.
+
+**Key Features:**
+- **Historical Data Pipeline**: Fetches bars from Alpaca `/v2/stocks/bars` with 5k bar batching and budget management via `callExternal`
+- **Deterministic Execution**: t+1 bar fills with NEXT_OPEN (default) or NEXT_CLOSE pricing
+- **Per-Symbol Execution Queues**: Signals for symbol X only execute on symbol X's next bar (prevents cross-symbol look-ahead bias)
+- **Pluggable Fees/Slippage**: Fixed or percentage fees, BPS or spread-proxy slippage models
+- **Complete Metrics**: CAGR, Total Return, Max Drawdown, Sharpe Ratio, Sortino Ratio, Win Rate, Profit Factor
+- **Data Provenance**: Tracks provider, cache hit rate, timeframe, date range, bars count per symbol
+
+**Bias Prevention:**
+- Look-ahead bias: Strategies only see bars 0..t, execute on bar t+1
+- Survivorship bias: Warning displayed in UI and documentation
+- Data snooping: Config hash ensures reproducible runs
+
+**API Endpoints:**
+- `POST /api/backtests/run` - Run a new backtest
+- `GET /api/backtests` - List all backtest runs
+- `GET /api/backtests/:id` - Get single backtest details
+- `GET /api/backtests/:id/equity-curve` - Get equity curve data
+- `GET /api/backtests/:id/trades` - Get trade events
+
+**Database Tables:**
+- `backtest_runs` - Backtest configuration and results summary
+- `backtest_trade_events` - Individual trade executions (BUY/SELL)
+- `backtest_equity_curve` - Portfolio value snapshots over time
+
+**Key Files:**
+- `server/services/backtesting/historical-data-service.ts` - Alpaca bars API integration
+- `server/services/backtesting/execution-engine.ts` - Deterministic simulation engine
+- `server/services/backtesting/backtest-runner.ts` - Orchestrates full backtest lifecycle
+- `server/routes/backtests.ts` - REST API endpoints
+- `client/screens/BacktestsScreen.tsx` - UI list view
+- `client/screens/BacktestDetailScreen.tsx` - UI detail view with metrics and equity curve
+
 ### Algorithm Framework & Shared Libraries (`services/shared/`)
 The platform includes a comprehensive algorithm framework inspired by LEAN, NautilusTrader, and Freqtrade:
 
