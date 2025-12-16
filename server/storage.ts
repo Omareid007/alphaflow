@@ -12,6 +12,14 @@ import {
   brokerAssets,
   orders,
   fills,
+  debateSessions,
+  debateMessages,
+  debateConsensus,
+  traderProfiles,
+  competitionRuns,
+  competitionScores,
+  strategyVersions,
+  toolInvocations,
   type User,
   type InsertUser,
   type Strategy,
@@ -36,6 +44,23 @@ import {
   type InsertOrder,
   type Fill,
   type InsertFill,
+  type DebateSession,
+  type InsertDebateSession,
+  type DebateMessage,
+  type InsertDebateMessage,
+  type DebateConsensus,
+  type InsertDebateConsensus,
+  type TraderProfile,
+  type InsertTraderProfile,
+  type CompetitionRun,
+  type InsertCompetitionRun,
+  type CompetitionScore,
+  type InsertCompetitionScore,
+  type StrategyVersion,
+  type InsertStrategyVersion,
+  type ToolInvocation,
+  type InsertToolInvocation,
+  type DebateSessionStatus,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -637,6 +662,168 @@ export class DatabaseStorage implements IStorage {
 
   async getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]> {
     return db.select().from(fills).where(eq(fills.brokerOrderId, brokerOrderId)).orderBy(desc(fills.occurredAt));
+  }
+
+  // ============================================================================
+  // DEBATE ARENA
+  // ============================================================================
+
+  async createDebateSession(session: InsertDebateSession): Promise<DebateSession> {
+    const [result] = await db.insert(debateSessions).values(session as any).returning();
+    return result;
+  }
+
+  async getDebateSession(id: string): Promise<DebateSession | undefined> {
+    const [result] = await db.select().from(debateSessions).where(eq(debateSessions.id, id));
+    return result;
+  }
+
+  async getDebateSessions(limit = 50): Promise<DebateSession[]> {
+    return db.select().from(debateSessions).orderBy(desc(debateSessions.createdAt)).limit(limit);
+  }
+
+  async updateDebateSession(id: string, updates: Partial<InsertDebateSession>): Promise<DebateSession | undefined> {
+    const [result] = await db.update(debateSessions).set(updates as any).where(eq(debateSessions.id, id)).returning();
+    return result;
+  }
+
+  async createDebateMessage(message: InsertDebateMessage): Promise<DebateMessage> {
+    const [result] = await db.insert(debateMessages).values(message as any).returning();
+    return result;
+  }
+
+  async getDebateMessagesBySession(sessionId: string): Promise<DebateMessage[]> {
+    return db.select().from(debateMessages).where(eq(debateMessages.sessionId, sessionId)).orderBy(debateMessages.createdAt);
+  }
+
+  async createDebateConsensus(consensus: InsertDebateConsensus): Promise<DebateConsensus> {
+    const [result] = await db.insert(debateConsensus).values(consensus).returning();
+    return result;
+  }
+
+  async getDebateConsensusBySession(sessionId: string): Promise<DebateConsensus | undefined> {
+    const [result] = await db.select().from(debateConsensus).where(eq(debateConsensus.sessionId, sessionId));
+    return result;
+  }
+
+  async updateDebateConsensus(id: string, updates: Partial<InsertDebateConsensus>): Promise<DebateConsensus | undefined> {
+    const [result] = await db.update(debateConsensus).set(updates).where(eq(debateConsensus.id, id)).returning();
+    return result;
+  }
+
+  // ============================================================================
+  // TRADER PROFILES & COMPETITION
+  // ============================================================================
+
+  async createTraderProfile(profile: InsertTraderProfile): Promise<TraderProfile> {
+    const [result] = await db.insert(traderProfiles).values(profile as any).returning();
+    return result;
+  }
+
+  async getTraderProfile(id: string): Promise<TraderProfile | undefined> {
+    const [result] = await db.select().from(traderProfiles).where(eq(traderProfiles.id, id));
+    return result;
+  }
+
+  async getTraderProfiles(): Promise<TraderProfile[]> {
+    return db.select().from(traderProfiles).orderBy(desc(traderProfiles.createdAt));
+  }
+
+  async updateTraderProfile(id: string, updates: Partial<InsertTraderProfile>): Promise<TraderProfile | undefined> {
+    const [result] = await db.update(traderProfiles).set({ ...updates, updatedAt: new Date() } as any).where(eq(traderProfiles.id, id)).returning();
+    return result;
+  }
+
+  async createCompetitionRun(run: InsertCompetitionRun): Promise<CompetitionRun> {
+    const [result] = await db.insert(competitionRuns).values(run as any).returning();
+    return result;
+  }
+
+  async getCompetitionRun(id: string): Promise<CompetitionRun | undefined> {
+    const [result] = await db.select().from(competitionRuns).where(eq(competitionRuns.id, id));
+    return result;
+  }
+
+  async getCompetitionRuns(limit = 20): Promise<CompetitionRun[]> {
+    return db.select().from(competitionRuns).orderBy(desc(competitionRuns.createdAt)).limit(limit);
+  }
+
+  async updateCompetitionRun(id: string, updates: Partial<InsertCompetitionRun>): Promise<CompetitionRun | undefined> {
+    const [result] = await db.update(competitionRuns).set(updates as any).where(eq(competitionRuns.id, id)).returning();
+    return result;
+  }
+
+  async createCompetitionScore(score: InsertCompetitionScore): Promise<CompetitionScore> {
+    const [result] = await db.insert(competitionScores).values(score).returning();
+    return result;
+  }
+
+  async getCompetitionScoresByRun(runId: string): Promise<CompetitionScore[]> {
+    return db.select().from(competitionScores).where(eq(competitionScores.runId, runId)).orderBy(competitionScores.rank);
+  }
+
+  async updateCompetitionScore(id: string, updates: Partial<InsertCompetitionScore>): Promise<CompetitionScore | undefined> {
+    const [result] = await db.update(competitionScores).set(updates).where(eq(competitionScores.id, id)).returning();
+    return result;
+  }
+
+  // ============================================================================
+  // STRATEGY VERSIONS
+  // ============================================================================
+
+  async createStrategyVersion(version: InsertStrategyVersion): Promise<StrategyVersion> {
+    const [result] = await db.insert(strategyVersions).values(version as any).returning();
+    return result;
+  }
+
+  async getStrategyVersion(id: string): Promise<StrategyVersion | undefined> {
+    const [result] = await db.select().from(strategyVersions).where(eq(strategyVersions.id, id));
+    return result;
+  }
+
+  async getStrategyVersionsByStrategy(strategyId: string): Promise<StrategyVersion[]> {
+    return db.select().from(strategyVersions).where(eq(strategyVersions.strategyId, strategyId)).orderBy(desc(strategyVersions.version));
+  }
+
+  async getLatestStrategyVersion(strategyId: string): Promise<StrategyVersion | undefined> {
+    const [result] = await db.select().from(strategyVersions).where(eq(strategyVersions.strategyId, strategyId)).orderBy(desc(strategyVersions.version)).limit(1);
+    return result;
+  }
+
+  async getNextVersionNumber(strategyId: string): Promise<number> {
+    const latest = await this.getLatestStrategyVersion(strategyId);
+    return (latest?.version || 0) + 1;
+  }
+
+  async updateStrategyVersion(id: string, updates: Partial<InsertStrategyVersion>): Promise<StrategyVersion | undefined> {
+    const [result] = await db.update(strategyVersions).set(updates as any).where(eq(strategyVersions.id, id)).returning();
+    return result;
+  }
+
+  // ============================================================================
+  // TOOL INVOCATIONS
+  // ============================================================================
+
+  async createToolInvocation(invocation: InsertToolInvocation): Promise<ToolInvocation> {
+    const [result] = await db.insert(toolInvocations).values(invocation as any).returning();
+    return result;
+  }
+
+  async updateToolInvocation(id: string, updates: Partial<InsertToolInvocation>): Promise<ToolInvocation | undefined> {
+    const [result] = await db.update(toolInvocations).set(updates as any).where(eq(toolInvocations.id, id)).returning();
+    return result;
+  }
+
+  async getToolInvocationsByTrace(traceId: string): Promise<ToolInvocation[]> {
+    return db.select().from(toolInvocations).where(eq(toolInvocations.traceId, traceId)).orderBy(toolInvocations.createdAt);
+  }
+
+  async getToolInvocationsBySession(sessionId: string): Promise<ToolInvocation[]> {
+    return db.select().from(toolInvocations).where(eq(toolInvocations.debateSessionId, sessionId)).orderBy(toolInvocations.createdAt);
+  }
+
+  async getRecentToolInvocations(limit = 100): Promise<ToolInvocation[]> {
+    return db.select().from(toolInvocations).orderBy(desc(toolInvocations.createdAt)).limit(limit);
   }
 }
 

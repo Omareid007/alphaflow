@@ -35,6 +35,33 @@ The platform is transitioning to an event-driven microservices architecture usin
 - **Observability Module**: OpenTelemetry integration for traces, a configurable alert system with webhooks, and admin routes for health, traces, work-queue management, and alerts.
 - **Admin Hub**: A WordPress-style admin panel with 13 modules for complete system management, including modules for Providers & Budgets, LLM Router, Orders, Positions, Universe, Fundamentals, Candidates, Enforcement, Allocation, Rebalancer, Orchestrator, and Observability. It features real-time order tracking and source of truth badges for clarity.
 
+### Section 3 Deliverables (AI Intelligence Layer)
+- **AI Debate Arena** (`server/ai/debateArena.ts`): Multi-role AI consensus system with 5 specialized analyst roles (bull, bear, risk_manager, technical_analyst, fundamental_analyst) plus a synthesizing judge. Each role provides stance, confidence, key signals, risks, and proposed actions. Consensus decisions are logged with full audit trail and can trigger order execution via work queue.
+- **MCP-Style Tool Router** (`server/ai/toolRouter.ts`): Registry-based internal tool system for broker/data operations. Features schema validation (Zod), audit logging via tool_invocations table, category-based organization (broker, market_data, analysis), and invocation tracking. Pre-registered tools: getQuote, getBars, listPositions, getAccount, listOrders, getMarketClock.
+- **Competition Mode**: Multiple AI trader profiles competing with performance tracking. Schema supports trader profiles with model configurations, risk presets, and universe filters. Competition runs track leaderboard rankings with metrics (PnL, Sharpe, Sortino, max drawdown, win rate).
+- **Strategy Studio**: Web-based strategy configuration with versioning. Strategy versions support full spec storage, universe/signals/risk/execution configs, status lifecycle (draft → active → archived), and backtest result linking.
+
+### Section 3 Database Schema
+New tables in `shared/schema.ts`:
+- `debate_sessions`: Tracks AI debate sessions with symbols, status, market context, duration, and cost
+- `debate_messages`: Individual role contributions with stance, confidence, signals, and LLM metadata
+- `debate_consensus`: Final synthesized decisions with order intent, risk checks, and dissent tracking
+- `trader_profiles`: AI trader configurations for competition mode
+- `competition_runs`: Paper/backtest competitions between trader profiles
+- `competition_scores`: Performance metrics and rankings per competition
+- `strategy_versions`: Versioned strategy configurations with activation history
+- `tool_invocations`: Audit log for all tool router invocations
+
+### Section 3 API Routes
+- `POST/GET /api/debate/sessions` - Start debates, list sessions
+- `GET /api/debate/sessions/:id` - Get debate details with messages and consensus
+- `GET /api/tools` - List registered tools by category
+- `POST /api/tools/invoke` - Invoke tool with params and tracing
+- `GET /api/tools/invocations` - Query tool invocation history
+- `GET/POST /api/competition/traders` - Manage trader profiles
+- `GET/POST /api/competition/runs` - Manage competition runs
+- `GET/POST /api/strategies/versions` - Strategy version management
+
 ### UI/UX Decisions
 - **Framework**: React Native with Expo SDK 54, React Navigation v7, TanStack Query.
 - **Styling**: Custom themed components supporting dark/light mode, Reanimated 4 for animations, BrandColors palette, and elevation-based cards.

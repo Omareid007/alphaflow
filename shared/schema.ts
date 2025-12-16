@@ -961,3 +961,282 @@ export type AlertRule = typeof alertRules.$inferSelect;
 export type InsertAlertEvent = z.infer<typeof insertAlertEventSchema>;
 export type AlertEvent = typeof alertEvents.$inferSelect;
 export type AlertRuleType = "dead_letter_count" | "retry_rate" | "orchestrator_silent" | "llm_error_rate" | "provider_budget_exhausted";
+
+// ============================================================================
+// AI DEBATE ARENA
+// ============================================================================
+
+export type DebateRole = "bull" | "bear" | "risk_manager" | "technical_analyst" | "fundamental_analyst" | "judge";
+export type DebateSessionStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export const debateSessions = pgTable("debate_sessions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  traceId: text("trace_id").notNull(),
+  strategyVersionId: varchar("strategy_version_id"),
+  symbols: text("symbols").array().notNull(),
+  status: text("status").$type<DebateSessionStatus>().default("pending").notNull(),
+  triggeredBy: text("triggered_by"),
+  marketContext: jsonb("market_context"),
+  config: jsonb("config"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  totalCost: numeric("total_cost"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("debate_sessions_trace_id_idx").on(table.traceId),
+  index("debate_sessions_status_idx").on(table.status),
+  index("debate_sessions_created_at_idx").on(table.createdAt),
+]);
+
+export const debateMessages = pgTable("debate_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => debateSessions.id).notNull(),
+  role: text("role").$type<DebateRole>().notNull(),
+  stance: text("stance"),
+  confidence: numeric("confidence"),
+  keySignals: jsonb("key_signals"),
+  risks: jsonb("risks"),
+  invalidationPoints: jsonb("invalidation_points"),
+  proposedAction: text("proposed_action"),
+  proposedOrder: jsonb("proposed_order"),
+  evidenceRefs: jsonb("evidence_refs"),
+  rawOutput: text("raw_output"),
+  provider: text("provider"),
+  model: text("model"),
+  tokensUsed: integer("tokens_used"),
+  estimatedCost: numeric("estimated_cost"),
+  latencyMs: integer("latency_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("debate_messages_session_id_idx").on(table.sessionId),
+  index("debate_messages_role_idx").on(table.role),
+]);
+
+export const debateConsensus = pgTable("debate_consensus", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => debateSessions.id).notNull().unique(),
+  decision: text("decision").notNull(),
+  orderIntent: jsonb("order_intent"),
+  reasonsSummary: text("reasons_summary"),
+  riskChecks: jsonb("risk_checks"),
+  confidence: numeric("confidence"),
+  dissent: jsonb("dissent"),
+  workItemId: varchar("work_item_id").references(() => workItems.id),
+  brokerOrderId: text("broker_order_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("debate_consensus_session_id_idx").on(table.sessionId),
+  index("debate_consensus_work_item_id_idx").on(table.workItemId),
+]);
+
+// ============================================================================
+// COMPETITION MODE
+// ============================================================================
+
+export type TraderProfileStatus = "active" | "inactive" | "testing";
+export type CompetitionMode = "paper_execute_all" | "recommend_only";
+export type CompetitionRunStatus = "pending" | "running" | "completed" | "stopped";
+
+export const traderProfiles = pgTable("trader_profiles", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  strategyVersionId: varchar("strategy_version_id"),
+  modelProfile: jsonb("model_profile"),
+  riskPreset: jsonb("risk_preset"),
+  universeFilter: jsonb("universe_filter"),
+  isPromoted: boolean("is_promoted").default(false).notNull(),
+  status: text("status").$type<TraderProfileStatus>().default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("trader_profiles_status_idx").on(table.status),
+  index("trader_profiles_promoted_idx").on(table.isPromoted),
+]);
+
+export const competitionRuns = pgTable("competition_runs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  traceId: text("trace_id").notNull(),
+  mode: text("mode").$type<CompetitionMode>().notNull(),
+  traderIds: text("trader_ids").array().notNull(),
+  universeSymbols: text("universe_symbols").array(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  durationMinutes: integer("duration_minutes"),
+  status: text("status").$type<CompetitionRunStatus>().default("pending").notNull(),
+  config: jsonb("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("competition_runs_trace_id_idx").on(table.traceId),
+  index("competition_runs_status_idx").on(table.status),
+]);
+
+export const competitionScores = pgTable("competition_scores", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  runId: varchar("run_id").references(() => competitionRuns.id).notNull(),
+  traderProfileId: varchar("trader_profile_id").references(() => traderProfiles.id).notNull(),
+  totalPnl: numeric("total_pnl").default("0").notNull(),
+  roi: numeric("roi").default("0").notNull(),
+  maxDrawdown: numeric("max_drawdown").default("0").notNull(),
+  winRate: numeric("win_rate").default("0").notNull(),
+  avgHoldTime: integer("avg_hold_time"),
+  tradeCount: integer("trade_count").default(0).notNull(),
+  errorCount: integer("error_count").default(0).notNull(),
+  costPerDecision: numeric("cost_per_decision"),
+  slippageProxy: numeric("slippage_proxy"),
+  rank: integer("rank"),
+  snapshotAt: timestamp("snapshot_at").defaultNow().notNull(),
+  details: jsonb("details"),
+}, (table) => [
+  index("competition_scores_run_id_idx").on(table.runId),
+  index("competition_scores_trader_id_idx").on(table.traderProfileId),
+  index("competition_scores_rank_idx").on(table.rank),
+]);
+
+// ============================================================================
+// STRATEGY STUDIO (Versioning)
+// ============================================================================
+
+export type StrategyVersionStatus = "draft" | "active" | "archived" | "deprecated";
+
+export const strategyVersions = pgTable("strategy_versions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  strategyId: varchar("strategy_id").references(() => strategies.id).notNull(),
+  version: integer("version").notNull(),
+  name: text("name").notNull(),
+  spec: jsonb("spec").notNull(),
+  universeConfig: jsonb("universe_config"),
+  signalsConfig: jsonb("signals_config"),
+  riskConfig: jsonb("risk_config"),
+  llmPolicy: jsonb("llm_policy"),
+  promptTemplate: text("prompt_template"),
+  status: text("status").$type<StrategyVersionStatus>().default("draft").notNull(),
+  dryRunResult: jsonb("dry_run_result"),
+  changeNotes: text("change_notes"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  activatedAt: timestamp("activated_at"),
+}, (table) => [
+  index("strategy_versions_strategy_id_idx").on(table.strategyId),
+  index("strategy_versions_status_idx").on(table.status),
+  unique("strategy_versions_unique").on(table.strategyId, table.version),
+]);
+
+// ============================================================================
+// TOOL ROUTER (MCP-style)
+// ============================================================================
+
+export type ToolCategory = "market_data" | "broker" | "analytics" | "ai" | "admin";
+export type ToolInvocationStatus = "pending" | "success" | "error" | "cached";
+
+export const toolInvocations = pgTable("tool_invocations", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  traceId: text("trace_id").notNull(),
+  toolName: text("tool_name").notNull(),
+  category: text("category").$type<ToolCategory>().notNull(),
+  inputParams: jsonb("input_params"),
+  outputResult: jsonb("output_result"),
+  status: text("status").$type<ToolInvocationStatus>().default("pending").notNull(),
+  errorMessage: text("error_message"),
+  cacheHit: boolean("cache_hit").default(false).notNull(),
+  latencyMs: integer("latency_ms"),
+  callerRole: text("caller_role"),
+  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("tool_invocations_trace_id_idx").on(table.traceId),
+  index("tool_invocations_tool_name_idx").on(table.toolName),
+  index("tool_invocations_created_at_idx").on(table.createdAt),
+  index("tool_invocations_session_id_idx").on(table.debateSessionId),
+]);
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - DEBATE ARENA
+// ============================================================================
+
+export const insertDebateSessionSchema = createInsertSchema(debateSessions).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertDebateMessageSchema = createInsertSchema(debateMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertDebateConsensusSchema = createInsertSchema(debateConsensus).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDebateSession = z.infer<typeof insertDebateSessionSchema>;
+export type DebateSession = typeof debateSessions.$inferSelect;
+export type InsertDebateMessage = z.infer<typeof insertDebateMessageSchema>;
+export type DebateMessage = typeof debateMessages.$inferSelect;
+export type InsertDebateConsensus = z.infer<typeof insertDebateConsensusSchema>;
+export type DebateConsensus = typeof debateConsensus.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - COMPETITION MODE
+// ============================================================================
+
+export const insertTraderProfileSchema = createInsertSchema(traderProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertCompetitionRunSchema = createInsertSchema(competitionRuns).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCompetitionScoreSchema = createInsertSchema(competitionScores).omit({
+  id: true,
+  snapshotAt: true,
+});
+
+export type InsertTraderProfile = z.infer<typeof insertTraderProfileSchema>;
+export type TraderProfile = typeof traderProfiles.$inferSelect;
+export type InsertCompetitionRun = z.infer<typeof insertCompetitionRunSchema>;
+export type CompetitionRun = typeof competitionRuns.$inferSelect;
+export type InsertCompetitionScore = z.infer<typeof insertCompetitionScoreSchema>;
+export type CompetitionScore = typeof competitionScores.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - STRATEGY VERSIONS
+// ============================================================================
+
+export const insertStrategyVersionSchema = createInsertSchema(strategyVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStrategyVersion = z.infer<typeof insertStrategyVersionSchema>;
+export type StrategyVersion = typeof strategyVersions.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - TOOL ROUTER
+// ============================================================================
+
+export const insertToolInvocationSchema = createInsertSchema(toolInvocations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertToolInvocation = z.infer<typeof insertToolInvocationSchema>;
+export type ToolInvocation = typeof toolInvocations.$inferSelect;

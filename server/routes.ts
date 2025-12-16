@@ -67,6 +67,10 @@ import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
 import { tracesRouter } from "./routes/traces";
 import { observabilityRouter } from "./observability/routes";
+import debateRouter from "./routes/debate";
+import toolsRouter from "./routes/tools";
+import competitionRouter from "./routes/competition";
+import strategiesRouter from "./routes/strategies";
 import { alertService } from "./observability/alertService";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
@@ -218,6 +222,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/backtests", backtestsRouter);
   app.use("/api/traces", tracesRouter);
   app.use("/api/admin/observability", authMiddleware, observabilityRouter);
+  
+  app.use("/api/debate", authMiddleware, debateRouter);
+  app.use("/api/tools", authMiddleware, toolsRouter);
+  app.use("/api/competition", authMiddleware, competitionRouter);
+  app.use("/api/strategies", authMiddleware, strategiesRouter);
   
   alertService.startEvaluationJob(60000);
 
