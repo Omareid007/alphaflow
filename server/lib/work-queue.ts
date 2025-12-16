@@ -2,6 +2,7 @@ import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
+import { tradingEnforcementService } from "../universe";
 import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus, InsertOrder, InsertFill } from "@shared/schema";
 import crypto from "crypto";
 
@@ -207,6 +208,17 @@ class WorkQueueServiceImpl implements WorkQueueService {
       symbol,
       side,
     });
+
+    const enforcementCheck = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
+    if (!enforcementCheck.eligible) {
+      log.warn("work-queue", `ORDER_SUBMIT blocked by enforcement: ${symbol} - ${enforcementCheck.reason}`, { traceId });
+      await this.markFailed(
+        item.id,
+        `Symbol ${symbol} blocked by trading enforcement: ${enforcementCheck.reason}`,
+        false
+      );
+      return;
+    }
 
     const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
     if (!tradabilityCheck.tradable) {

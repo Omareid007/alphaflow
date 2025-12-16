@@ -70,7 +70,7 @@ import { initializeDefaultModules, getModules, getModule, getAdminOverview } fro
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
-import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService } from "./universe";
+import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService } from "./universe";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -4989,6 +4989,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get approved symbols:", error);
       res.status(500).json({ error: "Failed to get approved symbols" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN TRADING ENFORCEMENT ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/enforcement/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await tradingEnforcementService.getStats();
+      res.json({
+        ...stats,
+        source: "trading_enforcement",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get enforcement stats:", error);
+      res.status(500).json({ error: "Failed to get enforcement stats" });
+    }
+  });
+
+  app.post("/api/admin/enforcement/check", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { symbol, symbols, traceId } = req.body;
+      
+      if (symbol) {
+        const result = await tradingEnforcementService.canTradeSymbol(symbol, traceId || `chk-${Date.now()}`);
+        res.json(result);
+      } else if (symbols && Array.isArray(symbols)) {
+        const results = await tradingEnforcementService.canTradeMultiple(symbols, traceId || `chk-${Date.now()}`);
+        res.json({ results: Object.fromEntries(results) });
+      } else {
+        res.status(400).json({ error: "Provide symbol or symbols array" });
+      }
+    } catch (error) {
+      console.error("Failed to check trading eligibility:", error);
+      res.status(500).json({ error: "Failed to check trading eligibility" });
+    }
+  });
+
+  app.post("/api/admin/enforcement/reset-stats", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      tradingEnforcementService.resetStats();
+      res.json({ success: true, message: "Enforcement stats reset" });
+    } catch (error) {
+      console.error("Failed to reset enforcement stats:", error);
+      res.status(500).json({ error: "Failed to reset enforcement stats" });
     }
   });
 
