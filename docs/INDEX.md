@@ -82,6 +82,7 @@
 
 | Document | Purpose |
 |----------|---------|
+| [ADMIN_DASHBOARD.md](ADMIN_DASHBOARD.md) | Admin Hub UI documentation |
 | [API_REFERENCE.md](API_REFERENCE.md) | Central REST API endpoint list |
 | [SLA_SLO_TARGETS.md](SLA_SLO_TARGETS.md) | Service level targets |
 | [COMPETITIVE_BENCHMARKING.md](COMPETITIVE_BENCHMARKING.md) | Industry comparison |
@@ -108,6 +109,7 @@ Each topic has exactly one canonical document. If you need information, go to th
 | Migration progress | [MICROSERVICES_ROADMAP.md](MICROSERVICES_ROADMAP.md) |
 | Lessons, retrospectives | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) |
 | REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
+| Admin Hub UI | [ADMIN_DASHBOARD.md](ADMIN_DASHBOARD.md) |
 
 ---
 
