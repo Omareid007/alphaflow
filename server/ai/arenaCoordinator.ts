@@ -588,7 +588,7 @@ ${contextSummary}`;
       };
     }
 
-    if (cheapRiskVeto && !hasPowerAgents) {
+    if (cheapRiskVeto && !hasPowerAgents && !escalationTriggered) {
       return {
         decision: "hold",
         confidence: parseFloat(cheapRiskManager!.confidence || "0.5"),
@@ -597,6 +597,18 @@ ${contextSummary}`;
         escalationReason,
         riskVeto: true,
         riskVetoReason: cheapRiskManager!.rationale || "Risk manager vetoed the trade",
+      };
+    }
+
+    if (cheapRiskVeto && !hasPowerAgents && escalationTriggered) {
+      return {
+        decision: "no_trade",
+        confidence: 0.3,
+        disagreementRate,
+        escalationTriggered,
+        escalationReason: (escalationReason || "") + " (power agents unavailable, deferring decision)",
+        riskVeto: false,
+        riskVetoReason: "Escalation triggered but power agents unavailable - decision deferred",
       };
     }
 
