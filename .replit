@@ -51,3 +51,8 @@ args = "npm run all:dev"
 waitForPort = 8081
 ensurePreviewReachable = "/status"
 
+[userenv]
+
+[userenv.shared]
+JINA_API_KEY = "jina_7e01e1a5c1514fdc9cb2a05361523595nieXo2SpZnNG1e0ixt2lKm5ZJUBe"
+
