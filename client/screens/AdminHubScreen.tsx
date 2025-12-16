@@ -1429,20 +1429,50 @@ function RebalancerModule() {
   );
 }
 
+type ObsTab = "health" | "traces" | "queue" | "alerts";
+
 function ObservabilityModule() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<ObsTab>("health");
   const [traceId, setTraceId] = useState("");
   const [traceResult, setTraceResult] = useState<any>(null);
 
-  const { data: workItems, isLoading: loadingItems, refetch } = useQuery<{ items: any[]; counts: Record<string, number> }>({
-    queryKey: ["/api/admin/work-items"],
+  const { data: health, isLoading: loadingHealth, refetch: refetchHealth } = useQuery<any>({
+    queryKey: ["/api/admin/observability/health"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/admin/observability/health", getApiUrl()).toString(), { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { data: workItems, isLoading: loadingItems, refetch: refetchItems } = useQuery<{ items: any[] }>({
+    queryKey: ["/api/admin/observability/work-queue/items"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/admin/observability/work-queue/items?limit=50", getApiUrl()).toString(), { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { data: alertRulesData, isLoading: loadingRules, refetch: refetchRules } = useQuery<{ rules: any[] }>({
+    queryKey: ["/api/admin/observability/alerts/rules"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/admin/observability/alerts/rules", getApiUrl()).toString(), { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { data: alertEventsData, isLoading: loadingEvents, refetch: refetchEvents } = useQuery<{ events: any[] }>({
+    queryKey: ["/api/admin/observability/alerts/events"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/admin/observability/alerts/events?limit=20", getApiUrl()).toString(), { credentials: "include" });
+      return res.json();
+    },
   });
 
   const traceMutation = useMutation({
     mutationFn: async (id: string) => {
-      const url = new URL(`/api/admin/trace/${id}`, getApiUrl());
-      const res = await fetch(url.toString(), { credentials: "include" });
+      const res = await fetch(new URL(`/api/admin/observability/trace/${id}`, getApiUrl()).toString(), { credentials: "include" });
       return res.json();
     },
     onSuccess: (data) => setTraceResult(data),
@@ -1450,148 +1480,354 @@ function ObservabilityModule() {
 
   const retryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", "/api/admin/work-items/retry", { id });
-      return res.json();
+      return apiRequest(`/api/admin/observability/work-queue/items/${id}/retry`, { method: "POST" });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/work-items"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/observability/work-queue/items"] }),
   });
 
-  const counts = workItems?.counts || {};
+  const toggleRuleMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      return apiRequest(`/api/admin/observability/alerts/rules/${id}/toggle`, {
+        method: "POST",
+        body: JSON.stringify({ enabled }),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/observability/alerts/rules"] }),
+  });
+
+  const queue = health?.queue || {};
+  const orchestrator = health?.orchestrator || {};
+  const llm = health?.llm || {};
   const items = workItems?.items || [];
+  const alertRules = alertRulesData?.rules || [];
+  const alertEvents = alertEventsData?.events || [];
+
+  const tabs: { id: ObsTab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { id: "health", label: "Health", icon: "heart" },
+    { id: "traces", label: "Traces", icon: "search" },
+    { id: "queue", label: "Queue", icon: "inbox" },
+    { id: "alerts", label: "Alerts", icon: "bell" },
+  ];
+
+  const onRefresh = useCallback(() => {
+    refetchHealth();
+    refetchItems();
+    refetchRules();
+    refetchEvents();
+  }, [refetchHealth, refetchItems, refetchRules, refetchEvents]);
 
   return (
-    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}>
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}>
       <ThemedText style={styles.moduleTitle}>Observability</ThemedText>
 
-      <Card elevation={1} style={styles.moduleCard}>
-        <View style={styles.cardHeader}>
-          <Feather name="search" size={20} color={BrandColors.primaryLight} />
-          <ThemedText style={styles.cardTitle}>TraceId Explorer</ThemedText>
-        </View>
-        <TextInput
-          style={[styles.searchInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: BrandColors.cardBorder }]}
-          placeholder="Enter traceId to explore..."
-          placeholderTextColor={theme.textSecondary}
-          value={traceId}
-          onChangeText={setTraceId}
-        />
-        <Pressable 
-          style={styles.actionButton}
-          onPress={() => traceId.trim() && traceMutation.mutate(traceId.trim())}
-          disabled={traceMutation.isPending || !traceId.trim()}
-        >
-          {traceMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
-            <>
-              <Feather name="search" size={14} color="#fff" />
-              <ThemedText style={styles.actionButtonText}>Search Trace</ThemedText>
-            </>
+      <View style={styles.tabRow}>
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.id}
+            style={[styles.tabButton, activeTab === tab.id && styles.tabButtonActive]}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <Feather name={tab.icon} size={16} color={activeTab === tab.id ? BrandColors.primaryLight : theme.textSecondary} />
+            <ThemedText style={[styles.tabLabel, activeTab === tab.id && { color: BrandColors.primaryLight }]}>{tab.label}</ThemedText>
+          </Pressable>
+        ))}
+      </View>
+
+      {activeTab === "health" && (
+        <>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>System Health</ThemedText>
+              {loadingHealth && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+            </View>
+            <View style={styles.healthGrid}>
+              <View style={styles.healthItem}>
+                <View style={[styles.healthIndicator, { backgroundColor: orchestrator.isRunning ? BrandColors.success : BrandColors.error }]} />
+                <ThemedText style={styles.healthLabel}>Orchestrator</ThemedText>
+                <ThemedText style={[styles.healthValue, { color: theme.textSecondary }]}>
+                  {orchestrator.isRunning ? "Running" : "Stopped"}
+                </ThemedText>
+              </View>
+              <View style={styles.healthItem}>
+                <View style={[styles.healthIndicator, { backgroundColor: orchestrator.killSwitchActive ? BrandColors.error : BrandColors.success }]} />
+                <ThemedText style={styles.healthLabel}>Kill Switch</ThemedText>
+                <ThemedText style={[styles.healthValue, { color: theme.textSecondary }]}>
+                  {orchestrator.killSwitchActive ? "Active" : "Off"}
+                </ThemedText>
+              </View>
+              <View style={styles.healthItem}>
+                <View style={[styles.healthIndicator, { backgroundColor: (queue.deadLetter || 0) > 0 ? BrandColors.error : BrandColors.success }]} />
+                <ThemedText style={styles.healthLabel}>Dead Letters</ThemedText>
+                <ThemedText style={[styles.healthValue, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>{queue.deadLetter || 0}</ThemedText>
+              </View>
+              <View style={styles.healthItem}>
+                <View style={[styles.healthIndicator, { backgroundColor: BrandColors.primaryLight }]} />
+                <ThemedText style={styles.healthLabel}>Pending Jobs</ThemedText>
+                <ThemedText style={[styles.healthValue, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>{queue.pending || 0}</ThemedText>
+              </View>
+            </View>
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="cpu" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>LLM Performance</ThemedText>
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{llm.lastHour?.calls || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Calls/1h</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.error, fontFamily: Fonts?.mono }]}>{llm.lastHour?.errors || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Errors/1h</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{llm.lastHour?.errorRate || "0%"}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Error Rate</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{llm.last24Hours?.calls || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Calls/24h</ThemedText>
+              </View>
+            </View>
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="clock" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Orchestrator Status</ThemedText>
+            </View>
+            <View style={styles.listRow}>
+              <ThemedText style={styles.listRowText}>Last Heartbeat</ThemedText>
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+                {orchestrator.lastHeartbeat ? new Date(orchestrator.lastHeartbeat).toLocaleString() : "Never"}
+              </ThemedText>
+            </View>
+            <View style={[styles.listRow, styles.listRowBorder]}>
+              <ThemedText style={styles.listRowText}>Minutes Since Heartbeat</ThemedText>
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+                {orchestrator.minutesSinceHeartbeat ?? "N/A"}
+              </ThemedText>
+            </View>
+            <View style={[styles.listRow, styles.listRowBorder]}>
+              <ThemedText style={styles.listRowText}>Market Condition</ThemedText>
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>{orchestrator.marketCondition || "Unknown"}</ThemedText>
+            </View>
+            <View style={[styles.listRow, styles.listRowBorder]}>
+              <ThemedText style={styles.listRowText}>Dynamic Order Limit</ThemedText>
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>{orchestrator.dynamicOrderLimit || "N/A"}</ThemedText>
+            </View>
+          </Card>
+        </>
+      )}
+
+      {activeTab === "traces" && (
+        <Card elevation={1} style={styles.moduleCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="search" size={20} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.cardTitle}>TraceId Explorer</ThemedText>
+          </View>
+          <TextInput
+            style={[styles.searchInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: BrandColors.cardBorder }]}
+            placeholder="Enter traceId to explore..."
+            placeholderTextColor={theme.textSecondary}
+            value={traceId}
+            onChangeText={setTraceId}
+          />
+          <Pressable 
+            style={styles.actionButton}
+            onPress={() => traceId.trim() && traceMutation.mutate(traceId.trim())}
+            disabled={traceMutation.isPending || !traceId.trim()}
+          >
+            {traceMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
+              <>
+                <Feather name="search" size={14} color="#fff" />
+                <ThemedText style={styles.actionButtonText}>Search Trace</ThemedText>
+              </>
+            )}
+          </Pressable>
+          {traceResult && (
+            <View style={styles.resultBox}>
+              <ThemedText style={styles.listRowText}>Trace: {traceResult.traceId}</ThemedText>
+              <View style={styles.traceStats}>
+                <View style={styles.traceStat}>
+                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.decisions?.length || 0}</ThemedText>
+                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Decisions</ThemedText>
+                </View>
+                <View style={styles.traceStat}>
+                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.trades?.length || 0}</ThemedText>
+                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Trades</ThemedText>
+                </View>
+                <View style={styles.traceStat}>
+                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.llmCalls?.length || 0}</ThemedText>
+                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>LLM Calls</ThemedText>
+                </View>
+                <View style={styles.traceStat}>
+                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.workItems?.length || 0}</ThemedText>
+                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Work Items</ThemedText>
+                </View>
+              </View>
+              {traceResult.summary && (
+                <View style={[styles.resultBox, { marginTop: Spacing.md }]}>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    Tokens: {traceResult.summary.totalTokens} | Cost: ${traceResult.summary.estimatedCost?.toFixed(4)} | Latency: {traceResult.summary.latencyMs}ms
+                  </ThemedText>
+                </View>
+              )}
+            </View>
           )}
-        </Pressable>
-        {traceResult && (
-          <View style={styles.resultBox}>
-            <ThemedText style={styles.listRowText}>Trace: {traceResult.traceId}</ThemedText>
-            <View style={styles.traceStats}>
-              <View style={styles.traceStat}>
-                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.aiDecisions?.length || 0}</ThemedText>
-                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>AI Decisions</ThemedText>
+        </Card>
+      )}
+
+      {activeTab === "queue" && (
+        <>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="inbox" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Work Queue Status</ThemedText>
+              {loadingItems && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.warning, fontFamily: Fonts?.mono }]}>{queue.pending || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Pending</ThemedText>
               </View>
-              <View style={styles.traceStat}>
-                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.trades?.length || 0}</ThemedText>
-                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Trades</ThemedText>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight, fontFamily: Fonts?.mono }]}>{queue.running || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Running</ThemedText>
               </View>
-              <View style={styles.traceStat}>
-                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.llmCalls?.length || 0}</ThemedText>
-                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>LLM Calls</ThemedText>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>{queue.succeeded || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Succeeded</ThemedText>
               </View>
-              <View style={styles.traceStat}>
-                <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.workItems?.length || 0}</ThemedText>
-                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Work Items</ThemedText>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.error, fontFamily: Fonts?.mono }]}>{queue.deadLetter || 0}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Dead Letter</ThemedText>
               </View>
             </View>
-          </View>
-        )}
-      </Card>
+          </Card>
 
-      <Card elevation={1} style={styles.moduleCard}>
-        <View style={styles.cardHeader}>
-          <Feather name="inbox" size={20} color={BrandColors.primaryLight} />
-          <ThemedText style={styles.cardTitle}>Work Queue Health</ThemedText>
-          {loadingItems && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
-        </View>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <ThemedText style={[styles.statValue, { color: BrandColors.warning, fontFamily: Fonts?.mono }]}>{counts.PENDING || 0}</ThemedText>
-            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Pending</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight, fontFamily: Fonts?.mono }]}>{counts.RUNNING || 0}</ThemedText>
-            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Running</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <ThemedText style={[styles.statValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>{counts.SUCCEEDED || 0}</ThemedText>
-            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Succeeded</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <ThemedText style={[styles.statValue, { color: BrandColors.error, fontFamily: Fonts?.mono }]}>{counts.FAILED || 0}</ThemedText>
-            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Failed</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <ThemedText style={[styles.statValue, { color: BrandColors.error, fontFamily: Fonts?.mono }]}>{counts.DEAD_LETTER || 0}</ThemedText>
-            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Dead Letter</ThemedText>
-          </View>
-        </View>
-      </Card>
-
-      <Card elevation={1} style={styles.moduleCard}>
-        <View style={styles.cardHeader}>
-          <Feather name="alert-octagon" size={20} color={BrandColors.error} />
-          <ThemedText style={styles.cardTitle}>Dead Letters & Failed Items</ThemedText>
-        </View>
-        {items.filter((i: any) => i.status === "DEAD_LETTER" || i.status === "FAILED").length === 0 ? (
-          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No dead letters or failed items</ThemedText>
-        ) : items.filter((i: any) => i.status === "DEAD_LETTER" || i.status === "FAILED").slice(0, 10).map((item: any, i: number) => (
-          <View key={item.id} style={[styles.listRow, styles.listRowBorder]}>
-            <View style={styles.listRowLeft}>
-              <View style={[styles.statusDot, { backgroundColor: item.status === "DEAD_LETTER" ? BrandColors.error : BrandColors.warning }]} />
-              <View>
-                <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{item.type} - {item.symbol || "N/A"}</ThemedText>
-                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]} numberOfLines={1}>{item.lastError || "No error"}</ThemedText>
-              </View>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="alert-octagon" size={20} color={BrandColors.error} />
+              <ThemedText style={styles.cardTitle}>Dead Letters & Failed</ThemedText>
             </View>
-            <Pressable 
-              style={[styles.smallButton, { backgroundColor: BrandColors.primaryLight }]}
-              onPress={() => retryMutation.mutate(item.id)}
-            >
-              <Feather name="refresh-cw" size={12} color="#fff" />
-            </Pressable>
-          </View>
-        ))}
-      </Card>
-
-      <Card elevation={1} style={styles.moduleCard}>
-        <View style={styles.cardHeader}>
-          <Feather name="clock" size={20} color={BrandColors.primaryLight} />
-          <ThemedText style={styles.cardTitle}>Recent Work Items</ThemedText>
-        </View>
-        {items.slice(0, 15).map((item: any, i: number) => (
-          <View key={item.id} style={[styles.listRow, i < items.length - 1 && styles.listRowBorder]}>
-            <View style={styles.listRowLeft}>
-              <View style={[styles.statusDot, { 
-                backgroundColor: item.status === "SUCCEEDED" ? BrandColors.success : 
-                  item.status === "FAILED" || item.status === "DEAD_LETTER" ? BrandColors.error : 
-                  item.status === "RUNNING" ? BrandColors.primaryLight : BrandColors.warning 
-              }]} />
-              <View>
-                <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{item.type}</ThemedText>
-                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>{item.symbol || "N/A"} - {item.status}</ThemedText>
+            {items.filter((i: any) => i.status === "DEAD_LETTER" || i.status === "FAILED").length === 0 ? (
+              <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No dead letters or failed items</ThemedText>
+            ) : items.filter((i: any) => i.status === "DEAD_LETTER" || i.status === "FAILED").slice(0, 10).map((item: any) => (
+              <View key={item.id} style={[styles.listRow, styles.listRowBorder]}>
+                <View style={styles.listRowLeft}>
+                  <View style={[styles.statusDot, { backgroundColor: item.status === "DEAD_LETTER" ? BrandColors.error : BrandColors.warning }]} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{item.type} - {item.symbol || "N/A"}</ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]} numberOfLines={1}>{item.lastError || "No error"}</ThemedText>
+                  </View>
+                </View>
+                <Pressable 
+                  style={[styles.smallButton, { backgroundColor: BrandColors.primaryLight }]}
+                  onPress={() => retryMutation.mutate(item.id)}
+                >
+                  <Feather name="refresh-cw" size={12} color="#fff" />
+                </Pressable>
               </View>
+            ))}
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="clock" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Recent Work Items</ThemedText>
             </View>
-            <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
-              {new Date(item.createdAt).toLocaleTimeString()}
-            </ThemedText>
-          </View>
-        ))}
-      </Card>
+            {items.slice(0, 15).map((item: any, i: number) => (
+              <View key={item.id} style={[styles.listRow, i < Math.min(items.length, 15) - 1 && styles.listRowBorder]}>
+                <View style={styles.listRowLeft}>
+                  <View style={[styles.statusDot, { 
+                    backgroundColor: item.status === "SUCCEEDED" ? BrandColors.success : 
+                      item.status === "FAILED" || item.status === "DEAD_LETTER" ? BrandColors.error : 
+                      item.status === "RUNNING" ? BrandColors.primaryLight : BrandColors.warning 
+                  }]} />
+                  <View>
+                    <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{item.type}</ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>{item.symbol || "N/A"} - {item.status}</ThemedText>
+                  </View>
+                </View>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+                  {new Date(item.createdAt).toLocaleTimeString()}
+                </ThemedText>
+              </View>
+            ))}
+          </Card>
+        </>
+      )}
+
+      {activeTab === "alerts" && (
+        <>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="bell" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Alert Rules</ThemedText>
+              {loadingRules && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+            </View>
+            {alertRules.length === 0 ? (
+              <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No alert rules configured</ThemedText>
+            ) : alertRules.map((rule: any) => (
+              <View key={rule.id} style={[styles.listRow, styles.listRowBorder]}>
+                <View style={styles.listRowLeft}>
+                  <View style={[styles.statusDot, { backgroundColor: rule.enabled ? BrandColors.success : BrandColors.textSecondary }]} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.listRowText}>{rule.name}</ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      {rule.ruleType} | threshold: {rule.threshold}
+                    </ThemedText>
+                  </View>
+                </View>
+                <Switch
+                  value={rule.enabled}
+                  onValueChange={(enabled) => toggleRuleMutation.mutate({ id: rule.id, enabled })}
+                  trackColor={{ false: theme.backgroundSecondary, true: BrandColors.primaryLight }}
+                />
+              </View>
+            ))}
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="alert-triangle" size={20} color={BrandColors.warning} />
+              <ThemedText style={styles.cardTitle}>Recent Alert Events</ThemedText>
+              {loadingEvents && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+            </View>
+            {alertEvents.length === 0 ? (
+              <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No recent alert events</ThemedText>
+            ) : alertEvents.slice(0, 10).map((event: any) => (
+              <View key={event.id} style={[styles.listRow, styles.listRowBorder]}>
+                <View style={styles.listRowLeft}>
+                  <View style={[styles.statusDot, { backgroundColor: BrandColors.warning }]} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.listRowText}>{event.ruleName}</ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      Value: {event.triggeredValue} (threshold: {event.threshold})
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>
+                    {new Date(event.createdAt).toLocaleString()}
+                  </ThemedText>
+                  {event.webhookSent && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Feather name="check" size={10} color={BrandColors.success} />
+                      <ThemedText style={[styles.listRowMeta, { color: BrandColors.success }]}>Webhook sent</ThemedText>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))}
+          </Card>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -1746,4 +1982,13 @@ const styles = StyleSheet.create({
   excludeButton: { padding: Spacing.sm },
   traceStats: { flexDirection: "row", justifyContent: "space-around", marginTop: Spacing.md },
   traceStat: { alignItems: "center" },
+  tabRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.lg },
+  tabButton: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.sm, backgroundColor: BrandColors.cardBorder + "50" },
+  tabButtonActive: { backgroundColor: BrandColors.primaryLight + "20" },
+  tabLabel: { ...Typography.small, fontWeight: "500" },
+  healthGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.lg },
+  healthItem: { width: "45%", alignItems: "center", gap: Spacing.xs },
+  healthIndicator: { width: 12, height: 12, borderRadius: 6, marginBottom: Spacing.xs },
+  healthLabel: { ...Typography.small, fontWeight: "500" },
+  healthValue: { ...Typography.small },
 });
