@@ -66,6 +66,51 @@ Added proper data model separation:
 
 See `docs/AUDIT_DOC_VS_IMPLEMENTATION_GAP.md` for full audit details.
 
+### Phase 3: Universe & Allocation System (December 2025)
+Comprehensive symbol universe management and portfolio allocation system:
+
+1. **Symbol Universe Source (A)**: Alpaca `/v2/assets` as single source of truth with caching and tradability checks.
+
+2. **Liquidity Infrastructure (B)**: 
+   - `universe_liquidity_metrics` table with tier system (A/B/C/D)
+   - Default thresholds: Tier A ($50M+ ADTV, $25B+ mktcap), Tier B ($10M+, $5B+)
+   - Tier assignments based on volume and market cap metrics
+
+3. **Fundamentals Scoring (C)**:
+   - Finnhub connector for company fundamentals
+   - Quality-Growth Score (50-point: revenue growth + margins) + Value-Risk Penalty (debt/leverage)
+   - `universe_fundamentals` table stores metrics with TTL refresh
+
+4. **Candidates Pipeline (D)**:
+   - Status workflow: NEW → WATCHLIST → APPROVED/REJECTED
+   - Admin approval required before auto-trading
+   - `universe_candidates` table with audit trail (approvedBy, rejectedReason)
+
+5. **Trading Enforcement**:
+   - Central gate in work-queue `processOrderSubmit`
+   - Blocks all orders for non-APPROVED symbols
+   - Short-circuits before tradability check for efficiency
+
+6. **Allocation Policy (E1)**:
+   - `allocation_policies` table with admin-editable thresholds
+   - Configurable: max position weight, sector weight, liquidity tier, profit-taking threshold
+
+7. **Rebalancer Service (E2)**:
+   - Portfolio analysis vs target allocations
+   - Profit-taking detection (configurable threshold)
+   - Rotation candidate selection from approved symbols
+   - Order intents via work queue with enforcement gate
+   - Safety: qty capped at position size, NaN validation, null-safe quotes
+
+**API Endpoints**:
+- `/api/admin/universe/*` - Universe management
+- `/api/admin/liquidity/*` - Liquidity tiers and metrics
+- `/api/admin/candidates/*` - Candidates workflow
+- `/api/admin/allocation/*` - Policies and runs
+- `/api/admin/rebalancer/*` - Rebalancer execution
+
+**Key Files**: `server/universe/alpacaUniverse.ts`, `liquidityService.ts`, `fundamentalsService.ts`, `candidatesService.ts`, `tradingEnforcement.ts`, `allocationService.ts`, `rebalancerService.ts`
+
 ## System Architecture
 
 ### Target Architecture
