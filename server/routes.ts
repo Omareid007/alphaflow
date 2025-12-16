@@ -70,7 +70,7 @@ import { initializeDefaultModules, getModules, getModule, getAdminOverview } fro
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
-import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService, allocationService } from "./universe";
+import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService, allocationService, rebalancerService } from "./universe";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -5191,6 +5191,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get rebalance run:", error);
       res.status(500).json({ error: "Failed to get rebalance run" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN REBALANCER ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/rebalancer/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await rebalancerService.getStats();
+      res.json({
+        ...stats,
+        source: "rebalancer",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get rebalancer stats:", error);
+      res.status(500).json({ error: "Failed to get rebalancer stats" });
+    }
+  });
+
+  app.post("/api/admin/rebalancer/dry-run", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await rebalancerService.executeDryRun(traceId || `dry-${Date.now()}`);
+      if (!analysis) {
+        return res.status(400).json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        analysis: {
+          ...analysis.analysis,
+          currentPositions: Object.fromEntries(analysis.analysis.currentPositions),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to execute dry run:", error);
+      res.status(500).json({ error: "Failed to execute dry run" });
+    }
+  });
+
+  app.post("/api/admin/rebalancer/execute", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { traceId, dryRun } = req.body;
+      const result = await rebalancerService.executeRebalance(
+        traceId || `rebal-${Date.now()}`,
+        dryRun === true
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to execute rebalance:", error);
+      res.status(500).json({ error: "Failed to execute rebalance" });
+    }
+  });
+
+  app.post("/api/admin/rebalancer/profit-taking/analyze", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { traceId } = req.body;
+      const policy = await allocationService.getActivePolicy();
+      if (!policy) {
+        return res.status(400).json({ error: "No active allocation policy configured" });
+      }
+      const analysis = await rebalancerService.analyzeProfitTaking(policy, traceId || `profit-${Date.now()}`);
+      res.json({ candidates: analysis, count: analysis.length });
+    } catch (error) {
+      console.error("Failed to analyze profit-taking:", error);
+      res.status(500).json({ error: "Failed to analyze profit-taking" });
     }
   });
 
