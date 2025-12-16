@@ -270,6 +270,21 @@ function BudgetsModule() {
     queryKey: ["/api/admin/valyu-budget"],
   });
 
+  const { data: cacheData, refetch: refetchCache } = useQuery<{ stats: any; entries: any[] }>({
+    queryKey: ["/api/admin/api-cache"],
+  });
+
+  const purgeMutation = useMutation({
+    mutationFn: async ({ provider, expiredOnly }: { provider?: string; expiredOnly?: boolean }) => {
+      const res = await apiRequest("POST", "/api/admin/api-cache/purge", { provider, expiredOnly });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-cache"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/provider-status"] });
+    },
+  });
+
   const toggleMutation = useMutation({
     mutationFn: async ({ provider, enabled }: { provider: string; enabled: boolean }) => {
       const res = await apiRequest("PATCH", `/api/admin/provider/${provider}/toggle`, { enabled });
@@ -312,6 +327,60 @@ function BudgetsModule() {
               </View>
             );
           })}
+        </Card>
+      )}
+
+      {cacheData?.stats && (
+        <Card elevation={1} style={styles.moduleCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="hard-drive" size={20} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.cardTitle}>Cache Statistics</ThemedText>
+            <Pressable
+              style={[styles.smallButton, purgeMutation.isPending && styles.actionButtonDisabled]}
+              onPress={() => purgeMutation.mutate({ expiredOnly: true })}
+              disabled={purgeMutation.isPending}
+            >
+              {purgeMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
+                <ThemedText style={styles.smallButtonText}>Purge Expired</ThemedText>
+              )}
+            </Pressable>
+          </View>
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{cacheData.stats.totalEntries || 0}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Entries</ThemedText>
+            </View>
+            <View style={styles.stat}>
+              <ThemedText style={[styles.statValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>{cacheData.stats.hits || 0}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Hits</ThemedText>
+            </View>
+            <View style={styles.stat}>
+              <ThemedText style={[styles.statValue, { color: BrandColors.warning, fontFamily: Fonts?.mono }]}>{cacheData.stats.misses || 0}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Misses</ThemedText>
+            </View>
+            <View style={styles.stat}>
+              <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>
+                {cacheData.stats.hits + cacheData.stats.misses > 0 
+                  ? `${Math.round((cacheData.stats.hits / (cacheData.stats.hits + cacheData.stats.misses)) * 100)}%` 
+                  : "N/A"}
+              </ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Hit Rate</ThemedText>
+            </View>
+          </View>
+          {Object.entries(cacheData.stats.byProvider || {}).map(([provider, pStats]: [string, any]) => (
+            <View key={provider} style={[styles.listRow, styles.listRowBorder]}>
+              <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{provider}</ThemedText>
+              <View style={styles.listRowRight}>
+                <ThemedText style={[styles.listRowMeta, { fontFamily: Fonts?.mono }]}>{pStats.entries} entries</ThemedText>
+                <Pressable
+                  style={styles.tinyButton}
+                  onPress={() => purgeMutation.mutate({ provider })}
+                >
+                  <Feather name="trash-2" size={12} color={BrandColors.error} />
+                </Pressable>
+              </View>
+            </View>
+          ))}
         </Card>
       )}
 
@@ -373,6 +442,9 @@ function BudgetsModule() {
 
 function RouterModule() {
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [editingRole, setEditingRole] = useState<string | null>(null);
+  const [editingChain, setEditingChain] = useState<any[]>([]);
 
   const { data: configsData, refetch } = useQuery<{ configs: any[]; availableProviders: string[] }>({
     queryKey: ["/api/admin/model-router/configs"],
@@ -386,6 +458,18 @@ function RouterModule() {
     queryKey: ["/api/admin/model-router/calls"],
   });
 
+  const updateConfigMutation = useMutation({
+    mutationFn: async ({ role, fallbackChain }: { role: string; fallbackChain: any[] }) => {
+      const res = await apiRequest("PUT", `/api/admin/model-router/configs/${role}`, { fallbackChain });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/model-router/configs"] });
+      setEditingRole(null);
+      setEditingChain([]);
+    },
+  });
+
   const configs = configsData?.configs || [];
   const stats = statsData || { total: 0, totalCost: 0, byRole: {}, byProvider: {} };
   const calls = callsData?.calls || [];
@@ -397,6 +481,39 @@ function RouterModule() {
     risk_manager: "Risk Manager",
     execution_planner: "Execution Planner",
     post_trade_reporter: "Post-Trade Reporter",
+  };
+
+  const startEditing = (config: any) => {
+    setEditingRole(config.role);
+    setEditingChain(JSON.parse(JSON.stringify(config.fallbackChain || [])));
+  };
+
+  const cancelEditing = () => {
+    setEditingRole(null);
+    setEditingChain([]);
+    refetch();
+  };
+
+  const moveUp = (index: number) => {
+    if (index > 0) {
+      const newChain = [...editingChain];
+      [newChain[index - 1], newChain[index]] = [newChain[index], newChain[index - 1]];
+      setEditingChain(newChain);
+    }
+  };
+
+  const moveDown = (index: number) => {
+    if (index < editingChain.length - 1) {
+      const newChain = [...editingChain];
+      [newChain[index], newChain[index + 1]] = [newChain[index + 1], newChain[index]];
+      setEditingChain(newChain);
+    }
+  };
+
+  const saveChanges = () => {
+    if (editingRole) {
+      updateConfigMutation.mutate({ role: editingRole, fallbackChain: editingChain });
+    }
   };
 
   return (
@@ -448,30 +565,67 @@ function RouterModule() {
         ))}
       </Card>
 
-      {configs.map((config) => (
-        <Card key={config.role} elevation={1} style={styles.moduleCard}>
-          <View style={styles.cardHeader}>
-            <Feather name="settings" size={18} color={BrandColors.primaryLight} />
-            <ThemedText style={styles.cardTitle}>{roleNames[config.role] || config.role}</ThemedText>
-          </View>
-          <ThemedText style={[styles.configDesc, { color: theme.textSecondary, marginBottom: Spacing.md }]}>{config.description}</ThemedText>
-          <ThemedText style={[styles.budgetLabel, { color: theme.textSecondary }]}>Fallback Chain:</ThemedText>
-          {config.fallbackChain?.map((m: any, i: number) => (
-            <View key={`${m.provider}-${m.model}`} style={styles.fallbackRow}>
-              <View style={[styles.priorityBadge, { backgroundColor: i === 0 ? BrandColors.success : BrandColors.neutral }]}>
-                <ThemedText style={styles.priorityText}>{i + 1}</ThemedText>
-              </View>
-              <View style={styles.fallbackInfo}>
-                <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{m.provider}</ThemedText>
-                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>{m.model}</ThemedText>
-              </View>
-              {m.costPer1kTokens && (
-                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>${m.costPer1kTokens.toFixed(5)}/1k</ThemedText>
-              )}
+      {configs.map((config) => {
+        const isEditing = editingRole === config.role;
+        const chain = isEditing ? editingChain : config.fallbackChain || [];
+        
+        return (
+          <Card key={config.role} elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="settings" size={18} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>{roleNames[config.role] || config.role}</ThemedText>
+              {!isEditing ? (
+                <Pressable style={styles.editButton} onPress={() => startEditing(config)}>
+                  <Feather name="edit-2" size={14} color={BrandColors.primaryLight} />
+                </Pressable>
+              ) : null}
             </View>
-          ))}
-        </Card>
-      ))}
+            <ThemedText style={[styles.configDesc, { color: theme.textSecondary, marginBottom: Spacing.md }]}>{config.description}</ThemedText>
+            <ThemedText style={[styles.budgetLabel, { color: theme.textSecondary }]}>Fallback Chain{isEditing ? " (reorder with arrows)" : ""}:</ThemedText>
+            {chain.map((m: any, i: number) => (
+              <View key={`${m.provider}-${m.model}-${i}`} style={styles.fallbackRow}>
+                <View style={[styles.priorityBadge, { backgroundColor: i === 0 ? BrandColors.success : BrandColors.neutral }]}>
+                  <ThemedText style={styles.priorityText}>{i + 1}</ThemedText>
+                </View>
+                <View style={styles.fallbackInfo}>
+                  <ThemedText style={[styles.listRowText, { fontFamily: Fonts?.mono }]}>{m.provider}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontFamily: Fonts?.mono }]}>{m.model}</ThemedText>
+                </View>
+                {isEditing ? (
+                  <View style={styles.reorderButtons}>
+                    <Pressable style={styles.reorderButton} onPress={() => moveUp(i)} disabled={i === 0}>
+                      <Feather name="chevron-up" size={16} color={i === 0 ? BrandColors.neutral : BrandColors.primaryLight} />
+                    </Pressable>
+                    <Pressable style={styles.reorderButton} onPress={() => moveDown(i)} disabled={i === chain.length - 1}>
+                      <Feather name="chevron-down" size={16} color={i === chain.length - 1 ? BrandColors.neutral : BrandColors.primaryLight} />
+                    </Pressable>
+                  </View>
+                ) : m.costPer1kTokens ? (
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>${m.costPer1kTokens.toFixed(5)}/1k</ThemedText>
+                ) : null}
+              </View>
+            ))}
+            {isEditing && (
+              <View style={styles.editActions}>
+                <Pressable style={styles.cancelButton} onPress={cancelEditing}>
+                  <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+                </Pressable>
+                <Pressable 
+                  style={[styles.saveButton, updateConfigMutation.isPending && styles.actionButtonDisabled]} 
+                  onPress={saveChanges}
+                  disabled={updateConfigMutation.isPending}
+                >
+                  {updateConfigMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <ThemedText style={styles.saveButtonText}>Save Changes</ThemedText>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </Card>
+        );
+      })}
 
       <Card elevation={1} style={styles.moduleCard}>
         <View style={styles.cardHeader}>
@@ -2134,8 +2288,17 @@ const styles = StyleSheet.create({
   actionButtonDisabled: { opacity: 0.5 },
   actionButtonText: { ...Typography.body, color: "#fff", fontWeight: "600" },
   actionButtons: { flexDirection: "row", gap: Spacing.sm },
-  smallButton: { padding: Spacing.sm, borderRadius: BorderRadius.xs },
+  smallButton: { padding: Spacing.sm, borderRadius: BorderRadius.xs, backgroundColor: BrandColors.primaryLight },
   smallButtonText: { ...Typography.small, color: "#fff", fontWeight: "600" },
+  tinyButton: { padding: Spacing.xs, borderRadius: BorderRadius.xs },
+  editButton: { padding: Spacing.xs, marginLeft: "auto" },
+  reorderButtons: { flexDirection: "row", gap: Spacing.xs },
+  reorderButton: { padding: Spacing.xs },
+  editActions: { flexDirection: "row", justifyContent: "flex-end", gap: Spacing.md, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: BrandColors.cardBorder },
+  cancelButton: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
+  cancelButtonText: { ...Typography.body, color: BrandColors.neutral },
+  saveButton: { backgroundColor: BrandColors.success, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.sm },
+  saveButtonText: { ...Typography.body, color: "#fff", fontWeight: "600" },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, gap: Spacing.xs },
   chipDot: { width: 8, height: 8, borderRadius: 4 },
