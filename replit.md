@@ -111,6 +111,37 @@ Comprehensive symbol universe management and portfolio allocation system:
 
 **Key Files**: `server/universe/alpacaUniverse.ts`, `liquidityService.ts`, `fundamentalsService.ts`, `candidatesService.ts`, `tradingEnforcement.ts`, `allocationService.ts`, `rebalancerService.ts`
 
+### Phase 4: Observability Module Enhancement (December 2025)
+Comprehensive observability dashboard with OpenTelemetry integration and alerting:
+
+1. **OpenTelemetry SDK** (`server/observability/otel.ts`):
+   - OTLP HTTP exporter for traces (configurable Jaeger/Tempo endpoint)
+   - Auto-instrumentation for HTTP, Express, PostgreSQL
+   - TraceId propagation throughout request lifecycle
+
+2. **Alert System**:
+   - `alert_rules` table: Configurable threshold rules (dead_letter_count, llm_error_rate, orchestrator_stale, etc.)
+   - `alert_events` table: Audit trail of triggered alerts with webhook delivery status
+   - `alertService.ts`: Background evaluator running every 60s, Slack/webhook notifications
+
+3. **Observability Admin Routes** (`/api/admin/observability/*`):
+   - `GET /health` - Aggregated health: work queue counts, orchestrator status, LLM metrics
+   - `GET /trace/:traceId` - Cross-entity trace lookup (decisions, trades, LLM calls, work items)
+   - `GET /work-queue/items` - Work queue items with filtering
+   - `POST /work-queue/items/:id/retry` - Retry failed items
+   - `GET /alerts/rules` - List alert rules
+   - `POST /alerts/rules/:id/toggle` - Enable/disable rules
+   - `GET /alerts/events` - Alert event history
+
+4. **Observability UI** (in AdminHubScreen.tsx):
+   - Tabbed interface: Health | Traces | Queue | Alerts
+   - Health tab: System health grid (Orchestrator, Kill Switch, Dead Letters, Pending Jobs), LLM Performance stats
+   - Traces tab: TraceId search with cross-entity results
+   - Queue tab: Work queue status, dead letters list, recent items
+   - Alerts tab: Alert rules with toggle switches, event history
+
+**Key Files**: `server/observability/otel.ts`, `server/observability/alertService.ts`, `server/observability/routes.ts`, `client/screens/AdminHubScreen.tsx`
+
 ## System Architecture
 
 ### Target Architecture
