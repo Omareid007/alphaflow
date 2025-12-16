@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Admin Hub is a WordPress-style consolidated admin panel that provides a unified interface for managing all aspects of the AI Active Trader system. It features a collapsible sidebar navigation with 10 specialized modules.
+The Admin Hub is a WordPress-style consolidated admin panel that provides a unified interface for managing all aspects of the AI Active Trader system. It features a collapsible sidebar navigation with 11 specialized modules.
 
 ## Access
 
@@ -18,6 +18,7 @@ The Admin Hub is a WordPress-style consolidated admin panel that provides a unif
 | **Overview** | home | Dashboard summary with connector health, data fusion, AI config, API keys | `/api/admin/connectors-health`, `/api/admin/data-fusion-status`, `/api/admin/ai-config`, `/api/admin/api-keys-status` |
 | **Providers & Budgets** | activity | API rate limits, budget usage, cache TTL, provider enable/disable | `/api/admin/provider-status`, `/api/admin/valyu-budget`, `PATCH /api/admin/provider/:provider/toggle` |
 | **LLM Router** | git-branch | Model routing configs, fallback chains, call statistics, cost tracking | `/api/admin/model-router/configs`, `/api/admin/model-router/stats`, `/api/admin/model-router/calls` |
+| **Orders** | file-text | Broker order lifecycle, fills, sync controls | `/api/orders`, `/api/orders/:id`, `/api/fills`, `POST /api/orders/sync` |
 | **Universe** | globe | Asset universe management, tradable filtering, refresh from Alpaca | `/api/admin/universe/stats`, `/api/admin/universe/assets`, `POST /api/admin/universe/refresh` |
 | **Fundamentals** | bar-chart-2 | Fundamental data fetch, top scores, symbol detail view | `/api/admin/fundamentals/stats`, `/api/admin/fundamentals/top/scores`, `POST /api/admin/fundamentals/fetch` |
 | **Candidates** | users | Trading candidate generation, approval/rejection workflow | `/api/admin/candidates/stats`, `/api/admin/candidates`, `POST /api/admin/candidates/generate`, `POST /api/admin/candidates/:symbol/approve` |
@@ -51,7 +52,16 @@ AI model routing configuration:
 - **Role Configurations**: Fallback chains for each agent role (News Summarizer, Technical Analyst, etc.)
 - **Recent Calls**: Last 10 LLM calls with latency and cost
 
-### 4. Universe Module
+### 4. Orders Module
+
+Broker order lifecycle management (see [ORDER_LIFECYCLE.md](ORDER_LIFECYCLE.md) for details):
+- **Order Lifecycle Card**: Description and Sync button
+- **Status Filters**: All, New, Filled, Partially Filled, Canceled, Rejected
+- **Order Ledger**: List of orders with expandable rows
+- **Expandable Details**: Broker Order ID, Trace ID, Decision ID, Fills
+- **Real-time Updates**: 15-second auto-refresh polling
+
+### 5. Universe Module
 
 Asset universe management:
 - **Universe Stats**: Total assets, tradable count, excluded count
@@ -59,7 +69,7 @@ Asset universe management:
 - **Search & Filter**: Filter by all/tradable/excluded, search by symbol
 - **Asset List**: View assets, exclude symbols, see detail
 
-### 5. Fundamentals Module
+### 6. Fundamentals Module
 
 Fundamental data management:
 - **Stats**: Total symbols with fundamentals, average score, last updated
@@ -67,7 +77,7 @@ Fundamental data management:
 - **Top Scores**: Ranked list of symbols by fundamental score
 - **Symbol Detail**: Deep dive into individual symbol fundamentals
 
-### 6. Candidates Module
+### 7. Candidates Module
 
 Trading candidate workflow:
 - **Stats**: Total candidates, approved/pending/rejected counts
@@ -76,7 +86,7 @@ Trading candidate workflow:
 - **Approval Actions**: Approve or reject pending candidates
 - **Approved List**: View all approved candidates as chips
 
-### 7. Enforcement Module
+### 8. Enforcement Module
 
 Enforcement gate management:
 - **About Card**: Explanation of enforcement gate purpose
@@ -84,7 +94,7 @@ Enforcement gate management:
 - **Reset Stats**: Clear enforcement statistics
 - **Check Symbol(s)**: Test if symbols would be allowed or blocked
 
-### 8. Allocation Module
+### 9. Allocation Module
 
 Portfolio allocation policies:
 - **Stats**: Total policies, total runs
@@ -93,7 +103,7 @@ Portfolio allocation policies:
 - **Policies List**: All policies with activate button
 - **Recent Runs**: History of allocation runs
 
-### 9. Rebalancer Module
+### 10. Rebalancer Module
 
 Portfolio rebalancing:
 - **Stats**: Total runs, last run date
@@ -101,7 +111,7 @@ Portfolio rebalancing:
 - **Execute Rebalance**: Actually execute trades (with warning)
 - **Profit Taking Analysis**: Identify profit-taking opportunities
 
-### 10. Observability Module
+### 11. Observability Module
 
 System observability and debugging:
 - **TraceId Explorer**: Search for traces by ID, view AI decisions, trades, LLM calls, work items
@@ -155,6 +165,11 @@ POST /api/admin/provider/:provider/force-refresh
 GET  /api/admin/model-router/configs
 GET  /api/admin/model-router/stats
 GET  /api/admin/model-router/calls
+GET  /api/orders
+GET  /api/orders/:id
+GET  /api/fills
+GET  /api/fills/order/:orderId
+POST /api/orders/sync
 GET  /api/admin/universe/stats
 GET  /api/admin/universe/assets
 GET  /api/admin/universe/assets/:symbol
@@ -205,13 +220,14 @@ client/
 | Overview (Connectors, Fusion, AI Config, Keys) | Implemented | Implemented |
 | Providers & Budgets | Implemented | Implemented |
 | LLM Router | Implemented | Implemented |
+| Orders (Broker Order Lifecycle, Fills, Sync) | Implemented | Implemented |
 | Universe | Implemented | Implemented |
 | Fundamentals | Implemented | Implemented |
 | Candidates | Implemented | Implemented |
 | Enforcement | Implemented | Implemented |
 | Allocation | Implemented | Implemented |
 | Rebalancer | Implemented | Implemented |
-| Observability (TraceId + Work Queue) | Implemented | Implemented |
+| Observability (TraceId + Work Queue + Alerts) | Implemented | Implemented |
 
 ---
 

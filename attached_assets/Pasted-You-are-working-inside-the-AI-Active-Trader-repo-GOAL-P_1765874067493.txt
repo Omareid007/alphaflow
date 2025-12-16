@@ -1,0 +1,137 @@
+You are working inside the **AI Active Trader** repo.
+
+GOAL (P1-T1): Make the system “broker-truthful” end-to-end:
+1) Implement a clear **Order → Fill** lifecycle model that is sourced from **Alpaca** (paper trading) and does NOT conflate with internal “trades/AI decisions”.
+2) Wire the lifecycle into the **existing WordPress-like Admin** page by consolidating all admin-related components into ONE admin shell.
+3) Fix UI statuses so every trade/order shown is explainable, traceable, and backed by real broker data.
+4) Update docs so they match reality (no “done” claims without proof).
+
+IMPORTANT RULES:
+- NO hallucinations: if unsure, search the repo and show evidence.
+- Do NOT re-build what already exists: detect and reuse existing admin page, LLM routing (OpenAI + OpenRouter), work queue, universe/enforcement/rebalancer services, and routes.
+- Every step must include verification output (commands + results, screenshots if UI, and curl tests).
+- Keep all operations using real data: Alpaca paper API is the source of truth for orders/positions. (Alpaca endpoints: GET /v2/orders, POST /v2/orders, GET /v2/positions).
+- Preserve existing traceId flow and propagate it through ALL new entities.
+
+PHASE A — READ FIRST (no code changes)
+1) Read and summarize the following (quote file paths and key findings):
+   - docs/WORK_QUEUE_ARCHITECTURE.md
+   - docs/SOURCE_OF_TRUTH_CONTRACT.md
+   - docs/TRADING_SAGA_SEQUENCES.md
+   - AUDIT_DOC_VS_IMPLEMENTATION_GAP.md (focus on G4 + any other open gaps)
+2) Locate the existing WordPress-like admin UI:
+   - rg -n "admin|wordpress|dashboard|Admin" client/ server/ docs/
+   - Identify the current route/entry and main admin component.
+3) Identify current DB entities:
+   - Inspect shared/schema.ts (or equivalent)
+   - Identify current tables for trades, ai_decisions, llm_calls, work_items, etc.
+   - Confirm whether “orders” and/or “fills” tables already exist.
+
+PHASE B — DATA MODEL: Orders/Fills separation (minimal but correct)
+Goal: Keep current internal “trades” as *AI intent / suggested trade record*,
+and add broker-truth entities for execution:
+
+1) Add (or confirm existing) tables:
+   - broker_orders (or orders): represents an execution request and broker lifecycle
+   - broker_fills (or fills): represents fill executions (partial/final)
+   Minimum required fields:
+   - id (pk), traceId
+   - symbol, side, qty, type, limitPrice, timeInForce
+   - status (enum), submittedAt, updatedAt
+   - brokerOrderId, clientOrderId (if used)
+   - source (“alpaca”), rawBrokerPayload (json)
+   - links: aiDecisionId, tradeId (optional), workItemId (optional)
+2) Add indexes for:
+   - brokerOrderId unique
+   - (traceId), (symbol, status), (submittedAt)
+3) Run db push/migration and show output.
+
+PHASE C — BROKER SYNC & LIFECYCLE: make “truth” consistent
+1) Update ORDER_SUBMIT / ORDER_CANCEL work item handlers:
+   - On submit: create/update broker_orders with status QUEUED → SUBMITTED
+   - Store brokerOrderId returned from Alpaca
+   - Record raw payload
+   - Preserve traceId
+2) Add a “Broker Reconciliation” job (background worker, safe polling):
+   - Poll Alpaca open orders (GET /v2/orders with query filters) and update broker_orders statuses
+   - Poll Alpaca positions (GET /v2/positions) and update a broker_positions table OR a cached view
+   - Optionally poll recently closed orders for final statuses
+   - Ensure idempotent updates (upsert by brokerOrderId)
+3) Define ONE canonical status state machine in code and use it everywhere:
+   - PLANNED (AI idea), QUEUED (work item created), SUBMITTED (sent to broker),
+     ACCEPTED/NEW, PARTIALLY_FILLED, FILLED, CANCELED, REJECTED, FAILED
+   - Map Alpaca statuses into these states (document mapping in docs/ORDER_LIFECYCLE.md)
+4) Verification:
+   - Provide curl commands hitting your server endpoints that return:
+     - broker orders list
+     - broker order details (by brokerOrderId)
+     - broker positions list
+   - Show logs proving traceId is carried through.
+
+PHASE D — UI: make the app reflect REAL orders and remove “fake ledger”
+1) Find the UI pages showing:
+   - Trade Ledger
+   - AI Suggested Trades
+   - Auto Trading / Positions
+   Replace any “mock/demo/internal-only” lists with broker-backed views where appropriate:
+   - Positions shown must come from Alpaca positions (via server endpoint that calls broker sync cache)
+   - Orders shown must come from broker_orders (synced from Alpaca)
+2) Update UI labels:
+   - Replace pending_execution/meaningless states with the canonical states above
+   - Every row must show:
+     - traceId link
+     - decision factors link (ai_decision + llm_calls)
+     - brokerOrderId link
+     - timestamps
+3) Add “Explain” drawer/modal:
+   - Shows the full chain: Orchestrator cycle → AI decision → LLM calls → Work item → Broker order → fills → final outcome
+4) Verification:
+   - Provide screenshots or a short textual “UI walkthrough” and confirm buttons/actions work.
+
+PHASE E — ADMIN CONSOLIDATION (“WordPress-like”)
+1) Consolidate ALL admin-related pages/components into ONE Admin Shell:
+   Left nav sections (minimum):
+   - Overview
+   - Orchestrator & Runs
+   - Work Queue (incl. dead letters)
+   - Providers & Budgets (OpenAI + OpenRouter + data APIs)
+   - Broker: Orders
+   - Broker: Positions
+   - Universe (symbols, liquidity, tiers)
+   - Fundamentals
+   - Candidates & Approvals
+   - Enforcement Gate
+   - Allocation Policies
+   - Rebalancer (dry-run + execute)
+   - Observability (trace search)
+2) Create a dedicated entry point:
+   - Route: /admin (or /app/admin) — choose what fits existing router
+   - Guard it behind admin auth/role
+3) Add an “Access Guide” in docs/ADMIN_ACCESS.md:
+   - exact URL path(s)
+   - required env vars
+   - how to create/login as admin locally
+4) Verification:
+   - Show the admin landing page loads
+   - Each section successfully fetches data from server endpoints (no placeholders)
+
+PHASE F — DOCS MUST MATCH REALITY
+1) Update docs:
+   - docs/ORDER_LIFECYCLE.md (new)
+   - docs/ADMIN_DASHBOARD.md (or update existing)
+   - docs/INDEX.md (if present) to reflect what’s actually implemented now
+2) Add a “Reality checklist” section:
+   - For each feature, list the API route + UI page + table involved.
+3) No “completed” claim unless you include:
+   - a passing test OR a curl proof OR a screenshot.
+
+DELIVERABLES (must provide at end)
+- A short “What changed” bullet list with file paths
+- DB schema diff summary
+- 5 curl commands that demonstrate end-to-end correctness
+- Screenshot(s) or a UI navigation confirmation
+- Docs updated list
+
+STOP POINT
+When Phase E is working (admin consolidated + /admin entry + broker orders/positions visible),
+stop and output a short plan for the next task (P1-T2: budgets/caching UI + provider routing rules).

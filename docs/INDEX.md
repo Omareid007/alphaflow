@@ -78,11 +78,20 @@
 | [adr/ADR-002-event-bus-selection.md](adr/ADR-002-event-bus-selection.md) | NATS JetStream selection |
 | [adr/ADR-003-container-standards.md](adr/ADR-003-container-standards.md) | Container/K8s standards |
 
+### Trading & Order Management
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [ORDER_LIFECYCLE.md](ORDER_LIFECYCLE.md) | Broker Order → Fill lifecycle, status mapping | Current |
+| [SOURCE_OF_TRUTH_CONTRACT.md](SOURCE_OF_TRUTH_CONTRACT.md) | Alpaca as single source of truth | Current |
+| [WORK_QUEUE_ARCHITECTURE.md](WORK_QUEUE_ARCHITECTURE.md) | Durable work queue, retry, dead-letter | Current |
+
 ### Reference & Guides
 
 | Document | Purpose |
 |----------|---------|
 | [ADMIN_DASHBOARD.md](ADMIN_DASHBOARD.md) | Admin Hub UI documentation |
+| [ADMIN_ACCESS.md](ADMIN_ACCESS.md) | Admin Hub access guide |
 | [API_REFERENCE.md](API_REFERENCE.md) | Central REST API endpoint list |
 | [SLA_SLO_TARGETS.md](SLA_SLO_TARGETS.md) | Service level targets |
 | [COMPETITIVE_BENCHMARKING.md](COMPETITIVE_BENCHMARKING.md) | Industry comparison |
@@ -110,6 +119,9 @@ Each topic has exactly one canonical document. If you need information, go to th
 | Lessons, retrospectives | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) |
 | REST API endpoints | [API_REFERENCE.md](API_REFERENCE.md) |
 | Admin Hub UI | [ADMIN_DASHBOARD.md](ADMIN_DASHBOARD.md) |
+| Admin Hub access | [ADMIN_ACCESS.md](ADMIN_ACCESS.md) |
+| Order lifecycle, fills | [ORDER_LIFECYCLE.md](ORDER_LIFECYCLE.md) |
+| Work queue, retry, dead-letter | [WORK_QUEUE_ARCHITECTURE.md](WORK_QUEUE_ARCHITECTURE.md) |
 
 ---
 
