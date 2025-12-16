@@ -252,5 +252,65 @@ export function initializeDefaultModules(): void {
     priority: 5,
   });
 
+  registerAdminModule({
+    id: "debate-arena",
+    title: "AI Debate Arena",
+    description: "Multi-role AI consensus system with debate sessions and voting",
+    icon: "message-circle",
+    navGroup: "ai",
+    capability: "admin:read",
+    route: "Debate",
+    apiEndpoints: [
+      "/api/debate/sessions",
+      "/api/debate/sessions/:id",
+    ],
+    priority: 25,
+  });
+
+  registerAdminModule({
+    id: "competition",
+    title: "Competition Mode",
+    description: "AI trader profiles competing with performance tracking",
+    icon: "award",
+    navGroup: "ai",
+    capability: "admin:read",
+    route: "Competition",
+    apiEndpoints: [
+      "/api/competition/traders",
+      "/api/competition/runs",
+    ],
+    priority: 26,
+  });
+
+  registerAdminModule({
+    id: "strategy-studio",
+    title: "Strategy Studio",
+    description: "Strategy versioning, activation, and configuration",
+    icon: "layers",
+    navGroup: "trading",
+    capability: "trading:manage",
+    route: "Strategies",
+    apiEndpoints: [
+      "/api/strategies/versions",
+    ],
+    priority: 6,
+  });
+
+  registerAdminModule({
+    id: "tool-router",
+    title: "Tool Registry",
+    description: "MCP-style tool router with invocation audit trail",
+    icon: "tool",
+    navGroup: "ai",
+    capability: "admin:read",
+    route: "Tools",
+    apiEndpoints: [
+      "/api/tools",
+      "/api/tools/invoke",
+      "/api/tools/invocations",
+    ],
+    priority: 27,
+  });
+
   log.info("AdminRegistry", `Initialized ${moduleRegistry.size} default modules`);
 }

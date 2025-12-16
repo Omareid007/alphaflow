@@ -24,7 +24,11 @@ type AdminSection =
   | "enforcement" 
   | "allocation" 
   | "rebalancer" 
-  | "observability";
+  | "observability"
+  | "debate"
+  | "competition"
+  | "strategies"
+  | "tools";
 
 interface SidebarItem {
   id: AdminSection;
@@ -47,6 +51,10 @@ const sidebarItems: SidebarItem[] = [
   { id: "allocation", label: "Allocation", icon: "pie-chart", description: "Allocation policies" },
   { id: "rebalancer", label: "Rebalancer", icon: "refresh-cw", description: "Portfolio rebalancing" },
   { id: "observability", label: "Observability", icon: "search", description: "Traces and work queue" },
+  { id: "debate", label: "AI Arena", icon: "message-circle", description: "Multi-role AI debates" },
+  { id: "competition", label: "Competition", icon: "award", description: "Trader competitions" },
+  { id: "strategies", label: "Strategies", icon: "layers", description: "Strategy versions" },
+  { id: "tools", label: "Tools", icon: "tool", description: "Tool registry and audit" },
 ];
 
 function SidebarNav({ 
@@ -2788,6 +2796,497 @@ function OrdersModule() {
   );
 }
 
+function DebateModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+
+  const { data: sessionsData, isLoading, refetch } = useQuery<{ sessions: any[]; total: number }>({
+    queryKey: ["/api/debate/sessions"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/debate/sessions", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch debate sessions");
+      return res.json();
+    },
+  });
+
+  const { data: sessionDetail } = useQuery<{ session: any; messages: any[]; consensus: any }>({
+    queryKey: ["/api/debate/sessions", selectedSession],
+    queryFn: async () => {
+      const res = await fetch(new URL(`/api/debate/sessions/${selectedSession}`, getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch session detail");
+      return res.json();
+    },
+    enabled: !!selectedSession,
+  });
+
+  const startDebateMutation = useMutation({
+    mutationFn: async (symbols: string[]) => {
+      return apiRequest("POST", "/api/debate/sessions", { symbols, triggeredBy: "admin" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/debate/sessions"] });
+    },
+  });
+
+  const sessions = sessionsData?.sessions || [];
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "completed": return BrandColors.success;
+      case "running": return BrandColors.warning;
+      case "failed": return BrandColors.error;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  const getStanceColor = (stance: string): string => {
+    switch (stance) {
+      case "bullish": return BrandColors.success;
+      case "bearish": return BrandColors.error;
+      case "neutral": return BrandColors.warning;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
+      <ThemedText style={styles.moduleTitle}>AI Debate Arena</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="message-circle" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Recent Debates</ThemedText>
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {sessions.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No debate sessions yet</ThemedText>
+        ) : (
+          sessions.slice(0, 10).map((session: any) => (
+            <Pressable
+              key={session.id}
+              style={[styles.listRow, styles.listRowBorder]}
+              onPress={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
+            >
+              <View style={styles.listRowLeft}>
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(session.status) }]} />
+                <View>
+                  <ThemedText style={styles.listRowText}>
+                    {(session.symbols || []).join(", ")}
+                  </ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    {session.status} - {new Date(session.startedAt).toLocaleString()}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={styles.listRowRight}>
+                {session.totalCost && (
+                  <View style={[styles.badge, { backgroundColor: BrandColors.primaryLight + "20" }]}>
+                    <ThemedText style={[styles.badgeText, { color: BrandColors.primaryLight }]}>
+                      ${parseFloat(session.totalCost).toFixed(4)}
+                    </ThemedText>
+                  </View>
+                )}
+                <Feather name={selectedSession === session.id ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
+              </View>
+            </Pressable>
+          ))
+        )}
+      </Card>
+
+      {selectedSession && sessionDetail && (
+        <Card elevation={1} style={styles.moduleCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="users" size={20} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.cardTitle}>Role Outputs</ThemedText>
+          </View>
+
+          {(sessionDetail.messages || []).map((msg: any, idx: number) => (
+            <View key={idx} style={[styles.listRow, styles.listRowBorder, { flexDirection: "column", alignItems: "flex-start" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm }}>
+                <View style={[styles.badge, { backgroundColor: getStanceColor(msg.stance) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: getStanceColor(msg.stance) }]}>
+                    {msg.role?.replace("_", " ").toUpperCase()}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                  Confidence: {Math.round((msg.confidence || 0) * 100)}%
+                </ThemedText>
+              </View>
+              <ThemedText style={[styles.listRowMeta, { color: theme.text }]} numberOfLines={3}>
+                {msg.rationale || "No rationale provided"}
+              </ThemedText>
+              {msg.keySignals && msg.keySignals.length > 0 && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs, marginTop: Spacing.xs }}>
+                  {msg.keySignals.slice(0, 3).map((signal: string, i: number) => (
+                    <View key={i} style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                      <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>{signal}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+
+          {sessionDetail.consensus && (
+            <View style={[styles.resultBox, { marginTop: Spacing.md }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm }}>
+                <Feather name="check-circle" size={18} color={BrandColors.success} />
+                <ThemedText style={styles.resultText}>
+                  Consensus: {sessionDetail.consensus.decision?.toUpperCase()}
+                </ThemedText>
+                <View style={[styles.badge, { backgroundColor: BrandColors.success + "20", marginLeft: "auto" }]}>
+                  <ThemedText style={[styles.badgeText, { color: BrandColors.success }]}>
+                    {Math.round((sessionDetail.consensus.confidence || 0) * 100)}%
+                  </ThemedText>
+                </View>
+              </View>
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                {sessionDetail.consensus.reasonsSummary}
+              </ThemedText>
+              {sessionDetail.consensus.workItemId && (
+                <ThemedText style={[styles.listRowMeta, { color: BrandColors.primaryLight, marginTop: Spacing.xs }]}>
+                  Work Item: {sessionDetail.consensus.workItemId}
+                </ThemedText>
+              )}
+            </View>
+          )}
+        </Card>
+      )}
+    </ScrollView>
+  );
+}
+
+function CompetitionModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+
+  const { data: tradersData, isLoading: loadingTraders, refetch: refetchTraders } = useQuery<{ traders: any[] }>({
+    queryKey: ["/api/competition/traders"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/competition/traders", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch traders");
+      return res.json();
+    },
+  });
+
+  const { data: runsData, isLoading: loadingRuns, refetch: refetchRuns } = useQuery<{ runs: any[] }>({
+    queryKey: ["/api/competition/runs"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/competition/runs", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch runs");
+      return res.json();
+    },
+  });
+
+  const traders = tradersData?.traders || [];
+  const runs = runsData?.runs || [];
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "completed": return BrandColors.success;
+      case "running": return BrandColors.warning;
+      case "failed": return BrandColors.error;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => { refetchTraders(); refetchRuns(); }} />}>
+      <ThemedText style={styles.moduleTitle}>Competition Mode</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="users" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Trader Profiles</ThemedText>
+          {loadingTraders && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {traders.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No trader profiles yet</ThemedText>
+        ) : (
+          traders.map((trader: any) => (
+            <View key={trader.id} style={[styles.listRow, styles.listRowBorder]}>
+              <View style={styles.listRowLeft}>
+                <View style={[styles.priorityBadge, { backgroundColor: BrandColors.primaryLight }]}>
+                  <Feather name="user" size={14} color="#fff" />
+                </View>
+                <View>
+                  <ThemedText style={styles.listRowText}>{trader.name}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    Risk: {trader.riskPreset || "standard"} | Model: {trader.modelProfile || "default"}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={[styles.badge, { backgroundColor: trader.isActive ? BrandColors.success + "20" : BrandColors.neutral + "20" }]}>
+                <ThemedText style={[styles.badgeText, { color: trader.isActive ? BrandColors.success : BrandColors.neutral }]}>
+                  {trader.isActive ? "ACTIVE" : "INACTIVE"}
+                </ThemedText>
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="award" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Competition Runs</ThemedText>
+          {loadingRuns && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {runs.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No competition runs yet</ThemedText>
+        ) : (
+          runs.slice(0, 10).map((run: any) => (
+            <View key={run.id} style={[styles.listRow, styles.listRowBorder]}>
+              <View style={styles.listRowLeft}>
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(run.status) }]} />
+                <View>
+                  <ThemedText style={styles.listRowText}>{run.name || `Run ${run.id.slice(0, 8)}`}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    {run.mode} | {new Date(run.startedAt).toLocaleDateString()}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={[styles.badge, { backgroundColor: getStatusColor(run.status) + "20" }]}>
+                <ThemedText style={[styles.badgeText, { color: getStatusColor(run.status) }]}>
+                  {run.status?.toUpperCase()}
+                </ThemedText>
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+    </ScrollView>
+  );
+}
+
+function StrategiesModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, refetch } = useQuery<{ versions: any[] }>({
+    queryKey: ["/api/strategies/versions"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/strategies/versions", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch strategy versions");
+      return res.json();
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest("PUT", `/api/strategies/versions/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strategies/versions"] });
+    },
+  });
+
+  const versions = data?.versions || [];
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "active": return BrandColors.success;
+      case "draft": return BrandColors.warning;
+      case "archived": return BrandColors.neutral;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
+      <ThemedText style={styles.moduleTitle}>Strategy Studio</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="layers" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Strategy Versions</ThemedText>
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {versions.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No strategies created yet. Use the Strategy Wizard to create one.</ThemedText>
+        ) : (
+          versions.map((version: any) => (
+            <View key={version.id} style={[styles.listRow, styles.listRowBorder]}>
+              <View style={styles.listRowLeft}>
+                <View style={[styles.rankBadge, { backgroundColor: BrandColors.primaryLight }]}>
+                  <ThemedText style={styles.rankText}>v{version.versionNumber}</ThemedText>
+                </View>
+                <View>
+                  <ThemedText style={styles.listRowText}>{version.name || `Strategy ${version.strategyId?.slice(0, 8)}`}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    Created: {new Date(version.createdAt).toLocaleDateString()}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+                <Pressable
+                  style={[styles.tinyButton, { backgroundColor: version.status === "active" ? BrandColors.neutral + "20" : BrandColors.success + "20" }]}
+                  onPress={() => activateMutation.mutate({ id: version.id, status: version.status === "active" ? "archived" : "active" })}
+                  disabled={activateMutation.isPending}
+                >
+                  <ThemedText style={[styles.chipText, { color: version.status === "active" ? BrandColors.neutral : BrandColors.success }]}>
+                    {version.status === "active" ? "Archive" : "Activate"}
+                  </ThemedText>
+                </Pressable>
+                <View style={[styles.badge, { backgroundColor: getStatusColor(version.status) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: getStatusColor(version.status) }]}>
+                    {version.status?.toUpperCase()}
+                  </ThemedText>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+    </ScrollView>
+  );
+}
+
+function ToolsModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [testParams, setTestParams] = useState<string>("{}");
+
+  const { data: toolsData, isLoading: loadingTools, refetch: refetchTools } = useQuery<{ tools: any[] }>({
+    queryKey: ["/api/tools"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/tools", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch tools");
+      return res.json();
+    },
+  });
+
+  const { data: invocationsData, isLoading: loadingInvocations, refetch: refetchInvocations } = useQuery<{ invocations: any[]; total: number }>({
+    queryKey: ["/api/tools/invocations"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/tools/invocations?limit=20", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch invocations");
+      return res.json();
+    },
+  });
+
+  const invokeMutation = useMutation({
+    mutationFn: async ({ toolName, params }: { toolName: string; params: any }) => {
+      return apiRequest("POST", "/api/tools/invoke", { toolName, params });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tools/invocations"] });
+    },
+  });
+
+  const tools = toolsData?.tools || [];
+  const invocations = invocationsData?.invocations || [];
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "success": return BrandColors.success;
+      case "pending": return BrandColors.warning;
+      case "error": return BrandColors.error;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  const getCategoryColor = (category: string): string => {
+    switch (category) {
+      case "broker": return BrandColors.primaryLight;
+      case "market_data": return BrandColors.success;
+      case "analysis": return BrandColors.warning;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => { refetchTools(); refetchInvocations(); }} />}>
+      <ThemedText style={styles.moduleTitle}>Tool Registry</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="tool" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Registered Tools ({tools.length})</ThemedText>
+          {loadingTools && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {tools.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No tools registered</ThemedText>
+        ) : (
+          tools.map((tool: any) => (
+            <Pressable
+              key={tool.name}
+              style={[styles.listRow, styles.listRowBorder]}
+              onPress={() => setSelectedTool(selectedTool === tool.name ? null : tool.name)}
+            >
+              <View style={styles.listRowLeft}>
+                <View style={[styles.badge, { backgroundColor: getCategoryColor(tool.category) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: getCategoryColor(tool.category) }]}>
+                    {tool.category?.toUpperCase()}
+                  </ThemedText>
+                </View>
+                <View>
+                  <ThemedText style={styles.listRowText}>{tool.name}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+                    {tool.description}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+                {tool.cacheable && (
+                  <View style={[styles.chip, { backgroundColor: BrandColors.success + "20" }]}>
+                    <Feather name="database" size={10} color={BrandColors.success} />
+                    <ThemedText style={[styles.chipText, { color: BrandColors.success }]}>Cacheable</ThemedText>
+                  </View>
+                )}
+                <Feather name={selectedTool === tool.name ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
+              </View>
+            </Pressable>
+          ))
+        )}
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="clock" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Recent Invocations</ThemedText>
+          {loadingInvocations && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+
+        {invocations.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No tool invocations yet</ThemedText>
+        ) : (
+          invocations.map((inv: any) => (
+            <View key={inv.id} style={[styles.listRow, styles.listRowBorder]}>
+              <View style={styles.listRowLeft}>
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(inv.status) }]} />
+                <View>
+                  <ThemedText style={styles.listRowText}>{inv.toolName}</ThemedText>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    {inv.callerRole || "system"} | {inv.latencyMs ? `${inv.latencyMs}ms` : "pending"}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <View style={[styles.badge, { backgroundColor: getStatusColor(inv.status) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: getStatusColor(inv.status) }]}>
+                    {inv.status?.toUpperCase()}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, marginTop: 2 }]}>
+                  {new Date(inv.invokedAt).toLocaleTimeString()}
+                </ThemedText>
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+    </ScrollView>
+  );
+}
+
 export default function AdminHubScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -2811,6 +3310,10 @@ export default function AdminHubScreen() {
       case "allocation": return <AllocationModule />;
       case "rebalancer": return <RebalancerModule />;
       case "observability": return <ObservabilityModule />;
+      case "debate": return <DebateModule />;
+      case "competition": return <CompetitionModule />;
+      case "strategies": return <StrategiesModule />;
+      case "tools": return <ToolsModule />;
       default: return <OverviewModule />;
     }
   }, [activeSection]);
