@@ -15,7 +15,9 @@ type AdminSection =
   | "overview" 
   | "budgets" 
   | "router" 
+  | "orchestrator"
   | "orders"
+  | "positions"
   | "universe" 
   | "fundamentals" 
   | "candidates" 
@@ -35,7 +37,9 @@ const sidebarItems: SidebarItem[] = [
   { id: "overview", label: "Overview", icon: "home", description: "Dashboard overview" },
   { id: "budgets", label: "Providers & Budgets", icon: "activity", description: "API rate limits and cache" },
   { id: "router", label: "LLM Router", icon: "git-branch", description: "Model routing config" },
+  { id: "orchestrator", label: "Orchestrator", icon: "cpu", description: "Strategy orchestration" },
   { id: "orders", label: "Orders", icon: "file-text", description: "Order lifecycle and fills" },
+  { id: "positions", label: "Positions", icon: "briefcase", description: "Live broker positions" },
   { id: "universe", label: "Universe", icon: "globe", description: "Asset universe management" },
   { id: "fundamentals", label: "Fundamentals", icon: "bar-chart-2", description: "Fundamental data" },
   { id: "candidates", label: "Candidates", icon: "users", description: "Trading candidates" },
@@ -1980,6 +1984,432 @@ function ObservabilityModule() {
   );
 }
 
+function OrchestratorModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, refetch } = useQuery<{
+    status: { isRunning: boolean; lastCycleAt: string | null; cycleCount: number; errorCount: number };
+    config: { cycleIntervalMs: number; maxSymbolsPerCycle: number; enableAutoTrading: boolean };
+    activeStrategies: string[];
+  }>({
+    queryKey: ["/api/admin/orchestrator/status"],
+  });
+
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  const clearMessages = () => {
+    setTimeout(() => { setActionError(null); setActionSuccess(null); }, 3000);
+  };
+
+  const pauseMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/orchestrator/pause"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestrator/status"] });
+      setActionSuccess("Orchestrator paused");
+      clearMessages();
+    },
+    onError: (err: Error) => { setActionError(err.message || "Failed to pause"); clearMessages(); },
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/orchestrator/resume"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestrator/status"] });
+      setActionSuccess("Orchestrator resumed");
+      clearMessages();
+    },
+    onError: (err: Error) => { setActionError(err.message || "Failed to resume"); clearMessages(); },
+  });
+
+  const runNowMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/orchestrator/run-now"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestrator/status"] });
+      setActionSuccess("Reconciliation triggered");
+      clearMessages();
+    },
+    onError: (err: Error) => { setActionError(err.message || "Failed to trigger"); clearMessages(); },
+  });
+
+  const resetStatsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/orchestrator/reset-stats"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestrator/status"] });
+      setActionSuccess("Statistics reset");
+      clearMessages();
+    },
+    onError: (err: Error) => { setActionError(err.message || "Failed to reset"); clearMessages(); },
+  });
+
+  const status = data?.status;
+  const config = data?.config;
+  const activeStrategies = data?.activeStrategies || [];
+
+  const formatDuration = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ${seconds % 60}s`;
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
+      <ThemedText style={styles.moduleTitle}>Orchestrator Control</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="cpu" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Status</ThemedText>
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+          <View style={[
+            styles.statusDot,
+            { backgroundColor: status?.isRunning ? BrandColors.success : BrandColors.neutral, marginLeft: "auto" }
+          ]} />
+          <ThemedText style={{ color: status?.isRunning ? BrandColors.success : BrandColors.neutral, fontWeight: "600" }}>
+            {status?.isRunning ? "Running" : "Paused"}
+          </ThemedText>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+            <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>{status?.cycleCount ?? "-"}</ThemedText>
+            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Cycles</ThemedText>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+            <ThemedText style={[styles.statValue, { color: BrandColors.error }]}>{status?.errorCount ?? "-"}</ThemedText>
+            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Errors</ThemedText>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+            <ThemedText style={[styles.statValue, { color: BrandColors.success }]}>{activeStrategies.length}</ThemedText>
+            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Strategies</ThemedText>
+          </View>
+        </View>
+
+        {status?.lastCycleAt && (
+          <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, marginTop: Spacing.md }]}>
+            Last cycle: {new Date(status.lastCycleAt).toLocaleString()}
+          </ThemedText>
+        )}
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="play-circle" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Controls</ThemedText>
+        </View>
+        {actionError && (
+          <View style={[styles.errorBox, { marginTop: 0, marginBottom: Spacing.md }]}>
+            <Feather name="alert-circle" size={16} color={BrandColors.error} />
+            <ThemedText style={{ color: BrandColors.error, marginLeft: Spacing.sm, flex: 1 }}>{actionError}</ThemedText>
+          </View>
+        )}
+        {actionSuccess && (
+          <View style={[styles.errorBox, { marginTop: 0, marginBottom: Spacing.md, backgroundColor: BrandColors.success + "10" }]}>
+            <Feather name="check-circle" size={16} color={BrandColors.success} />
+            <ThemedText style={{ color: BrandColors.success, marginLeft: Spacing.sm, flex: 1 }}>{actionSuccess}</ThemedText>
+          </View>
+        )}
+        <View style={styles.actionButtons}>
+          {status?.isRunning ? (
+            <Pressable 
+              style={[styles.actionButton, { backgroundColor: BrandColors.warning }]}
+              onPress={() => pauseMutation.mutate()}
+              disabled={pauseMutation.isPending}
+            >
+              {pauseMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Feather name="pause" size={16} color="#fff" />
+                  <ThemedText style={styles.actionButtonText}>Pause</ThemedText>
+                </>
+              )}
+            </Pressable>
+          ) : (
+            <Pressable 
+              style={[styles.actionButton, { backgroundColor: BrandColors.success }]}
+              onPress={() => resumeMutation.mutate()}
+              disabled={resumeMutation.isPending}
+            >
+              {resumeMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Feather name="play" size={16} color="#fff" />
+                  <ThemedText style={styles.actionButtonText}>Resume</ThemedText>
+                </>
+              )}
+            </Pressable>
+          )}
+          <Pressable 
+            style={[styles.actionButton, { backgroundColor: BrandColors.primaryLight }]}
+            onPress={() => runNowMutation.mutate()}
+            disabled={runNowMutation.isPending}
+          >
+            {runNowMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="zap" size={16} color="#fff" />
+                <ThemedText style={styles.actionButtonText}>Run Now</ThemedText>
+              </>
+            )}
+          </Pressable>
+          <Pressable 
+            style={[styles.actionButton, { backgroundColor: BrandColors.neutral }]}
+            onPress={() => resetStatsMutation.mutate()}
+            disabled={resetStatsMutation.isPending}
+          >
+            {resetStatsMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="rotate-ccw" size={16} color="#fff" />
+                <ThemedText style={styles.actionButtonText}>Reset Stats</ThemedText>
+              </>
+            )}
+          </Pressable>
+        </View>
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="settings" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Configuration</ThemedText>
+        </View>
+        <View style={[styles.listRow, styles.listRowBorder]}>
+          <ThemedText style={styles.listRowText}>Cycle Interval</ThemedText>
+          <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+            {config?.cycleIntervalMs ? formatDuration(config.cycleIntervalMs) : "-"}
+          </ThemedText>
+        </View>
+        <View style={[styles.listRow, styles.listRowBorder]}>
+          <ThemedText style={styles.listRowText}>Max Symbols/Cycle</ThemedText>
+          <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+            {config?.maxSymbolsPerCycle ?? "-"}
+          </ThemedText>
+        </View>
+        <View style={[styles.listRow, styles.listRowBorder]}>
+          <ThemedText style={styles.listRowText}>Auto Trading</ThemedText>
+          <View style={[
+            styles.badge,
+            { backgroundColor: config?.enableAutoTrading ? BrandColors.success + "20" : BrandColors.neutral + "20" }
+          ]}>
+            <ThemedText style={{ color: config?.enableAutoTrading ? BrandColors.success : BrandColors.neutral, fontSize: 12 }}>
+              {config?.enableAutoTrading ? "Enabled" : "Disabled"}
+            </ThemedText>
+          </View>
+        </View>
+      </Card>
+
+      {activeStrategies.length > 0 && (
+        <Card elevation={1} style={styles.moduleCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="trending-up" size={20} color={BrandColors.primaryLight} />
+            <ThemedText style={styles.cardTitle}>Active Strategies</ThemedText>
+            <View style={[styles.badge, { backgroundColor: BrandColors.success }]}>
+              <ThemedText style={[styles.badgeText, { color: "#fff" }]}>{activeStrategies.length}</ThemedText>
+            </View>
+          </View>
+          {activeStrategies.map((strategy, index) => (
+            <View key={index} style={[styles.listRow, styles.listRowBorder]}>
+              <View style={[styles.statusDot, { backgroundColor: BrandColors.success }]} />
+              <ThemedText style={styles.listRowText}>{strategy}</ThemedText>
+            </View>
+          ))}
+        </Card>
+      )}
+    </ScrollView>
+  );
+}
+
+function PositionsModule() {
+  const { theme } = useTheme();
+
+  const { data, isLoading, error, refetch } = useQuery<{
+    positions: Array<{
+      symbol: string;
+      qty: string;
+      side: string;
+      marketValue: string;
+      costBasis: string;
+      unrealizedPl: string;
+      unrealizedPlpc: string;
+      currentPrice: string;
+      avgEntryPrice: string;
+    }>;
+    _source: { freshness: string; fetchedAt: string };
+  }>({
+    queryKey: ["/api/positions"],
+    queryFn: async () => {
+      const res = await fetch(new URL("/api/positions", getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to fetch positions: ${res.status}`);
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const positions = data?.positions || [];
+  const source = data?._source;
+
+  const totalMarketValue = positions.reduce((sum, p) => sum + parseFloat(p.marketValue || "0"), 0);
+  const totalUnrealizedPl = positions.reduce((sum, p) => sum + parseFloat(p.unrealizedPl || "0"), 0);
+
+  const formatCurrency = (value: number): string => {
+    return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  };
+
+  const formatPercent = (value: string): string => {
+    const num = parseFloat(value || "0") * 100;
+    return `${num >= 0 ? "+" : ""}${num.toFixed(2)}%`;
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
+      <ThemedText style={styles.moduleTitle}>Broker Positions</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="briefcase" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Portfolio Summary</ThemedText>
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+          {source && (
+            <View style={[styles.badge, { backgroundColor: source.freshness === "live" ? BrandColors.success : BrandColors.warning, marginLeft: "auto" }]}>
+              <ThemedText style={[styles.badgeText, { color: "#fff" }]}>{source.freshness.toUpperCase()}</ThemedText>
+            </View>
+          )}
+        </View>
+
+        {error ? (
+          <View style={styles.errorBox}>
+            <Feather name="alert-circle" size={16} color={BrandColors.error} />
+            <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+              <ThemedText style={{ color: BrandColors.error, fontWeight: "500" }}>
+                Broker connection unavailable
+              </ThemedText>
+              <ThemedText style={{ color: BrandColors.error, fontSize: 12 }}>
+                Live position data cannot be retrieved. Pull to retry.
+              </ThemedText>
+            </View>
+          </View>
+        ) : source?.freshness !== "live" && source ? (
+          <>
+            <View style={[styles.errorBox, { backgroundColor: BrandColors.warning + "10" }]}>
+              <Feather name="alert-triangle" size={16} color={BrandColors.warning} />
+              <ThemedText style={{ color: BrandColors.warning, marginLeft: Spacing.sm }}>
+                Showing cached data - broker sync may be delayed
+              </ThemedText>
+            </View>
+            <View style={styles.statsGrid}>
+              <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>{positions.length}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Positions</ThemedText>
+              </View>
+              <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>
+                  {formatCurrency(totalMarketValue)}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Market Value</ThemedText>
+              </View>
+              <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+                <ThemedText style={[styles.statValue, { color: totalUnrealizedPl >= 0 ? BrandColors.success : BrandColors.error }]}>
+                  {totalUnrealizedPl >= 0 ? "+" : ""}{formatCurrency(totalUnrealizedPl)}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Unrealized P/L</ThemedText>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.statsGrid}>
+            <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+              <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>{positions.length}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Positions</ThemedText>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+              <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>
+                {formatCurrency(totalMarketValue)}
+              </ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Market Value</ThemedText>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: BrandColors.cardBorder + "30" }]}>
+              <ThemedText style={[styles.statValue, { color: totalUnrealizedPl >= 0 ? BrandColors.success : BrandColors.error }]}>
+                {totalUnrealizedPl >= 0 ? "+" : ""}{formatCurrency(totalUnrealizedPl)}
+              </ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Unrealized P/L</ThemedText>
+            </View>
+          </View>
+        )}
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="list" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Position Details</ThemedText>
+        </View>
+
+        {positions.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
+            {error ? "Unable to load positions" : "No open positions"}
+          </ThemedText>
+        ) : (
+          positions.map((position) => {
+            const unrealizedPl = parseFloat(position.unrealizedPl || "0");
+            const plColor = unrealizedPl >= 0 ? BrandColors.success : BrandColors.error;
+            
+            return (
+              <View key={position.symbol} style={[styles.listRow, styles.listRowBorder, { flexDirection: "column", alignItems: "stretch" }]}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+                    <View style={[
+                      styles.sideIndicator,
+                      { backgroundColor: position.side === "long" ? BrandColors.success : BrandColors.error }
+                    ]} />
+                    <ThemedText style={[styles.listRowText, { fontWeight: "600" }]}>{position.symbol}</ThemedText>
+                    <View style={[styles.badge, { backgroundColor: position.side === "long" ? BrandColors.success + "20" : BrandColors.error + "20" }]}>
+                      <ThemedText style={{ color: position.side === "long" ? BrandColors.success : BrandColors.error, fontSize: 10, fontWeight: "600" }}>
+                        {position.side.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <ThemedText style={[styles.listRowText, { color: plColor, fontWeight: "600" }]}>
+                    {unrealizedPl >= 0 ? "+" : ""}{formatCurrency(unrealizedPl)}
+                  </ThemedText>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: Spacing.sm }}>
+                  <View>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      Qty: {parseFloat(position.qty).toFixed(2)}
+                    </ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      Avg Entry: ${parseFloat(position.avgEntryPrice || "0").toFixed(2)}
+                    </ThemedText>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      Current: ${parseFloat(position.currentPrice || "0").toFixed(2)}
+                    </ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: plColor }]}>
+                      {formatPercent(position.unrealizedPlpc)}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </Card>
+
+      {source && (
+        <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, textAlign: "center", marginTop: Spacing.md }]}>
+          Last updated: {new Date(source.fetchedAt).toLocaleString()}
+        </ThemedText>
+      )}
+    </ScrollView>
+  );
+}
+
 function OrdersModule() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
@@ -2178,7 +2608,9 @@ export default function AdminHubScreen() {
       case "overview": return <OverviewModule />;
       case "budgets": return <BudgetsModule />;
       case "router": return <RouterModule />;
+      case "orchestrator": return <OrchestratorModule />;
       case "orders": return <OrdersModule />;
+      case "positions": return <PositionsModule />;
       case "universe": return <UniverseModule />;
       case "fundamentals": return <FundamentalsModule />;
       case "candidates": return <CandidatesModule />;
@@ -2265,9 +2697,12 @@ const styles = StyleSheet.create({
   listRowMeta: { ...Typography.small },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statsRow: { flexDirection: "row", justifyContent: "space-around", gap: Spacing.md },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.md, marginTop: Spacing.md },
+  statBox: { flex: 1, minWidth: 100, alignItems: "center", padding: Spacing.md, borderRadius: BorderRadius.sm },
   stat: { alignItems: "center" },
   statValue: { ...Typography.h3 },
   statLabel: { ...Typography.small },
+  errorBox: { flexDirection: "row", alignItems: "center", padding: Spacing.md, backgroundColor: BrandColors.error + "10", borderRadius: BorderRadius.sm, marginTop: Spacing.md },
   fusionRow: { marginBottom: Spacing.md },
   fusionLabel: { ...Typography.small, marginBottom: Spacing.xs },
   fusionBarRow: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
