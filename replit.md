@@ -143,10 +143,10 @@ Comprehensive observability dashboard with OpenTelemetry integration and alertin
 **Key Files**: `server/observability/otel.ts`, `server/observability/alertService.ts`, `server/observability/routes.ts`, `client/screens/AdminHubScreen.tsx`
 
 ### Phase 5: Admin Hub Consolidation (December 2025)
-WordPress-style admin panel with 11 modules for complete system management:
+WordPress-style admin panel with 13 modules for complete system management:
 
 1. **Admin Hub Structure** (`client/screens/AdminHubScreen.tsx`):
-   - Fixed sidebar navigation with 11 modules
+   - Fixed sidebar navigation with 13 modules
    - Responsive layout with collapsible sidebar for mobile
    - Top bar with current module indicator
 
@@ -154,13 +154,15 @@ WordPress-style admin panel with 11 modules for complete system management:
    - **Overview**: Dashboard with connector health, data fusion status, API key summary
    - **Providers & Budgets**: API rate limits, cache statistics, budget tracking
    - **LLM Router**: Role configurations, fallback chains, call statistics
-   - **Orders**: Full order lifecycle with status filters, broker order details, fills
+   - **Orders**: Full order lifecycle with status filters, broker order details, fills (Source: Alpaca)
+   - **Positions**: Live portfolio positions from broker (Source: Alpaca)
    - **Universe**: Asset universe from Alpaca, tradability checks
    - **Fundamentals**: Company fundamental data from Finnhub
    - **Candidates**: Approval workflow for trading candidates (NEW → WATCHLIST → APPROVED/REJECTED)
    - **Enforcement**: Trading enforcement gate statistics
    - **Allocation**: Portfolio allocation policies
    - **Rebalancer**: Portfolio rebalancing controls
+   - **Orchestrator**: Strategy orchestration with pause/resume/run-now controls
    - **Observability**: Traces, work queue, alerts (4 sub-tabs)
 
 3. **Orders Module Features**:
@@ -168,15 +170,28 @@ WordPress-style admin panel with 11 modules for complete system management:
    - Sync button to trigger manual order reconciliation from Alpaca
    - Expandable order rows showing broker order ID, trace ID, decision ID, fills
    - Real-time updates via 15-second polling
+   - Source badge: "Source: Alpaca (Broker-synced)"
 
-4. **Alpaca Trade Updates WebSocket** (`server/trading/alpaca-stream.ts`):
+4. **Trace Timeline (Observability Module)**:
+   - TraceTimelineView component for chronological Decision→Order→Fill chain
+   - Expandable metadata cards with model, provider, cost, broker IDs
+   - Status semantics: AI Decisions/Trade Intents use "info"/"pending" (never "success")
+   - Broker Orders/Fills use "success"/"error" based on actual broker confirmation
+
+5. **Source of Truth Badges**:
+   - **AI Trade Intents** (Analytics screen): "Source: Internal AI Decisions" with hint to Orders tab
+   - **Broker Orders** (Orders module): "Source: Alpaca (Broker-synced)" with timestamp
+   - Clear semantic distinction: AI intents = what system decided, Broker orders = what happened
+
+6. **Alpaca Trade Updates WebSocket** (`server/trading/alpaca-stream.ts`):
    - Real-time order lifecycle updates via WebSocket
    - Automatic reconnection with exponential backoff
    - Creates fill records for partial/full fills
    - Heartbeat monitoring for connection health
 
-**Access**: Admin Hub available at Profile → Admin for users with `isAdmin: true`
+**Access**: Admin Hub accessible via dedicated Admin tab in bottom navigation (only visible for admin users)
 **Default Admin**: username: `admintest`, password: `admin1234`
+**Documentation**: See `docs/ADMIN_ACCESS.md` for complete access guide
 
 ## System Architecture
 
