@@ -2,6 +2,17 @@
 
 > **Canonical document for the Broker Order → Fill lifecycle model.**
 
+## P1 Implementation Status (Complete)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| P1.0 Orders/Fills Schema | DONE | `shared/schema.ts` |
+| P1.1 Work Queue Handler | DONE | `server/lib/work-queue.ts` (ORDER_SUBMIT) |
+| P1.2 Alpaca WebSocket Stream | DONE | `server/trading/alpaca-stream.ts` |
+| P1.3 REST APIs | DONE | `server/routes.ts` (GET/POST orders, fills, sync) |
+| P1.4 UI Source Badge | DONE | `client/screens/AdminHubScreen.tsx` (Orders module) |
+| P1.5 Admin Consolidation | DONE | `client/screens/AdminHubScreen.tsx` (13+ modules) |
+
 ## Overview
 
 This document defines the complete order lifecycle from AI decision to broker fill execution. The system maintains clear separation between:

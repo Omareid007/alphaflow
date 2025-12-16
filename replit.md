@@ -84,6 +84,12 @@ New tables in `shared/schema.ts`:
 - **Research Data Provider**: AiTrados (OHLC, News, Economic Calendar) - optional provider with endpoint-specific budget tracking.
 - **News Data Providers**: NewsAPI, GDELT, AiTrados.
 - **AI/LLM Integration**: OpenAI API, Groq, Together.ai, AIML API, OpenRouter (via an intelligent LLM Router).
-- **Data Sources & Enrichment**: Valyu.ai (financial datasets), Hugging Face (FinBERT sentiment analysis).
+- **Data Sources & Enrichment**: Valyu.ai (financial datasets), Hugging Face (FinBERT sentiment analysis), Jina AI (embeddings, web reader, semantic search, reranking).
 - **Brokerage Integration**: Alpaca Paper Trading API.
 - **Third-party UI/Utility Libraries**: `expo-web-browser`, `expo-haptics`, `expo-blur`.
+
+### Jina AI Integration
+- **Connector**: `server/connectors/jina.ts` - Embeddings, URL reader, web search, reranking
+- **API Routes**: `server/routes/jina.ts` at `/api/jina/*`
+- **Capabilities**: Document embeddings (jina-embeddings-v3), URL parsing, web search, semantic search with cosine similarity, document reranking
+- **Config**: JINA_API_KEY environment variable

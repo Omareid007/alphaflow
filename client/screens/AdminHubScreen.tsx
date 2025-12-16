@@ -2658,6 +2658,11 @@ function OrdersModule() {
     <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
       <ThemedText style={styles.moduleTitle}>Orders & Fills</ThemedText>
 
+      <View style={[styles.badge, { backgroundColor: BrandColors.success + "20", borderWidth: 1, borderColor: BrandColors.success, flexDirection: "row", alignItems: "center", gap: Spacing.xs, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, alignSelf: "flex-start", marginBottom: Spacing.md }]}>
+        <Feather name="check-circle" size={14} color={BrandColors.success} />
+        <ThemedText style={[styles.badgeText, { color: BrandColors.success }]}>Source of Truth: Alpaca</ThemedText>
+      </View>
+
       <Card elevation={1} style={styles.moduleCard}>
         <View style={styles.cardHeader}>
           <Feather name="file-text" size={20} color={BrandColors.primaryLight} />

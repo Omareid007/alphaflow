@@ -139,7 +139,7 @@ export async function generateEmbeddings(
 
 export async function readUrl(url: string): Promise<JinaReaderResponse> {
   const cacheKey = buildCacheKey("jina", "reader", url);
-  const readerUrl = `${JINA_READER_URL}/${url}`;
+  const readerUrl = `${JINA_READER_URL}/${encodeURIComponent(url)}`;
 
   try {
     const result = await connectorFetch<JinaReaderResponse>(readerUrl, {
