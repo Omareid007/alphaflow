@@ -2796,40 +2796,86 @@ function OrdersModule() {
   );
 }
 
-function DebateModule() {
+type ArenaTab = "overview" | "runs" | "profiles" | "leaderboard";
+
+function ArenaModule() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ArenaTab>("overview");
+  const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  const [symbolInput, setSymbolInput] = useState("AAPL");
 
-  const { data: sessionsData, isLoading, refetch } = useQuery<{ sessions: any[]; total: number }>({
-    queryKey: ["/api/debate/sessions"],
-    queryFn: async () => {
-      const res = await fetch(new URL("/api/debate/sessions", getApiUrl()).toString(), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch debate sessions");
-      return res.json();
-    },
+  const { data: statsData, isLoading: loadingStats, refetch: refetchStats } = useQuery<{
+    runsToday: number;
+    costToday: number;
+    costWeek: number;
+    escalationsToday: number;
+    activeProfiles: number;
+  }>({
+    queryKey: ["/api/arena/stats"],
   });
 
-  const { data: sessionDetail } = useQuery<{ session: any; messages: any[]; consensus: any }>({
-    queryKey: ["/api/debate/sessions", selectedSession],
-    queryFn: async () => {
-      const res = await fetch(new URL(`/api/debate/sessions/${selectedSession}`, getApiUrl()).toString(), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch session detail");
-      return res.json();
-    },
-    enabled: !!selectedSession,
+  const { data: runsData, isLoading: loadingRuns, refetch: refetchRuns } = useQuery<{
+    runs: any[];
+    costToday: number;
+    count: number;
+  }>({
+    queryKey: ["/api/arena/runs"],
   });
 
-  const startDebateMutation = useMutation({
+  const { data: runDetail } = useQuery<{
+    run: any;
+    decisions: any[];
+    outcomeLinks: any[];
+    costBreakdown: { total: number; byAgent: any[] };
+  }>({
+    queryKey: ["/api/arena/runs", selectedRun] as const,
+    queryFn: async ({ queryKey }) => {
+      const [, runId] = queryKey;
+      if (!runId) throw new Error("No run ID provided");
+      const res = await fetch(new URL(`/api/arena/runs/${runId}`, getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch run details");
+      return res.json();
+    },
+    enabled: !!selectedRun,
+  });
+
+  const { data: profilesData, isLoading: loadingProfiles, refetch: refetchProfiles } = useQuery<{
+    profiles: any[];
+    count: number;
+  }>({
+    queryKey: ["/api/arena/profiles"],
+  });
+
+  const { data: leaderboardData, isLoading: loadingLeaderboard, refetch: refetchLeaderboard } = useQuery<{
+    window: string;
+    leaderboard: any[];
+    generatedAt: string;
+  }>({
+    queryKey: ["/api/arena/leaderboard"],
+  });
+
+  const runArenaMutation = useMutation({
     mutationFn: async (symbols: string[]) => {
-      return apiRequest("POST", "/api/debate/sessions", { symbols, triggeredBy: "admin" });
+      return apiRequest("POST", "/api/arena/run", { symbols, triggeredBy: "admin_manual" });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/debate/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arena/runs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arena/stats"] });
     },
   });
 
-  const sessions = sessionsData?.sessions || [];
+  const refetchAll = () => {
+    refetchStats();
+    refetchRuns();
+    refetchProfiles();
+    refetchLeaderboard();
+  };
+
+  const stats = statsData || { runsToday: 0, costToday: 0, costWeek: 0, escalationsToday: 0, activeProfiles: 0 };
+  const runs = runsData?.runs || [];
+  const profiles = profilesData?.profiles || [];
+  const leaderboard = leaderboardData?.leaderboard || [];
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -2840,122 +2886,466 @@ function DebateModule() {
     }
   };
 
-  const getStanceColor = (stance: string): string => {
-    switch (stance) {
-      case "bullish": return BrandColors.success;
-      case "bearish": return BrandColors.error;
-      case "neutral": return BrandColors.warning;
+  const getActionColor = (action: string): string => {
+    switch (action) {
+      case "buy": case "scale_in": return BrandColors.success;
+      case "sell": case "scale_out": return BrandColors.error;
+      case "hold": return BrandColors.warning;
+      case "no_trade": return BrandColors.neutral;
       default: return BrandColors.neutral;
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
-      <ThemedText style={styles.moduleTitle}>AI Debate Arena</ThemedText>
+  const getModeColor = (mode: string): string => {
+    switch (mode) {
+      case "cheap_first": return BrandColors.primaryLight;
+      case "escalation_only": return BrandColors.warning;
+      case "always": return BrandColors.success;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  const tabs: { id: ArenaTab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { id: "overview", label: "Overview", icon: "home" },
+    { id: "runs", label: "Runs", icon: "play" },
+    { id: "profiles", label: "Agents", icon: "users" },
+    { id: "leaderboard", label: "Leaderboard", icon: "award" },
+  ];
+
+  const renderOverview = () => (
+    <>
+      <View style={styles.statsGrid}>
+        <Card elevation={1} style={[styles.statCard, { flex: 1 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+            <View style={[styles.iconBadge, { backgroundColor: BrandColors.primaryLight + "20" }]}>
+              <Feather name="play" size={16} color={BrandColors.primaryLight} />
+            </View>
+            <View>
+              <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight }]}>{stats.runsToday}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Runs Today</ThemedText>
+            </View>
+          </View>
+        </Card>
+        <Card elevation={1} style={[styles.statCard, { flex: 1 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+            <View style={[styles.iconBadge, { backgroundColor: BrandColors.warning + "20" }]}>
+              <Feather name="trending-up" size={16} color={BrandColors.warning} />
+            </View>
+            <View>
+              <ThemedText style={[styles.statValue, { color: BrandColors.warning }]}>{stats.escalationsToday}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Escalations</ThemedText>
+            </View>
+          </View>
+        </Card>
+      </View>
+
+      <View style={styles.statsGrid}>
+        <Card elevation={1} style={[styles.statCard, { flex: 1 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+            <View style={[styles.iconBadge, { backgroundColor: BrandColors.success + "20" }]}>
+              <Feather name="dollar-sign" size={16} color={BrandColors.success} />
+            </View>
+            <View>
+              <ThemedText style={[styles.statValue, { color: BrandColors.success }]}>${stats.costToday.toFixed(4)}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Cost Today</ThemedText>
+            </View>
+          </View>
+        </Card>
+        <Card elevation={1} style={[styles.statCard, { flex: 1 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+            <View style={[styles.iconBadge, { backgroundColor: BrandColors.neutral + "20" }]}>
+              <Feather name="users" size={16} color={BrandColors.neutral} />
+            </View>
+            <View>
+              <ThemedText style={[styles.statValue, { color: theme.text }]}>{stats.activeProfiles}</ThemedText>
+              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Active Agents</ThemedText>
+            </View>
+          </View>
+        </Card>
+      </View>
 
       <Card elevation={1} style={styles.moduleCard}>
         <View style={styles.cardHeader}>
-          <Feather name="message-circle" size={20} color={BrandColors.primaryLight} />
-          <ThemedText style={styles.cardTitle}>Recent Debates</ThemedText>
-          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+          <Feather name="play-circle" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Quick Run</ThemedText>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+          <TextInput
+            style={[styles.textInput, { flex: 1, backgroundColor: theme.backgroundDefault, color: theme.text, borderColor: theme.border }]}
+            value={symbolInput}
+            onChangeText={setSymbolInput}
+            placeholder="Enter symbols (comma-separated)"
+            placeholderTextColor={theme.textSecondary}
+          />
+          <Pressable
+            style={[styles.primaryButton, { backgroundColor: BrandColors.primaryLight }]}
+            onPress={() => {
+              const symbols = symbolInput.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+              if (symbols.length > 0) runArenaMutation.mutate(symbols);
+            }}
+            disabled={runArenaMutation.isPending}
+          >
+            {runArenaMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="play" size={16} color="#fff" />
+            )}
+          </Pressable>
+        </View>
+        {runArenaMutation.isSuccess && (
+          <ThemedText style={[styles.successText, { color: BrandColors.success, marginTop: Spacing.sm }]}>
+            Arena run started successfully
+          </ThemedText>
+        )}
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="clock" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Recent Runs</ThemedText>
+          {loadingRuns && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+        {runs.slice(0, 5).map((run: any) => (
+          <View key={run.id} style={[styles.listRow, styles.listRowBorder]}>
+            <View style={styles.listRowLeft}>
+              <View style={[styles.statusDot, { backgroundColor: getStatusColor(run.status) }]} />
+              <View>
+                <ThemedText style={styles.listRowText}>{(run.symbols || []).join(", ")}</ThemedText>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                  {run.consensusDecision?.toUpperCase() || "pending"} - {new Date(run.createdAt).toLocaleTimeString()}
+                </ThemedText>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.xs }}>
+              {run.escalationTriggered && (
+                <View style={[styles.badge, { backgroundColor: BrandColors.warning + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: BrandColors.warning }]}>ESC</ThemedText>
+                </View>
+              )}
+              <View style={[styles.badge, { backgroundColor: getActionColor(run.consensusDecision) + "20" }]}>
+                <ThemedText style={[styles.badgeText, { color: getActionColor(run.consensusDecision) }]}>
+                  ${parseFloat(run.totalCostUsd || "0").toFixed(4)}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        ))}
+      </Card>
+    </>
+  );
+
+  const renderRuns = () => (
+    <>
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="list" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Arena Runs</ThemedText>
+          {loadingRuns && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
         </View>
 
-        {sessions.length === 0 ? (
-          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No debate sessions yet</ThemedText>
+        {runs.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No arena runs yet</ThemedText>
         ) : (
-          sessions.slice(0, 10).map((session: any) => (
+          runs.map((run: any) => (
             <Pressable
-              key={session.id}
+              key={run.id}
               style={[styles.listRow, styles.listRowBorder]}
-              onPress={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
+              onPress={() => setSelectedRun(selectedRun === run.id ? null : run.id)}
             >
               <View style={styles.listRowLeft}>
-                <View style={[styles.statusDot, { backgroundColor: getStatusColor(session.status) }]} />
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(run.status) }]} />
                 <View>
-                  <ThemedText style={styles.listRowText}>
-                    {(session.symbols || []).join(", ")}
-                  </ThemedText>
+                  <ThemedText style={styles.listRowText}>{(run.symbols || []).join(", ")}</ThemedText>
                   <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
-                    {session.status} - {new Date(session.startedAt).toLocaleString()}
+                    {run.mode} - {new Date(run.createdAt).toLocaleString()}
                   </ThemedText>
                 </View>
               </View>
-              <View style={styles.listRowRight}>
-                {session.totalCost && (
-                  <View style={[styles.badge, { backgroundColor: BrandColors.primaryLight + "20" }]}>
-                    <ThemedText style={[styles.badgeText, { color: BrandColors.primaryLight }]}>
-                      ${parseFloat(session.totalCost).toFixed(4)}
-                    </ThemedText>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.xs }}>
+                {run.escalationTriggered && (
+                  <View style={[styles.badge, { backgroundColor: BrandColors.warning + "20" }]}>
+                    <Feather name="trending-up" size={12} color={BrandColors.warning} />
                   </View>
                 )}
-                <Feather name={selectedSession === session.id ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
+                <View style={[styles.badge, { backgroundColor: getActionColor(run.consensusDecision) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: getActionColor(run.consensusDecision) }]}>
+                    {run.consensusDecision?.toUpperCase() || "N/A"}
+                  </ThemedText>
+                </View>
+                <Feather name={selectedRun === run.id ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
               </View>
             </Pressable>
           ))
         )}
       </Card>
 
-      {selectedSession && sessionDetail && (
-        <Card elevation={1} style={styles.moduleCard}>
-          <View style={styles.cardHeader}>
-            <Feather name="users" size={20} color={BrandColors.primaryLight} />
-            <ThemedText style={styles.cardTitle}>Role Outputs</ThemedText>
-          </View>
-
-          {(sessionDetail.messages || []).map((msg: any, idx: number) => (
-            <View key={idx} style={[styles.listRow, styles.listRowBorder, { flexDirection: "column", alignItems: "flex-start" }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm }}>
-                <View style={[styles.badge, { backgroundColor: getStanceColor(msg.stance) + "20" }]}>
-                  <ThemedText style={[styles.badgeText, { color: getStanceColor(msg.stance) }]}>
-                    {msg.role?.replace("_", " ").toUpperCase()}
-                  </ThemedText>
-                </View>
-                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
-                  Confidence: {Math.round((msg.confidence || 0) * 100)}%
-                </ThemedText>
-              </View>
-              <ThemedText style={[styles.listRowMeta, { color: theme.text }]} numberOfLines={3}>
-                {msg.rationale || "No rationale provided"}
-              </ThemedText>
-              {msg.keySignals && msg.keySignals.length > 0 && (
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs, marginTop: Spacing.xs }}>
-                  {msg.keySignals.slice(0, 3).map((signal: string, i: number) => (
-                    <View key={i} style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
-                      <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>{signal}</ThemedText>
-                    </View>
-                  ))}
-                </View>
-              )}
+      {selectedRun && runDetail && (
+        <>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="info" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Run Details</ThemedText>
             </View>
-          ))}
-
-          {sessionDetail.consensus && (
-            <View style={[styles.resultBox, { marginTop: Spacing.md }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm }}>
-                <Feather name="check-circle" size={18} color={BrandColors.success} />
-                <ThemedText style={styles.resultText}>
-                  Consensus: {sessionDetail.consensus.decision?.toUpperCase()}
+            <View style={[styles.resultBox, { marginBottom: Spacing.md }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+                <Feather name="target" size={18} color={getActionColor(runDetail.run.consensusDecision)} />
+                <ThemedText style={[styles.resultText, { color: getActionColor(runDetail.run.consensusDecision) }]}>
+                  Consensus: {runDetail.run.consensusDecision?.toUpperCase()}
                 </ThemedText>
                 <View style={[styles.badge, { backgroundColor: BrandColors.success + "20", marginLeft: "auto" }]}>
                   <ThemedText style={[styles.badgeText, { color: BrandColors.success }]}>
-                    {Math.round((sessionDetail.consensus.confidence || 0) * 100)}%
+                    {Math.round(parseFloat(runDetail.run.consensusConfidence || "0") * 100)}%
                   </ThemedText>
                 </View>
               </View>
-              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
-                {sessionDetail.consensus.reasonsSummary}
-              </ThemedText>
-              {sessionDetail.consensus.workItemId && (
-                <ThemedText style={[styles.listRowMeta, { color: BrandColors.primaryLight, marginTop: Spacing.xs }]}>
-                  Work Item: {sessionDetail.consensus.workItemId}
-                </ThemedText>
+              {runDetail.run.escalationTriggered && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.xs, marginTop: Spacing.sm }}>
+                  <Feather name="alert-triangle" size={14} color={BrandColors.warning} />
+                  <ThemedText style={[styles.listRowMeta, { color: BrandColors.warning }]}>
+                    Escalation: {runDetail.run.escalationReason}
+                  </ThemedText>
+                </View>
+              )}
+              {runDetail.run.riskVeto && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.xs, marginTop: Spacing.sm }}>
+                  <Feather name="shield" size={14} color={BrandColors.error} />
+                  <ThemedText style={[styles.listRowMeta, { color: BrandColors.error }]}>
+                    Risk Veto: {runDetail.run.riskVetoReason}
+                  </ThemedText>
+                </View>
               )}
             </View>
+
+            <ThemedText style={[styles.cardSubtitle, { marginTop: Spacing.sm }]}>Cost Breakdown</ThemedText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs }}>
+              {runDetail.costBreakdown.byAgent.map((agent: any, idx: number) => (
+                <View key={idx} style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                  <ThemedText style={[styles.chipText, { color: theme.text }]}>
+                    {agent.agent}: ${agent.cost.toFixed(4)}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="users" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Agent Decisions ({runDetail.decisions.length})</ThemedText>
+            </View>
+
+            {runDetail.decisions.map((decision: any, idx: number) => (
+              <View key={idx} style={[styles.listRow, styles.listRowBorder, { flexDirection: "column", alignItems: "flex-start" }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm, width: "100%" }}>
+                  <View style={[styles.badge, { backgroundColor: getActionColor(decision.action) + "20" }]}>
+                    <ThemedText style={[styles.badgeText, { color: getActionColor(decision.action) }]}>
+                      {decision.role?.replace("_", " ").toUpperCase()}
+                    </ThemedText>
+                  </View>
+                  {decision.wasEscalation && (
+                    <View style={[styles.badge, { backgroundColor: BrandColors.warning + "20" }]}>
+                      <Feather name="zap" size={10} color={BrandColors.warning} />
+                    </View>
+                  )}
+                  <View style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: Spacing.xs }}>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                      {decision.modelUsed?.split("/").pop() || "unknown"}
+                    </ThemedText>
+                    <View style={[styles.badge, { backgroundColor: getActionColor(decision.action) + "20" }]}>
+                      <ThemedText style={[styles.badgeText, { color: getActionColor(decision.action) }]}>
+                        {decision.action?.toUpperCase()} {Math.round(parseFloat(decision.confidence || "0") * 100)}%
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+                <ThemedText style={[styles.listRowMeta, { color: theme.text }]} numberOfLines={3}>
+                  {decision.rationale || "No rationale provided"}
+                </ThemedText>
+                {decision.keySignals && decision.keySignals.length > 0 && (
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs, marginTop: Spacing.xs }}>
+                    {decision.keySignals.slice(0, 3).map((signal: string, i: number) => (
+                      <View key={i} style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                        <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>{signal}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </Card>
+
+          {runDetail.outcomeLinks.length > 0 && (
+            <Card elevation={1} style={styles.moduleCard}>
+              <View style={styles.cardHeader}>
+                <Feather name="link" size={20} color={BrandColors.primaryLight} />
+                <ThemedText style={styles.cardTitle}>Outcome Links</ThemedText>
+              </View>
+              {runDetail.outcomeLinks.map((link: any, idx: number) => (
+                <View key={idx} style={[styles.listRow, styles.listRowBorder]}>
+                  <View style={styles.listRowLeft}>
+                    <View style={[styles.statusDot, { backgroundColor: link.pnlUsd ? (parseFloat(link.pnlUsd) >= 0 ? BrandColors.success : BrandColors.error) : BrandColors.neutral }]} />
+                    <View>
+                      <ThemedText style={styles.listRowText}>
+                        {link.orderId ? `Order: ${link.orderId.slice(0, 8)}...` : "Pending order"}
+                      </ThemedText>
+                      <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                        {link.fillId ? `Fill: ${link.fillId.slice(0, 8)}...` : "Awaiting fill"}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  {link.pnlUsd && (
+                    <View style={[styles.badge, { backgroundColor: (parseFloat(link.pnlUsd) >= 0 ? BrandColors.success : BrandColors.error) + "20" }]}>
+                      <ThemedText style={[styles.badgeText, { color: parseFloat(link.pnlUsd) >= 0 ? BrandColors.success : BrandColors.error }]}>
+                        {parseFloat(link.pnlUsd) >= 0 ? "+" : ""}${parseFloat(link.pnlUsd).toFixed(2)}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </Card>
           )}
-        </Card>
+        </>
       )}
+    </>
+  );
+
+  const renderProfiles = () => (
+    <Card elevation={1} style={styles.moduleCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="users" size={20} color={BrandColors.primaryLight} />
+        <ThemedText style={styles.cardTitle}>Agent Profiles</ThemedText>
+        {loadingProfiles && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+      </View>
+
+      {profiles.length === 0 ? (
+        <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No agent profiles configured</ThemedText>
+      ) : (
+        profiles.map((profile: any) => (
+          <View key={profile.id} style={[styles.listRow, styles.listRowBorder, { flexDirection: "column", alignItems: "flex-start" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm, width: "100%", marginBottom: Spacing.sm }}>
+              <View style={[styles.priorityBadge, { backgroundColor: getModeColor(profile.mode) }]}>
+                <Feather name="user" size={14} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.listRowText}>{profile.name}</ThemedText>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                  {profile.role?.replace("_", " ")} | {profile.provider}/{profile.model?.split("/").pop()}
+                </ThemedText>
+              </View>
+              <View style={[styles.badge, { backgroundColor: profile.status === "active" ? BrandColors.success + "20" : BrandColors.neutral + "20" }]}>
+                <ThemedText style={[styles.badgeText, { color: profile.status === "active" ? BrandColors.success : BrandColors.neutral }]}>
+                  {profile.status?.toUpperCase()}
+                </ThemedText>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs }}>
+              <View style={[styles.chip, { backgroundColor: getModeColor(profile.mode) + "20" }]}>
+                <ThemedText style={[styles.chipText, { color: getModeColor(profile.mode) }]}>
+                  {profile.mode?.replace("_", " ")}
+                </ThemedText>
+              </View>
+              <View style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>
+                  temp: {profile.temperature || 0.7}
+                </ThemedText>
+              </View>
+              {profile.totalCostUsd && parseFloat(profile.totalCostUsd) > 0 && (
+                <View style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                  <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>
+                    total: ${parseFloat(profile.totalCostUsd).toFixed(4)}
+                  </ThemedText>
+                </View>
+              )}
+              {profile.runsCount > 0 && (
+                <View style={[styles.chip, { backgroundColor: theme.backgroundDefault }]}>
+                  <ThemedText style={[styles.chipText, { color: theme.textSecondary }]}>
+                    {profile.runsCount} runs
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          </View>
+        ))
+      )}
+    </Card>
+  );
+
+  const renderLeaderboard = () => (
+    <Card elevation={1} style={styles.moduleCard}>
+      <View style={styles.cardHeader}>
+        <Feather name="award" size={20} color={BrandColors.primaryLight} />
+        <ThemedText style={styles.cardTitle}>Agent Leaderboard (30 days)</ThemedText>
+        {loadingLeaderboard && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+      </View>
+
+      {leaderboard.length === 0 ? (
+        <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No leaderboard data yet</ThemedText>
+      ) : (
+        leaderboard.map((entry: any, idx: number) => (
+          <View key={entry.agentProfileId} style={[styles.listRow, styles.listRowBorder]}>
+            <View style={styles.listRowLeft}>
+              <View style={[styles.priorityBadge, { 
+                backgroundColor: idx === 0 ? "#FFD700" : idx === 1 ? "#C0C0C0" : idx === 2 ? "#CD7F32" : BrandColors.neutral 
+              }]}>
+                <ThemedText style={{ color: "#fff", fontWeight: "bold", fontSize: 12 }}>#{idx + 1}</ThemedText>
+              </View>
+              <View>
+                <ThemedText style={styles.listRowText}>{entry.agentName || "Unknown"}</ThemedText>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                  {entry.totalRuns} runs | {entry.successfulTrades || 0} trades
+                </ThemedText>
+              </View>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              {entry.totalPnl !== undefined && (
+                <View style={[styles.badge, { backgroundColor: (entry.totalPnl >= 0 ? BrandColors.success : BrandColors.error) + "20" }]}>
+                  <ThemedText style={[styles.badgeText, { color: entry.totalPnl >= 0 ? BrandColors.success : BrandColors.error }]}>
+                    {entry.totalPnl >= 0 ? "+" : ""}${entry.totalPnl.toFixed(2)}
+                  </ThemedText>
+                </View>
+              )}
+              <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, marginTop: Spacing.xs }]}>
+                Win: {Math.round((entry.winRate || 0) * 100)}%
+              </ThemedText>
+            </View>
+          </View>
+        ))
+      )}
+    </Card>
+  );
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={loadingStats} onRefresh={refetchAll} />}>
+      <ThemedText style={styles.moduleTitle}>AI Arena</ThemedText>
+
+      <View style={{ flexDirection: "row", gap: Spacing.xs, marginBottom: Spacing.md }}>
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.id}
+            style={[
+              styles.tabButton,
+              { backgroundColor: activeTab === tab.id ? BrandColors.primaryLight : theme.backgroundDefault },
+            ]}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <Feather name={tab.icon} size={14} color={activeTab === tab.id ? "#fff" : theme.textSecondary} />
+            <ThemedText style={[styles.tabButtonText, { color: activeTab === tab.id ? "#fff" : theme.textSecondary }]}>
+              {tab.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+
+      {activeTab === "overview" && renderOverview()}
+      {activeTab === "runs" && renderRuns()}
+      {activeTab === "profiles" && renderProfiles()}
+      {activeTab === "leaderboard" && renderLeaderboard()}
     </ScrollView>
   );
+}
+
+function DebateModule() {
+  return <ArenaModule />;
 }
 
 function CompetitionModule() {
@@ -3459,7 +3849,14 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.lg },
   tabButton: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.sm, backgroundColor: BrandColors.cardBorder + "50" },
   tabButtonActive: { backgroundColor: BrandColors.primaryLight + "20" },
+  tabButtonText: { ...Typography.small, fontWeight: "500" },
   tabLabel: { ...Typography.small, fontWeight: "500" },
+  statCard: { padding: Spacing.md },
+  iconBadge: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  textInput: { borderWidth: 1, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, ...Typography.body },
+  primaryButton: { padding: Spacing.md, borderRadius: BorderRadius.sm, alignItems: "center", justifyContent: "center" },
+  successText: { ...Typography.small },
+  cardSubtitle: { ...Typography.body, fontWeight: "600", marginBottom: Spacing.sm },
   healthGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.lg },
   healthItem: { width: "45%", alignItems: "center", gap: Spacing.xs },
   healthIndicator: { width: 12, height: 12, borderRadius: 6, marginBottom: Spacing.xs },

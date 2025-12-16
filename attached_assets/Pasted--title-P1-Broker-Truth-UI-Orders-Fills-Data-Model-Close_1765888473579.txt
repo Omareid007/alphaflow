@@ -1,0 +1,169 @@
+{
+  "title": "P1 — Broker Truth UI + Orders/Fills Data Model (Close Audit Gap G4) + Admin Unification",
+  "role": "You are Replit. Act as a senior backend+frontend engineer. DO NOT claim anything is done unless you prove it by running commands, curl calls, and showing the working UI behavior.",
+  "non_negotiables": [
+    "NO mock/demo trade ledger entries in any user-visible UI. If a screen shows an order/trade, it must map to a real Alpaca order/position/fill OR be clearly labeled as 'Backtest' (separate mode).",
+    "Alpaca is the source of truth for live/paper trading state: orders, fills, positions.",
+    "Every step must include verification evidence: (1) grep/rg proof, (2) db query proof, (3) curl proof, (4) UI proof (screens or route navigation).",
+    "Do not duplicate Universe/Allocation features already implemented; only integrate & enhance in Admin UI.",
+    "Preserve traceId propagation across decisions → work_items → orders → fills → positions, and expose traceId in Admin for debugging."
+  ],
+  "context_to_read_first": [
+    "docs/SOURCE_OF_TRUTH_CONTRACT.md",
+    "docs/TRADING_SAGA_SEQUENCES.md (treat as target design; implement only what fits current monolith)",
+    "docs/WORK_QUEUE_ARCHITECTURE.md",
+    "docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md",
+    "docs/MICROSERVICES_ROADMAP.md (record future-state items; do not build NATS now unless tiny)",
+    "AUDIT_DOC_VS_IMPLEMENTATION_GAP.md (uploaded in workspace root)",
+    "Search the code for existing Admin (WordPress-like) page/route and reuse it as the single admin shell."
+  ],
+  "goal": "Make the UI end-to-end truthful: decisions → queued work → broker order submit → broker updates (partial fills/fills/cancel/reject) → positions. Replace confusing statuses with real broker lifecycle and unify all admin controls into one Admin area with a dedicated entry point.",
+  "phase_map": {
+    "P1.0": "Schema: introduce Orders + Fills tables and stop conflating trades with fills",
+    "P1.1": "Execution: ensure work-queue ORDER_SUBMIT/ORDER_CANCEL writes Orders and updates status",
+    "P1.2": "Broker updates: add Alpaca trade_updates listener + reconciliation pollers",
+    "P1.3": "APIs: add order/fill query endpoints for UI + admin",
+    "P1.4": "UI refactor: map all screens to real lifecycle, remove meaningless statuses",
+    "P1.5": "Admin unification: one Admin shell with sections + separate entry point",
+    "P1.6": "Verification: automated integration tests + smoke test script"
+  },
+  "implementation_steps": [
+    {
+      "id": "P1.0",
+      "what": "Add Orders + Fills tables (and optional OrderEvents) in shared/schema.ts, migrate DB.",
+      "how": [
+        "Inspect current schema: confirm only 'trades' exists and no distinct orders/fills tables (audit G4).",
+        "Add tables: orders (intent + broker ids + status), fills (execution confirmations), and optionally order_events (raw broker events).",
+        "Fields must include: id, traceId, decisionId (nullable), workItemId (nullable), symbol, side, qty, type, timeInForce, limitPrice/stopPrice fields, extendedHours flag, brokerOrderId, clientOrderId, status, submittedAt, acceptedAt, filledAt, canceledAt, rejectedAt, lastBrokerUpdateAt, rawBrokerPayload (jsonb).",
+        "fills: id, traceId, orderId FK, brokerOrderId, symbol, qty, price, liquidity (if available), executedAt, rawBrokerPayload.",
+        "Run migration/push and show output."
+      ],
+      "evidence_required": [
+        "rg proof of new tables in shared/schema.ts",
+        "npm run db:push (or migration) output",
+        "psql/sql query showing new tables exist"
+      ]
+    },
+    {
+      "id": "P1.1",
+      "what": "Write Orders during work queue execution and stop pretending a 'trade' is an order.",
+      "how": [
+        "Locate ORDER_SUBMIT handler in server/lib/work-queue.ts.",
+        "Before calling Alpaca submit: create an 'orders' row with status=QUEUED or SUBMITTING and traceId + workItemId.",
+        "After Alpaca returns brokerOrderId/clientOrderId: update the same order row to status=SUBMITTED with broker ids and timestamps.",
+        "For ORDER_CANCEL: update status=CANCEL_REQUESTED, then on success status=CANCELED (or wait for broker update to confirm).",
+        "Never create 'trades' rows as a proxy for 'orders'. Trades table can remain for historical compatibility, but the UI must use orders/fills going forward."
+      ],
+      "evidence_required": [
+        "diff showing updated work-queue handlers",
+        "curl: place an order via existing endpoint and show DB order row created with traceId",
+        "log snippet showing idempotency + traceId + brokerOrderId mapping"
+      ]
+    },
+    {
+      "id": "P1.2",
+      "what": "Add Alpaca broker update ingestion: trade_updates WebSocket + reconciliation pollers.",
+      "how": [
+        "Implement a server-side service (e.g., server/brokers/alpaca/alpacaTradeUpdates.ts) that connects to Alpaca trade_updates stream.",
+        "Paper endpoint is wss://paper-api.alpaca.markets/stream; subscribe to trade_updates.",
+        "On each broker event: upsert into order_events (optional), update orders.status + timestamps, and insert fills when partial_fill/fill arrives.",
+        "Add a periodic reconciliation job: poll GET /v2/orders (open + recently closed) and GET /v2/positions to repair missed websocket events and ensure UI is correct.",
+        "Add robust reconnect/backoff and expose health metrics in Admin."
+      ],
+      "evidence_required": [
+        "logs showing websocket connected and receiving events",
+        "trigger a paper order and show an incoming trade_updates event changes orders.status",
+        "show reconciliation job run once and update order/fill rows if needed"
+      ]
+    },
+    {
+      "id": "P1.3",
+      "what": "Expose truthful APIs for UI/Admin: Orders, Fills, Order timeline, Broker reconcile.",
+      "how": [
+        "Add endpoints (auth protected):",
+        "GET /api/orders?status=open|closed&symbol=...&limit=... → backed by orders table",
+        "GET /api/orders/:id → includes fills + latest broker snapshot",
+        "GET /api/fills?symbol=...&limit=...",
+        "POST /api/admin/broker/reconcile (manual trigger; requires admin)",
+        "GET /api/admin/broker/health (websocket status, last event time, last reconcile time)",
+        "Ensure every response includes traceId where applicable."
+      ],
+      "evidence_required": [
+        "curl outputs for each endpoint (admin-authenticated)",
+        "DB queries matching returned JSON",
+        "route registration proof in server/routes.ts"
+      ]
+    },
+    {
+      "id": "P1.4",
+      "what": "UI refactor: make every screen map to Decisions→Orders→Fills→Positions; remove meaningless statuses.",
+      "how": [
+        "Search UI for 'pending_execution' and any status not backed by broker truth; replace with derived lifecycle states from orders.status and broker events.",
+        "Trade Ledger: display Orders (intent) and Fills (execution) as separate columns/rows; show brokerOrderId, clientOrderId, traceId, decisionId, timestamps.",
+        "AI Suggested Trades: show decision cards that link to resulting order(s) and their real-time status; no 'success' unless broker confirms.",
+        "Auto Trading screen: positions must come from Alpaca positions endpoint (or your cached mirror) and link back to fills/orders that created them.",
+        "Add an 'Order Timeline' drawer: QUEUED → SUBMITTED → ACCEPTED/PARTIAL_FILL → FILLED/CANCELED/REJECTED with raw broker event previews."
+      ],
+      "evidence_required": [
+        "rg showing pending_execution removed or isolated to backtest-only screens",
+        "UI navigation proof: click from decision → order → fills",
+        "screenshots or route recordings showing real statuses updating after a paper order"
+      ]
+    },
+    {
+      "id": "P1.5",
+      "what": "Admin unification (WordPress-like Admin already exists): put ALL admin panels into that single shell + add a dedicated entry point.",
+      "how": [
+        "Locate existing Admin page/shell and reuse it as the ONLY admin container.",
+        "Add a single /admin entry route (and a UI link/button visible only to admins).",
+        "Inside Admin, add left-nav sections (tabs) and mount all existing admin components/endpoints:",
+        " - Work Queue (in-flight, retries, dead letters, replay)",
+        " - Broker Health (websocket status, reconcile controls)",
+        " - Orders & Fills monitor (filters, symbol drilldown, traceId search)",
+        " - Universe (approved symbols, candidates)",
+        " - Trading Enforcement (already exists) — just UI integration",
+        " - Allocation Policies + Rebalancer (already exists) — just UI integration",
+        " - LLM Providers (OpenAI/OpenRouter routing stats, cost, fallback)",
+        " - External API budgets/cache (if exists) with counters + TTL",
+        "Ensure each section has working buttons that call real endpoints and show real results."
+      ],
+      "evidence_required": [
+        "route /admin works and is protected",
+        "all admin sections load without console errors",
+        "each button shows real success/failure responses with traceId"
+      ]
+    },
+    {
+      "id": "P1.6",
+      "what": "Verification automation: integration tests + a reproducible smoke script that proves the end-to-end flow is real.",
+      "how": [
+        "Add tests for order submit/cancel using mocks OR paper trading with safe constraints (limit orders).",
+        "Add a scripts/smoke-admin-e2e.sh that:",
+        " - logs in as admin",
+        " - triggers a small paper order for an approved symbol",
+        " - polls /api/orders and /api/orders/:id until status changes",
+        " - verifies fills appear (if filled) OR status becomes accepted/open",
+        " - checks /api/admin/broker/health shows websocket connected",
+        " - prints traceId and validates correlation across tables",
+        "Add minimal docs updates in docs/ADMIN_GUIDE.md and docs/ORDER_LIFECYCLE.md describing how to use /admin and interpret statuses."
+      ],
+      "evidence_required": [
+        "test run output",
+        "smoke script output pasted in logs",
+        "docs updated and linked from docs/index"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "A paper order submitted from the app appears in Orders table, updates status via broker updates, and if filled produces a Fill row.",
+    "Trade Ledger + Suggested Trades screens show broker-truth statuses and link to traceId and decisionId.",
+    "Admin has a single /admin entry point and contains all admin functionality in one shell with working buttons.",
+    "No screen shows stale mock trade rows for live trading mode."
+  ],
+  "instructions_for_replit_execution_style": [
+    "Work in small commits. After each step, run verification and show output.",
+    "If a step is already done, DO NOT redo it—only integrate it into Admin and add missing verification/tests/docs.",
+    "If you discover conflicts with docs (future-state vs current monolith), write a short note in docs/MIGRATION_NOTES.md explaining what you implemented now vs postponed."
+  ],
+  "finish_state": "When done, print a short 'Operator Guide' with: how to open /admin, how to place a paper order, where to see order timeline, and how to reconcile broker state."
+}
