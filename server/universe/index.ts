@@ -3,3 +3,4 @@ export { liquidityService, type LiquidityTierThresholds, type LiquidityComputeRe
 export { fundamentalsService, type QualityGrowthScore, type FundamentalsComputeResult } from "./fundamentalsService";
 export { candidatesService, type CandidateStatus, type CandidateGenerationResult, type CandidateApprovalResult } from "./candidatesService";
 export { tradingEnforcementService, type TradingEligibilityResult, type EnforcementStats } from "./tradingEnforcement";
+export { allocationService, type TargetPosition, type RebalanceIntent, type RebalanceAnalysis } from "./allocationService";

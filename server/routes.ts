@@ -70,7 +70,7 @@ import { initializeDefaultModules, getModules, getModule, getAdminOverview } fro
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
-import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService } from "./universe";
+import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService, allocationService } from "./universe";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -5036,6 +5036,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to reset enforcement stats:", error);
       res.status(500).json({ error: "Failed to reset enforcement stats" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN ALLOCATION POLICY ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/allocation/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await allocationService.getStats();
+      res.json({
+        ...stats,
+        source: "allocation_policies",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get allocation stats:", error);
+      res.status(500).json({ error: "Failed to get allocation stats" });
+    }
+  });
+
+  app.get("/api/admin/allocation/policies", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const policies = await allocationService.listPolicies();
+      res.json({ policies, count: policies.length });
+    } catch (error) {
+      console.error("Failed to list policies:", error);
+      res.status(500).json({ error: "Failed to list policies" });
+    }
+  });
+
+  app.get("/api/admin/allocation/policies/active", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const policy = await allocationService.getActivePolicy();
+      if (!policy) {
+        return res.status(404).json({ error: "No active policy found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      console.error("Failed to get active policy:", error);
+      res.status(500).json({ error: "Failed to get active policy" });
+    }
+  });
+
+  app.get("/api/admin/allocation/policies/:id", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.getPolicyById(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      console.error("Failed to get policy:", error);
+      res.status(500).json({ error: "Failed to get policy" });
+    }
+  });
+
+  app.post("/api/admin/allocation/policies", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const userId = req.userId;
+      const policy = await allocationService.createPolicy({
+        ...req.body,
+        createdBy: userId,
+      });
+      res.status(201).json(policy);
+    } catch (error) {
+      console.error("Failed to create policy:", error);
+      res.status(500).json({ error: "Failed to create policy" });
+    }
+  });
+
+  app.patch("/api/admin/allocation/policies/:id", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.updatePolicy(id, req.body);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      console.error("Failed to update policy:", error);
+      res.status(500).json({ error: "Failed to update policy" });
+    }
+  });
+
+  app.post("/api/admin/allocation/policies/:id/activate", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.activatePolicy(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json({ success: true, policy });
+    } catch (error) {
+      console.error("Failed to activate policy:", error);
+      res.status(500).json({ error: "Failed to activate policy" });
+    }
+  });
+
+  app.post("/api/admin/allocation/policies/:id/deactivate", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.deactivatePolicy(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json({ success: true, policy });
+    } catch (error) {
+      console.error("Failed to deactivate policy:", error);
+      res.status(500).json({ error: "Failed to deactivate policy" });
+    }
+  });
+
+  app.post("/api/admin/allocation/analyze", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await allocationService.analyzeRebalance(traceId || `analyze-${Date.now()}`);
+      if (!analysis) {
+        return res.status(400).json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        currentPositions: Object.fromEntries(analysis.currentPositions),
+      });
+    } catch (error) {
+      console.error("Failed to analyze rebalance:", error);
+      res.status(500).json({ error: "Failed to analyze rebalance" });
+    }
+  });
+
+  app.get("/api/admin/allocation/runs", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const runs = await allocationService.getRebalanceRuns(
+        limit ? parseInt(limit as string) : 20
+      );
+      res.json({ runs, count: runs.length });
+    } catch (error) {
+      console.error("Failed to get rebalance runs:", error);
+      res.status(500).json({ error: "Failed to get rebalance runs" });
+    }
+  });
+
+  app.get("/api/admin/allocation/runs/:id", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const run = await allocationService.getRebalanceRunById(id);
+      if (!run) {
+        return res.status(404).json({ error: "Rebalance run not found" });
+      }
+      res.json(run);
+    } catch (error) {
+      console.error("Failed to get rebalance run:", error);
+      res.status(500).json({ error: "Failed to get rebalance run" });
     }
   });
 
