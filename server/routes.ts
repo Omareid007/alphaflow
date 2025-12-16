@@ -71,6 +71,7 @@ import debateRouter from "./routes/debate";
 import toolsRouter from "./routes/tools";
 import competitionRouter from "./routes/competition";
 import strategiesRouter from "./routes/strategies";
+import arenaRouter from "./routes/arena";
 import { alertService } from "./observability/alertService";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
@@ -248,6 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/tools", authMiddleware, toolsRouter);
   app.use("/api/competition", authMiddleware, competitionRouter);
   app.use("/api/strategies", authMiddleware, strategiesRouter);
+  app.use("/api/arena", authMiddleware, arenaRouter);
   
   alertService.startEvaluationJob(60000);
 

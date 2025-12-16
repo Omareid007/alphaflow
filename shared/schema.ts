@@ -1169,6 +1169,163 @@ export const toolInvocations = pgTable("tool_invocations", {
 ]);
 
 // ============================================================================
+// AI AGENT PROFILES (Cost-aware Arena)
+// ============================================================================
+
+export type AgentProvider = "openai" | "openrouter" | "groq" | "together";
+export type AgentMode = "cheap_first" | "escalation_only" | "always";
+export type AgentProfileStatus = "active" | "disabled" | "testing";
+
+export const aiAgentProfiles = pgTable("ai_agent_profiles", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  provider: text("provider").$type<AgentProvider>().notNull(),
+  model: text("model").notNull(),
+  role: text("role").$type<DebateRole>().notNull(),
+  mode: text("mode").$type<AgentMode>().default("cheap_first").notNull(),
+  temperature: numeric("temperature").default("0.7"),
+  maxTokens: integer("max_tokens").default(2000),
+  promptTemplateId: varchar("prompt_template_id"),
+  toolPolicy: jsonb("tool_policy"),
+  budgetLimitPerDay: numeric("budget_limit_per_day"),
+  budgetLimitPerRun: numeric("budget_limit_per_run"),
+  priority: integer("priority").default(0),
+  status: text("status").$type<AgentProfileStatus>().default("active").notNull(),
+  totalCalls: integer("total_calls").default(0).notNull(),
+  totalTokens: integer("total_tokens").default(0).notNull(),
+  totalCostUsd: numeric("total_cost_usd").default("0").notNull(),
+  avgLatencyMs: numeric("avg_latency_ms"),
+  successRate: numeric("success_rate"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_agent_profiles_status_idx").on(table.status),
+  index("ai_agent_profiles_role_idx").on(table.role),
+  index("ai_agent_profiles_mode_idx").on(table.mode),
+]);
+
+// ============================================================================
+// AI OUTCOME LINKS (Decision → Order → Fill)
+// ============================================================================
+
+export type OutcomeLinkStatus = "pending" | "submitted" | "filled" | "partial" | "cancelled" | "rejected" | "expired";
+
+export const aiOutcomeLinks = pgTable("ai_outcome_links", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  consensusId: varchar("consensus_id").references(() => debateConsensus.id),
+  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id),
+  workItemId: varchar("work_item_id").references(() => workItems.id),
+  brokerOrderId: varchar("broker_order_id"),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(),
+  intendedQty: numeric("intended_qty"),
+  intendedNotional: numeric("intended_notional"),
+  filledQty: numeric("filled_qty"),
+  filledAvgPrice: numeric("filled_avg_price"),
+  fillCount: integer("fill_count").default(0),
+  status: text("status").$type<OutcomeLinkStatus>().default("pending").notNull(),
+  pnlRealized: numeric("pnl_realized"),
+  pnlUnrealized: numeric("pnl_unrealized"),
+  entryPrice: numeric("entry_price"),
+  exitPrice: numeric("exit_price"),
+  holdDurationMs: integer("hold_duration_ms"),
+  outcome: text("outcome").$type<"win" | "loss" | "breakeven" | "open" | "unknown">().default("unknown"),
+  llmCostUsd: numeric("llm_cost_usd"),
+  traceId: text("trace_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+}, (table) => [
+  index("ai_outcome_links_consensus_id_idx").on(table.consensusId),
+  index("ai_outcome_links_debate_session_id_idx").on(table.debateSessionId),
+  index("ai_outcome_links_work_item_id_idx").on(table.workItemId),
+  index("ai_outcome_links_symbol_idx").on(table.symbol),
+  index("ai_outcome_links_status_idx").on(table.status),
+  index("ai_outcome_links_outcome_idx").on(table.outcome),
+  index("ai_outcome_links_created_at_idx").on(table.createdAt),
+]);
+
+// ============================================================================
+// AI ARENA RUNS (Multi-agent parallel evaluation)
+// ============================================================================
+
+export type ArenaRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type ArenaMode = "debate" | "competition" | "consensus";
+
+export const aiArenaRuns = pgTable("ai_arena_runs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  traceId: text("trace_id").notNull(),
+  mode: text("mode").$type<ArenaMode>().default("debate").notNull(),
+  symbols: text("symbols").array().notNull(),
+  agentProfileIds: text("agent_profile_ids").array().notNull(),
+  marketSnapshotHash: text("market_snapshot_hash"),
+  portfolioSnapshotHash: text("portfolio_snapshot_hash"),
+  strategyVersionId: varchar("strategy_version_id").references(() => strategyVersions.id),
+  status: text("status").$type<ArenaRunStatus>().default("pending").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  totalTokensUsed: integer("total_tokens_used").default(0),
+  totalCostUsd: numeric("total_cost_usd").default("0"),
+  escalationTriggered: boolean("escalation_triggered").default(false),
+  escalationReason: text("escalation_reason"),
+  consensusReached: boolean("consensus_reached"),
+  finalDecision: text("final_decision"),
+  disagreementRate: numeric("disagreement_rate"),
+  avgConfidence: numeric("avg_confidence"),
+  triggeredBy: text("triggered_by"),
+  outcomeLinked: boolean("outcome_linked").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_arena_runs_trace_id_idx").on(table.traceId),
+  index("ai_arena_runs_status_idx").on(table.status),
+  index("ai_arena_runs_mode_idx").on(table.mode),
+  index("ai_arena_runs_created_at_idx").on(table.createdAt),
+]);
+
+// ============================================================================
+// AI ARENA AGENT DECISIONS (Per-agent output within a run)
+// ============================================================================
+
+export const aiArenaAgentDecisions = pgTable("ai_arena_agent_decisions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  arenaRunId: varchar("arena_run_id").references(() => aiArenaRuns.id).notNull(),
+  agentProfileId: varchar("agent_profile_id").references(() => aiAgentProfiles.id).notNull(),
+  role: text("role").$type<DebateRole>().notNull(),
+  action: text("action").notNull(),
+  symbols: text("symbols").array(),
+  confidence: numeric("confidence"),
+  stance: text("stance"),
+  rationale: text("rationale"),
+  keySignals: jsonb("key_signals"),
+  risks: jsonb("risks"),
+  proposedOrder: jsonb("proposed_order"),
+  tokensUsed: integer("tokens_used"),
+  costUsd: numeric("cost_usd"),
+  latencyMs: integer("latency_ms"),
+  modelUsed: text("model_used"),
+  wasEscalation: boolean("was_escalation").default(false),
+  rawOutput: text("raw_output"),
+  toolCallsCount: integer("tool_calls_count").default(0),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_arena_agent_decisions_run_id_idx").on(table.arenaRunId),
+  index("ai_arena_agent_decisions_agent_profile_id_idx").on(table.agentProfileId),
+  index("ai_arena_agent_decisions_role_idx").on(table.role),
+]);
+
+// ============================================================================
 // INSERT SCHEMAS & TYPES - DEBATE ARENA
 // ============================================================================
 
@@ -1240,3 +1397,50 @@ export const insertToolInvocationSchema = createInsertSchema(toolInvocations).om
 
 export type InsertToolInvocation = z.infer<typeof insertToolInvocationSchema>;
 export type ToolInvocation = typeof toolInvocations.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - AI AGENT PROFILES
+// ============================================================================
+
+export const insertAiAgentProfileSchema = createInsertSchema(aiAgentProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  totalCalls: true,
+  totalTokens: true,
+  totalCostUsd: true,
+});
+
+export type InsertAiAgentProfile = z.infer<typeof insertAiAgentProfileSchema>;
+export type AiAgentProfile = typeof aiAgentProfiles.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - AI OUTCOME LINKS
+// ============================================================================
+
+export const insertAiOutcomeLinkSchema = createInsertSchema(aiOutcomeLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAiOutcomeLink = z.infer<typeof insertAiOutcomeLinkSchema>;
+export type AiOutcomeLink = typeof aiOutcomeLinks.$inferSelect;
+
+// ============================================================================
+// INSERT SCHEMAS & TYPES - AI ARENA
+// ============================================================================
+
+export const insertAiArenaRunSchema = createInsertSchema(aiArenaRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiArenaAgentDecisionSchema = createInsertSchema(aiArenaAgentDecisions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAiArenaRun = z.infer<typeof insertAiArenaRunSchema>;
+export type AiArenaRun = typeof aiArenaRuns.$inferSelect;
+export type InsertAiArenaAgentDecision = z.infer<typeof insertAiArenaAgentDecisionSchema>;
+export type AiArenaAgentDecision = typeof aiArenaAgentDecisions.$inferSelect;

@@ -41,6 +41,12 @@ The platform is transitioning to an event-driven microservices architecture usin
 - **Competition Mode**: Multiple AI trader profiles competing with performance tracking. Schema supports trader profiles with model configurations, risk presets, and universe filters. Competition runs track leaderboard rankings with metrics (PnL, Sharpe, Sortino, max drawdown, win rate).
 - **Strategy Studio**: Web-based strategy configuration with versioning. Strategy versions support full spec storage, universe/signals/risk/execution configs, status lifecycle (draft → active → archived), and backtest result linking.
 
+### P2-ARENA-QUALITY: AI Arena System
+- **ArenaCoordinator** (`server/ai/arenaCoordinator.ts`): Cost-aware multi-agent debate system with escalation policy. Runs cheap agents (gpt-4o-mini) first, escalates to power models (gpt-4o, claude-sonnet) on disagreement >34% or confidence <62%. Tracks per-agent costs, tokens, and latency.
+- **Agent Profiles**: Configurable AI agent roles with provider/model/mode settings. Modes: cheap_first (default), escalation_only (power models), always.
+- **Outcome Links**: Full attribution chain from AI decision → work queue order → broker fills with P&L tracking.
+- **Arena API**: RESTful routes for runs, profiles, leaderboard, and stats at `/api/arena/*`.
+
 ### Section 3 Database Schema
 New tables in `shared/schema.ts`:
 - `debate_sessions`: Tracks AI debate sessions with symbols, status, market context, duration, and cost
@@ -51,6 +57,10 @@ New tables in `shared/schema.ts`:
 - `competition_scores`: Performance metrics and rankings per competition
 - `strategy_versions`: Versioned strategy configurations with activation history
 - `tool_invocations`: Audit log for all tool router invocations
+- `ai_agent_profiles`: Arena agent configurations with provider/model/mode/budget settings
+- `ai_arena_runs`: Multi-agent arena session logs with cost/token tracking
+- `ai_arena_agent_decisions`: Per-agent decision outputs within arena runs
+- `ai_outcome_links`: Decision → Order → Fill attribution for P&L tracking
 
 ### Section 3 API Routes
 - `POST/GET /api/debate/sessions` - Start debates, list sessions

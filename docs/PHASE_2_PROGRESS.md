@@ -131,6 +131,62 @@ const validData = filterByAsOf(allMarketData);
 
 ---
 
+## P2-ARENA-QUALITY - AI Arena System
+
+### Status: COMPLETE
+
+| Task | Status | Files |
+|------|--------|-------|
+| Create arena schema tables | Done | `shared/schema.ts` (ai_agent_profiles, ai_arena_runs, ai_arena_agent_decisions, ai_outcome_links) |
+| Implement ArenaCoordinator | Done | `server/ai/arenaCoordinator.ts` |
+| Cost-aware escalation policy | Done | Cheap-first routing, disagreement-based escalation to power models |
+| Arena API routes | Done | `server/routes/arena.ts` (runs, profiles, leaderboard, stats) |
+| Agent profiles management | Done | CRUD for agent profiles with provider/model/mode config |
+| Outcome links tracking | Done | Decision → Order → Fill attribution |
+| Leaderboard computation | Done | Per-agent performance metrics |
+| Default agent profiles | Done | 6 pre-seeded profiles (bull, bear, risk, technical, power) |
+
+### Arena Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ArenaCoordinator                          │
+├─────────────────────────────────────────────────────────────┤
+│  1. Load active agent profiles (cheap_first vs escalation)  │
+│  2. Gather market context via Tool Router                    │
+│  3. Run cheap agents in parallel                             │
+│  4. Calculate disagreement rate                              │
+│  5. Escalate to power models if needed                       │
+│  6. Compute consensus decision                               │
+│  7. Create outcome link for order tracking                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Escalation Policy
+- Disagreement threshold: 34% (escalate if agents disagree)
+- Min confidence threshold: 62% (escalate if low confidence)
+- Risk manager veto: Immediate escalation if risk_manager vetoes with >80% confidence
+- Max power calls/day: 25 (budget protection)
+
+### Agent Modes
+- `cheap_first`: Always runs first using cost-efficient models (gpt-4o-mini)
+- `escalation_only`: Only runs when escalation is triggered (gpt-4o, claude-sonnet)
+- `always`: Runs in every arena session regardless of mode
+
+### API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/arena/run | Start a new arena run |
+| GET | /api/arena/runs | List arena runs with pagination |
+| GET | /api/arena/runs/:id | Get run details with decisions |
+| GET | /api/arena/leaderboard | Agent performance leaderboard |
+| GET | /api/arena/stats | Daily/weekly arena statistics |
+| GET | /api/arena/profiles | List agent profiles |
+| POST | /api/arena/profiles | Create agent profile |
+| PATCH | /api/arena/profiles/:id | Update agent profile |
+| DELETE | /api/arena/profiles/:id | Disable agent profile |
+
+---
+
 ## Summary
 
 ### Completed
@@ -139,6 +195,7 @@ const validData = filterByAsOf(allMarketData);
 - P2.3: Temporal Replay (100%)
 - P2.4: Tool Surface Hardening (100%)
 - P2.5: LLM Optimization (60%)
+- P2-ARENA-QUALITY: AI Arena System (100%)
 
 ### New Files Created
 1. `docs/REALITY_CHECKS/COMPETITOR_FEATURE_MAP.md` - Competitor feature comparison
@@ -147,12 +204,16 @@ const validData = filterByAsOf(allMarketData);
 4. `server/services/strategy-compiler.ts` - Strategy compilation and execution
 5. `server/lib/temporal-context.ts` - Temporal replay and asOf enforcement
 6. `server/lib/tool-security.ts` - Tool Router security hardening
+7. `server/ai/arenaCoordinator.ts` - Cost-aware multi-agent arena system
+8. `server/routes/arena.ts` - Arena API routes
+9. `docs/ARENA_REALITY_SCAN.md` - Arena implementation analysis
 
 ### Modified Files
 1. `client/screens/AdminHubScreen.tsx` - Added 4 new admin modules
 2. `server/admin/registry.ts` - Registered 4 new modules
-3. `server/routes.ts` - Added adminTokenMiddleware
+3. `server/routes.ts` - Added adminTokenMiddleware, arena routes
 4. `server/storage.ts` - Added getActiveStrategyVersions method
+5. `shared/schema.ts` - Added ai_agent_profiles, ai_arena_runs, ai_arena_agent_decisions, ai_outcome_links tables
 
 ---
 
