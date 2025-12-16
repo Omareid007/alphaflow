@@ -1,0 +1,213 @@
+You are working inside the AI Active Trader repo. Do NOT claim anything is implemented unless you verify by reading code and running tests. No mock/demo data in production paths.
+
+Goal
+
+Add AiTrados as an optional Research Data Provider (OHLC, news, economic events) with:
+
+strict budget + caching
+
+optional WebSocket ingest (OHLC/news/econ)
+
+full Admin UI control (inside the existing WordPress-like Admin page)
+
+docs updated in /docs for everything you add
+
+Execution/trading source of truth remains Alpaca. AiTrados is for research + triggers + fallback analysis only.
+
+Step 0 — Read before changing anything
+
+Scan /docs and identify:
+
+existing connector/provider docs
+
+budgeting/caching docs
+
+admin dashboard docs
+
+Scan server code for:
+
+budgeting/caching wrapper(s) and where connectors bypass them
+
+current “universe/candidates/enforcement gate” pipeline
+
+current admin routes/components (WordPress-like Admin page)
+
+Output a short “Reality Check” section listing:
+
+exact files you read
+
+what already exists
+
+what is missing for AiTrados
+
+Step 1 — Add AiTrados provider module (server-side)
+
+Create server/providers/aitrados/ with:
+
+aitradosClient.ts (typed fetch wrapper)
+
+aitradosEndpoints.ts (URL builders + params)
+
+aitradosSchemas.ts (Zod validation for responses)
+
+aitradosService.ts (high-level methods)
+
+All calls MUST go through the existing budget + cache wrapper (the same pattern used for other providers)
+
+Implement these minimal features first:
+A) Latest OHLC:
+
+supports endpoint shape: /api/v2/{schema_asset}/bars/{country_symbol}/{interval}/latest
+B) News list:
+
+supports endpoint: /api/v2/news/list
+C) Economic event lookup:
+
+supports endpoint: /api/v2/economic_calendar/event
+D) Store every raw response + a normalized version into DB (use existing cache tables/patterns)
+
+Step 2 — Add provider config + budgets
+
+Add admin-configurable settings:
+
+enable/disable AiTrados
+
+secret key storage (use your existing secrets config approach)
+
+base URL
+
+budgets:
+
+max requests per hour/day per endpoint class (ohlc/news/econ)
+
+max websocket connections (default 1)
+
+caching TTLs per endpoint class
+
+Important:
+
+DO NOT hardcode guessed rate limits. Set conservative defaults and make them editable in Admin.
+
+Step 3 — Optional WebSocket ingest (recommended)
+
+If feasible without destabilizing the app:
+
+Add server/providers/aitrados/aitradosWsIngest.ts
+
+Connect to AiTrados WebSocket subscription endpoints for:
+
+OHLC
+
+News
+
+Economic events
+
+Persist events into DB table(s) such as:
+
+market_events (type, symbol, ts, payload, provider, traceId)
+
+Add global throttles to avoid flooding:
+
+per symbol cooldown
+
+global max events/minute
+
+If WebSocket is too risky right now:
+
+implement polling but with strict budgets and TTL caching.
+
+Step 4 — Wire into the Orchestrator (research + triggers only)
+
+Add a “Research Pack” builder that merges:
+
+Alpaca price snapshot (execution SoT)
+
+AiTrados OHLC/news/econ summaries (research)
+
+Ensure the LLM sees only a compact JSON “feature pack”
+
+Add optional trigger: when new AiTrados event arrives, enqueue an analysis cycle (NOT direct trade)
+
+Step 5 — Admin UI (single WordPress-like Admin page)
+
+Inside the existing Admin page:
+
+Add a new left-nav group: Data Providers
+
+AiTrados card: status, last call, cache hit rate, error rate
+
+controls: enable, budgets, TTLs, test connection button
+
+Add a group: Event Triggers
+
+enable/disable triggers
+
+cooldown + caps
+
+show latest events list
+
+Add a group: Universe Expansion
+
+“Import candidate symbols from AiTrados reference data” (research list)
+
+route candidates into existing approval workflow (no auto-trade)
+
+show “approved vs rejected vs pending” counts
+
+All buttons must work end-to-end:
+
+clicking “Test” calls backend and shows result
+
+updates persisted configs
+
+reflects real runtime state
+
+Step 6 — Docs updates (mandatory)
+
+Update /docs with:
+
+docs/DATA_PROVIDER_AITRADOS.md
+
+what it does
+
+endpoints used
+
+budgets + caching policy
+
+websocket ingest (if added)
+
+Update your main index doc (docs/INDEX.md or equivalent) to link it
+
+Update admin docs to include the new Admin sections and how to use them
+
+Step 7 — Verification (prove it works)
+
+Add a minimal integration test or a script:
+
+calls Latest OHLC / News list / Econ event with a secret key
+
+verifies caching works (2nd call is cache hit)
+
+verifies budgets block extra calls
+
+Add logs/telemetry:
+
+traceId in every provider call
+
+Provide a final checklist:
+
+routes added
+
+UI components added
+
+docs updated
+
+commands to run + expected outputs
+
+Stop after completing Section 2 and print:
+
+what you implemented
+
+what you verified by running
+
+what remains for the next section
