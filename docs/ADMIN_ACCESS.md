@@ -4,17 +4,27 @@
 
 ## Access Methods
 
-### Method 1: Profile Tab (Recommended)
+### Admin Tab in Bottom Navigation (Current)
 
-1. Log in to the application
-2. Navigate to the **Profile** tab in the bottom navigation
-3. Tap the **Admin** button (only visible for admin users)
-4. You will be taken to the Admin Hub with sidebar navigation
+1. Log in to the application with an admin account
+2. The **Admin** tab appears in the bottom navigation bar (rightmost tab)
+3. Tap the **Admin** tab to access the Admin Hub
+4. The Admin Hub displays a sidebar with 13 modules
 
-### Method 2: Direct Navigation
+**Note:** The Admin tab is conditionally rendered - only visible if `user.isAdmin === true`.
 
-If you're already logged in as an admin, navigate to:
-- **Screen**: `AdminHubScreen` in the admin stack
+```
+Home | Markets | Analytics | Strategies | Auto | Profile | [Admin]
+                                                           ↑
+                                                   Only visible for admins
+```
+
+The tab is rendered in `MainTabNavigator.tsx`:
+```tsx
+{user?.isAdmin ? (
+  <Tab.Screen name="AdminTab" component={AdminStackNavigator} ... />
+) : null}
+```
 
 ## Admin Authentication
 
@@ -84,25 +94,46 @@ The Admin Hub requires the following environment variables for full functionalit
 
 ## Admin Hub Modules
 
-The Admin Hub contains 11 specialized modules:
+The Admin Hub contains 13 specialized modules:
 
-| Module | Purpose |
-|--------|---------|
-| **Overview** | Dashboard with connector health, data fusion, AI config |
-| **Providers & Budgets** | API rate limits, budget usage, cache management |
-| **LLM Router** | Model routing, fallback chains, call statistics |
-| **Orders** | Broker order lifecycle, fills, sync controls |
-| **Universe** | Asset universe management, tradability |
-| **Fundamentals** | Company fundamentals data |
-| **Candidates** | Trading candidate approval workflow |
-| **Enforcement** | Trading enforcement gate |
-| **Allocation** | Portfolio allocation policies |
-| **Rebalancer** | Portfolio rebalancing controls |
-| **Observability** | Traces, work queue, alerts |
+| Module | Purpose | Source |
+|--------|---------|--------|
+| **Overview** | Dashboard with connector health, data fusion, AI config | Internal |
+| **Providers & Budgets** | API rate limits, budget usage, cache management | Internal |
+| **LLM Router** | Model routing, fallback chains, call statistics | Internal |
+| **Orders** | Broker order lifecycle, fills, sync controls | Alpaca (Broker-synced) |
+| **Positions** | Live portfolio positions from broker | Alpaca (Live) |
+| **Universe** | Asset universe management, tradability | Alpaca API |
+| **Fundamentals** | Company fundamentals data | Finnhub |
+| **Candidates** | Trading candidate approval workflow | Internal |
+| **Enforcement** | Trading enforcement gate | Internal |
+| **Allocation** | Portfolio allocation policies | Internal |
+| **Rebalancer** | Portfolio rebalancing controls | Internal |
+| **Orchestrator** | Strategy orchestration, pause/resume/run-now | Internal |
+| **Observability** | Traces, work queue, alerts (4 sub-tabs) | DB (broker-synced) |
+
+## Source of Truth Semantics
+
+### AI Trade Intents (Analytics Screen)
+- **Source Badge**: "Source: Internal AI Decisions"
+- **Status**: Uses "pending" or "info" (never "success")
+- **Purpose**: Shows what the AI decided to do
+
+### Broker Orders (Orders Module)
+- **Source Badge**: "Source: Alpaca (Broker-synced)"
+- **Status**: Uses "success" for filled, "error" for rejected
+- **Purpose**: Shows what actually happened at the broker
+
+### Trace Timeline (Observability Module)
+The Trace Timeline displays events in chronological order:
+- **AI Decisions**: status = "info" (internal)
+- **Trade Intents**: status = "pending" (internal)
+- **Broker Orders**: status = "success/error" (broker-confirmed)
+- **Fills**: status = "success" (actual execution)
 
 ## Troubleshooting
 
-### Admin Button Not Visible
+### Admin Tab Not Visible
 
 1. Verify you're logged in with an admin account
 2. Check that the user's `isAdmin` field is `true` in the database:
