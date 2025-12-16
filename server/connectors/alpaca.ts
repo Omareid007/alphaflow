@@ -349,12 +349,14 @@ class AlpacaConnector {
   }
 
   async createBracketOrder(params: BracketOrderParams): Promise<AlpacaOrder> {
+    // CRITICAL: Alpaca requires time_in_force: "day" for bracket orders
+    // Using "gtc" will result in 422 rejection from the API
     const orderParams: CreateOrderParams = {
       symbol: params.symbol,
       qty: params.qty,
       side: params.side,
       type: params.type || "market",
-      time_in_force: params.time_in_force || "gtc",
+      time_in_force: "day", // MUST be "day" for bracket orders per Alpaca API requirements
       order_class: "bracket",
       take_profit: {
         limit_price: params.take_profit_price,
@@ -369,8 +371,15 @@ class AlpacaConnector {
       orderParams.limit_price = params.limit_price;
     }
 
-    log.debug("Alpaca", `Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}`);
-    return this.createOrder(orderParams);
+    log.info("Alpaca", `Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}, TIF=day`);
+    try {
+      const order = await this.createOrder(orderParams);
+      log.info("Alpaca", `Bracket order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      return order;
+    } catch (error) {
+      log.error("Alpaca", `Bracket order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   async createTrailingStopOrder(params: TrailingStopOrderParams): Promise<AlpacaOrder> {

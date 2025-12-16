@@ -26,15 +26,15 @@
 | Portfolio History | `getPortfolioHistory()` | `server/connectors/alpaca.ts` |
 | Health Check | `healthCheck()` | `server/connectors/alpaca.ts` |
 
-### Implemented But Underused (⚠️)
+### Implemented and Active (✅)
 | Feature | Implementation | Current Usage |
 |---------|---------------|---------------|
-| Bracket Orders | `createBracketOrder()` | Interface exists, not called by orchestrator |
-| Trailing Stop Orders | `createTrailingStopOrder()` | Interface exists, not called by orchestrator |
-| Stop Loss Orders | `createStopLossOrder()` | Interface exists, not called by orchestrator |
-| Take Profit Orders | `createTakeProfitOrder()` | Interface exists, not called by orchestrator |
-| OCO Orders | In `CreateOrderParams.order_class` | Type defined, never used |
-| OTO Orders | In `CreateOrderParams.order_class` | Type defined, never used |
+| Bracket Orders | `createBracketOrder()` | **Active** - Used by AI trading engine for buy orders. REQUIRES `time_in_force: "day"` |
+| Trailing Stop Orders | `createTrailingStopOrder()` | Interface exists, called for sell orders with trailing stop config |
+| Stop Loss Orders | `createStopLossOrder()` | Interface exists, available for standalone stop-loss |
+| Take Profit Orders | `createTakeProfitOrder()` | Interface exists, available for standalone take-profit |
+| OCO Orders | In `CreateOrderParams.order_class` | Type defined, available for use |
+| OTO Orders | In `CreateOrderParams.order_class` | Type defined, available for use |
 
 ### Not Yet Implemented (❌)
 | Feature | Alpaca Capability | Impact |
@@ -53,29 +53,30 @@
 ## High-Impact Underused Capabilities
 
 ### 1. Bracket Orders (CRITICAL for Risk Management)
-**Current State:** Interface exists but not integrated with orchestrator
+**Current State:** FULLY INTEGRATED with orchestrator and AI trading engine
 **Benefit:** Automatic profit-taking AND stop-loss in single atomic operation
 
-```typescript
-// Current: Separate orders (fragile)
-await alpaca.createOrder({ symbol, side: 'buy', ... });
-await alpaca.createStopLossOrder(symbol, qty, stopPrice);
-await alpaca.createTakeProfitOrder(symbol, qty, limitPrice);
+**IMPORTANT:** Alpaca requires `time_in_force: "day"` for bracket orders. Using "gtc" results in 422 rejection.
 
-// Improved: Atomic bracket (reliable)
+**LIMITATION:** Bracket orders are NOT compatible with extended-hours trading. When `extendedHours=true`, the system falls back to simple market orders without stop-loss/take-profit protection.
+
+```typescript
+// Implemented in server/trading/alpaca-trading-engine.ts
 await alpaca.createBracketOrder({
   symbol,
   qty,
   side: 'buy',
+  type: 'market',
+  time_in_force: 'day',  // REQUIRED - "gtc" is rejected!
   take_profit_price: entryPrice * 1.06,  // 6% TP
   stop_loss_price: entryPrice * 0.97,     // 3% SL
 });
 ```
 
-**Integration Path:**
-1. Update `server/autonomous/tradeExecutor.ts` to use `createBracketOrder()`
+**Integration Status:**
+1. AI decisions with `action: buy` automatically create bracket orders
 2. OCO relationship ensures only one exit triggers
-3. Eliminates race conditions between entry and exit orders
+3. Full logging for success/failure tracking
 
 ### 2. Trailing Stop Orders (Dynamic Risk Management)
 **Current State:** Interface exists but never called

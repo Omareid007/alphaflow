@@ -440,8 +440,9 @@ class AlpacaTradingEngine {
           bracketParams.limit_price = limitPrice.toString();
         }
 
-        console.log(`[Trading] Creating bracket order for ${symbol}: Entry=${limitPrice || 'market'}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}`);
+        logger.info("Trading", `Creating bracket order for ${symbol}: Entry=${limitPrice || 'market'}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}, TIF=day`);
         order = await alpaca.createBracketOrder(bracketParams);
+        logger.info("Trading", `Bracket order submitted for ${symbol}`, { orderId: order.id, status: order.status });
       } else if (trailingStopPercent && side === "sell" && !isCrypto && !extendedHours) {
         console.log(`[Trading] Creating trailing stop order for ${symbol}: trail=${trailingStopPercent}%`);
         order = await alpaca.createTrailingStopOrder({
@@ -517,9 +518,24 @@ class AlpacaTradingEngine {
 
       return { success: true, order, trade };
     } catch (error) {
-      console.error("Alpaca trade execution error:", error);
-      eventBus.emit("trade:error", { message: (error as Error).message }, "alpaca-trading-engine");
-      return { success: false, error: (error as Error).message };
+      const errorMsg = (error as Error).message;
+      logger.error("Trading", `Trade execution FAILED for ${request.symbol}: ${errorMsg}`, { 
+        symbol: request.symbol, 
+        side: request.side, 
+        quantity: request.quantity,
+        orderType: request.orderType,
+        useBracketOrder: request.useBracketOrder,
+        error: errorMsg 
+      });
+      eventBus.emit("trade:error", { 
+        symbol: request.symbol, 
+        side: request.side, 
+        quantity: request.quantity,
+        message: errorMsg,
+        orderType: request.orderType,
+        useBracketOrder: request.useBracketOrder
+      }, "alpaca-trading-engine");
+      return { success: false, error: errorMsg };
     }
   }
 
