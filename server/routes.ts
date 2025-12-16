@@ -66,6 +66,8 @@ import { tradabilityService } from "./services/tradability-service";
 import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
 import { tracesRouter } from "./routes/traces";
+import { observabilityRouter } from "./observability/routes";
+import { alertService } from "./observability/alertService";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
@@ -215,6 +217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.use("/api/backtests", backtestsRouter);
   app.use("/api/traces", tracesRouter);
+  app.use("/api/admin/observability", authMiddleware, observabilityRouter);
+  
+  alertService.startEvaluationJob(60000);
 
   app.post("/api/auth/signup", async (req, res) => {
     try {

@@ -907,3 +907,57 @@ export type RebalanceRun = typeof rebalanceRuns.$inferSelect;
 
 export type CandidateStatus = "NEW" | "WATCHLISTED" | "APPROVED" | "REJECTED";
 export type LiquidityTier = "A" | "B" | "C";
+
+export const alertRules = pgTable("alert_rules", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  ruleType: text("rule_type").notNull(),
+  condition: jsonb("condition").notNull(),
+  threshold: numeric("threshold").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  webhookUrl: text("webhook_url"),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  lastCheckedAt: timestamp("last_checked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("alert_rules_enabled_idx").on(table.enabled),
+  index("alert_rules_type_idx").on(table.ruleType),
+]);
+
+export const alertEvents = pgTable("alert_events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  ruleId: varchar("rule_id").references(() => alertRules.id).notNull(),
+  ruleName: text("rule_name").notNull(),
+  ruleType: text("rule_type").notNull(),
+  triggeredValue: numeric("triggered_value").notNull(),
+  threshold: numeric("threshold").notNull(),
+  status: text("status").default("triggered").notNull(),
+  webhookSent: boolean("webhook_sent").default(false),
+  webhookResponse: text("webhook_response"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("alert_events_rule_id_idx").on(table.ruleId),
+  index("alert_events_created_at_idx").on(table.createdAt),
+]);
+
+export const insertAlertRuleSchema = createInsertSchema(alertRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertAlertEventSchema = createInsertSchema(alertEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAlertRule = z.infer<typeof insertAlertRuleSchema>;
+export type AlertRule = typeof alertRules.$inferSelect;
+export type InsertAlertEvent = z.infer<typeof insertAlertEventSchema>;
+export type AlertEvent = typeof alertEvents.$inferSelect;
+export type AlertRuleType = "dead_letter_count" | "retry_rate" | "orchestrator_silent" | "llm_error_rate" | "provider_budget_exhausted";
