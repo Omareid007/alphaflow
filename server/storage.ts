@@ -800,6 +800,10 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getActiveStrategyVersions(): Promise<StrategyVersion[]> {
+    return db.select().from(strategyVersions).where(eq(strategyVersions.status, "active")).orderBy(strategyVersions.createdAt);
+  }
+
   // ============================================================================
   // TOOL INVOCATIONS
   // ============================================================================

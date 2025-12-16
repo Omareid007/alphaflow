@@ -1,0 +1,192 @@
+{
+  "role": "CTO / Senior Staff Engineer",
+  "task_id": "P2_ARENA_QUALITY_COST_ADMIN",
+  "goal": "Improve AI decision quality, reduce LLM cost, and make the AI engine observable end-to-end (decisions → orders → outcomes) using a multi-model Arena + cost-aware routing, fully surfaced in the existing WordPress-like AdminHub UI with real data only.",
+  "non_negotiables": [
+    "NO mock/demo/hardcoded trade data anywhere in UI or API responses. Remove or gate any demo seed paths.",
+    "Every AI decision must be persisted with full metadata (traceId, runId, cycleId, models used, prompts/inputs hashes, tool calls, outputs, confidence, risk checks).",
+    "OpenRouter is the main source for powerful models; OpenAI smaller models (or OpenRouter free/cheap) for low-stakes tasks.",
+    "Cost-aware routing: cheapest-first, escalate only when needed (disagreement/uncertainty/high-risk).",
+    "Everything must be accessible and controllable from the existing AdminHub (WordPress-like) in ONE place.",
+    "After each step: run validation scripts + provide concrete evidence (logs, curl outputs, UI screenshots)."
+  ],
+  "read_first": {
+    "docs_to_read": [
+      "docs/ADMIN_DASHBOARD.md",
+      "docs/ADMIN_BACKLOG.json",
+      "docs/DOC_REALITY_MATRIX.json",
+      "docs/ORDER_LIFECYCLE.md",
+      "docs/TRADING_SAGA_SEQUENCES.md",
+      "docs/STRATEGY_COMPOSER.md",
+      "docs/WORK_QUEUE.md",
+      "docs/API_BUDGETING_AND_CACHE.md",
+      "docs/COMPETITIVE_BENCHMARKING.md"
+    ],
+    "code_to_audit": [
+      "server/routes.ts (all /api/admin and orchestrator routes)",
+      "server/lib/* (work queue, budgets, caching, llm gateway/router)",
+      "server/orchestrator/* (cycle scheduling, decision storage)",
+      "server/trading/* (alpaca paper broker, order submit/cancel, reconciliation)",
+      "client/screens/AdminHubScreen.tsx (existing modules + nav)",
+      "client/** (any duplicated admin screens, legacy dashboards, repeated widgets)"
+    ]
+  },
+  "why_now": [
+    "Your current pain: AI engine decisions are not consistently valuable vs LLM cost, and UI states are confusing.",
+    "Arena mode (multi-model debate/competition) improves decision robustness while enabling cost control (cheap-first, escalate-on-disagreement).",
+    "A live leaderboard and reasoning display makes the system explainable and debuggable for real users and for you as operator."
+  ],
+  "deliverables": [
+    "1) Arena Engine: multi-model parallel run + debate roles + consensus selection + escalation policy.",
+    "2) Persistent storage: arena runs, per-agent decisions, votes, final decision, cost and latency metrics, outcome linkage to orders/fills/positions.",
+    "3) AdminHub module: Arena Dashboard (runs list, per-run details, reasoning view, cost breakdown, latency, outcome).",
+    "4) Leaderboard: performance metrics per agent/model/prompt profile over time (PnL, win-rate proxy, drawdown proxy, hit-rate, cost-per-alpha metrics).",
+    "5) Safety/Guardrails: prevent expensive calls unless triggered; block execution if confidence < threshold or risk checks fail.",
+    "6) Docs update: update docs/ folder and DOC_REALITY_MATRIX.json to reflect what is truly implemented."
+  ],
+  "architecture_spec": {
+    "arena_concepts": {
+      "agent_profile": "A named configuration: (provider=openrouter|openai, model, role, prompt template id/version, max tokens, temperature, tool policy).",
+      "arena_run": "One evaluation event triggered by orchestrator cycle OR manual admin run. Contains market snapshot hash, universe snapshot hash, strategy id, and a list of agents executed.",
+      "agent_decision": "Structured JSON output: action {BUY|SELL|HOLD}, symbol(s), sizing, time horizon, rationale, risk flags, confidence [0..1], required tools, data dependencies.",
+      "consensus": "Rule-based aggregator + optional LLM judge (cheap-first). Choose final action OR declare 'NO_TRADE'.",
+      "escalation_policy": [
+        "Start with cheap models for all agents (OpenAI small / OpenRouter free/cheap).",
+        "Escalate to powerful OpenRouter models only if: disagreement above threshold, low confidence, high volatility regime, or order would change portfolio materially.",
+        "If still uncertain after escalation: default NO_TRADE."
+      ]
+    },
+    "minimum_db_tables": [
+      "ai_agent_profiles",
+      "ai_arena_runs",
+      "ai_arena_agent_decisions",
+      "ai_arena_consensus",
+      "ai_cost_telemetry (or reuse existing external_api_usage_counters with LLM breakdown)",
+      "ai_outcome_links (decisionId → orderIntentId → brokerOrderId → fillIds → positionSnapshotIds)"
+    ],
+    "api_endpoints": [
+      "POST /api/admin/arena/run (manual run; choose symbols/universe; choose agents; choose mode=debate|competition)",
+      "GET /api/admin/arena/runs?limit=&cursor=",
+      "GET /api/admin/arena/runs/:id (full details with reasoning + costs + links)",
+      "GET /api/admin/arena/leaderboard?window=7d|30d|90d",
+      "POST /api/admin/arena/profiles (create/update agent profile)",
+      "GET /api/admin/arena/profiles"
+    ],
+    "ui_in_adminhub": {
+      "add_sidebar_item": "Arena",
+      "views": [
+        "Arena Overview (recent runs, cost today, cost per run, pass/fail rates)",
+        "Run Details (agent cards, reasoning, tool calls, consensus trace, final decision)",
+        "Leaderboard (agents/models ranked by outcome metrics + cost efficiency)",
+        "Profiles (CRUD agent profiles + role templates + model router presets)"
+      ],
+      "no_new_admin_app": "Do not create a separate admin app. Extend the existing AdminHub only."
+    }
+  },
+  "implementation_plan": [
+    {
+      "step": "A0 Reality Scan (no duplication)",
+      "instructions": [
+        "Search codebase for any existing 'arena', 'debate', 'leaderboard', 'competition' implementations; if found, extend instead of rebuilding.",
+        "List existing LLM router + gateway capabilities (OpenRouter + OpenAI). Document current decision persistence schema.",
+        "List existing admin modules and identify any duplicated/legacy admin pages. Decide what to remove/redirect."
+      ],
+      "proof_required": [
+        "A short markdown note committed to docs/ARENA_REALITY_SCAN.md with: what exists, what is missing, file paths."
+      ]
+    },
+    {
+      "step": "A1 Arena Engine (backend)",
+      "instructions": [
+        "Create ArenaCoordinator in server/orchestrator (or appropriate module): accepts (agentProfiles[], marketSnapshot, portfolioState, universe) and runs agents in parallel with per-agent timeouts.",
+        "Implement escalation_policy exactly as spec (cheap-first; escalate on disagreement/uncertainty/high-risk).",
+        "Ensure each agent decision is STRICT JSON validated by schema; reject/repair invalid outputs using a cheap 'json_repair' model (do not escalate).",
+        "Consensus logic: deterministic first (majority + confidence weighting + risk veto); optional LLM judge only if still ambiguous and budget allows.",
+        "Record every LLM call with traceId + model + tokens + cost estimate (provider pricing table can be config-driven; if unknown, record tokens+latency and keep cost nullable)."
+      ],
+      "proof_required": [
+        "Unit test: schema validation + escalation triggers",
+        "Log sample: one arena run showing cheap-first then escalation",
+        "DB rows inserted for run + agent decisions + consensus"
+      ]
+    },
+    {
+      "step": "A2 Link decisions to executions (outcome links)",
+      "instructions": [
+        "When a consensus decision is 'EXECUTABLE', create a stable decisionId and attach it to the order pipeline metadata.",
+        "Ensure order submission includes decisionId and traceId; store decisionId→order mapping in ai_outcome_links (or existing schema).",
+        "If order fails/cancels, outcome link must reflect final state."
+      ],
+      "proof_required": [
+        "curl output showing decisionId present in API responses",
+        "DB query example in docs/ARENA_TRACE_EXAMPLE.md"
+      ]
+    },
+    {
+      "step": "A3 AdminHub UI module (Arena + Leaderboard)",
+      "instructions": [
+        "Extend AdminHubScreen.tsx: add 'Arena' module section and a detail view.",
+        "Arena Overview: fetch /api/admin/arena/runs and render cards; clicking opens Run Details.",
+        "Run Details: show agent decision cards (model, role, action, confidence, risk flags), expandable reasoning, tool calls, and consensus selection trace.",
+        "Leaderboard: compute server-side first (avoid expensive client aggregation) and render rankings with filters (7d/30d/90d; by market; by strategy).",
+        "Profiles UI: allow enabling/disabling specific agents and setting per-agent budgets/limits."
+      ],
+      "proof_required": [
+        "UI screenshot(s) showing Arena module populated from real DB data",
+        "Buttons wired and working (run, refresh, view details)"
+      ]
+    },
+    {
+      "step": "A4 Docs + Admin consolidation",
+      "instructions": [
+        "Update docs/ADMIN_DASHBOARD.md with the Arena module, endpoints, and operator guidance.",
+        "Update docs/DOC_REALITY_MATRIX.json to mark implemented items accurately (no claims without code).",
+        "If there are other admin pages besides AdminHub, redirect them to AdminHub or remove them (keeping routes stable if needed).",
+        "Add a single clear admin entry point: web route '/admin' (and/or a dedicated navigation item) that lands on AdminHub. Document it in docs/ADMIN_ACCESS.md."
+      ],
+      "proof_required": [
+        "Docs diffs committed",
+        "A single instruction in README or docs/ADMIN_ACCESS.md: how to access admin"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Arena run works end-to-end from AdminHub: triggers run → stores decisions → shows run details with reasoning + costs + traceId.",
+    "At least 2 agent profiles run in parallel (cheap) and at least 1 scenario triggers escalation to a powerful OpenRouter model.",
+    "Consensus decision is persisted and linked to order execution metadata (decisionId present on orders).",
+    "Leaderboard renders using real historical outcomes (even if limited data at first).",
+    "Admin entry point documented and stable; no duplicate admin pages drifting out of sync.",
+    "No mock trades in UI; Trade/Order status remains sourced from real broker + DB truth."
+  ],
+  "operator_notes": {
+    "initial_agent_profiles_to_create": [
+      {
+        "name": "cheap_tech_analyst",
+        "provider": "openai",
+        "model": "small",
+        "role": "technical_analyst",
+        "mode": "cheap_first"
+      },
+      {
+        "name": "cheap_risk_manager",
+        "provider": "openrouter",
+        "model": "free_or_cheap",
+        "role": "risk_manager",
+        "mode": "cheap_first"
+      },
+      {
+        "name": "power_macro_judge",
+        "provider": "openrouter",
+        "model": "powerful",
+        "role": "judge",
+        "mode": "escalation_only"
+      }
+    ],
+    "escalation_thresholds": {
+      "disagreement_rate": 0.34,
+      "min_confidence": 0.62,
+      "high_risk_portfolio_delta_pct": 1.5,
+      "max_power_calls_per_day": 25
+    }
+  }
+}

@@ -121,6 +121,27 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function adminTokenMiddleware(req: Request, res: Response, next: NextFunction) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  const headerToken = req.headers["x-admin-token"] as string;
+  
+  if (adminToken && headerToken === adminToken) {
+    req.userId = "admin-token-user";
+    return next();
+  }
+  
+  const sessionId = req.cookies?.session;
+  if (sessionId) {
+    const session = sessions.get(sessionId);
+    if (session && session.expiresAt >= new Date()) {
+      req.userId = session.userId;
+      return next();
+    }
+  }
+  
+  return res.status(401).json({ error: "Admin authentication required. Provide valid session or X-Admin-Token header." });
+}
+
 function requireCapability(...capabilities: AdminCapability[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.userId) {
