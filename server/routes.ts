@@ -70,6 +70,7 @@ import { initializeDefaultModules, getModules, getModule, getAdminOverview } fro
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
+import { alpacaUniverseService, liquidityService } from "./universe";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -4607,6 +4608,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to get related entities:", error);
       res.status(500).json({ error: "Failed to get related entities" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN UNIVERSE MANAGEMENT ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/universe/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await alpacaUniverseService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_assets",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get universe stats:", error);
+      res.status(500).json({ error: "Failed to get universe stats" });
+    }
+  });
+
+  app.get("/api/admin/universe/assets", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { tradableOnly, excludeOtc, excludeSpac, excludePennyStocks, exchange, limit, offset } = req.query;
+      
+      const assets = await alpacaUniverseService.getAssets({
+        tradableOnly: tradableOnly !== "false",
+        excludeOtc: excludeOtc !== "false",
+        excludeSpac: excludeSpac !== "false",
+        excludePennyStocks: excludePennyStocks !== "false",
+        exchange: exchange as string | undefined,
+        limit: limit ? parseInt(limit as string) : 1000,
+        offset: offset ? parseInt(offset as string) : 0,
+      });
+      
+      res.json({
+        assets,
+        count: assets.length,
+        source: "universe_assets",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get universe assets:", error);
+      res.status(500).json({ error: "Failed to get universe assets" });
+    }
+  });
+
+  app.get("/api/admin/universe/assets/:symbol", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const asset = await alpacaUniverseService.getAssetBySymbol(symbol);
+      
+      if (!asset) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+      
+      res.json(asset);
+    } catch (error) {
+      console.error("Failed to get asset:", error);
+      res.status(500).json({ error: "Failed to get asset" });
+    }
+  });
+
+  app.post("/api/admin/universe/refresh", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { includeOtc, includeSpac, includePennyStocks, assetClass, traceId } = req.body;
+      
+      const result = await alpacaUniverseService.refreshAssets({
+        includeOtc: includeOtc === true,
+        includeSpac: includeSpac === true,
+        includePennyStocks: includePennyStocks === true,
+        assetClass: assetClass || "us_equity",
+        traceId: traceId || `univ-${Date.now()}`,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to refresh universe:", error);
+      res.status(500).json({ error: "Failed to refresh universe" });
+    }
+  });
+
+  app.post("/api/admin/universe/exclude/:symbol", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { excluded, reason } = req.body;
+      
+      await alpacaUniverseService.setExcluded(symbol, excluded === true, reason);
+      
+      res.json({ success: true, symbol, excluded: excluded === true });
+    } catch (error) {
+      console.error("Failed to set exclusion:", error);
+      res.status(500).json({ error: "Failed to set exclusion" });
+    }
+  });
+
+  app.get("/api/admin/universe/tradable", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const symbols = await alpacaUniverseService.getTradableSymbols();
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      console.error("Failed to get tradable symbols:", error);
+      res.status(500).json({ error: "Failed to get tradable symbols" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN LIQUIDITY MANAGEMENT ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/liquidity/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await liquidityService.getTierStats();
+      const thresholds = await liquidityService.getThresholdsForAdmin();
+      
+      res.json({
+        ...stats,
+        thresholds,
+        source: "universe_liquidity_metrics",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get liquidity stats:", error);
+      res.status(500).json({ error: "Failed to get liquidity stats" });
+    }
+  });
+
+  app.get("/api/admin/liquidity/metrics/:symbol", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const metrics = await liquidityService.getMetricsBySymbol(symbol);
+      
+      if (!metrics) {
+        return res.status(404).json({ error: "Liquidity metrics not found" });
+      }
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error("Failed to get liquidity metrics:", error);
+      res.status(500).json({ error: "Failed to get liquidity metrics" });
+    }
+  });
+
+  app.get("/api/admin/liquidity/tier/:tier", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { tier } = req.params;
+      const { limit } = req.query;
+      
+      if (!["A", "B", "C"].includes(tier)) {
+        return res.status(400).json({ error: "Invalid tier. Must be A, B, or C" });
+      }
+      
+      const metrics = await liquidityService.getMetricsByTier(
+        tier as "A" | "B" | "C",
+        limit ? parseInt(limit as string) : 100
+      );
+      
+      res.json({ metrics, count: metrics.length, tier });
+    } catch (error) {
+      console.error("Failed to get tier metrics:", error);
+      res.status(500).json({ error: "Failed to get tier metrics" });
+    }
+  });
+
+  app.get("/api/admin/liquidity/top", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const topLiquid = await liquidityService.getTopLiquid(
+        limit ? parseInt(limit as string) : 50
+      );
+      
+      res.json({ metrics: topLiquid, count: topLiquid.length });
+    } catch (error) {
+      console.error("Failed to get top liquid assets:", error);
+      res.status(500).json({ error: "Failed to get top liquid assets" });
+    }
+  });
+
+  app.post("/api/admin/liquidity/compute", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbols, batchSize, traceId } = req.body;
+      
+      const result = await liquidityService.computeLiquidityMetrics({
+        symbols: symbols as string[] | undefined,
+        batchSize: batchSize ? parseInt(batchSize) : 50,
+        traceId: traceId || `liq-${Date.now()}`,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to compute liquidity metrics:", error);
+      res.status(500).json({ error: "Failed to compute liquidity metrics" });
     }
   });
 

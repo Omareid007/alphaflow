@@ -725,3 +725,185 @@ export const insertAdminSettingSchema = createInsertSchema(adminSettings).omit({
 
 export type InsertAdminSetting = z.infer<typeof insertAdminSettingSchema>;
 export type AdminSetting = typeof adminSettings.$inferSelect;
+
+// ============================================================================
+// UNIVERSE & ALLOCATION TABLES (Phases A-E)
+// ============================================================================
+
+export const universeAssets = pgTable("universe_assets", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(),
+  name: text("name").notNull(),
+  exchange: text("exchange").notNull(),
+  assetClass: text("asset_class").notNull(),
+  status: text("status").notNull(),
+  tradable: boolean("tradable").default(false).notNull(),
+  marginable: boolean("marginable").default(false).notNull(),
+  shortable: boolean("shortable").default(false).notNull(),
+  fractionable: boolean("fractionable").default(false).notNull(),
+  easyToBorrow: boolean("easy_to_borrow").default(false).notNull(),
+  isOtc: boolean("is_otc").default(false).notNull(),
+  isSpac: boolean("is_spac").default(false).notNull(),
+  isPennyStock: boolean("is_penny_stock").default(false).notNull(),
+  excluded: boolean("excluded").default(false).notNull(),
+  excludeReason: text("exclude_reason"),
+  lastRefreshedAt: timestamp("last_refreshed_at").defaultNow().notNull(),
+  rawJson: jsonb("raw_json"),
+}, (table) => [
+  index("universe_assets_symbol_idx").on(table.symbol),
+  index("universe_assets_tradable_idx").on(table.tradable),
+  index("universe_assets_exchange_idx").on(table.exchange),
+]);
+
+export const universeLiquidityMetrics = pgTable("universe_liquidity_metrics", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(),
+  avgDailyVolumeShares: numeric("avg_daily_volume_shares"),
+  avgDailyTradedValueUsd: numeric("avg_daily_traded_value_usd"),
+  avgBidAskSpreadPct: numeric("avg_bid_ask_spread_pct"),
+  latestPrice: numeric("latest_price"),
+  priceDataDays: integer("price_data_days").default(30),
+  liquidityTier: text("liquidity_tier"),
+  source: text("source").notNull(),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+  rawJson: jsonb("raw_json"),
+}, (table) => [
+  index("universe_liquidity_symbol_idx").on(table.symbol),
+  index("universe_liquidity_tier_idx").on(table.liquidityTier),
+]);
+
+export const universeFundamentals = pgTable("universe_fundamentals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(),
+  marketCap: numeric("market_cap"),
+  revenueTtm: numeric("revenue_ttm"),
+  revenueCagr3y: numeric("revenue_cagr_3y"),
+  grossMargin: numeric("gross_margin"),
+  operatingMargin: numeric("operating_margin"),
+  netMargin: numeric("net_margin"),
+  freeCashFlowMargin: numeric("free_cash_flow_margin"),
+  debtToEquity: numeric("debt_to_equity"),
+  sharesDilution1y: numeric("shares_dilution_1y"),
+  sector: text("sector"),
+  industry: text("industry"),
+  source: text("source").notNull(),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+  rawJson: jsonb("raw_json"),
+}, (table) => [
+  index("universe_fundamentals_symbol_idx").on(table.symbol),
+  index("universe_fundamentals_sector_idx").on(table.sector),
+]);
+
+export const universeCandidates = pgTable("universe_candidates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(),
+  tier: text("tier").notNull(),
+  liquidityScore: numeric("liquidity_score"),
+  growthScore: numeric("growth_score"),
+  qualityScore: numeric("quality_score"),
+  finalScore: numeric("final_score"),
+  themeTags: jsonb("theme_tags"),
+  rationale: text("rationale"),
+  status: text("status").notNull().default("NEW"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  traceId: text("trace_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("universe_candidates_symbol_idx").on(table.symbol),
+  index("universe_candidates_status_idx").on(table.status),
+  index("universe_candidates_tier_idx").on(table.tier),
+  index("universe_candidates_final_score_idx").on(table.finalScore),
+]);
+
+export const allocationPolicies = pgTable("allocation_policies", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").default(false).notNull(),
+  maxPositionWeightPct: numeric("max_position_weight_pct").default("8"),
+  maxSectorWeightPct: numeric("max_sector_weight_pct").default("25"),
+  minLiquidityTier: text("min_liquidity_tier").default("B"),
+  profitTakingThresholdPct: numeric("profit_taking_threshold_pct").default("20"),
+  overweightThresholdPct: numeric("overweight_threshold_pct").default("50"),
+  rotationTopN: integer("rotation_top_n").default(10),
+  rebalanceFrequency: text("rebalance_frequency").default("daily"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("allocation_policies_active_idx").on(table.isActive),
+]);
+
+export const rebalanceRuns = pgTable("rebalance_runs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  policyId: varchar("policy_id").references(() => allocationPolicies.id),
+  traceId: text("trace_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  triggerType: text("trigger_type").notNull(),
+  inputSnapshot: jsonb("input_snapshot"),
+  orderIntents: jsonb("order_intents"),
+  executedOrders: jsonb("executed_orders"),
+  rationale: text("rationale"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("rebalance_runs_trace_id_idx").on(table.traceId),
+  index("rebalance_runs_status_idx").on(table.status),
+]);
+
+export const insertUniverseAssetSchema = createInsertSchema(universeAssets).omit({
+  id: true,
+  lastRefreshedAt: true,
+});
+export const insertUniverseLiquiditySchema = createInsertSchema(universeLiquidityMetrics).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
+export const insertUniverseFundamentalsSchema = createInsertSchema(universeFundamentals).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
+export const insertUniverseCandidateSchema = createInsertSchema(universeCandidates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertAllocationPolicySchema = createInsertSchema(allocationPolicies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertRebalanceRunSchema = createInsertSchema(rebalanceRuns).omit({
+  id: true,
+  startedAt: true,
+});
+
+export type InsertUniverseAsset = z.infer<typeof insertUniverseAssetSchema>;
+export type UniverseAsset = typeof universeAssets.$inferSelect;
+export type InsertUniverseLiquidity = z.infer<typeof insertUniverseLiquiditySchema>;
+export type UniverseLiquidity = typeof universeLiquidityMetrics.$inferSelect;
+export type InsertUniverseFundamentals = z.infer<typeof insertUniverseFundamentalsSchema>;
+export type UniverseFundamentals = typeof universeFundamentals.$inferSelect;
+export type InsertUniverseCandidate = z.infer<typeof insertUniverseCandidateSchema>;
+export type UniverseCandidate = typeof universeCandidates.$inferSelect;
+export type InsertAllocationPolicy = z.infer<typeof insertAllocationPolicySchema>;
+export type AllocationPolicy = typeof allocationPolicies.$inferSelect;
+export type InsertRebalanceRun = z.infer<typeof insertRebalanceRunSchema>;
+export type RebalanceRun = typeof rebalanceRuns.$inferSelect;
+
+export type CandidateStatus = "NEW" | "WATCHLISTED" | "APPROVED" | "REJECTED";
+export type LiquidityTier = "A" | "B" | "C";
