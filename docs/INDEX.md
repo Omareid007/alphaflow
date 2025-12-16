@@ -69,6 +69,7 @@
 | [providers/COINGECKO_CAPABILITIES.md](providers/COINGECKO_CAPABILITIES.md) | CoinGecko API coverage |
 | [providers/OPENAI_CAPABILITIES.md](providers/OPENAI_CAPABILITIES.md) | OpenAI API usage |
 | [providers/CAPABILITY_SUMMARY.md](providers/CAPABILITY_SUMMARY.md) | Cross-provider summary |
+| [DATA_PROVIDER_AITRADOS.md](DATA_PROVIDER_AITRADOS.md) | AiTrados research data provider |
 
 ### Architecture Decision Records (ADRs)
 
@@ -111,6 +112,7 @@ Each topic has exactly one canonical document. If you need information, go to th
 | AI agent workflow, governance | [AGENT_EXECUTION_GUIDE.md](AGENT_EXECUTION_GUIDE.md) |
 | LLM providers, model routing | [AI_MODELS_AND_PROVIDERS.md](AI_MODELS_AND_PROVIDERS.md) |
 | External API connectors | [CONNECTORS_AND_INTEGRATIONS.md](CONNECTORS_AND_INTEGRATIONS.md) |
+| AiTrados research data | [DATA_PROVIDER_AITRADOS.md](DATA_PROVIDER_AITRADOS.md) |
 | P&L formulas, metrics | [FINANCIAL_METRICS.md](FINANCIAL_METRICS.md) |
 | Test strategy, test backlog | [TESTING.md](TESTING.md) |
 | Logging, tracing, monitoring | [OBSERVABILITY.md](OBSERVABILITY.md) |

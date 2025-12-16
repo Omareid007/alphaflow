@@ -260,7 +260,8 @@ export async function getAllProviderStatuses(): Promise<Record<string, Awaited<R
   const providers = [
     "alpaca", "finnhub", "coingecko", "coinmarketcap", "newsapi",
     "polygon", "twelvedata", "valyu", "huggingface", "gdelt",
-    "openai", "groq", "together"
+    "openai", "groq", "together",
+    "aitrados_ohlc", "aitrados_news", "aitrados_econ"
   ];
 
   const statuses: Record<string, Awaited<ReturnType<typeof getProviderStatus>>> = {};

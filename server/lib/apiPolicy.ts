@@ -187,6 +187,36 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     priority: 3,
     enabled: envBool("REDDIT_ENABLED", true),
   },
+  aitrados_ohlc: {
+    provider: "aitrados_ohlc",
+    maxRequestsPerHour: envInt("AITRADOS_OHLC_RATE_LIMIT_PER_HOUR", 100),
+    maxRequestsPerDay: envInt("AITRADOS_OHLC_RATE_LIMIT_PER_DAY", 1000),
+    minRequestIntervalMs: envInt("AITRADOS_OHLC_MIN_INTERVAL_MS", 500),
+    cacheFreshDurationMs: envInt("AITRADOS_OHLC_CACHE_FRESH_MS", 60 * 1000),
+    cacheStaleDurationMs: envInt("AITRADOS_OHLC_CACHE_STALE_MS", 15 * 60 * 1000),
+    priority: 6,
+    enabled: envBool("AITRADOS_ENABLED", true),
+  },
+  aitrados_news: {
+    provider: "aitrados_news",
+    maxRequestsPerHour: envInt("AITRADOS_NEWS_RATE_LIMIT_PER_HOUR", 50),
+    maxRequestsPerDay: envInt("AITRADOS_NEWS_RATE_LIMIT_PER_DAY", 500),
+    minRequestIntervalMs: envInt("AITRADOS_NEWS_MIN_INTERVAL_MS", 1000),
+    cacheFreshDurationMs: envInt("AITRADOS_NEWS_CACHE_FRESH_MS", 5 * 60 * 1000),
+    cacheStaleDurationMs: envInt("AITRADOS_NEWS_CACHE_STALE_MS", 30 * 60 * 1000),
+    priority: 5,
+    enabled: envBool("AITRADOS_ENABLED", true),
+  },
+  aitrados_econ: {
+    provider: "aitrados_econ",
+    maxRequestsPerHour: envInt("AITRADOS_ECON_RATE_LIMIT_PER_HOUR", 30),
+    maxRequestsPerDay: envInt("AITRADOS_ECON_RATE_LIMIT_PER_DAY", 200),
+    minRequestIntervalMs: envInt("AITRADOS_ECON_MIN_INTERVAL_MS", 2000),
+    cacheFreshDurationMs: envInt("AITRADOS_ECON_CACHE_FRESH_MS", 10 * 60 * 1000),
+    cacheStaleDurationMs: envInt("AITRADOS_ECON_CACHE_STALE_MS", 60 * 60 * 1000),
+    priority: 5,
+    enabled: envBool("AITRADOS_ENABLED", true),
+  },
 };
 
 export function getProviderPolicy(provider: string): ProviderPolicy {

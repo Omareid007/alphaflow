@@ -233,3 +233,6 @@ export const gdeltFetcher = createProviderFetcher("gdelt");
 export const openaiFetcher = createProviderFetcher("openai");
 export const groqFetcher = createProviderFetcher("groq");
 export const togetherFetcher = createProviderFetcher("together");
+export const aitradosOhlcFetcher = createProviderFetcher("aitrados_ohlc");
+export const aitradosNewsFetcher = createProviderFetcher("aitrados_news");
+export const aitradosEconFetcher = createProviderFetcher("aitrados_econ");

@@ -45,17 +45,22 @@ AI Active Trader implements a comprehensive API budget management and persistent
 
 Each provider has configurable limits:
 
-| Provider | Per-Minute | Per-Day | Per-Week | Cache TTL | Notes |
-|----------|------------|---------|----------|-----------|-------|
-| Alpaca | 180 | - | - | 30s | Safety margin under 200 |
-| Finnhub | 50 | - | - | 1m | Safety margin under 60 |
-| TwelveData | 6 | 700 | - | 1m | Strict limits |
-| CoinGecko | 10 | 500 | - | 1m | Free tier limits |
-| Valyu | - | - | 1 | 7d | Expensive, cached 90 days |
-| NewsAPI | - | 80 | - | 1h | Daily quota |
-| OpenAI | 60 | - | - | 1h | Token limits separate |
-| Groq | 30 | - | - | 1h | 500k tokens/day |
-| Together | 60 | - | - | 1h | 800k tokens/day |
+| Provider | Per-Minute | Per-Hour | Per-Day | Per-Week | Cache TTL | Notes |
+|----------|------------|----------|---------|----------|-----------|-------|
+| Alpaca | 180 | - | - | - | 30s | Safety margin under 200 |
+| Finnhub | 50 | - | - | - | 1m | Safety margin under 60 |
+| TwelveData | 6 | - | 700 | - | 1m | Strict limits |
+| CoinGecko | 10 | - | 500 | - | 1m | Free tier limits |
+| Valyu | - | - | - | 1 | 7d | Expensive, cached 90 days |
+| NewsAPI | - | - | 80 | - | 1h | Daily quota |
+| OpenAI | 60 | - | - | - | 1h | Token limits separate |
+| Groq | 30 | - | - | - | 1h | 500k tokens/day |
+| Together | 60 | - | - | - | 1h | 800k tokens/day |
+| AiTrados OHLC | - | 100 | 1000 | - | 1m | Research data |
+| AiTrados News | - | 50 | 500 | - | 5m | Research data |
+| AiTrados Econ | - | 30 | 200 | - | 10m | Economic events |
+
+For full AiTrados configuration, see [DATA_PROVIDER_AITRADOS.md](DATA_PROVIDER_AITRADOS.md).
 
 ## Usage
 
