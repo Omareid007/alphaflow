@@ -70,7 +70,7 @@ import { initializeDefaultModules, getModules, getModule, getAdminOverview } fro
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
-import { alpacaUniverseService, liquidityService } from "./universe";
+import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService } from "./universe";
 import type { AdminCapability } from "../shared/types/admin-module";
 
 declare module "express-serve-static-core" {
@@ -4800,6 +4800,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to compute liquidity metrics:", error);
       res.status(500).json({ error: "Failed to compute liquidity metrics" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN FUNDAMENTALS ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/fundamentals/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await fundamentalsService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_fundamentals",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get fundamentals stats:", error);
+      res.status(500).json({ error: "Failed to get fundamentals stats" });
+    }
+  });
+
+  app.get("/api/admin/fundamentals/:symbol", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
+      
+      if (!fundamentals) {
+        return res.status(404).json({ error: "Fundamentals not found" });
+      }
+      
+      const scores = fundamentalsService.calculateQualityGrowthScore(fundamentals);
+      res.json({ ...fundamentals, ...scores });
+    } catch (error) {
+      console.error("Failed to get fundamentals:", error);
+      res.status(500).json({ error: "Failed to get fundamentals" });
+    }
+  });
+
+  app.get("/api/admin/fundamentals/top/scores", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const top = await fundamentalsService.getTopByScore(
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json({ fundamentals: top, count: top.length });
+    } catch (error) {
+      console.error("Failed to get top fundamentals:", error);
+      res.status(500).json({ error: "Failed to get top fundamentals" });
+    }
+  });
+
+  app.post("/api/admin/fundamentals/fetch", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbols, batchSize, traceId } = req.body;
+      
+      const result = await fundamentalsService.fetchAndStoreFundamentals({
+        symbols: symbols as string[] | undefined,
+        batchSize: batchSize ? parseInt(batchSize) : 10,
+        traceId: traceId || `fund-${Date.now()}`,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch fundamentals:", error);
+      res.status(500).json({ error: "Failed to fetch fundamentals" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN CANDIDATES ENDPOINTS (RBAC protected)
+  // ============================================================================
+
+  app.get("/api/admin/candidates/stats", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const stats = await candidatesService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_candidates",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get candidates stats:", error);
+      res.status(500).json({ error: "Failed to get candidates stats" });
+    }
+  });
+
+  app.get("/api/admin/candidates", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { status, limit } = req.query;
+      
+      let candidates;
+      if (status && ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)) {
+        candidates = await candidatesService.getCandidatesByStatus(
+          status as "NEW" | "WATCHLIST" | "APPROVED" | "REJECTED",
+          limit ? parseInt(limit as string) : 100
+        );
+      } else {
+        candidates = await candidatesService.getTopCandidates(
+          limit ? parseInt(limit as string) : 100
+        );
+      }
+      
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      console.error("Failed to get candidates:", error);
+      res.status(500).json({ error: "Failed to get candidates" });
+    }
+  });
+
+  app.get("/api/admin/candidates/:symbol", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const candidate = await candidatesService.getCandidateBySymbol(symbol);
+      
+      if (!candidate) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+      
+      res.json(candidate);
+    } catch (error) {
+      console.error("Failed to get candidate:", error);
+      res.status(500).json({ error: "Failed to get candidate" });
+    }
+  });
+
+  app.post("/api/admin/candidates/generate", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { minLiquidityTier, minScore, limit, traceId } = req.body;
+      
+      const result = await candidatesService.generateCandidates({
+        minLiquidityTier: minLiquidityTier as "A" | "B" | "C" | undefined,
+        minScore: minScore ? parseFloat(minScore) : 0.4,
+        limit: limit ? parseInt(limit) : 100,
+        traceId: traceId || `cand-${Date.now()}`,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to generate candidates:", error);
+      res.status(500).json({ error: "Failed to generate candidates" });
+    }
+  });
+
+  app.post("/api/admin/candidates/:symbol/approve", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const userId = req.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      
+      const result = await candidatesService.approveCandidate(symbol, userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to approve candidate:", error);
+      res.status(500).json({ error: "Failed to approve candidate" });
+    }
+  });
+
+  app.post("/api/admin/candidates/:symbol/reject", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const result = await candidatesService.rejectCandidate(symbol);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to reject candidate:", error);
+      res.status(500).json({ error: "Failed to reject candidate" });
+    }
+  });
+
+  app.post("/api/admin/candidates/:symbol/watchlist", authMiddleware, requireCapability("admin:write"), async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const result = await candidatesService.watchlistCandidate(symbol);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to watchlist candidate:", error);
+      res.status(500).json({ error: "Failed to watchlist candidate" });
+    }
+  });
+
+  app.get("/api/admin/candidates/approved/list", authMiddleware, requireCapability("admin:read"), async (req, res) => {
+    try {
+      const symbols = await candidatesService.getApprovedSymbols();
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      console.error("Failed to get approved symbols:", error);
+      res.status(500).json({ error: "Failed to get approved symbols" });
     }
   });
 
