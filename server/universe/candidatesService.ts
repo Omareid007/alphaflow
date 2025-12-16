@@ -253,6 +253,81 @@ export class CandidatesService {
       .orderBy(desc(universeCandidates.finalScore))
       .limit(limit);
   }
+
+  async bootstrapFromWatchlist(watchlist: string[], traceId?: string): Promise<{
+    added: number;
+    existing: number;
+    errors: number;
+  }> {
+    console.log(`[CANDIDATES] Bootstrapping ${watchlist.length} symbols from watchlist, traceId=${traceId}`);
+    
+    let added = 0;
+    let existing = 0;
+    let errors = 0;
+
+    for (const symbol of watchlist) {
+      try {
+        const upperSymbol = symbol.toUpperCase();
+        const exists = await db
+          .select({ id: universeCandidates.id })
+          .from(universeCandidates)
+          .where(eq(universeCandidates.symbol, upperSymbol))
+          .limit(1);
+
+        if (exists.length > 0) {
+          existing++;
+          continue;
+        }
+
+        await db.insert(universeCandidates).values({
+          symbol: upperSymbol,
+          tier: "B",
+          liquidityScore: "0.7",
+          qualityScore: "0.6",
+          growthScore: "0.6",
+          finalScore: "0.65",
+          rationale: "Auto-bootstrapped from orchestrator watchlist",
+          status: "APPROVED",
+          approvedAt: new Date(),
+          approvedBy: null,
+          traceId,
+        });
+        added++;
+      } catch (error) {
+        console.error(`[CANDIDATES] Error bootstrapping ${symbol}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(`[CANDIDATES] Bootstrap complete: added=${added}, existing=${existing}, errors=${errors}`);
+    return { added, existing, errors };
+  }
+
+  async ensureWatchlistApproved(watchlist: string[], traceId?: string): Promise<void> {
+    // Get all existing symbols
+    const existingSymbols = new Set(
+      (await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates))
+        .map(r => r.symbol.toUpperCase())
+    );
+    
+    // Find missing symbols from watchlist
+    const missingSymbols = watchlist
+      .map(s => s.toUpperCase())
+      .filter(s => !existingSymbols.has(s));
+    
+    if (missingSymbols.length === 0) {
+      console.log(`[CANDIDATES] All ${watchlist.length} watchlist symbols already in universe_candidates`);
+      return;
+    }
+    
+    console.log(`[CANDIDATES] Found ${missingSymbols.length} missing symbols, bootstrapping...`);
+    const result = await this.bootstrapFromWatchlist(missingSymbols, traceId);
+    
+    // Log warning if there were errors but continue - partial population is better than none
+    if (result.errors > 0) {
+      console.warn(`[CANDIDATES] Bootstrap completed with ${result.errors} errors out of ${missingSymbols.length} symbols`);
+    }
+  }
 }
 
 export const candidatesService = new CandidatesService();

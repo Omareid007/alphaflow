@@ -477,6 +477,26 @@ orchestrator:
     afterHoursEnd: "20:00"
     timezone: "America/New_York"
   
+  # Risk limits - configurable in agent_status table
+  riskLimits:
+    maxPositionSizePercent: 10    # Max % of portfolio per position
+    maxTotalExposurePercent: 80   # Max total exposure (increased from 50%)
+    maxPositionsCount: 50         # Max concurrent positions (increased from 10)
+    dailyLossLimitPercent: 5      # Daily loss limit before kill switch
+  
+  # Position management defaults
+  positionManagement:
+    defaultStopLossPercent: 3     # Hard stop loss
+    defaultTakeProfitPercent: 6   # Take profit target
+    emergencyStopPercent: 8       # Emergency stop (-8%)
+    trailingStopActivation: 5     # Trailing stop activates at +5%
+  
+  # Trading enforcement
+  tradingEnforcement:
+    requireApprovedSymbols: true  # Only trade symbols in universe_candidates
+    bypassForSellOrders: true     # SELL orders always allowed (closing positions)
+    maxRotationTopN: 50           # Max symbols considered for rotation
+  
   sagas:
     tradeExecution:
       timeout: 60000
@@ -498,6 +518,36 @@ orchestrator:
       - "ai-trader.trade.order.*"
       - "ai-trader.ai.decision.*"
 ```
+
+### Universe Candidates Bootstrap
+
+On orchestrator startup, if the `universe_candidates` table is empty, symbols are automatically bootstrapped from the hardcoded WATCHLIST (180+ stocks + crypto):
+
+```typescript
+// In orchestrator.initialize()
+const allSymbols = [...WATCHLIST.stocks, ...WATCHLIST.crypto.map(c => `${c}/USD`)];
+await candidatesService.ensureWatchlistApproved(allSymbols, "orchestrator-init");
+```
+
+This ensures that trading enforcement doesn't block all trades when the universe table is empty.
+
+### Key Database Settings
+
+The following settings are stored in the `agent_status` table and can be modified at runtime:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_positions_count` | 50 | Maximum concurrent positions |
+| `max_total_exposure_percent` | 80 | Maximum portfolio exposure |
+| `max_position_size_percent` | 10 | Maximum single position size |
+| `daily_loss_limit_percent` | 5 | Daily loss limit |
+| `kill_switch_active` | false | Emergency stop all trading |
+
+The `allocation_policies` table controls:
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `rotation_top_n` | 50 | Max symbols for rotation/rebalancing |
+
 
 ---
 

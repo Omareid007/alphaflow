@@ -11,6 +11,7 @@ import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } fro
 import { recordDecisionFeatures, recordTradeOutcome, updateTradeOutcomeOnClose, runCalibrationAnalysis } from "../ai/learning-service";
 import { tradabilityService } from "../services/tradability-service";
 import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
+import { candidatesService } from "../universe/candidatesService";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
@@ -663,6 +664,11 @@ class AutonomousOrchestrator {
   async initialize(): Promise<void> {
     await this.loadRiskLimitsFromDB();
     await this.syncPositionsFromBroker();
+    
+    // Bootstrap universe candidates if empty - ensures trading enforcement doesn't block all trades
+    const allSymbols = [...WATCHLIST.stocks, ...WATCHLIST.crypto.map(c => `${c}/USD`)];
+    await candidatesService.ensureWatchlistApproved(allSymbols, "orchestrator-init");
+    
     log.info("Orchestrator", "Initialized with risk limits", { ...this.riskLimits });
   }
 
