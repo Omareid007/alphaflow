@@ -632,10 +632,17 @@ function TradeLedger() {
     <Card elevation={1} style={styles.ledgerCard}>
       <View style={styles.cardHeader}>
         <Feather name="list" size={20} color={BrandColors.primaryLight} />
-        <ThemedText style={styles.cardTitle}>Trade Ledger</ThemedText>
+        <ThemedText style={styles.cardTitle}>AI Trade Intents</ThemedText>
         <View style={styles.tradeBadge}>
           <ThemedText style={styles.tradeBadgeText}>{total}</ThemedText>
         </View>
+      </View>
+      <View style={styles.sourceRow}>
+        <View style={[styles.sourceBadge, { backgroundColor: BrandColors.neutral + "30" }]}>
+          <Feather name="cpu" size={10} color={BrandColors.neutral} />
+          <ThemedText style={[styles.sourceBadgeText, { color: theme.textSecondary }]}>Source: Internal AI Decisions</ThemedText>
+        </View>
+        <ThemedText style={[styles.sourceHint, { color: theme.textSecondary }]}>See Orders tab for broker-synced data</ThemedText>
       </View>
       
       <View style={styles.filtersContainer}>
@@ -1194,5 +1201,31 @@ const styles = StyleSheet.create({
   },
   backtestsLinkSubtitle: {
     ...Typography.caption,
+  },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.cardBorder,
+  },
+  sourceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.xs,
+  },
+  sourceBadgeText: {
+    ...Typography.small,
+    fontWeight: "500",
+  },
+  sourceHint: {
+    ...Typography.small,
   },
 });

@@ -278,15 +278,30 @@ export function OrdersTable({ limit = 20, showHeader = true }: OrdersTableProps)
   return (
     <View style={styles.container}>
       {showHeader ? (
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Feather name="list" size={20} color={BrandColors.primaryLight} />
-            <ThemedText style={styles.headerTitle}>Order Ledger</ThemedText>
+        <>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Feather name="list" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.headerTitle}>Broker Orders</ThemedText>
+            </View>
+            <View style={styles.orderBadge}>
+              <ThemedText style={styles.orderBadgeText}>{data?.total ?? "-"}</ThemedText>
+            </View>
           </View>
-          <View style={styles.orderBadge}>
-            <ThemedText style={styles.orderBadgeText}>{data?.total ?? "-"}</ThemedText>
+          <View style={styles.sourceRow}>
+            <View style={[styles.sourceBadge, { backgroundColor: BrandColors.success + "20" }]}>
+              <Feather name="check-circle" size={10} color={BrandColors.success} />
+              <ThemedText style={[styles.sourceBadgeText, { color: BrandColors.success }]}>
+                Source: Alpaca (Broker-synced)
+              </ThemedText>
+            </View>
+            {data?.source?.timestamp ? (
+              <ThemedText style={[styles.sourceTime, { color: theme.textSecondary }]}>
+                Updated: {new Date(data.source.timestamp).toLocaleTimeString()}
+              </ThemedText>
+            ) : null}
           </View>
-        </View>
+        </>
       ) : null}
       {renderContent()}
     </View>
@@ -455,5 +470,31 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
+  },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  sourceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.xs,
+  },
+  sourceBadgeText: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  sourceTime: {
+    fontSize: 10,
   },
 });

@@ -1585,6 +1585,248 @@ function RebalancerModule() {
   );
 }
 
+interface TraceTimelineEvent {
+  id: string;
+  type: "decision" | "trade" | "order" | "fill" | "llm_call";
+  timestamp: Date;
+  symbol?: string;
+  title: string;
+  subtitle: string;
+  status: "success" | "pending" | "error" | "info";
+  metadata: Record<string, any>;
+}
+
+function TraceTimelineView({ 
+  traceId, 
+  setTraceId, 
+  traceResult, 
+  traceMutation 
+}: { 
+  traceId: string; 
+  setTraceId: (s: string) => void; 
+  traceResult: any; 
+  traceMutation: any;
+}) {
+  const { theme } = useTheme();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const buildTimeline = (): TraceTimelineEvent[] => {
+    if (!traceResult) return [];
+    const events: TraceTimelineEvent[] = [];
+
+    (traceResult.aiDecisions || []).forEach((d: any) => {
+      events.push({
+        id: `decision-${d.id}`,
+        type: "decision",
+        timestamp: new Date(d.createdAt),
+        symbol: d.symbol,
+        title: `AI Decision: ${d.action?.toUpperCase()} ${d.symbol}`,
+        subtitle: `Confidence: ${((d.confidence || 0) * 100).toFixed(0)}% | ${d.reasoning?.substring(0, 60) || "No reasoning"}...`,
+        status: d.status === "rejected" ? "error" : "info",
+        metadata: { ...d, entityType: "AI Decision (Internal)" },
+      });
+    });
+
+    (traceResult.llmCalls || []).forEach((l: any) => {
+      events.push({
+        id: `llm-${l.id}`,
+        type: "llm_call",
+        timestamp: new Date(l.createdAt),
+        symbol: undefined,
+        title: `LLM Call: ${l.role || "unknown"}`,
+        subtitle: `${l.provider}/${l.model} | ${l.tokensUsed || 0} tokens | $${(l.estimatedCost || 0).toFixed(4)}`,
+        status: l.status === "success" ? "success" : l.status === "error" ? "error" : "pending",
+        metadata: { ...l, entityType: "LLM Call" },
+      });
+    });
+
+    (traceResult.trades || []).forEach((t: any) => {
+      events.push({
+        id: `trade-${t.id}`,
+        type: "trade",
+        timestamp: new Date(t.executedAt || t.createdAt),
+        symbol: t.symbol,
+        title: `Trade Intent: ${t.side?.toUpperCase()} ${t.quantity} ${t.symbol}`,
+        subtitle: `Target: $${t.price || "N/A"} | Intent Status: ${t.status}`,
+        status: t.status === "rejected" ? "error" : "pending",
+        metadata: { ...t, entityType: "Trade Intent (Internal)" },
+      });
+    });
+
+    (traceResult.orders || []).forEach((o: any) => {
+      const statusColor = ["filled", "accepted"].includes(o.status) ? "success" 
+        : ["rejected", "canceled", "expired"].includes(o.status) ? "error" 
+        : "pending";
+      events.push({
+        id: `order-${o.id}`,
+        type: "order",
+        timestamp: new Date(o.submittedAt || o.createdAt),
+        symbol: o.symbol,
+        title: `Broker Order: ${o.side?.toUpperCase()} ${o.qty || o.notional} ${o.symbol}`,
+        subtitle: `Status: ${o.status?.toUpperCase()} | Broker ID: ${o.brokerOrderId?.substring(0, 8)}...`,
+        status: statusColor,
+        metadata: { ...o, entityType: "Broker Order" },
+      });
+    });
+
+    (traceResult.fills || []).forEach((f: any) => {
+      events.push({
+        id: `fill-${f.id}`,
+        type: "fill",
+        timestamp: new Date(f.occurredAt || f.createdAt),
+        symbol: f.symbol,
+        title: `Fill: ${f.side?.toUpperCase()} ${f.qty} ${f.symbol}`,
+        subtitle: `Price: $${f.price} | Broker Order: ${f.brokerOrderId?.substring(0, 8)}...`,
+        status: "success",
+        metadata: { ...f, entityType: "Fill Execution" },
+      });
+    });
+
+    return events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  };
+
+  const timeline = buildTimeline();
+  const getTypeIcon = (type: string): keyof typeof Feather.glyphMap => {
+    switch (type) {
+      case "decision": return "cpu";
+      case "llm_call": return "message-circle";
+      case "trade": return "trending-up";
+      case "order": return "file-text";
+      case "fill": return "check-circle";
+      default: return "circle";
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "success": return BrandColors.success;
+      case "error": return BrandColors.error;
+      case "pending": return BrandColors.warning;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  return (
+    <>
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="git-commit" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Trace Timeline Explorer</ThemedText>
+        </View>
+        <TextInput
+          style={[styles.searchInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: BrandColors.cardBorder }]}
+          placeholder="Enter traceId (e.g., cyc-abc123 or run-xyz456)..."
+          placeholderTextColor={theme.textSecondary}
+          value={traceId}
+          onChangeText={setTraceId}
+        />
+        <Pressable 
+          style={styles.actionButton}
+          onPress={() => traceId.trim() && traceMutation.mutate(traceId.trim())}
+          disabled={traceMutation.isPending || !traceId.trim()}
+        >
+          {traceMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
+            <>
+              <Feather name="search" size={14} color="#fff" />
+              <ThemedText style={styles.actionButtonText}>Explore Trace</ThemedText>
+            </>
+          )}
+        </Pressable>
+      </Card>
+
+      {traceResult && (
+        <>
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="activity" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Trace Summary: {traceResult.traceId}</ThemedText>
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.primaryLight, fontFamily: Fonts?.mono }]}>
+                  {traceResult.aiDecisions?.length || 0}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Decisions</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.warning, fontFamily: Fonts?.mono }]}>
+                  {traceResult.orders?.length || 0}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Orders</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>
+                  {traceResult.fills?.length || 0}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Fills</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={[styles.statValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                  {traceResult.llmCalls?.length || 0}
+                </ThemedText>
+                <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>LLM Calls</ThemedText>
+              </View>
+            </View>
+            <View style={[styles.badge, { backgroundColor: BrandColors.primaryLight, alignSelf: "flex-start", marginTop: Spacing.sm }]}>
+              <ThemedText style={[styles.badgeText, { color: "#fff" }]}>Source: DB (broker-synced)</ThemedText>
+            </View>
+          </Card>
+
+          <Card elevation={1} style={styles.moduleCard}>
+            <View style={styles.cardHeader}>
+              <Feather name="git-branch" size={20} color={BrandColors.primaryLight} />
+              <ThemedText style={styles.cardTitle}>Event Timeline ({timeline.length} events)</ThemedText>
+            </View>
+            {timeline.length === 0 ? (
+              <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No events found for this trace</ThemedText>
+            ) : (
+              timeline.map((event, index) => (
+                <Pressable 
+                  key={event.id} 
+                  onPress={() => setExpandedId(expandedId === event.id ? null : event.id)}
+                  style={[styles.timelineItem, index > 0 ? styles.listRowBorder : null]}
+                >
+                  <View style={styles.timelineLeft}>
+                    <View style={[styles.timelineIcon, { backgroundColor: getStatusColor(event.status) + "20" }]}>
+                      <Feather name={getTypeIcon(event.type)} size={14} color={getStatusColor(event.status)} />
+                    </View>
+                    {index < timeline.length - 1 && <View style={[styles.timelineLine, { backgroundColor: theme.textSecondary + "40" }]} />}
+                  </View>
+                  <View style={styles.timelineContent}>
+                    <View style={styles.timelineHeader}>
+                      <ThemedText style={[styles.listRowText, { flex: 1 }]} numberOfLines={1}>{event.title}</ThemedText>
+                      <View style={[styles.badge, { backgroundColor: getStatusColor(event.status) }]}>
+                        <ThemedText style={[styles.badgeText, { color: "#fff", fontSize: 10 }]}>{event.type.toUpperCase()}</ThemedText>
+                      </View>
+                    </View>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]} numberOfLines={1}>{event.subtitle}</ThemedText>
+                    <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary, fontSize: 10, fontFamily: Fonts?.mono }]}>
+                      {event.timestamp.toLocaleString()}
+                    </ThemedText>
+                    {expandedId === event.id && (
+                      <View style={[styles.expandedMetadata, { backgroundColor: theme.backgroundSecondary }]}>
+                        <ThemedText style={[styles.listRowText, { marginBottom: Spacing.xs }]}>{event.metadata.entityType} Details</ThemedText>
+                        {Object.entries(event.metadata).filter(([k]) => !["entityType", "rawJson"].includes(k)).map(([key, value]) => (
+                          <View key={key} style={styles.metadataRow}>
+                            <ThemedText style={[styles.metadataKey, { color: theme.textSecondary }]}>{key}:</ThemedText>
+                            <ThemedText style={[styles.metadataValue, { color: theme.text, fontFamily: Fonts?.mono }]} numberOfLines={2}>
+                              {typeof value === "object" ? JSON.stringify(value).substring(0, 80) : String(value).substring(0, 80)}
+                            </ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </Card>
+        </>
+      )}
+    </>
+  );
+}
+
 type ObsTab = "health" | "traces" | "queue" | "alerts";
 
 function ObservabilityModule() {
@@ -1777,61 +2019,12 @@ function ObservabilityModule() {
       )}
 
       {activeTab === "traces" && (
-        <Card elevation={1} style={styles.moduleCard}>
-          <View style={styles.cardHeader}>
-            <Feather name="search" size={20} color={BrandColors.primaryLight} />
-            <ThemedText style={styles.cardTitle}>TraceId Explorer</ThemedText>
-          </View>
-          <TextInput
-            style={[styles.searchInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: BrandColors.cardBorder }]}
-            placeholder="Enter traceId to explore..."
-            placeholderTextColor={theme.textSecondary}
-            value={traceId}
-            onChangeText={setTraceId}
-          />
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => traceId.trim() && traceMutation.mutate(traceId.trim())}
-            disabled={traceMutation.isPending || !traceId.trim()}
-          >
-            {traceMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
-              <>
-                <Feather name="search" size={14} color="#fff" />
-                <ThemedText style={styles.actionButtonText}>Search Trace</ThemedText>
-              </>
-            )}
-          </Pressable>
-          {traceResult && (
-            <View style={styles.resultBox}>
-              <ThemedText style={styles.listRowText}>Trace: {traceResult.traceId}</ThemedText>
-              <View style={styles.traceStats}>
-                <View style={styles.traceStat}>
-                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.decisions?.length || 0}</ThemedText>
-                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Decisions</ThemedText>
-                </View>
-                <View style={styles.traceStat}>
-                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.trades?.length || 0}</ThemedText>
-                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Trades</ThemedText>
-                </View>
-                <View style={styles.traceStat}>
-                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.llmCalls?.length || 0}</ThemedText>
-                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>LLM Calls</ThemedText>
-                </View>
-                <View style={styles.traceStat}>
-                  <ThemedText style={[styles.statValue, { fontFamily: Fonts?.mono }]}>{traceResult.workItems?.length || 0}</ThemedText>
-                  <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Work Items</ThemedText>
-                </View>
-              </View>
-              {traceResult.summary && (
-                <View style={[styles.resultBox, { marginTop: Spacing.md }]}>
-                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
-                    Tokens: {traceResult.summary.totalTokens} | Cost: ${traceResult.summary.estimatedCost?.toFixed(4)} | Latency: {traceResult.summary.latencyMs}ms
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-          )}
-        </Card>
+        <TraceTimelineView 
+          traceId={traceId} 
+          setTraceId={setTraceId}
+          traceResult={traceResult}
+          traceMutation={traceMutation}
+        />
       )}
 
       {activeTab === "queue" && (
@@ -2773,4 +2966,14 @@ const styles = StyleSheet.create({
   expandedSection: { padding: Spacing.md, borderRadius: BorderRadius.sm, marginTop: Spacing.sm },
   fillRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: Spacing.sm, borderRadius: BorderRadius.sm, marginBottom: Spacing.xs },
   fillQty: { ...Typography.body, fontWeight: "500" },
+  timelineItem: { flexDirection: "row", paddingVertical: Spacing.md },
+  timelineLeft: { width: 40, alignItems: "center" },
+  timelineIcon: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  timelineLine: { width: 2, flex: 1, marginTop: Spacing.xs },
+  timelineContent: { flex: 1, paddingLeft: Spacing.md },
+  timelineHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.xs },
+  expandedMetadata: { marginTop: Spacing.sm, padding: Spacing.md, borderRadius: BorderRadius.sm },
+  metadataRow: { flexDirection: "row", marginBottom: Spacing.xs },
+  metadataKey: { width: 100, ...Typography.small },
+  metadataValue: { flex: 1, ...Typography.small },
 });
