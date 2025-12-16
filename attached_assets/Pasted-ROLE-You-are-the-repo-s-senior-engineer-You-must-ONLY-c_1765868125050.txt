@@ -1,0 +1,148 @@
+ROLE: You are the repo’s senior engineer. You must ONLY claim something is “done” if you can demonstrate it with (1) working UI interactions, (2) real API responses, and (3) a short verification checklist with exact endpoints/screens. No mock/demo data. No “implemented” unless verifiable.
+
+GOAL (P0): Consolidate ALL admin capabilities into ONE WordPress-style Admin Hub page (already exists conceptually) and make every admin action fully functional end-to-end (UI button → API → DB → UI reflects updated state). Also add a separate entrypoint to Admin via /admin deep-link path for web, and a clear guide in docs on how I can access it.
+
+CONSTRAINTS:
+- Do not duplicate existing backend services/endpoints. Enrich and wire them into the Admin UI.
+- Use existing OpenAI + OpenRouter integration: Orchestrator/LLM routing stays as designed, but Admin must expose controls/visibility.
+- All data must be real (Alpaca, Finnhub, configured providers). No fake trades or placeholder values.
+
+STEP 0 — READ FIRST (mandatory)
+1) Read docs folder and summarize what’s relevant before coding:
+   - AUDIT_DOC_VS_IMPLEMENTATION_GAP.md (moderate gaps, especially Orders vs Trades vs Fills)
+   - SOURCE_OF_TRUTH_CONTRACT.md
+   - ORCHESTRATOR_AND_AGENT_RUNTIME.md
+   - WORK_QUEUE_ARCHITECTURE.md
+   - AI_MODELS_AND_PROVIDERS.md (LLM routing, fallback)
+   - TRADING_SAGA_SEQUENCES.md (treat as future-state; don’t implement NATS now)
+2) Read current admin UI code and navigation:
+   - client/screens/AdminScreen.tsx
+   - client/screens/ApiBudgetScreen.tsx
+   - client/screens/ModelRouterScreen.tsx
+   - client/navigation/AdminStackNavigator.tsx
+   - any “client/admin/* registry” module system if present
+3) Read backend admin endpoints already available in server/routes.ts:
+   - /api/admin/universe/*
+   - /api/admin/fundamentals/*
+   - /api/admin/candidates/*
+   - /api/admin/enforcement/*
+   - /api/admin/allocation/*
+   - /api/admin/rebalancer/*
+   - /api/admin/provider-status, /api/admin/model-router/*, and existing “connector health / ai config / api keys” endpoints used by AdminScreen
+
+OUTPUT of STEP 0:
+- A short “Reality Matrix”: {Feature} → {Endpoint exists?} → {UI exists?} → {What’s missing to make it clickable & correct}
+Only then proceed.
+
+STEP 1 — CREATE “ADMIN HUB” SINGLE PAGE (WordPress-style)
+1) Convert Admin into ONE consolidated “AdminHubScreen” (you can rename AdminScreen or wrap it).
+2) Layout:
+   - Left sidebar: sections (like WordPress menu)
+   - Main panel: selected section content
+   - Top bar: quick actions (Refresh data, Run dry-run, View trace)
+3) Sidebar sections (MUST implement all, using existing screens/components, not duplicating):
+   A) Overview (existing cards: connector health, data fusion, ai config, api keys)
+   B) Providers & Budgets (embed ApiBudgetScreen content as a module inside AdminHub, not separate screen)
+   C) LLM Router (embed ModelRouterScreen content as a module inside AdminHub, not separate screen)
+   D) Universe (NEW UI module that wires to existing endpoints)
+   E) Fundamentals (NEW UI module)
+   F) Candidates & Approval (NEW UI module)
+   G) Enforcement Gate (NEW UI module)
+   H) Allocation Policies (NEW UI module)
+   I) Rebalancer (NEW UI module)
+   J) Observability (NEW UI module: traceId explorer + work queue status)
+
+4) Remove/avoid redundant routes:
+   - AdminStackNavigator should ideally have just one screen: AdminHub
+   - Keep old screens only if they’re reused internally; don’t keep separate navigation entries for budgets/router
+
+STEP 2 — WIRE EACH ADMIN MODULE TO REAL ENDPOINTS (no placeholders)
+D) Universe module must include:
+   - Universe stats view (GET /api/admin/universe/stats)
+   - “Refresh Universe from Alpaca” button (POST /api/admin/universe/refresh) with traceId input/autogen
+   - Universe assets list (GET /api/admin/universe/assets) with filters:
+     - tradable only
+     - excluded only
+     - exchange filter
+     - search by symbol
+   - Asset details drawer (GET /api/admin/universe/assets/:symbol)
+   - Exclude symbol action (POST /api/admin/universe/exclude/:symbol) with confirmation
+   - Tradable symbols view (GET /api/admin/universe/tradable)
+
+E) Fundamentals module:
+   - Stats (GET /api/admin/fundamentals/stats)
+   - Fetch fundamentals for selected symbols (POST /api/admin/fundamentals/fetch) + show progress/result
+   - Symbol fundamentals view (GET /api/admin/fundamentals/:symbol)
+   - Top scores (GET /api/admin/fundamentals/top/scores?limit=...)
+
+F) Candidates & Approval module:
+   - Stats (GET /api/admin/candidates/stats)
+   - List candidates (GET /api/admin/candidates) with filters (status, minScore, minTier)
+   - Generate candidates (POST /api/admin/candidates/generate) with controls:
+     - minLiquidityTier, minScore, limit
+   - Candidate details (GET /api/admin/candidates/:symbol)
+   - Approve (POST /api/admin/candidates/:symbol/approve)
+   - Reject (POST /api/admin/candidates/:symbol/reject)
+   - Add to watchlist (POST /api/admin/candidates/:symbol/watchlist)
+   - Approved list (GET /api/admin/candidates/approved/list)
+
+G) Enforcement Gate module:
+   - Stats (GET /api/admin/enforcement/stats)
+   - Check symbol(s) (POST /api/admin/enforcement/check) UI supports single and multi-symbol
+   - Reset stats (POST /api/admin/enforcement/reset-stats)
+   - IMPORTANT: explain in UI that this gate blocks unapproved symbols from being traded (connect to the work queue order submit path)
+
+H) Allocation Policies module:
+   - Stats (GET /api/admin/allocation/stats)
+   - List policies (GET /api/admin/allocation/policies)
+   - View active policy (GET /api/admin/allocation/policies/active)
+   - Create policy (POST /api/admin/allocation/policies)
+   - Edit policy (PATCH /api/admin/allocation/policies/:id)
+   - Activate/deactivate (POST /api/admin/allocation/policies/:id/activate and .../deactivate)
+   - Analyze allocation (GET/POST /api/admin/allocation/analyze as implemented)
+   - Runs list/details (GET /api/admin/allocation/runs and /api/admin/allocation/runs/:id)
+
+I) Rebalancer module:
+   - Stats (GET /api/admin/rebalancer/stats)
+   - Dry run (POST /api/admin/rebalancer/dry-run) with traceId
+   - Execute (POST /api/admin/rebalancer/execute) with a BIG confirmation + traceId
+   - Profit-taking analyze (POST /api/admin/rebalancer/profit-taking/analyze)
+   - Show output as structured JSON + a human readable summary
+
+J) Observability module:
+   - A TraceId search box
+   - Must show joined views (read-only) for:
+     - ai decisions, trades, llm calls, and work items filtered by traceId
+   - Also show work-queue health:
+     - counts of queued/running/succeeded/failed/dead-letter
+     - latest dead letters with “requeue” action if such endpoint exists; if not, add a safe admin endpoint to requeue dead letters
+
+STEP 3 — ADD SEPARATE ADMIN ENTRYPOINT (/admin) + GUIDE
+We need a clear entrypoint to access Admin.
+1) Implement deep linking config so that on WEB the path /admin opens the AdminHub screen.
+   - Use React Navigation deep linking “configuring links” approach.
+2) Add a Profile button “Open Admin Dashboard” visible only to admin users that navigates to AdminHub.
+3) Add docs:
+   - Create docs/ADMIN_DASHBOARD.md with:
+     - How to login as admin
+     - How to open Admin on mobile (Admin tab + Profile button)
+     - How to open Admin on web via /admin
+     - How to verify the key workflows (Universe refresh, Candidate approve, Rebalancer dry-run)
+   - Update docs/INDEX.md to link ADMIN_DASHBOARD.md
+
+STEP 4 — VALIDATION (must be real)
+1) Add a “Verification Checklist” at the end of your work:
+   - UI clicks tested + expected API responses
+   - At least 8 curl commands proving the endpoints + that UI changes reflect DB updates
+2) If ANY UI shows data that isn’t from a real endpoint, remove it or wire it properly.
+3) Ensure “Done” means:
+   - AdminHub has all modules
+   - All buttons work end-to-end
+   - /admin deep link works on web
+   - Docs updated and accurate
+
+DELIVERABLES:
+- Code changes (UI + minimal backend only if required for observability/work-queue requeue)
+- docs/ADMIN_DASHBOARD.md
+- docs/INDEX.md update
+- A short “Reality Matrix” + “Verification Checklist” with exact steps
