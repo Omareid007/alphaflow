@@ -15,6 +15,7 @@ type AdminSection =
   | "overview" 
   | "budgets" 
   | "router" 
+  | "orders"
   | "universe" 
   | "fundamentals" 
   | "candidates" 
@@ -34,6 +35,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "overview", label: "Overview", icon: "home", description: "Dashboard overview" },
   { id: "budgets", label: "Providers & Budgets", icon: "activity", description: "API rate limits and cache" },
   { id: "router", label: "LLM Router", icon: "git-branch", description: "Model routing config" },
+  { id: "orders", label: "Orders", icon: "file-text", description: "Order lifecycle and fills" },
   { id: "universe", label: "Universe", icon: "globe", description: "Asset universe management" },
   { id: "fundamentals", label: "Fundamentals", icon: "bar-chart-2", description: "Fundamental data" },
   { id: "candidates", label: "Candidates", icon: "users", description: "Trading candidates" },
@@ -130,11 +132,7 @@ function OverviewModule() {
 
   const configMutation = useMutation({
     mutationFn: async (updates: any) => {
-      return apiRequest("/api/admin/ai-config", {
-        method: "PUT",
-        body: JSON.stringify(updates),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("PUT", "/api/admin/ai-config", updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/ai-config"] });
@@ -1480,18 +1478,14 @@ function ObservabilityModule() {
 
   const retryMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/admin/observability/work-queue/items/${id}/retry`, { method: "POST" });
+      return apiRequest("POST", `/api/admin/observability/work-queue/items/${id}/retry`);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/observability/work-queue/items"] }),
   });
 
   const toggleRuleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      return apiRequest(`/api/admin/observability/alerts/rules/${id}/toggle`, {
-        method: "POST",
-        body: JSON.stringify({ enabled }),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("POST", `/api/admin/observability/alerts/rules/${id}/toggle`, { enabled });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/observability/alerts/rules"] }),
   });
@@ -1776,7 +1770,7 @@ function ObservabilityModule() {
             ) : alertRules.map((rule: any) => (
               <View key={rule.id} style={[styles.listRow, styles.listRowBorder]}>
                 <View style={styles.listRowLeft}>
-                  <View style={[styles.statusDot, { backgroundColor: rule.enabled ? BrandColors.success : BrandColors.textSecondary }]} />
+                  <View style={[styles.statusDot, { backgroundColor: rule.enabled ? BrandColors.success : BrandColors.neutral }]} />
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.listRowText}>{rule.name}</ThemedText>
                     <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
@@ -1832,6 +1826,191 @@ function ObservabilityModule() {
   );
 }
 
+function OrdersModule() {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const ordersPath = `/api/orders?limit=50${statusFilter ? `&status=${statusFilter}` : ""}`;
+  
+  const { data, isLoading, refetch } = useQuery<{ orders: any[]; total: number; source: any }>({
+    queryKey: [ordersPath],
+    queryFn: async () => {
+      const res = await fetch(new URL(ordersPath, getApiUrl()).toString(), { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/orders/sync");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ordersPath] });
+    },
+  });
+
+  const statusFilters = ["all", "new", "filled", "partially_filled", "canceled", "rejected"];
+  const orders = data?.orders || [];
+
+  const getStatusColor = (status: string): string => {
+    switch (status.toLowerCase()) {
+      case "filled": return BrandColors.success;
+      case "partially_filled": return BrandColors.warning;
+      case "new": case "accepted": case "pending_new": return BrandColors.primaryLight;
+      case "canceled": case "expired": return BrandColors.neutral;
+      case "rejected": return BrandColors.error;
+      default: return BrandColors.neutral;
+    }
+  };
+
+  const formatStatus = (status: string): string => status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return (
+    <ScrollView contentContainerStyle={styles.moduleContent} refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} />}>
+      <ThemedText style={styles.moduleTitle}>Orders & Fills</ThemedText>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="file-text" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Order Lifecycle</ThemedText>
+          <Pressable 
+            style={[styles.smallButton, { backgroundColor: BrandColors.primaryLight }]}
+            onPress={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+          >
+            {syncMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <ThemedText style={styles.smallButtonText}>Sync</ThemedText>
+            )}
+          </Pressable>
+        </View>
+        <View style={styles.filterRow}>
+          {statusFilters.map((filter) => (
+            <Pressable
+              key={filter}
+              style={[
+                styles.filterButton,
+                (filter === "all" && !statusFilter) || statusFilter === filter
+                  ? { backgroundColor: BrandColors.primaryLight + "30" }
+                  : {}
+              ]}
+              onPress={() => setStatusFilter(filter === "all" ? null : filter)}
+            >
+              <ThemedText style={styles.filterButtonText}>
+                {filter.charAt(0).toUpperCase() + filter.slice(1).replace(/_/g, " ")}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
+      <Card elevation={1} style={styles.moduleCard}>
+        <View style={styles.cardHeader}>
+          <Feather name="list" size={20} color={BrandColors.primaryLight} />
+          <ThemedText style={styles.cardTitle}>Order Ledger</ThemedText>
+          <View style={[styles.badge, { backgroundColor: BrandColors.primaryLight }]}>
+            <ThemedText style={[styles.badgeText, { color: "#fff" }]}>{data?.total ?? "-"}</ThemedText>
+          </View>
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primaryLight} />}
+        </View>
+        {orders.length === 0 ? (
+          <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>No orders found</ThemedText>
+        ) : orders.map((order: any) => (
+          <Pressable key={order.id} onPress={() => setExpandedId(expandedId === order.id ? null : order.id)}>
+            <View style={[styles.listRow, styles.listRowBorder]}>
+              <View style={styles.listRowLeft}>
+                <View style={[
+                  styles.sideIndicator,
+                  { backgroundColor: order.side === "buy" ? BrandColors.success : BrandColors.error }
+                ]} />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+                    <ThemedText style={styles.listRowText}>{order.symbol}</ThemedText>
+                    <View style={[
+                      styles.badge,
+                      { backgroundColor: getStatusColor(order.status) + "20", borderWidth: 1, borderColor: getStatusColor(order.status) }
+                    ]}>
+                      <ThemedText style={[styles.badgeText, { color: getStatusColor(order.status) }]}>
+                        {formatStatus(order.status)}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                    {order.side.toUpperCase()} {order.type} | Qty: {order.filledQty || 0}/{order.qty || "?"}
+                    {order.filledAvgPrice ? ` @ $${parseFloat(order.filledAvgPrice).toFixed(2)}` : ""}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                  {new Date(order.submittedAt).toLocaleString()}
+                </ThemedText>
+                <Feather name={expandedId === order.id ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
+              </View>
+            </View>
+            {expandedId === order.id ? (
+              <View style={[styles.expandedSection, { backgroundColor: theme.backgroundSecondary }]}>
+                <View style={styles.detailGrid}>
+                  <View style={styles.detailItem}>
+                    <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>Broker Order ID</ThemedText>
+                    <ThemedText style={[styles.detailValue, { fontFamily: Fonts?.mono, fontSize: 10 }]}>
+                      {order.brokerOrderId?.slice(0, 20)}...
+                    </ThemedText>
+                  </View>
+                  {order.traceId ? (
+                    <View style={styles.detailItem}>
+                      <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>Trace ID</ThemedText>
+                      <ThemedText style={[styles.detailValue, { fontFamily: Fonts?.mono, fontSize: 10 }]}>
+                        {order.traceId?.slice(0, 20)}...
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                  {order.decisionId ? (
+                    <View style={styles.detailItem}>
+                      <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>Decision ID</ThemedText>
+                      <ThemedText style={[styles.detailValue, { fontFamily: Fonts?.mono, fontSize: 10 }]}>
+                        {order.decisionId?.slice(0, 20)}...
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                  {order.filledAt ? (
+                    <View style={styles.detailItem}>
+                      <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>Filled At</ThemedText>
+                      <ThemedText style={styles.detailValue}>{new Date(order.filledAt).toLocaleString()}</ThemedText>
+                    </View>
+                  ) : null}
+                </View>
+                {order.fills && order.fills.length > 0 ? (
+                  <View style={{ marginTop: Spacing.md }}>
+                    <ThemedText style={[styles.listRowText, { marginBottom: Spacing.xs }]}>
+                      Fills ({order.fills.length})
+                    </ThemedText>
+                    {order.fills.map((fill: any) => (
+                      <View key={fill.id} style={[styles.fillRow, { backgroundColor: theme.backgroundDefault }]}>
+                        <ThemedText style={[styles.fillQty, { fontFamily: Fonts?.mono }]}>
+                          {fill.qty} @ ${parseFloat(fill.price).toFixed(2)}
+                        </ThemedText>
+                        <ThemedText style={[styles.listRowMeta, { color: theme.textSecondary }]}>
+                          {new Date(fill.occurredAt).toLocaleTimeString()}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </Pressable>
+        ))}
+      </Card>
+    </ScrollView>
+  );
+}
+
 export default function AdminHubScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -1845,6 +2024,7 @@ export default function AdminHubScreen() {
       case "overview": return <OverviewModule />;
       case "budgets": return <BudgetsModule />;
       case "router": return <RouterModule />;
+      case "orders": return <OrdersModule />;
       case "universe": return <UniverseModule />;
       case "fundamentals": return <FundamentalsModule />;
       case "candidates": return <CandidatesModule />;
@@ -1991,4 +2171,8 @@ const styles = StyleSheet.create({
   healthIndicator: { width: 12, height: 12, borderRadius: 6, marginBottom: Spacing.xs },
   healthLabel: { ...Typography.small, fontWeight: "500" },
   healthValue: { ...Typography.small },
+  sideIndicator: { width: 4, height: 36, borderRadius: 2 },
+  expandedSection: { padding: Spacing.md, borderRadius: BorderRadius.sm, marginTop: Spacing.sm },
+  fillRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: Spacing.sm, borderRadius: BorderRadius.sm, marginBottom: Spacing.xs },
+  fillQty: { ...Typography.body, fontWeight: "500" },
 });

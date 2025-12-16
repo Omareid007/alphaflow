@@ -142,6 +142,42 @@ Comprehensive observability dashboard with OpenTelemetry integration and alertin
 
 **Key Files**: `server/observability/otel.ts`, `server/observability/alertService.ts`, `server/observability/routes.ts`, `client/screens/AdminHubScreen.tsx`
 
+### Phase 5: Admin Hub Consolidation (December 2025)
+WordPress-style admin panel with 11 modules for complete system management:
+
+1. **Admin Hub Structure** (`client/screens/AdminHubScreen.tsx`):
+   - Fixed sidebar navigation with 11 modules
+   - Responsive layout with collapsible sidebar for mobile
+   - Top bar with current module indicator
+
+2. **Admin Modules**:
+   - **Overview**: Dashboard with connector health, data fusion status, API key summary
+   - **Providers & Budgets**: API rate limits, cache statistics, budget tracking
+   - **LLM Router**: Role configurations, fallback chains, call statistics
+   - **Orders**: Full order lifecycle with status filters, broker order details, fills
+   - **Universe**: Asset universe from Alpaca, tradability checks
+   - **Fundamentals**: Company fundamental data from Finnhub
+   - **Candidates**: Approval workflow for trading candidates (NEW → WATCHLIST → APPROVED/REJECTED)
+   - **Enforcement**: Trading enforcement gate statistics
+   - **Allocation**: Portfolio allocation policies
+   - **Rebalancer**: Portfolio rebalancing controls
+   - **Observability**: Traces, work queue, alerts (4 sub-tabs)
+
+3. **Orders Module Features**:
+   - Status filter buttons (All, New, Filled, Partially Filled, Canceled, Rejected)
+   - Sync button to trigger manual order reconciliation from Alpaca
+   - Expandable order rows showing broker order ID, trace ID, decision ID, fills
+   - Real-time updates via 15-second polling
+
+4. **Alpaca Trade Updates WebSocket** (`server/trading/alpaca-stream.ts`):
+   - Real-time order lifecycle updates via WebSocket
+   - Automatic reconnection with exponential backoff
+   - Creates fill records for partial/full fills
+   - Heartbeat monitoring for connection health
+
+**Access**: Admin Hub available at Profile → Admin for users with `isAdmin: true`
+**Default Admin**: username: `admintest`, password: `admin1234`
+
 ## System Architecture
 
 ### Target Architecture
