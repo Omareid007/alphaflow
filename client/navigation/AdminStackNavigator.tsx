@@ -1,14 +1,10 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import AdminScreen from "@/screens/AdminScreen";
-import ApiBudgetScreen from "@/screens/ApiBudgetScreen";
-import ModelRouterScreen from "@/screens/ModelRouterScreen";
+import AdminHubScreen from "@/screens/AdminHubScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type AdminStackParamList = {
-  Admin: undefined;
-  ApiBudget: undefined;
-  ModelRouter: undefined;
+  AdminHub: undefined;
 };
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
@@ -19,24 +15,10 @@ export default function AdminStackNavigator() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="Admin"
-        component={AdminScreen}
+        name="AdminHub"
+        component={AdminHubScreen}
         options={{
-          headerTitle: "Admin",
-        }}
-      />
-      <Stack.Screen
-        name="ApiBudget"
-        component={ApiBudgetScreen}
-        options={{
-          headerTitle: "API Budgets",
-        }}
-      />
-      <Stack.Screen
-        name="ModelRouter"
-        component={ModelRouterScreen}
-        options={{
-          headerTitle: "LLM Model Router",
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
