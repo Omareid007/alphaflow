@@ -1,7 +1,15 @@
 import { z } from "zod";
 
+export const AitradosBaseResponseSchema = z.object({
+  status: z.string(),
+  code: z.number(),
+  message: z.string(),
+  reference: z.unknown().nullable().optional(),
+});
+
 export const OhlcBarSchema = z.object({
-  timestamp: z.number(),
+  timestamp: z.number().optional(),
+  datetime: z.string().optional(),
   open: z.number(),
   high: z.number(),
   low: z.number(),
@@ -10,59 +18,68 @@ export const OhlcBarSchema = z.object({
   vwap: z.number().optional(),
 });
 
-export const OhlcLatestResponseSchema = z.object({
-  symbol: z.string(),
-  interval: z.string(),
-  bar: OhlcBarSchema,
-  source: z.string().optional(),
-  asOfTimestamp: z.number().optional(),
+export const OhlcLatestResponseSchema = AitradosBaseResponseSchema.extend({
+  result: z.object({
+    symbol: z.string().optional(),
+    interval: z.string().optional(),
+    data: z.array(OhlcBarSchema).optional(),
+  }).optional(),
 });
 
 export const NewsItemSchema = z.object({
-  id: z.string(),
-  headline: z.string(),
-  summary: z.string().optional(),
-  source: z.string(),
-  url: z.string().optional(),
-  publishedAt: z.string(),
-  symbols: z.array(z.string()).optional(),
-  sentiment: z.object({
-    score: z.number().optional(),
-    label: z.enum(["positive", "negative", "neutral"]).optional(),
-  }).optional(),
-  categories: z.array(z.string()).optional(),
+  sentiment_label: z.string().nullable().optional(),
+  sentiment_score: z.number().nullable().optional(),
+  asset_name: z.string().optional(),
+  country_iso_code: z.string().optional(),
+  symbol: z.string().optional(),
+  link_type: z.string().optional(),
+  published_date: z.string(),
+  publisher: z.string(),
+  title: z.string(),
+  text_content: z.string().optional(),
+  publisher_url: z.string().optional(),
 });
 
-export const NewsListResponseSchema = z.object({
-  items: z.array(NewsItemSchema),
-  totalCount: z.number().optional(),
-  nextPageToken: z.string().optional(),
+export const NewsListResponseSchema = AitradosBaseResponseSchema.extend({
+  result: z.object({
+    next_page_key: z.string().optional(),
+    next_page_url: z.string().optional(),
+    count: z.number().optional(),
+    data: z.array(NewsItemSchema).optional(),
+  }).optional(),
 });
 
 export const EconomicEventSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  country: z.string(),
-  currency: z.string().optional(),
-  scheduledAt: z.string(),
+  event_id: z.string().optional(),
+  event_name: z.string().optional(),
+  country: z.string().optional(),
+  country_iso_code: z.string().optional(),
+  event_datetime: z.string().optional(),
   actual: z.number().nullable().optional(),
   forecast: z.number().nullable().optional(),
   previous: z.number().nullable().optional(),
-  importance: z.enum(["low", "medium", "high"]).optional(),
+  importance: z.string().optional(),
+  impact: z.string().optional(),
   unit: z.string().optional(),
 });
 
-export const EconomicEventResponseSchema = z.object({
-  event: EconomicEventSchema.optional(),
-  events: z.array(EconomicEventSchema).optional(),
+export const EconomicEventResponseSchema = AitradosBaseResponseSchema.extend({
+  result: z.object({
+    next_page_key: z.string().optional(),
+    next_page_url: z.string().optional(),
+    count: z.number().optional(),
+    data: z.array(EconomicEventSchema).optional(),
+  }).optional(),
 });
 
 export const AitradosErrorSchema = z.object({
-  error: z.object({
-    code: z.string(),
+  status: z.string(),
+  code: z.number(),
+  message: z.string(),
+  detail: z.array(z.object({
+    field: z.string(),
     message: z.string(),
-    details: z.unknown().optional(),
-  }),
+  })).optional(),
 });
 
 export type OhlcBar = z.infer<typeof OhlcBarSchema>;

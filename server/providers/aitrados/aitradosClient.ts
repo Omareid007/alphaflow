@@ -99,7 +99,6 @@ async function aitradosFetch<T>(
     endpoint: options.endpoint,
     cacheKey: options.cacheKey,
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
       "Accept": "application/json",
     },
   });

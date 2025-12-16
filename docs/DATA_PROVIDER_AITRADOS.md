@@ -2,30 +2,35 @@
 
 ## Overview
 
-AiTrados is an **optional research data provider** for AI Active Trader, supplying OHLC market data, financial news, and economic calendar events. It is designed for research, analysis triggers, and fallback data - **NOT** for trade execution.
+AiTrados is an **optional research data provider** for AI Active Trader, specifically designed for AI quantitative trading. It supplies OHLC market data, financial news, and economic calendar events for research, analysis triggers, and fallback data - **NOT** for trade execution.
 
 **Source of Truth**: Alpaca remains the execution source of truth. AiTrados data informs AI decisions but does not directly control trading.
+
+**Resources**:
+- Official SDK: https://github.com/aitrados/aitrados-api
+- Documentation: https://docs.aitrados.com/en/docs/api/quickstart/
+- Get API Key: https://www.aitrados.com/
 
 ## Endpoints Used
 
 ### 1. Latest OHLC Bars
 ```
-GET /api/v2/{schema_asset}/bars/{country_symbol}/{interval}/latest
+GET /api/v2/{schema_asset}/bars/{country_symbol}/{interval}/latest?secret_key=...
 ```
-**Schema Assets**: `us_equity`, `crypto`, `forex`, `commodity`, `index`
-**Intervals**: `1min`, `5min`, `15min`, `30min`, `1hour`, `4hour`, `1day`, `1week`
+**Schema Assets**: `stock`, `crypto`, `forex`, `future`, `option`
+**Intervals**: `1M`, `3M`, `5M`, `10M`, `15M`, `30M`, `60M`, `120M`, `240M`, `DAY`, `WEEK`, `MON`
 
 ### 2. News List
 ```
-GET /api/v2/news/list
+GET /api/v2/news/list?secret_key=...&from_date=...&to_date=...
 ```
-**Parameters**: `symbols`, `limit`, `pageToken`, `from`, `to`, `sources`
+**Parameters**: `secret_key`, `from_date`, `to_date`, `symbols`, `limit`, `page_token`, `sources`
 
 ### 3. Economic Calendar Events
 ```
-GET /api/v2/economic_calendar/event
+GET /api/v2/economic_calendar/event?secret_key=...&from_date=...&to_date=...
 ```
-**Parameters**: `eventId`, `country`, `from`, `to`, `importance`
+**Parameters**: `secret_key`, `from_date`, `to_date`, `event_id`, `country`, `importance`
 
 ## Configuration
 
@@ -34,7 +39,7 @@ GET /api/v2/economic_calendar/event
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `AITRADOS_API_KEY` | API key (required) | - |
-| `AITRADOS_BASE_URL` | Base API URL | `https://api.aitrados.com` |
+| `AITRADOS_BASE_URL` | Base API URL | `https://default.dataset-api.aitrados.com` |
 | `AITRADOS_ENABLED` | Enable/disable provider | `true` |
 
 ### Per-Endpoint Rate Limits
@@ -74,7 +79,7 @@ GET /api/v2/economic_calendar/event
 import { getLatestOhlc, getNewsList, getEconomicEvents } from "../providers/aitrados";
 
 // Get latest OHLC for a symbol
-const ohlc = await getLatestOhlc("AAPL", "1day", "us_equity");
+const ohlc = await getLatestOhlc("AAPL", "DAY", "stock");
 console.log(ohlc.normalized); // NormalizedOhlcData
 
 // Get recent news

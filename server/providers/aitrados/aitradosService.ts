@@ -16,6 +16,7 @@ import type {
   EconomicEventResponse,
   NewsItem,
   EconomicEvent,
+  OhlcBar,
 } from "./aitradosSchemas";
 import { log } from "../../utils/logger";
 
@@ -47,8 +48,8 @@ export interface NormalizedNewsData {
   publishedAt: Date;
   symbols: string[];
   sentiment?: {
-    score?: number;
-    label?: "positive" | "negative" | "neutral";
+    score?: number | null;
+    label?: "positive" | "negative" | "neutral" | null;
   };
   source_provider: "aitrados";
 }
@@ -65,51 +66,74 @@ export interface NormalizedEconomicEvent {
   source_provider: "aitrados";
 }
 
-function normalizeOhlc(response: OhlcLatestResponse): NormalizedOhlcData {
+function normalizeOhlc(response: OhlcLatestResponse, symbol: string, interval: string): NormalizedOhlcData {
+  const bar = response.result?.data?.[0];
+  if (!bar) {
+    return {
+      symbol,
+      interval,
+      timestamp: Date.now(),
+      open: 0,
+      high: 0,
+      low: 0,
+      close: 0,
+      source: "aitrados",
+    };
+  }
+  
   return {
-    symbol: response.symbol,
-    interval: response.interval,
-    timestamp: response.bar.timestamp,
-    open: response.bar.open,
-    high: response.bar.high,
-    low: response.bar.low,
-    close: response.bar.close,
-    volume: response.bar.volume,
+    symbol: response.result?.symbol || symbol,
+    interval: response.result?.interval || interval,
+    timestamp: bar.timestamp || (bar.datetime ? new Date(bar.datetime).getTime() : Date.now()),
+    open: bar.open,
+    high: bar.high,
+    low: bar.low,
+    close: bar.close,
+    volume: bar.volume,
     source: "aitrados",
   };
 }
 
 function normalizeNews(items: NewsItem[]): NormalizedNewsData[] {
-  return items.map(item => ({
-    id: item.id,
-    headline: item.headline,
-    summary: item.summary,
-    source: item.source,
-    publishedAt: new Date(item.publishedAt),
-    symbols: item.symbols || [],
-    sentiment: item.sentiment,
+  return items.map((item, index) => ({
+    id: `aitrados-news-${index}-${Date.now()}`,
+    headline: item.title,
+    summary: item.text_content,
+    source: item.publisher,
+    publishedAt: new Date(item.published_date),
+    symbols: item.symbol ? [item.symbol] : [],
+    sentiment: item.sentiment_score !== null || item.sentiment_label !== null ? {
+      score: item.sentiment_score,
+      label: item.sentiment_label as "positive" | "negative" | "neutral" | null,
+    } : undefined,
     source_provider: "aitrados" as const,
   }));
 }
 
-function normalizeEconomicEvent(event: EconomicEvent): NormalizedEconomicEvent {
+function normalizeEconomicEvent(event: EconomicEvent, index: number): NormalizedEconomicEvent {
+  const importanceMap: Record<string, "low" | "medium" | "high"> = {
+    low: "low",
+    medium: "medium",
+    high: "high",
+  };
+  
   return {
-    id: event.id,
-    name: event.name,
-    country: event.country,
-    scheduledAt: new Date(event.scheduledAt),
+    id: event.event_id || `aitrados-event-${index}`,
+    name: event.event_name || "Unknown Event",
+    country: event.country || event.country_iso_code || "Unknown",
+    scheduledAt: new Date(event.event_datetime || Date.now()),
     actual: event.actual,
     forecast: event.forecast,
     previous: event.previous,
-    importance: event.importance,
+    importance: event.importance ? importanceMap[event.importance.toLowerCase()] : undefined,
     source_provider: "aitrados" as const,
   };
 }
 
 export async function getLatestOhlc(
   symbol: string,
-  interval: OhlcLatestParams["interval"] = "1day",
-  schemaAsset: OhlcLatestParams["schemaAsset"] = "us_equity"
+  interval: OhlcLatestParams["interval"] = "DAY",
+  schemaAsset: OhlcLatestParams["schemaAsset"] = "stock"
 ): Promise<{ raw: OhlcLatestResponse; normalized: NormalizedOhlcData; provenance: unknown }> {
   if (!isAitradosEnabled()) {
     throw new Error("AiTrados provider is disabled");
@@ -123,7 +147,7 @@ export async function getLatestOhlc(
 
   return {
     raw: result.data,
-    normalized: normalizeOhlc(result.data),
+    normalized: normalizeOhlc(result.data, symbol, interval),
     provenance: result.provenance,
   };
 }
@@ -140,9 +164,11 @@ export async function getNewsList(
     ...params,
   });
 
+  const items = result.data.result?.data || [];
+  
   return {
     raw: result.data,
-    normalized: normalizeNews(result.data.items || []),
+    normalized: normalizeNews(items),
     provenance: result.provenance,
   };
 }
@@ -156,11 +182,11 @@ export async function getEconomicEvents(
 
   const result = await fetchEconomicEvent(params);
 
-  const events = result.data.events || (result.data.event ? [result.data.event] : []);
+  const events = result.data.result?.data || [];
   
   return {
     raw: result.data,
-    normalized: events.map(normalizeEconomicEvent),
+    normalized: events.map((e, i) => normalizeEconomicEvent(e, i)),
     provenance: result.provenance,
   };
 }
