@@ -209,15 +209,21 @@ class WorkQueueServiceImpl implements WorkQueueService {
       side,
     });
 
-    const enforcementCheck = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
-    if (!enforcementCheck.eligible) {
-      log.warn("work-queue", `ORDER_SUBMIT blocked by enforcement: ${symbol} - ${enforcementCheck.reason}`, { traceId });
-      await this.markFailed(
-        item.id,
-        `Symbol ${symbol} blocked by trading enforcement: ${enforcementCheck.reason}`,
-        false
-      );
-      return;
+    // For SELL orders, skip enforcement check - we must be able to close existing positions
+    // even if the symbol is no longer in the approved candidates list
+    if (side !== "sell") {
+      const enforcementCheck = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
+      if (!enforcementCheck.eligible) {
+        log.warn("work-queue", `ORDER_SUBMIT blocked by enforcement: ${symbol} - ${enforcementCheck.reason}`, { traceId });
+        await this.markFailed(
+          item.id,
+          `Symbol ${symbol} blocked by trading enforcement: ${enforcementCheck.reason}`,
+          false
+        );
+        return;
+      }
+    } else {
+      log.info("work-queue", `Bypassing enforcement check for SELL order on ${symbol}`, { traceId });
     }
 
     const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
