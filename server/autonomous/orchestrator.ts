@@ -224,8 +224,8 @@ async function queueOrderExecution(params: {
     ...(orderParams.stop_price && { stop_price: orderParams.stop_price }),
     ...(orderParams.extended_hours !== undefined && { extended_hours: orderParams.extended_hours }),
     ...(orderParams.order_class && { order_class: orderParams.order_class }),
-    ...(orderParams.take_profit_limit_price && { take_profit_limit_price: orderParams.take_profit_limit_price }),
-    ...(orderParams.stop_loss_stop_price && { stop_loss_stop_price: orderParams.stop_loss_stop_price }),
+    ...(orderParams.take_profit && { take_profit: orderParams.take_profit }),
+    ...(orderParams.stop_loss && { stop_loss: orderParams.stop_loss }),
   };
 
   const workItem = await workQueue.enqueue({
@@ -1427,8 +1427,8 @@ class AutonomousOrchestrator {
             side: "buy",
             type: "market",
             time_in_force: "gtc",
-            take_profit_limit_price: decision.targetPrice.toFixed(2),
-            stop_loss_stop_price: decision.stopLoss.toFixed(2),
+            take_profit: { limit_price: decision.targetPrice.toFixed(2) },
+            stop_loss: { stop_price: decision.stopLoss.toFixed(2) },
             order_class: "bracket",
           };
           queuedResult = await queueOrderExecution({
