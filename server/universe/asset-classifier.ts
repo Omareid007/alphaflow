@@ -246,7 +246,9 @@ export class AssetClassifier {
       const momentumScore = this.calculateMomentumScore(rsi14, macd, macdSignal);
 
       const revenue = fundamentals?.revenueTtm ? Number(fundamentals.revenueTtm) : null;
-      const valueScore = this.calculateValueScore(null, null, marketCap, revenue);
+      const peRatio = fundamentals?.peRatio ? Number(fundamentals.peRatio) : null;
+      const priceToBook = fundamentals?.priceToBook ? Number(fundamentals.priceToBook) : null;
+      const valueScore = this.calculateValueScore(peRatio, priceToBook, marketCap, revenue);
 
       const grossMargin = fundamentals?.grossMargin ? Number(fundamentals.grossMargin) : null;
       const operatingMargin = fundamentals?.operatingMargin ? Number(fundamentals.operatingMargin) : null;
