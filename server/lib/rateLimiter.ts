@@ -47,6 +47,8 @@ const PROVIDER_LIMITS: Record<string, ProviderLimits> = {
 };
 
 const limiters: Map<string, Bottleneck> = new Map();
+const secondLimiters: Map<string, Bottleneck> = new Map();
+const hourlyLimiters: Map<string, Bottleneck> = new Map();
 const dailyLimiters: Map<string, Bottleneck> = new Map();
 
 export function getLimiter(provider: string): Bottleneck {
@@ -56,15 +58,35 @@ export function getLimiter(provider: string): Bottleneck {
 
   const limits = PROVIDER_LIMITS[provider] || { maxPerMinute: 60, maxConcurrent: 5 };
   
-  const reservoir = limits.maxPerMinute || (limits.maxPerSecond ? limits.maxPerSecond * 60 : undefined);
-  
   const limiter = new Bottleneck({
     maxConcurrent: limits.maxConcurrent || 5,
     minTime: limits.minTime || 0,
-    reservoir: reservoir,
-    reservoirRefreshAmount: reservoir,
+    reservoir: limits.maxPerMinute,
+    reservoirRefreshAmount: limits.maxPerMinute,
     reservoirRefreshInterval: 60 * 1000,
   });
+
+  if (limits.maxPerSecond) {
+    const secondLimiter = new Bottleneck({
+      reservoir: limits.maxPerSecond,
+      reservoirRefreshAmount: limits.maxPerSecond,
+      reservoirRefreshInterval: 1000,
+    });
+    secondLimiters.set(provider, secondLimiter);
+    limiter.chain(secondLimiter);
+    log.debug('RateLimiter', `[${provider}] Per-second limiter: ${limits.maxPerSecond}/s`);
+  }
+
+  if (limits.maxPerHour) {
+    const hourlyLimiter = new Bottleneck({
+      reservoir: limits.maxPerHour,
+      reservoirRefreshAmount: limits.maxPerHour,
+      reservoirRefreshInterval: 60 * 60 * 1000,
+    });
+    hourlyLimiters.set(provider, hourlyLimiter);
+    limiter.chain(hourlyLimiter);
+    log.debug('RateLimiter', `[${provider}] Per-hour limiter: ${limits.maxPerHour}/h`);
+  }
 
   if (limits.maxPerDay) {
     const dailyLimiter = new Bottleneck({
@@ -74,6 +96,7 @@ export function getLimiter(provider: string): Bottleneck {
     });
     dailyLimiters.set(provider, dailyLimiter);
     limiter.chain(dailyLimiter);
+    log.debug('RateLimiter', `[${provider}] Per-day limiter: ${limits.maxPerDay}/d`);
   }
 
   limiter.on('failed', (error, jobInfo) => {
@@ -103,20 +126,26 @@ export interface ProviderStatus {
   running: number;
   queued: number;
   reservoir: number | null;
+  secondReservoir: number | null;
+  hourlyReservoir: number | null;
   dailyReservoir: number | null;
 }
 
 export async function getProviderStatus(provider: string): Promise<ProviderStatus> {
   const limiter = limiters.get(provider);
+  const secondLimiter = secondLimiters.get(provider);
+  const hourlyLimiter = hourlyLimiters.get(provider);
   const dailyLimiter = dailyLimiters.get(provider);
   
   if (!limiter) {
-    return { running: 0, queued: 0, reservoir: null, dailyReservoir: null };
+    return { running: 0, queued: 0, reservoir: null, secondReservoir: null, hourlyReservoir: null, dailyReservoir: null };
   }
   
   const counts = limiter.counts();
-  const [reservoir, dailyReservoir] = await Promise.all([
+  const [reservoir, secondReservoir, hourlyReservoir, dailyReservoir] = await Promise.all([
     limiter.currentReservoir(),
+    secondLimiter?.currentReservoir() ?? Promise.resolve(null),
+    hourlyLimiter?.currentReservoir() ?? Promise.resolve(null),
     dailyLimiter?.currentReservoir() ?? Promise.resolve(null),
   ]);
   
@@ -124,6 +153,8 @@ export async function getProviderStatus(provider: string): Promise<ProviderStatu
     running: counts.RUNNING,
     queued: counts.QUEUED,
     reservoir,
+    secondReservoir,
+    hourlyReservoir,
     dailyReservoir,
   };
 }
@@ -147,5 +178,7 @@ export function isProviderConfigured(provider: string): boolean {
 export function addProviderLimits(provider: string, limits: ProviderLimits): void {
   PROVIDER_LIMITS[provider] = limits;
   limiters.delete(provider);
+  secondLimiters.delete(provider);
+  hourlyLimiters.delete(provider);
   dailyLimiters.delete(provider);
 }

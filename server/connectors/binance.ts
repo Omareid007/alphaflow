@@ -171,7 +171,7 @@ export async function getCryptoOHLCV(
       close: parseFloat(k[4]),
       volume: parseFloat(k[5]),
       quoteVolume: parseFloat(k[7]),
-      tradeCount: k[8],
+      tradeCount: Number(k[8]) || 0,
     }));
 
     cache.set(cacheKey, ohlcv);

@@ -8,7 +8,7 @@ const SEC_BASE_URL = 'https://data.sec.gov';
 const SEC_USER_AGENT = `AI-Active-Trader/1.0 (support@aiactivetrader.com)`;
 
 const CompanyFactsSchema = z.object({
-  cik: z.number(),
+  cik: z.union([z.number(), z.string()]).transform(v => String(v)),
   entityName: z.string(),
   facts: z.object({
     'us-gaap': z.record(z.any()).optional(),
