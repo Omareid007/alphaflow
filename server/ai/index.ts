@@ -18,7 +18,6 @@ import { openrouterClient, OpenRouterClient } from "./openrouterClient";
 import { groqClient, GroqClient } from "./groqClient";
 import { togetherClient, TogetherClient } from "./togetherClient";
 import { aimlClient, AIMLClient } from "./aimlClient";
-import { llmRouter, LLMRouter, routedLLMCall, RouterConfig, TaskComplexity, TaskPriority } from "./llmRouter";
 
 export * from "./llmClient";
 export { OpenAIClient, openaiClient } from "./openaiClient";
@@ -26,8 +25,6 @@ export { OpenRouterClient, openrouterClient } from "./openrouterClient";
 export { GroqClient, groqClient } from "./groqClient";
 export { TogetherClient, togetherClient } from "./togetherClient";
 export { AIMLClient, aimlClient } from "./aimlClient";
-export { LLMRouter, llmRouter, routedLLMCall } from "./llmRouter";
-export type { RouterConfig, TaskComplexity, TaskPriority };
 
 function getConfiguredProvider(): LLMProvider {
   const provider = process.env.AI_PROVIDER?.toLowerCase();
