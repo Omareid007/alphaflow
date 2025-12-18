@@ -61,3 +61,26 @@ A centralized library (`server/lib/technical-indicators.ts`) provides functions 
 
 ### Claude Integration Options
 Access to Claude AI is available via Replit AI Integrations (recommended, no API key, uses Replit credits), direct Anthropic API key, or MCP (local only, not for server-side). Current setup utilizes Replit AI Integrations for Anthropic and OpenRouter.
+
+### Strategy System Documentation
+The strategy system follows strict non-hallucination principles:
+-   **docs/STRATEGY_MANIFESTO.md**: Core strategy architecture with academic citations
+-   **docs/UI_FLOW_STRATEGIES.md**: UI screen to API endpoint mapping
+-   **docs/GAP_ANALYSIS.md**: Implementation status and compliance checklist
+
+**Key Principles:**
+- No unsourced performance claims - all metrics must be computed with provenance
+- Academic citations for all strategy parameter defaults
+- Required disclaimers on all backtest/forecast displays
+- Budget-aware data fetching via `server/lib/fetchWithBudgetAndCache.ts`
+
+**Implemented Strategies:**
+| Strategy | File | Backtest Endpoint |
+|----------|------|-------------------|
+| Momentum | `server/strategies/momentum-strategy.ts` | `POST /api/strategies/momentum/backtest` |
+| Moving Average | `server/strategies/moving-average-crossover.ts` | `POST /api/strategies/moving-average/backtest` |
+| Mean Reversion | `server/strategies/mean-reversion-scalper.ts` | `POST /api/strategies/mean-reversion/backtest` |
+
+### Free Data Connectors
+-   **SEC EDGAR** (`server/connectors/sec-edgar.ts`): Government fundamental data (no API key)
+-   **Binance** (`server/connectors/binance.ts`): Crypto market data (no API key)
