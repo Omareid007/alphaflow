@@ -1974,6 +1974,7 @@ class AutonomousOrchestrator {
     try {
       const account = await alpaca.getAccount();
       const portfolioValue = parseFloat(account.portfolio_value);
+      const availableCash = safeParseFloat(account.cash);
       
       if (portfolioValue <= 0) {
         log.warn("Orchestrator", "Cannot rebalance: invalid portfolio value");
@@ -1982,6 +1983,8 @@ class AutonomousOrchestrator {
 
       const targetAllocationPercent = this.riskLimits.maxPositionSizePercent;
       const rebalanceThresholdPercent = 2;
+      const buyTheDipThresholdPercent = 3;
+      const minCashReservePercent = 10;
 
       for (const [symbol, position] of this.state.activePositions.entries()) {
         const positionValue = position.currentPrice * position.quantity;
@@ -1995,14 +1998,12 @@ class AutonomousOrchestrator {
             const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
             let sharesToSell = Math.floor(excessValue / position.currentPrice);
             
-            // Use available quantity instead of total - prevents "insufficient qty" errors
             const availableShares = Math.floor(position.availableQuantity);
             if (availableShares <= 0) {
               log.warn("Orchestrator", `Skipping rebalance for ${symbol}: no available shares (${position.availableQuantity} available, ${position.quantity - position.availableQuantity} held for orders)`);
               continue;
             }
             
-            // Limit sell quantity to what's actually available
             if (sharesToSell > availableShares) {
               log.info("Orchestrator", `Limiting rebalance for ${symbol}: requested ${sharesToSell} but only ${availableShares} available`);
               sharesToSell = availableShares;
@@ -2021,6 +2022,51 @@ class AutonomousOrchestrator {
                 position,
                 (sharesToSell / position.quantity) * 100
               );
+            }
+          } else if (drift < -buyTheDipThresholdPercent) {
+            const cashReserve = portfolioValue * (minCashReservePercent / 100);
+            const availableForBuying = Math.max(0, availableCash - cashReserve);
+            
+            if (availableForBuying <= 0) {
+              log.info("Orchestrator", `Skipping buy-the-dip for ${symbol}: insufficient cash (${availableCash.toFixed(2)} available, ${cashReserve.toFixed(2)} reserve)`);
+              continue;
+            }
+
+            const deficitValue = (portfolioValue * targetAllocationPercent / 100) - positionValue;
+            const buyValue = Math.min(deficitValue, availableForBuying, portfolioValue * 0.02);
+            
+            if (buyValue >= 50 && position.unrealizedPnlPercent <= 0) {
+              log.info("Orchestrator", `Buy-the-dip: Adding $${buyValue.toFixed(2)} to underweight ${symbol} (at ${position.unrealizedPnlPercent.toFixed(1)}% loss)`);
+              
+              const isCrypto = isCryptoSymbol(symbol);
+              const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+              
+              try {
+                const preCheck = await preTradeGuard(symbol, "buy", buyValue, isCrypto);
+                if (!preCheck.canTrade) {
+                  log.warn("Orchestrator", `Buy-the-dip blocked for ${symbol}: ${preCheck.reason}`);
+                  continue;
+                }
+
+                await queueOrderExecution({
+                  orderParams: {
+                    symbol: brokerSymbol,
+                    side: "buy",
+                    type: preCheck.useLimitOrder ? "limit" : "market",
+                    notional: buyValue.toFixed(2),
+                    time_in_force: "day",
+                    extended_hours: preCheck.useExtendedHours,
+                    ...(preCheck.limitPrice && { limit_price: preCheck.limitPrice.toString() }),
+                  },
+                  traceId: this.currentTraceId,
+                  symbol,
+                  side: "buy",
+                });
+                
+                log.trade(`Buy-the-dip: ${symbol} $${buyValue.toFixed(2)}`, { symbol, value: buyValue });
+              } catch (error) {
+                log.error("Orchestrator", `Buy-the-dip failed for ${symbol}`, { error: String(error) });
+              }
             }
           }
         }

@@ -88,12 +88,13 @@ const getEnvModel = (key: string): string | undefined => process.env[key];
 const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = {
   technical_analyst: {
     high: [
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
       { provider: "openrouter", model: getEnvModel("TECH_ANALYST_HIGH_MODEL") || "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
       { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
     ],
     low: [
@@ -103,13 +104,13 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
   },
   risk_manager: {
     high: [
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
       { provider: "openrouter", model: getEnvModel("RISK_MANAGER_HIGH_MODEL") || "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
     ],
     low: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },

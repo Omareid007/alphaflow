@@ -1,0 +1,233 @@
+ AI TRADING ENGINE ENHANCEMENT
+8.1 Dynamic Autonomous Mode
+Current State: Semi-autonomous with manual approval gates Target State: Full dynamic mode with Claude Max for decision making
+
+USER PREFERENCES:
+
+Auto-execute threshold: 75%+ confidence (more aggressive)
+Parallel consensus: DISABLED (single provider, faster execution)
+// ENHANCE: server/autonomous/orchestrator.ts
+
+interface AutonomousConfig {
+  mode: 'manual' | 'semi-auto' | 'full-auto';
+
+  // Full-auto settings (USER PREFERENCE: 75% threshold)
+  autoExecuteThreshold: 75;          // Execute automatically at 75%+ confidence
+  maxAutoTradesPerHour: number;      // Rate limit on autonomous trades
+  allowedStrategies: string[];       // Which strategies can auto-execute
+  parallelConsensusEnabled: false;   // DISABLED per user preference
+
+  // Profit chasing settings
+  enableProfitChasing: boolean;
+  profitChasingConfig: {
+    trailingStopPercent: number;     // Dynamic trailing stop
+    breakEvenTrigger: number;        // Move stop to breakeven at X% profit
+    partialTakeProfitLevels: Array<{ // Scale out levels
+      profitPercent: number;
+      closePercent: number;
+    }>;
+    maxHoldingPeriod: number;        // Hours before forced review
+  };
+
+  // Market regime adaptation
+  regimeAdaptation: {
+    enabled: boolean;
+    bullishMultiplier: number;       // Increase position sizes in bull
+    bearishMultiplier: number;       // Decrease in bear
+    sidewaysStrategy: 'reduce' | 'range-trade' | 'wait';
+  };
+}
+
+// Enhanced orchestrator methods
+class EnhancedOrchestrator extends Orchestrator {
+
+  async runFullAutonomousMode(): Promise<void> {
+    while (this.state.isRunning && this.config.mode === 'full-auto') {
+      // 1. Market regime detection
+      const regime = await this.detectMarketRegime();
+
+      // 2. Generate trading signals using Claude Max
+      const signals = await this.generateSignalsWithClaude();
+
+      // 3. Filter by confidence threshold
+      const highConfidenceSignals = signals.filter(
+        s => s.confidence >= this.config.autoExecuteThreshold
+      );
+
+      // 4. Apply regime-based position sizing
+      const adjustedSignals = this.applyRegimeAdjustments(highConfidenceSignals, regime);
+
+      // 5. Execute with profit chasing
+      for (const signal of adjustedSignals) {
+        await this.executeWithProfitChasing(signal);
+      }
+
+      // 6. Manage existing positions
+      await this.managePositionsForProfit();
+
+      await sleep(this.analysisIntervalMs);
+    }
+  }
+
+  private async generateSignalsWithClaude(): Promise<TradeSignal[]> {
+    const watchlist = await this.getActiveWatchlist();
+    const signals: TradeSignal[] = [];
+
+    for (const symbol of watchlist) {
+      // Gather all data
+      const marketData = await providerOrchestrator.fetchData('quote', symbol);
+      const technicals = await this.getTechnicalIndicators(symbol);
+      const news = await providerOrchestrator.fetchData('news', symbol);
+      const sentiment = await this.aggregateSentiment(symbol);
+
+      // Use Claude Max for analysis
+      const decision = await claudeClient.analyzeTradeOpportunity({
+        symbol,
+        marketData,
+        technicals,
+        news,
+        sentiment,
+        portfolio: this.state.portfolioState,
+        riskLimits: this.state.riskLimits,
+      });
+
+      if (decision.action !== 'hold') {
+        signals.push({
+          symbol,
+          action: decision.action,
+          confidence: decision.confidence,
+          suggestedSize: decision.positionSizePercent,
+          entryPrice: decision.entryPrice,
+          stopLoss: decision.stopLoss,
+          takeProfit: decision.takeProfit,
+          reasoning: decision.reasoning,
+          generatedBy: 'claude-max',
+        });
+      }
+    }
+
+    return signals;
+  }
+
+  private async executeWithProfitChasing(signal: TradeSignal): Promise<void> {
+    // Open position
+    const position = await this.openPosition(signal);
+
+    // Set up profit chasing rules
+    const profitRules: ProfitChasingRules = {
+      positionId: position.id,
+      symbol: signal.symbol,
+      entryPrice: position.avgEntryPrice,
+      initialStopLoss: signal.stopLoss,
+      currentStopLoss: signal.stopLoss,
+      trailingStopPercent: this.config.profitChasingConfig.trailingStopPercent,
+      breakEvenTrigger: this.config.profitChasingConfig.breakEvenTrigger,
+      partialTakeProfits: this.config.profitChasingConfig.partialTakeProfitLevels,
+      executedPartials: [],
+      highWaterMark: position.avgEntryPrice,
+    };
+
+    await this.exitManager.registerProfitChasingRules(profitRules);
+  }
+
+  private async managePositionsForProfit(): Promise<void> {
+    for (const [symbol, position] of this.state.activePositions) {
+      const currentPrice = await this.getCurrentPrice(symbol);
+      const profitPercent = (currentPrice - position.avgEntryPrice) / position.avgEntryPrice * 100;
+
+      // Update trailing stop if profitable
+      if (profitPercent > 0) {
+        await this.exitManager.updateTrailingStop(symbol, currentPrice);
+      }
+
+      // Check for partial take profits
+      await this.exitManager.checkPartialTakeProfits(symbol, currentPrice);
+
+      // Re-evaluate with Claude if position is aging
+      const holdingHours = (Date.now() - position.openedAt.getTime()) / 3600000;
+      if (holdingHours > this.config.profitChasingConfig.maxHoldingPeriod) {
+        const shouldClose = await claudeClient.evaluateExitDecision(position, currentPrice);
+        if (shouldClose.action === 'close') {
+          await this.closePosition(symbol, shouldClose.reason);
+        }
+      }
+    }
+  }
+}
+8.2 Market Beating Strategies
+// server/strategies/market-beater.ts
+
+interface MarketBeaterConfig {
+  // Momentum capture
+  momentumThreshold: number;         // Minimum RSI/MACD signal strength
+  trendConfirmationPeriods: number;  // Bars to confirm trend
+
+  // Mean reversion
+  meanReversionThreshold: number;    // StdDev from mean to trigger
+  meanReversionTargetR: number;      // Target R-multiple
+
+  // Breakout detection
+  breakoutVolumeMultiple: number;    // Volume surge required
+  breakoutPricePercent: number;      // Price move required
+
+  // Risk management
+  maxDrawdownPercent: number;        // Stop trading if exceeded
+  kellyFraction: number;             // Kelly criterion fraction
+}
+
+class MarketBeaterStrategy {
+
+  async generateSignals(watchlist: string[]): Promise<TradeSignal[]> {
+    const signals: TradeSignal[] = [];
+
+    for (const symbol of watchlist) {
+      // Multi-strategy signal generation
+      const momentumSignal = await this.checkMomentum(symbol);
+      const meanReversionSignal = await this.checkMeanReversion(symbol);
+      const breakoutSignal = await this.checkBreakout(symbol);
+
+      // Combine signals with weighting
+      const combinedSignal = this.combineSignals([
+        { signal: momentumSignal, weight: 0.4 },
+        { signal: meanReversionSignal, weight: 0.3 },
+        { signal: breakoutSignal, weight: 0.3 },
+      ]);
+
+      if (combinedSignal.confidence > 60) {
+        // Use Claude for final confirmation
+        const claudeConfirmation = await claudeClient.confirmSignal(combinedSignal);
+
+        if (claudeConfirmation.approved) {
+          signals.push({
+            ...combinedSignal,
+            confidence: (combinedSignal.confidence + claudeConfirmation.confidence) / 2,
+            reasoning: claudeConfirmation.reasoning,
+          });
+        }
+      }
+    }
+
+    return signals;
+  }
+
+  // Kelly criterion position sizing
+  calculatePositionSize(signal: TradeSignal, portfolio: PortfolioState): number {
+    const winRate = signal.confidence / 100;
+    const avgWin = signal.takeProfit! - signal.entryPrice!;
+    const avgLoss = signal.entryPrice! - signal.stopLoss!;
+    const winLossRatio = avgWin / avgLoss;
+
+    // Kelly formula: f* = (bp - q) / b
+    // where b = win/loss ratio, p = win probability, q = lose probability
+    const kellyPercent = (winLossRatio * winRate - (1 - winRate)) / winLossRatio;
+
+    // Apply fraction (typically 0.25-0.5 of Kelly for safety)
+    const adjustedKelly = kellyPercent * this.config.kellyFraction;
+
+    // Clamp to position limits
+    return Math.min(
+      Math.max(adjustedKelly * 100, 0),
+      portfolio.riskLimits.maxPositionSizePercent
+    );
+  }
+}
