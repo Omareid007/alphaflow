@@ -884,6 +884,34 @@ export const assetClassifications = pgTable("asset_classifications", {
   index("asset_classifications_market_cap_tier_idx").on(table.marketCapTier),
 ]);
 
+export const connectorMetrics = pgTable("connector_metrics", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  connector: text("connector").notNull(),
+  endpoint: text("endpoint").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  totalRequests: integer("total_requests").default(0).notNull(),
+  successCount: integer("success_count").default(0).notNull(),
+  failureCount: integer("failure_count").default(0).notNull(),
+  cacheHits: integer("cache_hits").default(0).notNull(),
+  cacheMisses: integer("cache_misses").default(0).notNull(),
+  rateLimitHits: integer("rate_limit_hits").default(0).notNull(),
+  fallbackUsed: integer("fallback_used").default(0).notNull(),
+  avgLatencyMs: numeric("avg_latency_ms"),
+  p50LatencyMs: numeric("p50_latency_ms"),
+  p95LatencyMs: numeric("p95_latency_ms"),
+  p99LatencyMs: numeric("p99_latency_ms"),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("connector_metrics_connector_idx").on(table.connector),
+  index("connector_metrics_date_idx").on(table.date),
+  unique("connector_metrics_connector_endpoint_date_unique").on(table.connector, table.endpoint, table.date),
+]);
+
 export const universeCandidates = pgTable("universe_candidates", {
   id: varchar("id")
     .primaryKey()

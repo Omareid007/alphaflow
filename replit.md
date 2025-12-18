@@ -117,3 +117,53 @@ Extended `universe_fundamentals` fields:
 - **API Routes**: `server/routes/jina.ts` at `/api/jina/*`
 - **Capabilities**: Document embeddings (jina-embeddings-v3), URL parsing, web search, semantic search with cosine similarity, document reranking
 - **Config**: JINA_API_KEY environment variable
+
+### FRED Connector (Macro Economics)
+- **Connector**: `server/connectors/fred.ts` - Federal Reserve Economic Data
+- **Service**: `server/services/macro-indicators-service.ts` - Persists to macro_indicators table
+- **API Routes**: `server/routes/macro.ts` at `/api/macro/*`
+- **Endpoints**:
+  - `GET /api/macro/indicators` - Get all cached macro indicators
+  - `GET /api/macro/category/:category` - Filter by category (treasury_yields, inflation, employment, volatility)
+  - `GET /api/macro/summary` - Summary with alerts and regime detection
+  - `POST /api/macro/refresh` - Refresh critical indicators from FRED
+  - `GET /api/macro/regime` - Get current market regime (risk_on/risk_off/neutral)
+- **Series Tracked**: DGS10, DGS2, T10Y2Y (yield curve), VIXCLS, FEDFUNDS, UNRATE, CPIAUCSL, UMCSENT, GDP, and more
+- **Config**: FRED_API_KEY environment variable (optional - works without key with limits)
+
+### Connector Infrastructure
+- **Connector Chain Service**: `server/services/connector-chain-service.ts`
+  - Priority-based fallback routing for data connectors
+  - Circuit breaker pattern for fault isolation
+  - Chains: stock_prices, crypto_prices, news, fundamentals, macro
+  - Automatic fallback from primary → secondary → tertiary connectors
+- **Connector Metrics Service**: `server/services/connector-metrics-service.ts`
+  - Benchmarking and performance tracking per connector
+  - Success rate, latency (avg, p50, p95, p99), cache hit rate
+  - Rate limit incident tracking
+  - Daily aggregation with in-memory buffering
+- **Database Table**: `connector_metrics` for historical performance data
+
+### Connector Inventory (12 Active)
+**Tier 1 - FREE, Unlimited:**
+- Alpaca (trading, market data) - PRIMARY
+- FRED (macro economics) - PRIMARY for macro
+- GDELT (news events) - FALLBACK for news
+
+**Tier 2 - FREE with Limits:**
+- Finnhub (stock quotes, fundamentals) - 60 req/min
+- NewsAPI (news articles) - 100 req/day
+- CoinGecko (crypto prices) - 50 req/min
+- Twelve Data (technical indicators) - 800 req/day
+
+**Tier 3 - PAID:**
+- CoinMarketCap (crypto) - paid tier
+- HuggingFace (sentiment) - per inference
+- Jina AI (embeddings, search) - per token
+- Valyu (financial AI) - per query
+
+**Priority Chains:**
+- Stock Prices: Alpaca → Finnhub → TwelveData
+- Crypto Prices: CoinGecko → CoinMarketCap
+- News: NewsAPI → GDELT
+- Macro: FRED (no fallback needed - highly reliable)
