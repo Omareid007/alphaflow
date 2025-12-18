@@ -102,6 +102,21 @@ class AlpacaTradingEngine {
   private backgroundGeneratorIntervalMs = 120000;
   private initialized = false;
   private autoStartStrategyId: string | null = null;
+  private orchestratorControlEnabled: boolean = true;
+
+  enableOrchestratorControl(): void {
+    this.orchestratorControlEnabled = true;
+    console.log("[AlpacaTradingEngine] Orchestrator control ENABLED - autonomous trading disabled");
+  }
+
+  disableOrchestratorControl(): void {
+    this.orchestratorControlEnabled = false;
+    console.log("[AlpacaTradingEngine] Orchestrator control DISABLED - autonomous trading allowed");
+  }
+
+  isOrchestratorControlEnabled(): boolean {
+    return this.orchestratorControlEnabled;
+  }
 
   private readonly DEFAULT_WATCHLIST = [
     "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "UNH",
@@ -386,6 +401,14 @@ class AlpacaTradingEngine {
 
       if (quantity <= 0) {
         return { success: false, error: "Quantity must be greater than 0" };
+      }
+
+      if (this.orchestratorControlEnabled) {
+        const isWorkQueueTrade = notes?.includes('[WORK_QUEUE]') || notes?.includes('orchestrator');
+        if (!isWorkQueueTrade) {
+          console.log(`[AlpacaTradingEngine] Trade blocked for ${symbol} - orchestrator has control. Only work queue trades allowed.`);
+          return { success: false, error: "Orchestrator has control - only work queue trades are allowed" };
+        }
       }
 
       // LOSS PROTECTION: Block direct sell orders at a loss unless it's a stop-loss
@@ -934,6 +957,11 @@ class AlpacaTradingEngine {
     const effectiveTraceId = traceId || generateTraceId();
     const { decision, marketData } = await this.analyzeSymbol(symbol, strategyId, effectiveTraceId);
 
+    if (this.orchestratorControlEnabled) {
+      console.log(`[AlpacaTradingEngine] ${symbol} analysis complete (${decision.action}, ${(decision.confidence * 100).toFixed(0)}% confidence) - orchestrator has control, skipping autonomous execution`);
+      return { decision };
+    }
+
     const agentStatus = await storage.getAgentStatus();
     if (!agentStatus?.isRunning) {
       return { decision };
@@ -1095,6 +1123,11 @@ class AlpacaTradingEngine {
 
     if (this.strategyRunners.has(strategyId)) {
       return { success: false, error: "Strategy is already running" };
+    }
+
+    if (this.orchestratorControlEnabled) {
+      console.log(`[AlpacaTradingEngine] Strategy ${strategyId} start skipped - orchestrator has control. AI suggestions will still be generated.`);
+      return { success: false, error: "Orchestrator has control - autonomous strategy execution disabled. Use orchestrator for trade execution." };
     }
 
     await storage.toggleStrategy(strategyId, true);

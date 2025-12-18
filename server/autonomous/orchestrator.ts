@@ -12,6 +12,7 @@ import { recordDecisionFeatures, recordTradeOutcome, updateTradeOutcomeOnClose, 
 import { tradabilityService } from "../services/tradability-service";
 import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
 import { candidatesService } from "../universe/candidatesService";
+import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
@@ -831,6 +832,9 @@ class AutonomousOrchestrator {
       throw new Error("Kill switch is active. Disable it to start autonomous trading.");
     }
 
+    alpacaTradingEngine.enableOrchestratorControl();
+    log.info("Orchestrator", "Enabled orchestrator control over AlpacaTradingEngine");
+
     this.state.isRunning = true;
     this.state.mode = "autonomous";
     this.state.errors = [];
@@ -878,6 +882,9 @@ class AutonomousOrchestrator {
 
     this.stopHeartbeat();
     marketConditionAnalyzer.stop();
+
+    alpacaTradingEngine.disableOrchestratorControl();
+    log.info("Orchestrator", "Disabled orchestrator control - AlpacaTradingEngine can now trade autonomously");
 
     await storage.updateAgentStatus({ isRunning: false });
 
