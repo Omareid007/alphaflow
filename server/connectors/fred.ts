@@ -103,19 +103,19 @@ const CRITICAL_INDICATORS = [
 ];
 
 class FREDConnector {
-  private apiKey: string | null;
   private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
   constructor() {
-    this.apiKey = process.env.FRED_API_KEY || null;
+    // API key is read dynamically from env on each request
   }
 
   private getApiKey(): string {
-    if (!this.apiKey) {
+    const apiKey = process.env.FRED_API_KEY;
+    if (!apiKey) {
       log.warn("FRED", "No API key configured, using unauthenticated access (limited)");
       return "";
     }
-    return this.apiKey;
+    return apiKey;
   }
 
   async getSeriesInfo(seriesId: string): Promise<FREDSeries | null> {
@@ -143,6 +143,10 @@ class FREDConnector {
   ): Promise<FREDObservation[]> {
     try {
       const apiKey = this.getApiKey();
+      if (!apiKey) {
+        log.warn("FRED", `Skipping ${seriesId}: No API key available`);
+        return [];
+      }
       const url = `${FRED_BASE_URL}/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}`;
 
       const response = await connectorFetch<FREDObservationsResponse>(url, {
@@ -154,7 +158,8 @@ class FREDConnector {
 
       return response.data.observations || [];
     } catch (error) {
-      log.error("FRED", `Failed to get observations for ${seriesId}`, { error });
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.error("FRED", `Failed to get observations for ${seriesId}: ${errorMsg}`);
       return [];
     }
   }
@@ -279,7 +284,7 @@ class FREDConnector {
   }
 
   isConfigured(): boolean {
-    return !!this.apiKey;
+    return !!process.env.FRED_API_KEY;
   }
 
   getAvailableSeries(): string[] {
