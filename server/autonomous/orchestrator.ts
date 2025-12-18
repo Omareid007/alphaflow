@@ -2024,6 +2024,14 @@ class AutonomousOrchestrator {
               );
             }
           } else if (drift < -buyTheDipThresholdPercent) {
+            const approvedSymbols = await candidatesService.getApprovedSymbols();
+            const approvedSet = new Set(approvedSymbols.map(s => s.toUpperCase()));
+            
+            if (!approvedSet.has(symbol.toUpperCase())) {
+              log.info("Orchestrator", `Skipping buy-the-dip for ${symbol}: not in approved candidates`);
+              continue;
+            }
+
             const cashReserve = portfolioValue * (minCashReservePercent / 100);
             const availableForBuying = Math.max(0, availableCash - cashReserve);
             

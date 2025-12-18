@@ -15,9 +15,10 @@ The platform is evolving towards an event-driven microservices architecture util
 All LLM calls are routed through a centralized `llmGateway.ts` with criticality-based routing, role-based model chains, automatic fallback, and traceId tracking. A durable, PostgreSQL-backed work queue ensures reliable order execution with idempotency, retries, and a dead-letter queue. The system includes a comprehensive backtesting subsystem and a core trading algorithm framework with portfolio construction and risk management. Data processing capabilities include Order Book Depth Analysis, Market Regime Detection, Multi-Source Sentiment Fusion, and a Technical Indicators Library. Strategies support versioning, A/B testing, and LLM Trading Governance. Feature flags enable gradual rollouts.
 
 ### Key Features
-- **Universe & Allocation System**: Manages symbols from Alpaca, performs liquidity-based tiering, fundamentals scoring via Finnhub, and includes an allocation policy with a rebalancer service.
+- **Universe & Allocation System**: Manages symbols from Alpaca, performs liquidity-based tiering, fundamentals scoring via Finnhub, and includes an allocation policy with a rebalancer service. Dynamic universe selection from 4 sources: base watchlist, approved candidates, recent high-confidence AI decisions, and recently executed trades. Rotation mechanism handles universe caps gracefully.
 - **Admin Hub**: A WordPress-style admin panel with 13 modules for comprehensive system management, offering real-time order tracking and source of truth badges.
 - **Loss Protection**: Implements strict rules to prevent automatic closure of losing positions unless stop-loss is triggered or an emergency stop at -8% loss, blocking AI sell recommendations on such positions.
+- **Buy-the-Dip Rebalancing**: Enhanced rebalancing strategy that not only sells overweight positions but also buys into underweight positions experiencing dips, maintaining a 10% cash reserve and limiting individual buys to 2% of portfolio.
 - **AI Debate Arena**: A multi-role AI consensus system with specialized analyst roles (bull, bear, risk_manager, technical_analyst, fundamental_analyst) and a synthesizing judge.
 - **MCP-Style Tool Router**: A registry-based internal tool system for broker/data operations with schema validation and audit logging.
 - **Competition Mode**: Allows multiple AI trader profiles to compete, tracking performance with metrics like PnL and Sharpe ratio.
@@ -36,7 +37,7 @@ Developed with React Native using Expo SDK 54, React Navigation v7, and TanStack
 -   **Market Data**: Finnhub, Polygon.io, Twelve Data, Financial Modeling Prep, Alpha Vantage.
 -   **Research Data**: AiTrados (OHLC, News, Economic Calendar).
 -   **News Data**: NewsAPI, GDELT, AiTrados.
--   **AI/LLM Integration**: OpenAI API, Groq, Together.ai, AIML API, OpenRouter (via LLM Router), Anthropic (Claude API).
+-   **AI/LLM Integration**: OpenAI API, Groq, Together.ai, AIML API, OpenRouter (via LLM Router), Anthropic Claude (via API key or Replit AI Integrations). Claude is now the primary model for technical_analyst and risk_manager roles at high criticality.
 -   **Data Sources & Enrichment**: Valyu.ai (financial datasets), Hugging Face (FinBERT sentiment), Jina AI (embeddings, web reader, semantic search, reranking), FRED (Federal Reserve Economic Data).
 -   **Brokerage**: Alpaca Paper Trading API.
 -   **UI/Utility Libraries**: `expo-web-browser`, `expo-haptics`, `expo-blur`.
@@ -45,3 +46,11 @@ Developed with React Native using Expo SDK 54, React Navigation v7, and TanStack
 -   **Jina AI**: Provides embeddings, URL reading, web search, and reranking capabilities.
 -   **FRED Connector**: Integrates Federal Reserve Economic Data for macro indicators and market regime detection.
 -   **Connector Infrastructure**: A service with priority-based fallback routing (e.g., Stock Prices: Alpaca → Finnhub → TwelveData) and a metrics service for benchmarking connector performance.
+
+### Claude Integration Options
+Three methods available for Claude AI access:
+1. **Replit AI Integrations** (recommended): No API key needed, uses Replit credits, supports Claude Sonnet 4.5/Opus 4.5/Haiku 4.5
+2. **API Key**: Direct Anthropic API access via `ANTHROPIC_API_KEY` environment variable
+3. **MCP (Model Context Protocol)**: Only works locally with Claude Desktop - NOT suitable for server-side applications
+
+Current setup uses API key method with fallback to OpenRouter for Claude models.
