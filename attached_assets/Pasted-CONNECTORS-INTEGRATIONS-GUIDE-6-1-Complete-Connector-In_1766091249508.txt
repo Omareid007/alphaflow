@@ -1,0 +1,160 @@
+CONNECTORS & INTEGRATIONS GUIDE
+6.1 Complete Connector Inventory (31 Connectors)
+Tier 1: FREE, Unlimited (Use as Primary)
+Connector	Data Type	Rate Limit	API Key	Priority
+Alpaca	Trading, Market Data	Unlimited	Required	PRIMARY for trading
+FRED	Macro Economics	UNLIMITED	Optional	PRIMARY for macro
+SEC EDGAR	Company Filings	10 req/sec	None	PRIMARY for filings
+Binance	Crypto Prices	1200 req/min	None	FALLBACK for crypto
+CoinCap	Crypto Prices	Unlimited	None	FALLBACK for crypto
+GDELT	News Events	Unlimited	None	FALLBACK for news
+Wikidata	Company Info	Fair use	None	PRIMARY for enrichment
+Wikipedia	Descriptions	200 req/sec	None	PRIMARY for descriptions
+Hacker News	Tech Sentiment	Unlimited	None	PRIMARY for tech sentiment
+Fear & Greed	Market Sentiment	Unlimited	None	PRIMARY for sentiment
+DeFi Llama	DeFi TVL	Unlimited	None	PRIMARY for DeFi
+OFAC	Sanctions	Unlimited	None	PRIMARY for compliance
+StockTwits	Social Sentiment	Unknown	None	SECONDARY for sentiment
+Tier 2: FREE with Limits (Use as Secondary)
+Connector	Data Type	Rate Limit	API Key	Cost
+Finnhub	Stock Quotes	60 req/min	Required	$0-99/mo
+NewsAPI	News	100 req/day	Required	$0-449/mo
+Currents	News	600 req/day	Required	FREE tier
+CoinGecko	Crypto	10-50 req/min	Optional	FREE
+Alpha Vantage	Technical	5 req/min	Required	FREE
+FMP	Fundamentals	250 req/day	Required	FREE tier
+Polygon	Market Data	5 req/min	Required	$0-199/mo
+Twelve Data	Technical	800 req/day	Required	FREE tier
+Tier 3: PAID (Use Sparingly)
+Connector	Cost Model	When to Use
+CoinMarketCap	$0-500/mo	If CoinGecko+Binance fail
+HuggingFace	Per inference	Sentiment analysis
+Jina	Per token	Content extraction
+Valyu	Per retrieval	AI financial queries
+OpenSanctions	Per call	Enhanced compliance
+6.2 Connector Priority Chains
+Stock Prices:
+
+Primary: Alpaca (included with trading)
+  ↓ FAIL
+Secondary: Finnhub (60 req/min free)
+  ↓ FAIL
+Tertiary: Alpha Vantage (5 req/min free)
+Crypto Prices:
+
+Primary: CoinGecko (free, good data)
+  ↓ FAIL / RATE LIMITED
+Secondary: Binance (1200 req/min, free!)
+  ↓ FAIL
+Tertiary: CoinCap (unlimited, free!)
+News:
+
+Primary: NewsAPI (100 req/day)
+  ↓ QUOTA EXHAUSTED
+Secondary: Currents (600 req/day)
+  ↓ QUOTA EXHAUSTED
+Tertiary: GDELT (unlimited, free!)
+Company Fundamentals:
+
+Primary: SEC EDGAR (official, free)
+  ↓ NOT AVAILABLE
+Secondary: FMP (250 req/day)
+  ↓ FAIL
+Tertiary: Wikidata (unlimited)
+Macro Data:
+
+Primary: FRED (unlimited, free, official)
+  No fallback needed - FRED is extremely reliable
+6.3 New Connector Integration: GDELT
+Why GDELT is Critical:
+
+FREE, unlimited access
+15-minute update frequency
+Global news coverage (100+ languages)
+Built-in sentiment/tone analysis
+Volume-based breaking news detection
+Integration Guide:
+
+// server/connectors/gdelt.ts (enhance existing)
+
+interface GDELTArticle {
+  url: string;
+  title: string;
+  source: string;
+  publishDate: Date;
+  tone: number;           // -100 to +100
+  positiveScore: number;
+  negativeScore: number;
+  themes: string[];
+  locations: string[];
+  organizations: string[];
+  persons: string[];
+}
+
+export const gdelt = {
+  // Search articles by keyword
+  async searchArticles(query: string, options?: {
+    startDate?: Date;
+    endDate?: Date;
+    mode?: 'artlist' | 'timelinevol' | 'timelinetone';
+    maxRecords?: number;
+  }): Promise<GDELTArticle[]> {
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${options?.mode || 'artlist'}&maxrecords=${options?.maxRecords || 250}&format=json`;
+    // ... implementation
+  },
+
+  // Detect breaking news via volume spikes
+  async detectBreakingNews(symbol: string): Promise<{
+    isBreaking: boolean;
+    volumeChange: number;
+    articles: GDELTArticle[];
+  }> {
+    const volumeData = await this.getVolumeTimeline(symbol, '24h');
+    const avgVolume = calculateAverage(volumeData.slice(0, -1));
+    const latestVolume = volumeData[volumeData.length - 1];
+
+    return {
+      isBreaking: latestVolume > avgVolume * 3,  // 3x spike threshold
+      volumeChange: (latestVolume - avgVolume) / avgVolume,
+      articles: await this.searchArticles(symbol, { maxRecords: 10 }),
+    };
+  },
+
+  // Get sentiment timeline
+  async getSentimentTimeline(query: string, timespan: string): Promise<{
+    timestamps: Date[];
+    tones: number[];
+  }> {
+    // GDELT timelinetone mode
+  },
+};
+6.4 Benchmarking Connectors
+Performance Metrics to Track:
+
+// server/lib/connector-metrics.ts
+
+interface ConnectorMetrics {
+  connector: string;
+  totalRequests: number;
+  successRate: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  rateLimitHits: number;
+  cacheHitRate: number;
+  lastError?: string;
+  lastErrorTime?: Date;
+}
+
+// Track metrics per connector
+const metrics = new Map<string, ConnectorMetrics>();
+
+// Log to database for analysis
+async function recordConnectorCall(
+  connector: string,
+  success: boolean,
+  latencyMs: number,
+  fromCache: boolean
+) {
+  // Update in-memory metrics
+  // Periodically flush to database
+}
