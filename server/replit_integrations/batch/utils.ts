@@ -1,8 +1,8 @@
 import pLimit from "p-limit";
-import pRetry from "p-retry";
+import pRetry, { AbortError } from "p-retry";
 
 /**
- * Batch Processing Utilities for Anthropic
+ * Batch Processing Utilities for AI Integrations (Anthropic, OpenRouter)
  *
  * Supported models: claude-opus-4-5 (most capable), claude-sonnet-4-5 (balanced), claude-haiku-4-5 (fastest)
  *
@@ -94,8 +94,8 @@ export async function batchProcess<T, R>(
             if (isRateLimitError(error)) {
               throw error;
             }
-            throw new pRetry.AbortError(
-              error instanceof Error ? error : new Error(String(error))
+            throw new AbortError(
+              error instanceof Error ? error.message : String(error)
             );
           }
         },
@@ -135,8 +135,8 @@ export async function batchProcessWithSSE<T, R>(
         factor: 2,
         onFailedAttempt: (error) => {
           if (!isRateLimitError(error)) {
-            throw new pRetry.AbortError(
-              error instanceof Error ? error : new Error(String(error))
+            throw new AbortError(
+              error instanceof Error ? error.message : String(error)
             );
           }
         },

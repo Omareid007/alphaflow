@@ -55,7 +55,7 @@
     "http-proxy-middleware": "^3.0.5",
     "lightweight-charts": "^5.0.9",
     "nats": "^2.29.3",
-    "openai": "^6.10.0",
+    "openai": "^6.14.0",
     "p-limit": "^7.2.0",
     "p-retry": "^7.1.1",
     "pg": "^8.16.3",

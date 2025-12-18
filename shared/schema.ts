@@ -1587,3 +1587,9 @@ export type InsertAiArenaRun = z.infer<typeof insertAiArenaRunSchema>;
 export type AiArenaRun = typeof aiArenaRuns.$inferSelect;
 export type InsertAiArenaAgentDecision = z.infer<typeof insertAiArenaAgentDecisionSchema>;
 export type AiArenaAgentDecision = typeof aiArenaAgentDecisions.$inferSelect;
+
+// ============================================================================
+// CHAT TABLES (Replit AI Integrations)
+// ============================================================================
+
+export * from "./models/chat";
