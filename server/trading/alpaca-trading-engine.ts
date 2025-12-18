@@ -388,6 +388,33 @@ class AlpacaTradingEngine {
         return { success: false, error: "Quantity must be greater than 0" };
       }
 
+      // LOSS PROTECTION: Block direct sell orders at a loss unless it's a stop-loss
+      if (side === "sell") {
+        const alpacaSymbolForCheck = this.normalizeSymbolForAlpaca(symbol, true);
+        try {
+          const position = await alpaca.getPosition(alpacaSymbolForCheck);
+          if (position) {
+            const entryPrice = safeParseFloat(position.avg_entry_price);
+            const currentPrice = safeParseFloat(position.current_price);
+            const isAtLoss = currentPrice < entryPrice;
+            // Allow if notes indicate stop-loss or emergency
+            const isStopLossOrEmergency = notes?.toLowerCase().includes('stop-loss') || 
+                                           notes?.toLowerCase().includes('emergency') ||
+                                           notes?.toLowerCase().includes('stop loss');
+            if (isAtLoss && !isStopLossOrEmergency) {
+              const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
+              console.log(`[LossProtection] Blocking sell of ${symbol} at ${lossPercent}% loss - waiting for stop-loss or price recovery`);
+              return { 
+                success: false, 
+                error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers` 
+              };
+            }
+          }
+        } catch (posError) {
+          // Position not found is okay, proceed with the trade
+        }
+      }
+
       const riskCheck = await this.checkRiskLimits(symbol, side, quantity);
       if (!riskCheck.allowed) {
         return { success: false, error: riskCheck.reason };
@@ -539,7 +566,11 @@ class AlpacaTradingEngine {
     }
   }
 
-  async closeAlpacaPosition(symbol: string, strategyId?: string): Promise<AlpacaTradeResult> {
+  async closeAlpacaPosition(
+    symbol: string, 
+    strategyId?: string,
+    options: { isStopLossTriggered?: boolean; isEmergencyStop?: boolean } = {}
+  ): Promise<AlpacaTradeResult> {
     try {
       // For crypto, use slash format; for stocks, use standard format
       const alpacaSymbol = this.isCryptoSymbol(symbol) 
@@ -560,6 +591,21 @@ class AlpacaTradingEngine {
         return { success: true, error: `No position found for ${symbol} - may already be closed` };
       }
 
+      // LOSS PROTECTION: Don't close positions at a loss unless stop-loss or emergency stop triggered
+      const entryPrice = safeParseFloat(position.avg_entry_price);
+      const currentPrice = safeParseFloat(position.current_price);
+      const isAtLoss = currentPrice < entryPrice;
+      const isProtectedClose = options.isStopLossTriggered || options.isEmergencyStop;
+      
+      if (isAtLoss && !isProtectedClose) {
+        const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
+        console.log(`[LossProtection] Blocking close of ${symbol} at ${lossPercent}% loss - waiting for stop-loss or price recovery`);
+        return { 
+          success: false, 
+          error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers` 
+        };
+      }
+
       let order: AlpacaOrder;
       try {
         order = await alpaca.closePosition(alpacaSymbol);
@@ -572,7 +618,6 @@ class AlpacaTradingEngine {
       }
 
       const quantity = safeParseFloat(position.qty);
-      const entryPrice = safeParseFloat(position.avg_entry_price);
       const exitPrice = safeParseFloat(order.filled_avg_price || position.current_price);
       const isShort = position.side === "short";
       const pnl = calculatePnL(entryPrice, exitPrice, quantity, isShort ? "short" : "long");
