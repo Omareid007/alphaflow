@@ -1,0 +1,58 @@
+Prompt 1: Consolidate Order Execution
+TASK: Consolidate order execution to single path through orchestrator
+
+CONTEXT:
+- Currently two paths: direct (alpaca-trading-engine.ts:383-532) and queued (orchestrator.ts:169-300)
+- Direct path has no idempotency, queued path does
+- This causes duplicate orders and race conditions
+
+CHANGES REQUIRED:
+1. In server/trading/alpaca-trading-engine.ts:
+   - Remove direct alpaca.createOrder() calls in executeAlpacaTrade()
+   - Replace with call to orchestrator.requestStrategyTrade()
+   - Keep analysis logic, delegate execution
+
+2. In server/autonomous/orchestrator.ts:
+   - Add new method: requestStrategyTrade(strategyId, symbol, side, qty)
+   - This method validates, queues, and tracks the order
+   - Returns approval status to trading engine
+
+3. Add idempotency to ALL order submissions
+   - Generate key from: strategyId + symbol + side + 5min_bucket
+   - Check for existing order before queueing
+
+FILES TO MODIFY:
+- server/trading/alpaca-trading-engine.ts
+- server/autonomous/orchestrator.ts
+- server/lib/work-queue.ts (add idempotency check)
+Prompt 2: Implement Unified Cache
+TASK: Create unified caching system to replace 4 independent caches
+
+CONTEXT:
+- Current caches: api-cache.ts, enrichment-cache.ts, order-execution-cache.ts, services/market-data/cache.ts
+- 30+ per-connector cache instances
+- Inconsistent TTLs causing data staleness issues
+
+CHANGES REQUIRED:
+1. Create server/lib/unified-cache.ts:
+   - Single cache manager with data-type-specific TTLs
+   - Standard TTLs: quotes(5s), bars(60s), news(5min), fundamentals(1hr)
+   - Metrics tracking (hit rate, memory usage)
+   - Bulk operations for efficiency
+
+2. Modify all connectors to use unified cache:
+   - Replace local ApiCache instances
+   - Use: unifiedCache.get('quote', key, fetcher)
+
+3. Remove duplicate cache files:
+   - Keep api-cache.ts as base class
+   - Delete services/market-data/cache.ts
+   - Merge enrichment-cache into unified system
+
+FILES TO CREATE:
+- server/lib/unified-cache.ts
+
+FILES TO MODIFY:
+- All files in server/connectors/*.ts
+- server/trading/enrichment-cache.ts
+- server/lib/order-execution-cache.ts

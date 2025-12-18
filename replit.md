@@ -12,19 +12,37 @@ Preferred communication style: Simple, everyday language.
 The platform is evolving towards an event-driven microservices architecture utilizing NATS JetStream. Key decisions include a monorepo structure, schema-first development with Zod, and an Adapter pattern for external APIs. AI decisions are logged for transparency, and an Adaptive Risk Mode dynamically adjusts to market conditions. The system uses a database per service (PostgreSQL), containerization with Node.js 22 Alpine in Kubernetes, and OpenTelemetry for observability. Fault isolation is achieved through circuit breakers. Alpaca Paper Trading serves as the single source of truth for live position/order data.
 
 ### AI and Trading Infrastructure
-All LLM calls are routed through a centralized `llmGateway.ts` with criticality-based routing, role-based model chains, automatic fallback, and traceId tracking. A durable, PostgreSQL-backed work queue ensures reliable order execution with idempotency, retries, and a dead-letter queue. The system includes a comprehensive backtesting subsystem and a core trading algorithm framework with portfolio construction and risk management. Data processing capabilities include Order Book Depth Analysis, Market Regime Detection, Multi-Source Sentiment Fusion, and a Technical Indicators Library. Strategies support versioning, A/B testing, and LLM Trading Governance. Feature flags enable gradual rollouts.
+All LLM calls are routed through a centralized `llmGateway.ts` with criticality-based routing, role-based model chains, automatic fallback, and traceId tracking. The LLM Gateway now includes:
+- **Rate Limiting**: Integrated with `server/lib/apiPolicy.ts` for all LLM providers (OpenAI, Claude, OpenRouter, Groq, Together, DeepSeek)
+- **DeepSeek Models**: Available via OpenRouter for cost-effective reasoning tasks (`deepseek/deepseek-r1`)
+- **Claude Integration**: Primary model for `technical_analyst` and `risk_manager` roles at high criticality
+- **Provider Rate Limits**: Configurable per-provider limits with automatic throttling and budget enforcement
+
+A durable, PostgreSQL-backed work queue ensures reliable order execution with idempotency, retries, and a dead-letter queue. The system includes a comprehensive backtesting subsystem and a core trading algorithm framework with portfolio construction and risk management. Data processing capabilities include Order Book Depth Analysis, Market Regime Detection, Multi-Source Sentiment Fusion, and a Technical Indicators Library. Strategies support versioning, A/B testing, and LLM Trading Governance. Feature flags enable gradual rollouts.
 
 ### Key Features
-- **Universe & Allocation System**: Manages symbols from Alpaca, performs liquidity-based tiering, fundamentals scoring via Finnhub, and includes an allocation policy with a rebalancer service. Dynamic universe selection from 4 sources: base watchlist, approved candidates, recent high-confidence AI decisions, and recently executed trades. Rotation mechanism handles universe caps gracefully.
+- **Universe & Allocation System**: Manages symbols from Alpaca, performs liquidity-based tiering, fundamentals scoring via Finnhub, and includes an allocation policy with a rebalancer service. Dynamic universe selection from 4 sources: base watchlist, approved candidates, recent high-confidence AI decisions, and recently executed trades. Rotation mechanism handles universe caps gracefully. **Fully dynamic - not limited to static/hardcoded lists.**
 - **Admin Hub**: A WordPress-style admin panel with 13 modules for comprehensive system management, offering real-time order tracking and source of truth badges.
 - **Loss Protection**: Implements strict rules to prevent automatic closure of losing positions unless stop-loss is triggered or an emergency stop at -8% loss, blocking AI sell recommendations on such positions.
-- **Buy-the-Dip Rebalancing**: Enhanced rebalancing strategy that not only sells overweight positions but also buys into underweight positions experiencing dips, maintaining a 10% cash reserve and limiting individual buys to 2% of portfolio.
+- **Advanced Rebalancing Strategy** (`server/services/advanced-rebalancing-service.ts`):
+  - **Buy-the-Dip**: Buys underweight positions experiencing dips (>3% underweight, unrealized loss), 10% cash reserve, 2% max individual buy
+  - **Partial Take-Profit Levels**: Scale out at 10%, 20%, 35%, 50% profit (25% each level)
+  - **Trailing Stop Automation**: Moves stop to breakeven at 8% profit, trails at 5% below high water mark
+  - **Market Regime Adaptation**: Adjusts position sizes based on macro conditions (bullish: 1.25x, bearish: 0.5x, volatile: 0.6x)
+  - **Kelly Criterion Position Sizing**: Optimal position sizing based on win rate, expected return, and configurable Kelly fraction (default 0.25)
 - **AI Debate Arena**: A multi-role AI consensus system with specialized analyst roles (bull, bear, risk_manager, technical_analyst, fundamental_analyst) and a synthesizing judge.
 - **MCP-Style Tool Router**: A registry-based internal tool system for broker/data operations with schema validation and audit logging.
 - **Competition Mode**: Allows multiple AI trader profiles to compete, tracking performance with metrics like PnL and Sharpe ratio.
 - **Strategy Studio**: Web-based strategy configuration with versioning, supporting full spec storage and backtest result linking.
 - **Arena Coordinator**: A cost-aware multi-agent debate system with an escalation policy for agent models based on disagreement or confidence levels.
 - **Asset Classification Service**: Unifies liquidity, fundamentals, and technical data into coherent per-symbol labels and scores for market cap, volatility, trend strength, and asset class.
+
+### Dynamic Trading Universe
+The system maintains a fully dynamic trading universe:
+- **Candidates Service** (`server/universe/candidatesService.ts`): Generates candidates from liquidity metrics and fundamentals
+- **Bootstrap on Init**: Orchestrator automatically ensures watchlist symbols are in approved candidates
+- **Status Workflow**: NEW → WATCHLIST → APPROVED/REJECTED
+- **Trading Enforcement**: Only APPROVED candidates can be traded (enforced by `tradingEnforcement.ts`)
 
 ### Database Schema Enhancements
 New tables track AI debate sessions, messages, consensus, trader profiles, competition runs, strategy versions, tool invocations, AI agent profiles, and outcome links for attribution. Additional tables (`universe_technicals`, `macro_indicators`, `asset_classifications`) enrich data for AI decision-making.

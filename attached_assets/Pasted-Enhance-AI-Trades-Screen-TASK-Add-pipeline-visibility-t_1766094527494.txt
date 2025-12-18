@@ -1,0 +1,105 @@
+Enhance AI Trades Screen
+TASK: Add pipeline visibility to AISuggestedTradesScreen
+
+CONTEXT:
+- Currently shows decisions without execution context
+- Need to show: Decision -> Risk Gate -> Order -> Fill -> Position -> Exit
+- Need filters for pipeline status
+- Need links to related orders/positions
+
+CHANGES REQUIRED:
+1. Create pipeline timeline component:
+   - Visual stages with status indicators
+   - Timestamps and details per stage
+   - Color coding: green(completed), yellow(pending), red(failed)
+
+2. Enhance decision cards:
+   - Add pipeline timeline row
+   - Add "View Order" button when orderId exists
+   - Add "View Position" button when position exists
+   - Show consensus info if parallel mode used
+
+3. Add new filters:
+   - "In Pipeline" - decisions with pending orders
+   - Enhance existing filters with counts
+
+4. Create API endpoint for enriched decisions:
+   - GET /api/ai-decisions/enriched
+   - Joins with orders, positions, fills
+   - Returns pipeline status per decision
+
+FILES TO MODIFY:
+- client/screens/AISuggestedTradesScreen.tsx
+- server/routes.ts (add enriched endpoint)
+Prompt 5: Database Enrichment Job
+TASK: Create job to enrich database with real market data
+
+CONTEXT:
+- broker_assets table needs fundamentals
+- universe_technicals needs daily calculation
+- macro_indicators needs FRED data
+
+CHANGES REQUIRED:
+1. Create server/jobs/enrich-universe.ts:
+   - Daily job to fetch fundamentals from FMP/SEC EDGAR
+   - Calculate technical indicators from Alpaca bars
+   - Update broker_assets with sector, market_cap, pe_ratio, etc.
+
+2. Create server/jobs/update-technicals.ts:
+   - Daily job to calculate RSI, MACD, SMA, etc.
+   - Store in universe_technicals table
+   - Run after market close
+
+3. Create server/jobs/sync-macro.ts:
+   - Daily job to fetch FRED indicators
+   - Update macro_indicators table
+   - Key series: DGS10, FEDFUNDS, CPIAUCSL, VIX
+
+4. Add cron scheduling:
+   - Enrich universe: 6 AM UTC daily
+   - Update technicals: 9 PM UTC daily (after US close)
+   - Sync macro: 7 AM UTC daily
+
+FILES TO CREATE:
+- server/jobs/enrich-universe.ts
+- server/jobs/update-technicals.ts
+- server/jobs/sync-macro.ts
+- server/jobs/scheduler.ts
+Prompt 6: Configure Autonomous Trading (75% Threshold)
+TASK: Configure autonomous trading with 75% confidence auto-execute threshold
+
+CONTEXT:
+- User wants aggressive autonomous mode
+- Auto-execute trades when AI confidence >= 75%
+- Parallel consensus is DISABLED for faster execution
+- Claude Max is primary provider with free fallbacks
+
+CHANGES REQUIRED:
+1. Update server/autonomous/orchestrator.ts:
+   - Set autoExecuteThreshold = 75
+   - Add mode switching: 'manual' | 'semi-auto' | 'full-auto'
+   - When full-auto AND confidence >= 75%, execute without approval
+   - Log all auto-executed trades for audit
+
+2. Add admin controls:
+   - Toggle between manual/semi-auto/full-auto modes
+   - Adjustable confidence threshold (default 75%)
+   - Max trades per hour limit
+   - Allowed strategies for auto-execution
+
+3. Update UI:
+   - Show current mode in Dashboard
+   - Show auto-execution indicator on trades
+   - Admin panel for mode configuration
+
+4. Safety rails:
+   - Kill switch always available
+   - Daily loss limit still enforced
+   - Max position limits respected
+   - All auto-trades logged with reasoning
+
+FILES TO MODIFY:
+- server/autonomous/orchestrator.ts
+- server/routes.ts (admin config endpoints)
+- client/screens/DashboardScreen.tsx
+- client/screens/AdminHubScreen.tsx
