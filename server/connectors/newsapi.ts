@@ -90,8 +90,8 @@ class NewsAPIConnector {
       });
 
       log.debug("NewsAPI", `Fetched ${endpoint}`, {
-        cacheHit: result.provenance.cacheHit,
-        budgetRemaining: result.provenance.budgetStatus.remaining,
+        cacheStatus: result.provenance.cacheStatus,
+        budgetRemaining: result.provenance.budgetRemaining,
       });
 
       return result.data;

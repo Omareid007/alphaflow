@@ -800,6 +800,84 @@ export const universeFundamentals = pgTable("universe_fundamentals", {
   index("universe_fundamentals_sector_idx").on(table.sector),
 ]);
 
+export const universeTechnicals = pgTable("universe_technicals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(),
+  date: timestamp("date").notNull(),
+  open: numeric("open"),
+  high: numeric("high"),
+  low: numeric("low"),
+  close: numeric("close"),
+  volume: numeric("volume"),
+  vwap: numeric("vwap"),
+  sma20: numeric("sma_20"),
+  sma50: numeric("sma_50"),
+  sma200: numeric("sma_200"),
+  ema12: numeric("ema_12"),
+  ema26: numeric("ema_26"),
+  rsi14: numeric("rsi_14"),
+  macd: numeric("macd"),
+  macdSignal: numeric("macd_signal"),
+  macdHistogram: numeric("macd_histogram"),
+  atr14: numeric("atr_14"),
+  bollingerUpper: numeric("bollinger_upper"),
+  bollingerLower: numeric("bollinger_lower"),
+  adx14: numeric("adx_14"),
+  plusDi: numeric("plus_di"),
+  minusDi: numeric("minus_di"),
+  pivotPoint: numeric("pivot_point"),
+  resistance1: numeric("resistance_1"),
+  support1: numeric("support_1"),
+  source: text("source").notNull(),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("universe_technicals_symbol_idx").on(table.symbol),
+  index("universe_technicals_date_idx").on(table.date),
+]);
+
+export const macroIndicators = pgTable("macro_indicators", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  indicatorId: text("indicator_id").notNull().unique(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  latestValue: numeric("latest_value"),
+  previousValue: numeric("previous_value"),
+  changePercent: numeric("change_percent"),
+  frequency: text("frequency"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+  source: text("source").notNull().default("FRED"),
+  rawJson: jsonb("raw_json"),
+}, (table) => [
+  index("macro_indicators_category_idx").on(table.category),
+  index("macro_indicators_indicator_id_idx").on(table.indicatorId),
+]);
+
+export const assetClassifications = pgTable("asset_classifications", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(),
+  assetClass: text("asset_class"),
+  marketCapTier: text("market_cap_tier"),
+  liquidityTier: text("liquidity_tier"),
+  volatilityTier: text("volatility_tier"),
+  trendStrength: text("trend_strength"),
+  momentumScore: numeric("momentum_score"),
+  valueScore: numeric("value_score"),
+  qualityScore: numeric("quality_score"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+  source: text("source").notNull(),
+  rawJson: jsonb("raw_json"),
+}, (table) => [
+  index("asset_classifications_symbol_idx").on(table.symbol),
+  index("asset_classifications_asset_class_idx").on(table.assetClass),
+  index("asset_classifications_market_cap_tier_idx").on(table.marketCapTier),
+]);
+
 export const universeCandidates = pgTable("universe_candidates", {
   id: varchar("id")
     .primaryKey()
@@ -877,6 +955,18 @@ export const insertUniverseFundamentalsSchema = createInsertSchema(universeFunda
   id: true,
   lastUpdatedAt: true,
 });
+export const insertUniverseTechnicalsSchema = createInsertSchema(universeTechnicals).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
+export const insertMacroIndicatorsSchema = createInsertSchema(macroIndicators).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
+export const insertAssetClassificationSchema = createInsertSchema(assetClassifications).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
 export const insertUniverseCandidateSchema = createInsertSchema(universeCandidates).omit({
   id: true,
   createdAt: true,
@@ -898,6 +988,12 @@ export type InsertUniverseLiquidity = z.infer<typeof insertUniverseLiquiditySche
 export type UniverseLiquidity = typeof universeLiquidityMetrics.$inferSelect;
 export type InsertUniverseFundamentals = z.infer<typeof insertUniverseFundamentalsSchema>;
 export type UniverseFundamentals = typeof universeFundamentals.$inferSelect;
+export type InsertUniverseTechnicals = z.infer<typeof insertUniverseTechnicalsSchema>;
+export type UniverseTechnicals = typeof universeTechnicals.$inferSelect;
+export type InsertMacroIndicators = z.infer<typeof insertMacroIndicatorsSchema>;
+export type MacroIndicators = typeof macroIndicators.$inferSelect;
+export type InsertAssetClassification = z.infer<typeof insertAssetClassificationSchema>;
+export type AssetClassification = typeof assetClassifications.$inferSelect;
 export type InsertUniverseCandidate = z.infer<typeof insertUniverseCandidateSchema>;
 export type UniverseCandidate = typeof universeCandidates.$inferSelect;
 export type InsertAllocationPolicy = z.infer<typeof insertAllocationPolicySchema>;
@@ -907,6 +1003,19 @@ export type RebalanceRun = typeof rebalanceRuns.$inferSelect;
 
 export type CandidateStatus = "NEW" | "WATCHLISTED" | "APPROVED" | "REJECTED";
 export type LiquidityTier = "A" | "B" | "C";
+export type MarketCapTier = "mega" | "large" | "mid" | "small" | "micro";
+export type VolatilityTier = "high" | "medium" | "low";
+export type TrendStrength = "strong_up" | "weak_up" | "neutral" | "weak_down" | "strong_down";
+export type AssetClassType =
+  | "large_cap_growth"
+  | "large_cap_value"
+  | "mid_cap_growth"
+  | "mid_cap_value"
+  | "small_cap"
+  | "crypto_major"
+  | "crypto_alt"
+  | "etf_index"
+  | "etf_sector";
 
 export const alertRules = pgTable("alert_rules", {
   id: varchar("id")

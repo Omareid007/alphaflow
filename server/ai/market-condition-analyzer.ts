@@ -35,7 +35,7 @@ class MarketConditionAnalyzer {
   private lastAnalysis: MarketConditionAnalysis | null = null;
   private lastAnalysisTime: Date | null = null;
   private isAnalyzing = false;
-  private analysisTimer: NodeJS.Timeout | null = null;
+  private analysisTimer: ReturnType<typeof setInterval> | null = null;
 
   async initialize(): Promise<void> {
     console.log("[MarketAnalyzer] Initializing market condition analyzer...");
