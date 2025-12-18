@@ -29,6 +29,12 @@ export interface AlpacaTradeRequest {
   useBracketOrder?: boolean;
   trailingStopPercent?: number;
   extendedHours?: boolean;
+  /** 
+   * SECURITY: Only the work queue processor should set this to true.
+   * When orchestratorControlEnabled is true, trades are only allowed if this flag is true.
+   * This prevents bypass attacks via notes manipulation.
+   */
+  authorizedByOrchestrator?: boolean;
 }
 
 export interface TargetAllocation {
@@ -403,12 +409,11 @@ class AlpacaTradingEngine {
         return { success: false, error: "Quantity must be greater than 0" };
       }
 
-      if (this.orchestratorControlEnabled) {
-        const isWorkQueueTrade = notes?.includes('[WORK_QUEUE]') || notes?.includes('orchestrator');
-        if (!isWorkQueueTrade) {
-          console.log(`[AlpacaTradingEngine] Trade blocked for ${symbol} - orchestrator has control. Only work queue trades allowed.`);
-          return { success: false, error: "Orchestrator has control - only work queue trades are allowed" };
-        }
+      // SECURITY: Orchestrator control check - only allow trades authorized by the orchestrator/work queue
+      // This cannot be bypassed by manipulating notes strings
+      if (this.orchestratorControlEnabled && !request.authorizedByOrchestrator) {
+        console.log(`[AlpacaTradingEngine] Trade blocked for ${symbol} - orchestrator has control. Direct trade execution blocked.`);
+        return { success: false, error: "Orchestrator control active - direct trade execution blocked. Trades must go through the work queue." };
       }
 
       // LOSS PROTECTION: Block direct sell orders at a loss unless it's a stop-loss
@@ -592,9 +597,21 @@ class AlpacaTradingEngine {
   async closeAlpacaPosition(
     symbol: string, 
     strategyId?: string,
-    options: { isStopLossTriggered?: boolean; isEmergencyStop?: boolean } = {}
+    options: { 
+      isStopLossTriggered?: boolean; 
+      isEmergencyStop?: boolean;
+      /** SECURITY: Only the work queue processor should set this to true */
+      authorizedByOrchestrator?: boolean;
+    } = {}
   ): Promise<AlpacaTradeResult> {
     try {
+      // SECURITY: Orchestrator control check - only allow position closes authorized by orchestrator/work queue
+      // Exception: Emergency stops and stop-loss triggers are always allowed for safety
+      if (this.orchestratorControlEnabled && !options.authorizedByOrchestrator && !options.isEmergencyStop) {
+        console.log(`[AlpacaTradingEngine] Position close blocked for ${symbol} - orchestrator has control. Direct position close blocked.`);
+        return { success: false, error: "Orchestrator control active - direct position close blocked. Must go through work queue or be an emergency stop." };
+      }
+
       // For crypto, use slash format; for stocks, use standard format
       const alpacaSymbol = this.isCryptoSymbol(symbol) 
         ? this.normalizeCryptoSymbol(symbol) 

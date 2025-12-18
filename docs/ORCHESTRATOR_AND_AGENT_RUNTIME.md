@@ -32,6 +32,10 @@
 9. [Current State (December 2025)](#9-current-state-december-2025)
 10. [Enhancements Compared to Previous Version](#10-enhancements-compared-to-previous-version)
 11. [Old vs New - Summary of Changes](#11-old-vs-new---summary-of-changes)
+12. [Dynamic Universe Expansion](#12-dynamic-universe-expansion-december-2025)
+13. [AI Decision Enrichment & Timeline](#13-ai-decision-enrichment--timeline-december-2025)
+14. [Consolidated Trading Architecture](#14-consolidated-trading-architecture-december-2025)
+15. [Loss Protection](#15-loss-protection-december-2025)
 
 ---
 
@@ -748,5 +752,122 @@ interface TimelineItem {
 
 ---
 
+## 14. Consolidated Trading Architecture (December 2025)
+
+### 14.1 Problem: Dual Autonomous Loops
+
+Previously, the system had **two independent trading loops** that could make conflicting decisions:
+
+| Component | Location | Behavior |
+|-----------|----------|----------|
+| **Orchestrator** | `server/autonomous/orchestrator.ts` | Timer-based cycles, AI analysis, work queue orders |
+| **AlpacaTradingEngine** | `server/trading/alpaca-trading-engine.ts` | Strategy-based cycles, direct Alpaca orders |
+
+This caused issues:
+- Conflicting buy/sell decisions on the same symbol
+- Duplicate executions bypassing orchestrator risk controls
+- No single source of truth for trading decisions
+
+### 14.2 Solution: Orchestrator Control
+
+AlpacaTradingEngine now operates under orchestrator control:
+
+```typescript
+class AlpacaTradingEngine {
+  orchestratorControlEnabled: boolean = true; // Default: true
+  
+  enableOrchestratorControl(): void;  // Called when orchestrator starts
+  disableOrchestratorControl(): void; // Called when orchestrator stops
+  isOrchestratorControlEnabled(): boolean;
+}
+```
+
+**When orchestrator has control (`orchestratorControlEnabled = true`):**
+- `startStrategy()` → Blocked with message "Orchestrator has control"
+- `analyzeAndExecute()` → Only generates AI suggestions, no trade execution
+- `executeAlpacaTrade()` → Only allows trades with `[WORK_QUEUE]` or `orchestrator` in notes
+
+### 14.3 Unified Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant O as Orchestrator
+    participant WQ as Work Queue
+    participant ATE as AlpacaTradingEngine
+    participant B as Broker (Alpaca)
+
+    O->>O: AI Analysis Cycle
+    O->>WQ: Submit TradeIntent Job
+    WQ->>ATE: executeAlpacaTrade(notes: "[WORK_QUEUE]")
+    ATE->>ATE: Verify orchestrator allows execution
+    ATE->>B: Submit Order
+    B-->>ATE: Order Confirmation
+    ATE-->>WQ: Trade Result
+    WQ-->>O: Job Complete
+```
+
+### 14.4 Trade Execution Rules
+
+| Caller | `orchestratorControlEnabled` | Notes Contains | Allowed? |
+|--------|------------------------------|----------------|----------|
+| Work Queue | true | `[WORK_QUEUE]` | Yes |
+| Orchestrator | true | `orchestrator` | Yes |
+| Direct API | true | (none) | No |
+| Strategy Loop | true | (none) | No |
+| Any | false | (any) | Yes |
+
+---
+
+## 15. Loss Protection (December 2025)
+
+### 15.1 Overview
+
+Positions at a loss will **NOT** be automatically closed to prevent premature loss realization. This applies to **ALL symbols** (stocks and crypto).
+
+### 15.2 Protection Layers
+
+Loss protection is implemented at **three layers**:
+
+| Layer | Location | Function |
+|-------|----------|----------|
+| 1 | `closeAlpacaPosition()` | Blocks AI sell recommendations at loss |
+| 2 | `executeAlpacaTrade()` | Blocks rebalancing sells at loss |
+| 3 | `orchestrator.closePosition()` | Blocks orchestrator close at loss |
+
+### 15.3 Loss Detection Logic
+
+```typescript
+// Applied to ALL symbols generically
+const entryPrice = position.avg_entry_price;
+const currentPrice = position.current_price;
+const isAtLoss = currentPrice < entryPrice;
+const lossPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+```
+
+### 15.4 Exceptions (When Sells ARE Allowed)
+
+| Exception | Trigger | Rationale |
+|-----------|---------|-----------|
+| **Stop-Loss Trigger** | Bracket order SL price hit | Configured risk limit |
+| **Emergency Stop** | Loss exceeds -8% | System safety net |
+| **Manual Override** | User explicit action | User intent clear |
+
+### 15.5 Log Messages
+
+```
+[LossProtection] Blocking sell of TSLA at -2.5% loss - waiting for stop-loss or price recovery
+[LossProtection] Allowing sell of NVDA at -9.2% loss - emergency stop triggered
+[LossProtection] Sell allowed for AAPL at +3.1% profit
+```
+
+### 15.6 Bracket Order Behavior
+
+Bracket orders created with stop-loss prices still execute at Alpaca level:
+- Example: `TSLA: TP=$490, SL=$470` 
+- If price drops to $470, Alpaca executes the stop-loss automatically
+- This is correct behavior - the configured stop-loss should always fire
+
+---
+
 *Last Updated: December 2025*  
-*Version: 2.1.0 (Universe Expansion & Decision Enrichment)*
+*Version: 2.2.0 (Consolidated Architecture & Loss Protection)*
