@@ -511,7 +511,7 @@ class AlpacaConnector {
       if (cached) return cached;
     }
 
-    let url = `${ALPACA_DATA_URL}/v2/stocks/bars?symbols=${symbolsParam}&timeframe=${timeframe}&limit=${limit}`;
+    let url = `${ALPACA_DATA_URL}/v2/stocks/bars?symbols=${symbolsParam}&timeframe=${timeframe}&limit=${limit}&feed=iex`;
     if (start) url += `&start=${start}`;
     if (end) url += `&end=${end}`;
     if (pageToken) url += `&page_token=${pageToken}`;
@@ -531,7 +531,7 @@ class AlpacaConnector {
     const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(cacheKey);
     if (cached) return cached;
 
-    const url = `${ALPACA_DATA_URL}/v2/stocks/snapshots?symbols=${symbolsParam}`;
+    const url = `${ALPACA_DATA_URL}/v2/stocks/snapshots?symbols=${symbolsParam}&feed=iex`;
     const data = await this.fetchWithRetry<{ [symbol: string]: AlpacaSnapshot }>(url);
     this.setCache(cacheKey, data);
     return data;

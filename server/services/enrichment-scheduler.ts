@@ -2,9 +2,11 @@ import { log } from "../utils/logger";
 import { macroIndicatorsService } from "./macro-indicators-service";
 import { fundamentalsService } from "../universe/fundamentalsService";
 import { db } from "../db";
-import { universeTechnicals, universeAssets, universeLiquidityMetrics } from "@shared/schema";
+import { universeTechnicals, brokerAssets, universeLiquidityMetrics } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { finnhub } from "../connectors/finnhub";
+import { alpaca, type AlpacaBar } from "../connectors/alpaca";
+import { computeAllIndicators, type OHLCBar } from "../lib/technical-indicators";
 
 interface EnrichmentJobStatus {
   name: string;
@@ -98,6 +100,30 @@ class EnrichmentScheduler {
         log.error("EnrichmentScheduler", "Initial macro sync failed", { error: e })
       );
     }
+
+    const [technicalsCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(universeTechnicals);
+
+    const [brokerAssetsCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(brokerAssets)
+      .where(eq(brokerAssets.tradable, true));
+
+    const techCount = Number(technicalsCount?.count || 0);
+    const assetCount = Number(brokerAssetsCount?.count || 0);
+    const coverageThreshold = Math.min(assetCount, 50) * 0.5;
+
+    if (techCount < coverageThreshold) {
+      log.info("EnrichmentScheduler", "Technicals coverage low, running initial sync", {
+        currentCount: techCount,
+        threshold: coverageThreshold,
+        brokerAssets: assetCount,
+      });
+      this.runTechnicalsJob().catch((e) =>
+        log.error("EnrichmentScheduler", "Initial technicals sync failed", { error: e })
+      );
+    }
   }
 
   stop() {
@@ -187,52 +213,110 @@ class EnrichmentScheduler {
 
   async runTechnicalsJob(): Promise<void> {
     const assets = await db
-      .select({ symbol: universeAssets.symbol })
-      .from(universeAssets)
-      .where(and(eq(universeAssets.tradable, true), eq(universeAssets.excluded, false)))
+      .select({ symbol: brokerAssets.symbol, assetClass: brokerAssets.assetClass })
+      .from(brokerAssets)
+      .where(eq(brokerAssets.tradable, true))
       .limit(50);
 
     let processed = 0;
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    for (const { symbol } of assets) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const { symbol, assetClass } of assets) {
       try {
-        const quote = await finnhub.getQuote(symbol);
-        const technicalSignals = await finnhub.getTechnicalSignals(symbol);
+        const barsResponse = await alpaca.getBars(
+          [symbol],
+          "1Day",
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
+          400
+        );
 
-        if (quote) {
-          const techData: Record<string, unknown> = {
-            symbol,
-            date: new Date(),
-            open: quote.o?.toString(),
-            high: quote.h?.toString(),
-            low: quote.l?.toString(),
-            close: quote.c?.toString(),
-            source: "finnhub",
-            lastUpdatedAt: new Date(),
-          };
-          
-          if (technicalSignals.adx !== null) {
-            techData.adx14 = technicalSignals.adx.toString();
-          }
-          
-          await db
-            .insert(universeTechnicals)
-            .values(techData as typeof universeTechnicals.$inferInsert)
-            .onConflictDoUpdate({
-              target: [universeTechnicals.symbol, universeTechnicals.date],
-              set: {
-                open: quote.o?.toString(),
-                high: quote.h?.toString(),
-                low: quote.l?.toString(),
-                close: quote.c?.toString(),
-                adx14: technicalSignals.adx?.toString() || undefined,
-                lastUpdatedAt: new Date(),
-              },
-            });
-          processed++;
+        const bars = barsResponse.bars[symbol];
+        if (!bars || bars.length < 200) {
+          log.warn("EnrichmentScheduler", `Insufficient bars for ${symbol}: ${bars?.length || 0}`);
+          continue;
         }
+
+        const ohlcBars: OHLCBar[] = bars.map((b: AlpacaBar) => ({
+          open: b.o,
+          high: b.h,
+          low: b.l,
+          close: b.c,
+          volume: b.v,
+        }));
+
+        const indicators = computeAllIndicators(ohlcBars);
+        if (!indicators) {
+          continue;
+        }
+
+        const lastBar = bars[bars.length - 1];
+        const technicalSignals = await finnhub.getTechnicalSignals(symbol).catch(() => ({ adx: null }));
+
+        await db
+          .insert(universeTechnicals)
+          .values({
+            symbol,
+            date: today,
+            open: lastBar.o?.toString(),
+            high: lastBar.h?.toString(),
+            low: lastBar.l?.toString(),
+            close: lastBar.c?.toString(),
+            volume: lastBar.v?.toString(),
+            sma20: indicators.sma20?.toString(),
+            sma50: indicators.sma50?.toString(),
+            sma200: indicators.sma200?.toString(),
+            ema12: indicators.ema12?.toString(),
+            ema26: indicators.ema26?.toString(),
+            rsi14: indicators.rsi14?.toString(),
+            macd: indicators.macd?.toString(),
+            macdSignal: indicators.macdSignal?.toString(),
+            macdHistogram: indicators.macdHistogram?.toString(),
+            atr14: indicators.atr14?.toString(),
+            bollingerUpper: indicators.bollingerUpper?.toString(),
+            bollingerLower: indicators.bollingerLower?.toString(),
+            adx14: technicalSignals.adx?.toString(),
+            source: "alpaca+computed",
+            lastUpdatedAt: new Date(),
+          } as typeof universeTechnicals.$inferInsert)
+          .onConflictDoUpdate({
+            target: [universeTechnicals.symbol, universeTechnicals.date],
+            set: {
+              open: lastBar.o?.toString(),
+              high: lastBar.h?.toString(),
+              low: lastBar.l?.toString(),
+              close: lastBar.c?.toString(),
+              volume: lastBar.v?.toString(),
+              sma20: indicators.sma20?.toString(),
+              sma50: indicators.sma50?.toString(),
+              sma200: indicators.sma200?.toString(),
+              ema12: indicators.ema12?.toString(),
+              ema26: indicators.ema26?.toString(),
+              rsi14: indicators.rsi14?.toString(),
+              macd: indicators.macd?.toString(),
+              macdSignal: indicators.macdSignal?.toString(),
+              macdHistogram: indicators.macdHistogram?.toString(),
+              atr14: indicators.atr14?.toString(),
+              bollingerUpper: indicators.bollingerUpper?.toString(),
+              bollingerLower: indicators.bollingerLower?.toString(),
+              adx14: technicalSignals.adx?.toString(),
+              lastUpdatedAt: new Date(),
+            },
+          });
+        processed++;
+        log.info("EnrichmentScheduler", `Computed technicals for ${symbol}`, { 
+          rsi14: indicators.rsi14?.toFixed(2),
+          sma20: indicators.sma20?.toFixed(2),
+        });
       } catch (error) {
-        log.warn("EnrichmentScheduler", `Failed to fetch technicals for ${symbol}`, { error });
+        const errorDetails = error instanceof Error 
+          ? { message: error.message, name: error.name, stack: error.stack?.split('\n').slice(0, 3).join(' | ') }
+          : { raw: String(error) };
+        log.warn("EnrichmentScheduler", `Failed to compute technicals for ${symbol}`, errorDetails);
       }
     }
 

@@ -125,22 +125,57 @@ The system includes an automated enrichment scheduler (`server/services/enrichme
 **Scheduled Jobs**:
 - **Macro Indicators** (4h interval): Fetches FRED economic data via `macroIndicatorsService.refreshAllIndicators()`
 - **Fundamentals** (24h interval): Updates company fundamentals via `fundamentalsService.fetchAndStoreFundamentals()`
-- **Technicals** (1h interval): Fetches OHLC and technical indicators from Finnhub
+- **Technicals** (1h interval): Fetches 1-year OHLC from Alpaca, computes SMA, EMA, RSI, MACD, Bollinger Bands, ATR
 
 **API Endpoints** (`/api/enrichment`):
 - `GET /status` - View all job statuses (lastRun, nextRun, isRunning)
 - `GET /status/:jobName` - View specific job status
-- `POST /run/:jobName` - Manually trigger a job
+- `POST /run/:jobName` - Manually trigger a job (returns 409 if already running)
 - `GET /stats` - View row counts for data tables
 
 **Required API Keys**:
 - `FRED_API_KEY` - For macro economic indicators
-- Finnhub API key - For technicals (already configured)
+- Alpaca API - For historical bars (already configured)
+- Finnhub API - For ADX signals (already configured)
 
 **Tables Populated**:
 | Table | Source | Interval |
 |-------|--------|----------|
 | `macro_indicators` | FRED | 4 hours |
 | `universe_fundamentals` | Finnhub | 24 hours |
-| `universe_technicals` | Finnhub | 1 hour |
+| `universe_technicals` | Alpaca + Computed | 1 hour |
 | `asset_classifications` | Computed | On-demand |
+
+### Technical Indicators Library (December 2024)
+Centralized technical indicator calculations in `server/lib/technical-indicators.ts`:
+
+**Available Functions**:
+- `calculateSMA(prices, period)` - Simple Moving Average
+- `calculateEMA(prices, period)` - Exponential Moving Average
+- `calculateRSI(prices, period)` - Relative Strength Index
+- `calculateMACD(prices, fast, slow, signal)` - MACD with signal and histogram
+- `calculateBollingerBands(prices, period, stdDev)` - Upper/Middle/Lower bands
+- `calculateATR(highs, lows, closes, period)` - Average True Range
+- `calculateStdDev(prices, period)` - Standard Deviation
+- `calculateROC(prices, period)` - Rate of Change
+- `computeAllIndicators(bars)` - Compute all indicators from OHLC bars
+
+### Architecture Validation (December 2024)
+Analysis of caching and performance optimization document findings:
+
+**Validated (Already Implemented Correctly)**:
+- Normalized database design: `universe_fundamentals`, `universe_technicals`, `asset_classifications` separate from `broker_assets`
+- Technical indicators schema with SMA, EMA, RSI, MACD, Bollinger Bands, ATR, ADX columns
+- Enrichment scheduler with interval-based jobs
+
+**Not Implemented (Future Consideration)**:
+- Redis for distributed caching (currently using in-memory ApiCache)
+- pgvector for pattern embeddings (requires PostgreSQL extension)
+- QuestDB/TimescaleDB for time-series (PostgreSQL sufficient for current scale)
+- Unified cache consolidation (4 cache systems still separate)
+
+**Cache Systems in Use**:
+- `server/lib/api-cache.ts` - Main API cache with fresh/stale pattern
+- `server/lib/order-execution-cache.ts` - Order execution caching
+- `services/market-data/cache.ts` - Market data specific cache
+- `services/intelligence-fabric/rag-cache.ts` - RAG/embedding cache

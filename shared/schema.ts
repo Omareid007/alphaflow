@@ -841,6 +841,7 @@ export const universeTechnicals = pgTable("universe_technicals", {
 }, (table) => [
   index("universe_technicals_symbol_idx").on(table.symbol),
   index("universe_technicals_date_idx").on(table.date),
+  unique("universe_technicals_symbol_date_unique").on(table.symbol, table.date),
 ]);
 
 export const macroIndicators = pgTable("macro_indicators", {
