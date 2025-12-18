@@ -12,7 +12,7 @@ import { Spacing, BrandColors, BorderRadius, Typography, Fonts } from "@/constan
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
 import { apiRequest } from "@/lib/query-client";
-import type { AiDecision } from "@shared/schema";
+import type { AiDecision, Order, Trade, Position } from "@shared/schema";
 import type { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -22,6 +22,26 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 type StatusFilter = "all" | "executed" | "pending" | "skipped" | "suggested";
 type ViewMode = "list" | "grouped";
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+interface TimelineItem {
+  stage: "decision" | "risk_gate" | "order" | "fill" | "position" | "exit";
+  status: "completed" | "pending" | "skipped" | "failed";
+  timestamp: Date | null;
+  details?: string;
+}
+
+interface EnrichedDecision {
+  decision: AiDecision;
+  linkedOrder: Order | null;
+  linkedTrade: Trade | null;
+  linkedPosition: Position | null;
+  timeline: TimelineItem[];
+}
+
+interface EnrichedResponse {
+  enrichedDecisions: EnrichedDecision[];
+  total: number;
+}
 
 interface MarketContext {
   marketData?: {
@@ -91,6 +111,91 @@ function FilterChip({
   );
 }
 
+const STAGE_LABELS: Record<TimelineItem["stage"], string> = {
+  decision: "Decision",
+  risk_gate: "Risk Gate",
+  order: "Order",
+  fill: "Fill",
+  position: "Position",
+  exit: "Exit",
+};
+
+const STAGE_ICONS: Record<TimelineItem["stage"], keyof typeof Feather.glyphMap> = {
+  decision: "cpu",
+  risk_gate: "shield",
+  order: "send",
+  fill: "check-circle",
+  position: "briefcase",
+  exit: "log-out",
+};
+
+function getTimelineStatusColor(status: TimelineItem["status"]): string {
+  switch (status) {
+    case "completed":
+      return BrandColors.success;
+    case "pending":
+      return BrandColors.warning;
+    case "skipped":
+      return BrandColors.neutral;
+    case "failed":
+      return BrandColors.error;
+    default:
+      return BrandColors.neutral;
+  }
+}
+
+function ExecutionTimeline({ timeline }: { timeline: TimelineItem[] }) {
+  const { theme } = useTheme();
+  
+  if (!timeline || timeline.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.timelineContainer}>
+      <ThemedText style={[styles.timelineTitle, { color: theme.textSecondary }]}>
+        Execution Flow
+      </ThemedText>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.timelineScroll}
+      >
+        {timeline.map((item, index) => {
+          const color = getTimelineStatusColor(item.status);
+          const isLast = index === timeline.length - 1;
+          
+          return (
+            <View key={`${item.stage}-${index}`} style={styles.timelineStepWrapper}>
+              <View style={styles.timelineStep}>
+                <View style={[styles.timelineDot, { backgroundColor: color }]}>
+                  <Feather 
+                    name={STAGE_ICONS[item.stage]} 
+                    size={12} 
+                    color="#fff" 
+                  />
+                </View>
+                <ThemedText style={[styles.timelineLabel, { color: theme.text }]}>
+                  {STAGE_LABELS[item.stage]}
+                </ThemedText>
+                <ThemedText 
+                  style={[styles.timelineStatus, { color }]}
+                  numberOfLines={1}
+                >
+                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </ThemedText>
+              </View>
+              {!isLast ? (
+                <View style={[styles.timelineLine, { backgroundColor: color + "60" }]} />
+              ) : null}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function AISuggestedTradesScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -102,6 +207,7 @@ export default function AISuggestedTradesScreen() {
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(0);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+  const [expandedDecisions, setExpandedDecisions] = useState<Set<string>>(new Set());
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
   interface HistoryResponse {
@@ -115,6 +221,21 @@ export default function AISuggestedTradesScreen() {
     queryKey: ["/api/ai-decisions/history?limit=200"],
     refetchInterval: 10000,
   });
+
+  const { data: enrichedData, refetch: refetchEnriched } = useQuery<EnrichedResponse>({
+    queryKey: ["/api/ai-decisions/enriched?limit=200"],
+    refetchInterval: 15000,
+  });
+
+  const enrichedMap = useMemo(() => {
+    const map = new Map<string, EnrichedDecision>();
+    enrichedData?.enrichedDecisions?.forEach((ed) => {
+      if (ed.decision?.id) {
+        map.set(ed.decision.id, ed);
+      }
+    });
+    return map;
+  }, [enrichedData]);
 
   const allDecisions = historyData?.decisions ?? [];
   const pendingAnalysis = historyData?.pendingAnalysis ?? [];
@@ -217,9 +338,22 @@ export default function AISuggestedTradesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchEnriched()]);
     setRefreshing(false);
-  }, [refetch]);
+  }, [refetch, refetchEnriched]);
+
+  const toggleDecisionExpand = (decisionId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedDecisions((prev) => {
+      const next = new Set(prev);
+      if (next.has(decisionId)) {
+        next.delete(decisionId);
+      } else {
+        next.add(decisionId);
+      }
+      return next;
+    });
+  };
 
   const handleStatusFilter = (filter: StatusFilter) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -550,36 +684,44 @@ export default function AISuggestedTradesScreen() {
     const liveData = getLiveData(decision.symbol);
     const currentPrice = liveData?.price ?? context?.marketData?.price;
     const priceChange = liveData?.change ?? context?.marketData?.change;
+    const isExpanded = expandedDecisions.has(decision.id);
+    const enrichedInfo = enrichedMap.get(decision.id);
 
     return (
-      <Pressable
-        onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
-      >
-        <Card elevation={1} style={styles.suggestionCard}>
-        <View style={styles.suggestionHeader}>
-          <View style={styles.symbolRow}>
-            <ThemedText style={styles.symbol}>{decision.symbol}</ThemedText>
-            <View style={[styles.actionBadge, { backgroundColor: getActionColor(decision.action) }]}>
-              <ThemedText style={styles.actionText}>{decision.action.toUpperCase()}</ThemedText>
+      <Card elevation={1} style={styles.suggestionCard}>
+        <Pressable onPress={() => toggleDecisionExpand(decision.id)}>
+          <View style={styles.suggestionHeader}>
+            <View style={styles.symbolRow}>
+              <ThemedText style={styles.symbol}>{decision.symbol}</ThemedText>
+              <View style={[styles.actionBadge, { backgroundColor: getActionColor(decision.action) }]}>
+                <ThemedText style={styles.actionText}>{decision.action.toUpperCase()}</ThemedText>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor((decision as any).status) }]}>
+                <ThemedText style={styles.statusText}>{getStatusLabel((decision as any).status)}</ThemedText>
+              </View>
+              {context?.riskLevel ? (
+                <View style={[styles.riskBadge, { borderColor: getRiskColor(context.riskLevel) }]}>
+                  <ThemedText style={[styles.riskText, { color: getRiskColor(context.riskLevel) }]}>
+                    {context.riskLevel.toUpperCase()} RISK
+                  </ThemedText>
+                </View>
+              ) : null}
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor((decision as any).status) }]}>
-              <ThemedText style={styles.statusText}>{getStatusLabel((decision as any).status)}</ThemedText>
-            </View>
-            {context?.riskLevel ? (
-              <View style={[styles.riskBadge, { borderColor: getRiskColor(context.riskLevel) }]}>
-                <ThemedText style={[styles.riskText, { color: getRiskColor(context.riskLevel) }]}>
-                  {context.riskLevel.toUpperCase()} RISK
+            <View style={styles.confidenceExpand}>
+              <View style={styles.confidenceContainer}>
+                <ThemedText style={[styles.confidenceLabel, { color: theme.textSecondary }]}>Confidence</ThemedText>
+                <ThemedText style={[styles.confidenceValue, { fontFamily: Fonts?.mono, color: getConfidenceColor(decision.confidence) }]}>
+                  {formatConfidence(decision.confidence)}
                 </ThemedText>
               </View>
-            ) : null}
+              <Feather 
+                name={isExpanded ? "chevron-up" : "chevron-down"} 
+                size={18} 
+                color={theme.textSecondary} 
+              />
+            </View>
           </View>
-          <View style={styles.confidenceContainer}>
-            <ThemedText style={[styles.confidenceLabel, { color: theme.textSecondary }]}>Confidence</ThemedText>
-            <ThemedText style={[styles.confidenceValue, { fontFamily: Fonts?.mono, color: getConfidenceColor(decision.confidence) }]}>
-              {formatConfidence(decision.confidence)}
-            </ThemedText>
-          </View>
-        </View>
+        </Pressable>
 
         {currentPrice ? (
           <View style={styles.priceSection}>
@@ -662,6 +804,112 @@ export default function AISuggestedTradesScreen() {
           </View>
         ) : null}
 
+        {isExpanded && enrichedInfo ? (
+          <View style={styles.expandedSection}>
+            <ExecutionTimeline timeline={enrichedInfo.timeline} />
+            
+            {enrichedInfo.linkedOrder ? (
+              <View style={styles.linkedInfoSection}>
+                <ThemedText style={[styles.linkedInfoTitle, { color: theme.textSecondary }]}>
+                  Linked Order
+                </ThemedText>
+                <View style={styles.linkedInfoContent}>
+                  <View style={styles.linkedInfoRow}>
+                    <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Order ID</ThemedText>
+                    <ThemedText style={[styles.linkedInfoValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                      {(enrichedInfo.linkedOrder as any).alpacaOrderId?.slice(-8) || enrichedInfo.linkedOrder.id.slice(-8)}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.linkedInfoRow}>
+                    <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Status</ThemedText>
+                    <View style={[styles.linkedOrderStatus, { backgroundColor: getStatusColor((enrichedInfo.linkedOrder as any).status) + "30" }]}>
+                      <ThemedText style={[styles.linkedOrderStatusText, { color: getStatusColor((enrichedInfo.linkedOrder as any).status) }]}>
+                        {((enrichedInfo.linkedOrder as any).status || "unknown").toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  {(enrichedInfo.linkedOrder as any).filledAvgPrice ? (
+                    <View style={styles.linkedInfoRow}>
+                      <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Filled Price</ThemedText>
+                      <ThemedText style={[styles.linkedInfoValue, { color: BrandColors.success, fontFamily: Fonts?.mono }]}>
+                        ${parseFloat((enrichedInfo.linkedOrder as any).filledAvgPrice).toFixed(2)}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+            
+            {enrichedInfo.linkedPosition ? (
+              <View style={styles.linkedInfoSection}>
+                <ThemedText style={[styles.linkedInfoTitle, { color: theme.textSecondary }]}>
+                  Open Position
+                </ThemedText>
+                <View style={styles.linkedInfoContent}>
+                  <View style={styles.linkedInfoRow}>
+                    <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Quantity</ThemedText>
+                    <ThemedText style={[styles.linkedInfoValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                      {enrichedInfo.linkedPosition.quantity}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.linkedInfoRow}>
+                    <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Entry Price</ThemedText>
+                    <ThemedText style={[styles.linkedInfoValue, { color: theme.text, fontFamily: Fonts?.mono }]}>
+                      ${parseFloat(enrichedInfo.linkedPosition.entryPrice as string).toFixed(2)}
+                    </ThemedText>
+                  </View>
+                  {enrichedInfo.linkedPosition.unrealizedPnl ? (
+                    <View style={styles.linkedInfoRow}>
+                      <ThemedText style={[styles.linkedInfoLabel, { color: theme.textSecondary }]}>Unrealized P/L</ThemedText>
+                      <ThemedText style={[styles.linkedInfoValue, { 
+                        color: parseFloat(enrichedInfo.linkedPosition.unrealizedPnl as string) >= 0 ? BrandColors.success : BrandColors.error, 
+                        fontFamily: Fonts?.mono 
+                      }]}>
+                        {parseFloat(enrichedInfo.linkedPosition.unrealizedPnl as string) >= 0 ? "+" : ""}
+                        ${parseFloat(enrichedInfo.linkedPosition.unrealizedPnl as string).toFixed(2)}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.actionButtonsRow}>
+              <Pressable
+                style={[styles.actionButton, { backgroundColor: theme.backgroundSecondary }]}
+                onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
+              >
+                <Feather name="trending-up" size={14} color={BrandColors.primaryLight} />
+                <ThemedText style={[styles.actionButtonText, { color: BrandColors.primaryLight }]}>
+                  View Chart
+                </ThemedText>
+              </Pressable>
+              {enrichedInfo.linkedOrder ? (
+                <Pressable
+                  style={[styles.actionButton, { backgroundColor: BrandColors.aiLayer + "20" }]}
+                  onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
+                >
+                  <Feather name="file-text" size={14} color={BrandColors.aiLayer} />
+                  <ThemedText style={[styles.actionButtonText, { color: BrandColors.aiLayer }]}>
+                    View Order
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+              {enrichedInfo.linkedPosition ? (
+                <Pressable
+                  style={[styles.actionButton, { backgroundColor: BrandColors.success + "20" }]}
+                  onPress={() => navigation.navigate("TickerDetail", { symbol: decision.symbol, assetType: "stock" })}
+                >
+                  <Feather name="briefcase" size={14} color={BrandColors.success} />
+                  <ThemedText style={[styles.actionButtonText, { color: BrandColors.success }]}>
+                    View Position
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.footer}>
           <ThemedText style={[styles.timestamp, { color: theme.textSecondary }]}>
             {formatTime(decision.createdAt)}
@@ -674,7 +922,6 @@ export default function AISuggestedTradesScreen() {
           ) : null}
         </View>
       </Card>
-      </Pressable>
     );
   };
 
@@ -1382,5 +1629,118 @@ const styles = StyleSheet.create({
   legTime: {
     ...Typography.small,
     fontSize: 10,
+  },
+  confidenceExpand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  timelineContainer: {
+    marginBottom: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+  },
+  timelineTitle: {
+    ...Typography.small,
+    marginBottom: Spacing.sm,
+  },
+  timelineScroll: {
+    paddingVertical: Spacing.xs,
+    gap: 0,
+  },
+  timelineStepWrapper: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  timelineStep: {
+    alignItems: "center",
+    width: 60,
+  },
+  timelineDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
+  },
+  timelineLabel: {
+    ...Typography.small,
+    fontSize: 10,
+    textAlign: "center",
+  },
+  timelineStatus: {
+    ...Typography.small,
+    fontSize: 9,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  timelineLine: {
+    height: 2,
+    width: 12,
+    marginTop: 13,
+    marginHorizontal: -2,
+  },
+  expandedSection: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.cardBorder,
+    paddingTop: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  linkedInfoSection: {
+    marginBottom: Spacing.md,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  linkedInfoTitle: {
+    ...Typography.small,
+    fontWeight: "600",
+    marginBottom: Spacing.sm,
+  },
+  linkedInfoContent: {
+    gap: Spacing.xs,
+  },
+  linkedInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  linkedInfoLabel: {
+    ...Typography.small,
+  },
+  linkedInfoValue: {
+    ...Typography.body,
+    fontWeight: "600",
+  },
+  linkedOrderStatus: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  linkedOrderStatusText: {
+    ...Typography.small,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  actionButtonText: {
+    ...Typography.small,
+    fontWeight: "600",
   },
 });

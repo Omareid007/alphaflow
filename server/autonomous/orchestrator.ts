@@ -16,6 +16,37 @@ import { candidatesService } from "../universe/candidatesService";
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
 
+// Universe expansion constants (Section A requirements)
+const MAX_STOCK_SYMBOLS_PER_CYCLE = 120;
+const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 20;
+const ALPACA_SNAPSHOT_CHUNK_SIZE = 50;
+const RECENT_DECISIONS_LOOKBACK = 500;
+const MIN_CONFIDENCE_FOR_UNIVERSE = 0.65;
+
+// Universe expansion state for rotation
+interface UniverseRotationState {
+  stockRotationOffset: number;
+  cryptoRotationOffset: number;
+  lastRotationTime: Date;
+}
+
+const universeRotationState: UniverseRotationState = {
+  stockRotationOffset: 0,
+  cryptoRotationOffset: 0,
+  lastRotationTime: new Date(),
+};
+
+export interface UniverseSymbols {
+  stocks: string[];
+  crypto: string[];
+  sources: {
+    watchlist: number;
+    candidates: number;
+    recentDecisions: number;
+    executedTrades: number;
+  };
+}
+
 export interface OrchestratorConfig {
   analysisIntervalMs: number;
   positionCheckIntervalMs: number;
@@ -964,43 +995,214 @@ class AutonomousOrchestrator {
     }
   }
 
+  /**
+   * Get the dynamic analysis universe by merging multiple sources:
+   * - Base watchlist stocks/crypto
+   * - APPROVED candidates from candidatesService
+   * - Symbols from recent high-confidence AI decisions
+   * - Symbols from recently executed trades (with boost priority)
+   */
+  private async getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
+    const sources = { watchlist: 0, candidates: 0, recentDecisions: 0, executedTrades: 0 };
+    
+    // Start with base watchlist
+    const stockSet = new Set<string>(WATCHLIST.stocks.map(s => s.toUpperCase()));
+    const cryptoSet = new Set<string>(WATCHLIST.crypto.map(c => c.toUpperCase()));
+    sources.watchlist = stockSet.size + cryptoSet.size;
+
+    try {
+      // Add APPROVED candidates from universe
+      const approvedSymbols = await candidatesService.getApprovedSymbols();
+      for (const symbol of approvedSymbols) {
+        const upper = symbol.toUpperCase();
+        if (isCryptoSymbol(upper)) {
+          cryptoSet.add(upper.replace('/USD', ''));
+        } else {
+          stockSet.add(upper);
+        }
+      }
+      sources.candidates = approvedSymbols.length;
+    } catch (error) {
+      log.warn("Orchestrator", "Failed to get approved candidates", { error: String(error) });
+    }
+
+    try {
+      // Add symbols from recent high-confidence AI decisions (action != hold)
+      const recentDecisions = await storage.getAiDecisions(RECENT_DECISIONS_LOOKBACK);
+      const highConfDecisions = recentDecisions.filter(d => {
+        const confidence = parseFloat(d.confidence || "0");
+        return confidence >= MIN_CONFIDENCE_FOR_UNIVERSE && d.action !== "hold";
+      });
+      
+      for (const decision of highConfDecisions) {
+        const upper = decision.symbol.toUpperCase();
+        if (isCryptoSymbol(upper)) {
+          cryptoSet.add(upper.replace('/USD', ''));
+        } else {
+          stockSet.add(upper);
+        }
+        
+        // Boost priority for executed trades (always include)
+        if (decision.executedTradeId) {
+          sources.executedTrades++;
+        }
+      }
+      sources.recentDecisions = highConfDecisions.length;
+    } catch (error) {
+      log.warn("Orchestrator", "Failed to get recent AI decisions for universe", { error: String(error) });
+    }
+
+    // Apply rotation if universe exceeds caps
+    let stocks = Array.from(stockSet);
+    let crypto = Array.from(cryptoSet);
+
+    if (stocks.length > MAX_STOCK_SYMBOLS_PER_CYCLE) {
+      // Rotate through the full universe over time
+      const now = Date.now();
+      const hoursSinceLastRotation = (now - universeRotationState.lastRotationTime.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastRotation >= 1) {
+        universeRotationState.stockRotationOffset = (universeRotationState.stockRotationOffset + MAX_STOCK_SYMBOLS_PER_CYCLE / 2) % stocks.length;
+        universeRotationState.lastRotationTime = new Date();
+      }
+      
+      // Take a window with rotation offset
+      const offset = universeRotationState.stockRotationOffset;
+      const rotated = [...stocks.slice(offset), ...stocks.slice(0, offset)];
+      stocks = rotated.slice(0, MAX_STOCK_SYMBOLS_PER_CYCLE);
+    }
+
+    if (crypto.length > MAX_CRYPTO_SYMBOLS_PER_CYCLE) {
+      const offset = universeRotationState.cryptoRotationOffset;
+      const rotated = [...crypto.slice(offset), ...crypto.slice(0, offset)];
+      crypto = rotated.slice(0, MAX_CRYPTO_SYMBOLS_PER_CYCLE);
+    }
+
+    log.info("Orchestrator", `Universe built: ${stocks.length} stocks, ${crypto.length} crypto`, {
+      sources,
+      totalStockPool: stockSet.size,
+      totalCryptoPool: cryptoSet.size,
+    });
+
+    return { stocks, crypto, sources };
+  }
+
   private async fetchMarketData(): Promise<Map<string, MarketData>> {
     const marketData = new Map<string, MarketData>();
 
+    // Get dynamic universe instead of static watchlist
+    const universe = await this.getAnalysisUniverseSymbols();
+
+    // Fetch stock data using Alpaca batch snapshots (faster than sequential Finnhub)
     try {
-      const stockPrices = await finnhub.getMultipleQuotes(WATCHLIST.stocks);
-      for (const [symbol, quote] of stockPrices.entries()) {
-        if (quote.c > 0) {
-          marketData.set(symbol, {
-            symbol,
-            currentPrice: quote.c,
-            priceChange24h: quote.d,
-            priceChangePercent24h: quote.dp,
-            high24h: quote.h,
-            low24h: quote.l,
+      const fetchedFromAlpaca = new Set<string>();
+      
+      // Chunk requests to avoid URL length issues
+      for (let i = 0; i < universe.stocks.length; i += ALPACA_SNAPSHOT_CHUNK_SIZE) {
+        const chunk = universe.stocks.slice(i, i + ALPACA_SNAPSHOT_CHUNK_SIZE);
+        try {
+          const snapshots = await alpaca.getSnapshots(chunk);
+          for (const [symbol, snapshot] of Object.entries(snapshots)) {
+            if (snapshot?.latestTrade?.p || snapshot?.dailyBar?.c) {
+              const price = snapshot.latestTrade?.p || snapshot.dailyBar?.c || 0;
+              const prevClose = snapshot.prevDailyBar?.c || price;
+              const change = price - prevClose;
+              const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+              
+              marketData.set(symbol, {
+                symbol,
+                currentPrice: price,
+                priceChange24h: change,
+                priceChangePercent24h: changePercent,
+                high24h: snapshot.dailyBar?.h,
+                low24h: snapshot.dailyBar?.l,
+                volume: snapshot.dailyBar?.v,
+              });
+              fetchedFromAlpaca.add(symbol);
+            }
+          }
+        } catch (chunkError) {
+          log.warn("Orchestrator", `Alpaca snapshot chunk failed, will use Finnhub fallback`, { 
+            chunkStart: i, 
+            error: String(chunkError) 
           });
         }
       }
+
+      // Fallback to Finnhub for symbols missing from Alpaca
+      const missingSymbols = universe.stocks.filter(s => !fetchedFromAlpaca.has(s));
+      if (missingSymbols.length > 0 && missingSymbols.length <= 30) {
+        try {
+          const finnhubPrices = await finnhub.getMultipleQuotes(missingSymbols);
+          for (const [symbol, quote] of finnhubPrices.entries()) {
+            if (quote.c > 0) {
+              marketData.set(symbol, {
+                symbol,
+                currentPrice: quote.c,
+                priceChange24h: quote.d,
+                priceChangePercent24h: quote.dp,
+                high24h: quote.h,
+                low24h: quote.l,
+              });
+            }
+          }
+          log.info("Orchestrator", `Finnhub fallback fetched ${finnhubPrices.size}/${missingSymbols.length} symbols`);
+        } catch (finnhubError) {
+          log.warn("Orchestrator", `Finnhub fallback also failed`, { error: String(finnhubError) });
+        }
+      }
+
+      log.info("Orchestrator", `Stock data fetched: ${marketData.size}/${universe.stocks.length} symbols via Alpaca+Finnhub`);
     } catch (error) {
       log.error("Orchestrator", "Failed to fetch stock data", { error: String(error) });
     }
 
+    // Fetch crypto data - prefer Alpaca crypto snapshots
     try {
-      const cryptoPrices = await coingecko.getMarkets();
-      const watchedCrypto = cryptoPrices.filter((c) =>
-        WATCHLIST.crypto.includes(c.symbol.toUpperCase())
-      );
-      for (const price of watchedCrypto) {
-        marketData.set(price.symbol.toUpperCase(), {
-          symbol: price.symbol.toUpperCase(),
-          currentPrice: price.current_price,
-          priceChange24h: price.price_change_24h || 0,
-          priceChangePercent24h: price.price_change_percentage_24h || 0,
-          high24h: price.high_24h,
-          low24h: price.low_24h,
-          volume: price.total_volume,
-          marketCap: price.market_cap,
-        });
+      const cryptoSymbols = universe.crypto.map(c => normalizeCryptoSymbol(c));
+      if (cryptoSymbols.length > 0) {
+        try {
+          const cryptoSnapshots = await alpaca.getCryptoSnapshots(cryptoSymbols);
+          for (const [symbol, snapshot] of Object.entries(cryptoSnapshots)) {
+            if (snapshot?.latestTrade?.p) {
+              const price = snapshot.latestTrade.p;
+              const prevClose = snapshot.prevDailyBar?.c || price;
+              const change = price - prevClose;
+              const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+              
+              // Store with bare symbol (BTC) not pair (BTC/USD)
+              const bareSymbol = symbol.replace('/USD', '').toUpperCase();
+              marketData.set(bareSymbol, {
+                symbol: bareSymbol,
+                currentPrice: price,
+                priceChange24h: change,
+                priceChangePercent24h: changePercent,
+                high24h: snapshot.dailyBar?.h,
+                low24h: snapshot.dailyBar?.l,
+                volume: snapshot.dailyBar?.v,
+              });
+            }
+          }
+          log.info("Orchestrator", `Crypto data fetched via Alpaca: ${Object.keys(cryptoSnapshots).length} symbols`);
+        } catch (alpacaCryptoError) {
+          // Fallback to CoinGecko
+          log.warn("Orchestrator", "Alpaca crypto failed, falling back to CoinGecko", { error: String(alpacaCryptoError) });
+          const cryptoPrices = await coingecko.getMarkets();
+          const watchedCrypto = cryptoPrices.filter((c) =>
+            universe.crypto.includes(c.symbol.toUpperCase())
+          );
+          for (const price of watchedCrypto) {
+            marketData.set(price.symbol.toUpperCase(), {
+              symbol: price.symbol.toUpperCase(),
+              currentPrice: price.current_price,
+              priceChange24h: price.price_change_24h || 0,
+              priceChangePercent24h: price.price_change_percentage_24h || 0,
+              high24h: price.high_24h,
+              low24h: price.low_24h,
+              volume: price.total_volume,
+              marketCap: price.market_cap,
+            });
+          }
+        }
       }
     } catch (error) {
       log.error("Orchestrator", "Failed to fetch crypto data", { error: String(error) });

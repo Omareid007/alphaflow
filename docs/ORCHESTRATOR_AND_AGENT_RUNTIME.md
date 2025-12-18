@@ -651,5 +651,102 @@ Update this document when:
 
 ---
 
+## 12. Dynamic Universe Expansion (December 2025)
+
+The orchestrator now supports dynamic symbol universe expansion, merging symbols from multiple sources with intelligent rotation and safety caps.
+
+### 12.1 Universe Sources
+
+| Source | Priority | Description |
+|--------|----------|-------------|
+| Watchlist | High | User-configured symbols from `universe_candidates` |
+| Approved Candidates | High | Symbols with status='approved' in `universe_candidates` |
+| Recent AI Decisions | Medium | High-confidence (>0.7) decisions from last 24h |
+| Executed Trades | Boosted | Symbols with recent fills (priority boost) |
+
+### 12.2 Safety Caps
+
+| Asset Class | Max Per Cycle | Rationale |
+|-------------|---------------|-----------|
+| Stocks | 120 | Alpaca snapshot limit |
+| Crypto | 20 | Lower liquidity, higher volatility |
+
+### 12.3 Rotation Mechanism
+
+When the universe pool exceeds safety caps:
+- Symbols are sorted by priority score
+- Executed trade symbols receive +10 priority boost
+- High-confidence decisions receive +5 boost
+- Symbol rotation shuffles remaining candidates each cycle
+
+### 12.4 Batch Market Data Fetching
+
+The orchestrator now uses Alpaca batch snapshots for improved performance:
+
+```typescript
+// Old: Sequential Finnhub calls (1 request per symbol)
+for (const symbol of symbols) {
+  const quote = await finnhub.getQuote(symbol);
+}
+
+// New: Alpaca batch snapshots (50 symbols per request)
+const chunks = chunkArray(symbols, 50);
+for (const chunk of chunks) {
+  const snapshots = await alpaca.getSnapshots(chunk);
+}
+```
+
+**Fallback Chain:**
+1. Alpaca batch snapshots (primary)
+2. Finnhub quotes (for missing symbols, limited to 30)
+3. CoinGecko (for crypto symbols)
+
+---
+
+## 13. AI Decision Enrichment & Timeline (December 2025)
+
+### 13.1 Enriched Decision Endpoint
+
+`GET /api/ai-decisions/enriched` returns decisions with linked execution data:
+
+```typescript
+interface EnrichedDecision {
+  decision: AiDecision;
+  linkedOrder: Order | null;
+  linkedTrade: Trade | null;
+  linkedPosition: Position | null;
+  timeline: TimelineItem[];
+}
+
+interface TimelineItem {
+  stage: "decision" | "risk_gate" | "order" | "fill" | "position" | "exit";
+  status: "completed" | "pending" | "skipped" | "failed";
+  timestamp: Date | null;
+  details?: string;
+}
+```
+
+### 13.2 Timeline Stages
+
+| Stage | Trigger | Completes When |
+|-------|---------|----------------|
+| Decision | AI generates recommendation | Decision saved to DB |
+| Risk Gate | Order execution flow | Risk check passes/fails |
+| Order | Broker submission | Order acknowledged by broker |
+| Fill | Trade execution | Order fully/partially filled |
+| Position | Position tracking | Position recorded in portfolio |
+| Exit | Position closed | Exit trade executed |
+
+### 13.3 Timeline Status Colors (UI)
+
+| Status | Color | Meaning |
+|--------|-------|---------|
+| Completed | Green | Stage finished successfully |
+| Pending | Yellow | Stage in progress |
+| Skipped | Gray | Stage not applicable |
+| Failed | Red | Stage encountered error |
+
+---
+
 *Last Updated: December 2025*  
-*Version: 2.0.0 (Microservices Migration)*
+*Version: 2.1.0 (Universe Expansion & Decision Enrichment)*

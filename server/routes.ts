@@ -10,6 +10,9 @@ import {
   insertPositionSchema,
   insertAiDecisionSchema,
   type Fill,
+  type Order,
+  type Trade,
+  type Position,
 } from "@shared/schema";
 import { coingecko } from "./connectors/coingecko";
 import { finnhub } from "./connectors/finnhub";
@@ -1399,6 +1402,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(decision);
     } catch (error) {
       res.status(500).json({ error: "Failed to create AI decision" });
+    }
+  });
+
+  // ============================================================================
+  // ENRICHED AI DECISIONS ENDPOINT
+  // Returns AI decisions with linked orders, trades, positions (Section B3)
+  // ============================================================================
+  app.get("/api/ai-decisions/enriched", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const statusFilter = req.query.status as string | undefined;
+      
+      // Fetch decisions with their linked data
+      const decisions = await storage.getAiDecisions(limit + offset);
+      
+      // Build enriched decisions with timeline stages
+      const enrichedDecisions = await Promise.all(
+        decisions.slice(offset, offset + limit).map(async (decision) => {
+          const enriched: {
+            decision: typeof decision;
+            linkedOrder: Order | null;
+            linkedTrade: Trade | null;
+            linkedPosition: Position | null;
+            timeline: {
+              stage: "decision" | "risk_gate" | "order" | "fill" | "position" | "exit";
+              status: "completed" | "pending" | "skipped" | "failed";
+              timestamp: Date | null;
+              details?: string;
+            }[];
+          } = {
+            decision,
+            linkedOrder: null,
+            linkedTrade: null,
+            linkedPosition: null,
+            timeline: [],
+          };
+          
+          // Stage 1: Decision created
+          enriched.timeline.push({
+            stage: "decision",
+            status: "completed",
+            timestamp: decision.createdAt,
+            details: `${decision.action.toUpperCase()} signal with ${parseFloat(decision.confidence || "0").toFixed(1)}% confidence`,
+          });
+          
+          // Stage 2: Risk gate evaluation
+          if (decision.status === "skipped") {
+            enriched.timeline.push({
+              stage: "risk_gate",
+              status: "skipped",
+              timestamp: decision.createdAt,
+              details: decision.skipReason || "Trade blocked by risk rules",
+            });
+          } else if (decision.status === "executed" || decision.executedTradeId) {
+            enriched.timeline.push({
+              stage: "risk_gate",
+              status: "completed",
+              timestamp: decision.createdAt,
+              details: "Risk check passed",
+            });
+          } else if (decision.status === "pending") {
+            enriched.timeline.push({
+              stage: "risk_gate",
+              status: "pending",
+              timestamp: null,
+              details: "Awaiting risk evaluation",
+            });
+          }
+          
+          // Fetch linked order if decision was submitted
+          if (decision.id) {
+            try {
+              const linkedOrders = await storage.getOrdersByDecisionId(decision.id);
+              if (linkedOrders.length > 0) {
+                const order = linkedOrders[0];
+                enriched.linkedOrder = order;
+                
+                // Stage 3: Order submission
+                enriched.timeline.push({
+                  stage: "order",
+                  status: order.status === "filled" || order.status === "partially_filled" ? "completed" : 
+                          order.status === "pending_new" || order.status === "accepted" ? "pending" : "failed",
+                  timestamp: order.submittedAt,
+                  details: `${order.side.toUpperCase()} ${order.qty || order.notional} @ ${order.type}`,
+                });
+                
+                // Stage 4: Fill
+                if (order.filledAt) {
+                  enriched.timeline.push({
+                    stage: "fill",
+                    status: "completed",
+                    timestamp: order.filledAt,
+                    details: `Filled ${order.filledQty} @ ${order.filledAvgPrice}`,
+                  });
+                } else if (order.status === "pending_new" || order.status === "accepted") {
+                  enriched.timeline.push({
+                    stage: "fill",
+                    status: "pending",
+                    timestamp: null,
+                    details: "Awaiting fill",
+                  });
+                }
+              }
+            } catch (e) {
+              // No linked order - that's OK
+            }
+          }
+          
+          // Fetch linked trade if executed
+          if (decision.executedTradeId) {
+            try {
+              const trade = await storage.getTrade(decision.executedTradeId);
+              if (trade) {
+                enriched.linkedTrade = trade;
+              }
+            } catch (e) {
+              // No linked trade - that's OK
+            }
+          }
+          
+          // Check for open position on symbol
+          try {
+            const positions = await storage.getPositions();
+            const symbolPosition = positions.find(p => p.symbol.toUpperCase() === decision.symbol.toUpperCase());
+            if (symbolPosition) {
+              enriched.linkedPosition = symbolPosition;
+              enriched.timeline.push({
+                stage: "position",
+                status: "completed",
+                timestamp: symbolPosition.openedAt,
+                details: `${symbolPosition.side} ${symbolPosition.quantity} @ ${symbolPosition.entryPrice}`,
+              });
+            }
+          } catch (e) {
+            // No linked position - that's OK  
+          }
+          
+          return enriched;
+        })
+      );
+      
+      // Filter by status if requested
+      let filtered = enrichedDecisions;
+      if (statusFilter) {
+        filtered = enrichedDecisions.filter(e => e.decision.status === statusFilter);
+      }
+      
+      res.json({
+        enrichedDecisions: filtered,
+        total: decisions.length,
+        hasMore: offset + limit < decisions.length,
+      });
+    } catch (error) {
+      console.error("Failed to get enriched AI decisions:", error);
+      res.status(500).json({ error: "Failed to get enriched AI decisions" });
     }
   });
 

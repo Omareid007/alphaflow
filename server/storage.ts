@@ -107,6 +107,9 @@ export interface IStorage {
   createAiDecision(decision: InsertAiDecision): Promise<AiDecision>;
   updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
   getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
+  getAiDecisionsByStatus(status: string, limit?: number): Promise<AiDecision[]>;
+  getPendingAiDecisions(limit?: number): Promise<AiDecision[]>;
+  getOrdersByDecisionId(decisionId: string): Promise<Order[]>;
 
   getAgentStatus(): Promise<AgentStatus | undefined>;
   updateAgentStatus(updates: Partial<AgentStatus>): Promise<AgentStatus>;
@@ -389,6 +392,27 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(aiDecisions.createdAt))
       .limit(1);
     return decision;
+  }
+
+  async getOrdersByDecisionId(decisionId: string): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(eq(orders.decisionId, decisionId))
+      .orderBy(desc(orders.submittedAt));
+  }
+
+  async getAiDecisionsByStatus(status: string, limit: number = 100): Promise<AiDecision[]> {
+    return db
+      .select()
+      .from(aiDecisions)
+      .where(eq(aiDecisions.status, status))
+      .orderBy(desc(aiDecisions.createdAt))
+      .limit(limit);
+  }
+
+  async getPendingAiDecisions(limit: number = 50): Promise<AiDecision[]> {
+    return this.getAiDecisionsByStatus("pending", limit);
   }
 
   async getAgentStatus(): Promise<AgentStatus | undefined> {
