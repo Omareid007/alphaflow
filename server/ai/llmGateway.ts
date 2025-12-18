@@ -24,6 +24,7 @@ import { openrouterClient } from "./openrouterClient";
 import { groqClient } from "./groqClient";
 import { togetherClient } from "./togetherClient";
 import { aimlClient } from "./aimlClient";
+import { claudeClient } from "./claudeClient";
 
 // ============================================================================
 // TYPES
@@ -169,6 +170,7 @@ const PROVIDER_CLIENTS: Record<string, { client: any; isAvailable: () => boolean
   together: { client: togetherClient, isAvailable: () => togetherClient.isAvailable() },
   aimlapi: { client: aimlClient, isAvailable: () => aimlClient.isAvailable() },
   openrouter: { client: openrouterClient, isAvailable: () => openrouterClient.isAvailable() },
+  claude: { client: claudeClient, isAvailable: () => claudeClient.isAvailable() },
 };
 
 // ============================================================================
