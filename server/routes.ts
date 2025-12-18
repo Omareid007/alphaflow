@@ -77,6 +77,8 @@ import strategiesRouter from "./routes/strategies";
 import arenaRouter from "./routes/arena";
 import jinaRouter from "./routes/jina";
 import macroRouter from "./routes/macro";
+import enrichmentRouter from "./routes/enrichment";
+import { enrichmentScheduler } from "./services/enrichment-scheduler";
 import { alertService } from "./observability/alertService";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
 import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
@@ -257,8 +259,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/arena", authMiddleware, arenaRouter);
   app.use("/api/jina", authMiddleware, jinaRouter);
   app.use("/api/macro", authMiddleware, macroRouter);
+  app.use("/api/enrichment", authMiddleware, enrichmentRouter);
   
   alertService.startEvaluationJob(60000);
+  enrichmentScheduler.start();
 
   app.post("/api/auth/signup", async (req, res) => {
     try {

@@ -118,3 +118,29 @@ The system uses an `ApiCache` class (`server/lib/api-cache.ts`) with fresh/stale
 | Momentum Strategy | ✅ | momentum-strategy.ts |
 | Mean Reversion | ✅ | mean-reversion-scalper.ts |
 | Moving Average Crossover | ✅ | moving-average-crossover.ts |
+
+### Data Enrichment Scheduler (December 2024)
+The system includes an automated enrichment scheduler (`server/services/enrichment-scheduler.ts`) that populates data tables:
+
+**Scheduled Jobs**:
+- **Macro Indicators** (4h interval): Fetches FRED economic data via `macroIndicatorsService.refreshAllIndicators()`
+- **Fundamentals** (24h interval): Updates company fundamentals via `fundamentalsService.fetchAndStoreFundamentals()`
+- **Technicals** (1h interval): Fetches OHLC and technical indicators from Finnhub
+
+**API Endpoints** (`/api/enrichment`):
+- `GET /status` - View all job statuses (lastRun, nextRun, isRunning)
+- `GET /status/:jobName` - View specific job status
+- `POST /run/:jobName` - Manually trigger a job
+- `GET /stats` - View row counts for data tables
+
+**Required API Keys**:
+- `FRED_API_KEY` - For macro economic indicators
+- Finnhub API key - For technicals (already configured)
+
+**Tables Populated**:
+| Table | Source | Interval |
+|-------|--------|----------|
+| `macro_indicators` | FRED | 4 hours |
+| `universe_fundamentals` | Finnhub | 24 hours |
+| `universe_technicals` | Finnhub | 1 hour |
+| `asset_classifications` | Computed | On-demand |
