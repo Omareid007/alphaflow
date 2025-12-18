@@ -178,11 +178,13 @@ export function runSimulation(
 
       const currentPosition = positions[symbol] || { qty: 0, avgPrice: 0 };
       let pnl = 0;
+      let executedQty = 0;
 
       if (signal.side === "buy") {
         const totalCost = notional + fees;
         if (cash >= totalCost) {
           cash -= totalCost;
+          executedQty = signal.qty;
           const newQty = currentPosition.qty + signal.qty;
           const newAvgPrice =
             currentPosition.qty > 0
@@ -193,14 +195,14 @@ export function runSimulation(
           continue;
         }
       } else {
-        const sellQty = Math.min(signal.qty, currentPosition.qty);
-        if (sellQty > 0) {
-          const proceeds = sellQty * executionPrice - fees;
-          pnl = (executionPrice - currentPosition.avgPrice) * sellQty - fees;
+        executedQty = Math.min(signal.qty, currentPosition.qty);
+        if (executedQty > 0) {
+          const proceeds = executedQty * executionPrice - fees;
+          pnl = (executionPrice - currentPosition.avgPrice) * executedQty - fees;
           cash += proceeds;
           tradePnLs.push(pnl);
 
-          const remainingQty = currentPosition.qty - sellQty;
+          const remainingQty = currentPosition.qty - executedQty;
           if (remainingQty > 0) {
             positions[symbol] = { qty: remainingQty, avgPrice: currentPosition.avgPrice };
           } else {
@@ -217,7 +219,7 @@ export function runSimulation(
         ts: bar.ts,
         symbol,
         side: signal.side,
-        qty: signal.qty,
+        qty: executedQty,
         price: executionPrice,
         reason: signal.reason,
         orderType: "market",
@@ -255,7 +257,7 @@ export function runSimulation(
     });
   }
 
-  const metrics = calculateMetrics(initialCash, equityHistory, tradePnLs);
+  const metrics = calculateMetrics(initialCash, equityHistory, tradePnLs, trades, equityCurve);
 
   return { trades, equityCurve, metrics };
 }
@@ -263,7 +265,9 @@ export function runSimulation(
 function calculateMetrics(
   initialCash: number,
   equityHistory: number[],
-  tradePnLs: number[]
+  tradePnLs: number[],
+  trades: BacktestTradeEvent[],
+  equityCurve: BacktestEquityPoint[]
 ): BacktestResultsSummary {
   if (equityHistory.length === 0) {
     return {
@@ -272,11 +276,15 @@ function calculateMetrics(
       maxDrawdownPct: 0,
       sharpeRatio: null,
       sortinoRatio: null,
+      calmarRatio: null,
       winRatePct: 0,
       totalTrades: 0,
       profitFactor: null,
       avgWinPct: 0,
       avgLossPct: 0,
+      expectancy: null,
+      tradesPerMonth: null,
+      avgHoldingPeriodDays: null,
     };
   }
 
@@ -289,11 +297,15 @@ function calculateMetrics(
       maxDrawdownPct: 0,
       sharpeRatio: null,
       sortinoRatio: null,
+      calmarRatio: null,
       winRatePct: 0,
       totalTrades: tradePnLs.length,
       profitFactor: null,
       avgWinPct: 0,
       avgLossPct: 0,
+      expectancy: null,
+      tradesPerMonth: null,
+      avgHoldingPeriodDays: null,
     };
   }
 
@@ -403,17 +415,100 @@ function calculateMetrics(
     }
   }
 
+  let calmarRatio: number | null = null;
+  if (cagr !== null && maxDrawdownPct > 0) {
+    calmarRatio = cagr / maxDrawdownPct;
+    if (!Number.isFinite(calmarRatio)) {
+      calmarRatio = null;
+    }
+  }
+
+  let expectancy: number | null = null;
+  if (totalTrades > 0) {
+    const winRate = winRatePct / 100;
+    const lossRate = 1 - winRate;
+    expectancy = (winRate * avgWinPct) - (lossRate * avgLossPct);
+    if (!Number.isFinite(expectancy)) {
+      expectancy = null;
+    }
+  }
+
+  let tradesPerMonth: number | null = null;
+  if (equityCurve.length >= 2 && totalTrades > 0) {
+    const firstTs = new Date(equityCurve[0].ts).getTime();
+    const lastTs = new Date(equityCurve[equityCurve.length - 1].ts).getTime();
+    const elapsedMs = lastTs - firstTs;
+    const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+    const months = elapsedDays / 30;
+    if (months > 0) {
+      tradesPerMonth = totalTrades / months;
+      if (!Number.isFinite(tradesPerMonth)) {
+        tradesPerMonth = null;
+      }
+    }
+  }
+
+  let avgHoldingPeriodDays: number | null = null;
+  if (trades.length > 0) {
+    const positionEntries: Record<string, { ts: number; qty: number }[]> = {};
+    const holdingPeriods: { days: number; qty: number }[] = [];
+
+    for (const trade of trades) {
+      const tradeTs = new Date(trade.ts).getTime();
+      if (trade.side === 'buy') {
+        if (!positionEntries[trade.symbol]) {
+          positionEntries[trade.symbol] = [];
+        }
+        positionEntries[trade.symbol].push({ ts: tradeTs, qty: trade.qty });
+      } else if (trade.side === 'sell') {
+        const entries = positionEntries[trade.symbol] || [];
+        let remainingToSell = trade.qty;
+
+        while (remainingToSell > 0 && entries.length > 0) {
+          const entry = entries[0];
+          const qtyToMatch = Math.min(remainingToSell, entry.qty);
+          const holdingMs = tradeTs - entry.ts;
+          const holdingDays = holdingMs / (1000 * 60 * 60 * 24);
+
+          if (holdingDays >= 0) {
+            holdingPeriods.push({ days: holdingDays, qty: qtyToMatch });
+          }
+
+          entry.qty -= qtyToMatch;
+          remainingToSell -= qtyToMatch;
+
+          if (entry.qty <= 0) {
+            entries.shift();
+          }
+        }
+      }
+    }
+
+    if (holdingPeriods.length > 0) {
+      const totalQty = holdingPeriods.reduce((sum, hp) => sum + hp.qty, 0);
+      const weightedDays = holdingPeriods.reduce((sum, hp) => sum + hp.days * hp.qty, 0);
+      avgHoldingPeriodDays = totalQty > 0 ? weightedDays / totalQty : null;
+      if (avgHoldingPeriodDays !== null && !Number.isFinite(avgHoldingPeriodDays)) {
+        avgHoldingPeriodDays = null;
+      }
+    }
+  }
+
   return {
     cagr,
     totalReturnPct: Number.isFinite(totalReturnPct) ? totalReturnPct : 0,
     maxDrawdownPct: Number.isFinite(maxDrawdownPct) ? maxDrawdownPct : 0,
     sharpeRatio,
     sortinoRatio,
+    calmarRatio,
     winRatePct: Number.isFinite(winRatePct) ? winRatePct : 0,
     totalTrades,
     profitFactor,
     avgWinPct: Number.isFinite(avgWinPct) ? avgWinPct : 0,
     avgLossPct: Number.isFinite(avgLossPct) ? avgLossPct : 0,
+    expectancy,
+    tradesPerMonth,
+    avgHoldingPeriodDays,
   };
 }
 

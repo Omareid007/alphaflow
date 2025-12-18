@@ -28,11 +28,15 @@ export interface BacktestResultsSummary {
   maxDrawdownPct: number;
   sharpeRatio: number | null;
   sortinoRatio: number | null;
+  calmarRatio: number | null;
   winRatePct: number;
   totalTrades: number;
   profitFactor: number | null;
   avgWinPct: number;
   avgLossPct: number;
+  expectancy: number | null;
+  tradesPerMonth: number | null;
+  avgHoldingPeriodDays: number | null;
 }
 
 export interface BacktestRun {

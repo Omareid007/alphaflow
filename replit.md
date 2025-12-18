@@ -71,4 +71,50 @@ Three methods available for Claude AI access:
 2. **API Key**: Direct Anthropic API access via `ANTHROPIC_API_KEY` environment variable
 3. **MCP (Model Context Protocol)**: Only works locally with Claude Desktop - NOT suitable for server-side applications
 
-Current setup uses API key method with fallback to OpenRouter for Claude models.
+Current setup uses Replit AI Integrations for both Anthropic and OpenRouter.
+
+## Recent Changes (December 2024)
+
+### Order Execution Consolidation
+- **Unified Order Executor** (`server/trading/unified-order-executor.ts`): Single entry point for all order execution with:
+  - Queue-based execution by default (via work queue with idempotency)
+  - Direct execution fallback with duplicate detection via client_order_id
+  - Trading enforcement validation for buy orders
+  - Tradability validation for all orders
+  - Cancel order support with queue or direct modes
+
+### Strategy Metrics Enhancement
+New backtesting metrics added to `BacktestResultsSummary`:
+- **Calmar Ratio**: CAGR / MaxDrawdown (target > 0.5)
+- **Expectancy**: (WinRate × AvgWin) - (LossRate × AvgLoss)
+- **Trades per Month**: Trading frequency based on elapsed calendar days
+- **Avg Holding Period Days**: FIFO-based tracking of position entry/exit timestamps
+
+### AI Integrations (Replit)
+- **Anthropic**: Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 (via `AI_INTEGRATIONS_ANTHROPIC_*`)
+- **OpenRouter**: DeepSeek R1/V3.2, Kimi K2, GLM 4.6, Qwen 3 Max (via `AI_INTEGRATIONS_OPENROUTER_*`)
+- **Batch Utilities**: `server/replit_integrations/batch/utils.ts` with rate limiting, retries, SSE streaming
+
+### Cache Architecture
+The system uses an `ApiCache` class (`server/lib/api-cache.ts`) with fresh/stale duration pattern:
+- **Pre-configured caches**: marketDataCache, stockQuoteCache, cryptoPriceCache, newsCache, assetListCache, portfolioCache
+- **Per-connector caches**: Each connector (Finnhub, CoinGecko, Valyu, etc.) maintains its own ApiCache instances
+- **TTL Guidelines**:
+  - Market data: 30s fresh, 1h stale
+  - Stock quotes: 1m fresh, 30m stale
+  - News: 5m fresh, 1h stale
+  - Static data (company profiles): 1h fresh, 24h stale
+
+### Trading Strategies Implementation Status
+| Feature | Status | Location |
+|---------|--------|----------|
+| Sharpe Ratio | ✅ | execution-engine.ts |
+| Sortino Ratio | ✅ | execution-engine.ts |
+| Calmar Ratio | ✅ | execution-engine.ts |
+| Max Drawdown | ✅ | execution-engine.ts |
+| Win Rate / Profit Factor | ✅ | execution-engine.ts |
+| Kelly Criterion (0.25 fractional) | ✅ | advanced-rebalancing-service.ts |
+| RSI, SMA, ROC, StdDev | ✅ | strategies/*.ts |
+| Momentum Strategy | ✅ | momentum-strategy.ts |
+| Mean Reversion | ✅ | mean-reversion-scalper.ts |
+| Moving Average Crossover | ✅ | moving-average-crossover.ts |
