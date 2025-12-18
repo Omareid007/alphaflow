@@ -64,6 +64,28 @@ New tables in `shared/schema.ts`:
 - `ai_arena_agent_decisions`: Per-agent decision outputs within arena runs
 - `ai_outcome_links`: Decision → Order → Fill attribution for P&L tracking
 
+### Database Enrichment (Technical & Macro Data)
+New tables for AI decision quality improvement:
+- `universe_technicals`: Cached technical indicators per symbol (RSI, MACD, SMAs/EMAs, ATR, Bollinger Bands, ADX, pivot points). Indexed by symbol and date for efficient lookups.
+- `macro_indicators`: FRED economic data storage (Treasury yields, CPI, unemployment, VIX). Category-indexed for regime detection.
+- `asset_classifications`: Unified per-symbol classification combining liquidity, fundamentals, and technical data. Provides assetClass, marketCapTier, volatilityTier, trendStrength, momentumScore, valueScore, qualityScore.
+
+Extended `universe_fundamentals` fields:
+- `pe_ratio`, `price_to_book`, `beta`: Valuation metrics for value/growth classification
+- `week_52_high`, `week_52_low`: Price range for technical analysis
+- `dividend_yield`: Income classification
+
+### Asset Classification Service
+- **Service**: `server/universe/asset-classifier.ts`
+- **Purpose**: Unifies scattered liquidity, fundamentals, and technical data into coherent per-symbol labels
+- **Classification Types**:
+  - `MarketCapTier`: mega, large, mid, small, micro
+  - `VolatilityTier`: high, medium, low
+  - `TrendStrength`: strong_up, weak_up, neutral, weak_down, strong_down
+  - `AssetClassType`: large_cap_growth, large_cap_value, mid_cap_growth, mid_cap_value, small_cap, crypto_major, crypto_alt, etf_index, etf_sector
+- **Scores**: momentumScore (-100 to +100), valueScore (-100 to +100), qualityScore (-100 to +100)
+- **Usage**: `assetClassifier.classifyBatch()` for bulk processing, `assetClassifier.getClassification(symbol)` for queries
+
 ### Section 3 API Routes
 - `POST/GET /api/debate/sessions` - Start debates, list sessions
 - `GET /api/debate/sessions/:id` - Get debate details with messages and consensus
