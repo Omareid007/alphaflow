@@ -1,0 +1,132 @@
+You are Replit’s coding agent acting as the architect + senior engineer for this repo: “AI-Active-Trader (Replit version B)”.
+Goal: Fix the missing linkage between AI Suggested Trades and the Orchestrator/Order Management, expand the tradable stock universe based on AI suggestions, and ensure the UI clearly shows the end-to-end sequence and connections between backend modules.
+
+Repo reality (use these exact paths):
+- Orchestrator: server/autonomous/orchestrator.ts
+- Alpaca trading engine: server/trading/alpaca-trading-engine.ts
+- Order execution flow: server/trading/order-execution-flow.ts
+- Main routes: server/routes.ts
+- Universe services: server/universe/alpacaUniverse.ts, server/universe/candidatesService.ts
+- AI Decisions history endpoint: GET /api/ai-decisions/history (implemented in server/routes.ts)
+- AI Suggested Trades UI: client/screens/AISuggestedTradesScreen.tsx
+- Admin UI hub (shows budgets/router/orchestrator/universe/orders): client/screens/AdminHubScreen.tsx
+- Alpaca snapshots endpoint exists: GET /api/alpaca/snapshots (server/routes.ts) and alpaca.getSnapshots() (server/connectors/alpaca.ts)
+
+WHAT I NEED YOU TO DO (DO NOT HAND-WAVE; implement and verify):
+
+A) EXPAND THE ORCHESTRATOR SYMBOL UNIVERSE USING AI SUGGESTIONS + APPROVED CANDIDATES
+1) Today orchestrator generates/auto-approves candidates (candidatesService) but analysis still uses only WATCHLIST.stocks + WATCHLIST.crypto because fetchMarketData() is watchlist-based.
+   - Implement a dynamic universe builder in server/autonomous/orchestrator.ts:
+     - getAnalysisUniverseSymbols(): returns { stocks: string[], crypto: string[] }
+     - Merge sources (dedupe, uppercase):
+       (i) existing WATCHLIST.stocks / WATCHLIST.crypto
+       (ii) APPROVED candidates from candidatesService (status=APPROVED; limit configurable)
+       (iii) symbols appearing in recent AiDecisions (last N, e.g., 500) with high confidence and action != hold
+       (iv) symbols from recent *executed* AiDecisions (executedTradeId not null) get a boost (always include unless excluded)
+     - Hard safety caps:
+       - MAX_STOCK_SYMBOLS_PER_CYCLE (default 120)
+       - MAX_CRYPTO_SYMBOLS_PER_CYCLE (default 20)
+     - Add rotation if the merged universe is larger than the cap (e.g., round-robin window by time) so we eventually cover more symbols.
+
+2) Replace slow/rate-limited sequential Finnhub quote fetching for large universes:
+   - Update orchestrator.fetchMarketData() to prefer Alpaca batch snapshots for STOCKS:
+     - Use alpaca.getSnapshots(symbols) in chunks (avoid URL-length issues; chunk size ~50–100).
+     - For symbols missing from Alpaca snapshots, fallback to finnhub.getQuote(symbol) but with strict budgeted concurrency.
+   - For CRYPTO:
+     - Prefer alpaca.getCryptoSnapshots() for watched crypto pairs when possible; otherwise keep Coingecko.
+   - Ensure all external calls are budgeted/cached via existing infra (callExternal / connectorFetch / fetchWithBudgetAndCache). Do NOT add raw fetch loops that bypass budgets.
+
+Acceptance checks for (A):
+- Orchestrator analysis loop logs the final symbol counts it is analyzing each cycle.
+- /api/admin/universe/* and /api/admin/candidates/* remain functional.
+- Trade frequency should not collapse due to sequential quote calls.
+
+B) BRIDGE “AI SUGGESTED TRADES” INTO THE ORCHESTRATOR + ORDER MANAGEMENT (SO SUGGESTIONS ARE NOT ORPHANED)
+Problem: AI Suggested Trades screen shows AiDecisions from /api/ai-decisions/history, but many are not connected to actual order execution lifecycle or shown in Orders/Positions, and orchestrator’s own pending signals are not reflected cleanly.
+
+Implement an explicit Decision → Execution linkage:
+1) Ensure every AiDecision can be tied to real execution artifacts:
+   - AiDecisions table already has executedTradeId.
+   - Orders table exists (brokerOrderId, status, etc).
+   - Implement updates so when an AiDecision is executed:
+     - Create/associate an Orders record (brokerOrderId from Alpaca).
+     - Create/associate a Trade record (or store link in notes/metadata if trade is fill-based).
+     - Set aiDecision.executedTradeId when trade is recorded.
+     - Update aiDecision.status to reflect reality (submitted/filled/skipped/failed) and set skipReason if applicable.
+
+2) Orchestrator MUST use the order execution flow instead of ad-hoc direct Alpaca calls (to unify lifecycle + reconciliation):
+   - In server/autonomous/orchestrator.ts, route order placement through server/trading/order-execution-flow.ts (orderExecutionEngine).
+   - After submission/fill, sync/reconcile:
+     - Update Orders table
+     - Update AiDecision status
+     - Update Positions view (source-of-truth is Alpaca)
+
+3) Ingest “external” AI suggestions into orchestrator execution (so suggestions become managed orders):
+   - Add a small “Decision Ingestion” step inside orchestrator’s cycle (or a dedicated timer):
+     - Query storage for AiDecisions with status="pending" that are NOT already in orchestrator.pendingSignals and have no executedTradeId.
+     - Validate symbol tradability using alpacaUniverseService (exclude OTC/SPAC/penny if configured).
+     - Convert them into orchestrator pendingSignals entries and process via the same executeSignal() path.
+   - Add a kill-switch aware guard so ingestion stops when killSwitchActive/brokerLocked.
+
+4) Create/extend an API endpoint that returns AI decisions with their execution linkage:
+   - Example: GET /api/ai-decisions/enriched?limit=200
+   - Response should include: aiDecision, linkedOrder (if any), linkedTrade (if any), linkedPosition snapshot (from Alpaca), and a concise “stage” field (SUGGESTED → APPROVED → SUBMITTED → FILLED → MANAGED/EXITED).
+   - Keep GET /api/ai-decisions/history for backwards compatibility, but update the UI to prefer the enriched endpoint.
+
+Acceptance checks for (B):
+- For any decision that results in an order, UI can show the brokerOrderId + current Alpaca status.
+- Decisions no longer sit forever as “pending_execution” without evidence; each has a clear reason or a linked order/trade.
+- Orders and AI Suggested Trades screens cross-link to each other.
+
+C) UI MUST REFLECT THE SEQUENCES + CONNECTIONS BETWEEN MODULES
+Implement UI linkage so the user can “see the pipe”:
+1) Update client/screens/AISuggestedTradesScreen.tsx:
+   - Switch data source to the new enriched endpoint (fallback to history if unavailable).
+   - Show a timeline row: Decision → Risk Gate → Order → Fill → Position → Exit
+   - Add “Open Order” and “Open Position” actions when linked IDs exist.
+   - Add filters: (All / Executed / Pending / Skipped / Failed) and a filter “In Orchestrator pipeline”.
+
+2) In AdminHubScreen sections:
+   - Ensure “Universe”, “Candidates”, “Orchestrator”, “Orders”, “Positions”, “LLM Router”, “Providers & Budgets” reflect each other:
+     - Universe shows how many symbols are currently in orchestrator universe window.
+     - Orchestrator shows last ingestion run stats: pending decisions ingested, executed, skipped, reasons.
+     - Orders shows reconciliation status and counts per status.
+   - If any endpoints are missing for these stats, add minimal admin endpoints in server/routes.ts.
+
+Acceptance checks for (C):
+- Clicking from AI Suggested Trades → Order Details works without broken links.
+- Admin UI tells a coherent story: universe → candidates → decisions → orders → positions.
+
+D) USE ALL CONFIGURED API KEYS AS PARALLEL/FALLBACK WHEN LIMITS HIT (DATA + LLM)
+1) Data providers:
+   - For market quotes: prefer Alpaca snapshots; fallback to Finnhub quote; optionally fallback to Polygon/TwelveData if keys exist (only if already configured in env/policies).
+   - For news/sentiment: run parallel fetch (Promise.allSettled) across available providers (newsapi, gdelt, valyu, huggingface sentiment) and fuse results; if budgets/limits stop one provider, use the rest.
+   - All calls MUST go through existing budgeting/caching primitives (callExternal / connectorClient / fetchWithBudgetAndCache) so rate limits are enforced and visible in Admin.
+
+2) LLM providers:
+   - Use existing llmRouter/llmGateway to enable “provider chain” based on which keys are present (OpenAI / OpenRouter / Groq / Cerebras / Mistral / Together / Google AI / AIML etc).
+   - Implement “parallel operator” mode ONLY for high-confidence trade decisions:
+     - Run 2 providers in parallel (within budget) to produce a decision.
+     - If they disagree materially, downgrade confidence or hold; log disagreement and show in UI.
+   - Make this configurable in admin AI config (enable/disable parallel consensus, provider priority list).
+
+Acceptance checks for (D):
+- /api/admin/api-keys-status reflects what is actually being used.
+- When one provider hits limit, the system continues using the next provider automatically.
+- Admin “Providers & Budgets” shows real usage counts and cache hit rates.
+
+DELIVERABLES (must commit code + update docs):
+- docs/E2E-FLOW-VALIDATION.md: updated with the new decision→order→position linkage
+- docs/ORCHESTRATOR_AND_AGENT_RUNTIME.md: updated with universe expansion + ingestion step
+- A short “How to verify” section with exact commands:
+  - npm run server:build
+  - npm run all:dev
+  - curl /api/autonomous/state
+  - curl /api/ai-decisions/enriched?limit=50
+  - verify AdminHub screens load without broken links
+
+IMPORTANT CONSTRAINTS:
+- Do NOT remove features; refactor to connect them.
+- Alpaca remains source of truth for orders/positions shown in UI.
+- Do NOT log or print secrets; only show whether keys are present.
+- Keep the app stable in Replit (avoid heavy loops; chunk + budget + cache).
