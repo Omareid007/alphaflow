@@ -1,0 +1,77 @@
+BACKEND SERVICE CENTRALIZATION
+3.1 Current Service Organization
+server/
+├── ai/                    # AI decision making
+│   ├── decision-engine.ts      # Primary AI engine
+│   ├── llmGateway.ts           # LLM routing (KEEP - primary)
+│   ├── llmRouter.ts            # Alternative router (MERGE into gateway)
+│   ├── market-condition-analyzer.ts
+│   └── data-fusion-engine.ts
+├── autonomous/            # Orchestration
+│   └── orchestrator.ts         # Main orchestrator (EXPAND)
+├── trading/               # Trade execution
+│   ├── alpaca-trading-engine.ts  # Trading engine (REFACTOR)
+│   ├── exit-manager.ts           # Exit management (KEEP)
+│   └── enrichment-cache.ts       # Data enrichment
+├── connectors/            # 31 data connectors
+├── lib/                   # Utilities
+│   ├── api-cache.ts            # Cache system 1
+│   ├── work-queue.ts           # Job queue
+│   └── connectorClient.ts      # Connector wrapper
+├── services/              # Domain services
+└── routes.ts              # API endpoints
+3.2 Target Service Architecture
+server/
+├── ai/
+│   ├── unified-llm-gateway.ts    # MERGED: llmGateway + llmRouter
+│   ├── decision-engine.ts        # AI decisions
+│   └── market-condition-analyzer.ts
+├── autonomous/
+│   └── orchestrator.ts           # EXPANDED: Central coordinator
+│       ├── Position ownership
+│       ├── Symbol locks
+│       ├── Order tracking
+│       └── Service coordination
+├── trading/
+│   ├── trading-engine.ts         # REFACTORED: No direct orders
+│   └── exit-manager.ts           # SOLE exit authority
+├── data/                         # NEW: Unified data layer
+│   ├── provider-orchestrator.ts  # Single data fetching entry
+│   ├── unified-cache.ts          # Single cache system
+│   └── data-normalizer.ts        # Format normalization
+├── connectors/                   # Data providers (unchanged)
+└── routes.ts
+3.3 Service Dependency Graph (Target State)
+                    ┌─────────────────────────────────────┐
+                    │           ORCHESTRATOR              │
+                    │   (Central Coordinator - EXPANDED)  │
+                    └─────────────────────────────────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        │                           │                           │
+        ▼                           ▼                           ▼
+┌───────────────┐          ┌───────────────┐          ┌───────────────┐
+│ Trading Engine│          │  Exit Manager │          │  AI Decision  │
+│ (No direct    │          │ (Sole exit    │          │    Engine     │
+│  orders)      │          │  authority)   │          │               │
+└───────────────┘          └───────────────┘          └───────────────┘
+        │                           │                           │
+        └───────────────────────────┼───────────────────────────┘
+                                    │
+                                    ▼
+                    ┌─────────────────────────────────────┐
+                    │       PROVIDER ORCHESTRATOR         │
+                    │    (Single data fetching entry)     │
+                    └─────────────────────────────────────┘
+                                    │
+                                    ▼
+                    ┌─────────────────────────────────────┐
+                    │          UNIFIED CACHE              │
+                    │   (Single cache, consistent TTLs)   │
+                    └─────────────────────────────────────┘
+                                    │
+        ┌───────────────┬───────────┼───────────┬───────────────┐
+        ▼               ▼           ▼           ▼               ▼
+   ┌─────────┐    ┌─────────┐ ┌─────────┐ ┌─────────┐    ┌─────────┐
+   │ Alpaca  │    │ Finnhub │ │CoinGecko│ │ NewsAPI │    │  FRED   │
+   └─────────┘    └─────────┘ └─────────┘ └─────────┘    └─────────┘
