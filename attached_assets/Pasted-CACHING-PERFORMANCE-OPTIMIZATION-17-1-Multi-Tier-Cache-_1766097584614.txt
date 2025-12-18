@@ -1,0 +1,232 @@
+CACHING & PERFORMANCE OPTIMIZATION
+17.1 Multi-Tier Cache Architecture
+┌─────────────────────────────────────────────────┐
+│ L1: Application Memory (fastest, limited)       │
+│     - Hot quotes (5s TTL)                       │
+│     - Current user session                      │
+└───────────────────┬─────────────────────────────┘
+                    │ miss
+┌───────────────────▼─────────────────────────────┐
+│ L2: Redis (1-10ms latency)                      │
+│     - Quotes (30s TTL)                          │
+│     - Order books                               │
+│     - User balances                             │
+│     - AI decision cache (5min TTL)              │
+└───────────────────┬─────────────────────────────┘
+                    │ miss
+┌───────────────────▼─────────────────────────────┐
+│ L3: PostgreSQL (10-100ms)                       │
+│     - Historical prices                         │
+│     - Completed trades                          │
+│     - Fundamentals                              │
+└───────────────────┬─────────────────────────────┘
+                    │ miss (archival)
+┌───────────────────▼─────────────────────────────┐
+│ L4: TimescaleDB/QuestDB (100ms+)                │
+│     - Archive market data                       │
+│     - Analytics queries                         │
+└─────────────────────────────────────────────────┘
+17.2 Redis Patterns for Trading
+Cache-Aside Pattern:
+
+async function getQuote(symbol: string) {
+  const cacheKey = `quote:${symbol}`;
+
+  // Check cache first
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  // Fetch from source
+  const quote = await alpaca.getLatestQuote(symbol);
+
+  // Store in cache (30s TTL)
+  await redis.setex(cacheKey, 30, JSON.stringify(quote));
+
+  return quote;
+}
+Redis Streams for Real-Time:
+
+// Producer
+await redis.xadd('market_stream', '*', {
+  symbol: 'AAPL',
+  price: '150.25',
+  timestamp: Date.now()
+});
+
+// Consumer
+const messages = await redis.xreadgroup(
+  'trading_group', 'worker_1',
+  [['market_stream', '>']],
+  { COUNT: 10, BLOCK: 0 }
+);
+18. NEW FINDINGS & RECOMMENDATIONS
+18.1 Discoveries Not in Original Analysis
+1. QuestDB vs TimescaleDB Decision:
+
+QuestDB: 4.3M rows/sec ingestion (6.5x faster than TimescaleDB)
+Recommendation: Use QuestDB for real-time market data, TimescaleDB for analytics
+Both can coexist: QuestDB (hot), TimescaleDB (warm/cold)
+2. pgvector Performance Discovery:
+
+pgvectorscale achieves 471 QPS @ 99% recall on 50M vectors
+11.4x better than Qdrant on comparable hardware
+P95 latency 28x lower than Pinecone
+Recommendation: Start with pgvector, migrate to Qdrant at scale
+3. FinRL for Reinforcement Learning:
+
+Ensemble of PPO, A2C, DDPG outperforms individual algorithms
+Better adjustment to different market conditions
+GitHub: https://github.com/AI4Finance-Foundation/FinRL
+4. Feast Feature Store Value:
+
+Enables same features for training and serving
+Redis online store for low-latency inference
+PostgreSQL offline store for batch training
+Critical for ML-based trading strategies
+18.2 Additional GitHub Resources
+Vector & ML:
+
+https://github.com/qdrant/qdrant
+https://github.com/milvus-io/milvus
+https://github.com/chroma-core/chroma
+https://github.com/pgvector/pgvector
+https://github.com/feast-dev/feast
+Trading Frameworks:
+
+https://github.com/polakowo/vectorbt
+https://github.com/AI4Finance-Foundation/FinRL
+https://github.com/freqtrade/freqtrade
+https://github.com/stefan-jansen/machine-learning-for-trading
+https://github.com/wangzhe3224/awesome-systematic-trading
+Data Pipelines:
+
+https://github.com/questdb/questdb
+https://github.com/timescale/timescaledb
+https://github.com/robinhood/faust
+https://github.com/ranaroussi/yfinance
+18.3 Architecture Recommendations
+For This Trading Platform:
+
+Immediate (No new infra):
+
+Add pgvector extension to existing PostgreSQL
+Implement unified cache with Redis
+Add technical indicator calculation jobs
+Short-term (1-2 weeks):
+
+Add QuestDB for real-time market data
+Implement Feast feature store
+Create pattern embedding pipeline
+Medium-term (1 month):
+
+Migrate to Qdrant for vector search at scale
+Implement Kafka for event streaming
+Add FinRL for strategy optimization
+18.4 Cost-Optimized Stack
+Production Stack (~$500/month):
+
+Component	Solution	Cost
+Vector DB	pgvector (PostgreSQL)	Included
+Time-Series	QuestDB (self-hosted)	$50/mo VPS
+Cache	Redis	$50/mo managed
+Feature Store	Feast (self-hosted)	Included
+PostgreSQL	Existing DB	$100/mo
+Market Data	Alpaca + Free APIs	$0-50/mo
+Enterprise Stack (~$2,000/month):
+
+Component	Solution	Cost
+Vector DB	Qdrant Cloud	$500/mo
+Time-Series	TimescaleDB Cloud	$200/mo
+Cache	Redis Enterprise	$300/mo
+Feature Store	Feast + Redis	$200/mo
+PostgreSQL	RDS/Cloud SQL	$400/mo
+Market Data	Alpaca + Polygon	$200/mo
+19. COPY-PASTE PROMPTS (ADDITIONAL)
+Prompt 8: Database Scan & Enhancement
+TASK: Scan database and implement enhancements
+
+STEPS:
+1. Run database schema analysis:
+   - List all tables with row counts
+   - Identify missing columns in broker_assets
+   - Check for missing indexes
+
+2. Add missing columns to broker_assets:
+   ALTER TABLE broker_assets ADD COLUMN sector, industry, market_cap,
+   pe_ratio, dividend_yield, beta, avg_volume, week_52_high, week_52_low;
+
+3. Create universe_technicals table for indicator storage
+
+4. Create pattern_embeddings table with pgvector
+
+5. Implement enrichment jobs:
+   - enrichFromAlpaca() - Fetch bars, calculate metrics
+   - enrichFundamentals() - FMP free tier (250/day)
+   - calculateTechnicals() - RSI, MACD, SMA, BB
+   - syncFRED() - Macro indicators
+
+6. Schedule jobs with node-cron
+
+FILES TO CREATE:
+- server/jobs/enrich-from-alpaca.ts
+- server/jobs/enrich-fundamentals.ts
+- server/jobs/calculate-technicals.ts
+- server/jobs/sync-fred.ts
+- server/jobs/scheduler.ts
+Prompt 9: Add Vector Database
+TASK: Implement vector database for pattern matching
+
+CONTEXT:
+- Use pgvector for PostgreSQL (simplest start)
+- Store market pattern embeddings
+- Enable similar pattern retrieval
+
+STEPS:
+1. Enable pgvector extension:
+   CREATE EXTENSION vector;
+
+2. Create pattern_embeddings table with vector(1536) column
+
+3. Implement embedding generation:
+   - Convert OHLCV windows to normalized vectors
+   - Add technical indicator features
+   - Store with metadata (symbol, date, subsequent_return)
+
+4. Implement similarity search:
+   - Find similar historical patterns
+   - Return subsequent returns for backtesting
+
+5. Create API endpoint:
+   GET /api/patterns/similar?symbol=AAPL&window=20
+
+FILES TO CREATE:
+- server/services/pattern-embeddings.ts
+- server/routes/patterns.ts
+Prompt 10: Implement Unified Cache
+TASK: Replace 4 cache systems with unified cache
+
+CONTEXT:
+- Current: api-cache.ts, enrichment-cache.ts, order-execution-cache.ts, services/market-data/cache.ts
+- Target: Single unified-cache.ts with data-type-specific TTLs
+
+STEPS:
+1. Create server/lib/unified-cache.ts:
+   - Standard TTLs: quotes(5s), bars(60s), news(5min), fundamentals(1hr)
+   - Redis backend for distributed caching
+   - Metrics tracking (hit rate, memory)
+
+2. Create server/lib/redis-client.ts:
+   - Connection pool management
+   - Fallback to in-memory if Redis unavailable
+
+3. Migrate all connectors to use unified cache
+
+4. Remove duplicate cache instances
+
+FILES TO CREATE:
+- server/lib/unified-cache.ts
+- server/lib/redis-client.ts
+
+FILES TO MODIFY:
+- All server/connectors/*.ts files
+- Remove: services/market-data/cache.ts
