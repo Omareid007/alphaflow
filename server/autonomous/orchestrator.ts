@@ -1593,11 +1593,32 @@ class AutonomousOrchestrator {
     symbol: string,
     decision: AIDecision,
     position: PositionWithRules,
-    partialPercent: number = 100
+    partialPercent: number = 100,
+    options: { isStopLossTriggered?: boolean; isEmergencyStop?: boolean } = {}
   ): Promise<ExecutionResult> {
     try {
       const isCrypto = isCryptoSymbol(symbol);
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+
+      // LOSS PROTECTION: Don't close positions at a loss unless stop-loss or emergency stop triggered
+      const isAtLoss = position.currentPrice < position.entryPrice;
+      const isProtectedClose = options.isStopLossTriggered || options.isEmergencyStop;
+      
+      if (isAtLoss && !isProtectedClose) {
+        const lossPercent = ((position.entryPrice - position.currentPrice) / position.entryPrice * 100).toFixed(2);
+        log.info("Orchestrator", `Blocking close of ${symbol} at ${lossPercent}% loss - stop loss not triggered`, {
+          symbol,
+          entryPrice: position.entryPrice,
+          currentPrice: position.currentPrice,
+          lossPercent,
+        });
+        return {
+          success: false,
+          action: "hold",
+          reason: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`,
+          symbol,
+        };
+      }
 
       try {
         const openOrders = await alpaca.getOrders("open");
@@ -1816,7 +1837,9 @@ class AutonomousOrchestrator {
           reasoning: `Stop-loss triggered at $${position.stopLossPrice}`,
           riskLevel: "high",
         },
-        position
+        position,
+        100,
+        { isStopLossTriggered: true }
       );
       return;
     }
@@ -1863,7 +1886,9 @@ class AutonomousOrchestrator {
           reasoning: `Emergency stop: ${position.unrealizedPnlPercent.toFixed(1)}% loss`,
           riskLevel: "high",
         },
-        position
+        position,
+        100,
+        { isEmergencyStop: true }
       );
     }
   }
