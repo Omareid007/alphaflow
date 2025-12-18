@@ -1986,6 +1986,9 @@ class AutonomousOrchestrator {
       const buyTheDipThresholdPercent = 3;
       const minCashReservePercent = 10;
 
+      const approvedSymbols = await candidatesService.getApprovedSymbols();
+      const approvedSet = new Set(approvedSymbols.map(s => s.toUpperCase()));
+
       for (const [symbol, position] of this.state.activePositions.entries()) {
         const positionValue = position.currentPrice * position.quantity;
         const currentAllocationPercent = (positionValue / portfolioValue) * 100;
@@ -2024,9 +2027,6 @@ class AutonomousOrchestrator {
               );
             }
           } else if (drift < -buyTheDipThresholdPercent) {
-            const approvedSymbols = await candidatesService.getApprovedSymbols();
-            const approvedSet = new Set(approvedSymbols.map(s => s.toUpperCase()));
-            
             if (!approvedSet.has(symbol.toUpperCase())) {
               log.info("Orchestrator", `Skipping buy-the-dip for ${symbol}: not in approved candidates`);
               continue;
