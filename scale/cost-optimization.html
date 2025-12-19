@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Active Trader | Cost & Resource Optimization</title>
+    <style>
+        :root {
+            --color-primary: #0A2463;
+            --color-primary-light: #3E92CC;
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #3B82F6;
+            --color-bg-dark: #0A0A0A;
+            --color-bg-surface: #1A1A2E;
+            --color-bg-card: #16213E;
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: #94A3B8;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); background: var(--color-bg-dark); color: var(--color-text-primary); line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        header { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-bg-card) 100%); padding: 3rem 2rem; text-align: center; }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { color: var(--color-text-secondary); font-size: 1.125rem; }
+
+        section { margin: 3rem 0; }
+        h2 { font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--color-primary-light); }
+        h3 { font-size: 1.25rem; color: var(--color-primary-light); margin: 1.5rem 0 1rem; }
+
+        .cost-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0; }
+        .cost-card { background: var(--color-bg-card); border-radius: 12px; padding: 1.5rem; text-align: center; }
+        .cost-card-value { font-size: 2.5rem; font-weight: 800; font-family: var(--font-mono); }
+        .cost-card-value.green { color: var(--color-success); }
+        .cost-card-value.yellow { color: var(--color-warning); }
+        .cost-card-value.blue { color: var(--color-info); }
+        .cost-card-label { font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; margin-top: 0.25rem; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: var(--color-primary); font-weight: 600; }
+        td { color: var(--color-text-secondary); }
+        td:first-child { color: var(--color-text-primary); }
+
+        .progress-bar { background: var(--color-bg-surface); border-radius: 4px; height: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+        .progress-fill.low { background: var(--color-success); }
+        .progress-fill.medium { background: var(--color-warning); }
+        .progress-fill.high { background: var(--color-error); }
+
+        .strategy-card { background: var(--color-bg-card); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; }
+        .strategy-card h4 { color: var(--color-primary-light); margin-bottom: 0.75rem; }
+        .strategy-card p { color: var(--color-text-secondary); font-size: 0.9375rem; margin-bottom: 1rem; }
+
+        .savings-badge { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(16, 185, 129, 0.2); color: var(--color-success); border-radius: 4px; font-size: 0.8125rem; font-weight: 600; }
+
+        .code-block { background: var(--color-bg-surface); border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 0.8125rem; margin: 1rem 0; overflow-x: auto; }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 768px) {
+            .cost-dashboard { grid-template-columns: repeat(2, 1fr); }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cost & Resource Optimization</h1>
+        <p>Token Budget, API Management & Memory Optimization for AI Active Trader</p>
+    </header>
+
+    <div class="container">
+        <!-- COST DASHBOARD -->
+        <section>
+            <h2>Current Cost Analysis</h2>
+
+            <div class="cost-dashboard">
+                <div class="cost-card">
+                    <div class="cost-card-value green">$0.07</div>
+                    <div class="cost-card-label">Daily LLM Cost</div>
+                </div>
+                <div class="cost-card">
+                    <div class="cost-card-value green">$2.10</div>
+                    <div class="cost-card-label">Monthly LLM Cost</div>
+                </div>
+                <div class="cost-card">
+                    <div class="cost-card-value blue">250</div>
+                    <div class="cost-card-label">Daily LLM Calls</div>
+                </div>
+                <div class="cost-card">
+                    <div class="cost-card-value yellow">0%</div>
+                    <div class="cost-card-label">Cache Hit Rate</div>
+                </div>
+            </div>
+
+            <h3>LLM Cost Breakdown by Role</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Model</th>
+                        <th>Cost/1K Tokens</th>
+                        <th>Avg Prompt Size</th>
+                        <th>Calls/Day</th>
+                        <th>Daily Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>market_news_summarizer</td>
+                        <td>Groq llama-3.1-8b</td>
+                        <td>$0.00005</td>
+                        <td>~500 tokens</td>
+                        <td>100</td>
+                        <td>$0.0025</td>
+                    </tr>
+                    <tr>
+                        <td>technical_analyst</td>
+                        <td>DeepSeek R1 (OpenRouter)</td>
+                        <td>$0.00055</td>
+                        <td>~2000 tokens</td>
+                        <td>50</td>
+                        <td>$0.055</td>
+                    </tr>
+                    <tr>
+                        <td>risk_manager</td>
+                        <td>GPT-4o-mini</td>
+                        <td>$0.00015</td>
+                        <td>~1500 tokens</td>
+                        <td>30</td>
+                        <td>$0.0068</td>
+                    </tr>
+                    <tr>
+                        <td>execution_planner</td>
+                        <td>GPT-4o-mini</td>
+                        <td>$0.00015</td>
+                        <td>~1000 tokens</td>
+                        <td>50</td>
+                        <td>$0.0075</td>
+                    </tr>
+                    <tr>
+                        <td>post_trade_reporter</td>
+                        <td>Groq llama-3.1-8b</td>
+                        <td>$0.00005</td>
+                        <td>~800 tokens</td>
+                        <td>20</td>
+                        <td>$0.0008</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td><strong>250</strong></td>
+                        <td><strong>$0.07</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- OPTIMIZATION STRATEGIES -->
+        <section>
+            <h2>Optimization Strategies</h2>
+
+            <div class="grid-2">
+                <div class="strategy-card">
+                    <h4>1. Prompt Compression</h4>
+                    <span class="savings-badge">60% Token Reduction</span>
+                    <p>Use structured shorthand for repeated context instead of full JSON. Market data can be compressed significantly.</p>
+                    <div class="code-block">
+// BEFORE: ~2000 tokens
+{
+  "symbol": "AAPL",
+  "currentPrice": 178.50,
+  "change24h": "+2.3%",
+  "volume": 45000000,
+  "rsi": 62,
+  "macd": "bullish crossover"
+}
+
+// AFTER: ~800 tokens
+SYMBOL:AAPL|PRICE:178.50|CHG:+2.3%|VOL:45M|RSI:62|MACD:BULL</div>
+                    <p style="color: var(--color-success); font-size: 0.875rem; margin-top: 0.5rem;">
+                        Estimated Savings: $0.033/day = $1/month
+                    </p>
+                </div>
+
+                <div class="strategy-card">
+                    <h4>2. Response Caching</h4>
+                    <span class="savings-badge">30% Fewer API Calls</span>
+                    <p>Cache LLM responses for identical or similar queries. Use MD5 hash of prompt as cache key.</p>
+                    <div class="code-block">
+const llmCache = new UnifiedCache({
+  domain: "llm_responses",
+  l1FreshMs: 5 * 60 * 1000,  // 5 min fresh
+  l1StaleMs: 30 * 60 * 1000, // 30 min stale
+  maxL1Entries: 200,
+});
+
+// Cache key: role + md5(prompt)
+const key = `${role}:${md5(promptContent)}`;</div>
+                    <p style="color: var(--color-success); font-size: 0.875rem; margin-top: 0.5rem;">
+                        Estimated Savings: $0.02/day = $0.60/month
+                    </p>
+                </div>
+
+                <div class="strategy-card">
+                    <h4>3. Complexity-Based Routing</h4>
+                    <span class="savings-badge">40% Cost Reduction on Simple Queries</span>
+                    <p>Route simple queries to cheaper models (Groq) and reserve premium models (GPT-4) for complex analysis.</p>
+                    <div class="code-block">
+function getOptimalProvider(role, complexity) {
+  if (complexity === "simple") {
+    return { provider: "groq", model: "llama-3.1-8b-instant" }; // $0.00005
+  }
+  if (complexity === "moderate") {
+    return { provider: "openai", model: "gpt-4o-mini" }; // $0.00015
+  }
+  // Complex only
+  return { provider: "openrouter", model: "deepseek-r1" }; // $0.00055
+}</div>
+                    <p style="color: var(--color-success); font-size: 0.875rem; margin-top: 0.5rem;">
+                        Estimated Savings: $0.022/day = $0.66/month
+                    </p>
+                </div>
+
+                <div class="strategy-card">
+                    <h4>4. Batch Processing</h4>
+                    <span class="savings-badge">20% Latency Reduction</span>
+                    <p>Batch multiple symbol analyses into a single LLM call when market conditions permit.</p>
+                    <div class="code-block">
+// Instead of 10 separate calls:
+for (symbol of symbols) {
+  await analyze(symbol);
+}
+
+// Batch into 1 call:
+await analyzeBatch(symbols, { maxBatchSize: 10 });</div>
+                    <p style="color: var(--color-success); font-size: 0.875rem; margin-top: 0.5rem;">
+                        Estimated Savings: Reduced latency, same cost
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- API RATE LIMITS -->
+        <section>
+            <h2>API Rate Limit Management</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Provider</th>
+                        <th>Rate Limit</th>
+                        <th>Daily Limit</th>
+                        <th>Cache TTL</th>
+                        <th>Current Usage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Alpaca</td>
+                        <td>180/min</td>
+                        <td>Unlimited</td>
+                        <td>30s</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill low" style="width: 25%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Finnhub</td>
+                        <td>50/min</td>
+                        <td>~72K</td>
+                        <td>60s</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill low" style="width: 30%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>TwelveData</td>
+                        <td>6/min</td>
+                        <td>700</td>
+                        <td>5min</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill medium" style="width: 60%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>CoinGecko</td>
+                        <td>10/min</td>
+                        <td>500</td>
+                        <td>60s</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill low" style="width: 40%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>NewsAPI</td>
+                        <td>-</td>
+                        <td>80</td>
+                        <td>1hr</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill medium" style="width: 70%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>OpenAI</td>
+                        <td>60/min</td>
+                        <td>$50 budget</td>
+                        <td>1hr</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill low" style="width: 5%"></div></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Groq</td>
+                        <td>30/min</td>
+                        <td>~43K</td>
+                        <td>1hr</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill low" style="width: 20%"></div></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Rate Limit Strategy</h3>
+            <div class="code-block">
+// Bottleneck rate limiter configuration
+const rateLimiter = new Bottleneck({
+  reservoir: 50,           // Initial tokens
+  reservoirRefreshAmount: 50,
+  reservoirRefreshInterval: 60 * 1000, // Refill every minute
+  maxConcurrent: 5,        // Max parallel requests
+  minTime: 200,            // Min 200ms between requests
+});
+
+// Circuit breaker for fault isolation
+const breaker = new CircuitBreaker(apiCall, {
+  timeout: 10000,          // 10s timeout
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000,     // 30s cooldown
+});</div>
+        </section>
+
+        <!-- MEMORY MANAGEMENT -->
+        <section>
+            <h2>Memory & Data Management</h2>
+
+            <h3>Cache Architecture</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cache Layer</th>
+                        <th>Storage</th>
+                        <th>Size Limit</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>L1 (Hot)</td>
+                        <td>In-Memory (Node.js)</td>
+                        <td>~100MB</td>
+                        <td>Active quotes, recent decisions</td>
+                    </tr>
+                    <tr>
+                        <td>L2 (Warm)</td>
+                        <td>Redis</td>
+                        <td>256MB</td>
+                        <td>Session data, API responses</td>
+                    </tr>
+                    <tr>
+                        <td>L3 (Cold)</td>
+                        <td>PostgreSQL</td>
+                        <td>Unlimited</td>
+                        <td>Historical data, audit logs</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Data Retention Policy</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data Type</th>
+                        <th>Retention</th>
+                        <th>Storage</th>
+                        <th>Action After</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Real-time quotes</td>
+                        <td>30 seconds</td>
+                        <td>L1 Cache</td>
+                        <td>Evict</td>
+                    </tr>
+                    <tr>
+                        <td>AI decisions</td>
+                        <td>Forever</td>
+                        <td>PostgreSQL</td>
+                        <td>Archive to cold storage</td>
+                    </tr>
+                    <tr>
+                        <td>Trade history</td>
+                        <td>Forever</td>
+                        <td>PostgreSQL</td>
+                        <td>Keep (regulatory)</td>
+                    </tr>
+                    <tr>
+                        <td>LLM call logs</td>
+                        <td>90 days</td>
+                        <td>PostgreSQL</td>
+                        <td>Delete</td>
+                    </tr>
+                    <tr>
+                        <td>API cache entries</td>
+                        <td>TTL-based</td>
+                        <td>L2 Cache</td>
+                        <td>Evict</td>
+                    </tr>
+                    <tr>
+                        <td>Backtest results</td>
+                        <td>30 days</td>
+                        <td>PostgreSQL</td>
+                        <td>Delete old runs</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- BUDGET CONTROLS -->
+        <section>
+            <h2>Budget Controls & Alerts</h2>
+
+            <h3>SLA Token Budget Limits</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Limit Type</th>
+                        <th>Value</th>
+                        <th>Action When Exceeded</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Daily LLM Budget</td>
+                        <td>$50</td>
+                        <td>Switch to cheapest model, serve cached</td>
+                    </tr>
+                    <tr>
+                        <td>Per-Request Limit</td>
+                        <td>$0.10</td>
+                        <td>Reject request, return error</td>
+                    </tr>
+                    <tr>
+                        <td>Monthly LLM Budget</td>
+                        <td>$1,000</td>
+                        <td>Alert admin, reduce frequency</td>
+                    </tr>
+                    <tr>
+                        <td>Burn Rate Alert</td>
+                        <td>&gt; 2x normal</td>
+                        <td>Slack/Email alert to admin</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Recommended Monitoring Dashboard Metrics</h3>
+            <div class="code-block">
+// Prometheus metrics to track
+ai_llm_cost_total{provider="openai"}
+ai_llm_cost_total{provider="groq"}
+ai_cache_hit_rate{cache="llm_responses"}
+ai_request_duration_seconds{role="technical_analyst"}
+api_budget_remaining{provider="newsapi"}
+api_rate_limit_usage{provider="alpaca"}</div>
+        </section>
+
+        <!-- COST PROJECTIONS -->
+        <section>
+            <h2>Optimized Cost Projections</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Current</th>
+                        <th>With Optimizations</th>
+                        <th>Savings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Daily LLM Cost</td>
+                        <td>$0.07</td>
+                        <td>$0.03</td>
+                        <td style="color: var(--color-success);">57% reduction</td>
+                    </tr>
+                    <tr>
+                        <td>Monthly LLM Cost</td>
+                        <td>$2.10</td>
+                        <td>$0.90</td>
+                        <td style="color: var(--color-success);">$1.20/month saved</td>
+                    </tr>
+                    <tr>
+                        <td>Cache Hit Rate</td>
+                        <td>0%</td>
+                        <td>30%</td>
+                        <td style="color: var(--color-success);">75 fewer calls/day</td>
+                    </tr>
+                    <tr>
+                        <td>API Latency (P99)</td>
+                        <td>5000ms</td>
+                        <td>2000ms</td>
+                        <td style="color: var(--color-success);">60% faster</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="strategy-card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--color-success);">
+                <h4 style="color: var(--color-success);">Total Potential Savings</h4>
+                <p style="color: var(--color-text-primary); font-size: 1.25rem; font-weight: 700;">
+                    $14.40/year on LLM costs alone. More importantly, 60% latency improvement and 30% fewer API calls reduce load and improve user experience.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <footer style="background: var(--color-bg-card); padding: 2rem; text-align: center; margin-top: 3rem;">
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            AI Active Trader Cost Optimization Guide | December 2025
+        </p>
+    </footer>
+</body>
+</html>
