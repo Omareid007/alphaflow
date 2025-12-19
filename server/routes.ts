@@ -5559,6 +5559,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // PUBLIC CANDIDATES & WATCHLIST ENDPOINTS (Mobile App)
+  // ============================================================================
+
+  app.get("/api/candidates", async (req, res) => {
+    try {
+      const { status, limit } = req.query;
+      
+      let candidates;
+      if (status && ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)) {
+        candidates = await candidatesService.getCandidatesByStatus(
+          status as "NEW" | "WATCHLIST" | "APPROVED" | "REJECTED",
+          limit ? parseInt(limit as string) : 50
+        );
+      } else {
+        candidates = await candidatesService.getTopCandidates(
+          limit ? parseInt(limit as string) : 50
+        );
+      }
+      
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      console.error("Failed to get candidates:", error);
+      res.status(500).json({ error: "Failed to get candidates" });
+    }
+  });
+
+  app.get("/api/watchlist", async (req, res) => {
+    try {
+      const candidates = await candidatesService.getCandidatesByStatus("WATCHLIST", 100);
+      res.json({ 
+        watchlist: candidates.map(c => ({
+          symbol: c.symbol,
+          name: c.name,
+          tier: c.tier,
+          score: c.finalScore,
+          addedAt: c.createdAt,
+        })),
+        count: candidates.length 
+      });
+    } catch (error) {
+      console.error("Failed to get watchlist:", error);
+      res.status(500).json({ error: "Failed to get watchlist" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
