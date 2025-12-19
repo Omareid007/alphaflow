@@ -250,11 +250,19 @@ class WorkQueueServiceImpl implements WorkQueueService {
       return;
     }
 
+    // FIX: Bracket orders MUST use time_in_force: "day" per Alpaca API requirements
+    // Using "gtc" will result in 422 rejection from the API
+    let correctedTif = time_in_force || "day";
+    if (order_class === "bracket" && correctedTif !== "day") {
+      log.warn("work-queue", `Correcting bracket order TIF from "${correctedTif}" to "day" (Alpaca requirement)`, { traceId, symbol });
+      correctedTif = "day";
+    }
+
     const orderParams: any = {
       symbol,
       side,
       type: type || "market",
-      time_in_force: time_in_force || "day",
+      time_in_force: correctedTif,
       client_order_id: clientOrderId,
     };
 

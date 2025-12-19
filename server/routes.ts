@@ -677,12 +677,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         try {
+          // FIX: Use AI's suggestedQuantity instead of hardcoded 1
+          // suggestedQuantity is a percentage (0.01-0.25), passed to trading engine
+          // which will calculate actual shares based on portfolio value
+          const suggestedPct = decision.metadata?.suggestedQuantity
+            ? parseFloat(String(decision.metadata.suggestedQuantity))
+            : 0.05; // Default 5% of portfolio
+
           const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
             symbol: decision.symbol,
             side: decision.action as "buy" | "sell",
-            quantity: 1,
+            positionSizePercent: Math.min(Math.max(suggestedPct * 100, 1), 10), // 1-10% cap
           });
-          
+
           if (orderResult.success) {
             results.push({ decisionId, success: true, order: orderResult.order });
           } else {

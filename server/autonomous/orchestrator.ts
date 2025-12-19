@@ -1287,13 +1287,16 @@ class AutonomousOrchestrator {
     const existingPosition = this.state.activePositions.get(symbol);
 
     if (decision.action === "buy" && existingPosition) {
-      if (decision.confidence >= 0.85) {
+      // FIX: Lowered confidence threshold from 0.85 to 0.50 for more aggressive position reinforcement
+      // User preference: 50% minimum confidence to reinforce existing positions during momentum
+      if (decision.confidence >= 0.50) {
+        log.info("Orchestrator", `Reinforcing position: ${symbol} (confidence: ${(decision.confidence * 100).toFixed(1)}%)`);
         return await this.reinforcePosition(symbol, decision, existingPosition);
       }
       return {
         success: false,
         action: "skip",
-        reason: "Already have position, confidence not high enough to reinforce",
+        reason: `Already have position, confidence ${(decision.confidence * 100).toFixed(1)}% below 50% threshold`,
         symbol,
       };
     }
@@ -2045,10 +2048,10 @@ class AutonomousOrchestrator {
             
             if (buyValue >= 50 && position.unrealizedPnlPercent <= 0) {
               log.info("Orchestrator", `Buy-the-dip: Adding $${buyValue.toFixed(2)} to underweight ${symbol} (at ${position.unrealizedPnlPercent.toFixed(1)}% loss)`);
-              
+
               const isCrypto = isCryptoSymbol(symbol);
               const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
-              
+
               try {
                 const preCheck = await preTradeGuard(symbol, "buy", buyValue, isCrypto);
                 if (!preCheck.canTrade) {
@@ -2070,11 +2073,83 @@ class AutonomousOrchestrator {
                   symbol,
                   side: "buy",
                 });
-                
+
                 log.trade(`Buy-the-dip: ${symbol} $${buyValue.toFixed(2)}`, { symbol, value: buyValue });
               } catch (error) {
                 log.error("Orchestrator", `Buy-the-dip failed for ${symbol}`, { error: String(error) });
               }
+            }
+          }
+        }
+      }
+
+      // NEW: Pyramid-up logic for winning positions
+      // User preference: Add 50% of original position size when position is profitable
+      const pyramidedThisCycle = new Set<string>();
+      const pyramidMinProfitPercent = 5;  // Start pyramiding at 5% profit
+      const pyramidMaxProfitPercent = 20; // Stop pyramiding above 20% (take profit instead)
+
+      for (const [symbol, position] of this.state.activePositions.entries()) {
+        // Skip if already pyramided this cycle or not in approved list
+        if (pyramidedThisCycle.has(symbol) || !approvedSet.has(symbol.toUpperCase())) {
+          continue;
+        }
+
+        // Check if position is in the profitable sweet spot for pyramid-up
+        if (position.unrealizedPnlPercent >= pyramidMinProfitPercent &&
+            position.unrealizedPnlPercent <= pyramidMaxProfitPercent) {
+
+          const cashReserve = portfolioValue * (minCashReservePercent / 100);
+          const availableForBuying = Math.max(0, availableCash - cashReserve);
+
+          if (availableForBuying <= 50) {
+            continue; // Not enough cash
+          }
+
+          // Calculate 50% of original position value as pyramid amount
+          const originalPositionValue = position.quantity * position.entryPrice;
+          const pyramidValue = Math.min(
+            originalPositionValue * 0.5,  // 50% of original position
+            availableForBuying,
+            portfolioValue * 0.05  // Max 5% of portfolio per pyramid
+          );
+
+          if (pyramidValue >= 50) {
+            log.info("Orchestrator", `Pyramid-up: Adding $${pyramidValue.toFixed(2)} (50% of original) to winning ${symbol} (at +${position.unrealizedPnlPercent.toFixed(1)}%)`);
+
+            const isCrypto = isCryptoSymbol(symbol);
+            const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+
+            try {
+              const preCheck = await preTradeGuard(symbol, "buy", pyramidValue, isCrypto);
+              if (!preCheck.canTrade) {
+                log.warn("Orchestrator", `Pyramid-up blocked for ${symbol}: ${preCheck.reason}`);
+                continue;
+              }
+
+              await queueOrderExecution({
+                orderParams: {
+                  symbol: brokerSymbol,
+                  side: "buy",
+                  type: preCheck.useLimitOrder ? "limit" : "market",
+                  notional: pyramidValue.toFixed(2),
+                  time_in_force: "day",
+                  extended_hours: preCheck.useExtendedHours,
+                  ...(preCheck.limitPrice && { limit_price: preCheck.limitPrice.toString() }),
+                },
+                traceId: this.currentTraceId,
+                symbol,
+                side: "buy",
+              });
+
+              pyramidedThisCycle.add(symbol);
+              log.trade(`Pyramid-up: ${symbol} $${pyramidValue.toFixed(2)} (+${position.unrealizedPnlPercent.toFixed(1)}%)`, {
+                symbol,
+                value: pyramidValue,
+                profitPercent: position.unrealizedPnlPercent,
+              });
+            } catch (error) {
+              log.error("Orchestrator", `Pyramid-up failed for ${symbol}`, { error: String(error) });
             }
           }
         }

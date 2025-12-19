@@ -1443,20 +1443,39 @@ class AlpacaTradingEngine {
     const cancelled: string[] = [];
     const errors: Array<{ orderId: string; error: string }> = [];
 
+    // FIX: Status-aware stale thresholds
+    // Pending/new orders should timeout faster (10 min) as they may be stuck
+    // Other orders (accepted, held, pending_cancel) get standard timeout
+    const PENDING_ORDER_MAX_AGE_MINUTES = 10;
+    const DEFAULT_ORDER_MAX_AGE_MINUTES = maxAgeMinutes;
+
     try {
       const openOrders = await alpaca.getOrders("open", 100);
       const now = new Date();
-      const maxAgeMs = maxAgeMinutes * 60 * 1000;
 
       for (const order of openOrders) {
         const createdAt = new Date(order.created_at);
         const ageMs = now.getTime() - createdAt.getTime();
+        const ageMinutes = ageMs / 60000;
 
-        if (ageMs > maxAgeMs && order.status !== "filled" && order.status !== "partially_filled") {
+        // Skip filled orders
+        if (order.status === "filled" || order.status === "partially_filled") {
+          continue;
+        }
+
+        // Use shorter timeout for stuck pending orders
+        const isPendingOrder = order.status === "pending" ||
+                              order.status === "new" ||
+                              order.status === "pending_new";
+        const effectiveMaxAgeMinutes = isPendingOrder
+          ? PENDING_ORDER_MAX_AGE_MINUTES
+          : DEFAULT_ORDER_MAX_AGE_MINUTES;
+
+        if (ageMinutes > effectiveMaxAgeMinutes) {
           try {
             await alpaca.cancelOrder(order.id);
             cancelled.push(order.id);
-            console.log(`[Reconciliation] Cancelled stale order ${order.id} for ${order.symbol} (age: ${Math.round(ageMs / 60000)} minutes)`);
+            console.log(`[Reconciliation] Cancelled stale ${order.status} order ${order.id} for ${order.symbol} (age: ${Math.round(ageMinutes)} min, threshold: ${effectiveMaxAgeMinutes} min)`);
           } catch (err) {
             errors.push({ orderId: order.id, error: (err as Error).message });
           }
