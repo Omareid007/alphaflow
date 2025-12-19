@@ -1,13 +1,21 @@
 /**
  * AI Active Trader - Risk Manager
  * Pre-trade risk checks and portfolio risk management
+ * Enhanced with dynamic risk adjustments based on market conditions
  */
 
 import { createLogger } from '../shared/common';
 import { OrderRequest, RiskLimits, RiskCheckResult, PortfolioSnapshot } from './types';
 import { PositionManager } from './position-manager';
+import { dynamicRiskManager, DynamicRiskManager } from '../../server/services/dynamic-risk-manager';
 
 const logger = createLogger('risk-manager', 'info');
+
+// Legacy hardcoded values (preserved for reference)
+// const STATIC_MAX_POSITION_SIZE_PERCENT = 10;
+// const STATIC_MAX_TOTAL_EXPOSURE_PERCENT = 80;
+// const STATIC_MAX_POSITIONS_COUNT = 20;
+// const STATIC_DAILY_LOSS_LIMIT_PERCENT = 5;
 
 const DEFAULT_RISK_LIMITS: RiskLimits = {
   maxPositionSizePercent: 10,
@@ -25,9 +33,19 @@ export class RiskManager {
     positionsValue: 0,
     dailyPnl: 0,
   };
+  private useDynamicLimits: boolean = false;
+  private dynamicRiskManager: DynamicRiskManager;
 
-  constructor(limits?: Partial<RiskLimits>) {
+  constructor(limits?: Partial<RiskLimits>, useDynamic: boolean = false) {
     this.riskLimits = { ...DEFAULT_RISK_LIMITS, ...limits };
+    this.useDynamicLimits = useDynamic;
+    this.dynamicRiskManager = dynamicRiskManager;
+
+    if (useDynamic) {
+      logger.info('Risk Manager initialized with DYNAMIC risk adjustments enabled');
+    } else {
+      logger.info('Risk Manager initialized with static limits');
+    }
   }
 
   setPositionManager(positionManager: PositionManager): void {
@@ -38,8 +56,71 @@ export class RiskManager {
     this.portfolioSnapshot = { ...this.portfolioSnapshot, ...snapshot };
   }
 
-  checkPreTradeRisk(request: OrderRequest, limits?: Partial<RiskLimits>): RiskCheckResult {
-    const effectiveLimits = { ...this.riskLimits, ...limits };
+  /**
+   * Get effective risk limits (dynamic or static based on configuration)
+   */
+  async getEffectiveRiskLimits(recentTrades?: { pnl: number; timestamp: Date }[]): Promise<RiskLimits> {
+    if (!this.useDynamicLimits) {
+      return { ...this.riskLimits };
+    }
+
+    try {
+      const adjusted = await this.dynamicRiskManager.getAdjustedLimits(
+        this.portfolioSnapshot,
+        recentTrades
+      );
+
+      logger.info('Dynamic risk limits applied', {
+        original: this.riskLimits,
+        adjusted: {
+          maxPositionPct: adjusted.maxPositionPct,
+          maxExposurePct: adjusted.maxExposurePct,
+        },
+        reason: adjusted.reason,
+        scalingFactors: adjusted.scalingFactors,
+      });
+
+      return this.dynamicRiskManager.toLegacyRiskLimits(adjusted);
+    } catch (error) {
+      logger.error('Failed to get dynamic limits, falling back to static', error as Error);
+      return { ...this.riskLimits };
+    }
+  }
+
+  /**
+   * Check pre-trade risk with optional dynamic adjustments
+   */
+  async checkPreTradeRisk(
+    request: OrderRequest,
+    limits?: Partial<RiskLimits>,
+    recentTrades?: { pnl: number; timestamp: Date }[]
+  ): Promise<RiskCheckResult> {
+    // Get effective limits (dynamic or static)
+    let effectiveLimits: RiskLimits;
+    if (this.useDynamicLimits) {
+      effectiveLimits = await this.getEffectiveRiskLimits(recentTrades);
+    } else {
+      effectiveLimits = { ...this.riskLimits };
+    }
+
+    // Apply any override limits
+    if (limits) {
+      effectiveLimits = { ...effectiveLimits, ...limits };
+    }
+
+    // Check if new positions are allowed (VIX-based emergency mode)
+    if (this.useDynamicLimits && request.side === 'buy') {
+      const newPositionsCheck = await this.dynamicRiskManager.shouldAllowNewPositions();
+      if (!newPositionsCheck.allowed) {
+        logger.warn('New positions blocked by dynamic risk manager', {
+          reason: newPositionsCheck.reason,
+        });
+        return {
+          allowed: false,
+          reason: newPositionsCheck.reason,
+        };
+      }
+    }
 
     const estimatedPrice = request.limitPrice || this.getEstimatedPrice(request.symbol);
     const orderValue = request.quantity * estimatedPrice;
@@ -202,5 +283,34 @@ export class RiskManager {
   updateRiskLimits(limits: Partial<RiskLimits>): void {
     this.riskLimits = { ...this.riskLimits, ...limits };
     logger.info('Risk limits updated', { limits: this.riskLimits });
+  }
+
+  /**
+   * Enable or disable dynamic risk adjustments
+   */
+  setDynamicLimits(enabled: boolean): void {
+    this.useDynamicLimits = enabled;
+    logger.info(`Dynamic risk limits ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  /**
+   * Check if dynamic limits are enabled
+   */
+  isDynamicLimitsEnabled(): boolean {
+    return this.useDynamicLimits;
+  }
+
+  /**
+   * Get the dynamic risk manager instance for advanced operations
+   */
+  getDynamicRiskManager(): DynamicRiskManager {
+    return this.dynamicRiskManager;
+  }
+
+  /**
+   * Get dynamic risk diagnostics (VIX, regimes, etc.)
+   */
+  async getDynamicRiskDiagnostics() {
+    return this.dynamicRiskManager.getDiagnostics();
   }
 }

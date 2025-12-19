@@ -13,16 +13,23 @@ import { tradabilityService } from "../services/tradability-service";
 import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
 import { candidatesService } from "../universe/candidatesService";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
+import { tradingSessionManager } from "../services/trading-session-manager";
 
 const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
 const DEFAULT_TAKE_PROFIT_PERCENT = 6;
 
 // Universe expansion constants (Section A requirements)
-const MAX_STOCK_SYMBOLS_PER_CYCLE = 120;
-const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 20;
+// OLD CONSERVATIVE VALUES (commented for rollback):
+// const MAX_STOCK_SYMBOLS_PER_CYCLE = 120;
+// const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 20;
+// const MIN_CONFIDENCE_FOR_UNIVERSE = 0.65;
+
+// AGGRESSIVE VALUES - Maximize symbol coverage and trading opportunities
+const MAX_STOCK_SYMBOLS_PER_CYCLE = 500;  // AGGRESSIVE: Increased from 120 to analyze more stocks
+const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 100;  // AGGRESSIVE: Increased from 20 to analyze more crypto
 const ALPACA_SNAPSHOT_CHUNK_SIZE = 50;
 const RECENT_DECISIONS_LOOKBACK = 500;
-const MIN_CONFIDENCE_FOR_UNIVERSE = 0.65;
+const MIN_CONFIDENCE_FOR_UNIVERSE = 0.50;  // AGGRESSIVE: Lowered from 0.65 to include more candidates
 
 // Universe expansion state for rotation
 interface UniverseRotationState {
@@ -108,11 +115,21 @@ const DEFAULT_CONFIG: OrchestratorConfig = {
   enabled: true,
 };
 
+// OLD CONSERVATIVE RISK LIMITS (commented for rollback):
+// const DEFAULT_RISK_LIMITS: RiskLimits = {
+//   maxPositionSizePercent: 10,
+//   maxTotalExposurePercent: 50,
+//   maxPositionsCount: 10,
+//   dailyLossLimitPercent: 5,
+//   killSwitchActive: false,
+// };
+
+// AGGRESSIVE RISK LIMITS - Maximize buying power utilization
 const DEFAULT_RISK_LIMITS: RiskLimits = {
-  maxPositionSizePercent: 10,
-  maxTotalExposurePercent: 50,
-  maxPositionsCount: 10,
-  dailyLossLimitPercent: 5,
+  maxPositionSizePercent: 15,          // AGGRESSIVE: Increased from 10 to allow larger positions
+  maxTotalExposurePercent: 95,         // AGGRESSIVE: Increased from 50 to use 95% of buying power (5% cash reserve)
+  maxPositionsCount: 100,              // AGGRESSIVE: Increased from 10 to enterprise-level 100 positions
+  dailyLossLimitPercent: 5,            // Keep same for safety
   killSwitchActive: false,
 };
 
@@ -395,7 +412,7 @@ const MAX_CONSECUTIVE_ERRORS = 5;
 interface PreTradeCheck {
   canTrade: boolean;
   reason?: string;
-  marketSession: "regular" | "pre-market" | "after-hours" | "closed";
+  marketSession: "regular" | "pre_market" | "after_hours" | "closed";
   availableBuyingPower: number;
   requiredBuyingPower: number;
   useExtendedHours: boolean;
@@ -412,11 +429,17 @@ async function preTradeGuard(
   try {
     const account = await alpaca.getAccount();
     const availableBuyingPower = safeParseFloat(account.buying_power);
+
+    // Use trading session manager for enhanced session detection
+    const exchange = isCrypto ? "CRYPTO" : "US_EQUITIES";
+    const sessionInfo = tradingSessionManager.getCurrentSession(exchange);
+
+    // Also get Alpaca market status for compatibility
     const marketStatus = await alpaca.getMarketStatus();
-    
+
     const result: PreTradeCheck = {
       canTrade: false,
-      marketSession: marketStatus.session,
+      marketSession: sessionInfo.session,
       availableBuyingPower,
       requiredBuyingPower: orderValue,
       useExtendedHours: false,
@@ -428,41 +451,60 @@ async function preTradeGuard(
       return result;
     }
 
+    // Crypto markets are 24/7
     if (isCrypto) {
       result.canTrade = true;
+      log.info("Orchestrator", `Crypto market 24/7 - trading enabled for ${symbol}`);
       return result;
     }
 
-    if (marketStatus.session === "regular") {
-      result.canTrade = true;
-      return result;
-    }
-
-    if (marketStatus.session === "closed") {
+    // Check if market is on holiday
+    if (tradingSessionManager.isHoliday(exchange, new Date())) {
       result.canTrade = false;
-      result.reason = `Market is closed (next open: ${marketStatus.nextOpen})`;
+      result.reason = `Market is closed for holiday (next open: ${sessionInfo.nextOpen?.toISOString()})`;
       return result;
     }
 
-    if (marketStatus.isExtendedHours) {
+    // Regular trading hours
+    if (sessionInfo.session === "regular") {
+      result.canTrade = true;
+      log.info("Orchestrator", `Regular hours - trading enabled for ${symbol}`);
+      return result;
+    }
+
+    // Extended hours trading (pre-market or after-hours)
+    if (sessionInfo.isExtendedHours && (sessionInfo.session === "pre_market" || sessionInfo.session === "after_hours")) {
       result.useExtendedHours = true;
       result.useLimitOrder = true;
-      
+
       try {
         const snapshots = await alpaca.getSnapshots([symbol]);
         const snapshot = snapshots[symbol];
         if (snapshot?.latestTrade?.p) {
-          result.limitPrice = Math.round(snapshot.latestTrade.p * 100) / 100;
+          // Apply volatility adjustment for extended hours pricing
+          const basePrice = snapshot.latestTrade.p;
+          const volatilityMultiplier = sessionInfo.volatilityMultiplier;
+          result.limitPrice = Math.round(basePrice * 100) / 100;
           result.canTrade = true;
+          log.info("Orchestrator", `Extended hours (${sessionInfo.session}) trading enabled for ${symbol} at $${result.limitPrice} (volatility: ${volatilityMultiplier}x)`);
           return result;
         } else {
-          result.reason = `Cannot get current price for ${symbol} during extended hours`;
+          result.reason = `Cannot get current price for ${symbol} during ${sessionInfo.session}`;
           return result;
         }
       } catch (error) {
         result.reason = `Failed to get market price for extended hours order: ${error}`;
         return result;
       }
+    }
+
+    // Market is closed
+    if (sessionInfo.session === "closed") {
+      result.canTrade = false;
+      const nextOpenStr = sessionInfo.nextOpen ? sessionInfo.nextOpen.toLocaleString() : "unknown";
+      result.reason = `Market is closed (next open: ${nextOpenStr})`;
+      log.info("Orchestrator", `Market closed for ${symbol} - next open: ${nextOpenStr}`);
+      return result;
     }
 
     return result;
@@ -916,7 +958,18 @@ class AutonomousOrchestrator {
     this.currentTraceId = cycleId;
 
     try {
-      log.info("Orchestrator", "Running analysis cycle...", { cycleId, traceId: cycleId });
+      // Log market session info at cycle start
+      const allSessions = tradingSessionManager.getAllSessionInfo();
+      log.info("Orchestrator", "Running analysis cycle...", {
+        cycleId,
+        traceId: cycleId,
+        marketSessions: {
+          usEquities: allSessions.US_EQUITIES.session,
+          crypto: allSessions.CRYPTO.session,
+          usEquitiesOpen: allSessions.US_EQUITIES.isOpen,
+          nextOpen: allSessions.US_EQUITIES.nextOpen?.toISOString(),
+        }
+      });
       this.state.lastAnalysisTime = new Date();
 
       await this.loadRiskLimitsFromDB();

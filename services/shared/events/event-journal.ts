@@ -164,8 +164,8 @@ export class EventJournal {
   private currentSegment: JournalSegment | null = null;
   private currentFileHandle: fs.promises.FileHandle | null = null;
   private sequence: number = 0;
-  private checkpointTimer: NodeJS.Timeout | null = null;
-  private syncTimer: NodeJS.Timeout | null = null;
+  private checkpointTimer: ReturnType<typeof setInterval> | null = null;
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
   private entriesSinceCheckpoint: number = 0;
   private indexPath: string = '';
   

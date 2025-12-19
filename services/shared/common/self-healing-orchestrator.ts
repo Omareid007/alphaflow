@@ -179,7 +179,7 @@ export class SelfHealingOrchestrator {
   private incidents: Incident[] = [];
   private recoveryEvents: RecoveryEvent[] = [];
   private activeRecoveries = 0;
-  private checkInterval: NodeJS.Timeout | null = null;
+  private checkInterval: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private fallbackHandlers: Map<string, () => Promise<unknown>> = new Map();
   private modeTransitionHistory: Array<{ from: DegradationMode; to: DegradationMode; timestamp: Date; reason: string }> = [];

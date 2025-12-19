@@ -214,7 +214,20 @@ class WorkQueueServiceImpl implements WorkQueueService {
     if (side !== "sell") {
       const enforcementCheck = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
       if (!enforcementCheck.eligible) {
-        log.warn("work-queue", `ORDER_SUBMIT blocked by enforcement: ${symbol} - ${enforcementCheck.reason}`, { traceId });
+        // ENHANCED ORDER FAILURE LOGGING
+        log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Trading enforcement rejected`, {
+          traceId,
+          workItemId: item.id,
+          symbol,
+          side,
+          qty,
+          notional,
+          orderType: type,
+          reason: "TRADING_ENFORCEMENT_BLOCKED",
+          enforcementReason: enforcementCheck.reason,
+          blockCategory: "SYMBOL_NOT_APPROVED",
+          suggestion: "Add symbol to approved candidates list or ensure it passes universe eligibility"
+        });
         await this.markFailed(
           item.id,
           `Symbol ${symbol} blocked by trading enforcement: ${enforcementCheck.reason}`,
@@ -228,6 +241,20 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
     if (!tradabilityCheck.tradable) {
+      // ENHANCED ORDER FAILURE LOGGING
+      log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Symbol not tradable`, {
+        traceId,
+        workItemId: item.id,
+        symbol,
+        side,
+        qty,
+        notional,
+        orderType: type,
+        reason: "SYMBOL_NOT_TRADABLE",
+        tradabilityReason: tradabilityCheck.reason,
+        blockCategory: "BROKER_UNIVERSE",
+        suggestion: "Symbol may not be in Alpaca universe or may be a penny stock (<$5)"
+      });
       await this.markFailed(
         item.id,
         `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}`,

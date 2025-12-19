@@ -130,7 +130,7 @@ export function choosePresetFromMarket(
   return stepPreset(currentPresetId, "toward", basePresetId);
 }
 
-interface UpdateResult {
+export interface UpdateResult {
   updated: boolean;
   previousPreset: PresetId | undefined;
   newPreset: PresetId;

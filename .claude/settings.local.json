@@ -10,7 +10,17 @@
       "Bash(chmod:*)",
       "Bash(npm test:*)",
       "Bash(npm run:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(tail:*)",
+      "Bash(pm2 logs:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(bun check:*)",
+      "Bash(pm2 list:*)",
+      "Bash(pkill:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

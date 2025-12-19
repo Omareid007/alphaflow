@@ -69,9 +69,9 @@ async function initializeService(): Promise<void> {
       decisionId: event.payload.decisionId,
     };
 
-    const riskCheck = riskManager.checkPreTradeRisk(orderRequest);
+    const riskCheck = await riskManager.checkPreTradeRisk(orderRequest);
     if (!riskCheck.allowed) {
-      logger.warn('Risk check failed for AI decision', { 
+      logger.warn('Risk check failed for AI decision', {
         decisionId: event.payload.decisionId,
         reason: riskCheck.reason,
       });
@@ -192,11 +192,11 @@ function createApp(): express.Express {
         timeInForce,
       };
 
-      const riskCheck = riskManager.checkPreTradeRisk(orderRequest);
+      const riskCheck = await riskManager.checkPreTradeRisk(orderRequest);
       if (!riskCheck.allowed) {
-        res.status(422).json({ 
-          error: 'Risk check failed', 
-          reason: riskCheck.reason 
+        res.status(422).json({
+          error: 'Risk check failed',
+          reason: riskCheck.reason
         });
         return;
       }

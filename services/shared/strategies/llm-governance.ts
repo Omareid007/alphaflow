@@ -201,8 +201,8 @@ const DEFAULT_CONFIG: GovernanceConfig = {
   maxPositionSizePercent: 5,
   maxLossPerTradePercent: 2,
   prohibitedSymbols: [],
-  tradingHoursStart: 9,
-  tradingHoursEnd: 16,
+  tradingHoursStart: 4,   // 4 AM ET for pre-market
+  tradingHoursEnd: 20,    // 8 PM ET for after-hours
   costPerToken: 0.00001,
   auditRetentionDays: 90,
 };
@@ -216,7 +216,7 @@ const DEFAULT_TEMPLATES: Omit<PromptTemplate, 'createdAt' | 'updatedAt'>[] = [
     category: 'market_analysis',
     template: `Analyze the current market conditions for {{symbol}}.
 
-Current Price: ${{currentPrice}}
+Current Price: \${{currentPrice}}
 24h Change: {{priceChange}}%
 Volatility: {{volatility}}
 Volume: {{volume}}
@@ -259,7 +259,7 @@ Format your response as JSON with keys: regime, support, resistance, outlook, ri
     template: `Based on the following market data, make a trading decision for {{symbol}}.
 
 === MARKET DATA ===
-Current Price: ${{currentPrice}}
+Current Price: \${{currentPrice}}
 Trend: {{trend}}
 Volatility: {{volatility}}
 RSI: {{rsi}}
@@ -272,12 +272,12 @@ News Headlines: {{newsHeadlines}}
 === CURRENT POSITION ===
 Position: {{positionSide}}
 Size: {{positionSize}} units
-Entry Price: ${{entryPrice}}
-Unrealized P&L: ${{unrealizedPnL}}
+Entry Price: \${{entryPrice}}
+Unrealized P&L: \${{unrealizedPnL}}
 
 === PORTFOLIO ===
-Total Value: ${{portfolioValue}}
-Cash Available: ${{cashAvailable}}
+Total Value: \${{portfolioValue}}
+Cash Available: \${{cashAvailable}}
 Risk Budget Used: {{riskBudgetUsed}}%
 
 === RISK LIMITS ===
@@ -350,9 +350,9 @@ Provide your trading decision as JSON with the following structure:
 === PROPOSED TRADE ===
 Action: {{action}}
 Quantity: {{quantity}}
-Entry Price: ${{entryPrice}}
-Stop Loss: ${{stopLoss}}
-Take Profit: ${{takeProfit}}
+Entry Price: \${{entryPrice}}
+Stop Loss: \${{stopLoss}}
+Take Profit: \${{takeProfit}}
 
 === MARKET CONDITIONS ===
 Volatility: {{volatility}}

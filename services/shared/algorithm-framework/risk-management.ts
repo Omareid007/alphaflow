@@ -298,6 +298,18 @@ export class RiskManagementModule {
   private circuitBreakerTripped: boolean = false;
   private circuitBreakerResetTime: number = 0;
 
+  // Legacy hardcoded values (preserved for reference)
+  // private readonly LEGACY_MAX_PORTFOLIO_RISK = 0.15;
+  // private readonly LEGACY_MAX_POSITION_RISK = 0.02;
+  // private readonly LEGACY_MAX_DRAWDOWN = 0.1;
+  // private readonly LEGACY_MAX_DAILY_LOSS = 0.02;
+
+  // NOTE: For dynamic risk adjustments based on market conditions (VIX, P&L, time),
+  // use the DynamicRiskManager from server/services/dynamic-risk-manager.ts
+  // This module focuses on portfolio-level risk models and constraints.
+  // The DynamicRiskManager can be used to adjust the config values below before
+  // constructing this module, or individual risk models can query it directly.
+
   constructor(config: Partial<RiskManagementConfig> = {}) {
     this.config = {
       models: config.models || [

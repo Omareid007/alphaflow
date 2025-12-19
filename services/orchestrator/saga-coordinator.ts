@@ -28,7 +28,7 @@ export class SagaCoordinator {
   private eventBus: EventBusClient | null = null;
   private logger: { info: Function; warn: Function; error: Function };
   private maxCompletedHistory = 100;
-  private sagaTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private sagaTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private defaultTimeoutMs = 300000;
 
   constructor(logger?: { info: Function; warn: Function; error: Function }) {

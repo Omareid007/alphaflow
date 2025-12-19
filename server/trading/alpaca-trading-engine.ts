@@ -383,16 +383,19 @@ class AlpacaTradingEngine {
     if (this.isCryptoSymbol(symbol)) {
       return { allowed: false, reason: "Extended hours trading is not available for crypto" };
     }
-    
+
     const marketStatus = await this.getMarketStatus();
     if (marketStatus.session === "regular") {
       return { allowed: true };
     }
-    
-    if (marketStatus.isExtendedHours) {
+
+    // Allow trading during pre-market (4AM-9:30AM) and after-hours (4PM-8PM)
+    if (marketStatus.isExtendedHours ||
+        marketStatus.session === "pre-market" ||
+        marketStatus.session === "after-hours") {
       return { allowed: true };
     }
-    
+
     return { allowed: false, reason: "Market is closed and not in extended hours session (4AM-8PM ET on weekdays)" };
   }
 
@@ -406,13 +409,26 @@ class AlpacaTradingEngine {
       } = request;
 
       if (quantity <= 0) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Quantity must be greater than 0`, {
+          symbol,
+          side,
+          quantity,
+          reason: "INVALID_QUANTITY"
+        });
         return { success: false, error: "Quantity must be greater than 0" };
       }
 
       // SECURITY: Orchestrator control check - only allow trades authorized by the orchestrator/work queue
       // This cannot be bypassed by manipulating notes strings
       if (this.orchestratorControlEnabled && !request.authorizedByOrchestrator) {
-        console.log(`[AlpacaTradingEngine] Trade blocked for ${symbol} - orchestrator has control. Direct trade execution blocked.`);
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Orchestrator control active`, {
+          symbol,
+          side,
+          quantity,
+          reason: "ORCHESTRATOR_CONTROL_ACTIVE",
+          orchestratorControlEnabled: this.orchestratorControlEnabled,
+          authorizedByOrchestrator: request.authorizedByOrchestrator
+        });
         return { success: false, error: "Orchestrator control active - direct trade execution blocked. Trades must go through the work queue." };
       }
 
@@ -431,10 +447,19 @@ class AlpacaTradingEngine {
                                            notes?.toLowerCase().includes('stop loss');
             if (isAtLoss && !isStopLossOrEmergency) {
               const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
-              console.log(`[LossProtection] Blocking sell of ${symbol} at ${lossPercent}% loss - waiting for stop-loss or price recovery`);
-              return { 
-                success: false, 
-                error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers` 
+              log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Loss protection active`, {
+                symbol,
+                side,
+                quantity,
+                reason: "LOSS_PROTECTION_ACTIVE",
+                entryPrice,
+                currentPrice,
+                lossPercent: parseFloat(lossPercent),
+                isStopLossOrEmergency
+              });
+              return {
+                success: false,
+                error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`
               };
             }
           }
@@ -445,11 +470,25 @@ class AlpacaTradingEngine {
 
       const riskCheck = await this.checkRiskLimits(symbol, side, quantity);
       if (!riskCheck.allowed) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Risk limit exceeded`, {
+          symbol,
+          side,
+          quantity,
+          reason: "RISK_LIMIT_EXCEEDED",
+          riskCheckReason: riskCheck.reason
+        });
         return { success: false, error: riskCheck.reason };
       }
 
       const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
       if (!tradabilityCheck.tradable) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Symbol not tradable`, {
+          symbol,
+          side,
+          quantity,
+          reason: "SYMBOL_NOT_TRADABLE",
+          tradabilityReason: tradabilityCheck.reason
+        });
         return { success: false, error: `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}` };
       }
 
@@ -458,18 +497,30 @@ class AlpacaTradingEngine {
       let order: AlpacaOrder;
 
       if (extendedHours && isCrypto) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours not available for crypto`, {
+          symbol, side, quantity, reason: "EXTENDED_HOURS_CRYPTO_NOT_SUPPORTED"
+        });
         return { success: false, error: "Extended hours trading is not available for crypto" };
       }
 
       if (extendedHours && orderType !== "limit") {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit orders`, {
+          symbol, side, quantity, orderType, reason: "EXTENDED_HOURS_REQUIRES_LIMIT"
+        });
         return { success: false, error: "Extended hours trading requires limit orders only" };
       }
 
       if (extendedHours && !limitPrice) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit price`, {
+          symbol, side, quantity, reason: "EXTENDED_HOURS_REQUIRES_LIMIT_PRICE"
+        });
         return { success: false, error: "Extended hours trading requires a limit price" };
       }
 
       if (extendedHours && !Number.isInteger(quantity)) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires whole shares`, {
+          symbol, side, quantity, reason: "EXTENDED_HOURS_REQUIRES_WHOLE_SHARES"
+        });
         return { success: false, error: "Extended hours trading requires whole share quantities (no fractional shares)" };
       }
 
@@ -1010,7 +1061,11 @@ class AlpacaTradingEngine {
       return { decision };
     }
 
-    const positionSizePercent = decision.suggestedQuantity || 0.05;
+    // OLD CONSERVATIVE POSITION SIZE (commented for rollback):
+    // const positionSizePercent = decision.suggestedQuantity || 0.05;
+
+    // AGGRESSIVE POSITION SIZE - Increased from 5% to 10% for larger positions
+    const positionSizePercent = decision.suggestedQuantity || 0.10;  // AGGRESSIVE: Default 10% position size
     const tradeValue = buyingPower * positionSizePercent;
     const quantity = Math.floor(tradeValue / marketData.currentPrice);
 

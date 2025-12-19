@@ -318,6 +318,11 @@ export const llmRoles = [
   "risk_manager",
   "execution_planner",
   "post_trade_reporter",
+  // New roles added for enhanced trading capabilities
+  "position_sizer",      // Optimal position sizing based on risk and market conditions
+  "sentiment_analyst",   // Dedicated sentiment analysis from news and social sources
+  "post_trade_analyzer", // Detailed trade performance analysis and learning
+  "futures_analyst",     // Specialized futures market analysis
 ] as const;
 
 export type LLMRole = typeof llmRoles[number];

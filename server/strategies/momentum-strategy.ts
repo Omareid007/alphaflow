@@ -1,4 +1,5 @@
 import { alpaca, type AlpacaBar } from "../connectors/alpaca";
+import { calculateRSI as libraryCalculateRSI, calculateROC as libraryCalculateROC } from "../lib/technical-indicators";
 
 export interface MomentumStrategyConfig {
   id: string;
@@ -165,63 +166,69 @@ export interface MomentumBacktestResult {
   momentumSignals: Array<{ date: string; momentum: number; rsi: number; signal: "buy" | "sell" | "hold" }>;
 }
 
-function calculateROC(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period) {
-      result.push(null);
-    } else {
-      const roc = (prices[i] - prices[i - period]) / prices[i - period];
-      result.push(roc);
-    }
-  }
-  return result;
-}
+// Use consolidated library functions instead of duplicate implementations
+const calculateROC = libraryCalculateROC;
+const calculateRSI = libraryCalculateRSI;
 
-function calculateRSI(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const gains: number[] = [];
-  const losses: number[] = [];
+// OLD DUPLICATE ROC IMPLEMENTATION (commented for consolidation - now using ../lib/technical-indicators):
+// function calculateROC(prices: number[], period: number): (number | null)[] {
+//   const result: (number | null)[] = [];
+//   for (let i = 0; i < prices.length; i++) {
+//     if (i < period) {
+//       result.push(null);
+//     } else {
+//       const roc = (prices[i] - prices[i - period]) / prices[i - period];
+//       result.push(roc);
+//     }
+//   }
+//   return result;
+// }
 
-  for (let i = 0; i < prices.length; i++) {
-    if (i === 0) {
-      result.push(null);
-      continue;
-    }
-
-    const change = prices[i] - prices[i - 1];
-    const gain = change > 0 ? change : 0;
-    const loss = change < 0 ? -change : 0;
-    
-    gains.push(gain);
-    losses.push(loss);
-
-    if (i < period) {
-      result.push(null);
-    } else if (i === period) {
-      const avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-      const avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      result.push(100 - (100 / (1 + rs)));
-    } else {
-      const prevRsi = result[i - 1];
-      if (prevRsi === null) {
-        result.push(null);
-        continue;
-      }
-      
-      const prevAvgGain = gains.slice(-period - 1, -1).reduce((a, b) => a + b, 0) / period;
-      const prevAvgLoss = losses.slice(-period - 1, -1).reduce((a, b) => a + b, 0) / period;
-      
-      const currentAvgGain = (prevAvgGain * (period - 1) + gain) / period;
-      const currentAvgLoss = (prevAvgLoss * (period - 1) + loss) / period;
-      
-      const rs = currentAvgLoss === 0 ? 100 : currentAvgGain / currentAvgLoss;
-      result.push(100 - (100 / (1 + rs)));
-    }
-  }
-  return result;
-}
+// OLD DUPLICATE IMPLEMENTATION (commented for consolidation - now using ../lib/technical-indicators):
+// function calculateRSI(prices: number[], period: number): (number | null)[] {
+//   const result: (number | null)[] = [];
+//   const gains: number[] = [];
+//   const losses: number[] = [];
+//
+//   for (let i = 0; i < prices.length; i++) {
+//     if (i === 0) {
+//       result.push(null);
+//       continue;
+//     }
+//
+//     const change = prices[i] - prices[i - 1];
+//     const gain = change > 0 ? change : 0;
+//     const loss = change < 0 ? -change : 0;
+//
+//     gains.push(gain);
+//     losses.push(loss);
+//
+//     if (i < period) {
+//       result.push(null);
+//     } else if (i === period) {
+//       const avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+//       const avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+//       const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+//       result.push(100 - (100 / (1 + rs)));
+//     } else {
+//       const prevRsi = result[i - 1];
+//       if (prevRsi === null) {
+//         result.push(null);
+//         continue;
+//       }
+//
+//       const prevAvgGain = gains.slice(-period - 1, -1).reduce((a, b) => a + b, 0) / period;
+//       const prevAvgLoss = losses.slice(-period - 1, -1).reduce((a, b) => a + b, 0) / period;
+//
+//       const currentAvgGain = (prevAvgGain * (period - 1) + gain) / period;
+//       const currentAvgLoss = (prevAvgLoss * (period - 1) + loss) / period;
+//
+//       const rs = currentAvgLoss === 0 ? 100 : currentAvgGain / currentAvgLoss;
+//       result.push(100 - (100 / (1 + rs)));
+//     }
+//   }
+//   return result;
+// }
 
 function detectMomentumSignals(
   momentum: (number | null)[],

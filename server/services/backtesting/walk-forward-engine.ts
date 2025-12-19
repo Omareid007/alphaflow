@@ -1,32 +1,7 @@
-# Replit Prompt: Walk-Forward Backtesting Implementation
+import { runBacktest, type RunBacktestParams } from './backtest-runner';
+import type { BacktestResultsSummary } from '../../../shared/types/backtesting';
+import { log } from '../../utils/logger';
 
-## STATUS: COMPLETED ✅
-
-**Implementation Notes:**
-- Created `/server/services/backtesting/walk-forward-engine.ts` - Walk-forward optimization engine
-- Created `/server/services/backtesting/overfitting-detector.ts` - Overfitting detection utilities
-- Features: parameter optimization, in-sample/out-of-sample validation, performance degradation analysis
-
-## OBJECTIVE
-Implement walk-forward optimization and out-of-sample validation to detect overfitting in trading strategies, providing more realistic performance estimates.
-
-## FILES TO CREATE/MODIFY
-
-### New Files:
-- `/server/backtest/walk-forward-engine.ts` - Walk-forward optimization engine
-- `/server/backtest/overfitting-detector.ts` - Overfitting detection utilities
-
-### Files to Modify:
-- `/server/backtest/backtest-runner.ts` - Integrate walk-forward option
-- `/shared/schema.ts` - Add walk-forward result types (if needed)
-
-## IMPLEMENTATION DETAILS
-
-### Step 1: Create Walk-Forward Engine
-
-Create `/server/backtest/walk-forward-engine.ts`:
-
-```typescript
 export interface WalkForwardConfig {
   // Total date range
   startDate: Date;
@@ -103,44 +78,41 @@ export interface WalkForwardResult {
   recommendations: string[];
 }
 
-class WalkForwardEngine {
-  private backtestRunner: any; // Your existing backtest runner
-
-  constructor(backtestRunner: any) {
-    this.backtestRunner = backtestRunner;
-  }
-
+export class WalkForwardEngine {
   async runWalkForward(
     strategyType: string,
     symbols: string[],
+    baseParams: Omit<RunBacktestParams, 'startDate' | 'endDate' | 'strategyParams'>,
     config: WalkForwardConfig
   ): Promise<WalkForwardResult> {
-    console.log('[WalkForward] Starting walk-forward optimization...');
-    console.log(`[WalkForward] IS: ${config.inSampleDays}d, OOS: ${config.outOfSampleDays}d, Step: ${config.stepDays}d`);
+    log.info('WalkForward', `Starting walk-forward optimization...`);
+    log.info('WalkForward', `IS: ${config.inSampleDays}d, OOS: ${config.outOfSampleDays}d, Step: ${config.stepDays}d`);
 
     const windows = this.generateWindows(config);
-    console.log(`[WalkForward] Generated ${windows.length} windows`);
+    log.info('WalkForward', `Generated ${windows.length} windows`);
 
     const windowResults: WindowResult[] = [];
     let previousParams: Record<string, number> | null = null;
 
     for (let i = 0; i < windows.length; i++) {
       const window = windows[i];
-      console.log(`[WalkForward] Processing window ${i + 1}/${windows.length}`);
+      log.info('WalkForward', `Processing window ${i + 1}/${windows.length}`);
 
       // Step 1: Optimize on in-sample period
       const optimizedParams = await this.optimizeParameters(
-        strategyType,
         symbols,
+        baseParams,
         window.inSampleStart,
         window.inSampleEnd,
         config
       );
 
+      log.info('WalkForward', `Optimized params for window ${i + 1}: ${JSON.stringify(optimizedParams)}`);
+
       // Step 2: Get in-sample performance with optimized params
       const inSampleMetrics = await this.runBacktest(
-        strategyType,
         symbols,
+        baseParams,
         window.inSampleStart,
         window.inSampleEnd,
         optimizedParams
@@ -148,8 +120,8 @@ class WalkForwardEngine {
 
       // Step 3: Test on out-of-sample period (forward test)
       const outOfSampleMetrics = await this.runBacktest(
-        strategyType,
         symbols,
+        baseParams,
         window.outOfSampleStart,
         window.outOfSampleEnd,
         optimizedParams
@@ -166,6 +138,12 @@ class WalkForwardEngine {
       const parameterStability = previousParams
         ? this.calculateParameterStability(previousParams, optimizedParams, config.parameterRanges)
         : 1.0;
+
+      log.info('WalkForward',
+        `Window ${i + 1}: IS ${this.getOptimizationScore(inSampleMetrics, config.optimizationMetric).toFixed(2)} ` +
+        `-> OOS ${this.getOptimizationScore(outOfSampleMetrics, config.optimizationMetric).toFixed(2)} ` +
+        `(degradation: ${performanceDegradation.toFixed(1)}%)`
+      );
 
       windowResults.push({
         windowIndex: i,
@@ -191,6 +169,12 @@ class WalkForwardEngine {
     const overfittingScore = this.calculateOverfittingScore(windowResults, aggregateIS, aggregateOOS);
     const robustnessScore = this.calculateRobustnessScore(windowResults);
     const parameterStabilityScore = this.calculateParamStabilityScore(windowResults);
+
+    log.info('WalkForward',
+      `Analysis complete - Overfitting: ${(overfittingScore * 100).toFixed(1)}%, ` +
+      `Robustness: ${(robustnessScore * 100).toFixed(1)}%, ` +
+      `Param Stability: ${(parameterStabilityScore * 100).toFixed(1)}%`
+    );
 
     // Generate recommendations
     const { isOverfit, recommendations } = this.generateRecommendations(
@@ -251,8 +235,8 @@ class WalkForwardEngine {
   }
 
   private async optimizeParameters(
-    strategyType: string,
     symbols: string[],
+    baseParams: Omit<RunBacktestParams, 'startDate' | 'endDate' | 'strategyParams'>,
     startDate: Date,
     endDate: Date,
     config: WalkForwardConfig
@@ -262,8 +246,10 @@ class WalkForwardEngine {
     let bestParams: Record<string, number> = {};
     let bestScore = -Infinity;
 
+    log.info('WalkForward', `Testing ${combinations.length} parameter combinations...`);
+
     for (const params of combinations) {
-      const metrics = await this.runBacktest(strategyType, symbols, startDate, endDate, params);
+      const metrics = await this.runBacktest(symbols, baseParams, startDate, endDate, params);
 
       if (metrics.tradeCount < config.minTrades) continue;
 
@@ -272,6 +258,11 @@ class WalkForwardEngine {
         bestScore = score;
         bestParams = params;
       }
+    }
+
+    if (Object.keys(bestParams).length === 0) {
+      log.warn('WalkForward', 'No valid parameter combination found, using first combination');
+      bestParams = combinations[0] || {};
     }
 
     return bestParams;
@@ -298,32 +289,59 @@ class WalkForwardEngine {
   }
 
   private async runBacktest(
-    strategyType: string,
     symbols: string[],
+    baseParams: Omit<RunBacktestParams, 'startDate' | 'endDate' | 'strategyParams'>,
     startDate: Date,
     endDate: Date,
     params: Record<string, number>
   ): Promise<PerformanceMetrics> {
-    // Call your existing backtest runner
-    const result = await this.backtestRunner.run({
-      strategyType,
-      symbols,
-      startDate,
-      endDate,
-      parameters: params
-    });
+    const backtestParams: RunBacktestParams = {
+      ...baseParams,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      universe: symbols,
+      strategyParams: params
+    };
 
+    try {
+      const result = await runBacktest(backtestParams);
+
+      if (!result.resultsSummary) {
+        return this.createEmptyMetrics();
+      }
+
+      const summary = result.resultsSummary;
+
+      return {
+        totalReturn: summary.totalReturnPct,
+        annualizedReturn: summary.cagr || 0,
+        sharpeRatio: summary.sharpeRatio || 0,
+        sortinoRatio: summary.sortinoRatio || 0,
+        calmarRatio: summary.calmarRatio || 0,
+        maxDrawdown: summary.maxDrawdownPct,
+        winRate: summary.winRatePct,
+        profitFactor: summary.profitFactor || 0,
+        tradeCount: summary.totalTrades,
+        avgTradeDuration: summary.avgHoldingPeriodDays || 0
+      };
+    } catch (error) {
+      log.error('WalkForward', `Backtest failed: ${error instanceof Error ? error.message : String(error)}`);
+      return this.createEmptyMetrics();
+    }
+  }
+
+  private createEmptyMetrics(): PerformanceMetrics {
     return {
-      totalReturn: result.totalReturn,
-      annualizedReturn: result.annualizedReturn,
-      sharpeRatio: result.sharpeRatio,
-      sortinoRatio: result.sortinoRatio || 0,
-      calmarRatio: result.calmarRatio || 0,
-      maxDrawdown: result.maxDrawdown,
-      winRate: result.winRate,
-      profitFactor: result.profitFactor,
-      tradeCount: result.tradeCount,
-      avgTradeDuration: result.avgTradeDuration || 0
+      totalReturn: 0,
+      annualizedReturn: 0,
+      sharpeRatio: 0,
+      sortinoRatio: 0,
+      calmarRatio: 0,
+      maxDrawdown: 0,
+      winRate: 0,
+      profitFactor: 0,
+      tradeCount: 0,
+      avgTradeDuration: 0
     };
   }
 
@@ -359,15 +377,19 @@ class WalkForwardEngine {
       const currVal = curr[range.name] || 0;
       const rangeSize = range.max - range.min;
 
-      totalDiff += Math.abs(prevVal - currVal) / rangeSize;
-      totalRange += 1;
+      if (rangeSize > 0) {
+        totalDiff += Math.abs(prevVal - currVal) / rangeSize;
+        totalRange += 1;
+      }
     }
 
-    return 1 - (totalDiff / totalRange);
+    return totalRange > 0 ? 1 - (totalDiff / totalRange) : 1;
   }
 
   private aggregateMetrics(metrics: PerformanceMetrics[]): PerformanceMetrics {
     const n = metrics.length;
+    if (n === 0) return this.createEmptyMetrics();
+
     return {
       totalReturn: metrics.reduce((s, m) => s + m.totalReturn, 0) / n,
       annualizedReturn: metrics.reduce((s, m) => s + m.annualizedReturn, 0) / n,
@@ -402,15 +424,17 @@ class WalkForwardEngine {
   }
 
   private calculateRobustnessScore(windows: WindowResult[]): number {
+    if (windows.length === 0) return 0;
+
     // Count profitable OOS windows
     const profitableWindows = windows.filter(w => w.outOfSampleMetrics.totalReturn > 0);
     const profitableRatio = profitableWindows.length / windows.length;
 
     // Check consistency of Sharpe ratios
-    const oosharpes = windows.map(w => w.outOfSampleMetrics.sharpeRatio);
-    const avgSharpe = oosharpes.reduce((a, b) => a + b, 0) / oosharpes.length;
+    const oosSharpes = windows.map(w => w.outOfSampleMetrics.sharpeRatio);
+    const avgSharpe = oosSharpes.reduce((a, b) => a + b, 0) / oosSharpes.length;
     const sharpeStdDev = Math.sqrt(
-      oosharpes.reduce((s, v) => s + Math.pow(v - avgSharpe, 2), 0) / oosharpes.length
+      oosSharpes.reduce((s, v) => s + Math.pow(v - avgSharpe, 2), 0) / oosSharpes.length
     );
 
     // Lower std dev = higher consistency
@@ -444,6 +468,8 @@ class WalkForwardEngine {
 
     if (robustness < 0.4) {
       recommendations.push('LOW ROBUSTNESS: Strategy may not work in live trading');
+    } else if (robustness < 0.6) {
+      recommendations.push('MODERATE ROBUSTNESS: Exercise caution with live deployment');
     }
 
     if (paramStability < 0.6) {
@@ -457,113 +483,19 @@ class WalkForwardEngine {
       recommendations.push(`WARNING: ${negativeWindows.length}/${windows.length} windows had negative OOS Sharpe`);
     }
 
+    // Check for consistent underperformance
+    const negativeReturns = windows.filter(w => w.outOfSampleMetrics.totalReturn < 0);
+    if (negativeReturns.length > windows.length * 0.4) {
+      recommendations.push(`WARNING: ${negativeReturns.length}/${windows.length} windows had negative OOS returns`);
+    }
+
     if (recommendations.length === 0) {
       recommendations.push('Strategy appears robust with acceptable overfitting levels');
+      recommendations.push('Consider live paper trading before deploying with real capital');
     }
 
     return { isOverfit, recommendations };
   }
 }
 
-export const walkForwardEngine = new WalkForwardEngine(null); // Pass your backtest runner
-```
-
-### Step 2: Create Overfitting Detector
-
-Create `/server/backtest/overfitting-detector.ts`:
-
-```typescript
-export interface OverfittingAnalysis {
-  degreeOfFreedom: number; // # of parameters
-  dataPoints: number; // # of trades/observations
-  dofRatio: number; // data points per parameter
-  isSuspicious: boolean;
-  warnings: string[];
-}
-
-export function analyzeOverfittingRisk(
-  parameterCount: number,
-  tradeCount: number,
-  inSampleSharpe: number,
-  outOfSampleSharpe: number
-): OverfittingAnalysis {
-  const warnings: string[] = [];
-
-  // Rule of thumb: need 30+ trades per parameter
-  const dofRatio = tradeCount / parameterCount;
-
-  if (dofRatio < 30) {
-    warnings.push(`Low DOF ratio: ${dofRatio.toFixed(1)} (recommend 30+)`);
-  }
-
-  // Sharpe degradation
-  if (inSampleSharpe > 0) {
-    const sharpeDegradation = (inSampleSharpe - outOfSampleSharpe) / inSampleSharpe;
-    if (sharpeDegradation > 0.5) {
-      warnings.push(`High Sharpe degradation: ${(sharpeDegradation * 100).toFixed(0)}%`);
-    }
-  }
-
-  // Suspiciously high in-sample performance
-  if (inSampleSharpe > 3) {
-    warnings.push(`In-sample Sharpe of ${inSampleSharpe.toFixed(2)} is suspiciously high`);
-  }
-
-  return {
-    degreeOfFreedom: parameterCount,
-    dataPoints: tradeCount,
-    dofRatio,
-    isSuspicious: warnings.length >= 2 || dofRatio < 20,
-    warnings
-  };
-}
-```
-
-## ACCEPTANCE CRITERIA
-
-- [x] Walk-forward engine created with rolling window logic
-- [x] Parameter optimization within each in-sample window
-- [x] Out-of-sample validation on held-out data
-- [x] Overfitting score calculation (0-1)
-- [x] Robustness score calculation (0-1)
-- [x] Parameter stability tracking across windows
-- [x] Recommendation generation
-- [x] Overfitting detector utilities
-- [x] Integration with existing backtest runner
-- [x] TypeScript compilation succeeds
-
-## STATUS: COMPLETED ✓
-
-Implementation completed on 2025-12-19.
-
-Files created:
-- `/home/runner/workspace/server/services/backtesting/walk-forward-engine.ts` - Main walk-forward optimization engine with rolling windows
-- `/home/runner/workspace/server/services/backtesting/overfitting-detector.ts` - Overfitting detection utilities and analysis functions
-- Updated `/home/runner/workspace/server/services/backtesting/index.ts` - Exported new modules
-
-## VERIFICATION COMMANDS
-
-```bash
-# Check files created
-ls -la server/backtest/walk-forward-engine.ts
-ls -la server/backtest/overfitting-detector.ts
-
-# Verify TypeScript
-npx tsc --noEmit
-
-# Run walk-forward test
-npm test -- --grep "walk-forward"
-
-# API endpoint test
-curl -X POST http://localhost:5000/api/backtest/walk-forward \
-  -H "Content-Type: application/json" \
-  -d '{"strategyType":"momentum","symbols":["AAPL"],"inSampleDays":252,"outOfSampleDays":63}'
-```
-
-## ESTIMATED IMPACT
-
-- **New lines**: ~500
-- **Files affected**: 4
-- **Risk level**: Low (new feature, doesn't break existing)
-- **Testing required**: Extensive with historical data
-- **Performance improvement**: More realistic strategy expectations
+export const walkForwardEngine = new WalkForwardEngine();

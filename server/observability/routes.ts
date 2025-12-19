@@ -11,7 +11,7 @@ import { workItems, llmCalls, aiDecisions, trades, agentStatus, alertRules, aler
 import { eq, desc, and, or, like, gte, sql, count } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { alertService } from "./alertService";
-import { workQueueService } from "../lib/work-queue";
+import { workQueue as workQueueService } from "../lib/work-queue";
 
 export const observabilityRouter = Router();
 

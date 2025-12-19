@@ -444,6 +444,146 @@ class AlpacaConnector {
     return this.createOrder(orderParams);
   }
 
+  /**
+   * Create an OCO (One-Cancels-Other) order
+   * Two orders where filling one automatically cancels the other
+   * Use case: Set both take-profit and stop-loss on an existing position
+   *
+   * @param symbol The trading symbol
+   * @param qty Quantity to trade
+   * @param takeProfitPrice Limit price for take-profit leg
+   * @param stopLossPrice Stop price for stop-loss leg
+   * @param stopLossLimitPrice Optional limit price for stop-loss (creates stop-limit)
+   */
+  async createOCOOrder(params: {
+    symbol: string;
+    qty: string;
+    side: "buy" | "sell";
+    takeProfitPrice: string;
+    stopLossPrice: string;
+    stopLossLimitPrice?: string;
+    timeInForce?: "day" | "gtc";
+  }): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol: params.symbol,
+      qty: params.qty,
+      side: params.side,
+      type: "limit",
+      time_in_force: params.timeInForce || "day", // OCO orders should typically be day orders
+      limit_price: params.takeProfitPrice,
+      order_class: "oco",
+      stop_loss: {
+        stop_price: params.stopLossPrice,
+        limit_price: params.stopLossLimitPrice,
+      },
+    };
+
+    log.info("Alpaca", `Creating OCO order for ${params.symbol}: TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`);
+    try {
+      const order = await this.createOrder(orderParams);
+      log.info("Alpaca", `OCO order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      return order;
+    } catch (error) {
+      log.error("Alpaca", `OCO order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create an OTO (One-Triggers-Other) order
+   * First order triggers the second order upon fill
+   * Use case: Buy then immediately set a protective stop-loss
+   *
+   * @param primaryOrder The primary order that triggers the secondary
+   * @param secondaryOrder The order triggered when primary fills
+   */
+  async createOTOOrder(params: {
+    symbol: string;
+    qty: string;
+    primarySide: "buy" | "sell";
+    primaryType: "market" | "limit";
+    primaryLimitPrice?: string;
+    // Secondary order is typically a stop-loss
+    stopLossPrice: string;
+    stopLossLimitPrice?: string;
+    timeInForce?: "day" | "gtc";
+  }): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol: params.symbol,
+      qty: params.qty,
+      side: params.primarySide,
+      type: params.primaryType,
+      time_in_force: params.timeInForce || "day",
+      order_class: "oto",
+      stop_loss: {
+        stop_price: params.stopLossPrice,
+        limit_price: params.stopLossLimitPrice,
+      },
+    };
+
+    if (params.primaryLimitPrice && params.primaryType === "limit") {
+      orderParams.limit_price = params.primaryLimitPrice;
+    }
+
+    log.info("Alpaca", `Creating OTO order for ${params.symbol}: Primary=${params.primaryType}, SL=$${params.stopLossPrice}`);
+    try {
+      const order = await this.createOrder(orderParams);
+      log.info("Alpaca", `OTO order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      return order;
+    } catch (error) {
+      log.error("Alpaca", `OTO order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create an OTO order with take-profit
+   * Primary order triggers both stop-loss and take-profit upon fill
+   *
+   * @param params Order parameters including both TP and SL legs
+   */
+  async createOTOWithTPOrder(params: {
+    symbol: string;
+    qty: string;
+    primarySide: "buy" | "sell";
+    primaryType: "market" | "limit";
+    primaryLimitPrice?: string;
+    takeProfitPrice: string;
+    stopLossPrice: string;
+    stopLossLimitPrice?: string;
+    timeInForce?: "day" | "gtc";
+  }): Promise<AlpacaOrder> {
+    const orderParams: CreateOrderParams = {
+      symbol: params.symbol,
+      qty: params.qty,
+      side: params.primarySide,
+      type: params.primaryType,
+      time_in_force: params.timeInForce || "day",
+      order_class: "oto",
+      take_profit: {
+        limit_price: params.takeProfitPrice,
+      },
+      stop_loss: {
+        stop_price: params.stopLossPrice,
+        limit_price: params.stopLossLimitPrice,
+      },
+    };
+
+    if (params.primaryLimitPrice && params.primaryType === "limit") {
+      orderParams.limit_price = params.primaryLimitPrice;
+    }
+
+    log.info("Alpaca", `Creating OTO+TP order for ${params.symbol}: Primary=${params.primaryType}, TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`);
+    try {
+      const order = await this.createOrder(orderParams);
+      log.info("Alpaca", `OTO+TP order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      return order;
+    } catch (error) {
+      log.error("Alpaca", `OTO+TP order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
   async getOrders(status: "open" | "closed" | "all" = "all", limit = 50): Promise<AlpacaOrder[]> {
     const cacheKey = `orders_${status}_${limit}`;
     const cached = this.getCached<AlpacaOrder[]>(cacheKey);

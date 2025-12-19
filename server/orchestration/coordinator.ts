@@ -24,8 +24,8 @@ export interface SystemStatus {
 class TradingCoordinator {
   private config: CoordinatorConfig;
   private startTime: Date;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
-  private reconcileInterval: NodeJS.Timeout | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private reconcileInterval: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private activeStrategies: Set<string> = new Set();
   private errorCount = 0;

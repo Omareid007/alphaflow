@@ -103,6 +103,51 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     maxTokens: 800,
     temperature: 0.4,
   },
+  // New roles added for enhanced trading capabilities
+  position_sizer: {
+    role: "position_sizer",
+    description: "Optimal position sizing based on risk and market conditions",
+    fallbackChain: [
+      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    ],
+    maxTokens: 1500,
+    temperature: 0.2,
+  },
+  sentiment_analyst: {
+    role: "sentiment_analyst",
+    description: "Dedicated sentiment analysis from news and social sources",
+    fallbackChain: [
+      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    ],
+    maxTokens: 1200,
+    temperature: 0.3,
+  },
+  post_trade_analyzer: {
+    role: "post_trade_analyzer",
+    description: "Detailed trade performance analysis and learning",
+    fallbackChain: [
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    ],
+    maxTokens: 2000,
+    temperature: 0.3,
+  },
+  futures_analyst: {
+    role: "futures_analyst",
+    description: "Specialized futures market analysis and recommendations",
+    fallbackChain: [
+      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+    ],
+    maxTokens: 2500,
+    temperature: 0.2,
+  },
 };
 
 export interface RoleBasedRequest extends Omit<LLMRequest, "model"> {

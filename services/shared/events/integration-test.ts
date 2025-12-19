@@ -8,7 +8,8 @@ import { OrderManager } from '../../trading-engine/order-manager';
 import { PositionManager } from '../../trading-engine/position-manager';
 import { RiskManager } from '../../trading-engine/risk-manager';
 import { AnalyticsEngine } from '../../analytics/engine';
-import { analyzeSymbol } from '../../ai-decision/decision-engine';
+// TODO: ai-decision module not implemented yet
+// import { analyzeSymbol } from '../../ai-decision/decision-engine';
 import { CycleManager } from '../../orchestrator/cycle-manager';
 import { SagaCoordinator } from '../../orchestrator/saga-coordinator';
 import { FinnhubConnector } from '../../market-data/connectors/finnhub';
@@ -55,7 +56,7 @@ async function runIntegrationTest(): Promise<void> {
     positionManager.setEventBus(tradingBus);
     riskManager.setPositionManager(positionManager);
 
-    const riskCheck = riskManager.checkPreTradeRisk({
+    const riskCheck = await riskManager.checkPreTradeRisk({
       symbol: 'AAPL',
       side: 'buy',
       quantity: 10,

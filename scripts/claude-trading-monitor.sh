@@ -15,10 +15,9 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
-# Check if market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
+# Check if market is open (including extended hours: 4:00 AM - 8:00 PM ET, Mon-Fri)
 is_market_open() {
     local HOUR=$(TZ=America/New_York date +%H)
-    local MINUTE=$(TZ=America/New_York date +%M)
     local DOW=$(date +%u)
 
     # Weekend check (Sat=6, Sun=7)
@@ -26,12 +25,11 @@ is_market_open() {
         return 1
     fi
 
-    # Time check (9:30 AM to 4:00 PM ET)
-    if [ "$HOUR" -lt 9 ] || [ "$HOUR" -ge 16 ]; then
-        return 1
-    fi
-
-    if [ "$HOUR" -eq 9 ] && [ "$MINUTE" -lt 30 ]; then
+    # Extended hours check (4:00 AM to 8:00 PM ET)
+    # Pre-market: 4:00 AM - 9:30 AM
+    # Regular: 9:30 AM - 4:00 PM
+    # After-hours: 4:00 PM - 8:00 PM
+    if [ "$HOUR" -lt 4 ] || [ "$HOUR" -ge 20 ]; then
         return 1
     fi
 

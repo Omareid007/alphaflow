@@ -1,20 +1,21 @@
 /**
  * LLM Gateway - Centralized entry point for ALL LLM calls
- * 
+ *
  * This module provides a single, policy-driven interface for LLM requests:
  * - Criticality-based routing (low/medium/high)
  * - TraceId propagation for full observability
  * - Structured output support (JSON schema)
  * - Role-based model selection with fallback chains
  * - Unified logging and cost tracking
- * 
+ * - Response caching with stale-while-revalidate pattern
+ *
  * NO direct OpenAI or provider usage should happen outside this gateway.
- * 
+ *
  * @see docs/AI_MODELS_AND_PROVIDERS.md for routing policies
  * @see docs/OBSERVABILITY.md for traceability
  */
 
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { log } from "../utils/logger";
 import { db } from "../db";
 import { llmCalls, type LLMRole, type InsertLlmCall } from "@shared/schema";
@@ -70,7 +71,309 @@ export interface LLMGatewayResponse {
   estimatedCost: number;
   fallbackUsed: boolean;
   fallbackReason?: string;
+  cached?: boolean;
 }
+
+// ============================================================================
+// RESPONSE CACHING
+// ============================================================================
+
+interface CacheEntry {
+  response: LLMGatewayResponse;
+  cachedAt: number;
+  freshUntil: number;
+  staleUntil: number;
+  cacheKey: string;
+}
+
+interface RoleCacheConfig {
+  freshTtlMs: number;
+  staleTtlMs: number;
+  enabled: boolean;
+}
+
+const ROLE_CACHE_CONFIG: Record<LLMRole, RoleCacheConfig> = {
+  technical_analyst: {
+    freshTtlMs: 5 * 60 * 1000, // 5 minutes fresh
+    staleTtlMs: 30 * 60 * 1000, // 30 minutes stale
+    enabled: true,
+  },
+  risk_manager: {
+    freshTtlMs: 5 * 60 * 1000, // 5 minutes fresh
+    staleTtlMs: 15 * 60 * 1000, // 15 minutes stale
+    enabled: true,
+  },
+  market_news_summarizer: {
+    freshTtlMs: 30 * 60 * 1000, // 30 minutes fresh
+    staleTtlMs: 2 * 60 * 60 * 1000, // 2 hours stale
+    enabled: true,
+  },
+  execution_planner: {
+    freshTtlMs: 1 * 60 * 1000, // 1 minute fresh
+    staleTtlMs: 5 * 60 * 1000, // 5 minutes stale (time-sensitive)
+    enabled: true,
+  },
+  post_trade_reporter: {
+    freshTtlMs: 30 * 60 * 1000, // 30 minutes fresh
+    staleTtlMs: 2 * 60 * 60 * 1000, // 2 hours stale
+    enabled: true,
+  },
+  position_sizer: {
+    freshTtlMs: 5 * 60 * 1000,
+    staleTtlMs: 15 * 60 * 1000,
+    enabled: true,
+  },
+  sentiment_analyst: {
+    freshTtlMs: 15 * 60 * 1000,
+    staleTtlMs: 60 * 60 * 1000,
+    enabled: true,
+  },
+  post_trade_analyzer: {
+    freshTtlMs: 30 * 60 * 1000,
+    staleTtlMs: 2 * 60 * 60 * 1000,
+    enabled: true,
+  },
+  futures_analyst: {
+    freshTtlMs: 5 * 60 * 1000,
+    staleTtlMs: 30 * 60 * 1000,
+    enabled: true,
+  },
+};
+
+class LLMResponseCache {
+  private cache = new Map<string, CacheEntry>();
+  private hitsByRole = new Map<LLMRole, number>();
+  private missByRole = new Map<LLMRole, number>();
+  private tokensSaved = 0;
+  private costSaved = 0;
+
+  /**
+   * Generate a cache key from role, system prompt, and messages
+   */
+  private generateCacheKey(role: LLMRole, system: string | undefined, messages: LLMMessage[]): string {
+    // Normalize whitespace in content
+    const normalizeWhitespace = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+    const systemNormalized = system ? normalizeWhitespace(system) : '';
+    const messagesContent = messages
+      .map(m => {
+        if (typeof m.content === 'string') {
+          return normalizeWhitespace(m.content);
+        }
+        return JSON.stringify(m.content);
+      })
+      .join('|');
+
+    const combined = `${role}:${systemNormalized}:${messagesContent}`;
+
+    return createHash('md5').update(combined).digest('hex');
+  }
+
+  /**
+   * Get cached response if available
+   * Returns fresh or stale data based on TTL configuration
+   */
+  get(role: LLMRole, system: string | undefined, messages: LLMMessage[]): CacheEntry | null {
+    const config = ROLE_CACHE_CONFIG[role];
+    if (!config.enabled) {
+      return null;
+    }
+
+    const cacheKey = this.generateCacheKey(role, system, messages);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry) {
+      this.recordMiss(role);
+      return null;
+    }
+
+    const now = Date.now();
+
+    // Check if completely stale (beyond stale TTL)
+    if (now > entry.staleUntil) {
+      this.cache.delete(cacheKey);
+      this.recordMiss(role);
+      return null;
+    }
+
+    // Record hit and savings
+    this.recordHit(role);
+    this.recordSavings(entry.response.tokensUsed, entry.response.estimatedCost);
+
+    // Check if fresh
+    if (now <= entry.freshUntil) {
+      log.ai(`LLMCache: Fresh hit for ${role}`, { cacheKey });
+      return entry;
+    }
+
+    // Stale but valid - return immediately and trigger background refresh
+    log.ai(`LLMCache: Stale hit for ${role} (will refresh in background)`, { cacheKey });
+    return entry;
+  }
+
+  /**
+   * Store response in cache with role-based TTL
+   */
+  set(role: LLMRole, system: string | undefined, messages: LLMMessage[], response: LLMGatewayResponse): void {
+    const config = ROLE_CACHE_CONFIG[role];
+    if (!config.enabled) {
+      return;
+    }
+
+    const cacheKey = this.generateCacheKey(role, system, messages);
+    const now = Date.now();
+
+    const entry: CacheEntry = {
+      response: { ...response, cached: false }, // Store original response without cache flag
+      cachedAt: now,
+      freshUntil: now + config.freshTtlMs,
+      staleUntil: now + config.staleTtlMs,
+      cacheKey,
+    };
+
+    this.cache.set(cacheKey, entry);
+
+    // Evict old entries if cache gets too large
+    if (this.cache.size > 1000) {
+      this.evictOldest();
+    }
+  }
+
+  /**
+   * Check if entry needs refresh (is in stale window)
+   */
+  needsRefresh(role: LLMRole, system: string | undefined, messages: LLMMessage[]): boolean {
+    const config = ROLE_CACHE_CONFIG[role];
+    if (!config.enabled) {
+      return false;
+    }
+
+    const cacheKey = this.generateCacheKey(role, system, messages);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry) {
+      return false;
+    }
+
+    const now = Date.now();
+    return now > entry.freshUntil && now <= entry.staleUntil;
+  }
+
+  /**
+   * Clear cache for a specific role
+   */
+  clearRole(role: LLMRole): void {
+    const keysToDelete: string[] = [];
+    this.cache.forEach((entry, key) => {
+      if (key.startsWith(`${role}:`)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => this.cache.delete(key));
+  }
+
+  /**
+   * Clear all cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  private evictOldest(): void {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
+    this.cache.forEach((entry, key) => {
+      if (entry.cachedAt < oldestTime) {
+        oldestTime = entry.cachedAt;
+        oldestKey = key;
+      }
+    });
+
+    if (oldestKey) {
+      this.cache.delete(oldestKey);
+    }
+  }
+
+  private recordHit(role: LLMRole): void {
+    this.hitsByRole.set(role, (this.hitsByRole.get(role) || 0) + 1);
+  }
+
+  private recordMiss(role: LLMRole): void {
+    this.missByRole.set(role, (this.missByRole.get(role) || 0) + 1);
+  }
+
+  private recordSavings(tokens: number, cost: number): void {
+    this.tokensSaved += tokens;
+    this.costSaved += cost;
+  }
+
+  /**
+   * Get cache statistics by role
+   */
+  getStats(): {
+    overall: {
+      hitRate: number;
+      totalHits: number;
+      totalMisses: number;
+      tokensSaved: number;
+      costSaved: number;
+      cacheSize: number;
+    };
+    byRole: Record<string, {
+      hits: number;
+      misses: number;
+      hitRate: number;
+    }>;
+  } {
+    let totalHits = 0;
+    let totalMisses = 0;
+
+    this.hitsByRole.forEach(hits => totalHits += hits);
+    this.missByRole.forEach(misses => totalMisses += misses);
+
+    const byRole: Record<string, { hits: number; misses: number; hitRate: number }> = {};
+
+    const hitRoles = Array.from(this.hitsByRole.keys());
+    const missRoles = Array.from(this.missByRole.keys());
+    const allRoles = new Set([...hitRoles, ...missRoles]);
+    allRoles.forEach(role => {
+      const hits = this.hitsByRole.get(role) || 0;
+      const misses = this.missByRole.get(role) || 0;
+      const total = hits + misses;
+      byRole[role] = {
+        hits,
+        misses,
+        hitRate: total > 0 ? hits / total : 0,
+      };
+    });
+
+    return {
+      overall: {
+        hitRate: totalHits + totalMisses > 0 ? totalHits / (totalHits + totalMisses) : 0,
+        totalHits,
+        totalMisses,
+        tokensSaved: this.tokensSaved,
+        costSaved: this.costSaved,
+        cacheSize: this.cache.size,
+      },
+      byRole,
+    };
+  }
+
+  /**
+   * Reset statistics
+   */
+  resetStats(): void {
+    this.hitsByRole.clear();
+    this.missByRole.clear();
+    this.tokensSaved = 0;
+    this.costSaved = 0;
+  }
+}
+
+// Singleton instance
+const llmResponseCache = new LLMResponseCache();
 
 // ============================================================================
 // MODEL CHAINS BY CRITICALITY
@@ -159,6 +462,62 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
       { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
     ],
   },
+  // NEW ROLE: Position sizing optimization based on risk and market conditions
+  position_sizer: {
+    high: [
+      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+    ],
+    medium: [
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+    ],
+    low: [
+      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+    ],
+  },
+  // NEW ROLE: Dedicated sentiment analysis from news and social sources
+  sentiment_analyst: {
+    high: [
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+    ],
+    medium: [
+      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    ],
+    low: [
+      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+    ],
+  },
+  // NEW ROLE: Detailed post-trade performance analysis and learning
+  post_trade_analyzer: {
+    high: [
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
+    ],
+    medium: [
+      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+    ],
+    low: [
+      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+    ],
+  },
+  // NEW ROLE: Specialized futures market analysis
+  futures_analyst: {
+    high: [
+      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+    ],
+    medium: [
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+    ],
+    low: [
+      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+    ],
+  },
 };
 
 // ============================================================================
@@ -238,10 +597,10 @@ function extractTokenCount(tokensUsed: LLMResponse["tokensUsed"]): number {
 
 /**
  * Unified LLM Gateway - All LLM calls should go through this function
- * 
+ *
  * @param req - Gateway request with role, criticality, traceId, and standard LLM params
  * @returns Gateway response with text, json, toolCalls, and tracing metadata
- * 
+ *
  * @example
  * ```typescript
  * const response = await callLLM({
@@ -256,8 +615,53 @@ function extractTokenCount(tokensUsed: LLMResponse["tokensUsed"]): number {
  */
 export async function callLLM(req: LLMGatewayRequest): Promise<LLMGatewayResponse> {
   const startTime = Date.now();
+
+  // Check cache first
+  const cachedEntry = llmResponseCache.get(req.role, req.system, req.messages);
+
+  if (cachedEntry) {
+    const cachedResponse = { ...cachedEntry.response, cached: true };
+
+    // If stale, trigger background refresh but return cached data immediately
+    if (llmResponseCache.needsRefresh(req.role, req.system, req.messages)) {
+      // Background refresh - don't await
+      callLLMUncached(req).then(freshResponse => {
+        llmResponseCache.set(req.role, req.system, req.messages, freshResponse);
+      }).catch(err => {
+        log.warn("LLMGateway", "Background refresh failed", {
+          role: req.role,
+          error: String(err)
+        });
+      });
+    }
+
+    log.ai(`LLMGateway: Cache hit for ${req.role}/${req.criticality}`, {
+      role: req.role,
+      criticality: req.criticality,
+      purpose: req.purpose,
+      traceId: req.traceId,
+      cacheKey: cachedEntry.cacheKey,
+      cached: true,
+    });
+
+    return cachedResponse;
+  }
+
+  // Cache miss - call LLM and cache result
+  const response = await callLLMUncached(req);
+  llmResponseCache.set(req.role, req.system, req.messages, response);
+
+  return response;
+}
+
+/**
+ * Internal function to call LLM without caching
+ * Separated to support background refresh pattern
+ */
+async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayResponse> {
+  const startTime = Date.now();
   const chain = getModelChain(req.role, req.criticality);
-  
+
   let fallbackUsed = false;
   let fallbackReason: string | undefined;
   let lastError: Error | undefined;
@@ -405,6 +809,38 @@ export function generateTraceId(): string {
 }
 
 // ============================================================================
+// CACHE MANAGEMENT
+// ============================================================================
+
+/**
+ * Get cache statistics including hit rates and cost savings
+ */
+export function getLLMCacheStats() {
+  return llmResponseCache.getStats();
+}
+
+/**
+ * Clear cache for a specific role
+ */
+export function clearLLMCacheForRole(role: LLMRole) {
+  llmResponseCache.clearRole(role);
+}
+
+/**
+ * Clear all LLM response cache
+ */
+export function clearLLMCache() {
+  llmResponseCache.clear();
+}
+
+/**
+ * Reset cache statistics
+ */
+export function resetLLMCacheStats() {
+  llmResponseCache.resetStats();
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -415,5 +851,11 @@ export const llmGateway = {
     return Object.entries(PROVIDER_CLIENTS)
       .filter(([_, v]) => v.isAvailable())
       .map(([name]) => name);
+  },
+  cache: {
+    getStats: getLLMCacheStats,
+    clearRole: clearLLMCacheForRole,
+    clear: clearLLMCache,
+    resetStats: resetLLMCacheStats,
   },
 };

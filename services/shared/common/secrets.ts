@@ -92,7 +92,7 @@ export class VaultSecretProvider implements SecretProvider {
   private namespace: string;
   private renewInterval: number;
   private tokenExpiresAt: number = 0;
-  private renewTimer: NodeJS.Timeout | null = null;
+  private renewTimer: ReturnType<typeof setTimeout> | null = null;
   private secretCache: Map<string, { data: Record<string, string>; fetchedAt: number }> = new Map();
   private cacheTtl: number = 60000;
 

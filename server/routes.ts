@@ -24,12 +24,13 @@ import { valyu } from "./connectors/valyu";
 import { huggingface } from "./connectors/huggingface";
 import { gdelt } from "./connectors/gdelt";
 import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
-import { generateTraceId } from "./ai/llmGateway";
+import { generateTraceId, getLLMCacheStats, clearLLMCache, clearLLMCacheForRole, resetLLMCacheStats } from "./ai/llmGateway";
 import { dataFusionEngine } from "./fusion/data-fusion-engine";
 // DEPRECATED: paperTradingEngine is no longer used in UI paths - Alpaca is source of truth
 // import { paperTradingEngine } from "./trading/paper-trading-engine";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { alpacaStream } from "./trading/alpaca-stream";
+import { tradingSessionManager } from "./services/trading-session-manager";
 import { 
   orderExecutionEngine,
   identifyUnrealOrders, 
@@ -1365,6 +1366,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Position Reconciliation Endpoints
+  app.post("/api/positions/reconcile", async (req, res) => {
+    try {
+      const { positionReconciler } = await import("./services/position-reconciler");
+      const force = req.query.force === "true";
+      const result = await positionReconciler.reconcile(force);
+      res.json(result);
+    } catch (error) {
+      console.error("Position reconciliation failed:", error);
+      res.status(500).json({ error: "Failed to reconcile positions" });
+    }
+  });
+
+  app.get("/api/positions/reconcile/status", async (req, res) => {
+    try {
+      const { positionReconciler } = await import("./services/position-reconciler");
+      const status = positionReconciler.getStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get reconciliation status" });
+    }
+  });
+
   app.get("/api/ai-decisions", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
@@ -2371,6 +2395,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // LLM Response Cache Management Endpoints
+  app.get("/api/ai/cache/stats", async (req, res) => {
+    try {
+      const stats = getLLMCacheStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting LLM cache stats:", error);
+      res.status(500).json({ error: "Failed to get cache stats" });
+    }
+  });
+
+  app.post("/api/ai/cache/clear", async (req, res) => {
+    try {
+      clearLLMCache();
+      res.json({ success: true, message: "LLM cache cleared" });
+    } catch (error) {
+      console.error("Error clearing LLM cache:", error);
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
+  });
+
+  app.post("/api/ai/cache/clear/:role", async (req, res) => {
+    try {
+      const { role } = req.params;
+      clearLLMCacheForRole(role as any);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      console.error("Error clearing LLM cache for role:", error);
+      res.status(500).json({ error: "Failed to clear cache for role" });
+    }
+  });
+
+  app.post("/api/ai/cache/reset-stats", async (req, res) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      console.error("Error resetting LLM cache stats:", error);
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
+  });
+
   app.get("/api/connectors/status", async (req, res) => {
     try {
       const cryptoStatus = coingecko.getConnectionStatus();
@@ -3120,6 +3186,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to check extended hours availability:", error);
       res.status(500).json({ error: "Failed to check extended hours availability" });
+    }
+  });
+
+  // Trading Session Manager endpoints
+  app.get("/api/trading-sessions/all", async (req, res) => {
+    try {
+      const allSessions = tradingSessionManager.getAllSessionInfo();
+      res.json({
+        sessions: allSessions,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get all trading sessions:", error);
+      res.status(500).json({ error: "Failed to get trading sessions" });
+    }
+  });
+
+  app.get("/api/trading-sessions/:exchange", async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const session = tradingSessionManager.getCurrentSession(exchange.toUpperCase());
+      const config = tradingSessionManager.getSessionConfig(exchange.toUpperCase());
+
+      res.json({
+        exchange: exchange.toUpperCase(),
+        session,
+        config,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get trading session:", error);
+      res.status(500).json({ error: "Failed to get trading session" });
+    }
+  });
+
+  app.get("/api/trading-sessions/:exchange/is-open", async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
+
+      res.json({
+        exchange: exchange.toUpperCase(),
+        isOpen,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to check if market is open:", error);
+      res.status(500).json({ error: "Failed to check market status" });
+    }
+  });
+
+  app.get("/api/trading-sessions/:exchange/next-open", async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const nextOpen = tradingSessionManager.getNextMarketOpen(exchange.toUpperCase());
+
+      res.json({
+        exchange: exchange.toUpperCase(),
+        nextOpen: nextOpen?.toISOString() || null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get next market open:", error);
+      res.status(500).json({ error: "Failed to get next market open" });
+    }
+  });
+
+  app.get("/api/trading-sessions/:exchange/volatility", async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const session = tradingSessionManager.getCurrentSession(exchange.toUpperCase());
+      const volatilityMultiplier = tradingSessionManager.getSessionVolatilityMultiplier(
+        exchange.toUpperCase(),
+        session.session
+      );
+
+      res.json({
+        exchange: exchange.toUpperCase(),
+        session: session.session,
+        volatilityMultiplier,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to get volatility multiplier:", error);
+      res.status(500).json({ error: "Failed to get volatility multiplier" });
     }
   });
 

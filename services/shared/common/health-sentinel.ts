@@ -73,8 +73,8 @@ export class HealthSentinel {
   
   private healthChecks: Map<string, HealthCheckConfig> = new Map();
   private serviceHealth: Map<string, ServiceHealth> = new Map();
-  private checkIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private resourceInterval: NodeJS.Timeout | null = null;
+  private checkIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private resourceInterval: ReturnType<typeof setInterval> | null = null;
   private governorConfig: ResourceGovernorConfig;
   private consumerLagCheckers: Map<string, () => Promise<ConsumerLagMetrics>> = new Map();
   private restartCallbacks: Map<string, () => Promise<void>> = new Map();
@@ -409,7 +409,7 @@ export class HealthSentinel {
 export class ServiceWatchdog {
   private sentinel: HealthSentinel;
   private serviceName: string;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private lastHeartbeat: Date = new Date();
   private maxHeartbeatAge: number;
 

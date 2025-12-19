@@ -31,3 +31,23 @@ export {
   type StrategyType,
   type StrategyConfig,
 } from "./strategies";
+
+export {
+  WalkForwardEngine,
+  walkForwardEngine,
+  type WalkForwardConfig,
+  type ParameterRange,
+  type WindowResult,
+  type PerformanceMetrics,
+  type WalkForwardResult,
+} from "./walk-forward-engine";
+
+export {
+  analyzeOverfittingRisk,
+  calculatePBO,
+  calculateDeflatedSharpe,
+  calculateConsistencyScore,
+  isStrategyOverfit,
+  generateOverfittingReport,
+  type OverfittingAnalysis,
+} from "./overfitting-detector";
