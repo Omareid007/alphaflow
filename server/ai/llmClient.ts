@@ -12,7 +12,7 @@
  */
 
 // Note: Claude models are accessed via OpenRouter provider, not a separate claude provider
-export type LLMProvider = "openai" | "openrouter" | "groq" | "together" | "aimlapi";
+export type LLMProvider = "openai" | "openrouter" | "groq" | "together" | "aimlapi" | "claude" | "gemini" | "cloudflare" | "huggingface";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -92,18 +92,20 @@ export interface LLMClientError extends Error {
   provider: string;
   isRateLimit: boolean;
   isAuthError: boolean;
+  isBudgetExhausted: boolean;
   statusCode?: number;
 }
 
 export function createLLMError(
   message: string,
   provider: string,
-  opts: { isRateLimit?: boolean; isAuthError?: boolean; statusCode?: number } = {}
+  opts: { isRateLimit?: boolean; isAuthError?: boolean; isBudgetExhausted?: boolean; statusCode?: number } = {}
 ): LLMClientError {
   const error = new Error(message) as LLMClientError;
   error.provider = provider;
   error.isRateLimit = opts.isRateLimit ?? false;
   error.isAuthError = opts.isAuthError ?? false;
+  error.isBudgetExhausted = opts.isBudgetExhausted ?? false;
   error.statusCode = opts.statusCode;
   return error;
 }

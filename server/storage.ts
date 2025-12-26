@@ -1,5 +1,6 @@
 import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
 import { db } from "./db";
+import { sanitizeInput, sanitizeUserInput, sanitizeStrategyInput } from "./lib/sanitization";
 import {
   users,
   strategies,
@@ -20,6 +21,7 @@ import {
   competitionScores,
   strategyVersions,
   toolInvocations,
+  auditLogs,
   type User,
   type InsertUser,
   type Strategy,
@@ -61,6 +63,8 @@ import {
   type ToolInvocation,
   type InsertToolInvocation,
   type DebateSessionStatus,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -81,8 +85,11 @@ export interface EnrichedTrade extends Trade {
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getAdminUser(): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
 
   getStrategies(): Promise<Strategy[]>;
   getStrategy(id: string): Promise<Strategy | undefined>;
@@ -90,25 +97,25 @@ export interface IStorage {
   updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined>;
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
 
-  getTrades(limit?: number): Promise<Trade[]>;
-  getTradesFiltered(filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
+  getTrades(userId: string, limit?: number): Promise<Trade[]>;
+  getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
   getTrade(id: string): Promise<Trade | undefined>;
   getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined>;
   createTrade(trade: InsertTrade): Promise<Trade>;
   getDistinctSymbols(): Promise<string[]>;
 
-  getPositions(): Promise<Position[]>;
+  getPositions(userId: string): Promise<Position[]>;
   getPosition(id: string): Promise<Position | undefined>;
   createPosition(position: InsertPosition): Promise<Position>;
   updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position | undefined>;
   deletePosition(id: string): Promise<boolean>;
 
-  getAiDecisions(limit?: number): Promise<AiDecision[]>;
+  getAiDecisions(userId: string, limit?: number): Promise<AiDecision[]>;
   createAiDecision(decision: InsertAiDecision): Promise<AiDecision>;
   updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
   getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
-  getAiDecisionsByStatus(status: string, limit?: number): Promise<AiDecision[]>;
-  getPendingAiDecisions(limit?: number): Promise<AiDecision[]>;
+  getAiDecisionsByStatus(userId: string, status: string, limit?: number): Promise<AiDecision[]>;
+  getPendingAiDecisions(userId: string, limit?: number): Promise<AiDecision[]>;
   getOrdersByDecisionId(decisionId: string): Promise<Order[]>;
 
   getAgentStatus(): Promise<AgentStatus | undefined>;
@@ -118,11 +125,17 @@ export interface IStorage {
   upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrder>): Promise<Order>;
   getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined>;
   getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined>;
-  getOrdersByStatus(status: string, limit?: number): Promise<Order[]>;
-  getRecentOrders(limit?: number): Promise<Order[]>;
+  getOrdersByStatus(userId: string, status: string, limit?: number): Promise<Order[]>;
+  getRecentOrders(userId: string, limit?: number): Promise<Order[]>;
   createFill(fill: InsertFill): Promise<Fill>;
   getFillsByOrderId(orderId: string): Promise<Fill[]>;
   getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]>;
+
+  // Audit Logging
+  createAuditLog(log: any): Promise<any>;
+  getUserAuditLogs(userId: string, limit?: number, offset?: number): Promise<any[]>;
+  getResourceAuditLogs(resource: string, resourceId: string, limit?: number): Promise<any[]>;
+  getRecentAuditLogs(limit?: number, offset?: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -136,14 +149,32 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getAdminUser(): Promise<User | undefined> {
+    const [adminUser] = await db.select().from(users).where(eq(users.isAdmin, true)).limit(1);
+    return adminUser;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.id));
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // SECURITY: Sanitize user input to prevent XSS attacks
+    const sanitizedUser = sanitizeUserInput(insertUser);
+    const [user] = await db.insert(users).values(sanitizedUser).returning();
     return user;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    // SECURITY: Sanitize user input to prevent XSS attacks
+    const sanitizedUpdates = sanitizeUserInput(updates);
+    const [user] = await db.update(users).set(sanitizedUpdates).where(eq(users.id, id)).returning();
     return user;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async getStrategies(): Promise<Strategy[]> {
@@ -156,14 +187,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStrategy(insertStrategy: InsertStrategy): Promise<Strategy> {
-    const [strategy] = await db.insert(strategies).values(insertStrategy).returning();
+    // SECURITY: Sanitize strategy input to prevent XSS attacks
+    const sanitizedStrategy = sanitizeStrategyInput(insertStrategy);
+    const [strategy] = await db.insert(strategies).values(sanitizedStrategy).returning();
     return strategy;
   }
 
   async updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined> {
+    // SECURITY: Sanitize strategy input to prevent XSS attacks
+    const sanitizedUpdates = sanitizeStrategyInput(updates);
     const [strategy] = await db
       .update(strategies)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...sanitizedUpdates, updatedAt: new Date() })
       .where(eq(strategies.id, id))
       .returning();
     return strategy;
@@ -173,79 +208,67 @@ export class DatabaseStorage implements IStorage {
     return this.updateStrategy(id, { isActive });
   }
 
-  async getTrades(limit: number = 50): Promise<Trade[]> {
-    return db.select().from(trades).orderBy(desc(trades.executedAt)).limit(limit);
+  async getTrades(userId: string, limit: number = 50): Promise<Trade[]> {
+    return db.select().from(trades).where(eq(trades.userId, userId)).orderBy(desc(trades.executedAt)).limit(limit);
   }
 
-  async getTradesFiltered(filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }> {
-    const conditions: any[] = [];
-    
+  async getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }> {
+    const conditions: any[] = [eq(trades.userId, userId)];
+
     if (filters.symbol) {
       conditions.push(eq(trades.symbol, filters.symbol));
     }
-    
+
     if (filters.strategyId) {
       conditions.push(eq(trades.strategyId, filters.strategyId));
     }
-    
+
     if (filters.startDate) {
       conditions.push(gte(trades.executedAt, filters.startDate));
     }
-    
+
     if (filters.endDate) {
       conditions.push(lte(trades.executedAt, filters.endDate));
     }
-    
+
     if (filters.pnlDirection === 'profit') {
       conditions.push(sql`CAST(${trades.pnl} AS numeric) >= 0`);
     } else if (filters.pnlDirection === 'loss') {
       conditions.push(sql`CAST(${trades.pnl} AS numeric) < 0`);
     }
-    
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
+
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(trades)
       .where(whereClause);
     const total = Number(countResult[0]?.count ?? 0);
-    
+
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;
-    
-    const tradeResults = await db
-      .select()
+
+    // FIX N+1 QUERY: Use JOIN instead of individual queries
+    const result = await db
+      .select({
+        trade: trades,
+        strategy: strategies,
+        aiDecision: aiDecisions,
+      })
       .from(trades)
+      .leftJoin(strategies, eq(trades.strategyId, strategies.id))
+      .leftJoin(aiDecisions, eq(aiDecisions.executedTradeId, trades.id))
       .where(whereClause)
       .orderBy(desc(trades.executedAt))
       .limit(limit)
       .offset(offset);
-    
-    const enrichedTrades: EnrichedTrade[] = await Promise.all(
-      tradeResults.map(async (trade) => {
-        const [aiDecision] = await db
-          .select()
-          .from(aiDecisions)
-          .where(eq(aiDecisions.executedTradeId, trade.id))
-          .limit(1);
-        
-        let strategyName: string | null = null;
-        if (trade.strategyId) {
-          const [strategy] = await db
-            .select()
-            .from(strategies)
-            .where(eq(strategies.id, trade.strategyId));
-          strategyName = strategy?.name ?? null;
-        }
-        
-        return {
-          ...trade,
-          aiDecision: aiDecision ?? null,
-          strategyName,
-        };
-      })
-    );
-    
+
+    const enrichedTrades: EnrichedTrade[] = result.map((row) => ({
+      ...row.trade,
+      aiDecision: row.aiDecision ?? null,
+      strategyName: row.strategy?.name ?? null,
+    }));
+
     return { trades: enrichedTrades, total };
   }
 
@@ -302,8 +325,8 @@ export class DatabaseStorage implements IStorage {
     return result.map(r => r.symbol);
   }
 
-  async getPositions(): Promise<Position[]> {
-    return db.select().from(positions).orderBy(desc(positions.openedAt));
+  async getPositions(userId: string): Promise<Position[]> {
+    return db.select().from(positions).where(eq(positions.userId, userId)).orderBy(desc(positions.openedAt));
   }
 
   async getPosition(id: string): Promise<Position | undefined> {
@@ -335,7 +358,7 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async syncPositionsFromAlpaca(alpacaPositions: Array<{
+  async syncPositionsFromAlpaca(userId: string, alpacaPositions: Array<{
     symbol: string;
     qty: string;
     avg_entry_price: string;
@@ -343,27 +366,32 @@ export class DatabaseStorage implements IStorage {
     unrealized_pl: string;
     side: string;
   }>): Promise<Position[]> {
-    await this.deleteAllPositions();
-    
-    if (alpacaPositions.length === 0) {
-      return [];
-    }
+    // TRANSACTION FIX: Wrap delete + insert in a transaction to ensure atomicity
+    return await db.transaction(async (tx) => {
+      // Delete all positions for this user
+      await tx.delete(positions).where(eq(positions.userId, userId));
 
-    const positionsToInsert = alpacaPositions.map(pos => ({
-      symbol: pos.symbol,
-      quantity: pos.qty,
-      entryPrice: pos.avg_entry_price,
-      currentPrice: pos.current_price,
-      unrealizedPnl: pos.unrealized_pl,
-      side: pos.side === "long" ? "long" : "short",
-    }));
+      if (alpacaPositions.length === 0) {
+        return [];
+      }
 
-    const insertedPositions = await db.insert(positions).values(positionsToInsert).returning();
-    return insertedPositions;
+      const positionsToInsert = alpacaPositions.map(pos => ({
+        userId,
+        symbol: pos.symbol,
+        quantity: pos.qty,
+        entryPrice: pos.avg_entry_price,
+        currentPrice: pos.current_price,
+        unrealizedPnl: pos.unrealized_pl,
+        side: pos.side === "long" ? "long" : "short",
+      }));
+
+      const insertedPositions = await tx.insert(positions).values(positionsToInsert).returning();
+      return insertedPositions;
+    });
   }
 
-  async getAiDecisions(limit: number = 20): Promise<AiDecision[]> {
-    return db.select().from(aiDecisions).orderBy(desc(aiDecisions.createdAt)).limit(limit);
+  async getAiDecisions(userId: string, limit: number = 20): Promise<AiDecision[]> {
+    return db.select().from(aiDecisions).where(eq(aiDecisions.userId, userId)).orderBy(desc(aiDecisions.createdAt)).limit(limit);
   }
 
   async createAiDecision(insertDecision: InsertAiDecision): Promise<AiDecision> {
@@ -402,17 +430,17 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(orders.submittedAt));
   }
 
-  async getAiDecisionsByStatus(status: string, limit: number = 100): Promise<AiDecision[]> {
+  async getAiDecisionsByStatus(userId: string, status: string, limit: number = 100): Promise<AiDecision[]> {
     return db
       .select()
       .from(aiDecisions)
-      .where(eq(aiDecisions.status, status))
+      .where(and(eq(aiDecisions.userId, userId), eq(aiDecisions.status, status)))
       .orderBy(desc(aiDecisions.createdAt))
       .limit(limit);
   }
 
-  async getPendingAiDecisions(limit: number = 50): Promise<AiDecision[]> {
-    return this.getAiDecisionsByStatus("pending", limit);
+  async getPendingAiDecisions(userId: string, limit: number = 50): Promise<AiDecision[]> {
+    return this.getAiDecisionsByStatus(userId, "pending", limit);
   }
 
   async getAgentStatus(): Promise<AgentStatus | undefined> {
@@ -667,12 +695,12 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getOrdersByStatus(status: string, limit = 100): Promise<Order[]> {
-    return db.select().from(orders).where(eq(orders.status, status)).limit(limit).orderBy(desc(orders.createdAt));
+  async getOrdersByStatus(userId: string, status: string, limit = 100): Promise<Order[]> {
+    return db.select().from(orders).where(and(eq(orders.userId, userId), eq(orders.status, status))).limit(limit).orderBy(desc(orders.createdAt));
   }
 
-  async getRecentOrders(limit = 50): Promise<Order[]> {
-    return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+  async getRecentOrders(userId: string, limit = 50): Promise<Order[]> {
+    return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(limit);
   }
 
   async createFill(fill: InsertFill): Promise<Fill> {
@@ -852,6 +880,70 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentToolInvocations(limit = 100): Promise<ToolInvocation[]> {
     return db.select().from(toolInvocations).orderBy(desc(toolInvocations.createdAt)).limit(limit);
+  }
+
+  // ============================================================================
+  // AUDIT LOGGING
+  // ============================================================================
+
+  async createAuditLog(log: any): Promise<any> {
+    try {
+      const { auditLogs } = await import("@shared/schema");
+      const [result] = await db.insert(auditLogs).values(log).returning();
+      return result;
+    } catch (error) {
+      console.error("[Storage] Failed to create audit log:", error);
+      throw error;
+    }
+  }
+
+  async getUserAuditLogs(userId: string, limit = 100, offset = 0): Promise<any[]> {
+    try {
+      const { auditLogs } = await import("@shared/schema");
+      return db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.userId, userId))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit)
+        .offset(offset);
+    } catch (error) {
+      console.error("[Storage] Failed to get user audit logs:", error);
+      return [];
+    }
+  }
+
+  async getResourceAuditLogs(resource: string, resourceId: string, limit = 50): Promise<any[]> {
+    try {
+      const { auditLogs } = await import("@shared/schema");
+      return db
+        .select()
+        .from(auditLogs)
+        .where(and(
+          eq(auditLogs.resource, resource),
+          eq(auditLogs.resourceId, resourceId)
+        ))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit);
+    } catch (error) {
+      console.error("[Storage] Failed to get resource audit logs:", error);
+      return [];
+    }
+  }
+
+  async getRecentAuditLogs(limit = 100, offset = 0): Promise<any[]> {
+    try {
+      const { auditLogs } = await import("@shared/schema");
+      return db
+        .select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit)
+        .offset(offset);
+    } catch (error) {
+      console.error("[Storage] Failed to get recent audit logs:", error);
+      return [];
+    }
   }
 }
 

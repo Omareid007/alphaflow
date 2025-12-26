@@ -30,11 +30,32 @@ interface DataFunnelsWidgetProps {
   onRefresh: () => void;
 }
 
-const categoryConfig: Record<string, { label: string; icon: "server" | "database" | "radio" | "zap" | "cpu"; color: string }> = {
+const categoryConfig: Record<string, { label: string; icon: "server" | "database" | "radio" | "zap" | "cpu" | "trending-up" | "dollar-sign" | "bar-chart-2" | "globe"; color: string }> = {
+  // Trading & Execution
   broker: { label: "Trading", icon: "zap", color: BrandColors.success },
+  brokerage: { label: "Trading", icon: "zap", color: BrandColors.success },
+
+  // Market Data Sources
   market_data: { label: "Market Data", icon: "database", color: BrandColors.primaryLight },
+  crypto_data: { label: "Crypto Data", icon: "database", color: BrandColors.cryptoLayer },
+
+  // Fundamental & Macro Data
+  fundamentals: { label: "Fundamentals", icon: "bar-chart-2", color: BrandColors.aiLayer },
+  macro_data: { label: "Macro Data", icon: "globe", color: BrandColors.stockLayer },
+  macro: { label: "Macro Data", icon: "globe", color: BrandColors.stockLayer },
+
+  // Short Interest & Institutional
+  short_interest: { label: "Short Interest", icon: "trending-up", color: BrandColors.warning },
+  forex: { label: "Forex Rates", icon: "dollar-sign", color: BrandColors.aiLayer },
+
+  // News & Sentiment
   news: { label: "News", icon: "radio", color: BrandColors.warning },
+  sentiment: { label: "Sentiment AI", icon: "cpu", color: BrandColors.cryptoLayer },
+  ai_sentiment: { label: "Sentiment AI", icon: "cpu", color: BrandColors.cryptoLayer },
+
+  // Enrichment & Other
   enrichment: { label: "Enrichment", icon: "server", color: BrandColors.aiLayer },
+  data_enrichment: { label: "Enrichment", icon: "server", color: BrandColors.aiLayer },
   ai: { label: "AI", icon: "cpu", color: BrandColors.cryptoLayer },
 };
 
@@ -42,9 +63,19 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
   const { theme } = useTheme();
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     broker: true,
+    brokerage: true,
     market_data: true,
+    crypto_data: true,
+    fundamentals: true,
+    macro_data: true,
+    macro: true,
+    short_interest: true,
+    forex: true,
     news: true,
+    sentiment: true,
+    ai_sentiment: true,
     enrichment: true,
+    data_enrichment: true,
     ai: true,
   });
 
@@ -77,8 +108,20 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
   };
 
   const categories = Object.keys(groupedConnectors).sort((a, b) => {
-    const order = ["broker", "market_data", "news", "enrichment", "ai"];
-    return order.indexOf(a) - order.indexOf(b);
+    const order = [
+      "broker", "brokerage",           // Trading first
+      "market_data", "crypto_data",    // Market data
+      "fundamentals", "data_enrichment", "enrichment", // Fundamentals & enrichment
+      "macro_data", "macro",           // Macro indicators
+      "short_interest",                // Short interest
+      "forex",                         // Forex rates
+      "news",                          // News sources
+      "sentiment", "ai_sentiment",     // Sentiment analysis
+      "ai"                             // AI/LLM
+    ];
+    const aIndex = order.indexOf(a) === -1 ? 999 : order.indexOf(a);
+    const bIndex = order.indexOf(b) === -1 ? 999 : order.indexOf(b);
+    return aIndex - bIndex;
   });
 
   return (
@@ -96,7 +139,7 @@ export function DataFunnelsWidget({ connectors, isLoading, onRefresh }: DataFunn
       </View>
 
       <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-        Data sources feeding into AI decision engine
+        19+ data sources feeding into AI decision engine
       </ThemedText>
 
       {isLoading && !connectors ? (

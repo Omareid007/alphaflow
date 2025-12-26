@@ -12,6 +12,16 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").default(false).notNull(),
 });
 
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("sessions_user_id_idx").on(table.userId),
+  index("sessions_expires_at_idx").on(table.expiresAt),
+]);
 export const strategies = pgTable("strategies", {
   id: varchar("id")
     .primaryKey()
@@ -30,7 +40,9 @@ export const trades = pgTable("trades", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  strategyId: varchar("strategy_id").references(() => strategies.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
+  orderId: varchar("order_id").references(() => orders.id, { onDelete: "set null" }),
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),
   quantity: numeric("quantity").notNull(),
@@ -40,12 +52,15 @@ export const trades = pgTable("trades", {
   status: text("status").default("completed").notNull(),
   notes: text("notes"),
   traceId: text("trace_id"),
-});
+}, (table) => ({
+  userIdIdx: index("trades_user_id_idx").on(table.userId),
+}));
 
 export const positions = pgTable("positions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   symbol: text("symbol").notNull(),
   quantity: numeric("quantity").notNull(),
   entryPrice: numeric("entry_price").notNull(),
@@ -53,21 +68,24 @@ export const positions = pgTable("positions", {
   unrealizedPnl: numeric("unrealized_pnl"),
   side: text("side").notNull(),
   openedAt: timestamp("opened_at").defaultNow().notNull(),
-  strategyId: varchar("strategy_id").references(() => strategies.id),
-});
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
+}, (table) => ({
+  userIdIdx: index("positions_user_id_idx").on(table.userId),
+}));
 
 export const aiDecisions = pgTable("ai_decisions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  strategyId: varchar("strategy_id").references(() => strategies.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
   symbol: text("symbol").notNull(),
   action: text("action").notNull(),
   confidence: numeric("confidence"),
   reasoning: text("reasoning"),
   marketContext: text("market_context"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  executedTradeId: varchar("executed_trade_id").references(() => trades.id),
+  executedTradeId: varchar("executed_trade_id").references(() => trades.id, { onDelete: "set null" }),
   status: text("status").default("pending").notNull(),
   stopLoss: numeric("stop_loss"),
   takeProfit: numeric("take_profit"),
@@ -77,7 +95,9 @@ export const aiDecisions = pgTable("ai_decisions", {
   skipReason: text("skip_reason"),
   traceId: text("trace_id"),
   metadata: text("metadata"),
-});
+}, (table) => ({
+  userIdIdx: index("ai_decisions_user_id_idx").on(table.userId),
+}));
 
 export const agentStatus = pgTable("agent_status", {
   id: varchar("id")
@@ -110,7 +130,7 @@ export const aiDecisionFeatures = pgTable("ai_decision_features", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id).notNull(),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
   symbol: text("symbol").notNull(),
   volatility: numeric("volatility"),
   trendStrength: numeric("trend_strength"),
@@ -133,8 +153,8 @@ export const aiTradeOutcomes = pgTable("ai_trade_outcomes", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id).notNull(),
-  tradeId: varchar("trade_id").references(() => trades.id),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
+  tradeId: varchar("trade_id").references(() => trades.id, { onDelete: "set null" }),
   symbol: text("symbol").notNull(),
   action: text("action").notNull(),
   predictionConfidence: numeric("prediction_confidence"),
@@ -152,7 +172,7 @@ export const aiTradeOutcomes = pgTable("ai_trade_outcomes", {
   maxGain: numeric("max_gain"),
   marketSessionAtEntry: text("market_session_at_entry"),
   marketSessionAtExit: text("market_session_at_exit"),
-  strategyId: varchar("strategy_id").references(() => strategies.id),
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
   exitReason: text("exit_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   closedAt: timestamp("closed_at"),
@@ -222,6 +242,112 @@ export const valyuRetrievalCounters = pgTable("valyu_retrieval_counters", {
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
+// Data Source Analysis - Store analysis results from each connector
+export const dataSourceAnalysis = pgTable("data_source_analysis", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }),
+  symbol: text("symbol").notNull(),
+  source: text("source").notNull(), // finra, sec-edgar, finnhub, fred, frankfurter, etc.
+  analysisType: text("analysis_type").notNull(), // short_interest, insider_activity, fundamentals, macro, forex
+  dataJson: jsonb("data_json").notNull(), // Raw analysis data
+  score: numeric("score"), // Normalized score (-1 to 1 or 0 to 100)
+  signal: text("signal"), // bullish, bearish, neutral
+  confidence: numeric("confidence"), // 0 to 1
+  reliability: numeric("reliability"), // Source reliability weight
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("data_source_analysis_decision_id_idx").on(table.decisionId),
+  index("data_source_analysis_symbol_idx").on(table.symbol),
+  index("data_source_analysis_source_idx").on(table.source),
+  index("data_source_analysis_created_at_idx").on(table.createdAt),
+]);
+
+// Short Interest Analysis - FINRA RegSHO data for each symbol
+export const shortInterestAnalysis = pgTable("short_interest_analysis", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(),
+  shortRatio: numeric("short_ratio").notNull(), // Short volume / Total volume
+  shortVolume: numeric("short_volume"),
+  totalVolume: numeric("total_volume"),
+  daysToCover: numeric("days_to_cover"),
+  shortRatioTrend: text("short_ratio_trend"), // increasing, decreasing, stable
+  squeezePotential: text("squeeze_potential"), // high, medium, low
+  averageShortRatio: numeric("average_short_ratio"), // 20-day average
+  analysisDate: timestamp("analysis_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("short_interest_symbol_idx").on(table.symbol),
+  index("short_interest_date_idx").on(table.analysisDate),
+  unique("short_interest_symbol_date_unique").on(table.symbol, table.analysisDate),
+]);
+
+// Insider Activity Analysis - SEC EDGAR Form 4 data
+export const insiderActivityAnalysis = pgTable("insider_activity_analysis", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(),
+  totalBuys: numeric("total_buys").default("0"),
+  totalSells: numeric("total_sells").default("0"),
+  netActivity: numeric("net_activity").default("0"), // Buys - Sells (shares)
+  netValue: numeric("net_value").default("0"), // Dollar value
+  buyToSellRatio: numeric("buy_to_sell_ratio"),
+  sentiment: text("sentiment"), // bullish, bearish, neutral
+  recentTransactionsJson: jsonb("recent_transactions_json"), // Last 10 transactions
+  analysisWindowDays: integer("analysis_window_days").default(90),
+  analysisDate: timestamp("analysis_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("insider_activity_symbol_idx").on(table.symbol),
+  index("insider_activity_date_idx").on(table.analysisDate),
+  unique("insider_activity_symbol_date_unique").on(table.symbol, table.analysisDate),
+]);
+
+// Macro Analysis - FRED economic indicators
+export const macroAnalysis = pgTable("macro_analysis", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  vix: numeric("vix"),
+  fedFundsRate: numeric("fed_funds_rate"),
+  yieldCurve: numeric("yield_curve"), // 10Y-2Y spread
+  inflation: numeric("inflation"), // CPI
+  unemployment: numeric("unemployment"),
+  marketRegime: text("market_regime"), // risk_on, risk_off, neutral
+  indicatorsJson: jsonb("indicators_json"), // All FRED indicators
+  analysisDate: timestamp("analysis_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("macro_analysis_date_idx").on(table.analysisDate),
+  unique("macro_analysis_date_unique").on(table.analysisDate),
+]);
+
+// Analysis Feedback - Track how analysis signals correlated with trade outcomes
+export const analysisFeedback = pgTable("analysis_feedback", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  dataSourceAnalysisId: varchar("data_source_analysis_id").references(() => dataSourceAnalysis.id, { onDelete: "cascade" }),
+  tradeOutcomeId: varchar("trade_outcome_id").references(() => aiTradeOutcomes.id, { onDelete: "cascade" }),
+  symbol: text("symbol").notNull(),
+  source: text("source").notNull(),
+  signalAtEntry: text("signal_at_entry"), // The signal when trade was entered
+  confidenceAtEntry: numeric("confidence_at_entry"),
+  tradeResult: text("trade_result"), // win, loss
+  pnlPercent: numeric("pnl_percent"),
+  signalAccuracy: boolean("signal_accuracy"), // Did signal predict correctly?
+  holdingTimeMs: integer("holding_time_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("analysis_feedback_source_idx").on(table.source),
+  index("analysis_feedback_symbol_idx").on(table.symbol),
+  index("analysis_feedback_created_at_idx").on(table.createdAt),
+]);
+
 export const insertAiDecisionFeaturesSchema = createInsertSchema(aiDecisionFeatures).omit({
   id: true,
   createdAt: true,
@@ -237,6 +363,32 @@ export const insertAiCalibrationLogSchema = createInsertSchema(aiCalibrationLog)
   createdAt: true,
 });
 
+// New data source analysis schemas
+export const insertDataSourceAnalysisSchema = createInsertSchema(dataSourceAnalysis).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShortInterestAnalysisSchema = createInsertSchema(shortInterestAnalysis).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInsiderActivityAnalysisSchema = createInsertSchema(insiderActivityAnalysis).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMacroAnalysisSchema = createInsertSchema(macroAnalysis).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAnalysisFeedbackSchema = createInsertSchema(analysisFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -245,10 +397,17 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: z.boolean().optional(),
 });
 
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  createdAt: true,
+});
+
 export const insertStrategySchema = createInsertSchema(strategies).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  // Make assets optional and allow empty arrays
+  assets: z.array(z.string()).optional().default([]),
 });
 
 export const insertTradeSchema = createInsertSchema(trades).omit({
@@ -268,6 +427,9 @@ export const insertAiDecisionSchema = createInsertSchema(aiDecisions).omit({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type Session = typeof sessions.$inferSelect;
 
 export type InsertStrategy = z.infer<typeof insertStrategySchema>;
 export type Strategy = typeof strategies.$inferSelect;
@@ -291,6 +453,22 @@ export type AiTradeOutcomes = typeof aiTradeOutcomes.$inferSelect;
 
 export type InsertAiCalibrationLog = z.infer<typeof insertAiCalibrationLogSchema>;
 export type AiCalibrationLog = typeof aiCalibrationLog.$inferSelect;
+
+// New data source analysis types
+export type InsertDataSourceAnalysis = z.infer<typeof insertDataSourceAnalysisSchema>;
+export type DataSourceAnalysis = typeof dataSourceAnalysis.$inferSelect;
+
+export type InsertShortInterestAnalysis = z.infer<typeof insertShortInterestAnalysisSchema>;
+export type ShortInterestAnalysis = typeof shortInterestAnalysis.$inferSelect;
+
+export type InsertInsiderActivityAnalysis = z.infer<typeof insertInsiderActivityAnalysisSchema>;
+export type InsiderActivityAnalysis = typeof insiderActivityAnalysis.$inferSelect;
+
+export type InsertMacroAnalysis = z.infer<typeof insertMacroAnalysisSchema>;
+export type MacroAnalysis = typeof macroAnalysis.$inferSelect;
+
+export type InsertAnalysisFeedback = z.infer<typeof insertAnalysisFeedbackSchema>;
+export type AnalysisFeedback = typeof analysisFeedback.$inferSelect;
 
 export const insertExternalApiCacheEntrySchema = createInsertSchema(externalApiCacheEntries).omit({
   id: true,
@@ -420,7 +598,7 @@ export const workItems = pgTable("work_items", {
   lastError: text("last_error"),
   payload: text("payload"),
   idempotencyKey: text("idempotency_key").unique(),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
   brokerOrderId: text("broker_order_id"),
   symbol: text("symbol"),
   result: text("result"),
@@ -432,7 +610,7 @@ export const workItemRuns = pgTable("work_item_runs", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  workItemId: varchar("work_item_id").references(() => workItems.id).notNull(),
+  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "cascade" }).notNull(),
   attemptNumber: integer("attempt_number").notNull(),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -525,6 +703,7 @@ export const orders = pgTable("orders", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   broker: text("broker").notNull(),
   brokerOrderId: text("broker_order_id").notNull().unique(),
   clientOrderId: text("client_order_id").unique(),
@@ -537,18 +716,25 @@ export const orders = pgTable("orders", {
   limitPrice: numeric("limit_price"),
   stopPrice: numeric("stop_price"),
   status: text("status").notNull(),
+  // ADDED: Missing Alpaca order fields for complete tracking
+  extendedHours: boolean("extended_hours").default(false),
+  orderClass: text("order_class"),  // simple, bracket, oco, oto
   submittedAt: timestamp("submitted_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
   filledAt: timestamp("filled_at"),
+  expiredAt: timestamp("expired_at"),
+  canceledAt: timestamp("canceled_at"),
+  failedAt: timestamp("failed_at"),
   filledQty: numeric("filled_qty"),
   filledAvgPrice: numeric("filled_avg_price"),
   traceId: text("trace_id"),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id),
-  tradeIntentId: varchar("trade_intent_id").references(() => trades.id),
-  workItemId: varchar("work_item_id").references(() => workItems.id),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
+  tradeIntentId: varchar("trade_intent_id").references(() => trades.id, { onDelete: "set null" }),
+  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "set null" }),
   rawJson: jsonb("raw_json"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
+  index("orders_user_id_idx").on(table.userId),
   index("orders_broker_order_id_idx").on(table.brokerOrderId),
   index("orders_client_order_id_idx").on(table.clientOrderId),
   index("orders_symbol_idx").on(table.symbol),
@@ -564,7 +750,7 @@ export const fills = pgTable("fills", {
   broker: text("broker").notNull(),
   brokerOrderId: text("broker_order_id").notNull(),
   brokerFillId: text("broker_fill_id").unique(),
-  orderId: varchar("order_id").references(() => orders.id),
+  orderId: varchar("order_id").references(() => orders.id, { onDelete: "cascade" }),
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),
   qty: numeric("qty").notNull(),
@@ -609,7 +795,7 @@ export const backtestRuns = pgTable("backtest_runs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   status: text("status").default("QUEUED").notNull(),
-  strategyId: varchar("strategy_id").references(() => strategies.id),
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
   strategyConfigHash: text("strategy_config_hash").notNull(),
   strategyConfig: jsonb("strategy_config").notNull(),
   universe: text("universe").array().notNull(),
@@ -636,7 +822,7 @@ export const backtestTradeEvents = pgTable("backtest_trade_events", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  runId: varchar("run_id").references(() => backtestRuns.id).notNull(),
+  runId: varchar("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
   ts: timestamp("ts").notNull(),
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),
@@ -658,7 +844,7 @@ export const backtestEquityCurve = pgTable("backtest_equity_curve", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  runId: varchar("run_id").references(() => backtestRuns.id).notNull(),
+  runId: varchar("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
   ts: timestamp("ts").notNull(),
   equity: numeric("equity").notNull(),
   cash: numeric("cash").notNull(),
@@ -713,7 +899,7 @@ export const adminSettings = pgTable("admin_settings", {
   description: text("description"),
   isSecret: boolean("is_secret").default(false).notNull(),
   isReadOnly: boolean("is_read_only").default(false).notNull(),
-  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -931,7 +1117,7 @@ export const universeCandidates = pgTable("universe_candidates", {
   themeTags: jsonb("theme_tags"),
   rationale: text("rationale"),
   status: text("status").notNull().default("NEW"),
-  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id, { onDelete: "set null" }),
   approvedAt: timestamp("approved_at"),
   traceId: text("trace_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -957,7 +1143,7 @@ export const allocationPolicies = pgTable("allocation_policies", {
   overweightThresholdPct: numeric("overweight_threshold_pct").default("50"),
   rotationTopN: integer("rotation_top_n").default(10),
   rebalanceFrequency: text("rebalance_frequency").default("daily"),
-  createdBy: varchar("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -968,7 +1154,7 @@ export const rebalanceRuns = pgTable("rebalance_runs", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  policyId: varchar("policy_id").references(() => allocationPolicies.id),
+  policyId: varchar("policy_id").references(() => allocationPolicies.id, { onDelete: "set null" }),
   traceId: text("trace_id").notNull(),
   status: text("status").notNull().default("pending"),
   triggerType: text("trigger_type").notNull(),
@@ -1081,7 +1267,7 @@ export const alertEvents = pgTable("alert_events", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  ruleId: varchar("rule_id").references(() => alertRules.id).notNull(),
+  ruleId: varchar("rule_id").references(() => alertRules.id, { onDelete: "cascade" }).notNull(),
   ruleName: text("rule_name").notNull(),
   ruleType: text("rule_type").notNull(),
   triggeredValue: numeric("triggered_value").notNull(),
@@ -1110,6 +1296,42 @@ export type AlertRule = typeof alertRules.$inferSelect;
 export type InsertAlertEvent = z.infer<typeof insertAlertEventSchema>;
 export type AlertEvent = typeof alertEvents.$inferSelect;
 export type AlertRuleType = "dead_letter_count" | "retry_rate" | "orchestrator_silent" | "llm_error_rate" | "provider_budget_exhausted";
+
+// ============================================================================
+// AUDIT LOGGING
+// ============================================================================
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  username: text("username"),
+  action: text("action").notNull(),
+  resource: text("resource").notNull(),
+  resourceId: text("resource_id"),
+  method: text("method").notNull(),
+  path: text("path").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  requestBody: jsonb("request_body"),
+  responseStatus: integer("response_status"),
+  errorMessage: text("error_message"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+}, (table) => [
+  index("audit_logs_user_id_idx").on(table.userId),
+  index("audit_logs_action_idx").on(table.action),
+  index("audit_logs_resource_idx").on(table.resource),
+  index("audit_logs_timestamp_idx").on(table.timestamp),
+]);
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  timestamp: true,
+});
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // ============================================================================
 // AI DEBATE ARENA
@@ -1144,7 +1366,7 @@ export const debateMessages = pgTable("debate_messages", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sessionId: varchar("session_id").references(() => debateSessions.id).notNull(),
+  sessionId: varchar("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull(),
   role: text("role").$type<DebateRole>().notNull(),
   stance: text("stance"),
   confidence: numeric("confidence"),
@@ -1170,14 +1392,14 @@ export const debateConsensus = pgTable("debate_consensus", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sessionId: varchar("session_id").references(() => debateSessions.id).notNull().unique(),
+  sessionId: varchar("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull().unique(),
   decision: text("decision").notNull(),
   orderIntent: jsonb("order_intent"),
   reasonsSummary: text("reasons_summary"),
   riskChecks: jsonb("risk_checks"),
   confidence: numeric("confidence"),
   dissent: jsonb("dissent"),
-  workItemId: varchar("work_item_id").references(() => workItems.id),
+  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "set null" }),
   brokerOrderId: text("broker_order_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
@@ -1236,8 +1458,8 @@ export const competitionScores = pgTable("competition_scores", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  runId: varchar("run_id").references(() => competitionRuns.id).notNull(),
-  traderProfileId: varchar("trader_profile_id").references(() => traderProfiles.id).notNull(),
+  runId: varchar("run_id").references(() => competitionRuns.id, { onDelete: "cascade" }).notNull(),
+  traderProfileId: varchar("trader_profile_id").references(() => traderProfiles.id, { onDelete: "cascade" }).notNull(),
   totalPnl: numeric("total_pnl").default("0").notNull(),
   roi: numeric("roi").default("0").notNull(),
   maxDrawdown: numeric("max_drawdown").default("0").notNull(),
@@ -1266,7 +1488,7 @@ export const strategyVersions = pgTable("strategy_versions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  strategyId: varchar("strategy_id").references(() => strategies.id).notNull(),
+  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "cascade" }).notNull(),
   version: integer("version").notNull(),
   name: text("name").notNull(),
   spec: jsonb("spec").notNull(),
@@ -1308,7 +1530,7 @@ export const toolInvocations = pgTable("tool_invocations", {
   cacheHit: boolean("cache_hit").default(false).notNull(),
   latencyMs: integer("latency_ms"),
   callerRole: text("caller_role"),
-  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id),
+  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("tool_invocations_trace_id_idx").on(table.traceId),
@@ -1366,10 +1588,10 @@ export const aiOutcomeLinks = pgTable("ai_outcome_links", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  consensusId: varchar("consensus_id").references(() => debateConsensus.id),
-  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id),
-  workItemId: varchar("work_item_id").references(() => workItems.id),
+  consensusId: varchar("consensus_id").references(() => debateConsensus.id, { onDelete: "set null" }),
+  debateSessionId: varchar("debate_session_id").references(() => debateSessions.id, { onDelete: "set null" }),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
+  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "set null" }),
   brokerOrderId: varchar("broker_order_id"),
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),
@@ -1416,7 +1638,7 @@ export const aiArenaRuns = pgTable("ai_arena_runs", {
   agentProfileIds: text("agent_profile_ids").array().notNull(),
   marketSnapshotHash: text("market_snapshot_hash"),
   portfolioSnapshotHash: text("portfolio_snapshot_hash"),
-  strategyVersionId: varchar("strategy_version_id").references(() => strategyVersions.id),
+  strategyVersionId: varchar("strategy_version_id").references(() => strategyVersions.id, { onDelete: "set null" }),
   status: text("status").$type<ArenaRunStatus>().default("pending").notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
@@ -1448,8 +1670,8 @@ export const aiArenaAgentDecisions = pgTable("ai_arena_agent_decisions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  arenaRunId: varchar("arena_run_id").references(() => aiArenaRuns.id).notNull(),
-  agentProfileId: varchar("agent_profile_id").references(() => aiAgentProfiles.id).notNull(),
+  arenaRunId: varchar("arena_run_id").references(() => aiArenaRuns.id, { onDelete: "cascade" }).notNull(),
+  agentProfileId: varchar("agent_profile_id").references(() => aiAgentProfiles.id, { onDelete: "cascade" }).notNull(),
   role: text("role").$type<DebateRole>().notNull(),
   action: text("action").notNull(),
   symbols: text("symbols").array(),

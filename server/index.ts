@@ -5,6 +5,9 @@ import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
 import { log, createRequestLogger } from "./utils/logger";
+import { validateAndReportEnvironment } from "./config/env-validator";
+import { positionReconciliationJob } from "./jobs/position-reconciliation";
+import { cleanupExpiredSessions } from "./lib/session";
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err);
@@ -204,6 +207,9 @@ function setupErrorHandler(app: express.Application) {
 
 (async () => {
   try {
+    // Validate environment variables before any initialization
+    validateAndReportEnvironment();
+
     console.log("[STARTUP] Beginning server initialization...");
     setupCors(app);
     setupBodyParsing(app);
@@ -215,6 +221,22 @@ function setupErrorHandler(app: express.Application) {
     console.log("[STARTUP] Registering routes...");
     const server = await registerRoutes(app);
     console.log("[STARTUP] Routes registered successfully");
+
+    // Start position reconciliation job after routes are initialized
+    console.log("[STARTUP] Starting position reconciliation job...");
+    positionReconciliationJob.start();
+    console.log("[STARTUP] Position reconciliation job started");
+
+    // Start session cleanup job - runs every hour
+    console.log("[STARTUP] Starting session cleanup job...");
+    setInterval(async () => {
+      try {
+        await cleanupExpiredSessions();
+      } catch (error) {
+        console.error("[SessionCleanup] Error cleaning up expired sessions:", error);
+      }
+    }, 60 * 60 * 1000); // Every hour
+    console.log("[STARTUP] Session cleanup job started (runs every hour)");
 
     setupErrorHandler(app);
 

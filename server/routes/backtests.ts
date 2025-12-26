@@ -4,6 +4,7 @@ import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "../../sh
 import { runBacktest, getBacktestRun, listBacktestRuns } from "../services/backtesting";
 import { eq, desc } from "drizzle-orm";
 import { log } from "../utils/logger";
+import { sanitizeArray } from "../lib/sanitization";
 
 const router = Router();
 
@@ -24,8 +25,17 @@ router.post("/run", async (req: Request, res: Response) => {
       strategyParams = {}
     } = req.body;
 
-    if (!universe || !Array.isArray(universe) || universe.length === 0) {
-      return res.status(400).json({ error: "universe is required and must be a non-empty array of symbols" });
+    // Allow universe to be optional, but provide helpful validation
+    if (universe && !Array.isArray(universe)) {
+      return res.status(400).json({ error: "universe must be an array of symbols" });
+    }
+
+    // If universe is not provided or empty, use a default set of popular symbols
+    const defaultUniverse = ["SPY", "QQQ", "AAPL"];
+    const backtestUniverse = (universe && universe.length > 0) ? universe : defaultUniverse;
+
+    if (backtestUniverse.length === 0) {
+      return res.status(400).json({ error: "universe must contain at least one symbol. Default symbols: SPY, QQQ, AAPL" });
     }
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "startDate and endDate are required" });
@@ -33,15 +43,18 @@ router.post("/run", async (req: Request, res: Response) => {
 
     const validStrategyTypes = ['moving_average_crossover', 'rsi_oscillator', 'buy_and_hold'];
     if (strategyType && !validStrategyTypes.includes(strategyType)) {
-      return res.status(400).json({ 
-        error: `Invalid strategyType. Must be one of: ${validStrategyTypes.join(', ')}` 
+      return res.status(400).json({
+        error: `Invalid strategyType. Must be one of: ${validStrategyTypes.join(', ')}`
       });
     }
+
+    // SECURITY: Sanitize universe symbols to prevent XSS attacks
+    const sanitizedUniverse = sanitizeArray(backtestUniverse);
 
     const result = await runBacktest({
       strategyId,
       strategyConfig: strategyConfig || {},
-      universe,
+      universe: sanitizedUniverse,
       timeframe,
       startDate,
       endDate,

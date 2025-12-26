@@ -4,6 +4,7 @@ import { coingecko } from "../connectors/coingecko";
 import { alpaca } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
 import { callLLM, generateTraceId } from "./llmGateway";
+import { candidatesService } from "../universe/candidatesService";
 
 export interface MarketConditionAnalysis {
   condition: "bullish" | "bearish" | "neutral" | "volatile" | "uncertain";
@@ -100,13 +101,29 @@ class MarketConditionAnalyzer {
     const snapshot: MarketSnapshot = {
       stocks: new Map(),
       crypto: new Map(),
-      portfolioValue: 100000,
+      portfolioValue: 0, // Will be fetched from Alpaca
       openPositions: 0,
       dailyPnl: 0,
     };
 
+    // Fetch watchlist dynamically from database
+    let watchlistStocks = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"]; // Fallback
+    let watchlistCrypto = ["btc", "eth", "sol"]; // Fallback
+
     try {
-      const watchlistStocks = ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
+      const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
+      if (dynamicWatchlist.stocks.length > 0) {
+        // Use top 15 stocks for market analysis (performance optimization)
+        watchlistStocks = dynamicWatchlist.stocks.slice(0, 15);
+      }
+      if (dynamicWatchlist.crypto.length > 0) {
+        watchlistCrypto = dynamicWatchlist.crypto.map(c => c.toLowerCase());
+      }
+    } catch (error) {
+      console.warn("[MarketAnalyzer] Failed to load watchlist from database, using fallback:", error);
+    }
+
+    try {
       const stockQuotes = await finnhub.getMultipleQuotes(watchlistStocks);
 
       for (const [symbol, quote] of stockQuotes.entries()) {
@@ -124,7 +141,6 @@ class MarketConditionAnalyzer {
 
     try {
       const cryptoMarkets = await coingecko.getMarkets();
-      const watchlistCrypto = ["btc", "eth", "sol"];
       const watchedCrypto = cryptoMarkets.filter(c =>
         watchlistCrypto.includes(c.symbol.toLowerCase())
       );

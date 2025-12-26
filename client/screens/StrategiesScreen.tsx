@@ -44,7 +44,7 @@ function ConfirmationModal({ visible, strategy, onConfirm, onCancel, isLoading }
       onRequestClose={onCancel}
     >
       <Pressable style={styles.modalOverlay} onPress={onCancel}>
-        <Pressable style={[styles.modalContent, { backgroundColor: theme.backgroundPrimary }]} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]} onPress={(e) => e.stopPropagation()}>
           <View style={[styles.modalIconContainer, { backgroundColor: isActive ? BrandColors.warning + "20" : BrandColors.success + "20" }]}>
             <Feather 
               name={isActive ? "pause-circle" : "play-circle"} 

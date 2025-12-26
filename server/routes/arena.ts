@@ -4,7 +4,8 @@ import { db } from "../db";
 import { aiAgentProfiles, aiArenaRuns, aiArenaAgentDecisions, aiOutcomeLinks } from "@shared/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { log } from "../utils/logger";
-import type { InsertAiAgentProfile, AiAgentProfile } from "@shared/schema";
+import { badRequest, notFound, serverError } from "../lib/standard-errors";
+import type { InsertAiAgentProfile, AiAgentProfile, AgentProvider, DebateRole } from "@shared/schema";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post("/run", async (req: Request, res: Response) => {
     const { symbols, mode = "debate", agentProfileIds, triggeredBy, strategyVersionId } = req.body;
 
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
-      return res.status(400).json({ error: "symbols is required and must be a non-empty array" });
+      return badRequest(res, "symbols is required and must be a non-empty array");
     }
 
     const config: ArenaConfig = {
@@ -34,7 +35,7 @@ router.post("/run", async (req: Request, res: Response) => {
     });
   } catch (error) {
     log.error("ArenaAPI", `Failed to run arena: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to run arena" });
+    return serverError(res, (error as Error).message || "Failed to run arena");
   }
 });
 
@@ -67,7 +68,7 @@ router.get("/runs", async (req: Request, res: Response) => {
     });
   } catch (error) {
     log.error("ArenaAPI", `Failed to list arena runs: ${error}`);
-    res.status(500).json({ error: "Failed to list arena runs" });
+    return serverError(res, "Failed to list arena runs");
   }
 });
 
@@ -78,7 +79,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
     });
 
     if (!run) {
-      return res.status(404).json({ error: "Arena run not found" });
+      return notFound(res, "Arena run not found");
     }
 
     const decisions = await db.query.aiArenaAgentDecisions.findMany({
@@ -181,19 +182,19 @@ router.post("/profiles", async (req: Request, res: Response) => {
     }
 
     const [profile] = await db.insert(aiAgentProfiles).values({
-      name,
-      description,
-      provider,
-      model,
-      role,
-      mode,
+      name: name as string,
+      description: description as string | null,
+      provider: provider as AgentProvider,
+      model: model as string,
+      role: role as DebateRole,
+      mode: mode as "cheap_first" | "escalation_only" | "always",
       temperature: String(temperature),
-      maxTokens,
+      maxTokens: maxTokens as number,
       budgetLimitPerDay: budgetLimitPerDay ? String(budgetLimitPerDay) : null,
       budgetLimitPerRun: budgetLimitPerRun ? String(budgetLimitPerRun) : null,
-      priority,
-      status: "active",
-    } as InsertAiAgentProfile).returning();
+      priority: priority as number,
+      status: "active" as const,
+    }).returning();
 
     res.json(profile);
   } catch (error) {

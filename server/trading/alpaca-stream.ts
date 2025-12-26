@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { log } from "../utils/logger";
 import { storage } from "../storage";
 import type { OrderStatus } from "../../shared/schema";
+import { hookIntoTradeUpdates } from "./order-retry-handler";
 
 const ALPACA_STREAM_URL = "wss://paper-api.alpaca.markets/stream";
 
@@ -220,9 +221,21 @@ class AlpacaStreamManager {
       const existingOrder = await storage.getOrderByBrokerOrderId(brokerOrderId);
       const traceId = existingOrder?.traceId || `stream-${Date.now()}`;
 
+      // Get userId from existing order, or fall back to admin user
+      let userId = existingOrder?.userId;
+      if (!userId) {
+        const adminUser = await storage.getAdminUser();
+        userId = adminUser?.id;
+        if (!userId) {
+          log.error("AlpacaStream", `No userId available for order ${brokerOrderId}, skipping update`);
+          return;
+        }
+      }
+
       const newStatus = mapAlpacaStatusToOrderStatus(order.status);
 
       await storage.upsertOrderByBrokerOrderId(brokerOrderId, {
+        userId,
         broker: "alpaca",
         brokerOrderId,
         clientOrderId: order.client_order_id,
@@ -246,7 +259,7 @@ class AlpacaStreamManager {
 
       if ((event === "fill" || event === "partial_fill") && price && qty) {
         const fillId = execution_id || `${brokerOrderId}-${qty}-${price}-${Math.floor(new Date(timestamp).getTime() / 1000)}`;
-        
+
         try {
           await storage.createFill({
             broker: "alpaca",
@@ -262,6 +275,48 @@ class AlpacaStreamManager {
             rawJson: update,
           });
           log.info("AlpacaStream", `Created fill record: ${fillId} for ${qty} @ ${price}`);
+
+          // Auto-create trade record when order is fully filled
+          if (event === "fill" && existingOrder?.id) {
+            try {
+              // Calculate PnL if this is a closing trade
+              let pnl = null;
+
+              // Check if we have a position for this symbol to calculate PnL
+              const positions = await storage.getPositions(userId);
+              const position = positions.find(p => p.symbol === order.symbol);
+
+              if (position && order.side !== position.side) {
+                // This is a closing trade - calculate PnL
+                const entryPrice = parseFloat(position.entryPrice);
+                const exitPrice = parseFloat(price);
+                const quantity = parseFloat(qty);
+
+                if (order.side === "sell") {
+                  pnl = ((exitPrice - entryPrice) * quantity).toFixed(2);
+                } else {
+                  pnl = ((entryPrice - exitPrice) * quantity).toFixed(2);
+                }
+              }
+
+              await storage.createTrade({
+                userId,
+                orderId: existingOrder.id,
+                symbol: order.symbol,
+                side: order.side as "buy" | "sell",
+                quantity: qty,
+                price,
+                pnl,
+                status: "completed",
+                traceId,
+                notes: `Auto-created from fill ${fillId}`,
+              });
+
+              log.info("AlpacaStream", `Auto-created trade record for filled order ${brokerOrderId}, symbol: ${order.symbol}, qty: ${qty}, price: ${price}${pnl ? `, pnl: ${pnl}` : ''}`);
+            } catch (tradeError: any) {
+              log.error("AlpacaStream", `Failed to auto-create trade record: ${tradeError.message}`);
+            }
+          }
         } catch (fillError: any) {
           if (fillError.message?.includes("duplicate") || fillError.code === "23505") {
             log.debug("AlpacaStream", `Fill already exists: ${fillId}`);
@@ -272,6 +327,43 @@ class AlpacaStreamManager {
       }
 
       log.debug("AlpacaStream", `Order ${brokerOrderId} updated to status: ${newStatus}`);
+
+      // Emit SSE event for order update
+      try {
+        const { emitOrderUpdate, emitOrderFill } = require("../lib/sse-emitter");
+
+        // Emit order status update
+        emitOrderUpdate(brokerOrderId, {
+          status: newStatus,
+          symbol: order.symbol,
+          side: order.side,
+          qty: order.qty,
+          filledQty: order.filled_qty,
+          filledAvgPrice: order.filled_avg_price,
+          type: order.type,
+          timeInForce: order.time_in_force,
+        });
+
+        // Emit fill event if order was filled
+        if (event === "fill" || event === "partial_fill") {
+          emitOrderFill(brokerOrderId, {
+            symbol: order.symbol,
+            side: order.side,
+            qty,
+            price,
+            filledQty: order.filled_qty,
+            filledAvgPrice: order.filled_avg_price,
+            partial: event === "partial_fill",
+          });
+        }
+      } catch (sseError) {
+        log.error("AlpacaStream", `Failed to emit SSE event: ${sseError}`);
+      }
+
+      // Hook into order retry handler for rejected/canceled orders
+      if (newStatus === "rejected" || newStatus === "canceled") {
+        hookIntoTradeUpdates(update);
+      }
 
     } catch (error) {
       log.error("AlpacaStream", `Failed to process trade update: ${error}`);

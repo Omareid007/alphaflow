@@ -51,11 +51,20 @@ AI Active Trader integrates with multiple external services for market data, tra
 | CoinGecko | Crypto prices | Implemented | [COINGECKO_CAPABILITIES.md](providers/COINGECKO_CAPABILITIES.md) |
 | NewsAPI | News headlines | Implemented | - |
 | CoinMarketCap | Crypto market data | Implemented | - |
+| GDELT | Global news & events (FREE) | Implemented | - |
+| Valyu.ai | Financial ratios, earnings | Implemented | - |
+| Hugging Face | FinBERT sentiment analysis | Implemented | - |
+| **SEC EDGAR** | SEC filings, company facts (FREE) | Implemented | - |
+| **FINRA RegSHO** | Short interest data (FREE) | Implemented | - |
+| **Frankfurter** | Forex rates (ECB-backed, FREE) | Implemented | - |
+| **FRED** | Macro economic indicators | Implemented | - |
 | OpenAI | AI decisions | Implemented | [OPENAI_CAPABILITIES.md](providers/OPENAI_CAPABILITIES.md) |
 | Groq | AI fallback | Partially Implemented | - |
 | Together.ai | AI fallback | Partially Implemented | - |
 
 **Status Legend:** Implemented | Partially Implemented | Planned | Deprecated
+
+**Note:** Sources marked (FREE) require no API key and have no rate limits.
 
 ---
 
@@ -405,14 +414,18 @@ The following connectors are fully implemented in `server/connectors/`:
 
 | Connector | File | Status | Key Features |
 |-----------|------|--------|--------------|
-| **Alpaca** | `alpaca.ts` | ✅ Production | Full brokerage API, 1000+ lines |
+| **Alpaca** | `alpaca.ts` | ✅ Production | Full brokerage API, 1182 lines |
 | **Finnhub** | `finnhub.ts` | ✅ Production | Stock quotes, news, company data |
-| **CoinGecko** | `coingecko.ts` | ✅ Production | Crypto prices, market data |
+| **CoinGecko** | `coingecko.ts` | ✅ Production | Crypto prices, market data (FREE) |
 | **CoinMarketCap** | `coinmarketcap.ts` | ✅ Production | Crypto rankings, volume |
 | **NewsAPI** | `newsapi.ts` | ✅ Production | News headlines with caching |
-| **GDELT** | `gdelt.ts` | ✅ Production | Global news sentiment |
-| **Valyu.ai** | `valyu.ts` | ✅ Production | Financial ratios, earnings |
+| **GDELT** | `gdelt.ts` | ✅ Production | Global news sentiment (FREE) |
+| **Valyu.ai** | `valyu.ts` | ✅ Production | Financial ratios, earnings, insider |
 | **Hugging Face** | `huggingface.ts` | ✅ Production | FinBERT sentiment analysis |
+| **SEC EDGAR** | `sec-edgar.ts` | ✅ Production | Company facts, filings (FREE) |
+| **FINRA RegSHO** | `finra.ts` | ✅ Production | Short volume, days-to-cover (FREE) |
+| **Frankfurter** | `frankfurter.ts` | ✅ Production | Forex rates, ECB data (FREE) |
+| **FRED** | `fred.ts` | ✅ Production | VIX, rates, inflation, employment |
 
 ### 7.2 Alpaca Connector Features
 
@@ -495,9 +508,12 @@ import { newsapi } from "../connectors/newsapi";
 | **Error Handling** | Simple try-catch | Classified errors with recovery strategies |
 | **Caching** | None | Multi-layer cache with TTL management |
 | **Validation** | Basic | Schema-based with type matrix validation |
-| **Data Sources** | Alpaca + Finnhub | 8 connectors with data fusion |
-| **Sentiment** | None | FinBERT via Hugging Face |
-| **Fundamentals** | None | Valyu.ai integration |
+| **Data Sources** | Alpaca + Finnhub | 12 connectors with data fusion |
+| **Sentiment** | None | FinBERT via Hugging Face + GDELT |
+| **Fundamentals** | None | Valyu.ai + SEC EDGAR integration |
+| **Short Interest** | None | FINRA RegSHO short volume data |
+| **Forex** | None | Frankfurter (ECB-backed) |
+| **Macro Data** | None | FRED (VIX, rates, inflation, employment) |
 
 ### Key Improvements
 
@@ -517,9 +533,22 @@ import { newsapi } from "../connectors/newsapi";
 |----------|-----|-----|
 | Market Data | Alpaca, Finnhub | + CoinGecko, CoinMarketCap |
 | News | NewsAPI | + GDELT (global coverage) |
-| Fundamentals | None | Valyu.ai (ratios, earnings, SEC filings) |
+| Fundamentals | None | Valyu.ai + SEC EDGAR (filings, company facts) |
 | Sentiment | None | Hugging Face (FinBERT) |
-| Total Connectors | 3 | 8 |
+| Short Interest | None | FINRA RegSHO (short volume, days-to-cover) |
+| Forex | None | Frankfurter (ECB-backed exchange rates) |
+| Macro Data | None | FRED (VIX, rates, inflation, employment) |
+| Total Connectors | 3 | 12 |
+
+### Free Data Sources (No API Key Required)
+
+| Source | Data Type | Update Frequency |
+|--------|-----------|------------------|
+| SEC EDGAR | Company filings, facts | Real-time |
+| FINRA RegSHO | Short volume data | Daily |
+| Frankfurter | Forex/currency rates | Daily (ECB updates) |
+| GDELT | Global news events | Real-time |
+| CoinGecko | Crypto prices | Real-time |
 
 ### Architecture Changes
 

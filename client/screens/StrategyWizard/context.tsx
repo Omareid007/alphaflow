@@ -91,13 +91,13 @@ export interface WizardData {
 }
 
 const defaultWizardData: WizardData = {
-  strategyType: "",
-  strategyName: "",
-  description: "",
-  assets: [],
+  strategyType: "moving-average-crossover",
+  strategyName: "My SMA Crossover Strategy",
+  description: "Automated trading strategy using Simple Moving Average crossover signals. Buys when the fast SMA crosses above the slow SMA, and sells when it crosses below.",
+  assets: ["SPY"],
   parameters: {
-    supportLevel: "",
-    resistanceLevel: "",
+    supportLevel: "420",
+    resistanceLevel: "480",
     positionSize: "100",
     stopLossPercent: "2",
     takeProfitPercent: "3",

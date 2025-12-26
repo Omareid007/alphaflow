@@ -55,8 +55,8 @@ async function main() {
     console.log("\nLLM Provider Status:");
     console.log(`  Provider: ${status.provider}`);
     console.log(`  Available: ${status.available}`);
-    console.log(`  OpenAI Available: ${status.openaiAvailable}`);
-    console.log(`  OpenRouter Available: ${status.openrouterAvailable}`);
+    console.log(`  OpenAI Available: ${status.providers.openai}`);
+    console.log(`  OpenRouter Available: ${status.providers.openrouter}`);
     process.exit(0);
   }
   

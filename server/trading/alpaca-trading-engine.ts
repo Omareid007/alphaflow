@@ -503,11 +503,12 @@ class AlpacaTradingEngine {
         return { success: false, error: "Extended hours trading is not available for crypto" };
       }
 
-      if (extendedHours && orderType !== "limit") {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit orders`, {
-          symbol, side, quantity, orderType, reason: "EXTENDED_HOURS_REQUIRES_LIMIT"
+      // FIXED: Extended hours allows both limit AND stop_limit orders per Alpaca API docs
+      if (extendedHours && !["limit", "stop_limit"].includes(orderType)) {
+        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit or stop_limit orders`, {
+          symbol, side, quantity, orderType, reason: "EXTENDED_HOURS_REQUIRES_LIMIT_OR_STOP_LIMIT"
         });
-        return { success: false, error: "Extended hours trading requires limit orders only" };
+        return { success: false, error: "Extended hours trading requires limit or stop_limit orders only" };
       }
 
       if (extendedHours && !limitPrice) {
@@ -532,12 +533,14 @@ class AlpacaTradingEngine {
         !extendedHours;
 
       if (shouldUseBracketOrder) {
+        // CRITICAL FIX: Bracket orders MUST use time_in_force: "day" per Alpaca API requirements
+        // Using "gtc" will result in HTTP 422 rejection from the API
         const bracketParams: BracketOrderParams = {
           symbol: alpacaSymbol,
           qty: quantity.toString(),
           side,
           type: orderType === "limit" ? "limit" : "market",
-          time_in_force: "gtc",
+          time_in_force: "day",  // FIXED: Was "gtc" which causes 422 rejection
           take_profit_price: takeProfitPrice.toFixed(2),
           stop_loss_price: stopLossPrice.toFixed(2),
         };
@@ -572,12 +575,19 @@ class AlpacaTradingEngine {
         console.log(`[Trading] Creating extended hours limit order for ${symbol}: ${side} ${quantity} @ $${limitPrice}`);
         order = await alpaca.createOrder(orderParams);
       } else {
+        // CRITICAL FIX: Market orders CANNOT use GTC time_in_force
+        // Market orders must use: day, ioc, fok, opg, or cls
+        // For crypto with limit orders, GTC is valid; for market orders, use "day"
+        const effectiveTif = (orderType === "market")
+          ? "day"  // Market orders cannot be GTC
+          : (isCrypto ? "gtc" : "day");  // Limit orders can use GTC for crypto
+
         const orderParams: CreateOrderParams = {
           symbol: alpacaSymbol,
           qty: quantity.toString(),
           side,
           type: orderType,
-          time_in_force: isCrypto ? "gtc" : "day",
+          time_in_force: effectiveTif,
         };
 
         if (orderType === "limit" && limitPrice) {
@@ -621,6 +631,48 @@ class AlpacaTradingEngine {
       };
       eventBus.emit("trade:executed", tradeEvent, "alpaca-trading-engine");
       logger.trade(`Executed ${side} ${quantity} ${symbol} @ $${filledPrice}`, { orderId: order.id, status: order.status });
+
+      // AUTOMATED STOP-LOSS: Create stop-loss order after successful buy
+      if (side === "buy" && order.status === "filled" && !shouldUseBracketOrder && !isCrypto && !extendedHours) {
+        try {
+          // Calculate stop-loss price (2% below entry for risk management)
+          const entryPrice = filledPrice || limitPrice || 0;
+          const stopLossPrice = entryPrice * 0.98; // 2% stop-loss
+
+          logger.info("Trading", `Creating automated stop-loss for ${symbol}`, {
+            entryPrice,
+            stopLossPrice: stopLossPrice.toFixed(2),
+            quantity,
+          });
+
+          // Create stop-loss order
+          const stopLossOrder = await alpaca.createOrder({
+            symbol: alpacaSymbol,
+            qty: quantity.toString(),
+            side: "sell",
+            type: "stop",
+            stop_price: stopLossPrice.toFixed(2),
+            time_in_force: "gtc",
+          });
+
+          // Store stop-loss relationship in trade notes
+          await storage.updateTrade(trade.id, {
+            notes: `${tradeNotes} | Stop-Loss: Order ${stopLossOrder.id} @ $${stopLossPrice.toFixed(2)}`,
+          });
+
+          logger.info("Trading", `Automated stop-loss created for ${symbol}`, {
+            stopLossOrderId: stopLossOrder.id,
+            stopLossPrice: stopLossPrice.toFixed(2),
+            tradeId: trade.id,
+          });
+        } catch (stopLossError) {
+          // Log error but don't fail the main trade
+          logger.error("Trading", `Failed to create automated stop-loss for ${symbol}`, {
+            error: (stopLossError as Error).message,
+            tradeId: trade.id,
+          });
+        }
+      }
 
       return { success: true, order, trade };
     } catch (error) {
@@ -1180,7 +1232,10 @@ class AlpacaTradingEngine {
     }
 
     if (!strategy.assets || strategy.assets.length === 0) {
-      return { success: false, error: "Strategy has no assets configured" };
+      return {
+        success: false,
+        error: "Strategy has no assets configured. Please add at least one symbol/asset to trade before starting the strategy."
+      };
     }
 
     const isConnected = await this.isAlpacaConnected();
@@ -1648,7 +1703,7 @@ class AlpacaTradingEngine {
     };
   }
 
-  async syncPositionsFromAlpaca(): Promise<{
+  async syncPositionsFromAlpaca(userId?: string): Promise<{
     created: string[];
     updated: string[];
     removed: string[];
@@ -1661,7 +1716,19 @@ class AlpacaTradingEngine {
 
     try {
       const alpacaPositions = await alpaca.getPositions();
-      const dbPositions = await storage.getPositions();
+
+      // If no userId provided, get admin user's positions (system-level sync)
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        const adminUser = await storage.getUserByUsername("admintest");
+        if (!adminUser) {
+          throw new Error("No admin user found for system-level position sync");
+        }
+        effectiveUserId = adminUser.id;
+        console.log(`[Sync] Using admin user ${adminUser.username} for system-level sync`);
+      }
+
+      const dbPositions = await storage.getPositions(effectiveUserId);
 
       const alpacaMap = new Map(
         alpacaPositions.map(p => [p.symbol.toUpperCase(), p])
@@ -1675,6 +1742,7 @@ class AlpacaTradingEngine {
           const dbPos = dbMap.get(symbol);
           if (!dbPos) {
             await storage.createPosition({
+              userId: effectiveUserId,
               symbol: alpacaPos.symbol,
               side: alpacaPos.side,
               quantity: alpacaPos.qty,
@@ -1684,7 +1752,7 @@ class AlpacaTradingEngine {
               strategyId: null,
             });
             created.push(symbol);
-            console.log(`[Sync] Created position for ${symbol}`);
+            console.log(`[Sync] Created position for ${symbol} (user: ${effectiveUserId})`);
           } else {
             await storage.updatePosition(dbPos.id, {
               quantity: alpacaPos.qty,

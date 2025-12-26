@@ -2976,7 +2976,7 @@ function ArenaModule() {
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
           <TextInput
-            style={[styles.textInput, { flex: 1, backgroundColor: theme.backgroundDefault, color: theme.text, borderColor: theme.border }]}
+            style={[styles.textInput, { flex: 1, backgroundColor: theme.backgroundDefault, color: theme.text, borderColor: BrandColors.cardBorder }]}
             value={symbolInput}
             onChangeText={setSymbolInput}
             placeholder="Enter symbols (comma-separated)"

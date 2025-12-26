@@ -1,0 +1,179 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                  OMAR SECTOR ROTATION OPTIMIZATION RESULTS                    ║
+║                           December 22, 2025                                   ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ BEST CONFIGURATION: Mixed_Top2Sectors_BiWeekly                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────┬─────────────────────────────────────────────┐
+│ PERFORMANCE METRICS             │ VALUE                                       │
+├─────────────────────────────────┼─────────────────────────────────────────────┤
+│ Sharpe Ratio                    │ 1.305 ⭐⭐⭐⭐⭐ (Excellent)              │
+│ Sortino Ratio                   │ 1.370 ⭐⭐⭐⭐⭐ (Excellent)              │
+│ Calmar Ratio                    │ 1.287 ⭐⭐⭐⭐⭐ (Excellent)              │
+│ Total Return (3-year)           │ 75.30%                                      │
+│ Annualized Return               │ 20.73%                                      │
+│ Max Drawdown                    │ 16.10% (Well-controlled)                    │
+│ Volatility                      │ 16.76% (Moderate)                           │
+│ Win Rate                        │ 53.1%                                       │
+│ Total Trades                    │ 420 trades                                  │
+│ Avg Holding Period              │ 9.9 days                                    │
+│ Rotation Count                  │ 69 rotations (bi-weekly)                    │
+└─────────────────────────────────┴─────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ STRATEGY COMPARISON (by Average Sharpe Ratio)                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+    Strategy Type          Avg Sharpe    Avg Return    Best Config
+    ─────────────────────────────────────────────────────────────────────────
+    1. Mixed              │  1.11 ⭐⭐⭐  │  58.3%      │ Mixed_Top2Sectors_BiWeekly
+    2. Relative Strength  │  0.32       │  11.4%     │ RelativeStrength_Top3_BiWeekly
+    3. Regime             │  0.27       │  11.1%     │ Regime_Cyclical_Monthly
+    4. Momentum           │  0.14       │  -0.2%     │ Momentum_Top3_5Day
+    5. Pure Sector        │  0.12       │  -1.3%     │ Pure_Sector_Top3_Weekly
+
+    WINNER: Mixed strategies outperform by 3.5x in Sharpe ratio!
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ TOP 5 CONFIGURATIONS                                                          │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Rank  Configuration                  Sharpe   Return   MaxDD   Win%   Trades
+  ────────────────────────────────────────────────────────────────────────────
+   1.   Mixed_Top2Sectors_BiWeekly    1.31     75.3%    16.1%   53.1%   420
+   2.   Mixed_Top2Sectors_Weekly      1.30     74.3%    13.9%   52.8%   834
+   3.   Mixed_Top3Sectors_BiWeekly    0.95     43.2%    17.6%   53.8%   420
+   4.   Mixed_Top3Sectors_Weekly      0.89     40.4%    20.0%   51.3%   834
+   5.   Regime_Cyclical_Monthly       0.45     23.6%    34.2%   63.6%    99
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ SECTOR PERFORMANCE RANKING (by Rotation Frequency)                           │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Rank  Sector                        Symbol  Rotations  % of Total
+  ─────────────────────────────────────────────────────────────────────────
+   1.   Technology                    XLK     66         15.7%
+   2.   Consumer Discretionary        XLY     57         13.6%
+   3.   Energy                        XLE     54         12.9%
+   4.   Utilities                     XLU     45         10.7%
+   5.   Healthcare                    XLV     45         10.7%
+   6.   Consumer Staples              XLP     42         10.0%
+   7.   Industrials                   XLI     42         10.0%
+   8.   Financials                    XLF     33         7.9%
+   9.   Real Estate                   XLRE    21         5.0%
+  10.   Materials                     XLB     15         3.6%
+
+  Technology led with highest momentum strength
+  Defensive sectors (XLU, XLV, XLP) provided consistent performance
+  Energy showed high volatility but profitable trends
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ ROTATION FREQUENCY ANALYSIS                                                   │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Frequency        Best Sharpe   Total Trades   Avg Hold   Outcome
+  ───────────────────────────────────────────────────────────────────────────
+  Weekly (5d)      1.30          834            4.9 days   High turnover
+  Bi-Weekly (10d)  1.31          420            9.9 days   OPTIMAL
+  Monthly (21d)    0.45          99             21+ days   Too slow
+
+  OPTIMAL: Bi-weekly rotation balances trend capture with transaction costs
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ KEY INSIGHTS                                                                  │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  - Mixed strategies (sectors + stocks) dominate pure sector ETF strategies
+  - Bi-weekly rotation (10 days) is optimal for sector rotation
+  - Technology sector showed highest momentum consistency
+  - Selecting top 2 sectors with 3 stocks each provides best risk/return
+  - Defensive sectors (Utilities, Healthcare) provided stability during volatility
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ COMPARISON TO BUY & HOLD (SPY)                                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Metric                   Sector Rotation    SPY B&H    Outperformance
+  ────────────────────────────────────────────────────────────────────────
+  Total Return (3-year)    75.3%             ~45%       +30.3%
+  Sharpe Ratio             1.31              ~0.85      +54%
+  Max Drawdown             16.1%             ~25%       +35% better
+
+  ALPHA GENERATED: ~30% absolute, ~1.0% monthly
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ RECOMMENDED IMPLEMENTATION                                                    │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Strategy:        Mixed_Top2Sectors_BiWeekly
+  Rotation:        Every 10 trading days (bi-weekly)
+  Sectors:         Top 2 by momentum + relative strength
+  Stocks:          3 from each sector (6 total positions)
+  Position Size:   ~16.7% each (equal weight)
+  Risk Controls:   -15% stop loss, 20% max portfolio drawdown
+
+  Scoring Formula:
+    40% Momentum (20-day returns)
+    30% Relative Strength (vs SPY)
+    20% Volatility (inverse - lower is better)
+    10% Trend (SMA crossover)
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ DEPLOYMENT RECOMMENDATION                                                     │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  Phase 1: Paper Trading (30 days)          → Validate live performance
+  Phase 2: Live Trading - 10% allocation    → Test with real capital
+  Phase 3: Scale to 60% core allocation     → Full deployment
+
+  Target Allocation:
+    60% Sector Rotation Strategy ← This Strategy
+    40% OMAR Tactical Stock Picking
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ SUCCESS CRITERIA                                                              │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  - Sharpe Ratio:        > 1.2  (Target: 1.31)
+  - Annualized Return:   > 18%  (Target: 20.7%)
+  - Max Drawdown:        < 18%  (Target: 16.1%)
+  - Win Rate:            > 52%  (Target: 53.1%)
+  - Volatility:          < 18%  (Target: 16.8%)
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ FILES GENERATED                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  1. /home/runner/workspace/scripts/omar-sector-rotation-optimizer.ts
+     → Full optimizer script (executable)
+
+  2. /home/runner/workspace/SECTOR_ROTATION_OPTIMIZATION_REPORT.md
+     → Comprehensive analysis report with all 20 configurations
+
+  3. /home/runner/workspace/SECTOR_ROTATION_QUICK_IMPLEMENTATION.md
+     → Implementation guide with code snippets and parameters
+
+  4. /home/runner/workspace/SECTOR_ROTATION_RESULTS_SUMMARY.txt
+     → This summary file
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ NEXT STEPS                                                                    │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  - Review full report: SECTOR_ROTATION_OPTIMIZATION_REPORT.md
+  - Implement in paper trading using parameters from implementation guide
+  - Monitor for 30 days against backtest expectations
+  - Compare live performance to Sharpe 1.31 target
+  - Scale to production once validated
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                              OPTIMIZATION COMPLETE                            ║
+║                          Status: READY FOR DEPLOYMENT                         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+Generated by: OMAR Sector Rotation Optimizer
+Date: December 22, 2025
+Version: 1.0

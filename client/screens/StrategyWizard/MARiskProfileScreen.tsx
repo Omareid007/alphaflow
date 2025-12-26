@@ -99,6 +99,10 @@ export default function MARiskProfileScreen() {
   const handleToggleAdaptiveRisk = (value: boolean) => {
     updateData({
       movingAverageParams: {
+        fastPeriod: data.movingAverageParams?.fastPeriod ?? 7,
+        slowPeriod: data.movingAverageParams?.slowPeriod ?? 20,
+        allocationPct: data.movingAverageParams?.allocationPct ?? 0.10,
+        riskLimitPct: data.movingAverageParams?.riskLimitPct ?? 0.10,
         ...data.movingAverageParams,
         adaptiveRiskEnabled: value,
       },
@@ -108,6 +112,10 @@ export default function MARiskProfileScreen() {
   const handleIntervalChange = (interval: number) => {
     updateData({
       movingAverageParams: {
+        fastPeriod: data.movingAverageParams?.fastPeriod ?? 7,
+        slowPeriod: data.movingAverageParams?.slowPeriod ?? 20,
+        allocationPct: data.movingAverageParams?.allocationPct ?? 0.10,
+        riskLimitPct: data.movingAverageParams?.riskLimitPct ?? 0.10,
         ...data.movingAverageParams,
         adaptiveRiskIntervalMinutes: interval,
       },

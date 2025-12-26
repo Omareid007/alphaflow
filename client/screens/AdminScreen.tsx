@@ -36,13 +36,17 @@ interface DataFusionStatus {
   intelligenceScore: number;
   activeSources: number;
   totalSources: number;
-  dataSources: Array<{ name: string; provider: string; active: boolean }>;
+  dataSources: Array<{ name: string; provider: string; active: boolean; category?: string }>;
   embeddingsCount: number;
   capabilities: {
     marketData: boolean;
     newsAnalysis: boolean;
     sentimentAnalysis: boolean;
     tradingCapability: boolean;
+    fundamentals?: boolean;
+    shortInterest?: boolean;
+    macroAnalysis?: boolean;
+    forexData?: boolean;
   };
 }
 
@@ -205,6 +209,30 @@ function DataFusionCard() {
                 Trading
               </ThemedText>
             </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.fundamentals ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.fundamentals ? theme.text : theme.textSecondary }]}>
+                Fundamentals
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.shortInterest ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.shortInterest ? theme.text : theme.textSecondary }]}>
+                Short Interest
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.macroAnalysis ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.macroAnalysis ? theme.text : theme.textSecondary }]}>
+                Macro Data
+              </ThemedText>
+            </View>
+            <View style={styles.capabilityItem}>
+              <View style={[styles.capabilityDot, { backgroundColor: capabilities.forexData ? BrandColors.success : BrandColors.neutral }]} />
+              <ThemedText style={[styles.capabilityText, { color: capabilities.forexData ? theme.text : theme.textSecondary }]}>
+                Forex
+              </ThemedText>
+            </View>
           </View>
         </View>
         <View style={styles.dataSourcesList}>
@@ -240,11 +268,7 @@ function AIConfigCard() {
 
   const mutation = useMutation({
     mutationFn: async (updates: Partial<AIConfig>) => {
-      return apiRequest("/api/admin/ai-config", {
-        method: "PUT",
-        body: JSON.stringify(updates),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("PUT", "/api/admin/ai-config", updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/ai-config"] });
@@ -429,7 +453,7 @@ function ApiBudgetNavCard() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
   return (
-    <Card elevation={1} style={styles.sectionCard} onPress={() => navigation.navigate("ApiBudget")}>
+    <Card elevation={1} style={styles.sectionCard} onPress={() => (navigation as any).navigate("ApiBudget")}>
       <View style={styles.navCardContent}>
         <View style={styles.navCardLeft}>
           <View style={styles.sectionHeader}>
@@ -451,7 +475,7 @@ function ModelRouterNavCard() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
   return (
-    <Card elevation={1} style={styles.sectionCard} onPress={() => navigation.navigate("ModelRouter")}>
+    <Card elevation={1} style={styles.sectionCard} onPress={() => (navigation as any).navigate("ModelRouter")}>
       <View style={styles.navCardContent}>
         <View style={styles.navCardLeft}>
           <View style={styles.sectionHeader}>

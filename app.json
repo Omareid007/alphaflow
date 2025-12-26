@@ -8,9 +8,14 @@
     "scheme": "aiactivetrader",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "main": "client/index.js",
+    "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aiactivetrader.app"
+      "bundleIdentifier": "com.aiactivetrader.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,11 +26,16 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aiactivetrader.app"
+      "package": "com.aiactivetrader.app",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [
@@ -44,6 +54,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ai-active-trader"
+      }
     }
   }
 }

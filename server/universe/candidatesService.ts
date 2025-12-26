@@ -204,6 +204,27 @@ export class CandidatesService {
     return approved.map((c) => c.symbol);
   }
 
+  async getWatchlistSymbols(): Promise<{ stocks: string[]; crypto: string[] }> {
+    const symbols = await db
+      .select({ symbol: universeCandidates.symbol })
+      .from(universeCandidates)
+      .where(inArray(universeCandidates.status, ["APPROVED", "WATCHLIST"]));
+
+    const stocks: string[] = [];
+    const crypto: string[] = [];
+
+    for (const { symbol } of symbols) {
+      // Crypto symbols typically end with /USD or are known crypto tickers
+      if (symbol.includes("/USD") || ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX", "ADA", "XRP", "DOT", "MATIC"].includes(symbol.toUpperCase())) {
+        crypto.push(symbol.replace("/USD", "").toUpperCase());
+      } else {
+        stocks.push(symbol.toUpperCase());
+      }
+    }
+
+    return { stocks, crypto };
+  }
+
   async isSymbolApproved(symbol: string): Promise<boolean> {
     const candidate = await this.getCandidateBySymbol(symbol);
     return candidate?.status === "APPROVED";

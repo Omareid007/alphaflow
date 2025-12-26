@@ -26,6 +26,9 @@ import { groqClient } from "./groqClient";
 import { togetherClient } from "./togetherClient";
 import { aimlClient } from "./aimlClient";
 import { claudeClient } from "./claudeClient";
+import { geminiClient } from "./geminiClient";
+import { cloudflareClient } from "./cloudflareClient";
+import { huggingfaceClient } from "./huggingfaceClient";
 
 // ============================================================================
 // TYPES
@@ -427,11 +430,13 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
       { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
     ],
     low: [
-      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
+      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
   },
   market_news_summarizer: {
@@ -440,12 +445,14 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
       { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
     ],
     medium: [
+      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
       { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
     ],
     low: [
+      { provider: "gemini", model: "gemini-2.5-flash-lite", costPer1kTokens: 0.00001 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
     ],
   },
   post_trade_reporter: {
@@ -454,10 +461,13 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
     ],
     medium: [
+      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
       { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
     ],
     low: [
+      { provider: "gemini", model: "gemini-2.5-flash-lite", costPer1kTokens: 0.00001 },
+      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
       { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
     ],
@@ -483,10 +493,13 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
       { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
     ],
     medium: [
+      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
       { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     low: [
+      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
+      { provider: "huggingface", model: "meta-llama/Llama-3.2-3B-Instruct", costPer1kTokens: 0.00001 },
       { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
     ],
   },
@@ -531,6 +544,9 @@ const PROVIDER_CLIENTS: Record<string, { client: any; isAvailable: () => boolean
   aimlapi: { client: aimlClient, isAvailable: () => aimlClient.isAvailable() },
   openrouter: { client: openrouterClient, isAvailable: () => openrouterClient.isAvailable() },
   claude: { client: claudeClient, isAvailable: () => claudeClient.isAvailable() },
+  gemini: { client: geminiClient, isAvailable: () => geminiClient.isAvailable() },
+  cloudflare: { client: cloudflareClient, isAvailable: () => cloudflareClient.isAvailable() },
+  huggingface: { client: huggingfaceClient, isAvailable: () => huggingfaceClient.isAvailable() },
 };
 
 // ============================================================================

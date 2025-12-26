@@ -9,6 +9,7 @@ export interface ValyuBudgetConfig {
   webRetrievalsPerMonth: number;
   financeRetrievalsPerMonth: number;
   proprietaryRetrievalsPerMonth: number;
+  [key: string]: unknown;
 }
 
 export interface ValyuBudgetStatus {

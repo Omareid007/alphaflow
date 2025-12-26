@@ -1,4 +1,10 @@
 import { ApiCache } from "../lib/api-cache";
+import { log } from "../utils/logger";
+
+// Dubai Pulse API Configuration
+const DUBAI_PULSE_API_KEY = process.env.UAE_MARKETS_API_KEY || "";
+const DUBAI_PULSE_BASE_URL = "https://api.dubaipulse.gov.ae";
+const USE_DEMO_DATA = !DUBAI_PULSE_API_KEY || process.env.UAE_MARKETS_USE_DEMO === "true";
 
 export interface UAEStock {
   symbol: string;
@@ -337,6 +343,20 @@ export interface UAEMarketsConfig {
   useDemoData?: boolean;
 }
 
+interface DubaiPulseIndexResponse {
+  data?: {
+    records?: Array<{
+      Index_Name?: string;
+      Index_Value?: string | number;
+      Trade_Date?: string;
+      Change?: string | number;
+      Change_Percentage?: string | number;
+      Volume?: string | number;
+      Value?: string | number;
+    }>;
+  };
+}
+
 class UAEMarketsConnector {
   private stocksCache = new ApiCache<UAEStock[]>({
     freshDuration: 60 * 1000,
@@ -346,15 +366,94 @@ class UAEMarketsConnector {
     freshDuration: 60 * 1000,
     staleDuration: 30 * 60 * 1000,
   });
+  private apiCallCount = 0;
+  private lastApiCallTime: Date | null = null;
+  private usingLiveData = false;
 
+  /**
+   * Fetch DFM index data from Dubai Pulse Open API
+   */
+  private async fetchDubaiPulseIndices(): Promise<UAEMarketSummary | null> {
+    if (USE_DEMO_DATA) {
+      return null;
+    }
+
+    try {
+      this.apiCallCount++;
+      this.lastApiCallTime = new Date();
+
+      const url = `${DUBAI_PULSE_BASE_URL}/data/dfm-general/dfm-indices`;
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${DUBAI_PULSE_API_KEY}`,
+          "Accept": "application/json",
+        },
+        signal: AbortSignal.timeout(10000), // 10s timeout
+      });
+
+      if (!response.ok) {
+        log.warn("UAEMarkets", `Dubai Pulse API returned ${response.status}`);
+        return null;
+      }
+
+      const data: DubaiPulseIndexResponse = await response.json();
+      const records = data?.data?.records;
+
+      if (!records || records.length === 0) {
+        log.warn("UAEMarkets", "No records in Dubai Pulse response");
+        return null;
+      }
+
+      // Use the most recent record (usually first)
+      const record = records[0];
+
+      const indexValue = parseFloat(String(record.Index_Value || 0));
+      const change = parseFloat(String(record.Change || 0));
+      const changePercent = parseFloat(String(record.Change_Percentage || 0));
+      const volume = parseFloat(String(record.Volume || 0));
+      const value = parseFloat(String(record.Value || 0));
+
+      this.usingLiveData = true;
+
+      return {
+        exchange: "DFM",
+        indexName: record.Index_Name || "DFM General Index",
+        indexValue,
+        change,
+        changePercent,
+        tradingValue: value,
+        tradingVolume: volume,
+        advancers: 0, // Not provided by this API
+        decliners: 0,
+        unchanged: 0,
+        lastUpdated: record.Trade_Date || new Date().toISOString(),
+      };
+    } catch (error) {
+      log.error("UAEMarkets", `Failed to fetch Dubai Pulse data: ${error}`);
+      this.usingLiveData = false;
+      return null;
+    }
+  }
+
+  /**
+   * Fetch stocks with live API integration
+   */
   async getTopStocks(exchange?: "ADX" | "DFM"): Promise<UAEStock[]> {
     const cacheKey = `stocks_${exchange || "all"}`;
     const cached = this.stocksCache.get(cacheKey);
-    
+
     if (cached?.isFresh) {
       return cached.data;
     }
 
+    // Try to fetch live data if configured for DFM
+    if (exchange === "DFM" && !USE_DEMO_DATA) {
+      // Note: Dubai Pulse doesn't provide individual stock data in the free tier
+      // Would need DFM Native API or premium provider for stock-level data
+      log.info("UAEMarkets", "Live stock data requires DFM Native API or premium provider");
+    }
+
+    // Fallback to demo data
     let stocks = generateDemoStocks();
 
     if (exchange) {
@@ -365,16 +464,43 @@ class UAEMarketsConnector {
     return stocks;
   }
 
+  /**
+   * Fetch market summary with live API integration
+   */
   async getMarketSummary(exchange?: "ADX" | "DFM"): Promise<UAEMarketSummary[]> {
     const cacheKey = `summary_${exchange || "all"}`;
     const cached = this.summaryCache.get(cacheKey);
-    
+
     if (cached?.isFresh) {
       return cached.data;
     }
 
-    let summaries = generateDemoSummaries();
+    let summaries: UAEMarketSummary[] = [];
 
+    // Try to fetch live DFM data from Dubai Pulse
+    if (!exchange || exchange === "DFM") {
+      const liveDfmData = await this.fetchDubaiPulseIndices();
+      if (liveDfmData) {
+        summaries.push(liveDfmData);
+        log.info("UAEMarkets", "Using live DFM data from Dubai Pulse API");
+      }
+    }
+
+    // Fallback to demo data for missing exchanges
+    const demoSummaries = generateDemoSummaries();
+
+    if (summaries.length === 0) {
+      // No live data, use all demo data
+      summaries = demoSummaries;
+    } else if (!exchange) {
+      // Live DFM data but need ADX demo data
+      const adxDemo = demoSummaries.find(s => s.exchange === "ADX");
+      if (adxDemo) {
+        summaries.push(adxDemo);
+      }
+    }
+
+    // Filter by exchange if specified
     if (exchange) {
       summaries = summaries.filter(s => s.exchange === exchange);
     }
@@ -387,19 +513,25 @@ class UAEMarketsConnector {
     return { ...UAE_MARKET_INFO };
   }
 
-  getConnectionStatus(): { 
-    connected: boolean; 
-    dataSource: "demo"; 
+  getConnectionStatus(): {
+    connected: boolean;
+    dataSource: "live" | "demo";
     cacheSize: number;
     isMockData: boolean;
     isDemoData: boolean;
+    apiCallCount?: number;
+    lastApiCall?: string | null;
+    apiConfigured: boolean;
   } {
     return {
       connected: true,
-      dataSource: "demo",
+      dataSource: this.usingLiveData ? "live" : "demo",
       cacheSize: this.stocksCache.size() + this.summaryCache.size(),
-      isMockData: true,
-      isDemoData: true,
+      isMockData: !this.usingLiveData,
+      isDemoData: !this.usingLiveData,
+      apiCallCount: this.apiCallCount,
+      lastApiCall: this.lastApiCallTime?.toISOString() || null,
+      apiConfigured: !!DUBAI_PULSE_API_KEY,
     };
   }
 

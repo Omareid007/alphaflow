@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { fred, FRED_SERIES, MacroCategory } from "../connectors/fred";
 import { macroIndicatorsService } from "../services/macro-indicators-service";
 import { log } from "../utils/logger";
+import { badRequest, notFound, serverError } from "../lib/standard-errors";
 
 const router = Router();
 
@@ -11,7 +12,7 @@ router.get("/indicators", async (_req: Request, res: Response) => {
     res.json({ success: true, data: indicators });
   } catch (error) {
     log.error("MacroRoutes", "Failed to get indicators", { error });
-    res.status(500).json({ success: false, error: "Failed to fetch indicators" });
+    return serverError(res, "Failed to fetch indicators");
   }
 });
 
@@ -19,12 +20,12 @@ router.get("/indicators/:id", async (req: Request, res: Response) => {
   try {
     const indicator = await macroIndicatorsService.getIndicator(req.params.id);
     if (!indicator) {
-      return res.status(404).json({ success: false, error: "Indicator not found" });
+      return notFound(res, "Indicator not found");
     }
     res.json({ success: true, data: indicator });
   } catch (error) {
     log.error("MacroRoutes", "Failed to get indicator", { error });
-    res.status(500).json({ success: false, error: "Failed to fetch indicator" });
+    return serverError(res, "Failed to fetch indicator");
   }
 });
 
@@ -32,16 +33,16 @@ router.get("/category/:category", async (req: Request, res: Response) => {
   try {
     const category = req.params.category as MacroCategory;
     const validCategories = ["treasury_yields", "inflation", "employment", "volatility", "interest_rates", "money_supply", "gdp", "consumer", "housing", "manufacturing"];
-    
+
     if (!validCategories.includes(category)) {
-      return res.status(400).json({ success: false, error: "Invalid category" });
+      return badRequest(res, "Invalid category");
     }
 
     const indicators = await macroIndicatorsService.getIndicatorsByCategory(category);
     res.json({ success: true, data: indicators });
   } catch (error) {
     log.error("MacroRoutes", "Failed to get indicators by category", { error });
-    res.status(500).json({ success: false, error: "Failed to fetch indicators" });
+    return serverError(res, "Failed to fetch indicators");
   }
 });
 

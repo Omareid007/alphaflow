@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { invokeTool, listTools, listToolsByCategory, getToolSchemas, type ToolContext } from "../ai/toolRouter";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
+import { badRequest, serverError } from "../lib/standard-errors";
 import type { ToolCategory } from "@shared/schema";
 
 const router = Router();
@@ -10,7 +11,7 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const category = req.query.category as ToolCategory | undefined;
     const tools = category ? listToolsByCategory(category) : listTools();
-    
+
     res.json({
       tools: tools.map(t => ({
         name: t.name,
@@ -23,7 +24,7 @@ router.get("/", async (req: Request, res: Response) => {
     });
   } catch (error) {
     log.error("ToolsAPI", `Failed to list tools: ${error}`);
-    res.status(500).json({ error: "Failed to list tools" });
+    return serverError(res, "Failed to list tools");
   }
 });
 
@@ -33,7 +34,7 @@ router.get("/schemas", async (req: Request, res: Response) => {
     res.json({ schemas });
   } catch (error) {
     log.error("ToolsAPI", `Failed to get tool schemas: ${error}`);
-    res.status(500).json({ error: "Failed to get tool schemas" });
+    return serverError(res, "Failed to get tool schemas");
   }
 });
 
@@ -42,7 +43,7 @@ router.post("/invoke", async (req: Request, res: Response) => {
     const { toolName, params, traceId, callerRole, debateSessionId } = req.body;
 
     if (!toolName) {
-      return res.status(400).json({ error: "toolName is required" });
+      return badRequest(res, "toolName is required");
     }
 
     const context: ToolContext = {
@@ -55,7 +56,7 @@ router.post("/invoke", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     log.error("ToolsAPI", `Failed to invoke tool: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to invoke tool" });
+    return serverError(res, (error as Error).message || "Failed to invoke tool");
   }
 });
 
@@ -77,7 +78,7 @@ router.get("/invocations", async (req: Request, res: Response) => {
     res.json({ invocations, count: invocations.length });
   } catch (error) {
     log.error("ToolsAPI", `Failed to get tool invocations: ${error}`);
-    res.status(500).json({ error: "Failed to get tool invocations" });
+    return serverError(res, "Failed to get tool invocations");
   }
 });
 

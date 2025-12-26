@@ -14,9 +14,12 @@ import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
 import { candidatesService } from "../universe/candidatesService";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { tradingSessionManager } from "../services/trading-session-manager";
+import { tradingConfig } from "../config/trading-config";
+import { advancedRebalancingService } from "../services/advanced-rebalancing-service";
+import { sectorExposureService } from "../services/sector-exposure-service";
 
-const DEFAULT_HARD_STOP_LOSS_PERCENT = 3;
-const DEFAULT_TAKE_PROFIT_PERCENT = 6;
+const DEFAULT_HARD_STOP_LOSS_PERCENT = tradingConfig.riskManagement.defaultHardStopLossPercent;
+const DEFAULT_TAKE_PROFIT_PERCENT = tradingConfig.riskManagement.defaultTakeProfitPercent;
 
 // Universe expansion constants (Section A requirements)
 // OLD CONSERVATIVE VALUES (commented for rollback):
@@ -25,11 +28,11 @@ const DEFAULT_TAKE_PROFIT_PERCENT = 6;
 // const MIN_CONFIDENCE_FOR_UNIVERSE = 0.65;
 
 // AGGRESSIVE VALUES - Maximize symbol coverage and trading opportunities
-const MAX_STOCK_SYMBOLS_PER_CYCLE = 500;  // AGGRESSIVE: Increased from 120 to analyze more stocks
-const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 100;  // AGGRESSIVE: Increased from 20 to analyze more crypto
-const ALPACA_SNAPSHOT_CHUNK_SIZE = 50;
+const MAX_STOCK_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxStockSymbolsPerCycle;
+const MAX_CRYPTO_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxCryptoSymbolsPerCycle;
+const ALPACA_SNAPSHOT_CHUNK_SIZE = tradingConfig.universe.alpacaSnapshotChunkSize;
 const RECENT_DECISIONS_LOOKBACK = 500;
-const MIN_CONFIDENCE_FOR_UNIVERSE = 0.50;  // AGGRESSIVE: Lowered from 0.65 to include more candidates
+const MIN_CONFIDENCE_FOR_UNIVERSE = tradingConfig.universe.minConfidenceForUniverse;
 
 // Universe expansion state for rotation
 interface UniverseRotationState {
@@ -106,6 +109,7 @@ export interface OrchestratorState {
   executionHistory: ExecutionResult[];
   dailyPnl: number;
   dailyTradeCount: number;
+  portfolioValue?: number;
   errors: string[];
 }
 
@@ -124,70 +128,85 @@ const DEFAULT_CONFIG: OrchestratorConfig = {
 //   killSwitchActive: false,
 // };
 
-// AGGRESSIVE RISK LIMITS - Maximize buying power utilization
+// AGGRESSIVE RISK LIMITS - Maximize buying power utilization with margin
 const DEFAULT_RISK_LIMITS: RiskLimits = {
-  maxPositionSizePercent: 15,          // AGGRESSIVE: Increased from 10 to allow larger positions
-  maxTotalExposurePercent: 95,         // AGGRESSIVE: Increased from 50 to use 95% of buying power (5% cash reserve)
+  maxPositionSizePercent: tradingConfig.riskManagement.defaultMaxPositionSizePercent,
+  maxTotalExposurePercent: tradingConfig.riskManagement.defaultMaxExposurePercent,
   maxPositionsCount: 100,              // AGGRESSIVE: Increased from 10 to enterprise-level 100 positions
   dailyLossLimitPercent: 5,            // Keep same for safety
   killSwitchActive: false,
 };
 
-const WATCHLIST = {
-  stocks: [
-    // Technology
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", "CRM",
-    "AMD", "INTC", "IBM", "CSCO", "ADBE", "NFLX", "PYPL", "NOW", "UBER", "ABNB",
-    // Financials
-    "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP",
-    "C", "USB", "PNC", "TFC", "COF", "SPGI", "ICE", "CME", "MCO", "MSCI",
-    // Healthcare
-    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
-    "AMGN", "GILD", "ISRG", "VRTX", "REGN", "MDT", "SYK", "BSX", "ZTS", "CI",
-    // Consumer Discretionary
-    "HD", "NKE", "MCD", "SBUX", "LOW", "TJX", "BKNG", "CMG", "LULU", "YUM",
-    "MAR", "HLT", "DPZ", "ORLY", "AZO", "ROST", "ULTA", "EBAY", "ETSY", "DKNG",
-    // Consumer Staples
-    "WMT", "PG", "KO", "PEP", "COST", "PM", "MO", "EL", "CL", "MDLZ",
-    "KMB", "GIS", "K", "HSY", "SJM", "KHC", "STZ", "TAP", "CLX", "CHD",
-    // Energy
-    "CVX", "XOM", "COP", "SLB", "EOG", "PXD", "MPC", "VLO", "PSX", "OXY",
-    "KMI", "WMB", "HAL", "BKR", "DVN", "FANG", "HES", "MRO", "APA", "OKE",
-    // Industrials
-    "UPS", "RTX", "HON", "BA", "CAT", "GE", "DE", "LMT", "UNP", "MMM",
-    "FDX", "NSC", "CSX", "WM", "RSG", "EMR", "ITW", "ETN", "ROK", "CMI",
-    // Materials
-    "LIN", "APD", "SHW", "ECL", "NEM", "FCX", "NUE", "DD", "PPG", "DOW",
-    "VMC", "MLM", "ALB", "CF", "MOS", "FMC", "IP", "AVY", "SEE", "PKG",
-    // Utilities
-    "NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "PEG", "ED",
-    "WEC", "ES", "AWK", "ATO", "NI", "CMS", "LNT", "EVRG", "DTE", "AEE",
-    // Real Estate
-    "AMT", "PLD", "CCI", "EQIX", "PSA", "SPG", "O", "WELL", "DLR", "AVB",
-    "EQR", "VTR", "ARE", "UDR", "MAA", "ESS", "PEAK", "INVH", "IRM", "REG",
-    // Communication Services
-    "DIS", "CMCSA", "VZ", "T", "TMUS", "CHTR", "NFLX", "EA", "TTWO", "WBD",
-    "PARA", "FOX", "FOXA", "LYV", "MTCH", "ZG", "PINS", "SNAP", "ROKU", "TTD",
-  ],
-  crypto: ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX"],
+// FALLBACK_WATCHLIST: Used only when database has no approved/watchlist symbols
+// Primary source is candidatesService.getWatchlistSymbols() from the database
+const FALLBACK_WATCHLIST = {
+  stocks: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM"],
+  crypto: ["BTC", "ETH", "SOL"],
 };
+
+// Cache for dynamic watchlist with TTL
+let cachedWatchlist: { stocks: string[]; crypto: string[] } | null = null;
+let watchlistCacheTime: number = 0;
+const WATCHLIST_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getWatchlist(): Promise<{ stocks: string[]; crypto: string[] }> {
+  const now = Date.now();
+
+  // Return cached if still valid
+  if (cachedWatchlist && (now - watchlistCacheTime) < WATCHLIST_CACHE_TTL_MS) {
+    return cachedWatchlist;
+  }
+
+  try {
+    const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
+
+    // If database has symbols, use them; otherwise fall back to defaults
+    if (dynamicWatchlist.stocks.length > 0 || dynamicWatchlist.crypto.length > 0) {
+      cachedWatchlist = dynamicWatchlist;
+      watchlistCacheTime = now;
+      log.info("Orchestrator", `Loaded ${dynamicWatchlist.stocks.length} stocks and ${dynamicWatchlist.crypto.length} crypto from database`);
+      return dynamicWatchlist;
+    }
+  } catch (error) {
+    log.warn("Orchestrator", "Failed to load watchlist from database, using fallback", { error: String(error) });
+  }
+
+  // Fallback to hardcoded minimal list
+  cachedWatchlist = FALLBACK_WATCHLIST;
+  watchlistCacheTime = now;
+  return FALLBACK_WATCHLIST;
+}
+
+// Synchronous access to current watchlist (for functions that can't be async)
+function getWatchlistSync(): { stocks: string[]; crypto: string[] } {
+  return cachedWatchlist || FALLBACK_WATCHLIST;
+}
+
+// Force refresh of watchlist cache
+async function refreshWatchlistCache(): Promise<void> {
+  cachedWatchlist = null;
+  watchlistCacheTime = 0;
+  await getWatchlist();
+}
 
 function isCryptoSymbol(symbol: string): boolean {
   const upperSymbol = symbol.toUpperCase();
+  const watchlist = getWatchlistSync();
   // Check bare tickers
-  if (WATCHLIST.crypto.includes(upperSymbol)) return true;
+  if (watchlist.crypto.includes(upperSymbol)) return true;
   // Check USD pairs (e.g., BTC/USD, BTCUSD)
-  const cryptoPairs = WATCHLIST.crypto.flatMap(c => [`${c}/USD`, `${c}USD`]);
-  return cryptoPairs.includes(upperSymbol) || 
+  const cryptoPairs = watchlist.crypto.flatMap(c => [`${c}/USD`, `${c}USD`]);
+  return cryptoPairs.includes(upperSymbol) ||
          (symbol.includes("/") && upperSymbol.endsWith("USD"));
 }
 
 function normalizeCryptoSymbol(symbol: string): string {
   const upperSymbol = symbol.toUpperCase();
+  const watchlist = getWatchlistSync();
   // Already in correct format
   if (upperSymbol.includes("/")) return upperSymbol;
   // Bare ticker (BTC -> BTC/USD)
-  if (WATCHLIST.crypto.includes(upperSymbol)) return `${upperSymbol}/USD`;
+  if (watchlist.crypto.includes(upperSymbol)) return `${upperSymbol}/USD`;
   // BTCUSD format -> BTC/USD
   if (upperSymbol.endsWith("USD") && upperSymbol.length > 3) {
     const base = upperSymbol.slice(0, -3);
@@ -241,8 +260,12 @@ async function queueOrderExecution(params: {
     ...(orderParams.stop_price && { stop_price: orderParams.stop_price }),
     ...(orderParams.extended_hours !== undefined && { extended_hours: orderParams.extended_hours }),
     ...(orderParams.order_class && { order_class: orderParams.order_class }),
+    // Include both nested and flat formats for bracket order params
+    // Work queue expects flat fields, direct API calls may use nested
     ...(orderParams.take_profit && { take_profit: orderParams.take_profit }),
     ...(orderParams.stop_loss && { stop_loss: orderParams.stop_loss }),
+    ...((orderParams as any).take_profit_limit_price && { take_profit_limit_price: (orderParams as any).take_profit_limit_price }),
+    ...((orderParams as any).stop_loss_stop_price && { stop_loss_stop_price: (orderParams as any).stop_loss_stop_price }),
   };
 
   const workItem = await workQueue.enqueue({
@@ -266,7 +289,44 @@ async function queueOrderExecution(params: {
 
   if (workItem.status === "SUCCEEDED" && workItem.result) {
     const result = JSON.parse(workItem.result);
-    log.info("Orchestrator", `Order already succeeded (duplicate): ${result.orderId}`, { traceId });
+
+    // CRITICAL: Verify actual Alpaca order status before returning cached result
+    // This prevents infinite loops when orders are canceled after initial acceptance
+    if (result.orderId) {
+      try {
+        const alpacaOrder = await alpaca.getOrder(result.orderId);
+        const actualStatus = alpacaOrder.status?.toLowerCase() || "unknown";
+        const terminalFailedStates = ["canceled", "rejected", "expired", "suspended"];
+
+        if (terminalFailedStates.includes(actualStatus)) {
+          log.warn("Orchestrator", `Duplicate order ${result.orderId} has terminal failed status: ${actualStatus}, invalidating work item`, { traceId });
+
+          // Invalidate the work item so a new order can be created with fresh idempotency key
+          await workQueue.invalidateWorkItem(workItem.id, `Order ${actualStatus} by broker`);
+
+          // Throw to let the caller handle retry with new idempotency key
+          throw new Error(`Previous order was ${actualStatus}, retry with new parameters`);
+        }
+
+        log.info("Orchestrator", `Order already succeeded (duplicate): ${result.orderId}, current status: ${actualStatus}`, { traceId });
+      } catch (orderCheckError: any) {
+        // If order not found, it was likely canceled
+        if (orderCheckError.message?.includes("not found") || orderCheckError.status === 404) {
+          log.warn("Orchestrator", `Duplicate order ${result.orderId} not found in Alpaca, invalidating work item`, { traceId });
+          await workQueue.invalidateWorkItem(workItem.id, "Order not found in broker");
+          throw new Error("Previous order not found, retry with new parameters");
+        }
+
+        // If it's our own thrown error about order being canceled, re-throw it
+        if (orderCheckError.message?.includes("retry with new parameters")) {
+          throw orderCheckError;
+        }
+
+        // For other errors (network issues, etc.), log but return cached result
+        log.warn("Orchestrator", `Could not verify duplicate order status: ${orderCheckError.message}`, { traceId });
+      }
+    }
+
     return {
       orderId: result.orderId,
       status: result.status || "filled",
@@ -558,6 +618,10 @@ class AutonomousOrchestrator {
   private lastCalibrationDate: string | null = null;
   private currentTraceId: string | null = null;
 
+  // Cooldown tracking for failed orders to prevent infinite retry loops
+  private orderCooldowns: Map<string, number> = new Map();
+  private readonly ORDER_COOLDOWN_MS = 300000; // 5 minute cooldown after failed order
+
   constructor() {
     this.config = { ...DEFAULT_CONFIG };
     this.riskLimits = { ...DEFAULT_RISK_LIMITS };
@@ -740,25 +804,65 @@ class AutonomousOrchestrator {
     await this.syncPositionsFromBroker();
     
     // Bootstrap universe candidates if empty - ensures trading enforcement doesn't block all trades
-    const allSymbols = [...WATCHLIST.stocks, ...WATCHLIST.crypto.map(c => `${c}/USD`)];
+    // Load watchlist dynamically from database, falling back to minimal defaults
+    const watchlist = await getWatchlist();
+    const allSymbols = [...watchlist.stocks, ...watchlist.crypto.map(c => `${c}/USD`)];
     await candidatesService.ensureWatchlistApproved(allSymbols, "orchestrator-init");
     
     log.info("Orchestrator", "Initialized with risk limits", { ...this.riskLimits });
+  }
+
+  /**
+   * Auto-approve a symbol for trading when it receives a high-confidence buy signal.
+   * This makes the watchlist dynamic - symbols are automatically approved based on AI analysis.
+   */
+  private async autoApproveSymbol(symbol: string): Promise<void> {
+    try {
+      const upperSymbol = symbol.toUpperCase();
+      const existing = await candidatesService.getCandidateBySymbol(upperSymbol);
+
+      if (existing?.status === "APPROVED") {
+        // Already approved, skip
+        return;
+      }
+
+      if (existing) {
+        // Update existing candidate to APPROVED
+        await candidatesService.approveCandidate(upperSymbol, "ai-auto-approve");
+        log.info("Orchestrator", `AUTO-APPROVED: ${upperSymbol} (was ${existing.status})`);
+      } else {
+        // Bootstrap the symbol first, then approve
+        await candidatesService.ensureWatchlistApproved([upperSymbol], "ai-signal");
+        await candidatesService.approveCandidate(upperSymbol, "ai-auto-approve");
+        log.info("Orchestrator", `AUTO-APPROVED: ${upperSymbol} (new candidate)`);
+      }
+    } catch (error) {
+      log.warn("Orchestrator", `Failed to auto-approve ${symbol}`, { error: String(error) });
+    }
   }
 
   private async loadRiskLimitsFromDB(): Promise<void> {
     try {
       const agentStatus = await storage.getAgentStatus();
       const dynamicLimit = marketConditionAnalyzer.getCurrentOrderLimit();
-      
+
       if (agentStatus) {
+        // FIXED: Use correct field names from database schema
+        // maxPositionsCount: The configured max positions limit (schema.ts:96)
+        // dynamicOrderLimit: A dynamic adjustment factor (schema.ts:98) - use as fallback only
         this.riskLimits = {
           maxPositionSizePercent: Number(agentStatus.maxPositionSizePercent) || 10,
           maxTotalExposurePercent: Number(agentStatus.maxTotalExposurePercent) || 50,
-          maxPositionsCount: agentStatus.dynamicOrderLimit || dynamicLimit || 10,
+          maxPositionsCount: Number(agentStatus.maxPositionsCount) || agentStatus.dynamicOrderLimit || dynamicLimit || 10,
           dailyLossLimitPercent: Number(agentStatus.dailyLossLimitPercent) || 5,
           killSwitchActive: agentStatus.killSwitchActive || false,
         };
+        log.info("Orchestrator", "Loaded risk limits from DB", {
+          maxPositionSizePercent: this.riskLimits.maxPositionSizePercent,
+          maxTotalExposurePercent: this.riskLimits.maxTotalExposurePercent,
+          maxPositionsCount: this.riskLimits.maxPositionsCount,
+          dailyLossLimitPercent: this.riskLimits.dailyLossLimitPercent,
+        });
       }
     } catch (error) {
       log.error("Orchestrator", "Failed to load risk limits", { error: String(error) });
@@ -1041,7 +1145,15 @@ class AutonomousOrchestrator {
               priceChangePercent: data.priceChangePercent24h,
               marketCondition: this.state.mode,
             }).catch(err => log.error("Orchestrator", `Failed to record features: ${err}`));
-            
+
+            // AUTO-APPROVE: Dynamically approve symbols with high-confidence buy signals
+            // This makes the watchlist dynamic - any symbol analyzed with buy signal gets approved
+            if (decision.action === "buy" && decision.confidence >= 0.7) {
+              this.autoApproveSymbol(symbol).catch(err =>
+                log.warn("Orchestrator", `Auto-approve failed for ${symbol}: ${err}`)
+              );
+            }
+
             this.state.pendingSignals.set(symbol, { ...decision, aiDecisionId: aiDecision.id });
           }
         } catch (error) {
@@ -1064,10 +1176,11 @@ class AutonomousOrchestrator {
    */
   private async getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
     const sources = { watchlist: 0, candidates: 0, recentDecisions: 0, executedTrades: 0 };
-    
-    // Start with base watchlist
-    const stockSet = new Set<string>(WATCHLIST.stocks.map(s => s.toUpperCase()));
-    const cryptoSet = new Set<string>(WATCHLIST.crypto.map(c => c.toUpperCase()));
+
+    // Start with dynamically loaded watchlist from database
+    const watchlist = await getWatchlist();
+    const stockSet = new Set<string>(watchlist.stocks.map(s => s.toUpperCase()));
+    const cryptoSet = new Set<string>(watchlist.crypto.map(c => c.toUpperCase()));
     sources.watchlist = stockSet.size + cryptoSet.size;
 
     try {
@@ -1406,6 +1519,27 @@ class AutonomousOrchestrator {
         };
       }
 
+      // Check sector exposure limits (prevent concentration in single sector)
+      const sectorCheck = await sectorExposureService.checkExposure(
+        symbol,
+        positionValue,
+        this.state.activePositions,
+        portfolioValue
+      );
+      if (!sectorCheck.canTrade) {
+        log.warn("Orchestrator", `Sector exposure check failed for ${symbol}`, {
+          sector: sectorCheck.sector,
+          currentExposure: sectorCheck.currentExposure.toFixed(1),
+          maxExposure: sectorCheck.maxExposure,
+        });
+        return {
+          success: false,
+          action: "skip",
+          reason: sectorCheck.reason || `Sector exposure limit exceeded for ${sectorCheck.sector}`,
+          symbol,
+        };
+      }
+
       const isCrypto = isCryptoSymbol(symbol);
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
 
@@ -1443,7 +1577,9 @@ class AutonomousOrchestrator {
       }
 
       let queuedResult: QueuedOrderResult;
-      const hasBracketParams = decision.targetPrice && decision.stopLoss && !isCrypto;
+      // TEMPORARILY DISABLED: Bracket orders failing due to work-queue format mismatch
+      // Use simple market orders until tsx server restart or format fix deployed
+      const hasBracketParams = false; // Was: decision.targetPrice && decision.stopLoss && !isCrypto;
       
       if (preCheck.useExtendedHours && preCheck.useLimitOrder && preCheck.limitPrice) {
         log.info("Orchestrator", `Extended hours limit order for ${symbol} @ $${preCheck.limitPrice}`);
@@ -1477,15 +1613,22 @@ class AutonomousOrchestrator {
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
           const estimatedQty = (positionValue / currentPrice).toFixed(6);
-          const orderParams: CreateOrderParams = {
+          // CRITICAL FIX: Bracket orders MUST use time_in_force: "day" per Alpaca API requirements
+          // Using "gtc" will result in HTTP 422 rejection from the API
+          // Use flat fields for bracket order params (work-queue expects this format)
+          const orderParams: any = {
             symbol: brokerSymbol,
             qty: estimatedQty,
             side: "buy",
             type: "market",
-            time_in_force: "gtc",
+            time_in_force: "day",  // FIXED: Was "gtc" which causes 422 rejection
+            order_class: "bracket",
+            // Flat fields for work-queue compatibility
+            take_profit_limit_price: decision.targetPrice.toFixed(2),
+            stop_loss_stop_price: decision.stopLoss.toFixed(2),
+            // Also include nested format for direct API calls
             take_profit: { limit_price: decision.targetPrice.toFixed(2) },
             stop_loss: { stop_price: decision.stopLoss.toFixed(2) },
-            order_class: "bracket",
           };
           queuedResult = await queueOrderExecution({
             orderParams,
@@ -1512,12 +1655,15 @@ class AutonomousOrchestrator {
           });
         }
       } else {
+        // CRITICAL FIX: Market orders CANNOT use GTC time_in_force
+        // Market orders must use: day, ioc, fok, opg, or cls
+        // For crypto, we use "day" as GTC is not valid for market orders
         const orderParams: CreateOrderParams = {
           symbol: brokerSymbol,
           notional: positionValue.toFixed(2),
           side: "buy",
           type: "market",
-          time_in_force: isCrypto ? "gtc" : "day",
+          time_in_force: "day",  // FIXED: Market orders cannot use GTC (was causing 422 rejections for crypto)
         };
         queuedResult = await queueOrderExecution({
           orderParams,
@@ -1629,6 +1775,10 @@ class AutonomousOrchestrator {
 
       this.state.activePositions.set(symbol, positionWithRules);
 
+      // Register with advanced rebalancing service for graduated take-profits and trailing stops
+      advancedRebalancingService.registerPosition(symbol, filledPrice);
+      log.info("Orchestrator", `Registered ${symbol} with advanced rebalancing (4-tier take-profits, trailing stops)`);
+
       log.trade(`Opened position: ${symbol} $${positionValue.toFixed(2)}`, { symbol, value: positionValue });
 
       return {
@@ -1720,12 +1870,13 @@ class AutonomousOrchestrator {
           };
         }
         const closeQty = (position.quantity * partialPercent) / 100;
+        // CRITICAL FIX: Market orders CANNOT use GTC - must use "day" for all market orders
         const orderParams: CreateOrderParams = {
           symbol: brokerSymbol,
           qty: closeQty.toString(),
           side: "sell",
           type: "market",
-          time_in_force: isCrypto ? "gtc" : "day",
+          time_in_force: "day",  // FIXED: Market orders cannot use GTC (even for crypto)
         };
         const queuedResult = await queueOrderExecution({
           orderParams,
@@ -1824,6 +1975,8 @@ class AutonomousOrchestrator {
 
       if (partialPercent >= 100) {
         this.state.activePositions.delete(symbol);
+        // Clean up advanced rebalancing rules when position fully closed
+        advancedRebalancingService.removePositionRules(symbol);
       } else {
         const remaining = position.quantity * (1 - partialPercent / 100);
         position.quantity = remaining;
@@ -1890,8 +2043,10 @@ class AutonomousOrchestrator {
     symbol: string,
     position: PositionWithRules
   ): Promise<void> {
+    // 1. Check stop-loss first (highest priority)
     if (position.stopLossPrice && position.currentPrice <= position.stopLossPrice) {
       log.warn("Orchestrator", `Stop-loss triggered for ${symbol}`);
+      advancedRebalancingService.removePositionRules(symbol);
       await this.closePosition(
         symbol,
         {
@@ -1907,9 +2062,73 @@ class AutonomousOrchestrator {
       return;
     }
 
-    if (position.takeProfitPrice && position.currentPrice >= position.takeProfitPrice) {
-      log.info("Orchestrator", `Take-profit triggered for ${symbol}`);
+    // 2. Check emergency stop (high loss protection)
+    if (position.unrealizedPnlPercent <= -8) {
+      log.warn("Orchestrator", `Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`);
+      advancedRebalancingService.removePositionRules(symbol);
+      await this.closePosition(
+        symbol,
+        {
+          action: "sell",
+          confidence: 1,
+          reasoning: `Emergency stop: ${position.unrealizedPnlPercent.toFixed(1)}% loss`,
+          riskLevel: "high",
+        },
+        position,
+        100,
+        { isEmergencyStop: true }
+      );
+      return;
+    }
 
+    // 3. Check graduated take-profits (4-tier system: 10%, 20%, 35%, 50% - each closes 25%)
+    const partialTakeProfit = advancedRebalancingService.checkPartialTakeProfits(position);
+    if (partialTakeProfit && partialTakeProfit.shouldClose) {
+      log.info("Orchestrator", `Graduated take-profit for ${symbol}: ${partialTakeProfit.reason}`);
+      await this.closePosition(
+        symbol,
+        {
+          action: "sell",
+          confidence: 0.95,
+          reasoning: partialTakeProfit.reason,
+          riskLevel: "low",
+        },
+        position,
+        partialTakeProfit.closePercent
+      );
+      return;
+    }
+
+    // 4. Update trailing stop if applicable
+    const trailingUpdate = advancedRebalancingService.updateTrailingStop(position);
+    if (trailingUpdate) {
+      log.info("Orchestrator", `Trailing stop update for ${symbol}: ${trailingUpdate.reason}`);
+      position.stopLossPrice = trailingUpdate.newStopLoss;
+      this.state.activePositions.set(symbol, position);
+    }
+
+    // 5. Check max holding period
+    const holdingCheck = advancedRebalancingService.checkHoldingPeriod(position);
+    if (holdingCheck && holdingCheck.exceeded) {
+      log.warn("Orchestrator", `Max holding period exceeded for ${symbol}: ${holdingCheck.holdingHours.toFixed(1)}h > ${holdingCheck.maxHours}h`);
+      advancedRebalancingService.removePositionRules(symbol);
+      await this.closePosition(
+        symbol,
+        {
+          action: "sell",
+          confidence: 0.8,
+          reasoning: `Max holding period exceeded (${holdingCheck.holdingHours.toFixed(1)} hours)`,
+          riskLevel: "medium",
+        },
+        position,
+        100
+      );
+      return;
+    }
+
+    // 6. Fallback: Legacy take-profit check (if no advanced rules registered)
+    if (position.takeProfitPrice && position.currentPrice >= position.takeProfitPrice) {
+      log.info("Orchestrator", `Legacy take-profit triggered for ${symbol}`);
       const pnlPercent = position.unrealizedPnlPercent;
       if (pnlPercent > 15) {
         await this.closePosition(
@@ -1936,23 +2155,6 @@ class AutonomousOrchestrator {
           50
         );
       }
-      return;
-    }
-
-    if (position.unrealizedPnlPercent <= -8) {
-      log.warn("Orchestrator", `Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`);
-      await this.closePosition(
-        symbol,
-        {
-          action: "sell",
-          confidence: 1,
-          reasoning: `Emergency stop: ${position.unrealizedPnlPercent.toFixed(1)}% loss`,
-          riskLevel: "high",
-        },
-        position,
-        100,
-        { isEmergencyStop: true }
-      );
     }
   }
 
@@ -1965,8 +2167,11 @@ class AutonomousOrchestrator {
   }
 
   private checkDailyLossLimit(): boolean {
+    // CRITICAL FIX: Use actual portfolio value instead of hardcoded 100000
+    // Daily loss limit should be calculated as: (dailyPnl / portfolioValue) * 100
+    const portfolioValue = this.state.portfolioValue || 100000; // Fallback only if not available
     const lossPercent = Math.abs(
-      Math.min(0, this.state.dailyPnl) / 100000
+      Math.min(0, this.state.dailyPnl) / portfolioValue
     ) * 100;
     return lossPercent >= this.riskLimits.dailyLossLimitPercent;
   }
@@ -2028,10 +2233,17 @@ class AutonomousOrchestrator {
 
   async rebalancePositions(): Promise<void> {
     try {
+      // CRITICAL: Sync positions from Alpaca FIRST to ensure we have accurate data
+      // This prevents quantity mismatches where system thinks we have more shares than reality
+      await this.syncPositionsFromBroker();
+
       const account = await alpaca.getAccount();
       const portfolioValue = parseFloat(account.portfolio_value);
+      // CRITICAL: Use buying_power for margin accounts, NOT cash
+      // Cash can be negative while buying_power is positive (margin utilization)
+      const buyingPower = safeParseFloat(account.buying_power);
       const availableCash = safeParseFloat(account.cash);
-      
+
       if (portfolioValue <= 0) {
         log.warn("Orchestrator", "Cannot rebalance: invalid portfolio value");
         return;
@@ -2041,6 +2253,8 @@ class AutonomousOrchestrator {
       const rebalanceThresholdPercent = 2;
       const buyTheDipThresholdPercent = 3;
       const minCashReservePercent = 10;
+
+      log.debug("Orchestrator", `Account status: cash=${availableCash.toFixed(2)}, buyingPower=${buyingPower.toFixed(2)}, portfolioValue=${portfolioValue.toFixed(2)}`);
 
       const approvedSymbols = await candidatesService.getApprovedSymbols();
       const approvedSet = new Set(approvedSymbols.map(s => s.toUpperCase()));
@@ -2052,6 +2266,14 @@ class AutonomousOrchestrator {
 
         if (Math.abs(drift) > rebalanceThresholdPercent) {
           log.info("Orchestrator", `Position ${symbol} drifted by ${drift.toFixed(2)}%`);
+
+          // Check for cooldown to prevent infinite retry loops
+          const cooldownUntil = this.orderCooldowns.get(symbol);
+          if (cooldownUntil && Date.now() < cooldownUntil) {
+            const remainingMs = cooldownUntil - Date.now();
+            log.info("Orchestrator", `Skipping ${symbol}: on cooldown for ${Math.round(remainingMs / 1000)}s after failed order`);
+            continue;
+          }
 
           if (drift > rebalanceThresholdPercent) {
             const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
@@ -2070,17 +2292,31 @@ class AutonomousOrchestrator {
             
             if (sharesToSell > 0 && sharesToSell < position.quantity) {
               log.info("Orchestrator", `Rebalancing: Selling ${sharesToSell} shares of ${symbol} (${availableShares} available)`);
-              await this.closePosition(
-                symbol,
-                {
-                  action: "sell",
-                  confidence: 0.8,
-                  reasoning: `Rebalancing: Position overweight by ${drift.toFixed(1)}%`,
-                  riskLevel: "low",
-                },
-                position,
-                (sharesToSell / position.quantity) * 100
-              );
+              try {
+                const result = await this.closePosition(
+                  symbol,
+                  {
+                    action: "sell",
+                    confidence: 0.8,
+                    reasoning: `Rebalancing: Position overweight by ${drift.toFixed(1)}%`,
+                    riskLevel: "low",
+                  },
+                  position,
+                  (sharesToSell / position.quantity) * 100
+                );
+
+                // Set cooldown on failure to prevent infinite retry loops
+                if (!result.success) {
+                  log.warn("Orchestrator", `Setting ${this.ORDER_COOLDOWN_MS / 1000}s cooldown for ${symbol} after failed order: ${result.reason}`);
+                  this.orderCooldowns.set(symbol, Date.now() + this.ORDER_COOLDOWN_MS);
+                } else {
+                  // Clear cooldown on success
+                  this.orderCooldowns.delete(symbol);
+                }
+              } catch (error: any) {
+                log.error("Orchestrator", `Rebalance sell failed for ${symbol}: ${error.message}`);
+                this.orderCooldowns.set(symbol, Date.now() + this.ORDER_COOLDOWN_MS);
+              }
             }
           } else if (drift < -buyTheDipThresholdPercent) {
             if (!approvedSet.has(symbol.toUpperCase())) {
@@ -2088,16 +2324,19 @@ class AutonomousOrchestrator {
               continue;
             }
 
-            const cashReserve = portfolioValue * (minCashReservePercent / 100);
-            const availableForBuying = Math.max(0, availableCash - cashReserve);
-            
-            if (availableForBuying <= 0) {
-              log.info("Orchestrator", `Skipping buy-the-dip for ${symbol}: insufficient cash (${availableCash.toFixed(2)} available, ${cashReserve.toFixed(2)} reserve)`);
+            // Use buying_power for margin accounts - allows trading even with negative cash
+            // Alpaca will handle the actual buying power validation at order time
+            const buyingPowerReserve = buyingPower * (minCashReservePercent / 100);
+            const availableForBuying = Math.max(0, buyingPower - buyingPowerReserve);
+
+            if (availableForBuying <= 0 && buyingPower <= 0) {
+              log.info("Orchestrator", `Skipping buy-the-dip for ${symbol}: no buying power (${buyingPower.toFixed(2)} available)`);
               continue;
             }
 
             const deficitValue = (portfolioValue * targetAllocationPercent / 100) - positionValue;
-            const buyValue = Math.min(deficitValue, availableForBuying, portfolioValue * 0.02);
+            // Use buyingPower for margin accounts, cap at 2% of portfolio per trade
+            const buyValue = Math.min(deficitValue, Math.max(availableForBuying, buyingPower * 0.1), portfolioValue * 0.02);
             
             if (buyValue >= 50 && position.unrealizedPnlPercent <= 0) {
               log.info("Orchestrator", `Buy-the-dip: Adding $${buyValue.toFixed(2)} to underweight ${symbol} (at ${position.unrealizedPnlPercent.toFixed(1)}% loss)`);

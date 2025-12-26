@@ -198,7 +198,7 @@ export function AutonomousControlCard() {
 
       {killSwitchActive ? (
         <View style={styles.killSwitchBanner}>
-          <Feather name="alert-octagon" size={24} color={BrandColors.background} />
+          <Feather name="alert-octagon" size={24} color="#FFFFFF" />
           <ThemedText style={styles.killSwitchText}>KILL SWITCH ACTIVE</ThemedText>
           <Pressable 
             style={styles.deactivateButton} 
@@ -221,8 +221,8 @@ export function AutonomousControlCard() {
         <Switch
           value={isRunning}
           onValueChange={handleToggleAutonomous}
-          trackColor={{ false: theme.border, true: BrandColors.success }}
-          thumbColor={isRunning ? BrandColors.background : theme.textSecondary}
+          trackColor={{ false: BrandColors.cardBorder, true: BrandColors.success }}
+          thumbColor={isRunning ? "#FFFFFF" : theme.textSecondary}
           disabled={killSwitchActive || startMutation.isPending || stopMutation.isPending}
         />
       </View>
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   modeText: {
     fontSize: 10,
     fontWeight: 700,
-    color: BrandColors.background,
+    color: "#FFFFFF",
   },
   killSwitchBanner: {
     flexDirection: "row",
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   killSwitchText: {
     flex: 1,
-    color: BrandColors.background,
+    color: "#FFFFFF",
     fontWeight: 700,
     fontSize: Typography.body.fontSize,
   },
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   deactivateButtonText: {
-    color: BrandColors.background,
+    color: "#FFFFFF",
     fontWeight: 600,
     fontSize: Typography.small.fontSize,
   },
