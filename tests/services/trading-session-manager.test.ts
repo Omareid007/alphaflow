@@ -147,8 +147,8 @@ describe("TradingSessionManager", () => {
       const nextOpen = tradingSessionManager.getNextMarketOpen("US_EQUITIES", saturday);
 
       expect(nextOpen).toBeTruthy();
-      // Next open should be Monday pre-market
-      expect(nextOpen!.getDay()).toBe(1); // Monday
+      // Next open should be Tuesday because Monday Jan 20 is MLK Day (holiday)
+      expect(nextOpen!.getDay()).toBe(2); // Tuesday
     });
 
     it("should return current time for CRYPTO (always open)", () => {
