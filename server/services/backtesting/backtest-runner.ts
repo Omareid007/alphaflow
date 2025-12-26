@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "../../../shared/schema";
+import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "@shared/schema";
 import { fetchHistoricalBars, type HistoricalBar } from "./historical-data-service";
 import { runSimulation, type StrategySignalGenerator, type SimulationConfig, type StrategySignal } from "./execution-engine";
 import { createStrategy, type StrategyType, type StrategyConfig } from "./strategies";

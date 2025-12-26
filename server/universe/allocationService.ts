@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { allocationPolicies, rebalanceRuns, universeCandidates, universeAssets, universeLiquidityMetrics, universeFundamentals } from "../../shared/schema";
-import type { AllocationPolicy, InsertAllocationPolicy, InsertRebalanceRun, RebalanceRun } from "../../shared/schema";
+import { allocationPolicies, rebalanceRuns, universeCandidates, universeAssets, universeLiquidityMetrics, universeFundamentals } from "@shared/schema";
+import type { AllocationPolicy, InsertAllocationPolicy, InsertRebalanceRun, RebalanceRun } from "@shared/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { alpaca } from "../connectors/alpaca";
+import { log } from "../utils/logger";
 
 export interface TargetPosition {
   symbol: string;
@@ -96,7 +97,7 @@ class AllocationService {
   async analyzeRebalance(traceId: string): Promise<RebalanceAnalysis | null> {
     const policy = await this.getActivePolicy();
     if (!policy) {
-      console.log(`[ALLOCATION] ${traceId} No active policy found`);
+      log.info("Allocation", "No active policy found", { traceId });
       return null;
     }
 
@@ -106,7 +107,7 @@ class AllocationService {
     ]);
 
     const portfolioValue = parseFloat(account.equity);
-    console.log(`[ALLOCATION] ${traceId} Portfolio value: $${portfolioValue.toFixed(2)}`);
+    log.info("Allocation", "Portfolio value calculated", { traceId, portfolioValue: portfolioValue.toFixed(2) });
 
     const currentPositions = new Map<string, { qty: number; marketValue: number; weightPct: number }>();
     for (const pos of positions) {
@@ -213,7 +214,7 @@ class AllocationService {
       }
     }
 
-    console.log(`[ALLOCATION] ${traceId} Analysis complete: ${intents.length} intents generated`);
+    log.info("Allocation", "Analysis complete", { traceId, intentsCount: intents.length });
 
     return {
       policy,

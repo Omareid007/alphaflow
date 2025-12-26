@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { universeCandidates, universeFundamentals, universeLiquidityMetrics, universeAssets, type InsertUniverseCandidate, type UniverseCandidate, type LiquidityTier } from "../../shared/schema";
+import { universeCandidates, universeFundamentals, universeLiquidityMetrics, universeAssets, type InsertUniverseCandidate, type UniverseCandidate, type LiquidityTier } from "@shared/schema";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
 import { fundamentalsService } from "./fundamentalsService";
 import { liquidityService } from "./liquidityService";
+import { log } from "../utils/logger";
 
 export type CandidateStatus = "NEW" | "WATCHLIST" | "APPROVED" | "REJECTED";
 
@@ -36,7 +37,7 @@ export class CandidatesService {
       traceId,
     } = options;
 
-    console.log(`[CANDIDATES] Generating candidates, minTier=${minLiquidityTier}, minScore=${minScore}, traceId=${traceId}`);
+    log.info("CandidatesService", "Generating candidates", { minLiquidityTier, minScore, traceId });
 
     const eligibleSymbols = await db
       .select({
@@ -50,7 +51,7 @@ export class CandidatesService {
       )
       .limit(limit * 2);
 
-    console.log(`[CANDIDATES] Found ${eligibleSymbols.length} symbols meeting liquidity criteria`);
+    log.info("CandidatesService", "Found symbols meeting liquidity criteria", { count: eligibleSymbols.length });
 
     let generated = 0;
     let updated = 0;
@@ -118,7 +119,7 @@ export class CandidatesService {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[CANDIDATES] Generation complete: generated=${generated}, updated=${updated}, duration=${duration}ms`);
+    log.info("CandidatesService", "Generation complete", { generated, updated, duration });
 
     return {
       success: true,
@@ -168,7 +169,7 @@ export class CandidatesService {
       })
       .where(eq(universeCandidates.symbol, symbol.toUpperCase()));
 
-    console.log(`[CANDIDATES] ${symbol}: ${previousStatus} -> ${newStatus}`);
+    log.info("CandidatesService", "Status updated", { symbol, previousStatus, newStatus });
 
     return {
       success: true,
@@ -280,7 +281,7 @@ export class CandidatesService {
     existing: number;
     errors: number;
   }> {
-    console.log(`[CANDIDATES] Bootstrapping ${watchlist.length} symbols from watchlist, traceId=${traceId}`);
+    log.info("CandidatesService", "Bootstrapping symbols from watchlist", { count: watchlist.length, traceId });
     
     let added = 0;
     let existing = 0;
@@ -315,12 +316,12 @@ export class CandidatesService {
         });
         added++;
       } catch (error) {
-        console.error(`[CANDIDATES] Error bootstrapping ${symbol}:`, error);
+        log.error("CandidatesService", "Error bootstrapping symbol", { symbol, error: error instanceof Error ? error.message : String(error) });
         errors++;
       }
     }
 
-    console.log(`[CANDIDATES] Bootstrap complete: added=${added}, existing=${existing}, errors=${errors}`);
+    log.info("CandidatesService", "Bootstrap complete", { added, existing, errors });
     return { added, existing, errors };
   }
 
@@ -337,16 +338,16 @@ export class CandidatesService {
       .filter(s => !existingSymbols.has(s));
     
     if (missingSymbols.length === 0) {
-      console.log(`[CANDIDATES] All ${watchlist.length} watchlist symbols already in universe_candidates`);
+      log.info("CandidatesService", "All watchlist symbols already in universe_candidates", { count: watchlist.length });
       return;
     }
     
-    console.log(`[CANDIDATES] Found ${missingSymbols.length} missing symbols, bootstrapping...`);
+    log.info("CandidatesService", "Found missing symbols, bootstrapping", { count: missingSymbols.length });
     const result = await this.bootstrapFromWatchlist(missingSymbols, traceId);
     
     // Log warning if there were errors but continue - partial population is better than none
     if (result.errors > 0) {
-      console.warn(`[CANDIDATES] Bootstrap completed with ${result.errors} errors out of ${missingSymbols.length} symbols`);
+      log.warn("CandidatesService", "Bootstrap completed with errors", { errors: result.errors, totalSymbols: missingSymbols.length });
     }
   }
 }

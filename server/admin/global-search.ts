@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { aiDecisions, trades, orders, fills, workItems, llmCalls } from "../../shared/schema";
+import { aiDecisions, trades, orders, fills, workItems, llmCalls } from "@shared/schema";
 import { like, or, eq, desc } from "drizzle-orm";
 
 export interface SearchResult {

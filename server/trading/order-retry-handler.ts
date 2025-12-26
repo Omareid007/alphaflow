@@ -2,7 +2,7 @@ import { alpaca, type AlpacaOrder, type CreateOrderParams } from "../connectors/
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { alpacaStream, type AlpacaTradeUpdate } from "./alpaca-stream";
-import type { InsertOrder } from "../../shared/schema";
+import type { InsertOrder } from "@shared/schema";
 import { tradingConfig } from "../config/trading-config";
 
 // Re-export AlpacaTradeUpdate for external consumers

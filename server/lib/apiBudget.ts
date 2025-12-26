@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { externalApiUsageCounters } from "../../shared/schema";
+import { externalApiUsageCounters } from "@shared/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { getProviderPolicy, getWindowBoundaries, getLimitForWindow, WindowType } from "./apiPolicy";

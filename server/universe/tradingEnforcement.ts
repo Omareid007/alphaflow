@@ -1,6 +1,7 @@
 import { db } from "../db";
-import { universeCandidates, universeAssets, universeLiquidityMetrics } from "../../shared/schema";
+import { universeCandidates, universeAssets, universeLiquidityMetrics } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { log } from "../utils/logger";
 
 export interface TradingEligibilityResult {
   symbol: string;
@@ -36,7 +37,7 @@ class TradingEnforcementService {
 
       if (!candidate) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} NOT in candidates - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol NOT in candidates - trade BLOCKED", { traceId, symbol: upperSymbol });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -47,7 +48,7 @@ class TradingEnforcementService {
 
       if (candidate.status !== "APPROVED") {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} status=${candidate.status} - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol status not APPROVED - trade BLOCKED", { traceId, symbol: upperSymbol, status: candidate.status });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -67,7 +68,7 @@ class TradingEnforcementService {
 
       if (asset && !asset.tradable) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} marked non-tradable by Alpaca - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol marked non-tradable by Alpaca - trade BLOCKED", { traceId, symbol: upperSymbol });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -83,7 +84,7 @@ class TradingEnforcementService {
       const isPennyStock = liquidity?.latestPrice && parseFloat(liquidity.latestPrice) < 5;
       if (isPennyStock) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} is a penny stock ($${liquidity?.latestPrice}) - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol is a penny stock - trade BLOCKED", { traceId, symbol: upperSymbol, price: liquidity?.latestPrice });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -96,7 +97,7 @@ class TradingEnforcementService {
         };
       }
 
-      console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} APPROVED - trade ALLOWED`);
+      log.info("TradingEnforcement", "Symbol APPROVED - trade ALLOWED", { traceId, symbol: upperSymbol });
       return {
         symbol: upperSymbol,
         eligible: true,
@@ -109,7 +110,7 @@ class TradingEnforcementService {
         },
       };
     } catch (error) {
-      console.error(`[ENFORCEMENT] ${traceId || "?"} Error checking ${upperSymbol}:`, error);
+      log.error("TradingEnforcement", "Error checking symbol", { traceId, symbol: upperSymbol, error: error instanceof Error ? error.message : String(error) });
       this.rejectedAttempts++;
       return {
         symbol: upperSymbol,
@@ -137,10 +138,10 @@ class TradingEnforcementService {
         columns: { symbol: true },
       });
       
-      console.log(`[ENFORCEMENT] ${traceId || "?"} Retrieved ${approved.length} approved symbols`);
+      log.info("TradingEnforcement", "Retrieved approved symbols", { traceId, count: approved.length });
       return new Set(approved.map(c => c.symbol));
     } catch (error) {
-      console.error(`[ENFORCEMENT] ${traceId || "?"} Error getting approved symbols:`, error);
+      log.error("TradingEnforcement", "Error getting approved symbols", { traceId, error: error instanceof Error ? error.message : String(error) });
       return new Set();
     }
   }

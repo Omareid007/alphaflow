@@ -1,7 +1,8 @@
 import { db } from "../db";
-import { universeAssets, universeLiquidityMetrics, type InsertUniverseAsset, type UniverseAsset } from "../../shared/schema";
+import { universeAssets, universeLiquidityMetrics, type InsertUniverseAsset, type UniverseAsset } from "@shared/schema";
 import { alpaca, type AlpacaAsset } from "../connectors/alpaca";
 import { eq, sql, and, desc } from "drizzle-orm";
+import { log } from "../utils/logger";
 
 export interface UniverseRefreshOptions {
   status?: "active" | "inactive";
@@ -63,17 +64,17 @@ export class AlpacaUniverseService {
       traceId,
     } = options;
 
-    console.log(`[UNIVERSE] Starting asset refresh for ${assetClass} (status=${status}), traceId=${traceId}`);
+    log.info("AlpacaUniverse", "Starting asset refresh", { assetClass, status, traceId });
 
     let alpacaAssets: AlpacaAsset[];
     try {
       alpacaAssets = await alpaca.getAssets(status, assetClass);
     } catch (error) {
-      console.error("[UNIVERSE] Failed to fetch Alpaca assets:", error);
+      log.error("AlpacaUniverse", "Failed to fetch Alpaca assets", { error: error instanceof Error ? error.message : String(error) });
       throw new Error(`Failed to fetch Alpaca assets: ${error}`);
     }
 
-    console.log(`[UNIVERSE] Fetched ${alpacaAssets.length} assets from Alpaca`);
+    log.info("AlpacaUniverse", "Fetched assets from Alpaca", { count: alpacaAssets.length });
 
     let added = 0;
     let updated = 0;
@@ -136,7 +137,7 @@ export class AlpacaUniverseService {
           excluded++;
         }
       } catch (error) {
-        console.error(`[UNIVERSE] Failed to upsert asset ${asset.symbol}:`, error);
+        log.error("AlpacaUniverse", "Failed to upsert asset", { symbol: asset.symbol, error: error instanceof Error ? error.message : String(error) });
       }
     }
 
@@ -160,10 +161,10 @@ export class AlpacaUniverseService {
         .where(eq(universeLiquidityMetrics.symbol, symbol));
     }
     
-    console.log(`[UNIVERSE] Cleaned up ${symbolsToRemove.length} delisted symbols from liquidity metrics`);
+    log.info("AlpacaUniverse", "Cleaned up delisted symbols from liquidity metrics", { count: symbolsToRemove.length });
 
     const duration = Date.now() - startTime;
-    console.log(`[UNIVERSE] Refresh complete: added=${added}, updated=${updated}, removed=${symbolsToRemove.length}, excluded=${excluded}, duration=${duration}ms`);
+    log.info("AlpacaUniverse", "Refresh complete", { added, updated, removed: symbolsToRemove.length, excluded, duration });
 
     return {
       success: true,

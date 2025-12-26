@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { universeLiquidityMetrics, universeAssets, type InsertUniverseLiquidity, type UniverseLiquidity, type LiquidityTier } from "../../shared/schema";
+import { universeLiquidityMetrics, universeAssets, type InsertUniverseLiquidity, type UniverseLiquidity, type LiquidityTier } from "@shared/schema";
 import { alpaca } from "../connectors/alpaca";
 import { eq, sql, and, gte, lte, isNull, desc } from "drizzle-orm";
 import { getSetting } from "../admin/settings";
+import { log } from "../utils/logger";
 
 const PENNY_STOCK_THRESHOLD = 5;
 
@@ -91,7 +92,7 @@ export class LiquidityService {
     const startTime = Date.now();
     const { symbols, batchSize = 50, traceId } = options;
 
-    console.log(`[LIQUIDITY] Starting liquidity computation, traceId=${traceId}`);
+    log.info("LiquidityService", "Starting liquidity computation", { traceId });
 
     const thresholds = await this.getThresholds();
 
@@ -109,7 +110,7 @@ export class LiquidityService {
       targetSymbols = assets.map((a) => a.symbol);
     }
 
-    console.log(`[LIQUIDITY] Computing metrics for ${targetSymbols.length} symbols`);
+    log.info("LiquidityService", "Computing metrics for symbols", { count: targetSymbols.length });
 
     let computed = 0;
     let tierACount = 0;
@@ -198,7 +199,7 @@ export class LiquidityService {
           computed++;
         }
       } catch (error) {
-        console.error(`[LIQUIDITY] Failed to process batch starting at ${i}:`, error);
+        log.error("LiquidityService", "Failed to process batch", { batchStartIndex: i, error: error instanceof Error ? error.message : String(error) });
       }
 
       if (i + batchSize < targetSymbols.length) {
@@ -207,7 +208,7 @@ export class LiquidityService {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[LIQUIDITY] Computation complete: computed=${computed}, tierA=${tierACount}, tierB=${tierBCount}, tierC=${tierCCount}, duration=${duration}ms`);
+    log.info("LiquidityService", "Computation complete", { computed, tierA: tierACount, tierB: tierBCount, tierC: tierCCount, duration });
 
     return {
       success: true,
@@ -298,7 +299,7 @@ export class LiquidityService {
         })
         .where(eq(universeAssets.symbol, symbol));
     } catch (error) {
-      console.error(`[LIQUIDITY] Failed to update penny stock flag for ${symbol}:`, error);
+      log.error("LiquidityService", "Failed to update penny stock flag", { symbol, error: error instanceof Error ? error.message : String(error) });
     }
   }
 }

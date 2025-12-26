@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { adminSettings, type AdminSetting, type InsertAdminSetting } from "../../shared/schema";
+import { adminSettings, type AdminSetting, type InsertAdminSetting } from "@shared/schema";
 import { eq, and, like } from "drizzle-orm";
 
 export interface SettingsService {

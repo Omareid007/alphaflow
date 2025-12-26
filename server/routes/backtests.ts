@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "../../shared/schema";
+import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "@shared/schema";
 import { runBacktest, getBacktestRun, listBacktestRuns } from "../services/backtesting";
 import { eq, desc } from "drizzle-orm";
 import { log } from "../utils/logger";

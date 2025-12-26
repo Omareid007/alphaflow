@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { externalApiCacheEntries } from "../../shared/schema";
+import { externalApiCacheEntries } from "@shared/schema";
 import { eq, and, lt, gt } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { getProviderPolicy } from "./apiPolicy";

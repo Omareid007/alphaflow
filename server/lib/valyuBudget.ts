@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { valyuRetrievalCounters } from "../../shared/schema";
+import { valyuRetrievalCounters } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { log } from "../utils/logger";
 

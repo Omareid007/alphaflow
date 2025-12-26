@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { log } from "../utils/logger";
 import { storage } from "../storage";
-import type { OrderStatus } from "../../shared/schema";
+import type { OrderStatus } from "@shared/schema";
 import { hookIntoTradeUpdates } from "./order-retry-handler";
 
 const ALPACA_STREAM_URL = "wss://paper-api.alpaca.markets/stream";

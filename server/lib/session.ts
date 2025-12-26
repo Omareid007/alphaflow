@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { db } from "../db";
-import { sessions } from "../../shared/schema";
+import { sessions } from "@shared/schema";
 import { eq, lt } from "drizzle-orm";
+import { log } from "../utils/logger";
 
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
@@ -69,7 +70,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
  */
 export async function cleanupExpiredSessions(): Promise<void> {
   const result = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
-  console.log(`[SessionCleanup] Cleaned up expired sessions`);
+  log.info("SessionCleanup", "Cleaned up expired sessions");
 }
 
 /**

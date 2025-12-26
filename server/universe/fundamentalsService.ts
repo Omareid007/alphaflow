@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { universeFundamentals, universeAssets, type InsertUniverseFundamentals, type UniverseFundamentals } from "../../shared/schema";
+import { universeFundamentals, universeAssets, type InsertUniverseFundamentals, type UniverseFundamentals } from "@shared/schema";
 import { finnhub } from "../connectors/finnhub";
 import { eq, sql, and, desc, isNull, isNotNull } from "drizzle-orm";
 import { getSetting } from "../admin/settings";
+import { log } from "../utils/logger";
 
 export interface QualityGrowthScore {
   qualityScore: number;
@@ -96,7 +97,7 @@ export class FundamentalsService {
     const startTime = Date.now();
     const { symbols, batchSize = 10, traceId } = options;
 
-    console.log(`[FUNDAMENTALS] Starting fundamentals fetch, traceId=${traceId}`);
+    log.info("FundamentalsService", "Starting fundamentals fetch", { traceId });
 
     let targetSymbols: string[];
     if (symbols && symbols.length > 0) {
@@ -112,7 +113,7 @@ export class FundamentalsService {
       targetSymbols = assets.map((a) => a.symbol);
     }
 
-    console.log(`[FUNDAMENTALS] Fetching fundamentals for ${targetSymbols.length} symbols`);
+    log.info("FundamentalsService", "Fetching fundamentals for symbols", { count: targetSymbols.length });
 
     let computed = 0;
     let failed = 0;
@@ -149,7 +150,7 @@ export class FundamentalsService {
           await this.upsertFundamentals(fundamentalsData);
           computed++;
         } catch (error) {
-          console.error(`[FUNDAMENTALS] Failed to fetch fundamentals for ${symbol}:`, error);
+          log.error("FundamentalsService", "Failed to fetch fundamentals", { symbol, error: error instanceof Error ? error.message : String(error) });
           failed++;
         }
       }
@@ -160,7 +161,7 @@ export class FundamentalsService {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[FUNDAMENTALS] Fetch complete: computed=${computed}, failed=${failed}, duration=${duration}ms`);
+    log.info("FundamentalsService", "Fetch complete", { computed, failed, duration });
 
     return {
       success: true,

@@ -15,7 +15,7 @@
  */
 
 import { db } from '../db';
-import { externalApiCacheEntries } from '../../shared/schema';
+import { externalApiCacheEntries } from '@shared/schema';
 import { eq, and, lt } from 'drizzle-orm';
 import { log } from '../utils/logger';
 import {

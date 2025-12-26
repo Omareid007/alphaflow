@@ -1,11 +1,12 @@
 import { db } from "../db";
-import { rebalanceRuns, universeCandidates } from "../../shared/schema";
-import type { InsertRebalanceRun, RebalanceRun } from "../../shared/schema";
+import { rebalanceRuns, universeCandidates } from "@shared/schema";
+import type { InsertRebalanceRun, RebalanceRun } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { allocationService, type RebalanceIntent } from "./allocationService";
 import { tradingEnforcementService } from "./tradingEnforcement";
 import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
 import { alpaca } from "../connectors/alpaca";
+import { log } from "../utils/logger";
 
 export interface RebalanceExecutionResult {
   runId: string;
@@ -34,11 +35,11 @@ class RebalancerService {
     wouldSubmit: number;
     wouldSkip: number;
   } | null> {
-    console.log(`[REBALANCER] ${traceId} Starting dry run analysis`);
+    log.info("RebalancerService", "Starting dry run analysis", { traceId });
     
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
-      console.log(`[REBALANCER] ${traceId} No active policy - cannot analyze`);
+      log.info("RebalancerService", "No active policy - cannot analyze", { traceId });
       return null;
     }
 
@@ -61,7 +62,7 @@ class RebalancerService {
       }
     }
 
-    console.log(`[REBALANCER] ${traceId} Dry run complete: would submit ${wouldSubmit}, would skip ${wouldSkip}`);
+    log.info("RebalancerService", "Dry run complete", { traceId, wouldSubmit, wouldSkip });
 
     return {
       analysis,
@@ -73,7 +74,7 @@ class RebalancerService {
 
   async executeRebalance(traceId: string, dryRun = false): Promise<RebalanceExecutionResult> {
     const startTime = Date.now();
-    console.log(`[REBALANCER] ${traceId} Starting rebalance execution (dryRun=${dryRun})`);
+    log.info("RebalancerService", "Starting rebalance execution", { traceId, dryRun });
 
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
@@ -154,7 +155,7 @@ class RebalancerService {
             const snapshot = snapshots?.[intent.symbol];
             price = snapshot?.latestTrade?.p || snapshot?.latestQuote?.ap || 0;
           } catch (e) {
-            console.warn(`[REBALANCER] ${traceId} Failed to get snapshot for ${intent.symbol}`);
+            log.warn("RebalancerService", "Failed to get snapshot", { traceId, symbol: intent.symbol });
           }
           if (!price || price <= 0 || !isFinite(price)) {
             errors.push(`${intent.symbol}: Could not get valid price`);
@@ -212,7 +213,7 @@ class RebalancerService {
         const enforcement = await tradingEnforcementService.canTradeSymbol(intent.symbol, traceId);
         
         if (!enforcement.eligible) {
-          console.log(`[REBALANCER] ${traceId} Skipping BUY ${intent.symbol}: ${enforcement.reason}`);
+          log.info("RebalancerService", "Skipping BUY", { traceId, symbol: intent.symbol, reason: enforcement.reason });
           ordersSkipped++;
           continue;
         }
@@ -258,7 +259,7 @@ class RebalancerService {
       rationale: `Submitted ${ordersSubmitted} orders, skipped ${ordersSkipped}. ${errors.length} errors.`,
     });
 
-    console.log(`[REBALANCER] ${traceId} Execution complete: ${ordersSubmitted} orders, ${errors.length} errors`);
+    log.info("RebalancerService", "Execution complete", { traceId, ordersSubmitted, errorCount: errors.length });
 
     return {
       runId: run.id,
@@ -302,7 +303,7 @@ class RebalancerService {
       }
     }
 
-    console.log(`[REBALANCER] ${traceId} Profit-taking analysis: ${results.length} candidates`);
+    log.info("RebalancerService", "Profit-taking analysis", { traceId, candidateCount: results.length });
     return results;
   }
 

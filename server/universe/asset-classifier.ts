@@ -12,9 +12,10 @@ import {
   type TrendStrength,
   type AssetClassType,
   type LiquidityTier,
-} from "../../shared/schema";
+} from "@shared/schema";
 import { eq, and, desc, sql, gte, isNotNull } from "drizzle-orm";
 import { alpaca } from "../connectors/alpaca";
+import { log } from "../utils/logger";
 
 const CRYPTO_MAJORS = ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "AVAX", "DOT", "LINK", "MATIC"];
 
@@ -269,8 +270,8 @@ export class AssetClassifier {
         valueScore,
         qualityScore,
       };
-    } catch (error) {
-      console.error(`[AssetClassifier] Error classifying ${symbol}:`, error);
+    } catch (error: any) {
+      log.error("AssetClassifier", "Error classifying symbol", { symbol, error: error.message });
       return null;
     }
   }
@@ -323,7 +324,7 @@ export class AssetClassifier {
     const { symbols, batchSize = 50, traceId } = options;
     const errors: string[] = [];
 
-    console.log(`[AssetClassifier] Starting batch classification, traceId=${traceId}`);
+    log.info("AssetClassifier", "Starting batch classification", { traceId });
 
     let targetSymbols: string[];
     if (symbols && symbols.length > 0) {
@@ -356,7 +357,7 @@ export class AssetClassifier {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[AssetClassifier] Completed: ${classified}/${targetSymbols.length} classified in ${duration}ms`);
+    log.info("AssetClassifier", "Batch classification completed", { classified, total: targetSymbols.length, durationMs: duration });
 
     return {
       success: errors.length === 0,
