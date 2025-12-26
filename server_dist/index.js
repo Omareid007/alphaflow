@@ -8473,15 +8473,14 @@ var init_cloudflareClient = __esm({
           return {
             content,
             model,
-            provider: "cloudflare",
-            usage: {
-              promptTokens: 0,
+            raw: { provider: "cloudflare", latencyMs: latency },
+            tokensUsed: {
+              prompt: 0,
               // Cloudflare doesn't provide this
-              completionTokens: 0,
-              totalTokens: estimatedTokens
+              completion: 0,
+              total: estimatedTokens
               // Rough estimate
-            },
-            latencyMs: latency
+            }
           };
         } catch (error) {
           const latency = Date.now() - startTime;
@@ -8529,7 +8528,7 @@ var init_cloudflareClient = __esm({
             temperature: 0,
             maxTokens: 10
           });
-          return response.content.toLowerCase().includes("ok");
+          return response.content?.toLowerCase().includes("ok") || false;
         } catch (error) {
           log.error("CloudflareClient", "Health check failed", {
             error: error.message

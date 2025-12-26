@@ -183,13 +183,12 @@ export class CloudflareClient implements LLMClient {
       return {
         content,
         model,
-        provider: "cloudflare",
-        usage: {
-          promptTokens: 0, // Cloudflare doesn't provide this
-          completionTokens: 0,
-          totalTokens: estimatedTokens, // Rough estimate
+        raw: { provider: "cloudflare", latencyMs: latency },
+        tokensUsed: {
+          prompt: 0, // Cloudflare doesn't provide this
+          completion: 0,
+          total: estimatedTokens, // Rough estimate
         },
-        latencyMs: latency,
       };
     } catch (error) {
       const latency = Date.now() - startTime;
@@ -244,7 +243,7 @@ export class CloudflareClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return response.content.toLowerCase().includes("ok");
+      return response.content?.toLowerCase().includes("ok") || false;
     } catch (error) {
       log.error("CloudflareClient", "Health check failed", {
         error: (error as Error).message,

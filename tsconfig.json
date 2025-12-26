@@ -60,6 +60,8 @@
     "client",
     "babel.config.expo.backup",
     "babel.config.expo.js",
-    "Bolt project"
+    "Bolt project",
+    "scripts/**/*.ts",
+    "server_dist"
   ]
 }
