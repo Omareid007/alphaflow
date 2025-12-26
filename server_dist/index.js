@@ -15974,6 +15974,238 @@ var init_technical_indicators = __esm({
   }
 });
 
+// server/services/position-reconciler.ts
+var position_reconciler_exports = {};
+__export(position_reconciler_exports, {
+  positionReconciler: () => positionReconciler
+});
+var PositionReconciler, positionReconciler;
+var init_position_reconciler = __esm({
+  "server/services/position-reconciler.ts"() {
+    "use strict";
+    init_alpaca();
+    init_storage();
+    init_logger();
+    PositionReconciler = class {
+      lastReconciliation = null;
+      reconciliationInterval = 5 * 60 * 1e3;
+      // 5 minutes
+      isReconciling = false;
+      async reconcile(force = false) {
+        if (this.isReconciling) {
+          log.info("PositionReconciler", "Reconciliation already in progress, skipping");
+          return this.createSkippedResult("Already reconciling");
+        }
+        if (!force && this.lastReconciliation) {
+          const elapsed = Date.now() - this.lastReconciliation.getTime();
+          if (elapsed < this.reconciliationInterval) {
+            log.info("PositionReconciler", `Skipping reconciliation, last run ${Math.round(elapsed / 1e3)}s ago`);
+            return this.createSkippedResult(`Last run ${Math.round(elapsed / 1e3)}s ago`);
+          }
+        }
+        this.isReconciling = true;
+        const startTime = Date.now();
+        log.info("PositionReconciler", "Starting position reconciliation...");
+        try {
+          const [brokerPositions, dbPositions] = await Promise.all([
+            this.fetchBrokerPositions(),
+            this.fetchDBPositions()
+          ]);
+          const result = await this.performReconciliation(brokerPositions, dbPositions);
+          result.duration_ms = Date.now() - startTime;
+          this.lastReconciliation = /* @__PURE__ */ new Date();
+          log.info("PositionReconciler", `Reconciliation completed in ${result.duration_ms}ms`, {
+            synced: result.synced,
+            added: result.added,
+            removed: result.removed,
+            conflicts: result.conflicts.length,
+            brokerPositions: result.brokerPositions,
+            dbPositions: result.dbPositions,
+            totalValue: result.totalValue
+          });
+          return result;
+        } catch (error) {
+          log.error("PositionReconciler", "Reconciliation failed", { error });
+          return {
+            timestamp: /* @__PURE__ */ new Date(),
+            status: "failed",
+            brokerPositions: 0,
+            dbPositions: 0,
+            synced: 0,
+            added: 0,
+            removed: 0,
+            conflicts: [],
+            totalValue: 0,
+            duration_ms: Date.now() - startTime
+          };
+        } finally {
+          this.isReconciling = false;
+        }
+      }
+      async fetchBrokerPositions() {
+        try {
+          const positions2 = await alpaca.getPositions();
+          return positions2.map((p) => ({
+            symbol: p.symbol,
+            qty: parseFloat(p.qty),
+            side: parseFloat(p.qty) >= 0 ? "long" : "short",
+            marketValue: parseFloat(p.market_value),
+            avgEntryPrice: parseFloat(p.avg_entry_price),
+            currentPrice: parseFloat(p.current_price),
+            unrealizedPL: parseFloat(p.unrealized_pl),
+            unrealizedPLPercent: parseFloat(p.unrealized_plpc) * 100
+          }));
+        } catch (error) {
+          log.error("PositionReconciler", "Failed to fetch broker positions", { error });
+          throw error;
+        }
+      }
+      async fetchDBPositions() {
+        try {
+          const positions2 = await storage.getPositions();
+          return positions2;
+        } catch (error) {
+          log.error("PositionReconciler", "Failed to fetch DB positions", { error });
+          throw error;
+        }
+      }
+      async performReconciliation(brokerPositions, dbPositions) {
+        const conflicts = [];
+        let synced = 0;
+        let added = 0;
+        let removed = 0;
+        const brokerSymbols = new Set(brokerPositions.map((p) => p.symbol));
+        const dbSymbols = new Set(dbPositions.map((p) => p.symbol));
+        for (const brokerPos of brokerPositions) {
+          const dbPos = dbPositions.find((p) => p.symbol === brokerPos.symbol);
+          if (!dbPos) {
+            await this.addPositionToDB(brokerPos);
+            added++;
+            log.info("PositionReconciler", `Added missing position: ${brokerPos.symbol} x ${brokerPos.qty}`, {
+              symbol: brokerPos.symbol,
+              qty: brokerPos.qty,
+              source: "broker_not_in_db"
+            });
+          } else if (Math.abs(parseFloat(dbPos.quantity) - brokerPos.qty) > 1e-4) {
+            const dbQty = parseFloat(dbPos.quantity);
+            const conflict = {
+              symbol: brokerPos.symbol,
+              brokerQty: brokerPos.qty,
+              dbQty,
+              brokerValue: brokerPos.marketValue,
+              dbValue: dbQty * brokerPos.currentPrice,
+              resolution: "use_broker",
+              // Broker is source of truth
+              resolved: false
+            };
+            await this.updateDBPosition(dbPos.id, brokerPos);
+            conflict.resolved = true;
+            conflicts.push(conflict);
+            synced++;
+            log.warn("PositionReconciler", `Resolved quantity conflict for ${brokerPos.symbol}`, {
+              symbol: brokerPos.symbol,
+              brokerQty: brokerPos.qty,
+              dbQty: dbPos.quantity,
+              resolution: "use_broker"
+            });
+          } else {
+            await this.updateDBPositionPrices(dbPos.id, brokerPos);
+            synced++;
+          }
+        }
+        for (const dbPos of dbPositions) {
+          if (!brokerSymbols.has(dbPos.symbol)) {
+            await this.closeDBPosition(dbPos.id);
+            removed++;
+            log.info("PositionReconciler", `Closed stale position: ${dbPos.symbol}`, {
+              symbol: dbPos.symbol,
+              positionId: dbPos.id,
+              source: "db_not_in_broker"
+            });
+          }
+        }
+        const totalValue = brokerPositions.reduce((sum, p) => sum + p.marketValue, 0);
+        return {
+          timestamp: /* @__PURE__ */ new Date(),
+          status: conflicts.length > 0 ? "partial" : "success",
+          brokerPositions: brokerPositions.length,
+          dbPositions: dbPositions.length,
+          synced,
+          added,
+          removed,
+          conflicts,
+          totalValue,
+          duration_ms: 0
+          // Will be set by caller
+        };
+      }
+      async addPositionToDB(brokerPos) {
+        const newPosition = {
+          symbol: brokerPos.symbol,
+          quantity: brokerPos.qty.toString(),
+          side: brokerPos.side,
+          entryPrice: brokerPos.avgEntryPrice.toString(),
+          currentPrice: brokerPos.currentPrice.toString(),
+          unrealizedPnl: brokerPos.unrealizedPL.toString(),
+          strategyId: null
+          // Unknown strategy - came from external trade or reconciliation
+        };
+        await storage.createPosition(newPosition);
+      }
+      async updateDBPosition(positionId, brokerPos) {
+        await storage.updatePosition(positionId, {
+          quantity: brokerPos.qty.toString(),
+          currentPrice: brokerPos.currentPrice.toString(),
+          unrealizedPnl: brokerPos.unrealizedPL.toString()
+        });
+      }
+      async updateDBPositionPrices(positionId, brokerPos) {
+        await storage.updatePosition(positionId, {
+          currentPrice: brokerPos.currentPrice.toString(),
+          unrealizedPnl: brokerPos.unrealizedPL.toString()
+        });
+      }
+      async closeDBPosition(positionId) {
+        log.info("PositionReconciler", `Position ${positionId} marked for closure (external)`);
+      }
+      createSkippedResult(reason) {
+        return {
+          timestamp: /* @__PURE__ */ new Date(),
+          status: "skipped",
+          brokerPositions: 0,
+          dbPositions: 0,
+          synced: 0,
+          added: 0,
+          removed: 0,
+          conflicts: [],
+          totalValue: 0,
+          duration_ms: 0
+        };
+      }
+      // Get reconciliation status
+      getStatus() {
+        const nextRunIn = this.lastReconciliation ? Math.max(0, this.reconciliationInterval - (Date.now() - this.lastReconciliation.getTime())) : null;
+        return {
+          lastRun: this.lastReconciliation,
+          interval: this.reconciliationInterval,
+          isReconciling: this.isReconciling,
+          nextRunIn
+        };
+      }
+      // Force immediate reconciliation
+      async forceReconcile() {
+        return this.reconcile(true);
+      }
+      // Set reconciliation interval (in ms)
+      setInterval(intervalMs) {
+        this.reconciliationInterval = intervalMs;
+        log.info("PositionReconciler", `Reconciliation interval set to ${intervalMs}ms`);
+      }
+    };
+    positionReconciler = new PositionReconciler();
+  }
+});
+
 // server/middleware/audit-logger.ts
 var audit_logger_exports = {};
 __export(audit_logger_exports, {
@@ -17633,238 +17865,6 @@ var init_strategies = __esm({
   }
 });
 
-// server/services/position-reconciler.ts
-var position_reconciler_exports = {};
-__export(position_reconciler_exports, {
-  positionReconciler: () => positionReconciler
-});
-var PositionReconciler, positionReconciler;
-var init_position_reconciler = __esm({
-  "server/services/position-reconciler.ts"() {
-    "use strict";
-    init_alpaca();
-    init_storage();
-    init_logger();
-    PositionReconciler = class {
-      lastReconciliation = null;
-      reconciliationInterval = 5 * 60 * 1e3;
-      // 5 minutes
-      isReconciling = false;
-      async reconcile(force = false) {
-        if (this.isReconciling) {
-          log.info("PositionReconciler", "Reconciliation already in progress, skipping");
-          return this.createSkippedResult("Already reconciling");
-        }
-        if (!force && this.lastReconciliation) {
-          const elapsed = Date.now() - this.lastReconciliation.getTime();
-          if (elapsed < this.reconciliationInterval) {
-            log.info("PositionReconciler", `Skipping reconciliation, last run ${Math.round(elapsed / 1e3)}s ago`);
-            return this.createSkippedResult(`Last run ${Math.round(elapsed / 1e3)}s ago`);
-          }
-        }
-        this.isReconciling = true;
-        const startTime = Date.now();
-        log.info("PositionReconciler", "Starting position reconciliation...");
-        try {
-          const [brokerPositions, dbPositions] = await Promise.all([
-            this.fetchBrokerPositions(),
-            this.fetchDBPositions()
-          ]);
-          const result = await this.performReconciliation(brokerPositions, dbPositions);
-          result.duration_ms = Date.now() - startTime;
-          this.lastReconciliation = /* @__PURE__ */ new Date();
-          log.info("PositionReconciler", `Reconciliation completed in ${result.duration_ms}ms`, {
-            synced: result.synced,
-            added: result.added,
-            removed: result.removed,
-            conflicts: result.conflicts.length,
-            brokerPositions: result.brokerPositions,
-            dbPositions: result.dbPositions,
-            totalValue: result.totalValue
-          });
-          return result;
-        } catch (error) {
-          log.error("PositionReconciler", "Reconciliation failed", { error });
-          return {
-            timestamp: /* @__PURE__ */ new Date(),
-            status: "failed",
-            brokerPositions: 0,
-            dbPositions: 0,
-            synced: 0,
-            added: 0,
-            removed: 0,
-            conflicts: [],
-            totalValue: 0,
-            duration_ms: Date.now() - startTime
-          };
-        } finally {
-          this.isReconciling = false;
-        }
-      }
-      async fetchBrokerPositions() {
-        try {
-          const positions2 = await alpaca.getPositions();
-          return positions2.map((p) => ({
-            symbol: p.symbol,
-            qty: parseFloat(p.qty),
-            side: parseFloat(p.qty) >= 0 ? "long" : "short",
-            marketValue: parseFloat(p.market_value),
-            avgEntryPrice: parseFloat(p.avg_entry_price),
-            currentPrice: parseFloat(p.current_price),
-            unrealizedPL: parseFloat(p.unrealized_pl),
-            unrealizedPLPercent: parseFloat(p.unrealized_plpc) * 100
-          }));
-        } catch (error) {
-          log.error("PositionReconciler", "Failed to fetch broker positions", { error });
-          throw error;
-        }
-      }
-      async fetchDBPositions() {
-        try {
-          const positions2 = await storage.getPositions();
-          return positions2;
-        } catch (error) {
-          log.error("PositionReconciler", "Failed to fetch DB positions", { error });
-          throw error;
-        }
-      }
-      async performReconciliation(brokerPositions, dbPositions) {
-        const conflicts = [];
-        let synced = 0;
-        let added = 0;
-        let removed = 0;
-        const brokerSymbols = new Set(brokerPositions.map((p) => p.symbol));
-        const dbSymbols = new Set(dbPositions.map((p) => p.symbol));
-        for (const brokerPos of brokerPositions) {
-          const dbPos = dbPositions.find((p) => p.symbol === brokerPos.symbol);
-          if (!dbPos) {
-            await this.addPositionToDB(brokerPos);
-            added++;
-            log.info("PositionReconciler", `Added missing position: ${brokerPos.symbol} x ${brokerPos.qty}`, {
-              symbol: brokerPos.symbol,
-              qty: brokerPos.qty,
-              source: "broker_not_in_db"
-            });
-          } else if (Math.abs(parseFloat(dbPos.quantity) - brokerPos.qty) > 1e-4) {
-            const dbQty = parseFloat(dbPos.quantity);
-            const conflict = {
-              symbol: brokerPos.symbol,
-              brokerQty: brokerPos.qty,
-              dbQty,
-              brokerValue: brokerPos.marketValue,
-              dbValue: dbQty * brokerPos.currentPrice,
-              resolution: "use_broker",
-              // Broker is source of truth
-              resolved: false
-            };
-            await this.updateDBPosition(dbPos.id, brokerPos);
-            conflict.resolved = true;
-            conflicts.push(conflict);
-            synced++;
-            log.warn("PositionReconciler", `Resolved quantity conflict for ${brokerPos.symbol}`, {
-              symbol: brokerPos.symbol,
-              brokerQty: brokerPos.qty,
-              dbQty: dbPos.quantity,
-              resolution: "use_broker"
-            });
-          } else {
-            await this.updateDBPositionPrices(dbPos.id, brokerPos);
-            synced++;
-          }
-        }
-        for (const dbPos of dbPositions) {
-          if (!brokerSymbols.has(dbPos.symbol)) {
-            await this.closeDBPosition(dbPos.id);
-            removed++;
-            log.info("PositionReconciler", `Closed stale position: ${dbPos.symbol}`, {
-              symbol: dbPos.symbol,
-              positionId: dbPos.id,
-              source: "db_not_in_broker"
-            });
-          }
-        }
-        const totalValue = brokerPositions.reduce((sum, p) => sum + p.marketValue, 0);
-        return {
-          timestamp: /* @__PURE__ */ new Date(),
-          status: conflicts.length > 0 ? "partial" : "success",
-          brokerPositions: brokerPositions.length,
-          dbPositions: dbPositions.length,
-          synced,
-          added,
-          removed,
-          conflicts,
-          totalValue,
-          duration_ms: 0
-          // Will be set by caller
-        };
-      }
-      async addPositionToDB(brokerPos) {
-        const newPosition = {
-          symbol: brokerPos.symbol,
-          quantity: brokerPos.qty.toString(),
-          side: brokerPos.side,
-          entryPrice: brokerPos.avgEntryPrice.toString(),
-          currentPrice: brokerPos.currentPrice.toString(),
-          unrealizedPnl: brokerPos.unrealizedPL.toString(),
-          strategyId: null
-          // Unknown strategy - came from external trade or reconciliation
-        };
-        await storage.createPosition(newPosition);
-      }
-      async updateDBPosition(positionId, brokerPos) {
-        await storage.updatePosition(positionId, {
-          quantity: brokerPos.qty.toString(),
-          currentPrice: brokerPos.currentPrice.toString(),
-          unrealizedPnl: brokerPos.unrealizedPL.toString()
-        });
-      }
-      async updateDBPositionPrices(positionId, brokerPos) {
-        await storage.updatePosition(positionId, {
-          currentPrice: brokerPos.currentPrice.toString(),
-          unrealizedPnl: brokerPos.unrealizedPL.toString()
-        });
-      }
-      async closeDBPosition(positionId) {
-        log.info("PositionReconciler", `Position ${positionId} marked for closure (external)`);
-      }
-      createSkippedResult(reason) {
-        return {
-          timestamp: /* @__PURE__ */ new Date(),
-          status: "skipped",
-          brokerPositions: 0,
-          dbPositions: 0,
-          synced: 0,
-          added: 0,
-          removed: 0,
-          conflicts: [],
-          totalValue: 0,
-          duration_ms: 0
-        };
-      }
-      // Get reconciliation status
-      getStatus() {
-        const nextRunIn = this.lastReconciliation ? Math.max(0, this.reconciliationInterval - (Date.now() - this.lastReconciliation.getTime())) : null;
-        return {
-          lastRun: this.lastReconciliation,
-          interval: this.reconciliationInterval,
-          isReconciling: this.isReconciling,
-          nextRunIn
-        };
-      }
-      // Force immediate reconciliation
-      async forceReconcile() {
-        return this.reconcile(true);
-      }
-      // Set reconciliation interval (in ms)
-      setInterval(intervalMs) {
-        this.reconciliationInterval = intervalMs;
-        log.info("PositionReconciler", `Reconciliation interval set to ${intervalMs}ms`);
-      }
-    };
-    positionReconciler = new PositionReconciler();
-  }
-});
-
 // server/lib/valyuBudget.ts
 var valyuBudget_exports = {};
 __export(valyuBudget_exports, {
@@ -18368,7 +18368,7 @@ import cookieParser from "cookie-parser";
 
 // server/routes.ts
 import { createServer } from "node:http";
-import bcrypt from "bcryptjs";
+import bcrypt2 from "bcryptjs";
 
 // server/lib/session.ts
 init_db();
@@ -24134,8 +24134,8 @@ var WorkQueueServiceImpl = class {
           await this.markFailed(item.id, `Notional $${requestedNotional} too small for 1 share at $${currentPriceData.last}`, false);
           return;
         }
-      } catch (validationError2) {
-        log.warn("work-queue", `Extended hours validation failed: ${validationError2.message}`, { traceId });
+      } catch (validationError4) {
+        log.warn("work-queue", `Extended hours validation failed: ${validationError4.message}`, { traceId });
       }
     }
     const orderParams = {
@@ -32548,6 +32548,2074 @@ router10.delete("/:id/functions/:funcId", async (req, res) => {
 });
 var providers_default = router10;
 
+// server/routes/auth.ts
+import { Router as Router13 } from "express";
+import bcrypt from "bcryptjs";
+init_storage();
+init_logger();
+init_sanitization();
+init_schema();
+var router11 = Router13();
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1e3
+    // 7 days
+  };
+}
+router11.post("/signup", async (req, res) => {
+  try {
+    const parsed = insertUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return validationError(res, "Invalid input: username and password required", parsed.error);
+    }
+    const { username, password } = parsed.data;
+    const sanitizedUsername = sanitizeInput(username);
+    if (sanitizedUsername.length < 3) {
+      return badRequest(res, "Username must be at least 3 characters");
+    }
+    if (password.length < 6) {
+      return badRequest(res, "Password must be at least 6 characters");
+    }
+    const existingUser = await storage.getUserByUsername(sanitizedUsername);
+    if (existingUser) {
+      return badRequest(res, "Username already taken");
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await storage.createUser({ username: sanitizedUsername, password: hashedPassword });
+    const sessionId = await createSession(user.id);
+    res.cookie("session", sessionId, getCookieOptions());
+    log.info("AuthAPI", `User registered: ${sanitizedUsername}`);
+    res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+  } catch (error) {
+    log.error("AuthAPI", `Signup error: ${error}`);
+    return serverError(res, "Failed to create account");
+  }
+});
+router11.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const sanitizedUsername = sanitizeInput(username);
+    if (!username || !password) {
+      return badRequest(res, "Username and password required");
+    }
+    const user = await storage.getUserByUsername(sanitizedUsername);
+    if (!user) {
+      return unauthorized(res, "Invalid username or password");
+    }
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return unauthorized(res, "Invalid username or password");
+    }
+    const sessionId = await createSession(user.id);
+    res.cookie("session", sessionId, getCookieOptions());
+    log.info("AuthAPI", `User logged in: ${sanitizedUsername}`);
+    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+  } catch (error) {
+    log.error("AuthAPI", `Login error: ${error}`);
+    return serverError(res, "Failed to login");
+  }
+});
+router11.post("/logout", async (req, res) => {
+  try {
+    const sessionId = req.cookies?.session;
+    if (sessionId) {
+      await deleteSession(sessionId);
+    }
+    const { maxAge, ...clearOptions } = getCookieOptions();
+    res.clearCookie("session", clearOptions);
+    log.info("AuthAPI", "User logged out");
+    res.json({ success: true });
+  } catch (error) {
+    log.error("AuthAPI", `Logout error: ${error}`);
+    res.status(500).json({ error: "Failed to logout" });
+  }
+});
+router11.get("/me", async (req, res) => {
+  try {
+    const sessionId = req.cookies?.session;
+    if (!sessionId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ error: "Session expired" });
+    }
+    const user = await storage.getUser(session.userId);
+    if (!user) {
+      await deleteSession(sessionId);
+      return res.status(401).json({ error: "User not found" });
+    }
+    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+  } catch (error) {
+    log.error("AuthAPI", `Get user error: ${error}`);
+    res.status(500).json({ error: "Failed to get user" });
+  }
+});
+var auth_default = router11;
+
+// server/routes/positions.ts
+init_storage();
+init_logger();
+import { Router as Router14 } from "express";
+init_schema();
+init_alpaca();
+init_alpaca_trading_engine();
+var router12 = Router14();
+router12.get("/snapshot", async (req, res) => {
+  try {
+    const [alpacaAccount, alpacaPositions] = await Promise.all([
+      alpaca.getAccount(),
+      alpaca.getPositions()
+    ]);
+    const equity = parseFloat(alpacaAccount.equity);
+    const lastEquity = parseFloat(alpacaAccount.last_equity);
+    const buyingPower = parseFloat(alpacaAccount.buying_power);
+    const cash = parseFloat(alpacaAccount.cash);
+    const portfolioValue = parseFloat(alpacaAccount.portfolio_value);
+    const dailyPl = equity - lastEquity;
+    const dailyPlPct = lastEquity > 0 ? dailyPl / lastEquity * 100 : 0;
+    const positions2 = alpacaPositions.map((pos) => ({
+      id: pos.asset_id,
+      symbol: pos.symbol,
+      side: pos.side === "long" ? "long" : "short",
+      qty: parseFloat(pos.qty),
+      entryPrice: parseFloat(pos.avg_entry_price),
+      currentPrice: parseFloat(pos.current_price),
+      marketValue: parseFloat(pos.market_value),
+      unrealizedPl: parseFloat(pos.unrealized_pl),
+      unrealizedPlPct: parseFloat(pos.unrealized_plpc) * 100,
+      costBasis: parseFloat(pos.cost_basis),
+      assetClass: pos.asset_class === "crypto" ? "crypto" : "us_equity"
+    }));
+    const totalUnrealizedPl = positions2.reduce((sum, pos) => sum + pos.unrealizedPl, 0);
+    const trades3 = await storage.getTrades(100);
+    const closedTrades = trades3.filter((t) => t.pnl !== null && t.pnl !== "");
+    const totalRealizedPl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
+    const snapshot = {
+      totalEquity: equity,
+      buyingPower,
+      cash,
+      portfolioValue,
+      dailyPl,
+      dailyPlPct,
+      totalPl: totalRealizedPl + totalUnrealizedPl,
+      totalPlPct: lastEquity > 0 ? (totalRealizedPl + totalUnrealizedPl) / lastEquity * 100 : 0,
+      positions: positions2,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      positionCount: positions2.length,
+      longPositions: positions2.filter((p) => p.side === "long").length,
+      shortPositions: positions2.filter((p) => p.side === "short").length,
+      totalRealizedPl,
+      totalUnrealizedPl
+    };
+    res.json(snapshot);
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to get portfolio snapshot: ${error}`);
+    res.status(500).json({
+      error: "Failed to get portfolio snapshot",
+      message: error.message
+    });
+  }
+});
+router12.get("/", async (req, res) => {
+  const fetchedAt = /* @__PURE__ */ new Date();
+  const DUST_THRESHOLD = 1e-4;
+  try {
+    const positions2 = await alpaca.getPositions();
+    const filteredPositions = positions2.filter((p) => {
+      const qty = Math.abs(parseFloat(p.qty || "0"));
+      return qty >= DUST_THRESHOLD;
+    });
+    storage.syncPositionsFromAlpaca(req.userId, filteredPositions).catch(
+      (err) => log.error("PositionsAPI", `Failed to sync positions to database: ${err}`)
+    );
+    const enrichedPositions = filteredPositions.map((p) => mapAlpacaPositionToEnriched(p, fetchedAt));
+    res.json({
+      positions: enrichedPositions,
+      _source: createLiveSourceMetadata()
+    });
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to fetch positions from Alpaca: ${error}`);
+    res.status(503).json({
+      error: "Live position data unavailable from Alpaca",
+      _source: createUnavailableSourceMetadata(),
+      message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
+    });
+  }
+});
+router12.get("/broker", async (req, res) => {
+  const fetchedAt = /* @__PURE__ */ new Date();
+  const DUST_THRESHOLD = 1e-4;
+  try {
+    const positions2 = await alpaca.getPositions();
+    const filteredPositions = positions2.filter((p) => {
+      const qty = Math.abs(parseFloat(p.qty || "0"));
+      return qty >= DUST_THRESHOLD;
+    });
+    const enrichedPositions = filteredPositions.map((p) => mapAlpacaPositionToEnriched(p, fetchedAt));
+    res.json({
+      positions: enrichedPositions,
+      _source: createLiveSourceMetadata()
+    });
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to fetch broker positions: ${error}`);
+    res.status(503).json({
+      error: "Failed to fetch positions from broker",
+      _source: createUnavailableSourceMetadata(),
+      message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
+    });
+  }
+});
+router12.get("/:id", async (req, res) => {
+  try {
+    const position = await storage.getPosition(req.params.id);
+    if (!position) {
+      return notFound(res, "Position not found");
+    }
+    res.json(position);
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to get position: ${error}`);
+    res.status(500).json({ error: "Failed to get position" });
+  }
+});
+router12.post("/", async (req, res) => {
+  try {
+    const parsed = insertPositionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(res, parsed.error.message);
+    }
+    const position = await storage.createPosition(parsed.data);
+    res.status(201).json(position);
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to create position: ${error}`);
+    res.status(500).json({ error: "Failed to create position" });
+  }
+});
+router12.patch("/:id", async (req, res) => {
+  try {
+    const position = await storage.updatePosition(req.params.id, req.body);
+    if (!position) {
+      return notFound(res, "Position not found");
+    }
+    res.json(position);
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to update position: ${error}`);
+    res.status(500).json({ error: "Failed to update position" });
+  }
+});
+router12.delete("/:id", async (req, res) => {
+  try {
+    const deleted = await storage.deletePosition(req.params.id);
+    if (!deleted) {
+      return notFound(res, "Position not found");
+    }
+    res.status(204).send();
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to delete position: ${error}`);
+    res.status(500).json({ error: "Failed to delete position" });
+  }
+});
+router12.post("/reconcile", async (req, res) => {
+  try {
+    const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
+    const force = req.query.force === "true";
+    const result = await positionReconciler2.reconcile(force);
+    res.json(result);
+  } catch (error) {
+    log.error("PositionsAPI", `Position reconciliation failed: ${error}`);
+    res.status(500).json({ error: "Failed to reconcile positions" });
+  }
+});
+router12.get("/reconcile/status", async (req, res) => {
+  try {
+    const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
+    const status = positionReconciler2.getStatus();
+    res.json(status);
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to get reconciliation status: ${error}`);
+    res.status(500).json({ error: "Failed to get reconciliation status" });
+  }
+});
+router12.post("/close/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    if (!symbol) {
+      return badRequest(res, "Symbol is required");
+    }
+    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Position ${symbol} closed successfully`,
+        result
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error || "Failed to close position"
+      });
+    }
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to close position: ${error}`);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router12.post("/close-all", async (req, res) => {
+  try {
+    const result = await alpacaTradingEngine.closeAllPositions();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    log.error("PositionsAPI", `Failed to close all positions: ${error}`);
+    res.status(500).json({ error: String(error) });
+  }
+});
+var positions_default = router12;
+
+// server/routes/orders.ts
+init_storage();
+init_alpaca();
+init_alpaca_trading_engine();
+import { Router as Router15 } from "express";
+init_tradability_service();
+var router13 = Router15();
+router13.get("/autonomous/open-orders", async (req, res) => {
+  try {
+    const orders2 = await alpacaTradingEngine.getOpenOrders();
+    res.json(orders2);
+  } catch (error) {
+    console.error("Failed to get open orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.post("/autonomous/cancel-stale-orders", async (req, res) => {
+  try {
+    const { maxAgeMinutes } = req.body;
+    const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Failed to cancel stale orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.post("/autonomous/cancel-all-orders", async (req, res) => {
+  try {
+    const result = await alpacaTradingEngine.cancelAllOpenOrders();
+    res.json({ success: result.cancelled > 0, ...result });
+  } catch (error) {
+    console.error("Failed to cancel all orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/unreal", async (req, res) => {
+  try {
+    const unrealOrders = await identifyUnrealOrders();
+    res.json({
+      count: unrealOrders.length,
+      orders: unrealOrders
+    });
+  } catch (error) {
+    console.error("Failed to identify unreal orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.post("/cleanup", async (req, res) => {
+  try {
+    const result = await cleanupUnrealOrders();
+    res.json({
+      success: result.errors.length === 0,
+      identified: result.identified,
+      canceled: result.canceled,
+      errors: result.errors
+    });
+  } catch (error) {
+    console.error("Failed to cleanup unreal orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.post("/reconcile", async (req, res) => {
+  try {
+    const result = await reconcileOrderBook();
+    res.json({
+      success: true,
+      alpacaOrders: result.alpacaOrders,
+      localTrades: result.localTrades,
+      missingLocal: result.missingLocal,
+      orphanedLocal: result.orphanedLocal,
+      synced: result.synced
+    });
+  } catch (error) {
+    console.error("Failed to reconcile order book:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/execution-engine/status", async (req, res) => {
+  try {
+    const activeExecutions = orderExecutionEngine.getActiveExecutions();
+    const executions = Array.from(activeExecutions.entries()).map(([id, state]) => ({
+      clientOrderId: id,
+      orderId: state.orderId,
+      symbol: state.symbol,
+      side: state.side,
+      status: state.status,
+      attempts: state.attempts,
+      createdAt: state.createdAt.toISOString(),
+      updatedAt: state.updatedAt.toISOString()
+    }));
+    res.json({
+      activeCount: executions.length,
+      executions
+    });
+  } catch (error) {
+    console.error("Failed to get execution engine status:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/", async (req, res) => {
+  const fetchedAt = /* @__PURE__ */ new Date();
+  try {
+    const limit4 = parseInt(req.query.limit) || 50;
+    const status = req.query.status;
+    let orders2;
+    if (status) {
+      orders2 = await storage.getOrdersByStatus(req.userId, status, limit4);
+    } else {
+      orders2 = await storage.getRecentOrders(req.userId, limit4);
+    }
+    res.json({
+      orders: orders2,
+      _source: {
+        type: "database",
+        table: "orders",
+        fetchedAt: fetchedAt.toISOString(),
+        note: "Orders stored in local database, synced from broker"
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch orders:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.post("/sync", async (req, res) => {
+  try {
+    const traceId = `api-sync-${Date.now()}`;
+    const workItem = await workQueue.enqueue({
+      type: "ORDER_SYNC",
+      payload: JSON.stringify({ traceId }),
+      maxAttempts: 3
+    });
+    res.json({
+      success: true,
+      workItemId: workItem.id,
+      message: "Order sync enqueued",
+      traceId
+    });
+  } catch (error) {
+    console.error("Failed to enqueue order sync:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/recent", async (req, res) => {
+  const fetchedAt = /* @__PURE__ */ new Date();
+  try {
+    const limit4 = parseInt(req.query.limit) || 50;
+    const orders2 = await alpaca.getOrders("all", limit4);
+    const enrichedOrders = orders2.map((o) => ({
+      ...mapAlpacaOrderToEnriched(o, fetchedAt),
+      assetClass: o.asset_class,
+      submittedAt: o.submitted_at,
+      isAI: true
+    }));
+    res.json({
+      orders: enrichedOrders,
+      _source: createLiveSourceMetadata()
+    });
+  } catch (error) {
+    console.error("Failed to fetch recent orders:", error);
+    res.status(503).json({
+      error: "Failed to fetch recent orders",
+      _source: createUnavailableSourceMetadata(),
+      message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
+    });
+  }
+});
+router13.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let order = await storage.getOrderByBrokerOrderId(id);
+    if (!order) {
+      const orders2 = await storage.getRecentOrders(1e3);
+      order = orders2.find((o) => o.id === id);
+    }
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    const fills2 = await storage.getFillsByOrderId(order.id);
+    res.json({
+      order,
+      fills: fills2,
+      _source: {
+        type: "database",
+        table: "orders",
+        fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch order:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/fills", async (req, res) => {
+  const fetchedAt = /* @__PURE__ */ new Date();
+  try {
+    const limit4 = parseInt(req.query.limit) || 50;
+    const orders2 = await storage.getRecentOrders(req.userId, 100);
+    const orderIds = orders2.map((o) => o.id);
+    let allFills = [];
+    for (const orderId of orderIds) {
+      const fills2 = await storage.getFillsByOrderId(orderId);
+      allFills = allFills.concat(fills2);
+    }
+    allFills.sort(
+      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+    );
+    allFills = allFills.slice(0, limit4);
+    res.json({
+      fills: allFills,
+      _source: {
+        type: "database",
+        table: "fills",
+        fetchedAt: fetchedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch fills:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/fills/order/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    let fills2 = await storage.getFillsByOrderId(orderId);
+    if (fills2.length === 0) {
+      fills2 = await storage.getFillsByBrokerOrderId(orderId);
+    }
+    res.json({
+      fills: fills2,
+      _source: {
+        type: "database",
+        table: "fills",
+        fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch fills:", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+router13.get("/alpaca/orders", async (req, res) => {
+  try {
+    const status = req.query.status || "all";
+    const limit4 = parseInt(req.query.limit) || 50;
+    const orders2 = await alpaca.getOrders(status, limit4);
+    res.json(orders2);
+  } catch (error) {
+    console.error("Failed to get Alpaca orders:", error);
+    res.status(500).json({ error: "Failed to get Alpaca orders" });
+  }
+});
+router13.post("/alpaca/orders", async (req, res) => {
+  try {
+    const { symbol } = req.body;
+    if (!symbol) {
+      return res.status(400).json({ error: "Symbol is required" });
+    }
+    const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+    if (!tradabilityCheck.tradable) {
+      return res.status(400).json({
+        error: `Symbol ${symbol} is not tradable`,
+        reason: tradabilityCheck.reason || "Not found in broker universe",
+        tradabilityCheck
+      });
+    }
+    const order = await alpaca.createOrder(req.body);
+    res.status(201).json(order);
+  } catch (error) {
+    console.error("Failed to create Alpaca order:", error);
+    res.status(500).json({ error: "Failed to create Alpaca order" });
+  }
+});
+router13.delete("/alpaca/orders/:orderId", async (req, res) => {
+  try {
+    await alpaca.cancelOrder(req.params.orderId);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Failed to cancel Alpaca order:", error);
+    res.status(500).json({ error: "Failed to cancel Alpaca order" });
+  }
+});
+var orders_default = router13;
+
+// server/routes/trades.ts
+init_storage();
+init_alpaca();
+init_numeric();
+import { Router as Router16 } from "express";
+init_schema();
+var router14 = Router16();
+router14.get("/", async (req, res) => {
+  try {
+    const limit4 = parseInt(req.query.limit) || 50;
+    const trades3 = await storage.getTrades(req.userId, limit4);
+    res.json(trades3);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to get trades: ${error}`);
+    return serverError(res, "Failed to get trades");
+  }
+});
+router14.get("/enriched", async (req, res) => {
+  try {
+    const filters = {
+      limit: parseInt(req.query.limit) || 20,
+      offset: parseInt(req.query.offset) || 0,
+      symbol: req.query.symbol,
+      strategyId: req.query.strategyId,
+      pnlDirection: req.query.pnlDirection || "all",
+      startDate: req.query.startDate ? new Date(req.query.startDate) : void 0,
+      endDate: req.query.endDate ? new Date(req.query.endDate) : void 0
+    };
+    const result = await storage.getTradesFiltered(req.userId, filters);
+    res.json(result);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to get enriched trades: ${error}`);
+    return serverError(res, "Failed to get enriched trades");
+  }
+});
+router14.get("/symbols", async (req, res) => {
+  try {
+    const symbols = await storage.getDistinctSymbols();
+    res.json(symbols);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to get symbols: ${error}`);
+    return serverError(res, "Failed to get symbols");
+  }
+});
+router14.get("/:id", async (req, res) => {
+  try {
+    const trade = await storage.getTrade(req.params.id);
+    if (!trade) {
+      return notFound(res, "Trade not found");
+    }
+    res.json(trade);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to get trade: ${error}`);
+    return serverError(res, "Failed to get trade");
+  }
+});
+router14.get("/:id/enriched", async (req, res) => {
+  try {
+    const trade = await storage.getEnrichedTrade(req.params.id);
+    if (!trade) {
+      return notFound(res, "Trade not found");
+    }
+    res.json(trade);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to get enriched trade: ${error}`);
+    return serverError(res, "Failed to get enriched trade");
+  }
+});
+router14.post("/", async (req, res) => {
+  try {
+    const parsed = insertTradeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(res, parsed.error.message);
+    }
+    const trade = await storage.createTrade(parsed.data);
+    res.status(201).json(trade);
+  } catch (error) {
+    console.error("TradesAPI", `Failed to create trade: ${error}`);
+    return serverError(res, "Failed to create trade");
+  }
+});
+router14.post("/backfill-prices", async (req, res) => {
+  try {
+    const trades3 = await storage.getTrades(500);
+    const zeroTrades = trades3.filter((t) => safeParseFloat(t.price, 0) === 0);
+    if (zeroTrades.length === 0) {
+      return res.json({ message: "No trades need backfilling", updated: 0 });
+    }
+    let orders2 = [];
+    try {
+      orders2 = await alpaca.getOrders("all", 500);
+    } catch (e) {
+      console.error("TradesAPI", `Failed to fetch Alpaca orders for backfill: ${e}`);
+      return serverError(res, "Failed to fetch order history from broker");
+    }
+    let updated = 0;
+    for (const trade of zeroTrades) {
+      const matchingOrder = orders2.find(
+        (o) => o.symbol === trade.symbol && o.side === trade.side && o.status === "filled" && safeParseFloat(o.filled_avg_price, 0) > 0 && Math.abs(new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()) < 6e4
+      );
+      if (matchingOrder) {
+        const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
+        const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
+        await storage.updateTrade(trade.id, {
+          price: filledPrice.toString(),
+          quantity: filledQty.toString(),
+          status: "filled"
+        });
+        updated++;
+      }
+    }
+    res.json({
+      message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
+      updated,
+      remaining: zeroTrades.length - updated
+    });
+  } catch (error) {
+    console.error("TradesAPI", `Trade backfill error: ${error}`);
+    return serverError(res, "Failed to backfill trade prices");
+  }
+});
+var trades_default = router14;
+
+// server/routes/market-data.ts
+init_logger();
+import { Router as Router17 } from "express";
+init_coingecko();
+init_finnhub();
+init_alpaca();
+init_newsapi();
+var router15 = Router17();
+router15.get("/crypto/markets", async (req, res) => {
+  try {
+    const perPage = parseInt(req.query.per_page) || 20;
+    const page = parseInt(req.query.page) || 1;
+    const order = req.query.order || "market_cap_desc";
+    const markets = await coingecko.getMarkets("usd", perPage, page, order);
+    res.json(markets);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch crypto markets: ${error}`);
+    return serverError(res, "Failed to fetch crypto market data");
+  }
+});
+router15.get("/crypto/prices", async (req, res) => {
+  try {
+    const ids = req.query.ids || "bitcoin,ethereum,solana";
+    const coinIds = ids.split(",").map((id) => id.trim());
+    const prices = await coingecko.getSimplePrice(coinIds);
+    res.json(prices);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch crypto prices: ${error}`);
+    return serverError(res, "Failed to fetch crypto prices");
+  }
+});
+router15.get("/crypto/chart/:coinId", async (req, res) => {
+  try {
+    const { coinId } = req.params;
+    const days = req.query.days || "7";
+    const chart = await coingecko.getMarketChart(coinId, "usd", days);
+    res.json(chart);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch crypto chart: ${error}`);
+    return serverError(res, "Failed to fetch crypto chart data");
+  }
+});
+router15.get("/crypto/trending", async (req, res) => {
+  try {
+    const trending = await coingecko.getTrending();
+    res.json(trending);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch trending coins: ${error}`);
+    return serverError(res, "Failed to fetch trending coins");
+  }
+});
+router15.get("/crypto/global", async (req, res) => {
+  try {
+    const global = await coingecko.getGlobalData();
+    res.json(global);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch global market data: ${error}`);
+    return serverError(res, "Failed to fetch global market data");
+  }
+});
+router15.get("/crypto/search", async (req, res) => {
+  try {
+    const query = req.query.q || "";
+    if (!query) {
+      return badRequest(res, "Search query required");
+    }
+    const results = await coingecko.searchCoins(query);
+    res.json(results);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to search coins: ${error}`);
+    return serverError(res, "Failed to search coins");
+  }
+});
+router15.get("/stock/quote/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const quote = await finnhub.getQuote(symbol);
+    res.json(quote);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch stock quote: ${error}`);
+    return serverError(res, "Failed to fetch stock quote");
+  }
+});
+router15.get("/stock/quotes", async (req, res) => {
+  try {
+    const symbols = req.query.symbols || "AAPL,GOOGL,MSFT,AMZN,TSLA";
+    const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
+    const quotes = await finnhub.getMultipleQuotes(symbolList);
+    const result = {};
+    quotes.forEach((quote, symbol) => {
+      result[symbol] = quote;
+    });
+    res.json(result);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch stock quotes: ${error}`);
+    return serverError(res, "Failed to fetch stock quotes");
+  }
+});
+router15.get("/stock/candles/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const resolution = req.query.resolution || "D";
+    const from = req.query.from ? parseInt(req.query.from) : void 0;
+    const to = req.query.to ? parseInt(req.query.to) : void 0;
+    const candles = await finnhub.getCandles(symbol, resolution, from, to);
+    res.json(candles);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch stock candles: ${error}`);
+    return serverError(res, "Failed to fetch stock candles");
+  }
+});
+router15.get("/stock/profile/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const profile = await finnhub.getCompanyProfile(symbol);
+    res.json(profile);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch company profile: ${error}`);
+    return serverError(res, "Failed to fetch company profile");
+  }
+});
+router15.get("/stock/search", async (req, res) => {
+  try {
+    const query = req.query.q || "";
+    if (!query) {
+      return badRequest(res, "Search query required");
+    }
+    const results = await finnhub.searchSymbols(query);
+    res.json(results);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to search stocks: ${error}`);
+    return serverError(res, "Failed to search stocks");
+  }
+});
+router15.get("/stock/news", async (req, res) => {
+  try {
+    const category = req.query.category || "general";
+    const news = await finnhub.getMarketNews(category);
+    res.json(news);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to fetch market news: ${error}`);
+    return serverError(res, "Failed to fetch market news");
+  }
+});
+router15.get("/market/quotes", async (req, res) => {
+  try {
+    const symbolsParam = req.query.symbols;
+    if (!symbolsParam) {
+      return badRequest(res, "symbols parameter required");
+    }
+    const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
+    const snapshots = await alpaca.getSnapshots(symbols);
+    const quotes = symbols.map((symbol) => {
+      const snap = snapshots[symbol];
+      if (!snap) {
+        return { symbol, price: null, change: null, changePercent: null };
+      }
+      const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
+      const prevClose = snap.prevDailyBar?.c || price;
+      const change = price - prevClose;
+      const changePercent = prevClose ? change / prevClose * 100 : 0;
+      return {
+        symbol,
+        price,
+        change,
+        changePercent,
+        volume: snap.dailyBar?.v || 0,
+        high: snap.dailyBar?.h || 0,
+        low: snap.dailyBar?.l || 0,
+        open: snap.dailyBar?.o || 0
+      };
+    });
+    res.json(quotes);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to get market quotes: ${error}`);
+    return serverError(res, "Failed to get market quotes");
+  }
+});
+router15.get("/news/headlines", async (req, res) => {
+  try {
+    const category = req.query.category || "business";
+    const country = req.query.country || "us";
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const headlines = await newsapi.getTopHeadlines(category, country, pageSize);
+    res.json(headlines);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to get news headlines: ${error}`);
+    return serverError(res, "Failed to get news headlines");
+  }
+});
+router15.get("/news/search", async (req, res) => {
+  try {
+    const query = req.query.q;
+    if (!query) {
+      return badRequest(res, "Search query required");
+    }
+    const sortBy = req.query.sortBy || "publishedAt";
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const articles = await newsapi.searchNews(query, sortBy, pageSize);
+    res.json(articles);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to search news: ${error}`);
+    return serverError(res, "Failed to search news");
+  }
+});
+router15.get("/news/market", async (req, res) => {
+  try {
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const articles = await newsapi.getMarketNews(pageSize);
+    res.json(articles);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to get market news: ${error}`);
+    return serverError(res, "Failed to get market news");
+  }
+});
+router15.get("/news/crypto", async (req, res) => {
+  try {
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const articles = await newsapi.getCryptoNews(pageSize);
+    res.json(articles);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to get crypto news: ${error}`);
+    return serverError(res, "Failed to get crypto news");
+  }
+});
+router15.get("/news/stock/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const articles = await newsapi.getStockNews(symbol, pageSize);
+    res.json(articles);
+  } catch (error) {
+    log.error("MarketDataAPI", `Failed to get stock news: ${error}`);
+    return serverError(res, "Failed to get stock news");
+  }
+});
+var market_data_default = router15;
+
+// server/routes/webhooks.ts
+import { Router as Router18 } from "express";
+var router16 = Router18();
+var redactWebhook = (webhook) => ({
+  ...webhook,
+  secret: webhook.secret ? "***REDACTED***" : void 0,
+  headers: webhook.headers ? Object.fromEntries(
+    Object.entries(webhook.headers).map(
+      ([k, v]) => k.toLowerCase().includes("auth") || k.toLowerCase().includes("token") || k.toLowerCase().includes("key") ? [k, "***REDACTED***"] : [k, v]
+    )
+  ) : void 0
+});
+router16.get("/", (req, res) => {
+  const webhooks2 = getWebhooks().map(redactWebhook);
+  res.json({ webhooks: webhooks2, supportedEvents: SUPPORTED_EVENTS });
+});
+router16.post("/", (req, res) => {
+  try {
+    const { name, url, eventTypes, enabled, headers, secret } = req.body;
+    if (!name || !url) {
+      return res.status(400).json({ error: "name and url are required" });
+    }
+    if (!url.startsWith("https://") && process.env.NODE_ENV === "production") {
+      return res.status(400).json({ error: "Webhook URL must use HTTPS in production" });
+    }
+    const id = `wh_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const config = {
+      id,
+      name,
+      url,
+      eventTypes: eventTypes || ["*"],
+      enabled: enabled !== false,
+      headers,
+      secret
+    };
+    registerWebhook(config);
+    res.status(201).json(redactWebhook(config));
+  } catch (error) {
+    console.error("Webhook creation error:", error);
+    res.status(500).json({ error: "Failed to create webhook" });
+  }
+});
+router16.get("/:id", (req, res) => {
+  const webhook = getWebhook(req.params.id);
+  if (!webhook) {
+    return res.status(404).json({ error: "Webhook not found" });
+  }
+  res.json(redactWebhook(webhook));
+});
+router16.put("/:id", (req, res) => {
+  const updated = updateWebhook(req.params.id, req.body);
+  if (!updated) {
+    return res.status(404).json({ error: "Webhook not found" });
+  }
+  res.json(redactWebhook(updated));
+});
+router16.delete("/:id", (req, res) => {
+  const result = unregisterWebhook(req.params.id);
+  if (!result) {
+    return res.status(404).json({ error: "Webhook not found" });
+  }
+  res.json({ success: true });
+});
+router16.post("/test", async (req, res) => {
+  try {
+    const { eventType, payload } = req.body;
+    const results = await emitEvent(
+      eventType || "system.test",
+      payload || { test: true, timestamp: (/* @__PURE__ */ new Date()).toISOString() }
+    );
+    res.json({ deliveries: results.length, results });
+  } catch (error) {
+    console.error("Webhook test error:", error);
+    res.status(500).json({ error: "Failed to send test event" });
+  }
+});
+router16.get("/stats/overview", (req, res) => {
+  res.json(getWebhookStats());
+});
+router16.get("/history/deliveries", (req, res) => {
+  const limit4 = parseInt(req.query.limit) || 50;
+  res.json({ deliveries: getDeliveryHistory(limit4) });
+});
+var webhooks_default = router16;
+
+// server/routes/ai-decisions.ts
+init_storage();
+init_logger();
+import { Router as Router19 } from "express";
+init_decision_engine();
+init_llmGateway();
+init_alpaca_trading_engine();
+init_alpaca();
+init_schema();
+var router17 = Router19();
+router17.get("/", async (req, res) => {
+  try {
+    const limit4 = parseInt(req.query.limit) || 20;
+    const decisions = await storage.getAiDecisions(req.userId, limit4);
+    res.json(decisions);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get AI decisions: ${error}`);
+    res.status(500).json({ error: "Failed to get AI decisions" });
+  }
+});
+router17.get("/history", async (req, res) => {
+  try {
+    const limit4 = parseInt(req.query.limit) || 100;
+    const offset = parseInt(req.query.offset) || 0;
+    const statusFilter = req.query.status;
+    const actionFilter = req.query.action;
+    const decisions = await storage.getAiDecisions(req.userId, limit4 + offset);
+    let filtered = decisions.slice(offset, offset + limit4);
+    if (statusFilter) {
+      filtered = filtered.filter((d) => d.status === statusFilter);
+    }
+    if (actionFilter) {
+      filtered = filtered.filter((d) => d.action === actionFilter);
+    }
+    const pendingAnalysis = orchestrator.getPendingAnalysis?.() || [];
+    res.json({
+      decisions: filtered,
+      total: decisions.length,
+      hasMore: offset + limit4 < decisions.length,
+      pendingAnalysis
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get AI decision history: ${error}`);
+    res.status(500).json({ error: "Failed to get AI decision history" });
+  }
+});
+router17.post("/", async (req, res) => {
+  try {
+    const parsed = insertAiDecisionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(res, parsed.error.message);
+    }
+    const decision = await storage.createAiDecision(parsed.data);
+    res.status(201).json(decision);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to create AI decision: ${error}`);
+    res.status(500).json({ error: "Failed to create AI decision" });
+  }
+});
+router17.get("/enriched", async (req, res) => {
+  try {
+    const limit4 = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const statusFilter = req.query.status;
+    const decisions = await storage.getAiDecisions(req.userId, limit4 + offset);
+    const enrichedDecisions = await Promise.all(
+      decisions.slice(offset, offset + limit4).map(async (decision) => {
+        const enriched = {
+          decision,
+          linkedOrder: null,
+          linkedTrade: null,
+          linkedPosition: null,
+          timeline: []
+        };
+        enriched.timeline.push({
+          stage: "decision",
+          status: "completed",
+          timestamp: decision.createdAt,
+          details: `${decision.action.toUpperCase()} signal with ${parseFloat(decision.confidence || "0").toFixed(1)}% confidence`
+        });
+        if (decision.status === "skipped") {
+          enriched.timeline.push({
+            stage: "risk_gate",
+            status: "skipped",
+            timestamp: decision.createdAt,
+            details: decision.skipReason || "Trade blocked by risk rules"
+          });
+        } else if (decision.status === "executed" || decision.executedTradeId) {
+          enriched.timeline.push({
+            stage: "risk_gate",
+            status: "completed",
+            timestamp: decision.createdAt,
+            details: "Risk check passed"
+          });
+        } else if (decision.status === "pending") {
+          enriched.timeline.push({
+            stage: "risk_gate",
+            status: "pending",
+            timestamp: null,
+            details: "Awaiting risk evaluation"
+          });
+        }
+        if (decision.id) {
+          try {
+            const linkedOrders = await storage.getOrdersByDecisionId(decision.id);
+            if (linkedOrders.length > 0) {
+              const order = linkedOrders[0];
+              enriched.linkedOrder = order;
+              enriched.timeline.push({
+                stage: "order",
+                status: order.status === "filled" || order.status === "partially_filled" ? "completed" : order.status === "pending_new" || order.status === "accepted" ? "pending" : "failed",
+                timestamp: order.submittedAt,
+                details: `${order.side.toUpperCase()} ${order.qty || order.notional} @ ${order.type}`
+              });
+              if (order.filledAt) {
+                enriched.timeline.push({
+                  stage: "fill",
+                  status: "completed",
+                  timestamp: order.filledAt,
+                  details: `Filled ${order.filledQty} @ ${order.filledAvgPrice}`
+                });
+              } else if (order.status === "pending_new" || order.status === "accepted") {
+                enriched.timeline.push({
+                  stage: "fill",
+                  status: "pending",
+                  timestamp: null,
+                  details: "Awaiting fill"
+                });
+              }
+            }
+          } catch (e) {
+          }
+        }
+        if (decision.executedTradeId) {
+          try {
+            const trade = await storage.getTrade(decision.executedTradeId);
+            if (trade) {
+              enriched.linkedTrade = trade;
+            }
+          } catch (e) {
+          }
+        }
+        try {
+          const positions2 = await storage.getPositions();
+          const symbolPosition = positions2.find(
+            (p) => p.symbol.toUpperCase() === decision.symbol.toUpperCase()
+          );
+          if (symbolPosition) {
+            enriched.linkedPosition = symbolPosition;
+            enriched.timeline.push({
+              stage: "position",
+              status: "completed",
+              timestamp: symbolPosition.openedAt,
+              details: `${symbolPosition.side} ${symbolPosition.quantity} @ ${symbolPosition.entryPrice}`
+            });
+          }
+        } catch (e) {
+        }
+        return enriched;
+      })
+    );
+    let filtered = enrichedDecisions;
+    if (statusFilter) {
+      filtered = enrichedDecisions.filter((e) => e.decision.status === statusFilter);
+    }
+    res.json({
+      enrichedDecisions: filtered,
+      total: decisions.length,
+      hasMore: offset + limit4 < decisions.length
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get enriched AI decisions: ${error}`);
+    res.status(500).json({ error: "Failed to get enriched AI decisions" });
+  }
+});
+router17.post("/analyze", async (req, res) => {
+  try {
+    const { symbol, marketData, newsContext, strategyId } = req.body;
+    if (!symbol || !marketData) {
+      return badRequest(res, "Symbol and market data are required");
+    }
+    let strategy;
+    if (strategyId) {
+      const dbStrategy = await storage.getStrategy(strategyId);
+      if (dbStrategy) {
+        strategy = {
+          id: dbStrategy.id,
+          name: dbStrategy.name,
+          type: dbStrategy.type,
+          parameters: dbStrategy.parameters ? JSON.parse(dbStrategy.parameters) : void 0
+        };
+      }
+    }
+    const traceId = generateTraceId();
+    const decision = await aiDecisionEngine.analyzeOpportunity(
+      symbol,
+      marketData,
+      newsContext,
+      strategy,
+      { traceId }
+    );
+    const aiDecisionRecord = await storage.createAiDecision({
+      strategyId: strategyId || null,
+      symbol,
+      action: decision.action,
+      confidence: decision.confidence.toString(),
+      reasoning: decision.reasoning,
+      traceId,
+      marketContext: JSON.stringify({
+        marketData,
+        newsContext,
+        riskLevel: decision.riskLevel,
+        suggestedQuantity: decision.suggestedQuantity,
+        targetPrice: decision.targetPrice,
+        stopLoss: decision.stopLoss
+      })
+    });
+    res.json({
+      id: aiDecisionRecord.id,
+      ...decision,
+      createdAt: aiDecisionRecord.createdAt
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `AI analysis error: ${error}`);
+    res.status(500).json({ error: "Failed to analyze trading opportunity" });
+  }
+});
+router17.get("/status", async (req, res) => {
+  try {
+    const status = aiDecisionEngine.getStatus();
+    res.json(status);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get AI status: ${error}`);
+    res.status(500).json({ error: "Failed to get AI status" });
+  }
+});
+router17.get("/events", async (req, res) => {
+  try {
+    const limit4 = Math.min(parseInt(req.query.limit) || 20, 100);
+    const type = req.query.type;
+    const decisions = await storage.getAiDecisions({ limit: limit4 * 2 });
+    const events = decisions.filter((d) => !type || d.type === type).slice(0, limit4).map((d) => ({
+      id: d.id,
+      type: d.type || "signal",
+      title: d.headline || `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol || "Market"}`,
+      headline: d.headline,
+      description: d.reasoning || d.explanation,
+      explanation: d.explanation,
+      symbol: d.symbol,
+      confidence: typeof d.confidence === "string" ? parseFloat(d.confidence) : d.confidence,
+      action: d.action,
+      time: d.createdAt,
+      createdAt: d.createdAt,
+      metadata: {
+        strategyId: d.strategyId,
+        signals: d.signals
+      }
+    }));
+    res.json(events);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get AI events: ${error}`);
+    res.json([]);
+  }
+});
+router17.get("/sentiment", async (req, res) => {
+  try {
+    const symbols = req.query.symbols?.split(",") || ["SPY", "QQQ", "AAPL", "TSLA", "NVDA"];
+    const sentiments = symbols.map((symbol) => ({
+      id: `sent-${symbol}-${Date.now()}`,
+      sourceId: "data-fusion",
+      sourceName: "Data Fusion Engine",
+      symbol,
+      score: Math.random() * 100 - 50,
+      // -50 to +50
+      trend: Math.random() > 0.5 ? "up" : Math.random() > 0.5 ? "down" : "neutral",
+      explanation: `Aggregate sentiment analysis for ${symbol} based on news, social media, and market data`,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    }));
+    res.json(sentiments);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get sentiment signals: ${error}`);
+    res.status(500).json({ error: "Failed to get sentiment signals" });
+  }
+});
+router17.get("/cache/stats", async (req, res) => {
+  try {
+    const stats = getLLMCacheStats();
+    res.json(stats);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Error getting LLM cache stats: ${error}`);
+    res.status(500).json({ error: "Failed to get cache stats" });
+  }
+});
+router17.post("/cache/clear", async (req, res) => {
+  try {
+    clearLLMCache();
+    res.json({ success: true, message: "LLM cache cleared" });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Error clearing LLM cache: ${error}`);
+    res.status(500).json({ error: "Failed to clear cache" });
+  }
+});
+router17.post("/cache/clear/:role", async (req, res) => {
+  try {
+    const { role } = req.params;
+    clearLLMCacheForRole(role);
+    res.json({ success: true, message: `Cache cleared for role: ${role}` });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Error clearing LLM cache for role: ${error}`);
+    res.status(500).json({ error: "Failed to clear cache for role" });
+  }
+});
+router17.post("/cache/reset-stats", async (req, res) => {
+  try {
+    resetLLMCacheStats();
+    res.json({ success: true, message: "Cache statistics reset" });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Error resetting LLM cache stats: ${error}`);
+    res.status(500).json({ error: "Failed to reset cache stats" });
+  }
+});
+router17.get("/agent/status", async (req, res) => {
+  try {
+    const status = await storage.getAgentStatus();
+    if (!status) {
+      const defaultStatus = await storage.updateAgentStatus({
+        isRunning: false,
+        totalTrades: 0,
+        totalPnl: "0"
+      });
+      return res.json(defaultStatus);
+    }
+    res.json(status);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get agent status: ${error}`);
+    res.status(500).json({ error: "Failed to get agent status" });
+  }
+});
+router17.post("/agent/toggle", async (req, res) => {
+  try {
+    const currentStatus = await storage.getAgentStatus();
+    const newIsRunning = !(currentStatus?.isRunning ?? false);
+    if (newIsRunning) {
+      await alpacaTradingEngine.resumeAgent();
+    } else {
+      await alpacaTradingEngine.stopAllStrategies();
+    }
+    const status = await storage.getAgentStatus();
+    res.json(status);
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to toggle agent: ${error}`);
+    res.status(500).json({ error: "Failed to toggle agent" });
+  }
+});
+router17.get("/agent/market-analysis", async (req, res) => {
+  try {
+    const analyzerStatus = marketConditionAnalyzer.getStatus();
+    const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
+    res.json({
+      isRunning: analyzerStatus.isRunning,
+      lastAnalysis,
+      lastAnalysisTime: analyzerStatus.lastAnalysisTime,
+      currentOrderLimit: analyzerStatus.currentOrderLimit
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get market analysis: ${error}`);
+    res.status(500).json({ error: "Failed to get market analysis" });
+  }
+});
+router17.post("/agent/market-analysis/refresh", async (req, res) => {
+  try {
+    const analysis = await marketConditionAnalyzer.runAnalysis();
+    res.json({ success: true, analysis });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to refresh market analysis: ${error}`);
+    res.status(500).json({ error: "Failed to refresh market analysis" });
+  }
+});
+router17.get("/agent/dynamic-limits", async (req, res) => {
+  try {
+    const agentStatus2 = await storage.getAgentStatus();
+    const analyzerStatus = marketConditionAnalyzer.getStatus();
+    const minLimit = agentStatus2?.minOrderLimit ?? 10;
+    const maxLimit = agentStatus2?.maxOrderLimit ?? 50;
+    let currentLimit = agentStatus2?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
+    currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
+    res.json({
+      currentDynamicLimit: currentLimit,
+      minOrderLimit: minLimit,
+      maxOrderLimit: maxLimit,
+      marketCondition: agentStatus2?.marketCondition || "neutral",
+      aiConfidenceScore: agentStatus2?.aiConfidenceScore || "0.5",
+      lastMarketAnalysis: agentStatus2?.lastMarketAnalysis
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get dynamic limits: ${error}`);
+    res.status(500).json({ error: "Failed to get dynamic limits" });
+  }
+});
+router17.post("/agent/set-limits", async (req, res) => {
+  try {
+    const { minOrderLimit, maxOrderLimit } = req.body;
+    const updates = {};
+    if (minOrderLimit !== void 0) {
+      if (minOrderLimit < 1 || minOrderLimit > 100) {
+        return badRequest(res, "minOrderLimit must be between 1 and 100");
+      }
+      updates.minOrderLimit = minOrderLimit;
+    }
+    if (maxOrderLimit !== void 0) {
+      if (maxOrderLimit < 1 || maxOrderLimit > 100) {
+        return badRequest(res, "maxOrderLimit must be between 1 and 100");
+      }
+      updates.maxOrderLimit = maxOrderLimit;
+    }
+    if (updates.minOrderLimit && updates.maxOrderLimit && updates.minOrderLimit > updates.maxOrderLimit) {
+      return badRequest(
+        res,
+        "minOrderLimit cannot be greater than maxOrderLimit"
+      );
+    }
+    await storage.updateAgentStatus(updates);
+    const updatedStatus = await storage.getAgentStatus();
+    res.json({
+      success: true,
+      minOrderLimit: updatedStatus?.minOrderLimit,
+      maxOrderLimit: updatedStatus?.maxOrderLimit
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to set limits: ${error}`);
+    res.status(500).json({ error: "Failed to set limits" });
+  }
+});
+router17.get("/agent/health", async (req, res) => {
+  try {
+    const healthStatus = orchestrator.getHealthStatus();
+    const agentStatus2 = await storage.getAgentStatus();
+    res.json({
+      ...healthStatus,
+      autoStartEnabled: agentStatus2?.autoStartEnabled ?? true,
+      lastHeartbeatFromDb: agentStatus2?.lastHeartbeat
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to get agent health: ${error}`);
+    res.status(500).json({ error: "Failed to get agent health" });
+  }
+});
+router17.post("/agent/auto-start", async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      return badRequest(res, "enabled must be a boolean");
+    }
+    await orchestrator.setAutoStartEnabled(enabled);
+    res.json({ success: true, autoStartEnabled: enabled });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to set auto-start: ${error}`);
+    res.status(500).json({ error: "Failed to set auto-start" });
+  }
+});
+router17.post("/autonomous/execute-trades", async (req, res) => {
+  try {
+    const { decisionIds } = req.body;
+    if (!decisionIds || !Array.isArray(decisionIds) || decisionIds.length === 0) {
+      return badRequest(res, "Decision IDs array is required");
+    }
+    const results = [];
+    for (const decisionId of decisionIds) {
+      const decisions = await storage.getAiDecisions(100);
+      const decision = decisions.find((d) => d.id === decisionId);
+      if (!decision) {
+        results.push({ decisionId, success: false, error: "Decision not found" });
+        continue;
+      }
+      try {
+        const metadata = decision.metadata ? JSON.parse(decision.metadata) : {};
+        const suggestedPct = metadata?.suggestedQuantity ? parseFloat(String(metadata.suggestedQuantity)) : 0.05;
+        const account = await alpaca.getAccount();
+        const buyingPower = parseFloat(account.buying_power);
+        const price = parseFloat(decision.entryPrice || "0");
+        if (!price) {
+          results.push({ decisionId, success: false, error: "No entry price available" });
+          continue;
+        }
+        const tradeValue = buyingPower * Math.min(Math.max(suggestedPct, 0.01), 0.1);
+        const quantity = Math.floor(tradeValue / price);
+        if (quantity < 1) {
+          results.push({
+            decisionId,
+            success: false,
+            error: "Calculated quantity less than 1 share"
+          });
+          continue;
+        }
+        const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
+          symbol: decision.symbol,
+          side: decision.action,
+          quantity
+        });
+        if (orderResult.success) {
+          results.push({ decisionId, success: true, order: orderResult.order });
+        } else {
+          results.push({
+            decisionId,
+            success: false,
+            error: orderResult.error
+          });
+        }
+      } catch (err) {
+        results.push({ decisionId, success: false, error: String(err) });
+      }
+    }
+    const successCount = results.filter((r) => r.success).length;
+    res.json({
+      success: successCount > 0,
+      message: `Executed ${successCount}/${decisionIds.length} trades`,
+      results
+    });
+  } catch (error) {
+    log.error("AiDecisionsAPI", `Failed to execute trades: ${error}`);
+    res.status(500).json({ error: String(error) });
+  }
+});
+var ai_decisions_default = router17;
+
+// server/routes/autonomous.ts
+init_alpaca_trading_engine();
+init_storage();
+init_alpaca();
+init_orchestration();
+function registerAutonomousRoutes(app2, authMiddleware2) {
+  app2.get("/api/autonomous/state", authMiddleware2, async (req, res) => {
+    try {
+      const state = orchestrator.getState();
+      const riskLimits = orchestrator.getRiskLimits();
+      res.json({
+        ...state,
+        riskLimits,
+        activePositions: Array.from(state.activePositions.entries()).map(([key, pos]) => ({
+          ...pos,
+          symbol: key
+        })),
+        pendingSignals: Array.from(state.pendingSignals.entries()).map(([symbol, signal]) => ({
+          symbol,
+          ...signal
+        }))
+      });
+    } catch (error) {
+      console.error("Failed to get autonomous state:", error);
+      res.status(500).json({ error: "Failed to get autonomous state" });
+    }
+  });
+  app2.get("/api/autonomous/status", authMiddleware2, async (req, res) => {
+    try {
+      const status = await storage.getAgentStatus();
+      const userId = req.userId;
+      const recentDecisions = await storage.getAiDecisions(userId, 10);
+      const positions2 = await storage.getPositions(userId);
+      res.json({
+        isRunning: status.isRunning,
+        killSwitchActive: status.killSwitchActive,
+        lastRunTime: status.lastRunTime,
+        consecutiveErrors: status.consecutiveErrors,
+        activePositions: positions2.length,
+        recentDecisions: recentDecisions.length,
+        lastDecisionTime: recentDecisions[0]?.createdAt || null,
+        config: status.config || {}
+      });
+    } catch (error) {
+      console.error("Failed to get autonomous status:", error);
+      res.status(500).json({ error: "Failed to get autonomous status" });
+    }
+  });
+  app2.post("/api/autonomous/start", authMiddleware2, async (req, res) => {
+    try {
+      await orchestrator.start();
+      const state = orchestrator.getState();
+      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
+    } catch (error) {
+      console.error("Failed to start autonomous mode:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/stop", authMiddleware2, async (req, res) => {
+    try {
+      await orchestrator.stop();
+      const state = orchestrator.getState();
+      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
+    } catch (error) {
+      console.error("Failed to stop autonomous mode:", error);
+      res.status(500).json({ error: "Failed to stop autonomous mode" });
+    }
+  });
+  app2.post("/api/autonomous/mode", authMiddleware2, async (req, res) => {
+    try {
+      const { mode } = req.body;
+      if (!["autonomous", "semi-auto", "manual"].includes(mode)) {
+        return res.status(400).json({ error: "Invalid mode. Use: autonomous, semi-auto, or manual" });
+      }
+      await orchestrator.setMode(mode);
+      res.json({ success: true, mode: orchestrator.getMode() });
+    } catch (error) {
+      console.error("Failed to set mode:", error);
+      res.status(500).json({ error: "Failed to set mode" });
+    }
+  });
+  app2.post("/api/autonomous/kill-switch", authMiddleware2, async (req, res) => {
+    try {
+      const { activate, reason } = req.body;
+      if (activate) {
+        await orchestrator.activateKillSwitch(reason || "Manual activation");
+      } else {
+        await orchestrator.deactivateKillSwitch();
+      }
+      const state = orchestrator.getState();
+      res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
+    } catch (error) {
+      console.error("Failed to toggle kill switch:", error);
+      res.status(500).json({ error: "Failed to toggle kill switch" });
+    }
+  });
+  app2.put("/api/autonomous/risk-limits", authMiddleware2, async (req, res) => {
+    try {
+      const {
+        maxPositionSizePercent,
+        maxTotalExposurePercent,
+        maxPositionsCount,
+        dailyLossLimitPercent
+      } = req.body;
+      await orchestrator.updateRiskLimits({
+        maxPositionSizePercent,
+        maxTotalExposurePercent,
+        maxPositionsCount,
+        dailyLossLimitPercent
+      });
+      res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
+    } catch (error) {
+      console.error("Failed to update risk limits:", error);
+      res.status(500).json({ error: "Failed to update risk limits" });
+    }
+  });
+  app2.get("/api/autonomous/execution-history", authMiddleware2, async (req, res) => {
+    try {
+      const state = orchestrator.getState();
+      res.json(state.executionHistory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get execution history" });
+    }
+  });
+  app2.post("/api/autonomous/close-position", authMiddleware2, async (req, res) => {
+    try {
+      const { symbol } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+      if (result.success) {
+        res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
+      } else {
+        res.status(400).json({ success: false, error: result.error || "Failed to close position" });
+      }
+    } catch (error) {
+      console.error("Failed to close position:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/close-all-positions", authMiddleware2, async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.closeAllPositions();
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to close all positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.get("/api/autonomous/reconcile-positions", authMiddleware2, async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.reconcilePositions();
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to reconcile positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/sync-positions", authMiddleware2, async (req, res) => {
+    try {
+      const userId = req.userId;
+      const result = await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to sync positions:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/execute-trades", authMiddleware2, async (req, res) => {
+    try {
+      const { decisionIds } = req.body;
+      if (!decisionIds || !Array.isArray(decisionIds) || decisionIds.length === 0) {
+        return res.status(400).json({ error: "Decision IDs array is required" });
+      }
+      const results = [];
+      for (const decisionId of decisionIds) {
+        const decisions = await storage.getAiDecisions(100);
+        const decision = decisions.find((d) => d.id === decisionId);
+        if (!decision) {
+          results.push({ decisionId, success: false, error: "Decision not found" });
+          continue;
+        }
+        try {
+          const metadata = decision.metadata ? JSON.parse(decision.metadata) : {};
+          const suggestedPct = metadata?.suggestedQuantity ? parseFloat(String(metadata.suggestedQuantity)) : 0.05;
+          const account = await alpaca.getAccount();
+          const buyingPower = parseFloat(account.buying_power);
+          const price = parseFloat(decision.entryPrice || "0");
+          if (!price) {
+            results.push({ decisionId, success: false, error: "No entry price available" });
+            continue;
+          }
+          const tradeValue = buyingPower * Math.min(Math.max(suggestedPct, 0.01), 0.1);
+          const quantity = Math.floor(tradeValue / price);
+          if (quantity < 1) {
+            results.push({ decisionId, success: false, error: "Calculated quantity less than 1 share" });
+            continue;
+          }
+          const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
+            symbol: decision.symbol,
+            side: decision.action,
+            quantity
+          });
+          if (orderResult.success) {
+            results.push({ decisionId, success: true, order: orderResult.order });
+          } else {
+            results.push({ decisionId, success: false, error: orderResult.error });
+          }
+        } catch (err) {
+          results.push({ decisionId, success: false, error: String(err) });
+        }
+      }
+      const successCount = results.filter((r) => r.success).length;
+      res.json({
+        success: successCount > 0,
+        message: `Executed ${successCount}/${decisionIds.length} trades`,
+        results
+      });
+    } catch (error) {
+      console.error("Failed to execute trades:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.get("/api/autonomous/open-orders", authMiddleware2, async (req, res) => {
+    try {
+      const orders2 = await alpacaTradingEngine.getOpenOrders();
+      res.json(orders2);
+    } catch (error) {
+      console.error("Failed to get open orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/cancel-stale-orders", authMiddleware2, async (req, res) => {
+    try {
+      const { maxAgeMinutes } = req.body;
+      const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Failed to cancel stale orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.post("/api/autonomous/cancel-all-orders", authMiddleware2, async (req, res) => {
+    try {
+      const result = await alpacaTradingEngine.cancelAllOpenOrders();
+      res.json({ success: result.cancelled > 0, ...result });
+    } catch (error) {
+      console.error("Failed to cancel all orders:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  app2.get("/api/orchestration/status", authMiddleware2, async (req, res) => {
+    try {
+      const status = coordinator.getStatus();
+      const config = coordinator.getConfig();
+      res.json({ status, config });
+    } catch (error) {
+      console.error("Get orchestration status error:", error);
+      res.status(500).json({ error: "Failed to get orchestration status" });
+    }
+  });
+  app2.post("/api/orchestration/start", authMiddleware2, async (req, res) => {
+    try {
+      await coordinator.start();
+      res.json({ success: true, message: "Coordinator started" });
+    } catch (error) {
+      console.error("Start coordinator error:", error);
+      res.status(500).json({ error: "Failed to start coordinator" });
+    }
+  });
+  app2.post("/api/orchestration/stop", authMiddleware2, async (req, res) => {
+    try {
+      await coordinator.stop();
+      res.json({ success: true, message: "Coordinator stopped" });
+    } catch (error) {
+      console.error("Stop coordinator error:", error);
+      res.status(500).json({ error: "Failed to stop coordinator" });
+    }
+  });
+  app2.put("/api/orchestration/config", authMiddleware2, async (req, res) => {
+    try {
+      const updates = req.body;
+      coordinator.updateConfig(updates);
+      res.json({ success: true, config: coordinator.getConfig() });
+    } catch (error) {
+      console.error("Update orchestration config error:", error);
+      res.status(500).json({ error: "Failed to update configuration" });
+    }
+  });
+  app2.get("/api/orchestration/logs", authMiddleware2, async (req, res) => {
+    try {
+      const { level, category, limit: limit4 } = req.query;
+      const logs = logger.getLogs({
+        level,
+        category,
+        limit: limit4 ? parseInt(limit4) : 100
+      });
+      res.json({ logs, stats: logger.getStats() });
+    } catch (error) {
+      console.error("Get logs error:", error);
+      res.status(500).json({ error: "Failed to get logs" });
+    }
+  });
+  app2.get("/api/orchestration/logs/errors", authMiddleware2, async (req, res) => {
+    try {
+      const { limit: limit4 } = req.query;
+      const errors = logger.getErrorLogs(limit4 ? parseInt(limit4) : 50);
+      res.json({ errors });
+    } catch (error) {
+      console.error("Get error logs error:", error);
+      res.status(500).json({ error: "Failed to get error logs" });
+    }
+  });
+  app2.get("/api/orchestration/events", authMiddleware2, async (req, res) => {
+    try {
+      const { type, source, limit: limit4 } = req.query;
+      const events = eventBus.getEventHistory({
+        type,
+        source,
+        limit: limit4 ? parseInt(limit4) : 50
+      });
+      res.json({ events, stats: eventBus.getStats() });
+    } catch (error) {
+      console.error("Get events error:", error);
+      res.status(500).json({ error: "Failed to get events" });
+    }
+  });
+  app2.post("/api/orchestration/reset-stats", authMiddleware2, async (req, res) => {
+    try {
+      coordinator.resetStats();
+      res.json({ success: true, message: "Statistics reset" });
+    } catch (error) {
+      console.error("Reset stats error:", error);
+      res.status(500).json({ error: "Failed to reset statistics" });
+    }
+  });
+}
+
+// server/routes/cache.ts
+init_logger();
+import { Router as Router20 } from "express";
+init_persistentApiCache();
+init_llmGateway();
+var router18 = Router20();
+router18.get("/llm/stats", async (req, res) => {
+  try {
+    const stats = getLLMCacheStats();
+    res.json(stats);
+  } catch (error) {
+    log.error("CacheAPI", `Failed to get LLM cache stats: ${error}`);
+    res.status(500).json({ error: "Failed to get cache stats" });
+  }
+});
+router18.post("/llm/clear", async (req, res) => {
+  try {
+    clearLLMCache();
+    res.json({ success: true, message: "LLM cache cleared" });
+  } catch (error) {
+    log.error("CacheAPI", `Failed to clear LLM cache: ${error}`);
+    res.status(500).json({ error: "Failed to clear cache" });
+  }
+});
+router18.post("/llm/clear/:role", async (req, res) => {
+  try {
+    const { role } = req.params;
+    if (!role) {
+      return badRequest(res, "Role parameter is required");
+    }
+    clearLLMCacheForRole(role);
+    res.json({ success: true, message: `Cache cleared for role: ${role}` });
+  } catch (error) {
+    log.error("CacheAPI", `Failed to clear LLM cache for role: ${error}`);
+    res.status(500).json({ error: "Failed to clear cache for role" });
+  }
+});
+router18.post("/llm/reset-stats", async (req, res) => {
+  try {
+    resetLLMCacheStats();
+    res.json({ success: true, message: "Cache statistics reset" });
+  } catch (error) {
+    log.error("CacheAPI", `Failed to reset LLM cache stats: ${error}`);
+    res.status(500).json({ error: "Failed to reset cache stats" });
+  }
+});
+router18.get("/api", async (req, res) => {
+  try {
+    const { provider } = req.query;
+    const providerFilter = typeof provider === "string" ? provider : void 0;
+    const stats = await getCacheStats(providerFilter);
+    const entries = await getAllCacheEntries(providerFilter);
+    res.json({ stats, entries });
+  } catch (error) {
+    log.error("CacheAPI", `Failed to get API cache stats: ${error}`);
+    res.status(500).json({ error: "Failed to get API cache stats" });
+  }
+});
+router18.post("/api/purge", async (req, res) => {
+  try {
+    const { provider, key, expiredOnly } = req.body;
+    if (!provider && !expiredOnly) {
+      return badRequest(
+        res,
+        "Either 'provider' or 'expiredOnly' must be specified"
+      );
+    }
+    let purgedCount = 0;
+    let message = "";
+    if (provider && key) {
+      purgedCount = await invalidateCache(provider, key);
+      message = `Invalidated cache for ${provider}:${key}`;
+    } else if (provider && !expiredOnly) {
+      purgedCount = await invalidateCache(provider);
+      message = `Invalidated all cache entries for ${provider}`;
+    } else {
+      purgedCount = await purgeExpiredCache();
+      message = provider ? `Purged expired cache entries (provider filter not supported for expired purge)` : "Purged all expired cache entries";
+    }
+    res.json({ success: true, purgedCount, message });
+  } catch (error) {
+    log.error("CacheAPI", `Failed to purge API cache: ${error}`);
+    res.status(500).json({ error: "Failed to purge API cache" });
+  }
+});
+var cache_default = router18;
+
+// server/routes/llm.ts
+init_logger();
+import { Router as Router21 } from "express";
+var router19 = Router21();
+router19.get("/configs", async (req, res) => {
+  try {
+    const configs = await getAllRoleConfigs();
+    const availableProviders = roleBasedRouter.getAvailableProviders();
+    res.json({ configs, availableProviders });
+  } catch (error) {
+    log.error("LLMAPI", `Failed to get role configs: ${error}`);
+    res.status(500).json({ error: "Failed to get role configurations" });
+  }
+});
+router19.put("/configs/:role", async (req, res) => {
+  try {
+    const { role } = req.params;
+    const validRoles = [
+      "market_news_summarizer",
+      "technical_analyst",
+      "risk_manager",
+      "execution_planner",
+      "post_trade_reporter"
+    ];
+    if (!validRoles.includes(role)) {
+      return badRequest(
+        res,
+        `Invalid role. Must be one of: ${validRoles.join(", ")}`
+      );
+    }
+    const updates = req.body;
+    const updated = await updateRoleConfig(role, updates);
+    res.json({ success: true, config: updated });
+  } catch (error) {
+    log.error("LLMAPI", `Failed to update role config: ${error}`);
+    res.status(500).json({ error: "Failed to update role configuration" });
+  }
+});
+router19.get("/calls", async (req, res) => {
+  try {
+    const { role, limit: limit4 } = req.query;
+    const limitNum = parseInt(limit4) || 20;
+    const roleFilter = typeof role === "string" ? role : void 0;
+    const calls = await getRecentCalls(limitNum, roleFilter);
+    res.json({ calls, count: calls.length });
+  } catch (error) {
+    log.error("LLMAPI", `Failed to get recent LLM calls: ${error}`);
+    res.status(500).json({ error: "Failed to get recent LLM calls" });
+  }
+});
+router19.get("/stats", async (req, res) => {
+  try {
+    const stats = await getCallStats();
+    res.json(stats);
+  } catch (error) {
+    log.error("LLMAPI", `Failed to get LLM call stats: ${error}`);
+    res.status(500).json({ error: "Failed to get LLM call statistics" });
+  }
+});
+var llm_default = router19;
+
 // server/admin/registry.ts
 init_logger();
 var moduleRegistry = /* @__PURE__ */ new Map();
@@ -32990,7 +35058,7 @@ async function getRelatedEntities(traceId) {
 // server/routes.ts
 init_audit_logger();
 var isProduction = process.env.NODE_ENV === "production";
-function getCookieOptions() {
+function getCookieOptions2() {
   return {
     httpOnly: true,
     secure: isProduction,
@@ -33094,7 +35162,7 @@ async function registerRoutes(app2) {
       const adminUser = await storage.getUserByUsername("admintest");
       console.log("[Bootstrap] Admin user check complete:", adminUser ? "exists" : "not found");
       if (!adminUser) {
-        const hashedPassword = await bcrypt.hash("admin1234", 10);
+        const hashedPassword = await bcrypt2.hash("admin1234", 10);
         await storage.createUser({ username: "admintest", password: hashedPassword, isAdmin: true });
         console.log("[Bootstrap] Created admin user: admintest");
       } else {
@@ -33124,6 +35192,16 @@ async function registerRoutes(app2) {
   app2.use("/api/jina", authMiddleware, jina_default);
   app2.use("/api/macro", authMiddleware, macro_default);
   app2.use("/api/enrichment", authMiddleware, enrichment_default);
+  app2.use("/api", auth_default);
+  app2.use("/api", authMiddleware, positions_default);
+  app2.use("/api", authMiddleware, orders_default);
+  app2.use("/api", authMiddleware, trades_default);
+  app2.use("/api", authMiddleware, market_data_default);
+  app2.use("/api", authMiddleware, webhooks_default);
+  app2.use("/api", authMiddleware, ai_decisions_default);
+  registerAutonomousRoutes(app2, authMiddleware);
+  app2.use("/api", authMiddleware, cache_default);
+  app2.use("/api", authMiddleware, llm_default);
   alertService.startEvaluationJob(6e4);
   enrichmentScheduler.start();
   app2.post("/api/auth/signup", async (req, res) => {
@@ -33144,10 +35222,10 @@ async function registerRoutes(app2) {
       if (existingUser) {
         return badRequest(res, "Username already taken");
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt2.hash(password, 10);
       const user = await storage.createUser({ username: sanitizedUsername, password: hashedPassword });
       const sessionId = await createSession(user.id);
-      res.cookie("session", sessionId, getCookieOptions());
+      res.cookie("session", sessionId, getCookieOptions2());
       res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
       console.error("Signup error:", error);
@@ -33165,12 +35243,12 @@ async function registerRoutes(app2) {
       if (!user) {
         return unauthorized(res, "Invalid username or password");
       }
-      const validPassword = await bcrypt.compare(password, user.password);
+      const validPassword = await bcrypt2.compare(password, user.password);
       if (!validPassword) {
         return unauthorized(res, "Invalid username or password");
       }
       const sessionId = await createSession(user.id);
-      res.cookie("session", sessionId, getCookieOptions());
+      res.cookie("session", sessionId, getCookieOptions2());
       res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
       console.error("Login error:", error);
@@ -33183,7 +35261,7 @@ async function registerRoutes(app2) {
       if (sessionId) {
         await deleteSession(sessionId);
       }
-      const { maxAge, ...clearOptions } = getCookieOptions();
+      const { maxAge, ...clearOptions } = getCookieOptions2();
       res.clearCookie("session", clearOptions);
       res.json({ success: true });
     } catch (error) {
@@ -36288,7 +38366,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to get performance metrics" });
     }
   });
-  const redactWebhook = (webhook) => ({
+  const redactWebhook2 = (webhook) => ({
     ...webhook,
     secret: webhook.secret ? "***REDACTED***" : void 0,
     headers: webhook.headers ? Object.fromEntries(
@@ -36298,7 +38376,7 @@ async function registerRoutes(app2) {
     ) : void 0
   });
   app2.get("/api/webhooks", authMiddleware, (req, res) => {
-    const webhooks2 = getWebhooks().map(redactWebhook);
+    const webhooks2 = getWebhooks().map(redactWebhook2);
     res.json({ webhooks: webhooks2, supportedEvents: SUPPORTED_EVENTS });
   });
   app2.get("/api/webhooks/:id", authMiddleware, (req, res) => {
@@ -36306,7 +38384,7 @@ async function registerRoutes(app2) {
     if (!webhook) {
       return res.status(404).json({ error: "Webhook not found" });
     }
-    res.json(redactWebhook(webhook));
+    res.json(redactWebhook2(webhook));
   });
   app2.post("/api/webhooks", authMiddleware, (req, res) => {
     try {
@@ -36328,7 +38406,7 @@ async function registerRoutes(app2) {
         secret
       };
       registerWebhook(config);
-      res.status(201).json(redactWebhook(config));
+      res.status(201).json(redactWebhook2(config));
     } catch (error) {
       console.error("Webhook creation error:", error);
       res.status(500).json({ error: "Failed to create webhook" });
@@ -36339,7 +38417,7 @@ async function registerRoutes(app2) {
     if (!updated) {
       return res.status(404).json({ error: "Webhook not found" });
     }
-    res.json(redactWebhook(updated));
+    res.json(redactWebhook2(updated));
   });
   app2.delete("/api/webhooks/:id", authMiddleware, (req, res) => {
     const result = unregisterWebhook(req.params.id);
@@ -38462,8 +40540,8 @@ async function registerRoutes(app2) {
       if (existing) {
         return res.status(409).json({ error: "Username already exists" });
       }
-      const bcrypt2 = await import("bcrypt");
-      const hashedPassword = await bcrypt2.hash(password, 10);
+      const bcrypt3 = await import("bcrypt");
+      const hashedPassword = await bcrypt3.hash(password, 10);
       const user = await storage.createUser({
         username,
         password: hashedPassword,
@@ -38484,8 +40562,8 @@ async function registerRoutes(app2) {
       if (username !== void 0) updates.username = username;
       if (isAdmin !== void 0) updates.isAdmin = isAdmin;
       if (password) {
-        const bcrypt2 = await import("bcrypt");
-        updates.password = await bcrypt2.hash(password, 10);
+        const bcrypt3 = await import("bcrypt");
+        updates.password = await bcrypt3.hash(password, 10);
       }
       const user = await storage.updateUser(id, updates);
       if (!user) {

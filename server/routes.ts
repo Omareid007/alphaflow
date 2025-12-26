@@ -85,6 +85,17 @@ import jinaRouter from "./routes/jina";
 import macroRouter from "./routes/macro";
 import enrichmentRouter from "./routes/enrichment";
 import providersRouter from "./routes/providers";
+// Newly modularized routes
+import authRouter from "./routes/auth";
+import positionsRouter from "./routes/positions";
+import ordersRouter from "./routes/orders";
+import tradesRouter from "./routes/trades";
+import marketDataRouter from "./routes/market-data";
+import webhooksRouter from "./routes/webhooks";
+import aiDecisionsRouter from "./routes/ai-decisions";
+import { registerAutonomousRoutes } from "./routes/autonomous";
+import cacheRouter from "./routes/cache";
+import llmRouter from "./routes/llm";
 import { enrichmentScheduler } from "./services/enrichment-scheduler";
 import { alertService } from "./observability/alertService";
 import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
@@ -276,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/traces", authMiddleware, tracesRouter);
   app.use("/api/admin/observability", authMiddleware, observabilityRouter);
   app.use("/api/admin/providers", authMiddleware, providersRouter);
-  
+
   app.use("/api/debate", authMiddleware, debateRouter);
   app.use("/api/tools", authMiddleware, toolsRouter);
   app.use("/api/competition", authMiddleware, competitionRouter);
@@ -285,6 +296,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/jina", authMiddleware, jinaRouter);
   app.use("/api/macro", authMiddleware, macroRouter);
   app.use("/api/enrichment", authMiddleware, enrichmentRouter);
+
+  // Newly modularized routes
+  app.use("/api", authRouter); // auth routes: /api/login, /api/signup, /api/logout, /api/me
+  app.use("/api", authMiddleware, positionsRouter); // positions routes
+  app.use("/api", authMiddleware, ordersRouter); // orders routes
+  app.use("/api", authMiddleware, tradesRouter); // trades routes
+  app.use("/api", authMiddleware, marketDataRouter); // market-data routes
+  app.use("/api", authMiddleware, webhooksRouter); // webhooks routes
+  app.use("/api", authMiddleware, aiDecisionsRouter); // ai-decisions routes
+  registerAutonomousRoutes(app, authMiddleware); // autonomous routes
+  app.use("/api", authMiddleware, cacheRouter); // cache routes
+  app.use("/api", authMiddleware, llmRouter); // llm routes
 
   alertService.startEvaluationJob(60000);
   enrichmentScheduler.start();
