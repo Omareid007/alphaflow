@@ -299,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/enrichment", authMiddleware, enrichmentRouter);
 
   // Newly modularized routes
-  app.use("/api", authRouter); // auth routes: /api/login, /api/signup, /api/logout, /api/me
+  app.use("/api/auth", authRouter); // auth routes: /api/auth/login, /api/auth/signup, /api/auth/logout, /api/auth/me
   app.use("/api/positions", authMiddleware, positionsRouter); // positions routes
   app.use("/api", authMiddleware, ordersRouter); // orders routes
   app.use("/api/trades", authMiddleware, tradesRouter); // trades routes
@@ -313,117 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   alertService.startEvaluationJob(60000);
   enrichmentScheduler.start();
 
-  app.post("/api/auth/signup", async (req, res) => {
-    try {
-      const parsed = insertUserSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return validationError(res, "Invalid input: username and password required", parsed.error);
-      }
-
-      const { username, password } = parsed.data;
-
-      // SECURITY: Sanitize username to prevent XSS attacks
-      const sanitizedUsername = sanitizeInput(username);
-
-      if (sanitizedUsername.length < 3) {
-        return badRequest(res, "Username must be at least 3 characters");
-      }
-
-      if (password.length < 6) {
-        return badRequest(res, "Password must be at least 6 characters");
-      }
-
-      const existingUser = await storage.getUserByUsername(sanitizedUsername);
-      if (existingUser) {
-        return badRequest(res, "Username already taken");
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await storage.createUser({ username: sanitizedUsername, password: hashedPassword });
-
-      const sessionId = await createSession(user.id);
-
-      res.cookie("session", sessionId, getCookieOptions());
-
-      res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
-    } catch (error) {
-      log.error("Routes", "Signup error", { error: error });
-      return serverError(res, "Failed to create account");
-    }
-  });
-
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-
-      // SECURITY: Sanitize username to prevent XSS attacks
-      const sanitizedUsername = sanitizeInput(username);
-
-      if (!username || !password) {
-        return badRequest(res, "Username and password required");
-      }
-
-      const user = await storage.getUserByUsername(sanitizedUsername);
-      if (!user) {
-        return unauthorized(res, "Invalid username or password");
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        return unauthorized(res, "Invalid username or password");
-      }
-
-      const sessionId = await createSession(user.id);
-
-      res.cookie("session", sessionId, getCookieOptions());
-
-      res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
-    } catch (error) {
-      log.error("Routes", "Login error", { error: error });
-      return serverError(res, "Failed to login");
-    }
-  });
-
-  app.post("/api/auth/logout", async (req, res) => {
-    try {
-      const sessionId = req.cookies?.session;
-      if (sessionId) {
-        await deleteSession(sessionId);
-      }
-
-      const { maxAge, ...clearOptions } = getCookieOptions();
-      res.clearCookie("session", clearOptions);
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to logout" });
-    }
-  });
-
-  app.get("/api/auth/me", async (req, res) => {
-    try {
-      const sessionId = req.cookies?.session;
-
-      if (!sessionId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const session = await getSession(sessionId);
-      if (!session) {
-        return res.status(401).json({ error: "Session expired" });
-      }
-
-      const user = await storage.getUser(session.userId);
-      if (!user) {
-        await deleteSession(sessionId);
-        return res.status(401).json({ error: "User not found" });
-      }
-
-      res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get user" });
-    }
-  });
+  // Auth routes handled by authRouter at /api/auth/*
 
   // Server-Sent Events endpoint for real-time updates
   app.get("/api/events", async (req, res) => {
@@ -910,31 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Autonomous trading status endpoint
-  app.get("/api/autonomous/status", authMiddleware, async (req, res) => {
-    try {
-      const status = await storage.getAgentStatus();
-
-      // Get additional runtime stats
-      const userId = req.userId!;
-      const recentDecisions = await storage.getAiDecisions(userId, 10);
-      const positions = await storage.getPositions(userId);
-
-      res.json({
-        isRunning: status.isRunning,
-        killSwitchActive: status.killSwitchActive,
-        lastRunTime: status.lastRunTime,
-        consecutiveErrors: status.consecutiveErrors,
-        activePositions: positions.length,
-        recentDecisions: recentDecisions.length,
-        lastDecisionTime: recentDecisions[0]?.createdAt || null,
-        config: status.config || {},
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get autonomous status", { error: error });
-      res.status(500).json({ error: "Failed to get autonomous status" });
-    }
-  });
+  // Note: /api/autonomous/status is handled by autonomousRouter
 
   app.get("/api/ai-decisions", authMiddleware, async (req, res) => {
     try {
