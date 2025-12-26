@@ -3,12 +3,24 @@
  * Implements adaptive risk limits based on market conditions, performance, and time factors
  */
 
-import { createLogger } from '../../services/shared/common';
+import { log } from '../utils/logger';
 import { fred } from '../connectors/fred';
 import { macroIndicatorsService } from './macro-indicators-service';
-import type { RiskLimits, PortfolioSnapshot } from '../../services/trading-engine/types';
+import type { RiskLimits } from '../autonomous/orchestrator';
 
-const logger = createLogger('dynamic-risk-manager');
+// Use the existing logger
+const logger = {
+  info: (msg: string, data?: any) => log.info('DynamicRiskManager', msg, data),
+  warn: (msg: string, data?: any) => log.warn('DynamicRiskManager', msg, data),
+  error: (msg: string, data?: any) => log.error('DynamicRiskManager', msg, data),
+};
+
+// Portfolio snapshot type for this service
+interface PortfolioSnapshot {
+  equity: number;
+  cash: number;
+  positions: { symbol: string; value: number; pnl: number }[];
+}
 
 /**
  * Configuration for dynamic risk adjustments
