@@ -8,6 +8,20 @@ import { transformOrderForExecution, createPriceData, type TransformedOrder } fr
 import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus, InsertOrder, InsertFill } from "@shared/schema";
 import crypto from "crypto";
 
+// Cached admin user ID for database operations
+let cachedAdminUserId: string | null = null;
+
+async function getAdminUserId(): Promise<string> {
+  if (cachedAdminUserId) return cachedAdminUserId;
+
+  const adminUser = await storage.getAdminUser();
+  if (!adminUser) {
+    throw new Error("No admin user found - cannot process work items");
+  }
+  cachedAdminUserId = adminUser.id;
+  return cachedAdminUserId;
+}
+
 const RETRY_DELAYS_MS: Record<WorkItemType, number[]> = {
   ORDER_SUBMIT: [1000, 5000, 15000],
   ORDER_CANCEL: [1000, 3000, 10000],
@@ -232,6 +246,21 @@ class WorkQueueServiceImpl implements WorkQueueService {
       stop_loss,
       traceId,
     } = payload;
+
+    // SECURITY: Check kill switch before processing any order
+    // This ensures emergency halt stops ALL order execution paths
+    const agentStatus = await storage.getAgentStatus();
+    if (agentStatus?.killSwitchActive) {
+      log.warn("work-queue", `ORDER_BLOCKED: Kill switch is active - rejecting order for ${symbol}`, {
+        traceId,
+        workItemId: item.id,
+        symbol,
+        side,
+        reason: "KILL_SWITCH_ACTIVE",
+      });
+      await this.markFailed(item.id, "Kill switch is active - all trading halted", false);
+      return;
+    }
 
     // Support both flat fields and nested objects for bracket order params
     // Orchestrator sends: take_profit: { limit_price: "123.45" }
@@ -564,7 +593,9 @@ class WorkQueueServiceImpl implements WorkQueueService {
       status: order.status,
     });
 
-    const orderData: InsertOrder = {
+    const userId = await getAdminUserId();
+    const orderData = {
+      userId,
       broker: "alpaca",
       brokerOrderId: order.id,
       clientOrderId: clientOrderId,
@@ -630,8 +661,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     for (const alpacaOrder of allOrders) {
       try {
-        const orderData: Partial<InsertOrder> = {
-          broker: "alpaca",
+        const orderData = {
+          broker: "alpaca" as const,
           brokerOrderId: alpacaOrder.id,
           clientOrderId: alpacaOrder.client_order_id || undefined,
           symbol: alpacaOrder.symbol,
@@ -673,8 +704,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
           if (existingFills.length === 0) {
             const dbOrder = await storage.getOrderByBrokerOrderId(alpacaOrder.id);
             
-            const fillData: InsertFill = {
-              broker: "alpaca",
+            const fillData = {
+              broker: "alpaca" as const,
               brokerOrderId: alpacaOrder.id,
               orderId: dbOrder?.id,
               symbol: alpacaOrder.symbol,
