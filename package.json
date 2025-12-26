@@ -5,26 +5,19 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "next dev -p 3000",
-    "dev:mobile": "expo start --dev-client",
     "dev:server": "NODE_ENV=development tsx watch --tsconfig tsconfig.json server/index.ts",
     "build": "next build && npm run build:server",
     "build:client": "next build",
     "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=server_dist",
     "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:client": "next start -p 3000",
-    "start:mobile": "expo start",
     "start:server": "NODE_ENV=production node server_dist/index.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web:expo": "expo start --web",
     "db:push": "drizzle-kit push",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "typecheck": "tsc --noEmit",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
-    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
-    "prebuild": "expo prebuild",
-    "prebuild:clean": "expo prebuild --clean"
+    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\""
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
