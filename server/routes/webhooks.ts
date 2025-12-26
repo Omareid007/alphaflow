@@ -11,6 +11,7 @@ import {
   SUPPORTED_EVENTS,
   type WebhookConfig,
 } from "../lib/webhook-emitter";
+import { log } from "../utils/logger";
 
 const router = Router();
 
@@ -78,8 +79,8 @@ router.post("/", (req: Request, res: Response) => {
 
     registerWebhook(config);
     res.status(201).json(redactWebhook(config));
-  } catch (error) {
-    console.error("Webhook creation error:", error);
+  } catch (error: any) {
+    log.error("Webhooks", "Webhook creation error", { error: error.message });
     res.status(500).json({ error: "Failed to create webhook" });
   }
 });
@@ -138,8 +139,8 @@ router.post("/test", async (req: Request, res: Response) => {
       payload || { test: true, timestamp: new Date().toISOString() }
     );
     res.json({ deliveries: results.length, results });
-  } catch (error) {
-    console.error("Webhook test error:", error);
+  } catch (error: any) {
+    log.error("Webhooks", "Webhook test error", { error: error.message });
     res.status(500).json({ error: "Failed to send test event" });
   }
 });

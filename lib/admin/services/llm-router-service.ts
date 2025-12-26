@@ -15,6 +15,7 @@ export interface ILlmRouterService {
 
 class LlmRouterService implements ILlmRouterService {
   async listModels(): Promise<LlmModel[]> {
+    if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
       .from('admin_llm_models')
       .select('*')
@@ -25,6 +26,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async createModel(input: Omit<LlmModel, 'id' | 'createdAt'>): Promise<LlmModel> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { data, error } = await adminSupabase
       .from('admin_llm_models')
       .insert({
@@ -44,6 +46,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async updateModel(id: string, input: Partial<LlmModel>): Promise<LlmModel> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { data, error } = await adminSupabase
       .from('admin_llm_models')
       .update({
@@ -62,6 +65,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async deleteModel(id: string): Promise<void> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { error } = await adminSupabase
       .from('admin_llm_models')
       .delete()
@@ -71,6 +75,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async listRules(): Promise<LlmRouteRule[]> {
+    if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
       .from('admin_llm_route_rules')
       .select('*')
@@ -81,6 +86,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async createRule(input: Omit<LlmRouteRule, 'id' | 'createdAt'>): Promise<LlmRouteRule> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { data, error } = await adminSupabase
       .from('admin_llm_route_rules')
       .insert({
@@ -101,6 +107,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async updateRule(id: string, input: Partial<LlmRouteRule>): Promise<LlmRouteRule> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { data, error } = await adminSupabase
       .from('admin_llm_route_rules')
       .update({
@@ -122,6 +129,7 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async deleteRule(id: string): Promise<void> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { error } = await adminSupabase
       .from('admin_llm_route_rules')
       .delete()

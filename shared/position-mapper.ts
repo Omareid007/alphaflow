@@ -10,11 +10,17 @@ export interface DataSourceMetadata {
 export interface EnrichedPosition {
   id: string;
   symbol: string;
-  quantity: number;
+  // SYNC FIX: Use 'qty' for consistency with frontend Position interface
+  qty: number;
+  quantity: number; // Deprecated: kept for backward compatibility
   entryPrice: number;
   currentPrice: number;
-  unrealizedPnl: number;
-  unrealizedPnlPercent: number;
+  // SYNC FIX: Use 'unrealizedPl' for consistency with frontend Position interface
+  unrealizedPl: number;
+  unrealizedPnl: number; // Deprecated: kept for backward compatibility
+  // SYNC FIX: Use 'unrealizedPlPct' for consistency with frontend Position interface
+  unrealizedPlPct: number;
+  unrealizedPnlPercent: number; // Deprecated: kept for backward compatibility
   side: 'long' | 'short';
   marketValue: number;
   costBasis: number;
@@ -53,17 +59,25 @@ export function mapAlpacaPositionToEnriched(
   position: AlpacaPosition,
   fetchedAt: Date = new Date()
 ): EnrichedPosition {
-  const qty = safeParseFloat(position.qty);
-  
+  const qtyValue = safeParseFloat(position.qty);
+  const unrealizedPlValue = safeParseFloat(position.unrealized_pl);
+  const unrealizedPlPctValue = safeParseFloat(position.unrealized_plpc) * 100;
+
   return {
     id: position.asset_id,
     symbol: position.symbol,
-    quantity: qty,
+    // SYNC FIX: Provide both field names for backward compatibility
+    qty: qtyValue,
+    quantity: qtyValue, // Deprecated alias
     entryPrice: safeParseFloat(position.avg_entry_price),
     currentPrice: safeParseFloat(position.current_price),
-    unrealizedPnl: safeParseFloat(position.unrealized_pl),
-    unrealizedPnlPercent: safeParseFloat(position.unrealized_plpc) * 100,
-    side: qty > 0 ? 'long' : 'short',
+    // SYNC FIX: Provide both field names for backward compatibility
+    unrealizedPl: unrealizedPlValue,
+    unrealizedPnl: unrealizedPlValue, // Deprecated alias
+    // SYNC FIX: Provide both field names for backward compatibility
+    unrealizedPlPct: unrealizedPlPctValue,
+    unrealizedPnlPercent: unrealizedPlPctValue, // Deprecated alias
+    side: qtyValue > 0 ? 'long' : 'short',
     marketValue: safeParseFloat(position.market_value),
     costBasis: safeParseFloat(position.cost_basis),
     changeToday: safeParseFloat(position.change_today) * 100,

@@ -120,7 +120,12 @@
       "Bash(git -C /home/runner/workspace status:*)",
       "Bash(python /tmp/remove_duplicates.py:*)",
       "Bash(awk:*)",
-      "Bash(perl -i.bak -pe:*)"
+      "Bash(perl -i.bak -pe:*)",
+      "Bash(done)",
+      "Bash(npm ls:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm update:*)",
+      "Bash(npm view:*)"
     ]
   }
 }

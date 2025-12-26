@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
+import { log } from '../utils/logger';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     res.json(providers);
   } catch (error) {
-    console.error('Failed to get providers:', error);
+    log.error("ProvidersRoutes", "Failed to get providers", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get providers' });
   }
 });
@@ -66,7 +67,7 @@ router.post('/', async (req: Request, res: Response) => {
     providers.push(provider);
     res.status(201).json(provider);
   } catch (error) {
-    console.error('Failed to create provider:', error);
+    log.error("ProvidersRoutes", "Failed to create provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to create provider' });
   }
 });
@@ -80,7 +81,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(provider);
   } catch (error) {
-    console.error('Failed to get provider:', error);
+    log.error("ProvidersRoutes", "Failed to get provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get provider' });
   }
 });
@@ -99,7 +100,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     };
     res.json(providers[index]);
   } catch (error) {
-    console.error('Failed to update provider:', error);
+    log.error("ProvidersRoutes", "Failed to update provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to update provider' });
   }
 });
@@ -117,7 +118,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     apiFunctions.delete(req.params.id);
     res.status(204).send();
   } catch (error) {
-    console.error('Failed to delete provider:', error);
+    log.error("ProvidersRoutes", "Failed to delete provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to delete provider' });
   }
 });
@@ -141,7 +142,7 @@ router.post('/:id/test', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Failed to test provider:', error);
+    log.error("ProvidersRoutes", "Failed to test provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: 'Connection test failed',
@@ -161,7 +162,7 @@ router.get('/:id/credentials', async (req: Request, res: Response) => {
     }));
     res.json(maskedCreds);
   } catch (error) {
-    console.error('Failed to get credentials:', error);
+    log.error("ProvidersRoutes", "Failed to get credentials", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get credentials' });
   }
 });
@@ -187,7 +188,7 @@ router.post('/:id/credentials', async (req: Request, res: Response) => {
       encryptedValue: '********',
     });
   } catch (error) {
-    console.error('Failed to add credential:', error);
+    log.error("ProvidersRoutes", "Failed to add credential", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to add credential' });
   }
 });
@@ -213,7 +214,7 @@ router.get('/:id/budget', async (req: Request, res: Response) => {
     }
     res.json(budget);
   } catch (error) {
-    console.error('Failed to get budget:', error);
+    log.error("ProvidersRoutes", "Failed to get budget", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get budget' });
   }
 });
@@ -237,7 +238,7 @@ router.put('/:id/budget', async (req: Request, res: Response) => {
     budgets.set(req.params.id, budget);
     res.json(budget);
   } catch (error) {
-    console.error('Failed to update budget:', error);
+    log.error("ProvidersRoutes", "Failed to update budget", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to update budget' });
   }
 });
@@ -259,7 +260,7 @@ router.get('/:id/usage', async (req: Request, res: Response) => {
     }
     res.json(metrics);
   } catch (error) {
-    console.error('Failed to get usage metrics:', error);
+    log.error("ProvidersRoutes", "Failed to get usage metrics", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get usage metrics' });
   }
 });
@@ -270,7 +271,7 @@ router.get('/:id/functions', async (req: Request, res: Response) => {
     const funcs = apiFunctions.get(req.params.id) || [];
     res.json(funcs);
   } catch (error) {
-    console.error('Failed to get API functions:', error);
+    log.error("ProvidersRoutes", "Failed to get API functions", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get API functions' });
   }
 });
@@ -314,7 +315,7 @@ router.post('/:id/discover', async (req: Request, res: Response) => {
       schemas: [],
     });
   } catch (error) {
-    console.error('Failed to discover APIs:', error);
+    log.error("ProvidersRoutes", "Failed to discover APIs", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: 'API discovery failed',
@@ -338,7 +339,7 @@ router.patch('/:id/functions/:funcId', async (req: Request, res: Response) => {
     apiFunctions.set(req.params.id, funcs);
     res.json(funcs[index]);
   } catch (error) {
-    console.error('Failed to update function:', error);
+    log.error("ProvidersRoutes", "Failed to update function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to update function' });
   }
 });
@@ -366,7 +367,7 @@ router.post('/:id/functions/:funcId/test', async (req: Request, res: Response) =
       latencyMs,
     });
   } catch (error) {
-    console.error('Failed to test function:', error);
+    log.error("ProvidersRoutes", "Failed to test function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: 'Function test failed',
@@ -386,7 +387,7 @@ router.delete('/:id/functions/:funcId', async (req: Request, res: Response) => {
     apiFunctions.set(req.params.id, funcs);
     res.status(204).send();
   } catch (error) {
-    console.error('Failed to delete function:', error);
+    log.error("ProvidersRoutes", "Failed to delete function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to delete function' });
   }
 });

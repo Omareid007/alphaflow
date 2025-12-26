@@ -1,5 +1,6 @@
 import { coingecko, type CoinPrice, type GlobalMarketData } from "../connectors/coingecko";
 import { finnhub, type StockQuote, type MarketNews } from "../connectors/finnhub";
+import { log } from "../utils/logger";
 
 export interface MarketIntelligenceScore {
   overall: number;
@@ -146,7 +147,7 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch crypto data for fusion:", error);
+      log.error("DataFusion", "Failed to fetch crypto data for fusion", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -175,7 +176,7 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch global data for fusion:", error);
+      log.error("DataFusion", "Failed to fetch global data for fusion", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -222,7 +223,7 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch stock data for fusion:", error);
+      log.error("DataFusion", "Failed to fetch stock data for fusion", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -269,7 +270,7 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch news for fusion:", error);
+      log.error("DataFusion", "Failed to fetch news for fusion", { error: error instanceof Error ? error.message : String(error) });
     }
 
     const momentumScore = hasCryptoData && hasStockData
@@ -330,7 +331,7 @@ class DataFusionEngine {
     try {
       topCoins = await coingecko.getMarkets("usd", 10, 1, "market_cap_desc");
     } catch (error) {
-      console.error("Failed to fetch top coins:", error);
+      log.error("DataFusion", "Failed to fetch top coins", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -342,7 +343,7 @@ class DataFusionEngine {
         totalMarketCap = global.data.total_market_cap?.usd || 0;
       }
     } catch (error) {
-      console.error("Failed to fetch global data:", error);
+      log.error("DataFusion", "Failed to fetch global data", { error: error instanceof Error ? error.message : String(error) });
     }
 
     let stockQuotes: Record<string, StockQuote> = {};
@@ -365,13 +366,13 @@ class DataFusionEngine {
         stockMarketSentiment = stockAvgChange > 1 ? "bullish" : stockAvgChange < -1 ? "bearish" : "neutral";
       }
     } catch (error) {
-      console.error("Failed to fetch stock quotes:", error);
+      log.error("DataFusion", "Failed to fetch stock quotes", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
       stockNews = await finnhub.getMarketNews("general");
     } catch (error) {
-      console.error("Failed to fetch stock news:", error);
+      log.error("DataFusion", "Failed to fetch stock news", { error: error instanceof Error ? error.message : String(error) });
     }
 
     const intelligence = await this.getMarketIntelligence();

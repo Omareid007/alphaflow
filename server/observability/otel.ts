@@ -20,6 +20,7 @@ import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION, SEMRESATTRS_DEPL
 import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-node";
 import { trace, context, SpanStatusCode, Span, SpanKind, Attributes } from "@opentelemetry/api";
 import type { Tracer } from "@opentelemetry/api";
+import { log } from "../utils/logger";
 
 const SERVICE_NAME = process.env.OTEL_SERVICE_NAME || "ai-active-trader";
 const SERVICE_VERSION = process.env.npm_package_version || "1.0.0";
@@ -43,12 +44,12 @@ export function initializeOpenTelemetry(): void {
   let traceExporter;
   
   if (OTLP_ENDPOINT) {
-    console.log(`[OTel] Initializing with OTLP exporter: ${OTLP_ENDPOINT}`);
+    log.info("OTel", "Initializing with OTLP exporter", { endpoint: OTLP_ENDPOINT });
     traceExporter = new OTLPTraceExporter({
       url: `${OTLP_ENDPOINT}/v1/traces`,
     });
   } else {
-    console.log("[OTel] No OTLP endpoint configured, using console exporter (dev mode)");
+    log.info("OTel", "No OTLP endpoint configured, using console exporter (dev mode)");
     traceExporter = new ConsoleSpanExporter();
   }
 
@@ -70,12 +71,12 @@ export function initializeOpenTelemetry(): void {
 
   process.on("SIGTERM", () => {
     sdk?.shutdown()
-      .then(() => console.log("[OTel] SDK shut down successfully"))
-      .catch((error) => console.error("[OTel] Error shutting down SDK", error))
+      .then(() => log.info("OTel", "SDK shut down successfully"))
+      .catch((error) => log.error("OTel", "Error shutting down SDK", { error: error instanceof Error ? error.message : String(error) }))
       .finally(() => process.exit(0));
   });
 
-  console.log(`[OTel] SDK initialized: ${SERVICE_NAME}@${SERVICE_VERSION} (${DEPLOYMENT_ENV})`);
+  log.info("OTel", "SDK initialized", { serviceName: SERVICE_NAME, version: SERVICE_VERSION, environment: DEPLOYMENT_ENV });
 }
 
 export function getTracer(name: string = "ai-active-trader"): Tracer {

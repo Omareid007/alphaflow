@@ -26,12 +26,12 @@ export function sanitizeInput(input: string): string {
  * @param obj - The object to sanitize
  * @returns New object with all string values sanitized
  */
-export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
+export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
 
-  const sanitized = { ...obj };
+  const sanitized = { ...obj } as Record<string, unknown>;
   for (const key in sanitized) {
     if (Object.prototype.hasOwnProperty.call(sanitized, key)) {
       const value = sanitized[key];
@@ -39,17 +39,17 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
       if (typeof value === 'string') {
         sanitized[key] = sanitizeInput(value);
       } else if (Array.isArray(value)) {
-        sanitized[key] = value.map(item =>
+        sanitized[key] = value.map((item: unknown) =>
           typeof item === 'string' ? sanitizeInput(item) :
-          typeof item === 'object' ? sanitizeObject(item) :
+          typeof item === 'object' && item !== null ? sanitizeObject(item as Record<string, unknown>) :
           item
         );
       } else if (value && typeof value === 'object') {
-        sanitized[key] = sanitizeObject(value);
+        sanitized[key] = sanitizeObject(value as Record<string, unknown>);
       }
     }
   }
-  return sanitized;
+  return sanitized as T;
 }
 
 /**

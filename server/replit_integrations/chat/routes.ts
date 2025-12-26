@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { chatStorage } from "./storage";
+import { log } from "../../utils/logger";
 
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
@@ -14,7 +15,7 @@ export function registerChatRoutes(app: Express): void {
       const conversations = await chatStorage.getAllConversations();
       res.json(conversations);
     } catch (error) {
-      console.error("Error fetching conversations:", error);
+      log.error("Chat", "Error fetching conversations", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
@@ -30,7 +31,7 @@ export function registerChatRoutes(app: Express): void {
       const messages = await chatStorage.getMessagesByConversation(id);
       res.json({ ...conversation, messages });
     } catch (error) {
-      console.error("Error fetching conversation:", error);
+      log.error("Chat", "Error fetching conversation", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
@@ -42,7 +43,7 @@ export function registerChatRoutes(app: Express): void {
       const conversation = await chatStorage.createConversation(title || "New Chat");
       res.status(201).json(conversation);
     } catch (error) {
-      console.error("Error creating conversation:", error);
+      log.error("Chat", "Error creating conversation", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to create conversation" });
     }
   });
@@ -54,7 +55,7 @@ export function registerChatRoutes(app: Express): void {
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting conversation:", error);
+      log.error("Chat", "Error deleting conversation", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to delete conversation" });
     }
   });
@@ -105,7 +106,7 @@ export function registerChatRoutes(app: Express): void {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
-      console.error("Error sending message:", error);
+      log.error("Chat", "Error sending message", { error: error instanceof Error ? error.message : String(error) });
       // Check if headers already sent (SSE streaming started)
       if (res.headersSent) {
         res.write(`data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`);

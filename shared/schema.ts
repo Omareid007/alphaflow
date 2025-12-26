@@ -425,49 +425,52 @@ export const insertAiDecisionSchema = createInsertSchema(aiDecisions).omit({
   createdAt: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+// Use drizzle's native $inferInsert for reliable type inference
+// (drizzle-zod's createInsertSchema has compatibility issues with current versions)
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
-export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type InsertSession = typeof sessions.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 
-export type InsertStrategy = z.infer<typeof insertStrategySchema>;
+export type InsertStrategy = typeof strategies.$inferInsert;
 export type Strategy = typeof strategies.$inferSelect;
 
-export type InsertTrade = z.infer<typeof insertTradeSchema>;
+export type InsertTrade = typeof trades.$inferInsert;
 export type Trade = typeof trades.$inferSelect;
 
-export type InsertPosition = z.infer<typeof insertPositionSchema>;
+export type InsertPosition = typeof positions.$inferInsert;
 export type Position = typeof positions.$inferSelect;
 
-export type InsertAiDecision = z.infer<typeof insertAiDecisionSchema>;
+export type InsertAiDecision = typeof aiDecisions.$inferInsert;
 export type AiDecision = typeof aiDecisions.$inferSelect;
 
 export type AgentStatus = typeof agentStatus.$inferSelect;
+export type InsertAgentStatus = typeof agentStatus.$inferInsert;
 
-export type InsertAiDecisionFeatures = z.infer<typeof insertAiDecisionFeaturesSchema>;
+export type InsertAiDecisionFeatures = typeof aiDecisionFeatures.$inferInsert;
 export type AiDecisionFeatures = typeof aiDecisionFeatures.$inferSelect;
 
-export type InsertAiTradeOutcomes = z.infer<typeof insertAiTradeOutcomesSchema>;
+export type InsertAiTradeOutcomes = typeof aiTradeOutcomes.$inferInsert;
 export type AiTradeOutcomes = typeof aiTradeOutcomes.$inferSelect;
 
-export type InsertAiCalibrationLog = z.infer<typeof insertAiCalibrationLogSchema>;
+export type InsertAiCalibrationLog = typeof aiCalibrationLog.$inferInsert;
 export type AiCalibrationLog = typeof aiCalibrationLog.$inferSelect;
 
 // New data source analysis types
-export type InsertDataSourceAnalysis = z.infer<typeof insertDataSourceAnalysisSchema>;
+export type InsertDataSourceAnalysis = typeof dataSourceAnalysis.$inferInsert;
 export type DataSourceAnalysis = typeof dataSourceAnalysis.$inferSelect;
 
-export type InsertShortInterestAnalysis = z.infer<typeof insertShortInterestAnalysisSchema>;
+export type InsertShortInterestAnalysis = typeof shortInterestAnalysis.$inferInsert;
 export type ShortInterestAnalysis = typeof shortInterestAnalysis.$inferSelect;
 
-export type InsertInsiderActivityAnalysis = z.infer<typeof insertInsiderActivityAnalysisSchema>;
+export type InsertInsiderActivityAnalysis = typeof insiderActivityAnalysis.$inferInsert;
 export type InsiderActivityAnalysis = typeof insiderActivityAnalysis.$inferSelect;
 
-export type InsertMacroAnalysis = z.infer<typeof insertMacroAnalysisSchema>;
+export type InsertMacroAnalysis = typeof macroAnalysis.$inferInsert;
 export type MacroAnalysis = typeof macroAnalysis.$inferSelect;
 
-export type InsertAnalysisFeedback = z.infer<typeof insertAnalysisFeedbackSchema>;
+export type InsertAnalysisFeedback = typeof analysisFeedback.$inferInsert;
 export type AnalysisFeedback = typeof analysisFeedback.$inferSelect;
 
 export const insertExternalApiCacheEntrySchema = createInsertSchema(externalApiCacheEntries).omit({
@@ -484,10 +487,10 @@ export const insertExternalApiUsageCounterSchema = createInsertSchema(externalAp
   updatedAt: true,
 });
 
-export type InsertExternalApiCacheEntry = z.infer<typeof insertExternalApiCacheEntrySchema>;
+export type InsertExternalApiCacheEntry = typeof externalApiCacheEntries.$inferInsert;
 export type ExternalApiCacheEntry = typeof externalApiCacheEntries.$inferSelect;
 
-export type InsertExternalApiUsageCounter = z.infer<typeof insertExternalApiUsageCounterSchema>;
+export type InsertExternalApiUsageCounter = typeof externalApiUsageCounters.$inferInsert;
 export type ExternalApiUsageCounter = typeof externalApiUsageCounters.$inferSelect;
 
 export const llmRoles = [
@@ -558,10 +561,10 @@ export const insertLlmCallSchema = createInsertSchema(llmCalls).omit({
   createdAt: true,
 });
 
-export type InsertLlmRoleConfig = z.infer<typeof insertLlmRoleConfigSchema>;
+export type InsertLlmRoleConfig = typeof llmRoleConfigs.$inferInsert;
 export type LlmRoleConfig = typeof llmRoleConfigs.$inferSelect;
 
-export type InsertLlmCall = z.infer<typeof insertLlmCallSchema>;
+export type InsertLlmCall = typeof llmCalls.$inferInsert;
 export type LlmCall = typeof llmCalls.$inferSelect;
 
 export const workItemTypes = [

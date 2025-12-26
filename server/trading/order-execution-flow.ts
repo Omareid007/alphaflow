@@ -18,6 +18,7 @@ import { cacheQuickQuote, getQuickQuote, cacheAccountSnapshot, getAccountSnapsho
 import { emitEvent } from "../lib/webhook-emitter";
 import { sendNotification } from "../lib/notification-service";
 import { tradabilityService } from "../services/tradability-service";
+import { log } from "../utils/logger";
 import {
   CreateOrderSchema,
   validateOrderTypeCombination,
@@ -354,7 +355,7 @@ class OrderExecutionEngine {
             qty: params.qty,
             limitPrice: params.limit_price,
             timestamp: new Date().toISOString(),
-          }).catch(err => console.error('[Webhook] Order submitted event failed:', err));
+          }).catch(err => log.error("Webhook", "Order submitted event failed", { error: (err as Error).message }));
           
           sendNotification('trade.order.submitted', {
             orderId: order.id,
@@ -362,7 +363,7 @@ class OrderExecutionEngine {
             side: params.side,
             qty: params.qty,
             price: params.limit_price || 'market',
-          }).catch(err => console.error('[Notification] Order submitted failed:', err));
+          }).catch(err => log.error("Notification", "Order submitted notification failed", { error: (err as Error).message }));
           
           break;
         } catch (error) {
@@ -385,7 +386,7 @@ class OrderExecutionEngine {
               side: params.side,
               qty: params.qty,
               reason: classifiedError.message,
-            }).catch(err => console.error('[Notification] Order rejected failed:', err));
+            }).catch(err => log.error("Notification", "Order rejected notification failed", { error: (err as Error).message }));
             
             return {
               success: false,
@@ -441,7 +442,7 @@ class OrderExecutionEngine {
         filledPrice: monitoredOrder.filled_avg_price,
         status: monitoredOrder.status,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.error('[Webhook] Order filled event failed:', err));
+      }).catch(err => log.error("Webhook", "Order filled event failed", { error: (err as Error).message }));
       
       sendNotification('trade.order.filled', {
         orderId: monitoredOrder.id,
@@ -449,7 +450,7 @@ class OrderExecutionEngine {
         side: monitoredOrder.side,
         qty: monitoredOrder.filled_qty,
         price: monitoredOrder.filled_avg_price,
-      }).catch(err => console.error('[Notification] Order filled failed:', err));
+      }).catch(err => log.error("Notification", "Order filled notification failed", { error: (err as Error).message }));
       
       return {
         success: true,
@@ -529,7 +530,7 @@ class OrderExecutionEngine {
           });
         }
         if (latency > 10) {
-          console.log(`[OrderExecution] Slow quote retrieval: ${latency}ms for ${params.symbol}`);
+          log.debug("OrderExecution", "Slow quote retrieval", { latencyMs: latency, symbol: params.symbol });
         }
       } catch {
         result.warnings.push(`Could not fetch current price for ${params.symbol}`);
@@ -705,7 +706,7 @@ class OrderExecutionEngine {
           clearTimeout(timeout);
           const latency = performanceTracker.endTimer(operationId, 'orderExecution');
           if (latency > 50) {
-            console.log(`[OrderExecution] Slow order submission: ${latency}ms for ${params.symbol}`);
+            log.debug("OrderExecution", "Slow order submission", { latencyMs: latency, symbol: params.symbol });
           }
           resolve(order);
         })
@@ -730,14 +731,14 @@ class OrderExecutionEngine {
     while (Date.now() - startTime < timeoutMs) {
       try {
         const order = await alpaca.getOrder(orderId);
-        
+
         if (TERMINAL_STATUSES.includes(order.status as any)) {
           return order;
         }
-        
+
         await this.sleep(pollInterval);
       } catch (error) {
-        console.error(`Error polling order ${orderId}:`, error);
+        log.error("OrderExecution", "Error polling order", { orderId, error: (error as Error).message });
         await this.sleep(pollInterval);
       }
     }
@@ -853,7 +854,7 @@ class OrderExecutionEngine {
     originalParams: CreateOrderParams
   ): Promise<AlpacaOrder | null> {
     state.status = "recovering";
-    console.log(`[OrderExecution] Attempting recovery: ${error.recoveryStrategy}`);
+    log.info("OrderExecution", "Attempting recovery", { recoveryStrategy: error.recoveryStrategy });
     
     switch (error.recoveryStrategy) {
       case RecoveryStrategy.CHECK_AND_SYNC:
@@ -861,11 +862,11 @@ class OrderExecutionEngine {
           const orders = await alpaca.getOrders("all", 10);
           const existingOrder = orders.find(o => o.client_order_id === state.clientOrderId);
           if (existingOrder) {
-            console.log(`[OrderExecution] Found existing order via sync: ${existingOrder.id}`);
+            log.info("OrderExecution", "Found existing order via sync", { orderId: existingOrder.id });
             return existingOrder;
           }
         } catch {
-          console.error("[OrderExecution] Sync check failed");
+          log.error("OrderExecution", "Sync check failed");
         }
         return null;
         
@@ -991,9 +992,9 @@ export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
       }
     }
   } catch (error) {
-    console.error("[OrderCleanup] Failed to identify unreal orders:", error);
+    log.error("OrderCleanup", "Failed to identify unreal orders", { error: (error as Error).message });
   }
-  
+
   return unrealOrders;
 }
 
@@ -1020,17 +1021,17 @@ export async function cleanupUnrealOrders(): Promise<{
       if (ACTIVE_STATUSES.includes(order.status as any)) {
         try {
           await alpaca.cancelOrder(order.orderId);
-          console.log(`[OrderCleanup] Canceled unreal order ${order.orderId}: ${order.reason}`);
+          log.info("OrderCleanup", "Canceled unreal order", { orderId: order.orderId, reason: order.reason });
           result.canceled++;
         } catch (error) {
           const errorMsg = `Failed to cancel ${order.orderId}: ${(error as Error).message}`;
           result.errors.push(errorMsg);
-          console.warn(`[OrderCleanup] ${errorMsg}`);
+          log.warn("OrderCleanup", "Failed to cancel order", { orderId: order.orderId, error: (error as Error).message });
         }
       }
     }
-    
-    console.log(`[OrderCleanup] Identified ${result.identified} unreal orders, canceled ${result.canceled}`);
+
+    log.info("OrderCleanup", "Unreal order cleanup complete", { identified: result.identified, canceled: result.canceled });
   } catch (error) {
     result.errors.push(`Cleanup failed: ${(error as Error).message}`);
   }
@@ -1090,12 +1091,12 @@ export async function reconcileOrderBook(): Promise<{
         }
       }
     }
-    
-    console.log(`[Reconciliation] Orders: Alpaca=${result.alpacaOrders}, Local=${result.localTrades}, Synced=${result.synced}`);
+
+    log.info("Reconciliation", "Order book reconciliation complete", { alpacaOrders: result.alpacaOrders, localTrades: result.localTrades, synced: result.synced });
   } catch (error) {
-    console.error("[Reconciliation] Failed:", error);
+    log.error("Reconciliation", "Order book reconciliation failed", { error: (error as Error).message });
   }
-  
+
   return result;
 }
 
@@ -1131,20 +1132,20 @@ export async function waitForAlpacaOrderFill(orderId: string, timeoutMs = ORDER_
       if (order.status === "filled" && hasFillData) {
         return { order, timedOut: false, hasFillData: true, isFullyFilled: true };
       }
-      
+
       if (TERMINAL_STATUSES.includes(order.status as typeof TERMINAL_STATUSES[number])) {
-        console.log(`[OrderFlow] Order ${orderId} ended with status: ${order.status}`);
+        log.info("OrderFlow", "Order ended with status", { orderId, status: order.status });
         return { order, timedOut: false, hasFillData, isFullyFilled: false };
       }
       
       await new Promise(resolve => setTimeout(resolve, ORDER_FILL_POLL_INTERVAL_MS));
     } catch (error) {
-      console.error(`[OrderFlow] Error polling order ${orderId}:`, error);
+      log.error("OrderFlow", "Error polling order", { orderId, error: (error as Error).message });
       await new Promise(resolve => setTimeout(resolve, ORDER_FILL_POLL_INTERVAL_MS));
     }
   }
-  
-  console.log(`[OrderFlow] Order ${orderId} fill timeout after ${timeoutMs}ms`);
+
+  log.warn("OrderFlow", "Order fill timeout", { orderId, timeoutMs });
   try {
     const finalOrder = await alpaca.getOrder(orderId);
     const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
@@ -1175,18 +1176,18 @@ export async function cancelExpiredOrders(maxAgeMs = STALE_ORDER_TIMEOUT_MS): Pr
         try {
           await alpaca.cancelOrder(order.id);
           canceledCount++;
-          console.log(`[OrderFlow] Canceled expired order ${order.id} for ${order.symbol} (age: ${Math.floor(orderAge / 1000)}s)`);
+          log.info("OrderFlow", "Canceled expired order", { orderId: order.id, symbol: order.symbol, ageSec: Math.floor(orderAge / 1000) });
         } catch (error) {
-          console.warn(`[OrderFlow] Failed to cancel expired order ${order.id}:`, error);
+          log.warn("OrderFlow", "Failed to cancel expired order", { orderId: order.id, error: (error as Error).message });
         }
       }
     }
-    
+
     if (canceledCount > 0) {
-      console.log(`[OrderFlow] Canceled ${canceledCount} expired pending orders`);
+      log.info("OrderFlow", "Expired order cancellation complete", { canceledCount });
     }
   } catch (error) {
-    console.error("[OrderFlow] Error checking for expired orders:", error);
+    log.error("OrderFlow", "Error checking for expired orders", { error: (error as Error).message });
   }
   return canceledCount;
 }

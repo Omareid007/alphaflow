@@ -5,6 +5,7 @@ import { alpaca } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
 import { callLLM, generateTraceId } from "./llmGateway";
 import { candidatesService } from "../universe/candidatesService";
+import { log } from "../utils/logger";
 
 export interface MarketConditionAnalysis {
   condition: "bullish" | "bearish" | "neutral" | "volatile" | "uncertain";
@@ -39,10 +40,10 @@ class MarketConditionAnalyzer {
   private analysisTimer: ReturnType<typeof setInterval> | null = null;
 
   async initialize(): Promise<void> {
-    console.log("[MarketAnalyzer] Initializing market condition analyzer...");
+    log.info("MarketAnalyzer", "Initializing market condition analyzer...");
     // Run initial analysis in background (non-blocking) to prevent startup hangs
     this.runAnalysis().catch(err => {
-      console.error("[MarketAnalyzer] Initial analysis failed:", err);
+      log.error("MarketAnalyzer", "Initial analysis failed", { error: err instanceof Error ? err.message : String(err) });
     });
     this.startPeriodicAnalysis();
   }
@@ -54,11 +55,11 @@ class MarketConditionAnalyzer {
 
     this.analysisTimer = setInterval(() => {
       this.runAnalysis().catch(err => {
-        console.error("[MarketAnalyzer] Periodic analysis error:", err);
+        log.error("MarketAnalyzer", "Periodic analysis error", { error: err instanceof Error ? err.message : String(err) });
       });
     }, ANALYSIS_INTERVAL_MS);
 
-    console.log(`[MarketAnalyzer] Periodic analysis started (every ${ANALYSIS_INTERVAL_MS / 1000}s)`);
+    log.info("MarketAnalyzer", "Periodic analysis started", { intervalSeconds: ANALYSIS_INTERVAL_MS / 1000 });
   }
 
   stop(): void {
@@ -76,7 +77,7 @@ class MarketConditionAnalyzer {
     this.isAnalyzing = true;
 
     try {
-      console.log("[MarketAnalyzer] Running market condition analysis...");
+      log.info("MarketAnalyzer", "Running market condition analysis...");
 
       const snapshot = await this.fetchMarketSnapshot();
       const analysis = await this.analyzeWithAI(snapshot);
@@ -86,11 +87,11 @@ class MarketConditionAnalyzer {
 
       await this.updateAgentOrderLimit(analysis);
 
-      console.log(`[MarketAnalyzer] Analysis complete: ${analysis.condition}, order limit: ${analysis.recommendedOrderLimit}`);
+      log.info("MarketAnalyzer", "Analysis complete", { condition: analysis.condition, orderLimit: analysis.recommendedOrderLimit });
 
       return analysis;
     } catch (error) {
-      console.error("[MarketAnalyzer] Analysis failed:", error);
+      log.error("MarketAnalyzer", "Analysis failed", { error: error instanceof Error ? error.message : String(error) });
       return this.lastAnalysis || this.getDefaultAnalysis();
     } finally {
       this.isAnalyzing = false;
@@ -120,7 +121,7 @@ class MarketConditionAnalyzer {
         watchlistCrypto = dynamicWatchlist.crypto.map(c => c.toLowerCase());
       }
     } catch (error) {
-      console.warn("[MarketAnalyzer] Failed to load watchlist from database, using fallback:", error);
+      log.warn("MarketAnalyzer", "Failed to load watchlist from database, using fallback", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -136,7 +137,7 @@ class MarketConditionAnalyzer {
         }
       }
     } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch stock data:", error);
+      log.error("MarketAnalyzer", "Failed to fetch stock data", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -153,7 +154,7 @@ class MarketConditionAnalyzer {
         });
       }
     } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch crypto data:", error);
+      log.error("MarketAnalyzer", "Failed to fetch crypto data", { error: error instanceof Error ? error.message : String(error) });
     }
 
     try {
@@ -169,7 +170,7 @@ class MarketConditionAnalyzer {
       }
       snapshot.dailyPnl = totalPnl;
     } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch portfolio data:", error);
+      log.error("MarketAnalyzer", "Failed to fetch portfolio data", { error: error instanceof Error ? error.message : String(error) });
     }
 
     return snapshot;
@@ -258,7 +259,7 @@ RESPOND WITH VALID JSON ONLY:
 
       return parsed;
     } catch (error) {
-      console.error("[MarketAnalyzer] AI analysis failed:", error);
+      log.error("MarketAnalyzer", "AI analysis failed", { error: error instanceof Error ? error.message : String(error) });
       return this.calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility);
     }
   }
@@ -369,7 +370,7 @@ RESPOND WITH VALID JSON ONLY:
         maxPositionsCount: analysis.recommendedOrderLimit,
       });
     } catch (error) {
-      console.error("[MarketAnalyzer] Failed to update agent status:", error);
+      log.error("MarketAnalyzer", "Failed to update agent status", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { log } from "../utils/logger";
 
 const FREE_MODELS = [
   "meta-llama/llama-3.2-3b-instruct:free",
@@ -90,14 +91,14 @@ class OpenRouterProvider {
     let availableModels = this.getAvailableModels();
     
     if (availableModels.length === 0 && !this.usingPaidModels) {
-      console.log("[OpenRouter] All free models exhausted, switching to paid models");
+      log.ai("All free models exhausted, switching to paid models");
       this.usingPaidModels = true;
       this.currentModelIndex = 0;
       availableModels = this.getAvailableModels();
     }
-    
+
     if (availableModels.length === 0) {
-      console.log("[OpenRouter] All models exhausted");
+      log.ai("All models exhausted");
       return null;
     }
     
@@ -115,7 +116,7 @@ class OpenRouterProvider {
     if (isRateLimit || state.failures >= this.maxFailures) {
       state.blocked = true;
       state.blockedUntil = Date.now() + this.blockDurationMs;
-      console.log(`[OpenRouter] Blocked model ${model} until ${new Date(state.blockedUntil).toISOString()}`);
+      log.ai("Blocked model", { model, blockedUntil: new Date(state.blockedUntil).toISOString() });
     }
     
     this.currentModelIndex++;
@@ -148,7 +149,7 @@ class OpenRouterProvider {
       }
       
       try {
-        console.log(`[OpenRouter] Trying model: ${model} (attempt ${attempt + 1})`);
+        log.ai("Trying model", { model, attempt: attempt + 1 });
         
         const response = await client.chat.completions.create({
           model,
@@ -167,7 +168,7 @@ class OpenRouterProvider {
         }
         
         this.markModelSuccess(model);
-        console.log(`[OpenRouter] Success with model: ${model}`);
+        log.ai("Success with model", { model });
         
         return { content, model };
       } catch (error) {
@@ -178,7 +179,7 @@ class OpenRouterProvider {
           errorMsg.includes("quota") ||
           errorMsg.includes("limit");
         
-        console.log(`[OpenRouter] Model ${model} failed: ${errorMsg}`);
+        log.ai("Model failed", { model, error: errorMsg });
         this.markModelFailure(model, isRateLimit);
         lastError = error as Error;
         
@@ -211,7 +212,7 @@ class OpenRouterProvider {
     this.initModels();
     this.currentModelIndex = 0;
     this.usingPaidModels = false;
-    console.log("[OpenRouter] Reset all model states");
+    log.ai("Reset all model states");
   }
 }
 

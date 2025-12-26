@@ -8,6 +8,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import type { InsertAuditLog } from "@shared/schema";
+import { log } from "../utils/logger";
 
 /**
  * List of sensitive fields to exclude from request body logging
@@ -136,8 +137,8 @@ export async function auditLogger(
     try {
       const user = await storage.getUser(userId);
       username = user?.username || null;
-    } catch (error) {
-      console.error('[AuditLogger] Failed to get username:', error);
+    } catch (error: any) {
+      log.error("AuditLogger", "Failed to get username", { error: error.message });
     }
   }
 
@@ -196,11 +197,15 @@ export async function auditLogger(
       await storage.createAuditLog(auditLog as InsertAuditLog);
 
       const duration = Date.now() - startTime;
-      console.log(
-        `[Audit] ${auditLog.method} ${auditLog.path} - ${auditLog.responseStatus} - ${duration}ms - User: ${username || 'anonymous'}`
-      );
-    } catch (error) {
-      console.error('[AuditLogger] Failed to save audit log:', error);
+      log.info("Audit", "Request logged", {
+        method: auditLog.method,
+        path: auditLog.path,
+        status: auditLog.responseStatus,
+        durationMs: duration,
+        user: username || 'anonymous'
+      });
+    } catch (error: any) {
+      log.error("AuditLogger", "Failed to save audit log", { error: error.message });
     }
   });
 

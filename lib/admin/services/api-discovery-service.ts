@@ -110,7 +110,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
           description: schema.description
         };
 
-        const { data } = await adminSupabase
+        const { data } = await getAdminSupabase()
           .from('provider_api_schemas')
           .upsert({
             provider_id: providerId,
@@ -161,7 +161,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
             deprecated_message: operation.deprecated ? 'This endpoint is deprecated' : null
           };
 
-          const { data } = await adminSupabase
+          const { data } = await getAdminSupabase()
             .from('provider_api_functions')
             .upsert(apiFunction, { onConflict: 'provider_id,method,path' })
             .select()
@@ -184,7 +184,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
   }
 
   async listApiFunctions(providerId: string): Promise<ApiFunction[]> {
-    const { data, error } = await adminSupabase
+    const { data, error } = await getAdminSupabase()
       .from('provider_api_functions')
       .select('*')
       .eq('provider_id', providerId)
@@ -195,7 +195,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
   }
 
   async getApiFunction(id: string): Promise<ApiFunction | null> {
-    const { data, error } = await adminSupabase
+    const { data, error } = await getAdminSupabase()
       .from('provider_api_functions')
       .select('*')
       .eq('id', id)
@@ -216,7 +216,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
     if (input.tokensPerCall !== undefined) updateData.tokens_per_call = input.tokensPerCall;
     if (input.metadata) updateData.metadata = input.metadata;
 
-    const { data, error } = await adminSupabase
+    const { data, error } = await getAdminSupabase()
       .from('provider_api_functions')
       .update(updateData)
       .eq('id', id)
@@ -228,7 +228,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
   }
 
   async deleteApiFunction(id: string): Promise<void> {
-    const { error } = await adminSupabase
+    const { error } = await getAdminSupabase()
       .from('provider_api_functions')
       .delete()
       .eq('id', id);
@@ -243,7 +243,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
 
     await new Promise(r => setTimeout(r, latency));
 
-    await adminSupabase
+    await getAdminSupabase()
       .from('provider_api_functions')
       .update({
         last_tested_at: new Date().toISOString(),
@@ -260,7 +260,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
   }
 
   async listApiSchemas(providerId: string): Promise<ApiSchema[]> {
-    const { data, error } = await adminSupabase
+    const { data, error } = await getAdminSupabase()
       .from('provider_api_schemas')
       .select('*')
       .eq('provider_id', providerId)

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { log } from "../utils/logger";
 
 export interface NotificationChannel {
   id: string;
@@ -174,7 +175,7 @@ async function sendToChannel(channel: NotificationChannel, message: string): Pro
         break;
       case 'email':
         result.error = 'Email notifications not yet implemented - skipping';
-        console.warn('[Notification] Email channel skipped - not implemented');
+        log.warn("Notification", "Email channel skipped - not implemented", { channelId: channel.id });
         break;
       default:
         result.error = `Unsupported channel type: ${channel.type}`;

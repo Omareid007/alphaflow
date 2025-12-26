@@ -181,6 +181,7 @@ export class CloudflareClient implements LLMClient {
       });
 
       return {
+        text: content,
         content,
         model,
         raw: { provider: "cloudflare", latencyMs: latency },
@@ -243,7 +244,7 @@ export class CloudflareClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return response.content?.toLowerCase().includes("ok") || false;
+      return (response.content || response.text || "").toLowerCase().includes("ok");
     } catch (error) {
       log.error("CloudflareClient", "Health check failed", {
         error: (error as Error).message,

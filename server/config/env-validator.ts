@@ -6,6 +6,8 @@
  * critical configuration.
  */
 
+import { log } from "../utils/logger";
+
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'ALPACA_API_KEY',
@@ -160,55 +162,40 @@ export function validateEnvironment(): ValidationResult {
  * This should be called at startup before initializing any services
  */
 export function validateAndReportEnvironment(): void {
-  console.log('[ENV] Validating environment variables...');
+  log.info("EnvValidator", "Validating environment variables...");
 
   const result = validateEnvironment();
 
   // Report enabled/disabled features
-  console.log('\n[ENV] Feature Status:');
-  console.log('━'.repeat(60));
-
   const enabledFeatures = result.features.filter(f => f.enabled);
   const disabledFeatures = result.features.filter(f => !f.enabled);
 
-  if (enabledFeatures.length > 0) {
-    console.log('  ✓ Enabled features:');
-    enabledFeatures.forEach(f => {
-      console.log(`    • ${f.name}`);
-    });
-  }
-
-  if (disabledFeatures.length > 0) {
-    console.log('  ✗ Disabled features:');
-    disabledFeatures.forEach(f => {
-      console.log(`    • ${f.name}`);
-    });
-  }
-
-  console.log('━'.repeat(60));
+  log.info("EnvValidator", "Feature status", {
+    enabledCount: enabledFeatures.length,
+    disabledCount: disabledFeatures.length,
+    enabled: enabledFeatures.map(f => f.name),
+    disabled: disabledFeatures.map(f => f.name),
+  });
 
   // Report warnings
   if (result.warnings.length > 0) {
-    console.log('\n[ENV] Warnings:');
     result.warnings.forEach(warning => {
-      console.warn(`  ⚠  ${warning}`);
+      log.warn("EnvValidator", warning);
     });
   }
 
   // Report errors and fail if any
   if (result.errors.length > 0) {
-    console.error('\n[ENV] VALIDATION FAILED - Missing or invalid required environment variables:');
-    console.error('━'.repeat(60));
-    result.errors.forEach(error => {
-      console.error(`  ✗ ${error}`);
+    log.error("EnvValidator", "Validation failed - missing or invalid required environment variables", {
+      errors: result.errors,
     });
-    console.error('━'.repeat(60));
-    console.error('\n[ENV] Please set all required environment variables and restart the server.');
-    console.error('[ENV] Server startup aborted.\n');
+    result.errors.forEach(error => {
+      log.error("EnvValidator", error);
+    });
+    log.error("EnvValidator", "Please set all required environment variables and restart the server. Server startup aborted.");
 
     throw new Error('Environment validation failed - missing or invalid required variables');
   }
 
-  console.log('\n[ENV] ✓ Environment validation passed');
-  console.log('[ENV] All required variables are set and valid\n');
+  log.info("EnvValidator", "Environment validation passed - all required variables are set and valid");
 }

@@ -26,6 +26,7 @@ export interface IProviderService {
 
 class ProviderService implements IProviderService {
   async listProviders(): Promise<Provider[]> {
+    if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
       .from('providers')
       .select('*')
@@ -36,6 +37,7 @@ class ProviderService implements IProviderService {
   }
 
   async getProvider(id: string): Promise<Provider | null> {
+    if (!adminSupabase) return null;
     const { data, error } = await adminSupabase
       .from('providers')
       .select('*')
@@ -47,6 +49,7 @@ class ProviderService implements IProviderService {
   }
 
   async createProvider(input: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { data, error } = await adminSupabase
       .from('providers')
       .insert({
@@ -89,6 +92,7 @@ class ProviderService implements IProviderService {
   }
 
   async updateProvider(id: string, input: Partial<Provider>): Promise<Provider> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const updateData: any = { updated_at: new Date().toISOString() };
 
     if (input.name) updateData.name = input.name;
@@ -133,6 +137,7 @@ class ProviderService implements IProviderService {
   }
 
   async deleteProvider(id: string): Promise<void> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { error } = await adminSupabase
       .from('providers')
       .delete()
@@ -142,6 +147,7 @@ class ProviderService implements IProviderService {
   }
 
   async testConnection(id: string): Promise<ConnectionTestResult> {
+    if (!adminSupabase) return { success: false, latency: 0, error: 'Database not configured', timestamp: new Date().toISOString() };
     const provider = await this.getProvider(id);
     if (!provider) throw new Error('Provider not found');
 
@@ -160,6 +166,7 @@ class ProviderService implements IProviderService {
   }
 
   async listCredentials(providerId: string): Promise<Credential[]> {
+    if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
       .from('provider_credentials')
       .select('*')
@@ -170,6 +177,7 @@ class ProviderService implements IProviderService {
   }
 
   async addCredential(providerId: string, kind: string, value: string): Promise<Credential> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const encrypted = encrypt(value);
 
     const { data, error } = await adminSupabase
@@ -188,6 +196,7 @@ class ProviderService implements IProviderService {
   }
 
   async rotateCredential(id: string, newValue: string): Promise<Credential> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const encrypted = encrypt(newValue);
 
     const { data, error } = await adminSupabase
@@ -205,6 +214,7 @@ class ProviderService implements IProviderService {
   }
 
   async revokeCredential(id: string): Promise<void> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const { error } = await adminSupabase
       .from('provider_credentials')
       .delete()
@@ -214,6 +224,7 @@ class ProviderService implements IProviderService {
   }
 
   async getBudget(providerId: string): Promise<Budget | null> {
+    if (!adminSupabase) return null;
     const { data, error } = await adminSupabase
       .from('provider_budgets')
       .select('*')
@@ -225,6 +236,7 @@ class ProviderService implements IProviderService {
   }
 
   async updateBudget(providerId: string, input: Partial<Budget>): Promise<Budget> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const existing = await this.getBudget(providerId);
 
     if (existing) {
@@ -262,6 +274,7 @@ class ProviderService implements IProviderService {
   }
 
   async getUsageMetrics(providerId: string, days: number): Promise<UsageMetrics[]> {
+    if (!adminSupabase) return [];
     const metrics: UsageMetrics[] = [];
     const budget = await this.getBudget(providerId);
 

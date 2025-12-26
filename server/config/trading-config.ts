@@ -13,35 +13,7 @@
  * 6. Queue Configuration (polling intervals, heartbeats)
  */
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Parse environment variable as number with fallback to default
- */
-const getEnvNumber = (key: string, defaultVal: number): number => {
-  const val = process.env[key];
-  if (!val) return defaultVal;
-  const parsed = parseFloat(val);
-  return isNaN(parsed) ? defaultVal : parsed;
-};
-
-/**
- * Parse environment variable as string with fallback to default
- */
-const getEnvString = (key: string, defaultVal: string): string => {
-  return process.env[key] || defaultVal;
-};
-
-/**
- * Parse environment variable as boolean with fallback to default
- */
-const getEnvBoolean = (key: string, defaultVal: boolean): boolean => {
-  const val = process.env[key];
-  if (!val) return defaultVal;
-  return val.toLowerCase() === 'true' || val === '1';
-};
+import { getEnvFloat, getEnvString, getEnvBool } from "./env-helpers";
 
 // ============================================================================
 // ALPACA BROKER CONFIGURATION
@@ -83,21 +55,21 @@ const alpacaConfig = Object.freeze({
  */
 const orderRetryConfig = Object.freeze({
   // Maximum number of retry attempts per order before giving up
-  maxRetriesPerOrder: getEnvNumber('MAX_RETRIES_PER_ORDER', 3),
+  maxRetriesPerOrder: getEnvFloat('MAX_RETRIES_PER_ORDER', 3),
 
   // Base delay in milliseconds for exponential backoff (doubles each retry)
   // Formula: delay = retryBackoffBaseMs * 2^(attemptNumber - 1)
   // Example: 2000ms, 4000ms, 8000ms for 3 attempts
-  retryBackoffBaseMs: getEnvNumber('RETRY_BACKOFF_BASE_MS', 2000),
+  retryBackoffBaseMs: getEnvFloat('RETRY_BACKOFF_BASE_MS', 2000),
 
   // Circuit breaker: number of failures before opening circuit
-  circuitBreakerThreshold: getEnvNumber('CIRCUIT_BREAKER_THRESHOLD', 10),
+  circuitBreakerThreshold: getEnvFloat('CIRCUIT_BREAKER_THRESHOLD', 10),
 
   // Circuit breaker: time window in ms to count failures (1 minute default)
-  circuitBreakerWindowMs: getEnvNumber('CIRCUIT_BREAKER_WINDOW_MS', 60000),
+  circuitBreakerWindowMs: getEnvFloat('CIRCUIT_BREAKER_WINDOW_MS', 60000),
 
   // Circuit breaker: cooldown period before auto-reset (5 minutes default)
-  circuitBreakerResetMs: getEnvNumber('CIRCUIT_BREAKER_RESET_MS', 300000),
+  circuitBreakerResetMs: getEnvFloat('CIRCUIT_BREAKER_RESET_MS', 300000),
 });
 
 // ============================================================================
@@ -117,13 +89,13 @@ const orderRetryConfig = Object.freeze({
  */
 const orderExecutionConfig = Object.freeze({
   // Polling interval in ms to check if order is filled (500ms default)
-  orderFillPollIntervalMs: getEnvNumber('ORDER_FILL_POLL_INTERVAL_MS', 500),
+  orderFillPollIntervalMs: getEnvFloat('ORDER_FILL_POLL_INTERVAL_MS', 500),
 
   // Maximum time in ms to wait for order fill before timing out (30 seconds default)
-  orderFillTimeoutMs: getEnvNumber('ORDER_FILL_TIMEOUT_MS', 30000),
+  orderFillTimeoutMs: getEnvFloat('ORDER_FILL_TIMEOUT_MS', 30000),
 
   // Maximum age in ms for unfilled orders before auto-cancellation (5 minutes default)
-  staleOrderTimeoutMs: getEnvNumber('STALE_ORDER_TIMEOUT_MS', 300000),
+  staleOrderTimeoutMs: getEnvFloat('STALE_ORDER_TIMEOUT_MS', 300000),
 });
 
 // ============================================================================
@@ -148,17 +120,17 @@ const orderExecutionConfig = Object.freeze({
  */
 const riskManagementConfig = Object.freeze({
   // Default hard stop loss percentage (exit when position loses this much)
-  defaultHardStopLossPercent: getEnvNumber('DEFAULT_HARD_STOP_LOSS_PERCENT', 3),
+  defaultHardStopLossPercent: getEnvFloat('DEFAULT_HARD_STOP_LOSS_PERCENT', 3),
 
   // Default take profit percentage (exit when position gains this much)
-  defaultTakeProfitPercent: getEnvNumber('DEFAULT_TAKE_PROFIT_PERCENT', 6),
+  defaultTakeProfitPercent: getEnvFloat('DEFAULT_TAKE_PROFIT_PERCENT', 6),
 
   // Maximum position size as percentage of portfolio (10% = conservative, 15% = aggressive)
-  defaultMaxPositionSizePercent: getEnvNumber('DEFAULT_MAX_POSITION_SIZE_PERCENT', 15),
+  defaultMaxPositionSizePercent: getEnvFloat('DEFAULT_MAX_POSITION_SIZE_PERCENT', 15),
 
   // Maximum total exposure as percentage of portfolio
   // 100% = fully invested, 200% = 2x leverage (margin account)
-  defaultMaxExposurePercent: getEnvNumber('DEFAULT_MAX_EXPOSURE_PERCENT', 200),
+  defaultMaxExposurePercent: getEnvFloat('DEFAULT_MAX_EXPOSURE_PERCENT', 200),
 });
 
 // ============================================================================
@@ -186,19 +158,19 @@ const riskManagementConfig = Object.freeze({
 const universeConfig = Object.freeze({
   // Maximum number of stock symbols to analyze per cycle
   // Conservative: 120, Moderate: 300, Aggressive: 500
-  maxStockSymbolsPerCycle: getEnvNumber('MAX_STOCK_SYMBOLS_PER_CYCLE', 500),
+  maxStockSymbolsPerCycle: getEnvFloat('MAX_STOCK_SYMBOLS_PER_CYCLE', 500),
 
   // Maximum number of crypto symbols to analyze per cycle
   // Conservative: 20, Moderate: 50, Aggressive: 100
-  maxCryptoSymbolsPerCycle: getEnvNumber('MAX_CRYPTO_SYMBOLS_PER_CYCLE', 100),
+  maxCryptoSymbolsPerCycle: getEnvFloat('MAX_CRYPTO_SYMBOLS_PER_CYCLE', 100),
 
   // Minimum AI confidence score (0-1) to include symbol in universe
   // Conservative: 0.70, Moderate: 0.60, Aggressive: 0.50
-  minConfidenceForUniverse: getEnvNumber('MIN_CONFIDENCE_FOR_UNIVERSE', 0.50),
+  minConfidenceForUniverse: getEnvFloat('MIN_CONFIDENCE_FOR_UNIVERSE', 0.50),
 
   // Number of symbols to fetch per Alpaca snapshot API request
   // Max supported: 100, Recommended: 50 for reliability
-  alpacaSnapshotChunkSize: getEnvNumber('ALPACA_SNAPSHOT_CHUNK_SIZE', 50),
+  alpacaSnapshotChunkSize: getEnvFloat('ALPACA_SNAPSHOT_CHUNK_SIZE', 50),
 });
 
 // ============================================================================
@@ -219,13 +191,13 @@ const universeConfig = Object.freeze({
  */
 const queueConfig = Object.freeze({
   // Interval in ms to poll work queue for pending tasks (2 seconds default)
-  queuePollIntervalMs: getEnvNumber('QUEUE_POLL_INTERVAL_MS', 2000),
+  queuePollIntervalMs: getEnvFloat('QUEUE_POLL_INTERVAL_MS', 2000),
 
   // Maximum time in ms for a work item to complete before timing out (1 minute default)
-  queuePollTimeoutMs: getEnvNumber('QUEUE_POLL_TIMEOUT_MS', 60000),
+  queuePollTimeoutMs: getEnvFloat('QUEUE_POLL_TIMEOUT_MS', 60000),
 
   // Interval in ms to send heartbeat signals (30 seconds default)
-  heartbeatIntervalMs: getEnvNumber('HEARTBEAT_INTERVAL_MS', 30000),
+  heartbeatIntervalMs: getEnvFloat('HEARTBEAT_INTERVAL_MS', 30000),
 });
 
 // ============================================================================

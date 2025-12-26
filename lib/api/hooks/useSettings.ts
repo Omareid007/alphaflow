@@ -2,8 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
 import { UserSettings } from '@/lib/types';
 
-// Temporary: Use mock store as fallback until API is implemented
-import { store } from '@/lib/store';
+// Default settings when API is unavailable
+const defaultSettings: UserSettings = {
+  theme: 'dark',
+  notifications: {
+    trades: true,
+    aiAlerts: true,
+    riskWarnings: true,
+    dailyDigest: false,
+  },
+  riskGuardrails: {
+    maxPositionSize: 0.1,
+    maxDrawdown: 0.2,
+    maxDailyLoss: 0.05,
+    requireConfirmation: true,
+  },
+};
 
 export function useSettings() {
   return useQuery({
@@ -11,10 +25,9 @@ export function useSettings() {
     queryFn: async () => {
       try {
         return await api.get<UserSettings>('/api/settings');
-      } catch (error) {
-        // Fallback to mock store if endpoint doesn't exist yet
-        console.warn('Settings endpoint not implemented yet, using mock store');
-        return store.getSettings();
+      } catch {
+        // Return default settings if endpoint unavailable
+        return defaultSettings;
       }
     },
   });
@@ -25,13 +38,7 @@ export function useUpdateSettings() {
 
   return useMutation({
     mutationFn: async (data: Partial<UserSettings>) => {
-      try {
-        return await api.put<UserSettings>('/api/settings', data);
-      } catch (error) {
-        // Fallback to mock store
-        console.warn('Update settings endpoint not implemented yet, using mock store');
-        return store.updateSettings(data);
-      }
+      return await api.put<UserSettings>('/api/settings', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });

@@ -2318,6 +2318,7 @@ var DEFAULT_FRESH_DURATION, DEFAULT_STALE_DURATION, DEFAULT_MAX_ENTRIES, ApiCach
 var init_api_cache = __esm({
   "server/lib/api-cache.ts"() {
     "use strict";
+    init_logger();
     DEFAULT_FRESH_DURATION = 60 * 1e3;
     DEFAULT_STALE_DURATION = 30 * 60 * 1e3;
     DEFAULT_MAX_ENTRIES = 1e3;
@@ -3905,23 +3906,46 @@ var init_finnhub = __esm({
   }
 });
 
+// server/config/env-helpers.ts
+function getEnvString(key, defaultValue) {
+  const value = process.env[key];
+  if (value === void 0 || value === "") {
+    if (defaultValue !== void 0) {
+      return defaultValue;
+    }
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+function getEnvFloat(key, defaultValue) {
+  const value = process.env[key];
+  if (value === void 0 || value === "") {
+    if (defaultValue !== void 0) return defaultValue;
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) {
+    throw new Error(
+      `Environment variable ${key} must be a number, got: ${value}`
+    );
+  }
+  return parsed;
+}
+var init_env_helpers = __esm({
+  "server/config/env-helpers.ts"() {
+    "use strict";
+  }
+});
+
 // server/config/trading-config.ts
 function getAlpacaBaseUrl() {
   return tradingConfig.alpaca.tradingMode === "live" ? tradingConfig.alpaca.liveUrl : tradingConfig.alpaca.paperUrl;
 }
-var getEnvNumber, getEnvString, alpacaConfig, orderRetryConfig, orderExecutionConfig, riskManagementConfig, universeConfig, queueConfig, tradingConfig;
+var alpacaConfig, orderRetryConfig, orderExecutionConfig, riskManagementConfig, universeConfig, queueConfig, tradingConfig;
 var init_trading_config = __esm({
   "server/config/trading-config.ts"() {
     "use strict";
-    getEnvNumber = (key, defaultVal) => {
-      const val = process.env[key];
-      if (!val) return defaultVal;
-      const parsed = parseFloat(val);
-      return isNaN(parsed) ? defaultVal : parsed;
-    };
-    getEnvString = (key, defaultVal) => {
-      return process.env[key] || defaultVal;
-    };
+    init_env_helpers();
     alpacaConfig = Object.freeze({
       // Trading mode: 'paper' or 'live'
       tradingMode: getEnvString("ALPACA_TRADING_MODE", "paper"),
@@ -3936,58 +3960,58 @@ var init_trading_config = __esm({
     });
     orderRetryConfig = Object.freeze({
       // Maximum number of retry attempts per order before giving up
-      maxRetriesPerOrder: getEnvNumber("MAX_RETRIES_PER_ORDER", 3),
+      maxRetriesPerOrder: getEnvFloat("MAX_RETRIES_PER_ORDER", 3),
       // Base delay in milliseconds for exponential backoff (doubles each retry)
       // Formula: delay = retryBackoffBaseMs * 2^(attemptNumber - 1)
       // Example: 2000ms, 4000ms, 8000ms for 3 attempts
-      retryBackoffBaseMs: getEnvNumber("RETRY_BACKOFF_BASE_MS", 2e3),
+      retryBackoffBaseMs: getEnvFloat("RETRY_BACKOFF_BASE_MS", 2e3),
       // Circuit breaker: number of failures before opening circuit
-      circuitBreakerThreshold: getEnvNumber("CIRCUIT_BREAKER_THRESHOLD", 10),
+      circuitBreakerThreshold: getEnvFloat("CIRCUIT_BREAKER_THRESHOLD", 10),
       // Circuit breaker: time window in ms to count failures (1 minute default)
-      circuitBreakerWindowMs: getEnvNumber("CIRCUIT_BREAKER_WINDOW_MS", 6e4),
+      circuitBreakerWindowMs: getEnvFloat("CIRCUIT_BREAKER_WINDOW_MS", 6e4),
       // Circuit breaker: cooldown period before auto-reset (5 minutes default)
-      circuitBreakerResetMs: getEnvNumber("CIRCUIT_BREAKER_RESET_MS", 3e5)
+      circuitBreakerResetMs: getEnvFloat("CIRCUIT_BREAKER_RESET_MS", 3e5)
     });
     orderExecutionConfig = Object.freeze({
       // Polling interval in ms to check if order is filled (500ms default)
-      orderFillPollIntervalMs: getEnvNumber("ORDER_FILL_POLL_INTERVAL_MS", 500),
+      orderFillPollIntervalMs: getEnvFloat("ORDER_FILL_POLL_INTERVAL_MS", 500),
       // Maximum time in ms to wait for order fill before timing out (30 seconds default)
-      orderFillTimeoutMs: getEnvNumber("ORDER_FILL_TIMEOUT_MS", 3e4),
+      orderFillTimeoutMs: getEnvFloat("ORDER_FILL_TIMEOUT_MS", 3e4),
       // Maximum age in ms for unfilled orders before auto-cancellation (5 minutes default)
-      staleOrderTimeoutMs: getEnvNumber("STALE_ORDER_TIMEOUT_MS", 3e5)
+      staleOrderTimeoutMs: getEnvFloat("STALE_ORDER_TIMEOUT_MS", 3e5)
     });
     riskManagementConfig = Object.freeze({
       // Default hard stop loss percentage (exit when position loses this much)
-      defaultHardStopLossPercent: getEnvNumber("DEFAULT_HARD_STOP_LOSS_PERCENT", 3),
+      defaultHardStopLossPercent: getEnvFloat("DEFAULT_HARD_STOP_LOSS_PERCENT", 3),
       // Default take profit percentage (exit when position gains this much)
-      defaultTakeProfitPercent: getEnvNumber("DEFAULT_TAKE_PROFIT_PERCENT", 6),
+      defaultTakeProfitPercent: getEnvFloat("DEFAULT_TAKE_PROFIT_PERCENT", 6),
       // Maximum position size as percentage of portfolio (10% = conservative, 15% = aggressive)
-      defaultMaxPositionSizePercent: getEnvNumber("DEFAULT_MAX_POSITION_SIZE_PERCENT", 15),
+      defaultMaxPositionSizePercent: getEnvFloat("DEFAULT_MAX_POSITION_SIZE_PERCENT", 15),
       // Maximum total exposure as percentage of portfolio
       // 100% = fully invested, 200% = 2x leverage (margin account)
-      defaultMaxExposurePercent: getEnvNumber("DEFAULT_MAX_EXPOSURE_PERCENT", 200)
+      defaultMaxExposurePercent: getEnvFloat("DEFAULT_MAX_EXPOSURE_PERCENT", 200)
     });
     universeConfig = Object.freeze({
       // Maximum number of stock symbols to analyze per cycle
       // Conservative: 120, Moderate: 300, Aggressive: 500
-      maxStockSymbolsPerCycle: getEnvNumber("MAX_STOCK_SYMBOLS_PER_CYCLE", 500),
+      maxStockSymbolsPerCycle: getEnvFloat("MAX_STOCK_SYMBOLS_PER_CYCLE", 500),
       // Maximum number of crypto symbols to analyze per cycle
       // Conservative: 20, Moderate: 50, Aggressive: 100
-      maxCryptoSymbolsPerCycle: getEnvNumber("MAX_CRYPTO_SYMBOLS_PER_CYCLE", 100),
+      maxCryptoSymbolsPerCycle: getEnvFloat("MAX_CRYPTO_SYMBOLS_PER_CYCLE", 100),
       // Minimum AI confidence score (0-1) to include symbol in universe
       // Conservative: 0.70, Moderate: 0.60, Aggressive: 0.50
-      minConfidenceForUniverse: getEnvNumber("MIN_CONFIDENCE_FOR_UNIVERSE", 0.5),
+      minConfidenceForUniverse: getEnvFloat("MIN_CONFIDENCE_FOR_UNIVERSE", 0.5),
       // Number of symbols to fetch per Alpaca snapshot API request
       // Max supported: 100, Recommended: 50 for reliability
-      alpacaSnapshotChunkSize: getEnvNumber("ALPACA_SNAPSHOT_CHUNK_SIZE", 50)
+      alpacaSnapshotChunkSize: getEnvFloat("ALPACA_SNAPSHOT_CHUNK_SIZE", 50)
     });
     queueConfig = Object.freeze({
       // Interval in ms to poll work queue for pending tasks (2 seconds default)
-      queuePollIntervalMs: getEnvNumber("QUEUE_POLL_INTERVAL_MS", 2e3),
+      queuePollIntervalMs: getEnvFloat("QUEUE_POLL_INTERVAL_MS", 2e3),
       // Maximum time in ms for a work item to complete before timing out (1 minute default)
-      queuePollTimeoutMs: getEnvNumber("QUEUE_POLL_TIMEOUT_MS", 6e4),
+      queuePollTimeoutMs: getEnvFloat("QUEUE_POLL_TIMEOUT_MS", 6e4),
       // Interval in ms to send heartbeat signals (30 seconds default)
-      heartbeatIntervalMs: getEnvNumber("HEARTBEAT_INTERVAL_MS", 3e4)
+      heartbeatIntervalMs: getEnvFloat("HEARTBEAT_INTERVAL_MS", 3e4)
     });
     tradingConfig = Object.freeze({
       alpaca: alpacaConfig,
@@ -7313,36 +7337,119 @@ var init_llmClient = __esm({
   }
 });
 
-// server/ai/openaiClient.ts
-var DEFAULT_MODEL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, OpenAIClient, openaiClient;
-var init_openaiClient = __esm({
-  "server/ai/openaiClient.ts"() {
+// server/ai/baseLLMClient.ts
+var BaseLLMClient;
+var init_baseLLMClient = __esm({
+  "server/ai/baseLLMClient.ts"() {
     "use strict";
     init_logger();
     init_llmClient();
-    DEFAULT_MODEL = "gpt-4o-mini";
-    DEFAULT_MAX_TOKENS = 1e3;
-    DEFAULT_TEMPERATURE = 0.3;
-    OpenAIClient = class {
+    BaseLLMClient = class {
       apiKey;
       baseUrl;
       defaultModel;
-      constructor() {
-        this.apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "";
-        this.baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-        this.defaultModel = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+      config;
+      constructor(config) {
+        this.config = config;
+        this.apiKey = this.resolveApiKey(config.apiKeyEnvVars);
+        this.baseUrl = process.env[config.baseUrlEnvVar || ""] || config.defaultBaseUrl;
+        this.defaultModel = process.env[config.modelEnvVar || ""] || config.defaultModel;
+      }
+      resolveApiKey(envVars) {
+        for (const envVar of envVars) {
+          const value = process.env[envVar];
+          if (value) return value;
+        }
+        return "";
       }
       isAvailable() {
         return !!this.apiKey;
       }
       getProviderName() {
-        return "openai";
+        return this.config.providerName;
+      }
+      async measureLatency(fn) {
+        const startTime = Date.now();
+        const result = await fn();
+        return { result, latencyMs: Date.now() - startTime };
+      }
+      handleHttpError(response, errorText) {
+        const statusCode = response.status;
+        const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
+        const isAuthError = statusCode === 401 || statusCode === 403;
+        log.error(this.config.providerName, "API request failed", {
+          statusCode,
+          isRateLimit,
+          isAuthError
+        });
+        throw createLLMError(
+          `${this.config.providerName} API error: ${statusCode}`,
+          this.config.providerName,
+          { isRateLimit, isAuthError, statusCode }
+        );
+      }
+      createAuthError() {
+        throw createLLMError(
+          `${this.config.providerName} API key not configured`,
+          this.config.providerName,
+          { isAuthError: true }
+        );
+      }
+    };
+  }
+});
+
+// server/ai/openaiCompatibleClient.ts
+var OpenAICompatibleClient;
+var init_openaiCompatibleClient = __esm({
+  "server/ai/openaiCompatibleClient.ts"() {
+    "use strict";
+    init_logger();
+    init_llmClient();
+    init_baseLLMClient();
+    OpenAICompatibleClient = class extends BaseLLMClient {
+      extraHeaders;
+      constructor(config) {
+        super(config);
+        this.extraHeaders = config.extraHeaders || {};
       }
       async call(req) {
         if (!this.isAvailable()) {
-          throw createLLMError("OpenAI API key not configured", "openai", { isAuthError: true });
+          this.createAuthError();
         }
         const model = req.model || this.defaultModel;
+        const messages2 = this.buildMessages(req);
+        const body = this.buildRequestBody(req, model, messages2);
+        const startTime = Date.now();
+        try {
+          const response = await fetch(`${this.baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`,
+              ...this.extraHeaders
+            },
+            body: JSON.stringify(body)
+          });
+          const latencyMs = Date.now() - startTime;
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            this.handleHttpError(response, errorText);
+          }
+          const data = await response.json();
+          return this.parseResponse(data, latencyMs, model);
+        } catch (error) {
+          if (error.provider === this.config.providerName) {
+            throw error;
+          }
+          log.error(this.config.providerName, "Request failed", { error: String(error) });
+          throw createLLMError(
+            `${this.config.providerName} request failed: ${String(error)}`,
+            this.config.providerName
+          );
+        }
+      }
+      buildMessages(req) {
         const messages2 = [];
         if (req.system) {
           messages2.push({ role: "system", content: req.system });
@@ -7355,11 +7462,14 @@ var init_openaiClient = __esm({
             name: msg.name
           });
         }
+        return messages2;
+      }
+      buildRequestBody(req, model, messages2) {
         const body = {
           model,
           messages: messages2,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE
+          max_tokens: req.maxTokens ?? this.config.defaultMaxTokens ?? 1e3,
+          temperature: req.temperature ?? this.config.defaultTemperature ?? 0.3
         };
         if (req.tools && req.tools.length > 0) {
           body.tools = req.tools;
@@ -7368,86 +7478,78 @@ var init_openaiClient = __esm({
           }
         }
         if (req.responseFormat) {
-          if (req.responseFormat.type === "json_object") {
-            body.response_format = { type: "json_object" };
-          } else if (req.responseFormat.type === "json_schema" && req.responseFormat.json_schema) {
-            body.response_format = {
-              type: "json_schema",
-              json_schema: req.responseFormat.json_schema
-            };
+          body.response_format = req.responseFormat;
+        }
+        return body;
+      }
+      parseResponse(data, latencyMs, model) {
+        const choice = data.choices[0];
+        if (!choice) {
+          throw createLLMError(
+            `${this.config.providerName} returned empty response`,
+            this.config.providerName
+          );
+        }
+        const message = choice.message;
+        const toolCalls = this.parseToolCalls(message.tool_calls);
+        log.ai(`${this.config.providerName} call complete`, {
+          model: data.model || model,
+          tokensUsed: data.usage?.total_tokens,
+          latencyMs,
+          hasToolCalls: toolCalls.length > 0
+        });
+        return {
+          text: message.content ?? void 0,
+          toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
+          raw: data,
+          model: data.model,
+          tokensUsed: data.usage?.total_tokens
+        };
+      }
+      parseToolCalls(toolCalls) {
+        if (!toolCalls) return [];
+        const parsed = [];
+        for (const tc of toolCalls) {
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            parsed.push({
+              id: tc.id,
+              name: tc.function.name,
+              arguments: args
+            });
+          } catch (parseError) {
+            log.warn(this.config.providerName, "Failed to parse tool call arguments", {
+              toolName: tc.function.name,
+              error: String(parseError)
+            });
           }
         }
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body)
-          });
-          const latencyMs = Date.now() - startTime;
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            const statusCode = response.status;
-            const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
-            const isAuthError = statusCode === 401 || statusCode === 403;
-            log.error("OpenAI", "API request failed", {
-              statusCode,
-              latencyMs,
-              isRateLimit,
-              isAuthError
-            });
-            throw createLLMError(
-              `OpenAI API error: ${statusCode}`,
-              "openai",
-              { isRateLimit, isAuthError, statusCode }
-            );
-          }
-          const data = await response.json();
-          const choice = data.choices[0];
-          if (!choice) {
-            throw createLLMError("OpenAI returned empty response", "openai");
-          }
-          const message = choice.message;
-          const toolCalls = [];
-          if (message.tool_calls) {
-            for (const tc of message.tool_calls) {
-              try {
-                const args = JSON.parse(tc.function.arguments);
-                toolCalls.push({
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: args
-                });
-              } catch (parseError) {
-                log.warn("OpenAI", "Failed to parse tool call arguments", {
-                  toolName: tc.function.name,
-                  error: String(parseError)
-                });
-              }
-            }
-          }
-          log.ai("OpenAI call complete", {
-            model,
-            tokensUsed: data.usage?.total_tokens,
-            latencyMs,
-            hasToolCalls: toolCalls.length > 0
-          });
-          return {
-            text: message.content ?? void 0,
-            toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
-            raw: data,
-            model: data.model,
-            tokensUsed: data.usage?.total_tokens
-          };
-        } catch (error) {
-          if (error.provider === "openai") {
-            throw error;
-          }
-          log.error("OpenAI", "Request failed", { error: String(error) });
-          throw createLLMError(`OpenAI request failed: ${String(error)}`, "openai");
+        return parsed;
+      }
+    };
+  }
+});
+
+// server/ai/openaiClient.ts
+var OpenAIClient, openaiClient;
+var init_openaiClient = __esm({
+  "server/ai/openaiClient.ts"() {
+    "use strict";
+    init_openaiCompatibleClient();
+    OpenAIClient = class extends OpenAICompatibleClient {
+      constructor() {
+        super({
+          providerName: "openai",
+          apiKeyEnvVars: ["AI_INTEGRATIONS_OPENAI_API_KEY", "OPENAI_API_KEY"],
+          baseUrlEnvVar: "AI_INTEGRATIONS_OPENAI_BASE_URL",
+          defaultBaseUrl: "https://api.openai.com/v1",
+          modelEnvVar: "OPENAI_MODEL",
+          defaultModel: "gpt-4o-mini",
+          defaultMaxTokens: 1e3,
+          defaultTemperature: 0.3
+        });
+        if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.OPENAI_BASE_URL) {
+          this.baseUrl = process.env.OPENAI_BASE_URL;
         }
       }
     };
@@ -7456,144 +7558,27 @@ var init_openaiClient = __esm({
 });
 
 // server/ai/openrouterClient.ts
-var DEFAULT_MODEL2, DEFAULT_MAX_TOKENS2, DEFAULT_TEMPERATURE2, BASE_URL, OpenRouterClient, openrouterClient;
+var OpenRouterClient, openrouterClient;
 var init_openrouterClient = __esm({
   "server/ai/openrouterClient.ts"() {
     "use strict";
-    init_logger();
-    init_llmClient();
-    DEFAULT_MODEL2 = "openai/gpt-4o-mini";
-    DEFAULT_MAX_TOKENS2 = 1e3;
-    DEFAULT_TEMPERATURE2 = 0.3;
-    BASE_URL = "https://openrouter.ai/api/v1";
-    OpenRouterClient = class {
-      apiKey;
-      baseUrl;
-      defaultModel;
+    init_openaiCompatibleClient();
+    OpenRouterClient = class extends OpenAICompatibleClient {
       constructor() {
-        this.apiKey = process.env.OPENROUTER_API_KEY || "";
-        this.baseUrl = process.env.OPENROUTER_BASE_URL || BASE_URL;
-        this.defaultModel = process.env.OPENROUTER_MODEL || DEFAULT_MODEL2;
-      }
-      isAvailable() {
-        return !!this.apiKey;
-      }
-      getProviderName() {
-        return "openrouter";
-      }
-      async call(req) {
-        if (!this.isAvailable()) {
-          throw createLLMError("OpenRouter API key not configured", "openrouter", { isAuthError: true });
-        }
-        const model = req.model || this.defaultModel;
-        const messages2 = [];
-        if (req.system) {
-          messages2.push({ role: "system", content: req.system });
-        }
-        for (const msg of req.messages) {
-          messages2.push({
-            role: msg.role,
-            content: msg.content,
-            tool_call_id: msg.tool_call_id,
-            name: msg.name
-          });
-        }
-        const body = {
-          model,
-          messages: messages2,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS2,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE2
-        };
-        if (req.tools && req.tools.length > 0) {
-          body.tools = req.tools;
-          if (req.toolChoice) {
-            body.tool_choice = req.toolChoice;
+        super({
+          providerName: "openrouter",
+          apiKeyEnvVars: ["OPENROUTER_API_KEY"],
+          baseUrlEnvVar: "OPENROUTER_BASE_URL",
+          defaultBaseUrl: "https://openrouter.ai/api/v1",
+          modelEnvVar: "OPENROUTER_MODEL",
+          defaultModel: "openai/gpt-4o-mini",
+          defaultMaxTokens: 1e3,
+          defaultTemperature: 0.3,
+          extraHeaders: {
+            "HTTP-Referer": process.env.REPLIT_DEV_DOMAIN || "https://replit.com",
+            "X-Title": "AI Active Trader"
           }
-        }
-        if (req.responseFormat) {
-          if (req.responseFormat.type === "json_object") {
-            body.response_format = { type: "json_object" };
-          } else if (req.responseFormat.type === "json_schema" && req.responseFormat.json_schema) {
-            body.response_format = {
-              type: "json_schema",
-              json_schema: req.responseFormat.json_schema
-            };
-          }
-        }
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`,
-              "HTTP-Referer": process.env.REPLIT_DEV_DOMAIN || "https://replit.com",
-              "X-Title": "AI Active Trader"
-            },
-            body: JSON.stringify(body)
-          });
-          const latencyMs = Date.now() - startTime;
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            const statusCode = response.status;
-            const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
-            const isAuthError = statusCode === 401 || statusCode === 403;
-            log.error("OpenRouter", "API request failed", {
-              statusCode,
-              latencyMs,
-              isRateLimit,
-              isAuthError
-            });
-            throw createLLMError(
-              `OpenRouter API error: ${statusCode}`,
-              "openrouter",
-              { isRateLimit, isAuthError, statusCode }
-            );
-          }
-          const data = await response.json();
-          const choice = data.choices[0];
-          if (!choice) {
-            throw createLLMError("OpenRouter returned empty response", "openrouter");
-          }
-          const message = choice.message;
-          const toolCalls = [];
-          if (message.tool_calls) {
-            for (const tc of message.tool_calls) {
-              try {
-                const args = JSON.parse(tc.function.arguments);
-                toolCalls.push({
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: args
-                });
-              } catch (parseError) {
-                log.warn("OpenRouter", "Failed to parse tool call arguments", {
-                  toolName: tc.function.name,
-                  error: String(parseError)
-                });
-              }
-            }
-          }
-          log.ai("OpenRouter call complete", {
-            model,
-            tokensUsed: data.usage?.total_tokens,
-            latencyMs,
-            hasToolCalls: toolCalls.length > 0
-          });
-          return {
-            text: message.content ?? void 0,
-            toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
-            raw: data,
-            model: data.model,
-            tokensUsed: data.usage?.total_tokens
-          };
-        } catch (error) {
-          if (error.provider === "openrouter") {
-            throw error;
-          }
-          log.error("OpenRouter", "Request failed", { error: String(error) });
-          throw createLLMError(`OpenRouter request failed: ${String(error)}`, "openrouter");
-        }
+        });
       }
     };
     openrouterClient = new OpenRouterClient();
@@ -7601,132 +7586,23 @@ var init_openrouterClient = __esm({
 });
 
 // server/ai/groqClient.ts
-var DEFAULT_MODEL3, DEFAULT_MAX_TOKENS3, DEFAULT_TEMPERATURE3, BASE_URL2, GroqClient, groqClient;
+var GroqClient, groqClient;
 var init_groqClient = __esm({
   "server/ai/groqClient.ts"() {
     "use strict";
-    init_logger();
-    init_llmClient();
-    DEFAULT_MODEL3 = "llama-3.1-8b-instant";
-    DEFAULT_MAX_TOKENS3 = 1e3;
-    DEFAULT_TEMPERATURE3 = 0.3;
-    BASE_URL2 = "https://api.groq.com/openai/v1";
-    GroqClient = class {
-      apiKey;
-      baseUrl;
-      defaultModel;
+    init_openaiCompatibleClient();
+    GroqClient = class extends OpenAICompatibleClient {
       constructor() {
-        this.apiKey = process.env.GROQ_API_KEY || "";
-        this.baseUrl = process.env.GROQ_BASE_URL || BASE_URL2;
-        this.defaultModel = process.env.GROQ_MODEL || DEFAULT_MODEL3;
-      }
-      isAvailable() {
-        return !!this.apiKey;
-      }
-      getProviderName() {
-        return "groq";
-      }
-      async call(req) {
-        if (!this.isAvailable()) {
-          throw createLLMError("Groq API key not configured", "groq", { isAuthError: true });
-        }
-        const model = req.model || this.defaultModel;
-        const messages2 = [];
-        if (req.system) {
-          messages2.push({ role: "system", content: req.system });
-        }
-        for (const msg of req.messages) {
-          messages2.push({
-            role: msg.role,
-            content: msg.content,
-            tool_call_id: msg.tool_call_id,
-            name: msg.name
-          });
-        }
-        const body = {
-          model,
-          messages: messages2,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS3,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE3
-        };
-        if (req.tools && req.tools.length > 0) {
-          body.tools = req.tools;
-          if (req.toolChoice) {
-            body.tool_choice = req.toolChoice;
-          }
-        }
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body)
-          });
-          const latencyMs = Date.now() - startTime;
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            const statusCode = response.status;
-            const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
-            const isAuthError = statusCode === 401 || statusCode === 403;
-            log.error("Groq", "API request failed", {
-              statusCode,
-              latencyMs,
-              isRateLimit,
-              isAuthError
-            });
-            throw createLLMError(
-              `Groq API error: ${statusCode}`,
-              "groq",
-              { isRateLimit, isAuthError, statusCode }
-            );
-          }
-          const data = await response.json();
-          const choice = data.choices[0];
-          if (!choice) {
-            throw createLLMError("Groq returned empty response", "groq");
-          }
-          const message = choice.message;
-          const toolCalls = [];
-          if (message.tool_calls) {
-            for (const tc of message.tool_calls) {
-              try {
-                const args = JSON.parse(tc.function.arguments);
-                toolCalls.push({
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: args
-                });
-              } catch (parseError) {
-                log.warn("Groq", "Failed to parse tool call arguments", {
-                  toolName: tc.function.name,
-                  error: String(parseError)
-                });
-              }
-            }
-          }
-          log.ai("Groq call complete", {
-            model,
-            tokensUsed: data.usage?.total_tokens,
-            latencyMs,
-            hasToolCalls: toolCalls.length > 0
-          });
-          return {
-            text: message.content ?? void 0,
-            toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
-            raw: data,
-            model: data.model,
-            tokensUsed: data.usage?.total_tokens
-          };
-        } catch (error) {
-          if (error.provider === "groq") {
-            throw error;
-          }
-          log.error("Groq", "Request failed", { error: String(error) });
-          throw createLLMError(`Groq request failed: ${String(error)}`, "groq");
-        }
+        super({
+          providerName: "groq",
+          apiKeyEnvVars: ["GROQ_API_KEY"],
+          baseUrlEnvVar: "GROQ_BASE_URL",
+          defaultBaseUrl: "https://api.groq.com/openai/v1",
+          modelEnvVar: "GROQ_MODEL",
+          defaultModel: "llama-3.1-8b-instant",
+          defaultMaxTokens: 1e3,
+          defaultTemperature: 0.3
+        });
       }
     };
     groqClient = new GroqClient();
@@ -7734,132 +7610,23 @@ var init_groqClient = __esm({
 });
 
 // server/ai/togetherClient.ts
-var DEFAULT_MODEL4, DEFAULT_MAX_TOKENS4, DEFAULT_TEMPERATURE4, BASE_URL3, TogetherClient, togetherClient;
+var TogetherClient, togetherClient;
 var init_togetherClient = __esm({
   "server/ai/togetherClient.ts"() {
     "use strict";
-    init_logger();
-    init_llmClient();
-    DEFAULT_MODEL4 = "meta-llama/Llama-3.2-3B-Instruct-Turbo";
-    DEFAULT_MAX_TOKENS4 = 1e3;
-    DEFAULT_TEMPERATURE4 = 0.3;
-    BASE_URL3 = "https://api.together.xyz/v1";
-    TogetherClient = class {
-      apiKey;
-      baseUrl;
-      defaultModel;
+    init_openaiCompatibleClient();
+    TogetherClient = class extends OpenAICompatibleClient {
       constructor() {
-        this.apiKey = process.env.TOGETHER_API_KEY || "";
-        this.baseUrl = process.env.TOGETHER_BASE_URL || BASE_URL3;
-        this.defaultModel = process.env.TOGETHER_MODEL || DEFAULT_MODEL4;
-      }
-      isAvailable() {
-        return !!this.apiKey;
-      }
-      getProviderName() {
-        return "together";
-      }
-      async call(req) {
-        if (!this.isAvailable()) {
-          throw createLLMError("Together.ai API key not configured", "together", { isAuthError: true });
-        }
-        const model = req.model || this.defaultModel;
-        const messages2 = [];
-        if (req.system) {
-          messages2.push({ role: "system", content: req.system });
-        }
-        for (const msg of req.messages) {
-          messages2.push({
-            role: msg.role,
-            content: msg.content,
-            tool_call_id: msg.tool_call_id,
-            name: msg.name
-          });
-        }
-        const body = {
-          model,
-          messages: messages2,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS4,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE4
-        };
-        if (req.tools && req.tools.length > 0) {
-          body.tools = req.tools;
-          if (req.toolChoice) {
-            body.tool_choice = req.toolChoice;
-          }
-        }
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body)
-          });
-          const latencyMs = Date.now() - startTime;
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            const statusCode = response.status;
-            const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
-            const isAuthError = statusCode === 401 || statusCode === 403;
-            log.error("Together", "API request failed", {
-              statusCode,
-              latencyMs,
-              isRateLimit,
-              isAuthError
-            });
-            throw createLLMError(
-              `Together.ai API error: ${statusCode}`,
-              "together",
-              { isRateLimit, isAuthError, statusCode }
-            );
-          }
-          const data = await response.json();
-          const choice = data.choices[0];
-          if (!choice) {
-            throw createLLMError("Together.ai returned empty response", "together");
-          }
-          const message = choice.message;
-          const toolCalls = [];
-          if (message.tool_calls) {
-            for (const tc of message.tool_calls) {
-              try {
-                const args = JSON.parse(tc.function.arguments);
-                toolCalls.push({
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: args
-                });
-              } catch (parseError) {
-                log.warn("Together", "Failed to parse tool call arguments", {
-                  toolName: tc.function.name,
-                  error: String(parseError)
-                });
-              }
-            }
-          }
-          log.ai("Together.ai call complete", {
-            model,
-            tokensUsed: data.usage?.total_tokens,
-            latencyMs,
-            hasToolCalls: toolCalls.length > 0
-          });
-          return {
-            text: message.content ?? void 0,
-            toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
-            raw: data,
-            model: data.model,
-            tokensUsed: data.usage?.total_tokens
-          };
-        } catch (error) {
-          if (error.provider === "together") {
-            throw error;
-          }
-          log.error("Together", "Request failed", { error: String(error) });
-          throw createLLMError(`Together.ai request failed: ${String(error)}`, "together");
-        }
+        super({
+          providerName: "together",
+          apiKeyEnvVars: ["TOGETHER_API_KEY"],
+          baseUrlEnvVar: "TOGETHER_BASE_URL",
+          defaultBaseUrl: "https://api.together.xyz/v1",
+          modelEnvVar: "TOGETHER_MODEL",
+          defaultModel: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+          defaultMaxTokens: 1e3,
+          defaultTemperature: 0.3
+        });
       }
     };
     togetherClient = new TogetherClient();
@@ -7867,132 +7634,23 @@ var init_togetherClient = __esm({
 });
 
 // server/ai/aimlClient.ts
-var DEFAULT_MODEL5, DEFAULT_MAX_TOKENS5, DEFAULT_TEMPERATURE5, BASE_URL4, AIMLClient, aimlClient;
+var AIMLClient, aimlClient;
 var init_aimlClient = __esm({
   "server/ai/aimlClient.ts"() {
     "use strict";
-    init_logger();
-    init_llmClient();
-    DEFAULT_MODEL5 = "gpt-4o-mini";
-    DEFAULT_MAX_TOKENS5 = 1e3;
-    DEFAULT_TEMPERATURE5 = 0.3;
-    BASE_URL4 = "https://api.aimlapi.com/v1";
-    AIMLClient = class {
-      apiKey;
-      baseUrl;
-      defaultModel;
+    init_openaiCompatibleClient();
+    AIMLClient = class extends OpenAICompatibleClient {
       constructor() {
-        this.apiKey = process.env.AIMLAPI_KEY || "";
-        this.baseUrl = process.env.AIMLAPI_BASE_URL || BASE_URL4;
-        this.defaultModel = process.env.AIMLAPI_MODEL || DEFAULT_MODEL5;
-      }
-      isAvailable() {
-        return !!this.apiKey;
-      }
-      getProviderName() {
-        return "aimlapi";
-      }
-      async call(req) {
-        if (!this.isAvailable()) {
-          throw createLLMError("AIML API key not configured", "aimlapi", { isAuthError: true });
-        }
-        const model = req.model || this.defaultModel;
-        const messages2 = [];
-        if (req.system) {
-          messages2.push({ role: "system", content: req.system });
-        }
-        for (const msg of req.messages) {
-          messages2.push({
-            role: msg.role,
-            content: msg.content,
-            tool_call_id: msg.tool_call_id,
-            name: msg.name
-          });
-        }
-        const body = {
-          model,
-          messages: messages2,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS5,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE5
-        };
-        if (req.tools && req.tools.length > 0) {
-          body.tools = req.tools;
-          if (req.toolChoice) {
-            body.tool_choice = req.toolChoice;
-          }
-        }
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body)
-          });
-          const latencyMs = Date.now() - startTime;
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            const statusCode = response.status;
-            const isRateLimit = statusCode === 429 || errorText.toLowerCase().includes("rate") || errorText.toLowerCase().includes("quota");
-            const isAuthError = statusCode === 401 || statusCode === 403;
-            log.error("AIMLAPI", "API request failed", {
-              statusCode,
-              latencyMs,
-              isRateLimit,
-              isAuthError
-            });
-            throw createLLMError(
-              `AIML API error: ${statusCode}`,
-              "aimlapi",
-              { isRateLimit, isAuthError, statusCode }
-            );
-          }
-          const data = await response.json();
-          const choice = data.choices[0];
-          if (!choice) {
-            throw createLLMError("AIML API returned empty response", "aimlapi");
-          }
-          const message = choice.message;
-          const toolCalls = [];
-          if (message.tool_calls) {
-            for (const tc of message.tool_calls) {
-              try {
-                const args = JSON.parse(tc.function.arguments);
-                toolCalls.push({
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: args
-                });
-              } catch (parseError) {
-                log.warn("AIMLAPI", "Failed to parse tool call arguments", {
-                  toolName: tc.function.name,
-                  error: String(parseError)
-                });
-              }
-            }
-          }
-          log.ai("AIML API call complete", {
-            model,
-            tokensUsed: data.usage?.total_tokens,
-            latencyMs,
-            hasToolCalls: toolCalls.length > 0
-          });
-          return {
-            text: message.content ?? void 0,
-            toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
-            raw: data,
-            model: data.model,
-            tokensUsed: data.usage?.total_tokens
-          };
-        } catch (error) {
-          if (error.provider === "aimlapi") {
-            throw error;
-          }
-          log.error("AIMLAPI", "Request failed", { error: String(error) });
-          throw createLLMError(`AIML API request failed: ${String(error)}`, "aimlapi");
-        }
+        super({
+          providerName: "aimlapi",
+          apiKeyEnvVars: ["AIMLAPI_KEY"],
+          baseUrlEnvVar: "AIMLAPI_BASE_URL",
+          defaultBaseUrl: "https://api.aimlapi.com/v1",
+          modelEnvVar: "AIMLAPI_MODEL",
+          defaultModel: "gpt-4o-mini",
+          defaultMaxTokens: 1e3,
+          defaultTemperature: 0.3
+        });
       }
     };
     aimlClient = new AIMLClient();
@@ -8000,14 +7658,14 @@ var init_aimlClient = __esm({
 });
 
 // server/ai/claudeClient.ts
-var DEFAULT_MODEL6, DEFAULT_MAX_TOKENS6, ANTHROPIC_API_URL, ANTHROPIC_VERSION, ClaudeClient, claudeClient;
+var DEFAULT_MODEL, DEFAULT_MAX_TOKENS, ANTHROPIC_API_URL, ANTHROPIC_VERSION, ClaudeClient, claudeClient;
 var init_claudeClient = __esm({
   "server/ai/claudeClient.ts"() {
     "use strict";
     init_logger();
     init_llmClient();
-    DEFAULT_MODEL6 = "claude-sonnet-4-20250514";
-    DEFAULT_MAX_TOKENS6 = 4096;
+    DEFAULT_MODEL = "claude-sonnet-4-20250514";
+    DEFAULT_MAX_TOKENS = 4096;
     ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
     ANTHROPIC_VERSION = "2023-06-01";
     ClaudeClient = class {
@@ -8015,7 +7673,7 @@ var init_claudeClient = __esm({
       defaultModel;
       constructor() {
         this.apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "";
-        this.defaultModel = process.env.CLAUDE_MODEL || DEFAULT_MODEL6;
+        this.defaultModel = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
       }
       isAvailable() {
         return !!this.apiKey;
@@ -8064,7 +7722,7 @@ var init_claudeClient = __esm({
         }
         const body = {
           model,
-          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS6,
+          max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
           messages: messages2
         };
         if (req.system) {
@@ -8174,20 +7832,20 @@ var init_claudeClient = __esm({
 });
 
 // server/ai/geminiClient.ts
-var DEFAULT_TEMPERATURE6, DEFAULT_MODEL7, GEMINI_BASE_URL, GeminiClient, geminiClient;
+var DEFAULT_TEMPERATURE, DEFAULT_MODEL2, GEMINI_BASE_URL, GeminiClient, geminiClient;
 var init_geminiClient = __esm({
   "server/ai/geminiClient.ts"() {
     "use strict";
     init_logger();
-    DEFAULT_TEMPERATURE6 = 0.3;
-    DEFAULT_MODEL7 = "gemini-2.5-flash-lite";
+    DEFAULT_TEMPERATURE = 0.3;
+    DEFAULT_MODEL2 = "gemini-2.5-flash-lite";
     GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     GeminiClient = class {
       apiKey;
       model;
       constructor() {
         this.apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
-        this.model = process.env.GEMINI_MODEL || DEFAULT_MODEL7;
+        this.model = process.env.GEMINI_MODEL || DEFAULT_MODEL2;
         if (this.apiKey) {
           log.info("GeminiClient", `Initialized with model: ${this.model}`, {
             apiKeyConfigured: true,
@@ -8203,30 +7861,31 @@ var init_geminiClient = __esm({
         }
         const model = req.model || this.model;
         const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${this.apiKey}`;
+        const userContent = req.messages.map((m) => m.content).join("\n");
         log.debug("GeminiClient", "Preparing request", {
           model,
-          systemPromptLength: req.systemPrompt?.length || 0,
-          userPromptLength: req.userPrompt.length,
+          systemPromptLength: req.system?.length || 0,
+          userPromptLength: userContent.length,
           temperature: req.temperature
         });
         const contents = [];
-        if (req.systemPrompt) {
+        if (req.system) {
           contents.push({
-            parts: [{ text: `${req.systemPrompt}
+            parts: [{ text: `${req.system}
 
-${req.userPrompt}` }],
+${userContent}` }],
             role: "user"
           });
         } else {
           contents.push({
-            parts: [{ text: req.userPrompt }],
+            parts: [{ text: userContent }],
             role: "user"
           });
         }
         const geminiRequest = {
           contents,
           generationConfig: {
-            temperature: req.temperature ?? DEFAULT_TEMPERATURE6,
+            temperature: req.temperature ?? DEFAULT_TEMPERATURE,
             maxOutputTokens: req.maxTokens ?? 2048,
             topP: 0.95
           },
@@ -8289,16 +7948,19 @@ ${req.userPrompt}` }],
             finishReason: candidate.finishReason
           });
           return {
+            text: content,
             content,
             model,
-            provider: "gemini",
-            usage: {
-              promptTokens: usage.promptTokenCount,
-              completionTokens: usage.candidatesTokenCount,
-              totalTokens: usage.totalTokenCount
+            raw: {
+              provider: "gemini",
+              finishReason: candidate.finishReason,
+              latencyMs: latency
             },
-            finishReason: candidate.finishReason,
-            latencyMs: latency
+            tokensUsed: {
+              prompt: usage.promptTokenCount,
+              completion: usage.candidatesTokenCount,
+              total: usage.totalTokenCount
+            }
           };
         } catch (error) {
           const latency = Date.now() - startTime;
@@ -8343,12 +8005,12 @@ ${req.userPrompt}` }],
         }
         try {
           const response = await this.call({
-            userPrompt: "Hello",
-            systemPrompt: "You are a helpful assistant. Respond with 'OK'.",
+            system: "You are a helpful assistant. Respond with 'OK'.",
+            messages: [{ role: "user", content: "Hello" }],
             temperature: 0,
             maxTokens: 10
           });
-          return response.content.toLowerCase().includes("ok");
+          return (response.content || response.text || "").toLowerCase().includes("ok");
         } catch (error) {
           log.error("GeminiClient", "Health check failed", {
             error: error.message
@@ -8362,13 +8024,13 @@ ${req.userPrompt}` }],
 });
 
 // server/ai/cloudflareClient.ts
-var DEFAULT_MODEL8, DEFAULT_TEMPERATURE7, CloudflareClient, cloudflareClient;
+var DEFAULT_MODEL3, DEFAULT_TEMPERATURE2, CloudflareClient, cloudflareClient;
 var init_cloudflareClient = __esm({
   "server/ai/cloudflareClient.ts"() {
     "use strict";
     init_logger();
-    DEFAULT_MODEL8 = "@cf/meta/llama-3.1-8b-instruct";
-    DEFAULT_TEMPERATURE7 = 0.3;
+    DEFAULT_MODEL3 = "@cf/meta/llama-3.1-8b-instruct";
+    DEFAULT_TEMPERATURE2 = 0.3;
     CloudflareClient = class {
       accountId;
       apiToken;
@@ -8376,7 +8038,7 @@ var init_cloudflareClient = __esm({
       constructor() {
         this.accountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
         this.apiToken = process.env.CLOUDFLARE_API_TOKEN || "";
-        this.model = process.env.CLOUDFLARE_MODEL || DEFAULT_MODEL8;
+        this.model = process.env.CLOUDFLARE_MODEL || DEFAULT_MODEL3;
         if (this.accountId && this.apiToken) {
           log.info("CloudflareClient", `Initialized with model: ${this.model}`, {
             accountConfigured: true,
@@ -8421,7 +8083,7 @@ var init_cloudflareClient = __esm({
         const cloudflareRequest = {
           messages: messages2,
           max_tokens: req.maxTokens ?? 2048,
-          temperature: req.temperature ?? DEFAULT_TEMPERATURE7,
+          temperature: req.temperature ?? DEFAULT_TEMPERATURE2,
           stream: false
         };
         const startTime = Date.now();
@@ -8473,6 +8135,7 @@ var init_cloudflareClient = __esm({
             estimatedTokens
           });
           return {
+            text: content,
             content,
             model,
             raw: { provider: "cloudflare", latencyMs: latency },
@@ -8530,7 +8193,7 @@ var init_cloudflareClient = __esm({
             temperature: 0,
             maxTokens: 10
           });
-          return response.content?.toLowerCase().includes("ok") || false;
+          return (response.content || response.text || "").toLowerCase().includes("ok");
         } catch (error) {
           log.error("CloudflareClient", "Health check failed", {
             error: error.message
@@ -8544,20 +8207,20 @@ var init_cloudflareClient = __esm({
 });
 
 // server/ai/huggingfaceClient.ts
-var DEFAULT_MODEL9, DEFAULT_TEMPERATURE8, HF_API_BASE, HuggingFaceClient, huggingfaceClient;
+var DEFAULT_MODEL4, DEFAULT_TEMPERATURE3, HF_API_BASE, HuggingFaceClient, huggingfaceClient;
 var init_huggingfaceClient = __esm({
   "server/ai/huggingfaceClient.ts"() {
     "use strict";
     init_logger();
-    DEFAULT_MODEL9 = "meta-llama/Llama-3.2-3B-Instruct";
-    DEFAULT_TEMPERATURE8 = 0.3;
+    DEFAULT_MODEL4 = "meta-llama/Llama-3.2-3B-Instruct";
+    DEFAULT_TEMPERATURE3 = 0.3;
     HF_API_BASE = "https://api-inference.huggingface.co/models";
     HuggingFaceClient = class {
       apiKey;
       model;
       constructor() {
         this.apiKey = process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY || "";
-        this.model = process.env.HUGGINGFACE_MODEL || DEFAULT_MODEL9;
+        this.model = process.env.HUGGINGFACE_MODEL || DEFAULT_MODEL4;
         if (this.apiKey) {
           log.info("HuggingFaceClient", `Initialized with model: ${this.model}`, {
             apiKeyConfigured: true
@@ -8593,7 +8256,7 @@ var init_huggingfaceClient = __esm({
           requestBody = {
             messages: messages2,
             max_tokens: req.maxTokens ?? 2048,
-            temperature: req.temperature ?? DEFAULT_TEMPERATURE8
+            temperature: req.temperature ?? DEFAULT_TEMPERATURE3
           };
         } else {
           const prompt = req.system ? `${req.system}
@@ -8603,7 +8266,7 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
             inputs: prompt,
             parameters: {
               max_new_tokens: req.maxTokens ?? 512,
-              temperature: req.temperature ?? DEFAULT_TEMPERATURE8,
+              temperature: req.temperature ?? DEFAULT_TEMPERATURE3,
               top_p: 0.95,
               return_full_text: false
             }
@@ -8672,11 +8335,18 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
             totalTokens: usage.totalTokens
           });
           return {
+            text: content,
             content,
             model,
-            provider: "huggingface",
-            usage,
-            latencyMs: latency
+            raw: {
+              provider: "huggingface",
+              latencyMs: latency
+            },
+            tokensUsed: {
+              prompt: usage.promptTokens,
+              completion: usage.completionTokens,
+              total: usage.totalTokens
+            }
           };
         } catch (error) {
           const latency = Date.now() - startTime;
@@ -8689,7 +8359,7 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
         }
       }
       isAvailable() {
-        return !!this.accountId && !!this.apiToken;
+        return !!this.apiKey;
       }
       getProviderName() {
         return "huggingface";
@@ -8762,7 +8432,7 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
             temperature: 0,
             maxTokens: 10
           });
-          return response.content.toLowerCase().includes("ok");
+          return (response.content || response.text || "").toLowerCase().includes("ok");
         } catch (error) {
           log.error("HuggingFaceClient", "Health check failed", {
             error: error.message
@@ -11146,6 +10816,7 @@ var init_data_fusion_engine = __esm({
     "use strict";
     init_coingecko();
     init_finnhub();
+    init_logger();
     DataFusionEngine = class {
       cache = /* @__PURE__ */ new Map();
       cacheDuration = 30 * 1e3;
@@ -11232,7 +10903,7 @@ var init_data_fusion_engine = __esm({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch crypto data for fusion:", error);
+          log.error("DataFusion", "Failed to fetch crypto data for fusion", { error: error instanceof Error ? error.message : String(error) });
         }
         try {
           const globalData = await coingecko.getGlobalData();
@@ -11259,7 +10930,7 @@ var init_data_fusion_engine = __esm({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch global data for fusion:", error);
+          log.error("DataFusion", "Failed to fetch global data for fusion", { error: error instanceof Error ? error.message : String(error) });
         }
         try {
           const stockSymbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"];
@@ -11301,7 +10972,7 @@ var init_data_fusion_engine = __esm({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch stock data for fusion:", error);
+          log.error("DataFusion", "Failed to fetch stock data for fusion", { error: error instanceof Error ? error.message : String(error) });
         }
         try {
           const news = await finnhub.getMarketNews("general");
@@ -11343,7 +11014,7 @@ var init_data_fusion_engine = __esm({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch news for fusion:", error);
+          log.error("DataFusion", "Failed to fetch news for fusion", { error: error instanceof Error ? error.message : String(error) });
         }
         const momentumScore = hasCryptoData && hasStockData ? cryptoMomentum * 0.5 + stockMomentum * 0.5 : hasCryptoData ? cryptoMomentum : hasStockData ? stockMomentum : 0.5;
         const volatilityScore = hasCryptoData ? cryptoVolatility : 0.5;
@@ -11386,7 +11057,7 @@ var init_data_fusion_engine = __esm({
         try {
           topCoins = await coingecko.getMarkets("usd", 10, 1, "market_cap_desc");
         } catch (error) {
-          console.error("Failed to fetch top coins:", error);
+          log.error("DataFusion", "Failed to fetch top coins", { error: error instanceof Error ? error.message : String(error) });
         }
         try {
           const global = await coingecko.getGlobalData();
@@ -11397,7 +11068,7 @@ var init_data_fusion_engine = __esm({
             totalMarketCap = global.data.total_market_cap?.usd || 0;
           }
         } catch (error) {
-          console.error("Failed to fetch global data:", error);
+          log.error("DataFusion", "Failed to fetch global data", { error: error instanceof Error ? error.message : String(error) });
         }
         let stockQuotes = {};
         let stockNews = [];
@@ -11418,12 +11089,12 @@ var init_data_fusion_engine = __esm({
             stockMarketSentiment = stockAvgChange > 1 ? "bullish" : stockAvgChange < -1 ? "bearish" : "neutral";
           }
         } catch (error) {
-          console.error("Failed to fetch stock quotes:", error);
+          log.error("DataFusion", "Failed to fetch stock quotes", { error: error instanceof Error ? error.message : String(error) });
         }
         try {
           stockNews = await finnhub.getMarketNews("general");
         } catch (error) {
-          console.error("Failed to fetch stock news:", error);
+          log.error("DataFusion", "Failed to fetch stock news", { error: error instanceof Error ? error.message : String(error) });
         }
         const intelligence = await this.getMarketIntelligence();
         const result = {
@@ -13034,11 +12705,11 @@ var init_alpaca_trading_engine = __esm({
       orchestratorControlEnabled = true;
       enableOrchestratorControl() {
         this.orchestratorControlEnabled = true;
-        console.log("[AlpacaTradingEngine] Orchestrator control ENABLED - autonomous trading disabled");
+        log.info("AlpacaTradingEngine", "Orchestrator control ENABLED - autonomous trading disabled");
       }
       disableOrchestratorControl() {
         this.orchestratorControlEnabled = false;
-        console.log("[AlpacaTradingEngine] Orchestrator control DISABLED - autonomous trading allowed");
+        log.info("AlpacaTradingEngine", "Orchestrator control DISABLED - autonomous trading allowed");
       }
       isOrchestratorControlEnabled() {
         return this.orchestratorControlEnabled;
@@ -13115,7 +12786,7 @@ var init_alpaca_trading_engine = __esm({
           const strategies2 = await storage.getStrategies();
           let autoPilotStrategy = strategies2.find((s) => s.name === "Auto-Pilot Strategy");
           if (!autoPilotStrategy) {
-            console.log("Creating default Auto-Pilot Strategy...");
+            log.info("AlpacaTradingEngine", "Creating default Auto-Pilot Strategy...");
             autoPilotStrategy = await storage.createStrategy({
               name: "Auto-Pilot Strategy",
               type: "momentum",
@@ -13129,7 +12800,7 @@ var init_alpaca_trading_engine = __esm({
                 autoExecute: true
               })
             });
-            console.log(`Created Auto-Pilot Strategy with ID: ${autoPilotStrategy.id}`);
+            log.info("AlpacaTradingEngine", "Created Auto-Pilot Strategy", { strategyId: autoPilotStrategy.id });
           }
           this.autoStartStrategyId = autoPilotStrategy.id;
           this.startBackgroundAIGenerator();
@@ -13137,48 +12808,48 @@ var init_alpaca_trading_engine = __esm({
             isRunning: true,
             lastHeartbeat: /* @__PURE__ */ new Date()
           });
-          console.log("Trading agent initialized and active by default");
+          log.info("AlpacaTradingEngine", "Trading agent initialized and active by default");
           this.warmupCaches().catch(
-            (err) => console.log("Cache warmup skipped:", err.message)
+            (err) => log.debug("AlpacaTradingEngine", "Cache warmup skipped", { error: err.message })
           );
           setTimeout(async () => {
             try {
               const isConnected = await this.isAlpacaConnected();
               if (isConnected) {
-                console.log("Alpaca connected, auto-starting all active strategies...");
+                log.info("AlpacaTradingEngine", "Alpaca connected, auto-starting all active strategies...");
                 const allStrategies = await storage.getStrategies();
                 const activeStrategies = allStrategies.filter((s) => s.isActive);
                 for (const strategy of activeStrategies) {
                   if (!this.strategyRunners.has(strategy.id)) {
-                    console.log(`Auto-starting strategy: ${strategy.name}`);
+                    log.info("AlpacaTradingEngine", "Auto-starting strategy", { strategyName: strategy.name });
                     const result = await this.startStrategy(strategy.id);
                     if (result.success) {
-                      console.log(`Strategy "${strategy.name}" started successfully`);
+                      log.info("AlpacaTradingEngine", "Strategy started successfully", { strategyName: strategy.name });
                     } else {
-                      console.log(`Could not start strategy "${strategy.name}": ${result.error}`);
+                      log.warn("AlpacaTradingEngine", "Could not start strategy", { strategyName: strategy.name, error: result.error });
                     }
                   }
                 }
                 if (activeStrategies.length === 0 && this.autoStartStrategyId) {
-                  console.log("No active strategies found, starting Auto-Pilot Strategy...");
+                  log.info("AlpacaTradingEngine", "No active strategies found, starting Auto-Pilot Strategy...");
                   const result = await this.startStrategy(this.autoStartStrategyId);
                   if (result.success) {
-                    console.log("Auto-Pilot Strategy started successfully");
+                    log.info("AlpacaTradingEngine", "Auto-Pilot Strategy started successfully");
                   }
                 }
               } else {
-                console.log("Alpaca not connected - running in AI suggestion mode only");
+                log.info("AlpacaTradingEngine", "Alpaca not connected - running in AI suggestion mode only");
               }
             } catch (err) {
-              console.error("Error during auto-start:", err);
+              log.error("AlpacaTradingEngine", "Error during auto-start", { error: err.message });
             }
           }, 5e3);
         } catch (error) {
-          console.error("Failed to initialize trading engine:", error);
+          log.error("AlpacaTradingEngine", "Failed to initialize trading engine", { error: error.message });
         }
       }
       async warmupCaches() {
-        console.log("[Cache] Warming up order execution caches...");
+        log.info("Cache", "Warming up order execution caches...");
         const startTime = Date.now();
         try {
           const account = await alpaca.getAccount();
@@ -13217,16 +12888,16 @@ var init_alpaca_trading_engine = __esm({
           }
           const elapsed = Date.now() - startTime;
           const stats = getOrderCacheStats();
-          console.log(`[Cache] Warmup complete in ${elapsed}ms: ${stats.quotes} quotes, ${stats.tradability} assets cached`);
+          log.info("Cache", "Warmup complete", { elapsedMs: elapsed, quotes: stats.quotes, tradability: stats.tradability });
         } catch (error) {
-          console.log("[Cache] Warmup failed:", error.message);
+          log.warn("Cache", "Warmup failed", { error: error.message });
         }
       }
       startBackgroundAIGenerator() {
         if (this.backgroundGeneratorInterval) {
           clearInterval(this.backgroundGeneratorInterval);
         }
-        console.log("Starting background AI suggestion generator...");
+        log.info("AlpacaTradingEngine", "Starting background AI suggestion generator...");
         this.generateBackgroundAISuggestions();
         this.backgroundGeneratorInterval = setInterval(
           () => this.generateBackgroundAISuggestions(),
@@ -13237,31 +12908,31 @@ var init_alpaca_trading_engine = __esm({
         try {
           const agentStatus2 = await storage.getAgentStatus();
           if (agentStatus2?.killSwitchActive) {
-            console.log("Kill switch active - skipping background AI generation");
+            log.info("AlpacaTradingEngine", "Kill switch active - skipping background AI generation");
             return;
           }
           const batchTraceId = generateTraceId();
-          console.log(`Generating background AI suggestions... (batchTraceId: ${batchTraceId})`);
+          log.info("AlpacaTradingEngine", "Generating background AI suggestions...", { batchTraceId });
           const symbolsToAnalyze = this.DEFAULT_WATCHLIST.slice(0, 5);
           for (const symbol of symbolsToAnalyze) {
             try {
               await this.analyzeSymbol(symbol, void 0, batchTraceId);
-              console.log(`Generated AI suggestion for ${symbol}`);
+              log.debug("AlpacaTradingEngine", "Generated AI suggestion", { symbol });
             } catch (err) {
-              console.log(`Could not analyze ${symbol}:`, err.message);
+              log.debug("AlpacaTradingEngine", "Could not analyze symbol", { symbol, error: err.message });
             }
             await new Promise((resolve2) => setTimeout(resolve2, 2e3));
           }
           await storage.updateAgentStatus({ lastHeartbeat: /* @__PURE__ */ new Date() });
         } catch (error) {
-          console.error("Background AI generation error:", error);
+          log.error("AlpacaTradingEngine", "Background AI generation error", { error: error.message });
         }
       }
       stopBackgroundGenerator() {
         if (this.backgroundGeneratorInterval) {
           clearInterval(this.backgroundGeneratorInterval);
           this.backgroundGeneratorInterval = null;
-          console.log("Background AI generator stopped");
+          log.info("AlpacaTradingEngine", "Background AI generator stopped");
         }
       }
       async isAlpacaConnected() {
@@ -13446,7 +13117,7 @@ var init_alpaca_trading_engine = __esm({
             order = await alpaca.createBracketOrder(bracketParams);
             logger.info("Trading", `Bracket order submitted for ${symbol}`, { orderId: order.id, status: order.status });
           } else if (trailingStopPercent && side === "sell" && !isCrypto && !extendedHours) {
-            console.log(`[Trading] Creating trailing stop order for ${symbol}: trail=${trailingStopPercent}%`);
+            log.info("Trading", "Creating trailing stop order", { symbol, trailingStopPercent });
             order = await alpaca.createTrailingStopOrder({
               symbol: alpacaSymbol,
               qty: quantity.toString(),
@@ -13464,7 +13135,7 @@ var init_alpaca_trading_engine = __esm({
               limit_price: limitPrice.toString(),
               extended_hours: true
             };
-            console.log(`[Trading] Creating extended hours limit order for ${symbol}: ${side} ${quantity} @ $${limitPrice}`);
+            log.info("Trading", "Creating extended hours limit order", { symbol, side, quantity, limitPrice });
             order = await alpaca.createOrder(orderParams);
           } else {
             const effectiveTif = orderType === "market" ? "day" : isCrypto ? "gtc" : "day";
@@ -13565,7 +13236,7 @@ var init_alpaca_trading_engine = __esm({
       async closeAlpacaPosition(symbol, strategyId, options = {}) {
         try {
           if (this.orchestratorControlEnabled && !options.authorizedByOrchestrator && !options.isEmergencyStop) {
-            console.log(`[AlpacaTradingEngine] Position close blocked for ${symbol} - orchestrator has control. Direct position close blocked.`);
+            log.warn("AlpacaTradingEngine", "Position close blocked - orchestrator has control", { symbol });
             return { success: false, error: "Orchestrator control active - direct position close blocked. Must go through work queue or be an emergency stop." };
           }
           const alpacaSymbol = this.isCryptoSymbol(symbol) ? this.normalizeCryptoSymbol(symbol) : this.normalizeSymbolForAlpaca(symbol);
@@ -13588,7 +13259,7 @@ var init_alpaca_trading_engine = __esm({
           const isProtectedClose = options.isStopLossTriggered || options.isEmergencyStop;
           if (isAtLoss && !isProtectedClose) {
             const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
-            console.log(`[LossProtection] Blocking close of ${symbol} at ${lossPercent}% loss - waiting for stop-loss or price recovery`);
+            log.warn("LossProtection", "Blocking close at loss - waiting for stop-loss or price recovery", { symbol, lossPercent: parseFloat(lossPercent) });
             return {
               success: false,
               error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`
@@ -13632,7 +13303,7 @@ var init_alpaca_trading_engine = __esm({
           logger.trade(`Closed ${position.side} position ${symbol}`, { pnl, exitPrice });
           return { success: true, order, trade };
         } catch (error) {
-          console.error("Close Alpaca position error:", error);
+          log.error("AlpacaTradingEngine", "Close Alpaca position error", { symbol, error: error.message });
           eventBus.emit("trade:error", { message: error.message }, "alpaca-trading-engine");
           return { success: false, error: error.message };
         }
@@ -13659,7 +13330,7 @@ var init_alpaca_trading_engine = __esm({
             };
           }
         } catch (e) {
-          console.log(`Could not fetch news for ${symbol}:`, e);
+          log.debug("AlpacaTradingEngine", "Could not fetch news", { symbol, error: e.message });
         }
         const enrichmentData = await this.gatherEnrichmentData(symbol, marketData, newsContext);
         if (enrichmentData.hasEnrichment) {
@@ -13843,7 +13514,11 @@ var init_alpaca_trading_engine = __esm({
         const effectiveTraceId = traceId || generateTraceId();
         const { decision, marketData } = await this.analyzeSymbol(symbol, strategyId, effectiveTraceId);
         if (this.orchestratorControlEnabled) {
-          console.log(`[AlpacaTradingEngine] ${symbol} analysis complete (${decision.action}, ${(decision.confidence * 100).toFixed(0)}% confidence) - orchestrator has control, skipping autonomous execution`);
+          log.info("AlpacaTradingEngine", "Analysis complete - orchestrator has control, skipping autonomous execution", {
+            symbol,
+            action: decision.action,
+            confidence: `${(decision.confidence * 100).toFixed(0)}%`
+          });
           return { decision };
         }
         const agentStatus2 = await storage.getAgentStatus();
@@ -13857,7 +13532,7 @@ var init_alpaca_trading_engine = __esm({
           return { decision };
         }
         if (!marketData.currentPrice || marketData.currentPrice <= 0 || !Number.isFinite(marketData.currentPrice)) {
-          console.warn(`Skipping trade for ${symbol}: invalid price data (currentPrice=${marketData.currentPrice})`);
+          log.warn("AlpacaTradingEngine", "Skipping trade: invalid price data", { symbol, currentPrice: marketData.currentPrice });
           this.strategyStates.set(strategyId || symbol, {
             strategyId: strategyId || symbol,
             isRunning: true,
@@ -13869,7 +13544,7 @@ var init_alpaca_trading_engine = __esm({
         const account = await alpaca.getAccount();
         const buyingPower = safeParseFloat(account.buying_power);
         if (!Number.isFinite(buyingPower) || buyingPower <= 0) {
-          console.warn(`Skipping trade for ${symbol}: invalid buying power (${buyingPower})`);
+          log.warn("AlpacaTradingEngine", "Skipping trade: invalid buying power", { symbol, buyingPower });
           return { decision };
         }
         const positionSizePercent = decision.suggestedQuantity || 0.1;
@@ -13908,11 +13583,11 @@ var init_alpaca_trading_engine = __esm({
             (o) => o.symbol === alpacaSymbolCheck && o.side === "sell"
           );
           if (symbolSellOrders.length > 0) {
-            console.log(`[Trading] Skipping buy for ${symbol}: existing sell orders would trigger wash trade (${symbolSellOrders.length} pending sell orders)`);
+            log.info("Trading", "Skipping buy: existing sell orders would trigger wash trade", { symbol, pendingSellOrders: symbolSellOrders.length });
             return { decision };
           }
         } catch (err) {
-          console.log(`[Trading] Could not check open orders for ${symbol}, proceeding with caution: ${err}`);
+          log.warn("Trading", "Could not check open orders, proceeding with caution", { symbol, error: err.message });
         }
         const marketStatus = await this.getMarketStatus();
         const isExtendedHoursSession = marketStatus.isExtendedHours && !marketStatus.isOpen;
@@ -13943,10 +13618,10 @@ var init_alpaca_trading_engine = __esm({
           const latestDecision = await storage.getLatestAiDecisionForSymbol(symbol, strategyId);
           if (latestDecision && !latestDecision.executedTradeId) {
             await storage.updateAiDecision(latestDecision.id, { executedTradeId: tradeId });
-            console.log(`Linked AI decision ${latestDecision.id} to trade ${tradeId}`);
+            log.debug("AlpacaTradingEngine", "Linked AI decision to trade", { decisionId: latestDecision.id, tradeId });
           }
         } catch (error) {
-          console.error(`Failed to link AI decision to trade: ${error}`);
+          log.error("AlpacaTradingEngine", "Failed to link AI decision to trade", { error: error.message });
         }
       }
       async startStrategy(strategyId) {
@@ -13972,7 +13647,7 @@ var init_alpaca_trading_engine = __esm({
           return { success: false, error: "Strategy is already running" };
         }
         if (this.orchestratorControlEnabled) {
-          console.log(`[AlpacaTradingEngine] Strategy ${strategyId} start skipped - orchestrator has control. AI suggestions will still be generated.`);
+          log.info("AlpacaTradingEngine", "Strategy start skipped - orchestrator has control", { strategyId });
           return { success: false, error: "Orchestrator has control - autonomous strategy execution disabled. Use orchestrator for trade execution." };
         }
         await storage.toggleStrategy(strategyId, true);
@@ -13999,7 +13674,7 @@ var init_alpaca_trading_engine = __esm({
                 lastSuccessfulDecision = result.decision;
               } catch (assetError) {
                 const errorMsg = assetError.message || String(assetError);
-                console.error(`Error analyzing ${asset}:`, errorMsg);
+                log.error("AlpacaTradingEngine", "Error analyzing asset", { asset, error: errorMsg });
                 lastError = `${asset}: ${errorMsg}`;
               }
             }
@@ -14012,7 +13687,7 @@ var init_alpaca_trading_engine = __esm({
             });
             await storage.updateAgentStatus({ lastHeartbeat: /* @__PURE__ */ new Date() });
           } catch (error) {
-            console.error(`Strategy ${strategyId} run error:`, error);
+            log.error("AlpacaTradingEngine", "Strategy run error", { strategyId, error: error.message });
             this.strategyStates.set(strategyId, {
               strategyId,
               isRunning: true,
@@ -14063,7 +13738,7 @@ var init_alpaca_trading_engine = __esm({
         await storage.updateAgentStatus({ isRunning: false });
       }
       async resumeAgent() {
-        console.log("Resuming trading agent...");
+        log.info("AlpacaTradingEngine", "Resuming trading agent...");
         this.startBackgroundAIGenerator();
         await storage.updateAgentStatus({
           isRunning: true,
@@ -14094,7 +13769,12 @@ var init_alpaca_trading_engine = __esm({
           if (snapshot) {
             const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;
             if (!currentPrice || currentPrice <= 0) {
-              console.warn(`No valid price sources for ${symbol}: latestTrade=${snapshot.latestTrade?.p}, dailyBar.c=${snapshot.dailyBar?.c}, prevDailyBar.c=${snapshot.prevDailyBar?.c}`);
+              log.warn("AlpacaTradingEngine", "No valid price sources for symbol", {
+                symbol,
+                latestTrade: snapshot.latestTrade?.p,
+                dailyBarClose: snapshot.dailyBar?.c,
+                prevDailyBarClose: snapshot.prevDailyBar?.c
+              });
               return null;
             }
             const prevClose = snapshot.prevDailyBar?.c || currentPrice;
@@ -14110,10 +13790,10 @@ var init_alpaca_trading_engine = __esm({
               volume: snapshot.dailyBar?.v
             };
           }
-          console.warn(`No snapshot data returned for ${symbol}`);
+          log.warn("AlpacaTradingEngine", "No snapshot data returned", { symbol });
           return null;
         } catch (error) {
-          console.error(`Failed to get market data for ${symbol}:`, error);
+          log.error("AlpacaTradingEngine", "Failed to get market data", { symbol, error: error.message });
           return null;
         }
       }
@@ -14150,7 +13830,7 @@ var init_alpaca_trading_engine = __esm({
             const snapshotData = snapshot[riskSymbol];
             const price = snapshotData?.latestTrade?.p || snapshotData?.dailyBar?.c || snapshotData?.prevDailyBar?.c || 0;
             if (!price || price <= 0 || !Number.isFinite(price)) {
-              console.warn(`Risk check: invalid price for ${symbol} (price=${price})`);
+              log.warn("AlpacaTradingEngine", "Risk check: invalid price", { symbol, price });
               return { allowed: false, reason: `Cannot verify trade value - no valid price data for ${symbol}` };
             }
             const tradeValue = quantity * price;
@@ -14170,7 +13850,7 @@ var init_alpaca_trading_engine = __esm({
               };
             }
           } catch (error) {
-            console.error("Risk check error:", error);
+            log.error("AlpacaTradingEngine", "Risk check error", { error: error.message });
             return { allowed: false, reason: "Could not verify risk limits" };
           }
         }
@@ -14193,7 +13873,7 @@ var init_alpaca_trading_engine = __esm({
             lastHeartbeat: /* @__PURE__ */ new Date()
           });
         } catch (error) {
-          console.error("Failed to update agent stats:", error);
+          log.error("AlpacaTradingEngine", "Failed to update agent stats", { error: error.message });
         }
       }
       getStatus() {
@@ -14225,15 +13905,21 @@ var init_alpaca_trading_engine = __esm({
               try {
                 await alpaca.cancelOrder(order.id);
                 cancelled.push(order.id);
-                console.log(`[Reconciliation] Cancelled stale ${order.status} order ${order.id} for ${order.symbol} (age: ${Math.round(ageMinutes)} min, threshold: ${effectiveMaxAgeMinutes} min)`);
+                log.info("Reconciliation", "Cancelled stale order", {
+                  orderId: order.id,
+                  symbol: order.symbol,
+                  status: order.status,
+                  ageMinutes: Math.round(ageMinutes),
+                  thresholdMinutes: effectiveMaxAgeMinutes
+                });
               } catch (err) {
                 errors.push({ orderId: order.id, error: err.message });
               }
             }
           }
-          console.log(`[Reconciliation] Cancelled ${cancelled.length} stale orders, ${errors.length} errors`);
+          log.info("Reconciliation", "Stale order cancellation complete", { cancelled: cancelled.length, errors: errors.length });
         } catch (err) {
-          console.error("[Reconciliation] Failed to cancel stale orders:", err);
+          log.error("Reconciliation", "Failed to cancel stale orders", { error: err.message });
           throw err;
         }
         return { cancelled, errors };
@@ -14243,7 +13929,7 @@ var init_alpaca_trading_engine = __esm({
           const ordersBefore = await alpaca.getOrders("open", 100);
           const countBefore = ordersBefore.length;
           if (countBefore === 0) {
-            console.log("[Reconciliation] No open orders to cancel");
+            log.info("Reconciliation", "No open orders to cancel");
             return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0 };
           }
           await alpaca.cancelAllOrders();
@@ -14251,14 +13937,14 @@ var init_alpaca_trading_engine = __esm({
           const ordersAfter = await alpaca.getOrders("open", 100);
           const countAfter = ordersAfter.length;
           const actualCancelled = countBefore - countAfter;
-          console.log(`[Reconciliation] Cancelled ${actualCancelled} orders (before: ${countBefore}, remaining: ${countAfter})`);
+          log.info("Reconciliation", "Cancelled all orders", { cancelled: actualCancelled, before: countBefore, remaining: countAfter });
           return {
             cancelled: actualCancelled,
             ordersCancelledBefore: countBefore,
             remainingAfter: countAfter
           };
         } catch (err) {
-          console.error("[Reconciliation] Failed to cancel all orders:", err);
+          log.error("Reconciliation", "Failed to cancel all orders", { error: err.message });
           return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0, error: err.message };
         }
       }
@@ -14300,7 +13986,7 @@ var init_alpaca_trading_engine = __esm({
             });
           }
         }
-        console.log(`[Reconciliation] Found ${discrepancies.length} discrepancies between Alpaca and DB`);
+        log.info("Reconciliation", "Position reconciliation complete", { discrepancies: discrepancies.length });
         return {
           alpacaPositions: alpacaPositions.map((p) => ({
             symbol: p.symbol,
@@ -14332,7 +14018,7 @@ var init_alpaca_trading_engine = __esm({
               throw new Error("No admin user found for system-level position sync");
             }
             effectiveUserId = adminUser.id;
-            console.log(`[Sync] Using admin user ${adminUser.username} for system-level sync`);
+            log.info("Sync", "Using admin user for system-level sync", { username: adminUser.username });
           }
           const dbPositions = await storage.getPositions(effectiveUserId);
           const alpacaMap = new Map(
@@ -14356,7 +14042,7 @@ var init_alpaca_trading_engine = __esm({
                   strategyId: null
                 });
                 created.push(symbol);
-                console.log(`[Sync] Created position for ${symbol} (user: ${effectiveUserId})`);
+                log.info("Sync", "Created position", { symbol, userId: effectiveUserId });
               } else {
                 await storage.updatePosition(dbPos.id, {
                   quantity: alpacaPos.qty,
@@ -14374,20 +14060,28 @@ var init_alpaca_trading_engine = __esm({
               try {
                 await storage.deletePosition(dbPos.id);
                 removed.push(symbol);
-                console.log(`[Sync] Removed stale position for ${symbol}`);
+                log.info("Sync", "Removed stale position", { symbol });
               } catch (err) {
                 errors.push({ symbol, error: err.message });
               }
             }
           }
-          console.log(`[Sync] Completed: ${created.length} created, ${updated.length} updated, ${removed.length} removed`);
+          log.info("Sync", "Position sync completed", { created: created.length, updated: updated.length, removed: removed.length });
         } catch (err) {
-          console.error("[Sync] Failed to sync positions:", err);
+          log.error("Sync", "Failed to sync positions", { error: err.message });
           throw err;
         }
         return { created, updated, removed, errors };
       }
-      async closeAllPositions() {
+      async closeAllPositions(options = {}) {
+        if (this.orchestratorControlEnabled && !options.authorizedByOrchestrator && !options.isEmergencyStop) {
+          log.warn("AlpacaTradingEngine", "Close all positions blocked - orchestrator has control");
+          return {
+            closed: [],
+            tradesCreated: 0,
+            errors: [{ symbol: "ALL", error: "Orchestrator control active - close all blocked. Use emergency stop or go through orchestrator." }]
+          };
+        }
         const closed = [];
         const errors = [];
         let tradesCreated = 0;
@@ -14419,16 +14113,16 @@ var init_alpaca_trading_engine = __esm({
                 qty: position.qty,
                 pnl: realizedPnl.toFixed(2)
               });
-              console.log(`[Reconciliation] Closed ${position.side} position for ${position.symbol}: qty=${qty}, PnL=$${realizedPnl.toFixed(2)}`);
+              log.info("Reconciliation", "Closed position", { symbol: position.symbol, side: position.side, qty, pnl: realizedPnl.toFixed(2) });
             } catch (err) {
               errors.push({ symbol: position.symbol, error: err.message });
             }
           }
           await this.syncPositionsFromAlpaca();
           await this.updateAgentStats();
-          console.log(`[Reconciliation] Closed ${closed.length} positions, created ${tradesCreated} trades, ${errors.length} errors`);
+          log.info("Reconciliation", "Close all positions complete", { closed: closed.length, tradesCreated, errors: errors.length });
         } catch (err) {
-          console.error("[Reconciliation] Failed to close all positions:", err);
+          log.error("Reconciliation", "Failed to close all positions", { error: err.message });
           throw err;
         }
         return { closed, tradesCreated, errors };
@@ -15184,6 +14878,7 @@ var SSEEmitter, sseEmitter, emitOrderUpdate, emitOrderFill, emitPositionUpdate, 
 var init_sse_emitter = __esm({
   "server/lib/sse-emitter.ts"() {
     "use strict";
+    init_logger();
     SSEEmitter = class extends EventEmitter2 {
       clients = /* @__PURE__ */ new Map();
       userClients = /* @__PURE__ */ new Map();
@@ -15211,8 +14906,8 @@ var init_sse_emitter = __esm({
         res.on("close", () => {
           this.removeClient(clientId, userId);
         });
-        console.log(`[SSE] Client connected: ${clientId} (user: ${userId || "anonymous"})`);
-        console.log(`[SSE] Total clients: ${this.clients.size}`);
+        log.info("SSE", "Client connected", { clientId, userId: userId || "anonymous" });
+        log.debug("SSE", "Total clients", { count: this.clients.size });
       }
       /**
        * Remove a client connection
@@ -15228,8 +14923,8 @@ var init_sse_emitter = __esm({
             }
           }
         }
-        console.log(`[SSE] Client disconnected: ${clientId}`);
-        console.log(`[SSE] Total clients: ${this.clients.size}`);
+        log.info("SSE", "Client disconnected", { clientId });
+        log.debug("SSE", "Total clients", { count: this.clients.size });
       }
       /**
        * Broadcast event to all connected clients
@@ -15246,13 +14941,13 @@ var init_sse_emitter = __esm({
             this.sendToClient(res, fullEvent);
             successCount++;
           } catch (error) {
-            console.error(`[SSE] Failed to send to client ${clientId}:`, error);
+            log.error("SSE", "Failed to send to client", { clientId, error: error instanceof Error ? error.message : String(error) });
             errorCount++;
             this.removeClient(clientId);
           }
         }
         if (this.clients.size > 0) {
-          console.log(`[SSE] Broadcast ${event.type}: ${successCount} sent, ${errorCount} failed`);
+          log.debug("SSE", "Broadcast complete", { eventType: event.type, successCount, errorCount });
         }
       }
       /**
@@ -15280,7 +14975,7 @@ var init_sse_emitter = __esm({
             this.sendToClient(res, fullEvent);
             successCount++;
           } catch (error) {
-            console.error(`[SSE] Failed to send to user ${userId} client ${clientId}:`, error);
+            log.error("SSE", "Failed to send to user client", { userId, clientId, error: error instanceof Error ? error.message : String(error) });
             deadClients.push(clientId);
           }
         }
@@ -15288,7 +14983,7 @@ var init_sse_emitter = __esm({
           this.removeClient(clientId, userId);
         }
         if (successCount > 0) {
-          console.log(`[SSE] Sent ${event.type} to user ${userId}: ${successCount} clients`);
+          log.debug("SSE", "Sent event to user", { eventType: event.type, userId, clientCount: successCount });
         }
       }
       /**
@@ -15310,7 +15005,7 @@ id: ${Date.now()}
           try {
             res.write(": keepalive\n\n");
           } catch (error) {
-            console.error(`[SSE] Keepalive failed for client ${clientId}:`, error);
+            log.error("SSE", "Keepalive failed for client", { clientId, error: error instanceof Error ? error.message : String(error) });
             this.removeClient(clientId);
           }
         }
@@ -15632,7 +15327,7 @@ async function sendToChannel(channel, message) {
         break;
       case "email":
         result.error = "Email notifications not yet implemented - skipping";
-        console.warn("[Notification] Email channel skipped - not implemented");
+        log.warn("Notification", "Email channel skipped - not implemented", { channelId: channel.id });
         break;
       default:
         result.error = `Unsupported channel type: ${channel.type}`;
@@ -15741,6 +15436,7 @@ var channels, templates, notificationHistory, MAX_HISTORY2;
 var init_notification_service = __esm({
   "server/lib/notification-service.ts"() {
     "use strict";
+    init_logger();
     channels = /* @__PURE__ */ new Map();
     templates = /* @__PURE__ */ new Map();
     notificationHistory = [];
@@ -16259,7 +15955,7 @@ async function auditLogger(req, res, next) {
       const user = await storage.getUser(userId);
       username = user?.username || null;
     } catch (error) {
-      console.error("[AuditLogger] Failed to get username:", error);
+      log.error("AuditLogger", "Failed to get username", { error: error.message });
     }
   }
   const auditLog = {
@@ -16305,11 +16001,15 @@ async function auditLogger(req, res, next) {
       }
       await storage.createAuditLog(auditLog);
       const duration = Date.now() - startTime;
-      console.log(
-        `[Audit] ${auditLog.method} ${auditLog.path} - ${auditLog.responseStatus} - ${duration}ms - User: ${username || "anonymous"}`
-      );
+      log.info("Audit", "Request logged", {
+        method: auditLog.method,
+        path: auditLog.path,
+        status: auditLog.responseStatus,
+        durationMs: duration,
+        user: username || "anonymous"
+      });
     } catch (error) {
-      console.error("[AuditLogger] Failed to save audit log:", error);
+      log.error("AuditLogger", "Failed to save audit log", { error: error.message });
     }
   });
   next();
@@ -16328,6 +16028,7 @@ var init_audit_logger = __esm({
   "server/middleware/audit-logger.ts"() {
     "use strict";
     init_storage();
+    init_logger();
     SENSITIVE_FIELDS = [
       "password",
       "token",
@@ -18072,15 +17773,23 @@ var init_valyuBudget = __esm({
 var ai_exports = {};
 __export(ai_exports, {
   AIMLClient: () => AIMLClient,
+  ClaudeClient: () => ClaudeClient,
+  CloudflareClient: () => CloudflareClient,
+  GeminiClient: () => GeminiClient,
   GroqClient: () => GroqClient,
+  HuggingFaceClient: () => HuggingFaceClient,
   OpenAIClient: () => OpenAIClient,
   OpenRouterClient: () => OpenRouterClient,
   TogetherClient: () => TogetherClient,
   aimlClient: () => aimlClient,
+  claudeClient: () => claudeClient,
+  cloudflareClient: () => cloudflareClient,
   createLLMError: () => createLLMError,
+  geminiClient: () => geminiClient,
   getAllAvailableProviders: () => getAllAvailableProviders,
   getLLMStatus: () => getLLMStatus,
   groqClient: () => groqClient,
+  huggingfaceClient: () => huggingfaceClient,
   llm: () => llm,
   openaiClient: () => openaiClient,
   openrouterClient: () => openrouterClient,
@@ -18092,6 +17801,10 @@ function getConfiguredProvider() {
   if (provider === "groq") return "groq";
   if (provider === "together") return "together";
   if (provider === "aimlapi") return "aimlapi";
+  if (provider === "claude") return "claude";
+  if (provider === "gemini") return "gemini";
+  if (provider === "cloudflare") return "cloudflare";
+  if (provider === "huggingface") return "huggingface";
   return "openai";
 }
 function selectClient() {
@@ -18101,7 +17814,11 @@ function selectClient() {
     openrouter: openrouterClient,
     groq: groqClient,
     together: togetherClient,
-    aimlapi: aimlClient
+    aimlapi: aimlClient,
+    claude: claudeClient,
+    gemini: geminiClient,
+    cloudflare: cloudflareClient,
+    huggingface: huggingfaceClient
   };
   const preferredClient = clientMap[provider];
   if (preferredClient?.isAvailable()) {
@@ -18111,6 +17828,10 @@ function selectClient() {
   if (groqClient.isAvailable()) return groqClient;
   if (togetherClient.isAvailable()) return togetherClient;
   if (aimlClient.isAvailable()) return aimlClient;
+  if (claudeClient.isAvailable()) return claudeClient;
+  if (geminiClient.isAvailable()) return geminiClient;
+  if (cloudflareClient.isAvailable()) return cloudflareClient;
+  if (huggingfaceClient.isAvailable()) return huggingfaceClient;
   if (openrouterClient.isAvailable()) return openrouterClient;
   return openaiClient;
 }
@@ -18124,7 +17845,11 @@ function getLLMStatus() {
       openrouter: openrouterClient.isAvailable(),
       groq: groqClient.isAvailable(),
       together: togetherClient.isAvailable(),
-      aimlapi: aimlClient.isAvailable()
+      aimlapi: aimlClient.isAvailable(),
+      claude: claudeClient.isAvailable(),
+      gemini: geminiClient.isAvailable(),
+      cloudflare: cloudflareClient.isAvailable(),
+      huggingface: huggingfaceClient.isAvailable()
     }
   };
 }
@@ -18134,6 +17859,10 @@ function getAllAvailableProviders() {
   if (groqClient.isAvailable()) available.push("groq");
   if (togetherClient.isAvailable()) available.push("together");
   if (aimlClient.isAvailable()) available.push("aimlapi");
+  if (claudeClient.isAvailable()) available.push("claude");
+  if (geminiClient.isAvailable()) available.push("gemini");
+  if (cloudflareClient.isAvailable()) available.push("cloudflare");
+  if (huggingfaceClient.isAvailable()) available.push("huggingface");
   if (openrouterClient.isAvailable()) available.push("openrouter");
   return available;
 }
@@ -18146,12 +17875,20 @@ var init_ai = __esm({
     init_groqClient();
     init_togetherClient();
     init_aimlClient();
+    init_claudeClient();
+    init_geminiClient();
+    init_cloudflareClient();
+    init_huggingfaceClient();
     init_llmClient();
     init_openaiClient();
     init_openrouterClient();
     init_groqClient();
     init_togetherClient();
     init_aimlClient();
+    init_claudeClient();
+    init_geminiClient();
+    init_cloudflareClient();
+    init_huggingfaceClient();
     llm = selectClient();
   }
 });
@@ -18354,6 +18091,7 @@ import bcrypt2 from "bcryptjs";
 // server/lib/session.ts
 init_db();
 init_schema();
+init_logger();
 import { randomBytes } from "node:crypto";
 import { eq, lt } from "drizzle-orm";
 var SESSION_DURATION = 7 * 24 * 60 * 60 * 1e3;
@@ -18386,7 +18124,7 @@ async function deleteSession(sessionId) {
 }
 async function cleanupExpiredSessions() {
   const result = await db.delete(sessions).where(lt(sessions.expiresAt, /* @__PURE__ */ new Date()));
-  console.log(`[SessionCleanup] Cleaned up expired sessions`);
+  log.info("SessionCleanup", "Cleaned up expired sessions");
 }
 
 // server/routes.ts
@@ -18396,6 +18134,7 @@ init_schema();
 import { sql as sql16, desc as desc19, eq as eq27 } from "drizzle-orm";
 
 // server/lib/standard-errors.ts
+init_logger();
 function sendError(res, statusCode, error, message, details) {
   const errorResponse = {
     error,
@@ -20113,6 +19852,992 @@ var alpacaStream = new AlpacaStreamManager();
 // server/routes.ts
 init_trading_session_manager();
 
+// server/autonomous/orchestrator.ts
+init_alpaca();
+init_decision_engine();
+init_finnhub();
+init_coingecko();
+init_storage();
+init_numeric();
+
+// server/ai/market-condition-analyzer.ts
+init_storage();
+init_finnhub();
+init_coingecko();
+init_alpaca();
+init_numeric();
+init_llmGateway();
+
+// server/universe/candidatesService.ts
+init_db();
+init_schema();
+import { eq as eq8, desc as desc4, inArray } from "drizzle-orm";
+
+// server/universe/fundamentalsService.ts
+init_db();
+init_schema();
+init_finnhub();
+init_logger();
+import { eq as eq5, and as and4 } from "drizzle-orm";
+var DEFAULT_SCORE_WEIGHTS = {
+  revenueGrowth: 0.35,
+  margins: 0.3,
+  leverage: 0.2,
+  dilution: 0.15
+};
+function safeParseNumeric(value) {
+  if (value === null || value === void 0) return null;
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return isNaN(num) ? null : num;
+}
+function normalizeScore(value, min, max, invert = false) {
+  if (value === null) return 0.5;
+  const clamped = Math.max(min, Math.min(max, value));
+  const normalized = (clamped - min) / (max - min);
+  return invert ? 1 - normalized : normalized;
+}
+var FundamentalsService = class {
+  calculateQualityGrowthScore(fundamentals) {
+    const revenueCagr = safeParseNumeric(fundamentals.revenueCagr3y);
+    const grossMargin = safeParseNumeric(fundamentals.grossMargin);
+    const operatingMargin = safeParseNumeric(fundamentals.operatingMargin);
+    const netMargin = safeParseNumeric(fundamentals.netMargin);
+    const freeCashFlowMargin = safeParseNumeric(fundamentals.freeCashFlowMargin);
+    const debtToEquity = safeParseNumeric(fundamentals.debtToEquity);
+    const sharesDilution = safeParseNumeric(fundamentals.sharesDilution1y);
+    const revenueGrowthScore = normalizeScore(revenueCagr, -0.1, 0.5);
+    const avgMargin = [grossMargin, operatingMargin, netMargin, freeCashFlowMargin].filter((m) => m !== null).reduce((sum, m, _, arr) => sum + m / arr.length, 0);
+    const marginScore = normalizeScore(avgMargin, -0.1, 0.4);
+    const leverageScore = normalizeScore(debtToEquity, 0, 3, true);
+    const dilutionScore = normalizeScore(sharesDilution, -0.1, 0.15, true);
+    const qualityScore = (marginScore + leverageScore) / 2;
+    const growthScore = (revenueGrowthScore + (1 - dilutionScore)) / 2;
+    const weights = DEFAULT_SCORE_WEIGHTS;
+    const finalScore = revenueGrowthScore * weights.revenueGrowth + marginScore * weights.margins + leverageScore * weights.leverage + dilutionScore * weights.dilution;
+    return {
+      qualityScore: Math.round(qualityScore * 100) / 100,
+      growthScore: Math.round(growthScore * 100) / 100,
+      finalScore: Math.round(finalScore * 100) / 100,
+      breakdown: {
+        revenueGrowthScore: Math.round(revenueGrowthScore * 100) / 100,
+        marginScore: Math.round(marginScore * 100) / 100,
+        leverageScore: Math.round(leverageScore * 100) / 100,
+        dilutionScore: Math.round(dilutionScore * 100) / 100
+      }
+    };
+  }
+  async fetchAndStoreFundamentals(options = {}) {
+    const startTime = Date.now();
+    const { symbols, batchSize = 10, traceId } = options;
+    log.info("FundamentalsService", "Starting fundamentals fetch", { traceId });
+    let targetSymbols;
+    if (symbols && symbols.length > 0) {
+      targetSymbols = symbols;
+    } else {
+      const assets = await db.select({ symbol: universeAssets.symbol }).from(universeAssets).where(and4(
+        eq5(universeAssets.tradable, true),
+        eq5(universeAssets.excluded, false)
+      ));
+      targetSymbols = assets.map((a) => a.symbol);
+    }
+    log.info("FundamentalsService", "Fetching fundamentals for symbols", { count: targetSymbols.length });
+    let computed = 0;
+    let failed = 0;
+    for (let i = 0; i < targetSymbols.length; i += batchSize) {
+      const batch = targetSymbols.slice(i, i + batchSize);
+      for (const symbol of batch) {
+        try {
+          const [profile, basicFinancials] = await Promise.all([
+            finnhub.getCompanyProfile(symbol),
+            finnhub.getBasicFinancials(symbol)
+          ]);
+          const metric = basicFinancials?.metric || {};
+          const fundamentalsData = {
+            symbol,
+            marketCap: profile?.marketCapitalization?.toString() || null,
+            sector: profile?.finnhubIndustry || null,
+            industry: profile?.finnhubIndustry || null,
+            revenueTtm: metric.revenuePerShareTTM ? (metric.revenuePerShareTTM * (metric.sharesOutstanding || 1)).toString() : null,
+            revenueCagr3y: metric.revenueGrowthTTMYoy ? (metric.revenueGrowthTTMYoy / 100).toString() : null,
+            grossMargin: metric.grossMarginTTM ? (metric.grossMarginTTM / 100).toString() : null,
+            operatingMargin: metric.operatingMarginTTM ? (metric.operatingMarginTTM / 100).toString() : null,
+            netMargin: metric.netProfitMarginTTM ? (metric.netProfitMarginTTM / 100).toString() : null,
+            freeCashFlowMargin: metric.freeCashFlowMarginTTM ? (metric.freeCashFlowMarginTTM / 100).toString() : null,
+            debtToEquity: metric.totalDebtToEquity?.toString() || null,
+            sharesDilution1y: null,
+            source: "finnhub",
+            rawJson: { profile, metric }
+          };
+          await this.upsertFundamentals(fundamentalsData);
+          computed++;
+        } catch (error) {
+          log.error("FundamentalsService", "Failed to fetch fundamentals", { symbol, error: error instanceof Error ? error.message : String(error) });
+          failed++;
+        }
+      }
+      if (i + batchSize < targetSymbols.length) {
+        await new Promise((r) => setTimeout(r, 1e3));
+      }
+    }
+    const duration = Date.now() - startTime;
+    log.info("FundamentalsService", "Fetch complete", { computed, failed, duration });
+    return {
+      success: true,
+      computed,
+      failed,
+      duration,
+      traceId
+    };
+  }
+  async upsertFundamentals(data) {
+    const existing = await db.select({ id: universeFundamentals.id }).from(universeFundamentals).where(eq5(universeFundamentals.symbol, data.symbol)).limit(1);
+    if (existing.length > 0) {
+      await db.update(universeFundamentals).set({
+        ...data,
+        lastUpdatedAt: /* @__PURE__ */ new Date()
+      }).where(eq5(universeFundamentals.symbol, data.symbol));
+    } else {
+      await db.insert(universeFundamentals).values(data);
+    }
+  }
+  async getFundamentalsBySymbol(symbol) {
+    const result = await db.select().from(universeFundamentals).where(eq5(universeFundamentals.symbol, symbol.toUpperCase())).limit(1);
+    return result[0] || null;
+  }
+  async getFundamentalsWithScores(limit4 = 100) {
+    const fundamentals = await db.select().from(universeFundamentals).limit(limit4);
+    return fundamentals.map((f) => ({
+      ...f,
+      ...this.calculateQualityGrowthScore(f)
+    }));
+  }
+  async getTopByScore(limit4 = 50) {
+    const fundamentals = await db.select().from(universeFundamentals).limit(500);
+    const scored = fundamentals.map((f) => ({
+      ...f,
+      ...this.calculateQualityGrowthScore(f)
+    }));
+    return scored.sort((a, b) => b.finalScore - a.finalScore).slice(0, limit4);
+  }
+  async getStats() {
+    const all = await db.select().from(universeFundamentals);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+    const bySector = {};
+    let stale = 0;
+    let lastUpdatedAt = null;
+    for (const f of all) {
+      if (f.sector) {
+        bySector[f.sector] = (bySector[f.sector] || 0) + 1;
+      }
+      if (f.lastUpdatedAt < oneDayAgo) stale++;
+      if (!lastUpdatedAt || f.lastUpdatedAt > lastUpdatedAt) {
+        lastUpdatedAt = f.lastUpdatedAt;
+      }
+    }
+    return {
+      total: all.length,
+      bySector,
+      stale,
+      lastUpdatedAt
+    };
+  }
+};
+var fundamentalsService = new FundamentalsService();
+
+// server/universe/liquidityService.ts
+init_db();
+init_schema();
+init_alpaca();
+import { eq as eq7, and as and6, desc as desc3 } from "drizzle-orm";
+
+// server/admin/settings.ts
+init_db();
+init_schema();
+import { eq as eq6, and as and5 } from "drizzle-orm";
+async function getSetting(namespace, key) {
+  const [result] = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
+  if (!result) return void 0;
+  return result.value;
+}
+async function getSettingFull(namespace, key) {
+  const [result] = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
+  return result || void 0;
+}
+async function setSetting(namespace, key, value, options) {
+  const existing = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
+  if (existing.length > 0) {
+    if (existing[0].isReadOnly) {
+      throw new Error(`Setting ${namespace}:${key} is read-only`);
+    }
+    const [updated] = await db.update(adminSettings).set({
+      value,
+      description: options?.description ?? existing[0].description,
+      updatedBy: options?.userId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq6(adminSettings.id, existing[0].id)).returning();
+    return updated;
+  }
+  const [created] = await db.insert(adminSettings).values({
+    namespace,
+    key,
+    value,
+    description: options?.description,
+    isSecret: options?.isSecret ?? false,
+    isReadOnly: options?.isReadOnly ?? false,
+    updatedBy: options?.userId
+  }).returning();
+  return created;
+}
+async function deleteSetting(namespace, key) {
+  const existing = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
+  if (existing.length === 0) return false;
+  if (existing[0].isReadOnly) {
+    throw new Error(`Setting ${namespace}:${key} is read-only`);
+  }
+  await db.delete(adminSettings).where(eq6(adminSettings.id, existing[0].id));
+  return true;
+}
+async function listSettings(namespace) {
+  if (namespace) {
+    return db.select().from(adminSettings).where(eq6(adminSettings.namespace, namespace));
+  }
+  return db.select().from(adminSettings);
+}
+function sanitizeSettingForResponse(setting) {
+  if (setting.isSecret) {
+    return { ...setting, value: "[REDACTED]" };
+  }
+  return setting;
+}
+
+// server/universe/liquidityService.ts
+init_logger();
+var PENNY_STOCK_THRESHOLD = 5;
+var DEFAULT_THRESHOLDS = {
+  tierA: {
+    minAdtvUsd: 5e7,
+    maxSpreadPct: 0.25,
+    minPrice: 5
+  },
+  tierB: {
+    minAdtvUsd: 2e7,
+    maxSpreadPct: 0.75,
+    minPrice: 3
+  }
+};
+var LiquidityService = class {
+  async getThresholds() {
+    try {
+      const setting = await getSetting("universe", "liquidity_thresholds");
+      if (setting) {
+        return setting;
+      }
+    } catch {
+    }
+    return DEFAULT_THRESHOLDS;
+  }
+  calculateLiquidityTier(adtvUsd, spreadPct, price, thresholds) {
+    if (!adtvUsd || !price) return "C";
+    const effectiveSpread = spreadPct ?? 0.5;
+    if (adtvUsd >= thresholds.tierA.minAdtvUsd && effectiveSpread <= thresholds.tierA.maxSpreadPct && price >= thresholds.tierA.minPrice) {
+      return "A";
+    }
+    if (adtvUsd >= thresholds.tierB.minAdtvUsd && effectiveSpread <= thresholds.tierB.maxSpreadPct && price >= thresholds.tierB.minPrice) {
+      return "B";
+    }
+    return "C";
+  }
+  async computeLiquidityMetrics(options = {}) {
+    const startTime = Date.now();
+    const { symbols, batchSize = 50, traceId } = options;
+    log.info("LiquidityService", "Starting liquidity computation", { traceId });
+    const thresholds = await this.getThresholds();
+    let targetSymbols;
+    if (symbols && symbols.length > 0) {
+      targetSymbols = symbols;
+    } else {
+      const assets = await db.select({ symbol: universeAssets.symbol }).from(universeAssets).where(and6(
+        eq7(universeAssets.tradable, true),
+        eq7(universeAssets.excluded, false)
+      ));
+      targetSymbols = assets.map((a) => a.symbol);
+    }
+    log.info("LiquidityService", "Computing metrics for symbols", { count: targetSymbols.length });
+    let computed = 0;
+    let tierACount = 0;
+    let tierBCount = 0;
+    let tierCCount = 0;
+    const now = /* @__PURE__ */ new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
+    const startDate = thirtyDaysAgo.toISOString().split("T")[0];
+    const endDate = now.toISOString().split("T")[0];
+    for (let i = 0; i < targetSymbols.length; i += batchSize) {
+      const batch = targetSymbols.slice(i, i + batchSize);
+      try {
+        const barsResponse = await alpaca.getBars(
+          batch,
+          "1Day",
+          startDate,
+          endDate,
+          1e3
+        );
+        for (const symbol of batch) {
+          const bars = barsResponse.bars?.[symbol] || [];
+          if (bars.length === 0) {
+            const metrics2 = {
+              symbol,
+              avgDailyVolumeShares: null,
+              avgDailyTradedValueUsd: null,
+              avgBidAskSpreadPct: null,
+              latestPrice: null,
+              priceDataDays: 0,
+              liquidityTier: "C",
+              source: "alpaca",
+              rawJson: { noData: true }
+            };
+            await this.upsertLiquidityMetrics(metrics2);
+            tierCCount++;
+            computed++;
+            continue;
+          }
+          let totalVolume = 0;
+          let totalValue = 0;
+          const latestPrice = bars[bars.length - 1]?.c || 0;
+          for (const bar of bars) {
+            totalVolume += bar.v;
+            totalValue += bar.v * ((bar.h + bar.l) / 2);
+          }
+          const avgVolume = bars.length > 0 ? totalVolume / bars.length : 0;
+          const avgTradedValue = bars.length > 0 ? totalValue / bars.length : 0;
+          const tier = this.calculateLiquidityTier(
+            avgTradedValue,
+            null,
+            latestPrice,
+            thresholds
+          );
+          const metrics = {
+            symbol,
+            avgDailyVolumeShares: avgVolume.toString(),
+            avgDailyTradedValueUsd: avgTradedValue.toString(),
+            avgBidAskSpreadPct: null,
+            latestPrice: latestPrice.toString(),
+            priceDataDays: bars.length,
+            liquidityTier: tier,
+            source: "alpaca",
+            rawJson: { barCount: bars.length, computed: now.toISOString() }
+          };
+          await this.upsertLiquidityMetrics(metrics);
+          const isPennyStock = latestPrice < PENNY_STOCK_THRESHOLD && latestPrice > 0;
+          await this.updatePennyStockFlag(symbol, isPennyStock, latestPrice);
+          if (tier === "A") tierACount++;
+          else if (tier === "B") tierBCount++;
+          else tierCCount++;
+          computed++;
+        }
+      } catch (error) {
+        log.error("LiquidityService", "Failed to process batch", { batchStartIndex: i, error: error instanceof Error ? error.message : String(error) });
+      }
+      if (i + batchSize < targetSymbols.length) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    const duration = Date.now() - startTime;
+    log.info("LiquidityService", "Computation complete", { computed, tierA: tierACount, tierB: tierBCount, tierC: tierCCount, duration });
+    return {
+      success: true,
+      computed,
+      tierA: tierACount,
+      tierB: tierBCount,
+      tierC: tierCCount,
+      duration,
+      traceId
+    };
+  }
+  async upsertLiquidityMetrics(metrics) {
+    const existing = await db.select({ id: universeLiquidityMetrics.id }).from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.symbol, metrics.symbol)).limit(1);
+    if (existing.length > 0) {
+      await db.update(universeLiquidityMetrics).set({
+        ...metrics,
+        lastUpdatedAt: /* @__PURE__ */ new Date()
+      }).where(eq7(universeLiquidityMetrics.symbol, metrics.symbol));
+    } else {
+      await db.insert(universeLiquidityMetrics).values(metrics);
+    }
+  }
+  async getMetricsBySymbol(symbol) {
+    const result = await db.select().from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.symbol, symbol.toUpperCase())).limit(1);
+    return result[0] || null;
+  }
+  async getMetricsByTier(tier, limit4 = 100) {
+    return db.select().from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.liquidityTier, tier)).orderBy(desc3(universeLiquidityMetrics.avgDailyTradedValueUsd)).limit(limit4);
+  }
+  async getTierStats() {
+    const all = await db.select().from(universeLiquidityMetrics);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+    let tierA = 0, tierB = 0, tierC = 0, stale = 0;
+    for (const m of all) {
+      if (m.liquidityTier === "A") tierA++;
+      else if (m.liquidityTier === "B") tierB++;
+      else tierC++;
+      if (m.lastUpdatedAt < oneDayAgo) stale++;
+    }
+    return { tierA, tierB, tierC, stale, total: all.length };
+  }
+  async getTopLiquid(limit4 = 50) {
+    return db.select().from(universeLiquidityMetrics).orderBy(desc3(universeLiquidityMetrics.avgDailyTradedValueUsd)).limit(limit4);
+  }
+  async getThresholdsForAdmin() {
+    return this.getThresholds();
+  }
+  async updatePennyStockFlag(symbol, isPennyStock, latestPrice) {
+    try {
+      await db.update(universeAssets).set({
+        isPennyStock,
+        excluded: isPennyStock ? true : void 0,
+        excludeReason: isPennyStock ? `Penny stock (price $${latestPrice.toFixed(2)} < $${PENNY_STOCK_THRESHOLD})` : void 0
+      }).where(eq7(universeAssets.symbol, symbol));
+    } catch (error) {
+      log.error("LiquidityService", "Failed to update penny stock flag", { symbol, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+};
+var liquidityService = new LiquidityService();
+
+// server/universe/candidatesService.ts
+init_logger();
+var CandidatesService = class {
+  async generateCandidates(options = {}) {
+    const startTime = Date.now();
+    const {
+      minLiquidityTier = "B",
+      minScore = 0.4,
+      limit: limit4 = 100,
+      traceId
+    } = options;
+    log.info("CandidatesService", "Generating candidates", { minLiquidityTier, minScore, traceId });
+    const eligibleSymbols = await db.select({
+      symbol: universeLiquidityMetrics.symbol,
+      tier: universeLiquidityMetrics.liquidityTier
+    }).from(universeLiquidityMetrics).where(
+      inArray(
+        universeLiquidityMetrics.liquidityTier,
+        minLiquidityTier === "A" ? ["A"] : ["A", "B"]
+      )
+    ).limit(limit4 * 2);
+    log.info("CandidatesService", "Found symbols meeting liquidity criteria", { count: eligibleSymbols.length });
+    let generated = 0;
+    let updated = 0;
+    for (const { symbol, tier } of eligibleSymbols) {
+      const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
+      const liquidity = await liquidityService.getMetricsBySymbol(symbol);
+      let qualityScore = 0.5;
+      let growthScore = 0.5;
+      let finalScore = 0.5;
+      let rationale = "Insufficient data for scoring";
+      if (fundamentals) {
+        const scores = fundamentalsService.calculateQualityGrowthScore(fundamentals);
+        qualityScore = scores.qualityScore;
+        growthScore = scores.growthScore;
+        finalScore = scores.finalScore;
+        rationale = `Quality: ${(qualityScore * 100).toFixed(1)}%, Growth: ${(growthScore * 100).toFixed(1)}%`;
+      }
+      if (finalScore < minScore) {
+        continue;
+      }
+      const liquidityScore = tier === "A" ? 1 : tier === "B" ? 0.7 : 0.4;
+      const candidateData = {
+        symbol,
+        tier: tier || "C",
+        liquidityScore: liquidityScore.toString(),
+        qualityScore: qualityScore.toString(),
+        growthScore: growthScore.toString(),
+        finalScore: finalScore.toString(),
+        rationale,
+        traceId
+      };
+      const existing = await db.select({ id: universeCandidates.id, status: universeCandidates.status }).from(universeCandidates).where(eq8(universeCandidates.symbol, symbol)).limit(1);
+      if (existing.length > 0) {
+        if (existing[0].status === "NEW" || existing[0].status === "WATCHLIST") {
+          await db.update(universeCandidates).set({
+            ...candidateData,
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq8(universeCandidates.symbol, symbol));
+          updated++;
+        }
+      } else {
+        await db.insert(universeCandidates).values({
+          ...candidateData,
+          status: "NEW"
+        });
+        generated++;
+      }
+      if (generated + updated >= limit4) break;
+    }
+    const duration = Date.now() - startTime;
+    log.info("CandidatesService", "Generation complete", { generated, updated, duration });
+    return {
+      success: true,
+      generated,
+      updated,
+      duration,
+      traceId
+    };
+  }
+  async approveCandidate(symbol, userId) {
+    return this.updateCandidateStatus(symbol, "APPROVED", userId);
+  }
+  async rejectCandidate(symbol) {
+    return this.updateCandidateStatus(symbol, "REJECTED");
+  }
+  async watchlistCandidate(symbol) {
+    return this.updateCandidateStatus(symbol, "WATCHLIST");
+  }
+  async updateCandidateStatus(symbol, newStatus, userId) {
+    const existing = await db.select().from(universeCandidates).where(eq8(universeCandidates.symbol, symbol.toUpperCase())).limit(1);
+    if (existing.length === 0) {
+      throw new Error(`Candidate not found: ${symbol}`);
+    }
+    const previousStatus = existing[0].status;
+    await db.update(universeCandidates).set({
+      status: newStatus,
+      approvedBy: newStatus === "APPROVED" ? userId : null,
+      approvedAt: newStatus === "APPROVED" ? /* @__PURE__ */ new Date() : null,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq8(universeCandidates.symbol, symbol.toUpperCase()));
+    log.info("CandidatesService", "Status updated", { symbol, previousStatus, newStatus });
+    return {
+      success: true,
+      symbol: symbol.toUpperCase(),
+      previousStatus,
+      newStatus
+    };
+  }
+  async getCandidateBySymbol(symbol) {
+    const result = await db.select().from(universeCandidates).where(eq8(universeCandidates.symbol, symbol.toUpperCase())).limit(1);
+    return result[0] || null;
+  }
+  async getCandidatesByStatus(status, limit4 = 100) {
+    return db.select().from(universeCandidates).where(eq8(universeCandidates.status, status)).orderBy(desc4(universeCandidates.finalScore)).limit(limit4);
+  }
+  async getApprovedSymbols() {
+    const approved = await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates).where(eq8(universeCandidates.status, "APPROVED"));
+    return approved.map((c) => c.symbol);
+  }
+  async getWatchlistSymbols() {
+    const symbols = await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates).where(inArray(universeCandidates.status, ["APPROVED", "WATCHLIST"]));
+    const stocks = [];
+    const crypto4 = [];
+    for (const { symbol } of symbols) {
+      if (symbol.includes("/USD") || ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX", "ADA", "XRP", "DOT", "MATIC"].includes(symbol.toUpperCase())) {
+        crypto4.push(symbol.replace("/USD", "").toUpperCase());
+      } else {
+        stocks.push(symbol.toUpperCase());
+      }
+    }
+    return { stocks, crypto: crypto4 };
+  }
+  async isSymbolApproved(symbol) {
+    const candidate = await this.getCandidateBySymbol(symbol);
+    return candidate?.status === "APPROVED";
+  }
+  async getStats() {
+    const all = await db.select().from(universeCandidates);
+    let newCount = 0;
+    let watchlistCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+    let totalScore = 0;
+    for (const c of all) {
+      if (c.status === "NEW") newCount++;
+      else if (c.status === "WATCHLIST") watchlistCount++;
+      else if (c.status === "APPROVED") approvedCount++;
+      else if (c.status === "REJECTED") rejectedCount++;
+      const score = parseFloat(c.finalScore || "0");
+      totalScore += isNaN(score) ? 0 : score;
+    }
+    return {
+      total: all.length,
+      new: newCount,
+      watchlist: watchlistCount,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      avgScore: all.length > 0 ? Math.round(totalScore / all.length * 100) / 100 : 0
+    };
+  }
+  async getTopCandidates(limit4 = 50) {
+    return db.select().from(universeCandidates).where(inArray(universeCandidates.status, ["NEW", "WATCHLIST", "APPROVED"])).orderBy(desc4(universeCandidates.finalScore)).limit(limit4);
+  }
+  async bootstrapFromWatchlist(watchlist, traceId) {
+    log.info("CandidatesService", "Bootstrapping symbols from watchlist", { count: watchlist.length, traceId });
+    let added = 0;
+    let existing = 0;
+    let errors = 0;
+    for (const symbol of watchlist) {
+      try {
+        const upperSymbol = symbol.toUpperCase();
+        const exists = await db.select({ id: universeCandidates.id }).from(universeCandidates).where(eq8(universeCandidates.symbol, upperSymbol)).limit(1);
+        if (exists.length > 0) {
+          existing++;
+          continue;
+        }
+        await db.insert(universeCandidates).values({
+          symbol: upperSymbol,
+          tier: "B",
+          liquidityScore: "0.7",
+          qualityScore: "0.6",
+          growthScore: "0.6",
+          finalScore: "0.65",
+          rationale: "Auto-bootstrapped from orchestrator watchlist",
+          status: "APPROVED",
+          approvedAt: /* @__PURE__ */ new Date(),
+          approvedBy: null,
+          traceId
+        });
+        added++;
+      } catch (error) {
+        log.error("CandidatesService", "Error bootstrapping symbol", { symbol, error: error instanceof Error ? error.message : String(error) });
+        errors++;
+      }
+    }
+    log.info("CandidatesService", "Bootstrap complete", { added, existing, errors });
+    return { added, existing, errors };
+  }
+  async ensureWatchlistApproved(watchlist, traceId) {
+    const existingSymbols = new Set(
+      (await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates)).map((r) => r.symbol.toUpperCase())
+    );
+    const missingSymbols = watchlist.map((s) => s.toUpperCase()).filter((s) => !existingSymbols.has(s));
+    if (missingSymbols.length === 0) {
+      log.info("CandidatesService", "All watchlist symbols already in universe_candidates", { count: watchlist.length });
+      return;
+    }
+    log.info("CandidatesService", "Found missing symbols, bootstrapping", { count: missingSymbols.length });
+    const result = await this.bootstrapFromWatchlist(missingSymbols, traceId);
+    if (result.errors > 0) {
+      log.warn("CandidatesService", "Bootstrap completed with errors", { errors: result.errors, totalSymbols: missingSymbols.length });
+    }
+  }
+};
+var candidatesService = new CandidatesService();
+
+// server/ai/market-condition-analyzer.ts
+init_logger();
+var MIN_ORDER_LIMIT = 10;
+var MAX_ORDER_LIMIT = 50;
+var ANALYSIS_INTERVAL_MS = 5 * 60 * 1e3;
+var MarketConditionAnalyzer = class {
+  lastAnalysis = null;
+  lastAnalysisTime = null;
+  isAnalyzing = false;
+  analysisTimer = null;
+  async initialize() {
+    log.info("MarketAnalyzer", "Initializing market condition analyzer...");
+    this.runAnalysis().catch((err) => {
+      log.error("MarketAnalyzer", "Initial analysis failed", { error: err instanceof Error ? err.message : String(err) });
+    });
+    this.startPeriodicAnalysis();
+  }
+  startPeriodicAnalysis() {
+    if (this.analysisTimer) {
+      clearInterval(this.analysisTimer);
+    }
+    this.analysisTimer = setInterval(() => {
+      this.runAnalysis().catch((err) => {
+        log.error("MarketAnalyzer", "Periodic analysis error", { error: err instanceof Error ? err.message : String(err) });
+      });
+    }, ANALYSIS_INTERVAL_MS);
+    log.info("MarketAnalyzer", "Periodic analysis started", { intervalSeconds: ANALYSIS_INTERVAL_MS / 1e3 });
+  }
+  stop() {
+    if (this.analysisTimer) {
+      clearInterval(this.analysisTimer);
+      this.analysisTimer = null;
+    }
+  }
+  async runAnalysis() {
+    if (this.isAnalyzing) {
+      return this.lastAnalysis || this.getDefaultAnalysis();
+    }
+    this.isAnalyzing = true;
+    try {
+      log.info("MarketAnalyzer", "Running market condition analysis...");
+      const snapshot = await this.fetchMarketSnapshot();
+      const analysis = await this.analyzeWithAI(snapshot);
+      this.lastAnalysis = analysis;
+      this.lastAnalysisTime = /* @__PURE__ */ new Date();
+      await this.updateAgentOrderLimit(analysis);
+      log.info("MarketAnalyzer", "Analysis complete", { condition: analysis.condition, orderLimit: analysis.recommendedOrderLimit });
+      return analysis;
+    } catch (error) {
+      log.error("MarketAnalyzer", "Analysis failed", { error: error instanceof Error ? error.message : String(error) });
+      return this.lastAnalysis || this.getDefaultAnalysis();
+    } finally {
+      this.isAnalyzing = false;
+    }
+  }
+  async fetchMarketSnapshot() {
+    const snapshot = {
+      stocks: /* @__PURE__ */ new Map(),
+      crypto: /* @__PURE__ */ new Map(),
+      portfolioValue: 0,
+      // Will be fetched from Alpaca
+      openPositions: 0,
+      dailyPnl: 0
+    };
+    let watchlistStocks = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"];
+    let watchlistCrypto = ["btc", "eth", "sol"];
+    try {
+      const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
+      if (dynamicWatchlist.stocks.length > 0) {
+        watchlistStocks = dynamicWatchlist.stocks.slice(0, 15);
+      }
+      if (dynamicWatchlist.crypto.length > 0) {
+        watchlistCrypto = dynamicWatchlist.crypto.map((c) => c.toLowerCase());
+      }
+    } catch (error) {
+      log.warn("MarketAnalyzer", "Failed to load watchlist from database, using fallback", { error: error instanceof Error ? error.message : String(error) });
+    }
+    try {
+      const stockQuotes = await finnhub.getMultipleQuotes(watchlistStocks);
+      for (const [symbol, quote] of stockQuotes.entries()) {
+        if (quote.c > 0) {
+          snapshot.stocks.set(symbol, {
+            price: quote.c,
+            change: quote.d,
+            changePercent: quote.dp
+          });
+        }
+      }
+    } catch (error) {
+      log.error("MarketAnalyzer", "Failed to fetch stock data", { error: error instanceof Error ? error.message : String(error) });
+    }
+    try {
+      const cryptoMarkets = await coingecko.getMarkets();
+      const watchedCrypto = cryptoMarkets.filter(
+        (c) => watchlistCrypto.includes(c.symbol.toLowerCase())
+      );
+      for (const coin of watchedCrypto) {
+        snapshot.crypto.set(coin.symbol.toUpperCase(), {
+          price: coin.current_price,
+          change: coin.price_change_24h || 0,
+          changePercent: coin.price_change_percentage_24h || 0
+        });
+      }
+    } catch (error) {
+      log.error("MarketAnalyzer", "Failed to fetch crypto data", { error: error instanceof Error ? error.message : String(error) });
+    }
+    try {
+      const account = await alpaca.getAccount();
+      snapshot.portfolioValue = safeParseFloat(account.portfolio_value);
+      const positions2 = await alpaca.getPositions();
+      snapshot.openPositions = positions2.length;
+      let totalPnl = 0;
+      for (const pos of positions2) {
+        totalPnl += safeParseFloat(pos.unrealized_pl);
+      }
+      snapshot.dailyPnl = totalPnl;
+    } catch (error) {
+      log.error("MarketAnalyzer", "Failed to fetch portfolio data", { error: error instanceof Error ? error.message : String(error) });
+    }
+    return snapshot;
+  }
+  async analyzeWithAI(snapshot) {
+    const stockSummary = Array.from(snapshot.stocks.entries()).map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`).join(", ");
+    const cryptoSummary = Array.from(snapshot.crypto.entries()).map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`).join(", ");
+    const avgStockChange = this.calculateAverageChange(snapshot.stocks);
+    const avgCryptoChange = this.calculateAverageChange(snapshot.crypto);
+    const volatility = this.calculateVolatility(snapshot.stocks, snapshot.crypto);
+    const prompt = `You are an expert market analyst AI. Analyze the following market snapshot and determine the optimal trading aggressiveness.
+
+CURRENT MARKET DATA:
+Stocks: ${stockSummary || "No data"}
+Crypto: ${cryptoSummary || "No data"}
+
+MARKET METRICS:
+- Average stock change: ${avgStockChange.toFixed(2)}%
+- Average crypto change: ${avgCryptoChange.toFixed(2)}%
+- Volatility indicator: ${volatility.toFixed(2)}
+
+PORTFOLIO STATUS:
+- Portfolio value: $${snapshot.portfolioValue.toFixed(2)}
+- Open positions: ${snapshot.openPositions}
+- Unrealized P&L: $${snapshot.dailyPnl.toFixed(2)}
+
+TASK:
+Determine the optimal number of active orders (between ${MIN_ORDER_LIMIT} and ${MAX_ORDER_LIMIT}) based on:
+1. Market conditions - bullish markets allow more orders, bearish markets require caution
+2. Volatility - high volatility means higher risk, reduce orders
+3. Portfolio health - significant losses mean reduce exposure
+4. Opportunity assessment - more opportunities = more orders
+
+RESPOND WITH VALID JSON ONLY:
+{
+  "condition": "bullish" | "bearish" | "neutral" | "volatile" | "uncertain",
+  "confidenceScore": 0.0-1.0,
+  "recommendedOrderLimit": ${MIN_ORDER_LIMIT}-${MAX_ORDER_LIMIT},
+  "reasoning": "brief explanation",
+  "riskLevel": "low" | "medium" | "high",
+  "marketIndicators": {
+    "overallTrend": "up/down/sideways",
+    "volatilityLevel": "low/medium/high",
+    "sentimentScore": -1.0 to 1.0,
+    "majorMovers": ["symbol1", "symbol2"]
+  }
+}`;
+    try {
+      const response = await callLLM({
+        role: "risk_manager",
+        criticality: "medium",
+        purpose: "market_condition_analysis",
+        traceId: generateTraceId(),
+        system: "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON.",
+        messages: [{ role: "user", content: prompt }],
+        responseFormat: { type: "json_object" },
+        temperature: 0.3,
+        maxTokens: 500
+      });
+      const content = response.text;
+      if (!content) {
+        throw new Error("Empty AI response");
+      }
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON found in response");
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      parsed.recommendedOrderLimit = Math.max(
+        MIN_ORDER_LIMIT,
+        Math.min(MAX_ORDER_LIMIT, parsed.recommendedOrderLimit)
+      );
+      return parsed;
+    } catch (error) {
+      log.error("MarketAnalyzer", "AI analysis failed", { error: error instanceof Error ? error.message : String(error) });
+      return this.calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility);
+    }
+  }
+  calculateAverageChange(data) {
+    if (data.size === 0) return 0;
+    let total = 0;
+    for (const item of data.values()) {
+      total += item.changePercent;
+    }
+    return total / data.size;
+  }
+  calculateVolatility(stocks, crypto4) {
+    const allChanges = [];
+    for (const item of stocks.values()) {
+      allChanges.push(Math.abs(item.changePercent));
+    }
+    for (const item of crypto4.values()) {
+      allChanges.push(Math.abs(item.changePercent));
+    }
+    if (allChanges.length === 0) return 0;
+    const avg = allChanges.reduce((a, b) => a + b, 0) / allChanges.length;
+    const variance = allChanges.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / allChanges.length;
+    return Math.sqrt(variance);
+  }
+  calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility) {
+    const overallChange = (avgStockChange + avgCryptoChange) / 2;
+    let condition = "neutral";
+    let riskLevel = "medium";
+    let recommendedOrderLimit = 20;
+    if (volatility > 3) {
+      condition = "volatile";
+      riskLevel = "high";
+      recommendedOrderLimit = MIN_ORDER_LIMIT;
+    } else if (overallChange > 1) {
+      condition = "bullish";
+      riskLevel = "low";
+      recommendedOrderLimit = Math.min(MAX_ORDER_LIMIT, 35);
+    } else if (overallChange < -1) {
+      condition = "bearish";
+      riskLevel = "high";
+      recommendedOrderLimit = Math.min(15, MIN_ORDER_LIMIT + 5);
+    } else {
+      condition = "neutral";
+      riskLevel = "medium";
+      recommendedOrderLimit = 20;
+    }
+    if (snapshot.dailyPnl < -snapshot.portfolioValue * 0.02) {
+      recommendedOrderLimit = Math.max(MIN_ORDER_LIMIT, recommendedOrderLimit - 10);
+      riskLevel = "high";
+    }
+    const majorMovers = this.identifyMajorMovers(snapshot);
+    return {
+      condition,
+      confidenceScore: 0.6,
+      recommendedOrderLimit,
+      reasoning: `Fallback analysis: ${condition} market with ${volatility.toFixed(1)}% volatility`,
+      riskLevel,
+      marketIndicators: {
+        overallTrend: overallChange > 0.5 ? "up" : overallChange < -0.5 ? "down" : "sideways",
+        volatilityLevel: volatility > 3 ? "high" : volatility > 1.5 ? "medium" : "low",
+        sentimentScore: Math.max(-1, Math.min(1, overallChange / 5)),
+        majorMovers
+      }
+    };
+  }
+  identifyMajorMovers(snapshot) {
+    const allAssets = [];
+    for (const [symbol, data] of snapshot.stocks.entries()) {
+      allAssets.push({ symbol, change: Math.abs(data.changePercent) });
+    }
+    for (const [symbol, data] of snapshot.crypto.entries()) {
+      allAssets.push({ symbol, change: Math.abs(data.changePercent) });
+    }
+    return allAssets.sort((a, b) => b.change - a.change).slice(0, 3).map((a) => a.symbol);
+  }
+  async updateAgentOrderLimit(analysis) {
+    try {
+      await storage.updateAgentStatus({
+        dynamicOrderLimit: analysis.recommendedOrderLimit,
+        marketCondition: analysis.condition,
+        aiConfidenceScore: analysis.confidenceScore.toString(),
+        lastMarketAnalysis: /* @__PURE__ */ new Date(),
+        maxPositionsCount: analysis.recommendedOrderLimit
+      });
+    } catch (error) {
+      log.error("MarketAnalyzer", "Failed to update agent status", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  getDefaultAnalysis() {
+    return {
+      condition: "neutral",
+      confidenceScore: 0.5,
+      recommendedOrderLimit: 15,
+      reasoning: "Default conservative analysis - no market data available",
+      riskLevel: "medium",
+      marketIndicators: {
+        overallTrend: "sideways",
+        volatilityLevel: "medium",
+        sentimentScore: 0,
+        majorMovers: []
+      }
+    };
+  }
+  getLastAnalysis() {
+    return this.lastAnalysis;
+  }
+  getLastAnalysisTime() {
+    return this.lastAnalysisTime;
+  }
+  getCurrentOrderLimit() {
+    return this.lastAnalysis?.recommendedOrderLimit || 15;
+  }
+  getStatus() {
+    return {
+      isRunning: !!this.analysisTimer,
+      lastAnalysis: this.lastAnalysis,
+      lastAnalysisTime: this.lastAnalysisTime,
+      currentOrderLimit: this.getCurrentOrderLimit()
+    };
+  }
+};
+var marketConditionAnalyzer = new MarketConditionAnalyzer();
+
+// server/autonomous/orchestrator.ts
+init_logger();
+
 // server/trading/order-execution-flow.ts
 init_alpaca();
 init_storage();
@@ -20122,6 +20847,7 @@ init_order_execution_cache();
 import { randomUUID as randomUUID2 } from "crypto";
 
 // server/lib/webhook-emitter.ts
+init_logger();
 import pLimit2 from "p-limit";
 var webhooks = /* @__PURE__ */ new Map();
 var deliveryHistory = [];
@@ -20129,12 +20855,12 @@ var MAX_HISTORY = 100;
 var limit2 = pLimit2(5);
 function registerWebhook(config) {
   webhooks.set(config.id, config);
-  console.log(`[Webhook] Registered: ${config.name} (${config.id}) -> ${config.url}`);
+  log.info("Webhook", "Registered", { name: config.name, id: config.id, url: config.url });
 }
 function unregisterWebhook(id) {
   const result = webhooks.delete(id);
   if (result) {
-    console.log(`[Webhook] Unregistered: ${id}`);
+    log.info("Webhook", "Unregistered", { id });
   }
   return result;
 }
@@ -20213,14 +20939,14 @@ async function emitEvent(type, payload) {
   if (matchingWebhooks.length === 0) {
     return [];
   }
-  console.log(`[Webhook] Emitting ${type} to ${matchingWebhooks.length} webhooks`);
+  log.info("Webhook", "Emitting event", { type, webhookCount: matchingWebhooks.length });
   const results = await Promise.all(
     matchingWebhooks.map((webhook) => limit2(() => deliverWebhook(webhook, event)))
   );
   const successes = results.filter((r) => r.status === "success").length;
   const failures = results.filter((r) => r.status === "failed").length;
   if (failures > 0) {
-    console.warn(`[Webhook] ${type}: ${successes} success, ${failures} failed`);
+    log.warn("Webhook", "Some deliveries failed", { type, successes, failures });
   }
   return results;
 }
@@ -20259,6 +20985,7 @@ var SUPPORTED_EVENTS = [
 // server/trading/order-execution-flow.ts
 init_notification_service();
 init_tradability_service();
+init_logger();
 
 // server/trading/order-types-matrix.ts
 import { z as z3 } from "zod";
@@ -20768,14 +21495,14 @@ var OrderExecutionEngine = class {
             qty: params.qty,
             limitPrice: params.limit_price,
             timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }).catch((err) => console.error("[Webhook] Order submitted event failed:", err));
+          }).catch((err) => log.error("Webhook", "Order submitted event failed", { error: err.message }));
           sendNotification("trade.order.submitted", {
             orderId: order.id,
             symbol: params.symbol,
             side: params.side,
             qty: params.qty,
             price: params.limit_price || "market"
-          }).catch((err) => console.error("[Notification] Order submitted failed:", err));
+          }).catch((err) => log.error("Notification", "Order submitted notification failed", { error: err.message }));
           break;
         } catch (error) {
           const classifiedError = classifyError(error, `Attempt ${state.attempts}`);
@@ -20794,7 +21521,7 @@ var OrderExecutionEngine = class {
               side: params.side,
               qty: params.qty,
               reason: classifiedError.message
-            }).catch((err) => console.error("[Notification] Order rejected failed:", err));
+            }).catch((err) => log.error("Notification", "Order rejected notification failed", { error: err.message }));
             return {
               success: false,
               state,
@@ -20840,14 +21567,14 @@ var OrderExecutionEngine = class {
         filledPrice: monitoredOrder.filled_avg_price,
         status: monitoredOrder.status,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      }).catch((err) => console.error("[Webhook] Order filled event failed:", err));
+      }).catch((err) => log.error("Webhook", "Order filled event failed", { error: err.message }));
       sendNotification("trade.order.filled", {
         orderId: monitoredOrder.id,
         symbol: monitoredOrder.symbol,
         side: monitoredOrder.side,
         qty: monitoredOrder.filled_qty,
         price: monitoredOrder.filled_avg_price
-      }).catch((err) => console.error("[Notification] Order filled failed:", err));
+      }).catch((err) => log.error("Notification", "Order filled notification failed", { error: err.message }));
       return {
         success: true,
         state,
@@ -20914,7 +21641,7 @@ var OrderExecutionEngine = class {
           });
         }
         if (latency > 10) {
-          console.log(`[OrderExecution] Slow quote retrieval: ${latency}ms for ${params.symbol}`);
+          log.debug("OrderExecution", "Slow quote retrieval", { latencyMs: latency, symbol: params.symbol });
         }
       } catch {
         result.warnings.push(`Could not fetch current price for ${params.symbol}`);
@@ -21060,7 +21787,7 @@ var OrderExecutionEngine = class {
         clearTimeout(timeout);
         const latency = performanceTracker.endTimer(operationId, "orderExecution");
         if (latency > 50) {
-          console.log(`[OrderExecution] Slow order submission: ${latency}ms for ${params.symbol}`);
+          log.debug("OrderExecution", "Slow order submission", { latencyMs: latency, symbol: params.symbol });
         }
         resolve2(order);
       }).catch((error) => {
@@ -21084,7 +21811,7 @@ var OrderExecutionEngine = class {
         }
         await this.sleep(pollInterval);
       } catch (error) {
-        console.error(`Error polling order ${orderId}:`, error);
+        log.error("OrderExecution", "Error polling order", { orderId, error: error.message });
         await this.sleep(pollInterval);
       }
     }
@@ -21167,18 +21894,18 @@ var OrderExecutionEngine = class {
    */
   async attemptRecovery(state, error, originalParams) {
     state.status = "recovering";
-    console.log(`[OrderExecution] Attempting recovery: ${error.recoveryStrategy}`);
+    log.info("OrderExecution", "Attempting recovery", { recoveryStrategy: error.recoveryStrategy });
     switch (error.recoveryStrategy) {
       case "CHECK_AND_SYNC" /* CHECK_AND_SYNC */:
         try {
           const orders2 = await alpaca.getOrders("all", 10);
           const existingOrder = orders2.find((o) => o.client_order_id === state.clientOrderId);
           if (existingOrder) {
-            console.log(`[OrderExecution] Found existing order via sync: ${existingOrder.id}`);
+            log.info("OrderExecution", "Found existing order via sync", { orderId: existingOrder.id });
             return existingOrder;
           }
         } catch {
-          console.error("[OrderExecution] Sync check failed");
+          log.error("OrderExecution", "Sync check failed");
         }
         return null;
       case "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */:
@@ -21264,7 +21991,7 @@ async function identifyUnrealOrders() {
       }
     }
   } catch (error) {
-    console.error("[OrderCleanup] Failed to identify unreal orders:", error);
+    log.error("OrderCleanup", "Failed to identify unreal orders", { error: error.message });
   }
   return unrealOrders;
 }
@@ -21281,16 +22008,16 @@ async function cleanupUnrealOrders() {
       if (ACTIVE_STATUSES.includes(order.status)) {
         try {
           await alpaca.cancelOrder(order.orderId);
-          console.log(`[OrderCleanup] Canceled unreal order ${order.orderId}: ${order.reason}`);
+          log.info("OrderCleanup", "Canceled unreal order", { orderId: order.orderId, reason: order.reason });
           result.canceled++;
         } catch (error) {
           const errorMsg = `Failed to cancel ${order.orderId}: ${error.message}`;
           result.errors.push(errorMsg);
-          console.warn(`[OrderCleanup] ${errorMsg}`);
+          log.warn("OrderCleanup", "Failed to cancel order", { orderId: order.orderId, error: error.message });
         }
       }
     }
-    console.log(`[OrderCleanup] Identified ${result.identified} unreal orders, canceled ${result.canceled}`);
+    log.info("OrderCleanup", "Unreal order cleanup complete", { identified: result.identified, canceled: result.canceled });
   } catch (error) {
     result.errors.push(`Cleanup failed: ${error.message}`);
   }
@@ -21332,9 +22059,9 @@ async function reconcileOrderBook() {
         }
       }
     }
-    console.log(`[Reconciliation] Orders: Alpaca=${result.alpacaOrders}, Local=${result.localTrades}, Synced=${result.synced}`);
+    log.info("Reconciliation", "Order book reconciliation complete", { alpacaOrders: result.alpacaOrders, localTrades: result.localTrades, synced: result.synced });
   } catch (error) {
-    console.error("[Reconciliation] Failed:", error);
+    log.error("Reconciliation", "Order book reconciliation failed", { error: error.message });
   }
   return result;
 }
@@ -21353,16 +22080,16 @@ async function waitForAlpacaOrderFill(orderId, timeoutMs = ORDER_FILL_TIMEOUT_MS
         return { order, timedOut: false, hasFillData: true, isFullyFilled: true };
       }
       if (TERMINAL_STATUSES.includes(order.status)) {
-        console.log(`[OrderFlow] Order ${orderId} ended with status: ${order.status}`);
+        log.info("OrderFlow", "Order ended with status", { orderId, status: order.status });
         return { order, timedOut: false, hasFillData, isFullyFilled: false };
       }
       await new Promise((resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS));
     } catch (error) {
-      console.error(`[OrderFlow] Error polling order ${orderId}:`, error);
+      log.error("OrderFlow", "Error polling order", { orderId, error: error.message });
       await new Promise((resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS));
     }
   }
-  console.log(`[OrderFlow] Order ${orderId} fill timeout after ${timeoutMs}ms`);
+  log.warn("OrderFlow", "Order fill timeout", { orderId, timeoutMs });
   try {
     const finalOrder = await alpaca.getOrder(orderId);
     const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
@@ -21386,1002 +22113,20 @@ async function cancelExpiredOrders(maxAgeMs = STALE_ORDER_TIMEOUT_MS) {
         try {
           await alpaca.cancelOrder(order.id);
           canceledCount++;
-          console.log(`[OrderFlow] Canceled expired order ${order.id} for ${order.symbol} (age: ${Math.floor(orderAge / 1e3)}s)`);
+          log.info("OrderFlow", "Canceled expired order", { orderId: order.id, symbol: order.symbol, ageSec: Math.floor(orderAge / 1e3) });
         } catch (error) {
-          console.warn(`[OrderFlow] Failed to cancel expired order ${order.id}:`, error);
+          log.warn("OrderFlow", "Failed to cancel expired order", { orderId: order.id, error: error.message });
         }
       }
     }
     if (canceledCount > 0) {
-      console.log(`[OrderFlow] Canceled ${canceledCount} expired pending orders`);
+      log.info("OrderFlow", "Expired order cancellation complete", { canceledCount });
     }
   } catch (error) {
-    console.error("[OrderFlow] Error checking for expired orders:", error);
+    log.error("OrderFlow", "Error checking for expired orders", { error: error.message });
   }
   return canceledCount;
 }
-
-// server/autonomous/orchestrator.ts
-init_alpaca();
-init_decision_engine();
-init_finnhub();
-init_coingecko();
-init_storage();
-init_numeric();
-
-// server/ai/market-condition-analyzer.ts
-init_storage();
-init_finnhub();
-init_coingecko();
-init_alpaca();
-init_numeric();
-init_llmGateway();
-
-// server/universe/candidatesService.ts
-init_db();
-init_schema();
-import { eq as eq8, desc as desc4, inArray } from "drizzle-orm";
-
-// server/universe/fundamentalsService.ts
-init_db();
-init_schema();
-init_finnhub();
-import { eq as eq5, and as and4 } from "drizzle-orm";
-var DEFAULT_SCORE_WEIGHTS = {
-  revenueGrowth: 0.35,
-  margins: 0.3,
-  leverage: 0.2,
-  dilution: 0.15
-};
-function safeParseNumeric(value) {
-  if (value === null || value === void 0) return null;
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  return isNaN(num) ? null : num;
-}
-function normalizeScore(value, min, max, invert = false) {
-  if (value === null) return 0.5;
-  const clamped = Math.max(min, Math.min(max, value));
-  const normalized = (clamped - min) / (max - min);
-  return invert ? 1 - normalized : normalized;
-}
-var FundamentalsService = class {
-  calculateQualityGrowthScore(fundamentals) {
-    const revenueCagr = safeParseNumeric(fundamentals.revenueCagr3y);
-    const grossMargin = safeParseNumeric(fundamentals.grossMargin);
-    const operatingMargin = safeParseNumeric(fundamentals.operatingMargin);
-    const netMargin = safeParseNumeric(fundamentals.netMargin);
-    const freeCashFlowMargin = safeParseNumeric(fundamentals.freeCashFlowMargin);
-    const debtToEquity = safeParseNumeric(fundamentals.debtToEquity);
-    const sharesDilution = safeParseNumeric(fundamentals.sharesDilution1y);
-    const revenueGrowthScore = normalizeScore(revenueCagr, -0.1, 0.5);
-    const avgMargin = [grossMargin, operatingMargin, netMargin, freeCashFlowMargin].filter((m) => m !== null).reduce((sum, m, _, arr) => sum + m / arr.length, 0);
-    const marginScore = normalizeScore(avgMargin, -0.1, 0.4);
-    const leverageScore = normalizeScore(debtToEquity, 0, 3, true);
-    const dilutionScore = normalizeScore(sharesDilution, -0.1, 0.15, true);
-    const qualityScore = (marginScore + leverageScore) / 2;
-    const growthScore = (revenueGrowthScore + (1 - dilutionScore)) / 2;
-    const weights = DEFAULT_SCORE_WEIGHTS;
-    const finalScore = revenueGrowthScore * weights.revenueGrowth + marginScore * weights.margins + leverageScore * weights.leverage + dilutionScore * weights.dilution;
-    return {
-      qualityScore: Math.round(qualityScore * 100) / 100,
-      growthScore: Math.round(growthScore * 100) / 100,
-      finalScore: Math.round(finalScore * 100) / 100,
-      breakdown: {
-        revenueGrowthScore: Math.round(revenueGrowthScore * 100) / 100,
-        marginScore: Math.round(marginScore * 100) / 100,
-        leverageScore: Math.round(leverageScore * 100) / 100,
-        dilutionScore: Math.round(dilutionScore * 100) / 100
-      }
-    };
-  }
-  async fetchAndStoreFundamentals(options = {}) {
-    const startTime = Date.now();
-    const { symbols, batchSize = 10, traceId } = options;
-    console.log(`[FUNDAMENTALS] Starting fundamentals fetch, traceId=${traceId}`);
-    let targetSymbols;
-    if (symbols && symbols.length > 0) {
-      targetSymbols = symbols;
-    } else {
-      const assets = await db.select({ symbol: universeAssets.symbol }).from(universeAssets).where(and4(
-        eq5(universeAssets.tradable, true),
-        eq5(universeAssets.excluded, false)
-      ));
-      targetSymbols = assets.map((a) => a.symbol);
-    }
-    console.log(`[FUNDAMENTALS] Fetching fundamentals for ${targetSymbols.length} symbols`);
-    let computed = 0;
-    let failed = 0;
-    for (let i = 0; i < targetSymbols.length; i += batchSize) {
-      const batch = targetSymbols.slice(i, i + batchSize);
-      for (const symbol of batch) {
-        try {
-          const [profile, basicFinancials] = await Promise.all([
-            finnhub.getCompanyProfile(symbol),
-            finnhub.getBasicFinancials(symbol)
-          ]);
-          const metric = basicFinancials?.metric || {};
-          const fundamentalsData = {
-            symbol,
-            marketCap: profile?.marketCapitalization?.toString() || null,
-            sector: profile?.finnhubIndustry || null,
-            industry: profile?.finnhubIndustry || null,
-            revenueTtm: metric.revenuePerShareTTM ? (metric.revenuePerShareTTM * (metric.sharesOutstanding || 1)).toString() : null,
-            revenueCagr3y: metric.revenueGrowthTTMYoy ? (metric.revenueGrowthTTMYoy / 100).toString() : null,
-            grossMargin: metric.grossMarginTTM ? (metric.grossMarginTTM / 100).toString() : null,
-            operatingMargin: metric.operatingMarginTTM ? (metric.operatingMarginTTM / 100).toString() : null,
-            netMargin: metric.netProfitMarginTTM ? (metric.netProfitMarginTTM / 100).toString() : null,
-            freeCashFlowMargin: metric.freeCashFlowMarginTTM ? (metric.freeCashFlowMarginTTM / 100).toString() : null,
-            debtToEquity: metric.totalDebtToEquity?.toString() || null,
-            sharesDilution1y: null,
-            source: "finnhub",
-            rawJson: { profile, metric }
-          };
-          await this.upsertFundamentals(fundamentalsData);
-          computed++;
-        } catch (error) {
-          console.error(`[FUNDAMENTALS] Failed to fetch fundamentals for ${symbol}:`, error);
-          failed++;
-        }
-      }
-      if (i + batchSize < targetSymbols.length) {
-        await new Promise((r) => setTimeout(r, 1e3));
-      }
-    }
-    const duration = Date.now() - startTime;
-    console.log(`[FUNDAMENTALS] Fetch complete: computed=${computed}, failed=${failed}, duration=${duration}ms`);
-    return {
-      success: true,
-      computed,
-      failed,
-      duration,
-      traceId
-    };
-  }
-  async upsertFundamentals(data) {
-    const existing = await db.select({ id: universeFundamentals.id }).from(universeFundamentals).where(eq5(universeFundamentals.symbol, data.symbol)).limit(1);
-    if (existing.length > 0) {
-      await db.update(universeFundamentals).set({
-        ...data,
-        lastUpdatedAt: /* @__PURE__ */ new Date()
-      }).where(eq5(universeFundamentals.symbol, data.symbol));
-    } else {
-      await db.insert(universeFundamentals).values(data);
-    }
-  }
-  async getFundamentalsBySymbol(symbol) {
-    const result = await db.select().from(universeFundamentals).where(eq5(universeFundamentals.symbol, symbol.toUpperCase())).limit(1);
-    return result[0] || null;
-  }
-  async getFundamentalsWithScores(limit4 = 100) {
-    const fundamentals = await db.select().from(universeFundamentals).limit(limit4);
-    return fundamentals.map((f) => ({
-      ...f,
-      ...this.calculateQualityGrowthScore(f)
-    }));
-  }
-  async getTopByScore(limit4 = 50) {
-    const fundamentals = await db.select().from(universeFundamentals).limit(500);
-    const scored = fundamentals.map((f) => ({
-      ...f,
-      ...this.calculateQualityGrowthScore(f)
-    }));
-    return scored.sort((a, b) => b.finalScore - a.finalScore).slice(0, limit4);
-  }
-  async getStats() {
-    const all = await db.select().from(universeFundamentals);
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-    const bySector = {};
-    let stale = 0;
-    let lastUpdatedAt = null;
-    for (const f of all) {
-      if (f.sector) {
-        bySector[f.sector] = (bySector[f.sector] || 0) + 1;
-      }
-      if (f.lastUpdatedAt < oneDayAgo) stale++;
-      if (!lastUpdatedAt || f.lastUpdatedAt > lastUpdatedAt) {
-        lastUpdatedAt = f.lastUpdatedAt;
-      }
-    }
-    return {
-      total: all.length,
-      bySector,
-      stale,
-      lastUpdatedAt
-    };
-  }
-};
-var fundamentalsService = new FundamentalsService();
-
-// server/universe/liquidityService.ts
-init_db();
-init_schema();
-init_alpaca();
-import { eq as eq7, and as and6, desc as desc3 } from "drizzle-orm";
-
-// server/admin/settings.ts
-init_db();
-init_schema();
-import { eq as eq6, and as and5 } from "drizzle-orm";
-async function getSetting(namespace, key) {
-  const [result] = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
-  if (!result) return void 0;
-  return result.value;
-}
-async function getSettingFull(namespace, key) {
-  const [result] = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
-  return result || void 0;
-}
-async function setSetting(namespace, key, value, options) {
-  const existing = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
-  if (existing.length > 0) {
-    if (existing[0].isReadOnly) {
-      throw new Error(`Setting ${namespace}:${key} is read-only`);
-    }
-    const [updated] = await db.update(adminSettings).set({
-      value,
-      description: options?.description ?? existing[0].description,
-      updatedBy: options?.userId,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq6(adminSettings.id, existing[0].id)).returning();
-    return updated;
-  }
-  const [created] = await db.insert(adminSettings).values({
-    namespace,
-    key,
-    value,
-    description: options?.description,
-    isSecret: options?.isSecret ?? false,
-    isReadOnly: options?.isReadOnly ?? false,
-    updatedBy: options?.userId
-  }).returning();
-  return created;
-}
-async function deleteSetting(namespace, key) {
-  const existing = await db.select().from(adminSettings).where(and5(eq6(adminSettings.namespace, namespace), eq6(adminSettings.key, key))).limit(1);
-  if (existing.length === 0) return false;
-  if (existing[0].isReadOnly) {
-    throw new Error(`Setting ${namespace}:${key} is read-only`);
-  }
-  await db.delete(adminSettings).where(eq6(adminSettings.id, existing[0].id));
-  return true;
-}
-async function listSettings(namespace) {
-  if (namespace) {
-    return db.select().from(adminSettings).where(eq6(adminSettings.namespace, namespace));
-  }
-  return db.select().from(adminSettings);
-}
-function sanitizeSettingForResponse(setting) {
-  if (setting.isSecret) {
-    return { ...setting, value: "[REDACTED]" };
-  }
-  return setting;
-}
-
-// server/universe/liquidityService.ts
-var PENNY_STOCK_THRESHOLD = 5;
-var DEFAULT_THRESHOLDS = {
-  tierA: {
-    minAdtvUsd: 5e7,
-    maxSpreadPct: 0.25,
-    minPrice: 5
-  },
-  tierB: {
-    minAdtvUsd: 2e7,
-    maxSpreadPct: 0.75,
-    minPrice: 3
-  }
-};
-var LiquidityService = class {
-  async getThresholds() {
-    try {
-      const setting = await getSetting("universe", "liquidity_thresholds");
-      if (setting) {
-        return setting;
-      }
-    } catch {
-    }
-    return DEFAULT_THRESHOLDS;
-  }
-  calculateLiquidityTier(adtvUsd, spreadPct, price, thresholds) {
-    if (!adtvUsd || !price) return "C";
-    const effectiveSpread = spreadPct ?? 0.5;
-    if (adtvUsd >= thresholds.tierA.minAdtvUsd && effectiveSpread <= thresholds.tierA.maxSpreadPct && price >= thresholds.tierA.minPrice) {
-      return "A";
-    }
-    if (adtvUsd >= thresholds.tierB.minAdtvUsd && effectiveSpread <= thresholds.tierB.maxSpreadPct && price >= thresholds.tierB.minPrice) {
-      return "B";
-    }
-    return "C";
-  }
-  async computeLiquidityMetrics(options = {}) {
-    const startTime = Date.now();
-    const { symbols, batchSize = 50, traceId } = options;
-    console.log(`[LIQUIDITY] Starting liquidity computation, traceId=${traceId}`);
-    const thresholds = await this.getThresholds();
-    let targetSymbols;
-    if (symbols && symbols.length > 0) {
-      targetSymbols = symbols;
-    } else {
-      const assets = await db.select({ symbol: universeAssets.symbol }).from(universeAssets).where(and6(
-        eq7(universeAssets.tradable, true),
-        eq7(universeAssets.excluded, false)
-      ));
-      targetSymbols = assets.map((a) => a.symbol);
-    }
-    console.log(`[LIQUIDITY] Computing metrics for ${targetSymbols.length} symbols`);
-    let computed = 0;
-    let tierACount = 0;
-    let tierBCount = 0;
-    let tierCCount = 0;
-    const now = /* @__PURE__ */ new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
-    const startDate = thirtyDaysAgo.toISOString().split("T")[0];
-    const endDate = now.toISOString().split("T")[0];
-    for (let i = 0; i < targetSymbols.length; i += batchSize) {
-      const batch = targetSymbols.slice(i, i + batchSize);
-      try {
-        const barsResponse = await alpaca.getBars(
-          batch,
-          "1Day",
-          startDate,
-          endDate,
-          1e3
-        );
-        for (const symbol of batch) {
-          const bars = barsResponse.bars?.[symbol] || [];
-          if (bars.length === 0) {
-            const metrics2 = {
-              symbol,
-              avgDailyVolumeShares: null,
-              avgDailyTradedValueUsd: null,
-              avgBidAskSpreadPct: null,
-              latestPrice: null,
-              priceDataDays: 0,
-              liquidityTier: "C",
-              source: "alpaca",
-              rawJson: { noData: true }
-            };
-            await this.upsertLiquidityMetrics(metrics2);
-            tierCCount++;
-            computed++;
-            continue;
-          }
-          let totalVolume = 0;
-          let totalValue = 0;
-          const latestPrice = bars[bars.length - 1]?.c || 0;
-          for (const bar of bars) {
-            totalVolume += bar.v;
-            totalValue += bar.v * ((bar.h + bar.l) / 2);
-          }
-          const avgVolume = bars.length > 0 ? totalVolume / bars.length : 0;
-          const avgTradedValue = bars.length > 0 ? totalValue / bars.length : 0;
-          const tier = this.calculateLiquidityTier(
-            avgTradedValue,
-            null,
-            latestPrice,
-            thresholds
-          );
-          const metrics = {
-            symbol,
-            avgDailyVolumeShares: avgVolume.toString(),
-            avgDailyTradedValueUsd: avgTradedValue.toString(),
-            avgBidAskSpreadPct: null,
-            latestPrice: latestPrice.toString(),
-            priceDataDays: bars.length,
-            liquidityTier: tier,
-            source: "alpaca",
-            rawJson: { barCount: bars.length, computed: now.toISOString() }
-          };
-          await this.upsertLiquidityMetrics(metrics);
-          const isPennyStock = latestPrice < PENNY_STOCK_THRESHOLD && latestPrice > 0;
-          await this.updatePennyStockFlag(symbol, isPennyStock, latestPrice);
-          if (tier === "A") tierACount++;
-          else if (tier === "B") tierBCount++;
-          else tierCCount++;
-          computed++;
-        }
-      } catch (error) {
-        console.error(`[LIQUIDITY] Failed to process batch starting at ${i}:`, error);
-      }
-      if (i + batchSize < targetSymbols.length) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
-    }
-    const duration = Date.now() - startTime;
-    console.log(`[LIQUIDITY] Computation complete: computed=${computed}, tierA=${tierACount}, tierB=${tierBCount}, tierC=${tierCCount}, duration=${duration}ms`);
-    return {
-      success: true,
-      computed,
-      tierA: tierACount,
-      tierB: tierBCount,
-      tierC: tierCCount,
-      duration,
-      traceId
-    };
-  }
-  async upsertLiquidityMetrics(metrics) {
-    const existing = await db.select({ id: universeLiquidityMetrics.id }).from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.symbol, metrics.symbol)).limit(1);
-    if (existing.length > 0) {
-      await db.update(universeLiquidityMetrics).set({
-        ...metrics,
-        lastUpdatedAt: /* @__PURE__ */ new Date()
-      }).where(eq7(universeLiquidityMetrics.symbol, metrics.symbol));
-    } else {
-      await db.insert(universeLiquidityMetrics).values(metrics);
-    }
-  }
-  async getMetricsBySymbol(symbol) {
-    const result = await db.select().from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.symbol, symbol.toUpperCase())).limit(1);
-    return result[0] || null;
-  }
-  async getMetricsByTier(tier, limit4 = 100) {
-    return db.select().from(universeLiquidityMetrics).where(eq7(universeLiquidityMetrics.liquidityTier, tier)).orderBy(desc3(universeLiquidityMetrics.avgDailyTradedValueUsd)).limit(limit4);
-  }
-  async getTierStats() {
-    const all = await db.select().from(universeLiquidityMetrics);
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-    let tierA = 0, tierB = 0, tierC = 0, stale = 0;
-    for (const m of all) {
-      if (m.liquidityTier === "A") tierA++;
-      else if (m.liquidityTier === "B") tierB++;
-      else tierC++;
-      if (m.lastUpdatedAt < oneDayAgo) stale++;
-    }
-    return { tierA, tierB, tierC, stale, total: all.length };
-  }
-  async getTopLiquid(limit4 = 50) {
-    return db.select().from(universeLiquidityMetrics).orderBy(desc3(universeLiquidityMetrics.avgDailyTradedValueUsd)).limit(limit4);
-  }
-  async getThresholdsForAdmin() {
-    return this.getThresholds();
-  }
-  async updatePennyStockFlag(symbol, isPennyStock, latestPrice) {
-    try {
-      await db.update(universeAssets).set({
-        isPennyStock,
-        excluded: isPennyStock ? true : void 0,
-        excludeReason: isPennyStock ? `Penny stock (price $${latestPrice.toFixed(2)} < $${PENNY_STOCK_THRESHOLD})` : void 0
-      }).where(eq7(universeAssets.symbol, symbol));
-    } catch (error) {
-      console.error(`[LIQUIDITY] Failed to update penny stock flag for ${symbol}:`, error);
-    }
-  }
-};
-var liquidityService = new LiquidityService();
-
-// server/universe/candidatesService.ts
-var CandidatesService = class {
-  async generateCandidates(options = {}) {
-    const startTime = Date.now();
-    const {
-      minLiquidityTier = "B",
-      minScore = 0.4,
-      limit: limit4 = 100,
-      traceId
-    } = options;
-    console.log(`[CANDIDATES] Generating candidates, minTier=${minLiquidityTier}, minScore=${minScore}, traceId=${traceId}`);
-    const eligibleSymbols = await db.select({
-      symbol: universeLiquidityMetrics.symbol,
-      tier: universeLiquidityMetrics.liquidityTier
-    }).from(universeLiquidityMetrics).where(
-      inArray(
-        universeLiquidityMetrics.liquidityTier,
-        minLiquidityTier === "A" ? ["A"] : ["A", "B"]
-      )
-    ).limit(limit4 * 2);
-    console.log(`[CANDIDATES] Found ${eligibleSymbols.length} symbols meeting liquidity criteria`);
-    let generated = 0;
-    let updated = 0;
-    for (const { symbol, tier } of eligibleSymbols) {
-      const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
-      const liquidity = await liquidityService.getMetricsBySymbol(symbol);
-      let qualityScore = 0.5;
-      let growthScore = 0.5;
-      let finalScore = 0.5;
-      let rationale = "Insufficient data for scoring";
-      if (fundamentals) {
-        const scores = fundamentalsService.calculateQualityGrowthScore(fundamentals);
-        qualityScore = scores.qualityScore;
-        growthScore = scores.growthScore;
-        finalScore = scores.finalScore;
-        rationale = `Quality: ${(qualityScore * 100).toFixed(1)}%, Growth: ${(growthScore * 100).toFixed(1)}%`;
-      }
-      if (finalScore < minScore) {
-        continue;
-      }
-      const liquidityScore = tier === "A" ? 1 : tier === "B" ? 0.7 : 0.4;
-      const candidateData = {
-        symbol,
-        tier: tier || "C",
-        liquidityScore: liquidityScore.toString(),
-        qualityScore: qualityScore.toString(),
-        growthScore: growthScore.toString(),
-        finalScore: finalScore.toString(),
-        rationale,
-        traceId
-      };
-      const existing = await db.select({ id: universeCandidates.id, status: universeCandidates.status }).from(universeCandidates).where(eq8(universeCandidates.symbol, symbol)).limit(1);
-      if (existing.length > 0) {
-        if (existing[0].status === "NEW" || existing[0].status === "WATCHLIST") {
-          await db.update(universeCandidates).set({
-            ...candidateData,
-            updatedAt: /* @__PURE__ */ new Date()
-          }).where(eq8(universeCandidates.symbol, symbol));
-          updated++;
-        }
-      } else {
-        await db.insert(universeCandidates).values({
-          ...candidateData,
-          status: "NEW"
-        });
-        generated++;
-      }
-      if (generated + updated >= limit4) break;
-    }
-    const duration = Date.now() - startTime;
-    console.log(`[CANDIDATES] Generation complete: generated=${generated}, updated=${updated}, duration=${duration}ms`);
-    return {
-      success: true,
-      generated,
-      updated,
-      duration,
-      traceId
-    };
-  }
-  async approveCandidate(symbol, userId) {
-    return this.updateCandidateStatus(symbol, "APPROVED", userId);
-  }
-  async rejectCandidate(symbol) {
-    return this.updateCandidateStatus(symbol, "REJECTED");
-  }
-  async watchlistCandidate(symbol) {
-    return this.updateCandidateStatus(symbol, "WATCHLIST");
-  }
-  async updateCandidateStatus(symbol, newStatus, userId) {
-    const existing = await db.select().from(universeCandidates).where(eq8(universeCandidates.symbol, symbol.toUpperCase())).limit(1);
-    if (existing.length === 0) {
-      throw new Error(`Candidate not found: ${symbol}`);
-    }
-    const previousStatus = existing[0].status;
-    await db.update(universeCandidates).set({
-      status: newStatus,
-      approvedBy: newStatus === "APPROVED" ? userId : null,
-      approvedAt: newStatus === "APPROVED" ? /* @__PURE__ */ new Date() : null,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq8(universeCandidates.symbol, symbol.toUpperCase()));
-    console.log(`[CANDIDATES] ${symbol}: ${previousStatus} -> ${newStatus}`);
-    return {
-      success: true,
-      symbol: symbol.toUpperCase(),
-      previousStatus,
-      newStatus
-    };
-  }
-  async getCandidateBySymbol(symbol) {
-    const result = await db.select().from(universeCandidates).where(eq8(universeCandidates.symbol, symbol.toUpperCase())).limit(1);
-    return result[0] || null;
-  }
-  async getCandidatesByStatus(status, limit4 = 100) {
-    return db.select().from(universeCandidates).where(eq8(universeCandidates.status, status)).orderBy(desc4(universeCandidates.finalScore)).limit(limit4);
-  }
-  async getApprovedSymbols() {
-    const approved = await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates).where(eq8(universeCandidates.status, "APPROVED"));
-    return approved.map((c) => c.symbol);
-  }
-  async getWatchlistSymbols() {
-    const symbols = await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates).where(inArray(universeCandidates.status, ["APPROVED", "WATCHLIST"]));
-    const stocks = [];
-    const crypto4 = [];
-    for (const { symbol } of symbols) {
-      if (symbol.includes("/USD") || ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX", "ADA", "XRP", "DOT", "MATIC"].includes(symbol.toUpperCase())) {
-        crypto4.push(symbol.replace("/USD", "").toUpperCase());
-      } else {
-        stocks.push(symbol.toUpperCase());
-      }
-    }
-    return { stocks, crypto: crypto4 };
-  }
-  async isSymbolApproved(symbol) {
-    const candidate = await this.getCandidateBySymbol(symbol);
-    return candidate?.status === "APPROVED";
-  }
-  async getStats() {
-    const all = await db.select().from(universeCandidates);
-    let newCount = 0;
-    let watchlistCount = 0;
-    let approvedCount = 0;
-    let rejectedCount = 0;
-    let totalScore = 0;
-    for (const c of all) {
-      if (c.status === "NEW") newCount++;
-      else if (c.status === "WATCHLIST") watchlistCount++;
-      else if (c.status === "APPROVED") approvedCount++;
-      else if (c.status === "REJECTED") rejectedCount++;
-      const score = parseFloat(c.finalScore || "0");
-      totalScore += isNaN(score) ? 0 : score;
-    }
-    return {
-      total: all.length,
-      new: newCount,
-      watchlist: watchlistCount,
-      approved: approvedCount,
-      rejected: rejectedCount,
-      avgScore: all.length > 0 ? Math.round(totalScore / all.length * 100) / 100 : 0
-    };
-  }
-  async getTopCandidates(limit4 = 50) {
-    return db.select().from(universeCandidates).where(inArray(universeCandidates.status, ["NEW", "WATCHLIST", "APPROVED"])).orderBy(desc4(universeCandidates.finalScore)).limit(limit4);
-  }
-  async bootstrapFromWatchlist(watchlist, traceId) {
-    console.log(`[CANDIDATES] Bootstrapping ${watchlist.length} symbols from watchlist, traceId=${traceId}`);
-    let added = 0;
-    let existing = 0;
-    let errors = 0;
-    for (const symbol of watchlist) {
-      try {
-        const upperSymbol = symbol.toUpperCase();
-        const exists = await db.select({ id: universeCandidates.id }).from(universeCandidates).where(eq8(universeCandidates.symbol, upperSymbol)).limit(1);
-        if (exists.length > 0) {
-          existing++;
-          continue;
-        }
-        await db.insert(universeCandidates).values({
-          symbol: upperSymbol,
-          tier: "B",
-          liquidityScore: "0.7",
-          qualityScore: "0.6",
-          growthScore: "0.6",
-          finalScore: "0.65",
-          rationale: "Auto-bootstrapped from orchestrator watchlist",
-          status: "APPROVED",
-          approvedAt: /* @__PURE__ */ new Date(),
-          approvedBy: null,
-          traceId
-        });
-        added++;
-      } catch (error) {
-        console.error(`[CANDIDATES] Error bootstrapping ${symbol}:`, error);
-        errors++;
-      }
-    }
-    console.log(`[CANDIDATES] Bootstrap complete: added=${added}, existing=${existing}, errors=${errors}`);
-    return { added, existing, errors };
-  }
-  async ensureWatchlistApproved(watchlist, traceId) {
-    const existingSymbols = new Set(
-      (await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates)).map((r) => r.symbol.toUpperCase())
-    );
-    const missingSymbols = watchlist.map((s) => s.toUpperCase()).filter((s) => !existingSymbols.has(s));
-    if (missingSymbols.length === 0) {
-      console.log(`[CANDIDATES] All ${watchlist.length} watchlist symbols already in universe_candidates`);
-      return;
-    }
-    console.log(`[CANDIDATES] Found ${missingSymbols.length} missing symbols, bootstrapping...`);
-    const result = await this.bootstrapFromWatchlist(missingSymbols, traceId);
-    if (result.errors > 0) {
-      console.warn(`[CANDIDATES] Bootstrap completed with ${result.errors} errors out of ${missingSymbols.length} symbols`);
-    }
-  }
-};
-var candidatesService = new CandidatesService();
-
-// server/ai/market-condition-analyzer.ts
-var MIN_ORDER_LIMIT = 10;
-var MAX_ORDER_LIMIT = 50;
-var ANALYSIS_INTERVAL_MS = 5 * 60 * 1e3;
-var MarketConditionAnalyzer = class {
-  lastAnalysis = null;
-  lastAnalysisTime = null;
-  isAnalyzing = false;
-  analysisTimer = null;
-  async initialize() {
-    console.log("[MarketAnalyzer] Initializing market condition analyzer...");
-    this.runAnalysis().catch((err) => {
-      console.error("[MarketAnalyzer] Initial analysis failed:", err);
-    });
-    this.startPeriodicAnalysis();
-  }
-  startPeriodicAnalysis() {
-    if (this.analysisTimer) {
-      clearInterval(this.analysisTimer);
-    }
-    this.analysisTimer = setInterval(() => {
-      this.runAnalysis().catch((err) => {
-        console.error("[MarketAnalyzer] Periodic analysis error:", err);
-      });
-    }, ANALYSIS_INTERVAL_MS);
-    console.log(`[MarketAnalyzer] Periodic analysis started (every ${ANALYSIS_INTERVAL_MS / 1e3}s)`);
-  }
-  stop() {
-    if (this.analysisTimer) {
-      clearInterval(this.analysisTimer);
-      this.analysisTimer = null;
-    }
-  }
-  async runAnalysis() {
-    if (this.isAnalyzing) {
-      return this.lastAnalysis || this.getDefaultAnalysis();
-    }
-    this.isAnalyzing = true;
-    try {
-      console.log("[MarketAnalyzer] Running market condition analysis...");
-      const snapshot = await this.fetchMarketSnapshot();
-      const analysis = await this.analyzeWithAI(snapshot);
-      this.lastAnalysis = analysis;
-      this.lastAnalysisTime = /* @__PURE__ */ new Date();
-      await this.updateAgentOrderLimit(analysis);
-      console.log(`[MarketAnalyzer] Analysis complete: ${analysis.condition}, order limit: ${analysis.recommendedOrderLimit}`);
-      return analysis;
-    } catch (error) {
-      console.error("[MarketAnalyzer] Analysis failed:", error);
-      return this.lastAnalysis || this.getDefaultAnalysis();
-    } finally {
-      this.isAnalyzing = false;
-    }
-  }
-  async fetchMarketSnapshot() {
-    const snapshot = {
-      stocks: /* @__PURE__ */ new Map(),
-      crypto: /* @__PURE__ */ new Map(),
-      portfolioValue: 0,
-      // Will be fetched from Alpaca
-      openPositions: 0,
-      dailyPnl: 0
-    };
-    let watchlistStocks = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"];
-    let watchlistCrypto = ["btc", "eth", "sol"];
-    try {
-      const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
-      if (dynamicWatchlist.stocks.length > 0) {
-        watchlistStocks = dynamicWatchlist.stocks.slice(0, 15);
-      }
-      if (dynamicWatchlist.crypto.length > 0) {
-        watchlistCrypto = dynamicWatchlist.crypto.map((c) => c.toLowerCase());
-      }
-    } catch (error) {
-      console.warn("[MarketAnalyzer] Failed to load watchlist from database, using fallback:", error);
-    }
-    try {
-      const stockQuotes = await finnhub.getMultipleQuotes(watchlistStocks);
-      for (const [symbol, quote] of stockQuotes.entries()) {
-        if (quote.c > 0) {
-          snapshot.stocks.set(symbol, {
-            price: quote.c,
-            change: quote.d,
-            changePercent: quote.dp
-          });
-        }
-      }
-    } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch stock data:", error);
-    }
-    try {
-      const cryptoMarkets = await coingecko.getMarkets();
-      const watchedCrypto = cryptoMarkets.filter(
-        (c) => watchlistCrypto.includes(c.symbol.toLowerCase())
-      );
-      for (const coin of watchedCrypto) {
-        snapshot.crypto.set(coin.symbol.toUpperCase(), {
-          price: coin.current_price,
-          change: coin.price_change_24h || 0,
-          changePercent: coin.price_change_percentage_24h || 0
-        });
-      }
-    } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch crypto data:", error);
-    }
-    try {
-      const account = await alpaca.getAccount();
-      snapshot.portfolioValue = safeParseFloat(account.portfolio_value);
-      const positions2 = await alpaca.getPositions();
-      snapshot.openPositions = positions2.length;
-      let totalPnl = 0;
-      for (const pos of positions2) {
-        totalPnl += safeParseFloat(pos.unrealized_pl);
-      }
-      snapshot.dailyPnl = totalPnl;
-    } catch (error) {
-      console.error("[MarketAnalyzer] Failed to fetch portfolio data:", error);
-    }
-    return snapshot;
-  }
-  async analyzeWithAI(snapshot) {
-    const stockSummary = Array.from(snapshot.stocks.entries()).map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`).join(", ");
-    const cryptoSummary = Array.from(snapshot.crypto.entries()).map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`).join(", ");
-    const avgStockChange = this.calculateAverageChange(snapshot.stocks);
-    const avgCryptoChange = this.calculateAverageChange(snapshot.crypto);
-    const volatility = this.calculateVolatility(snapshot.stocks, snapshot.crypto);
-    const prompt = `You are an expert market analyst AI. Analyze the following market snapshot and determine the optimal trading aggressiveness.
-
-CURRENT MARKET DATA:
-Stocks: ${stockSummary || "No data"}
-Crypto: ${cryptoSummary || "No data"}
-
-MARKET METRICS:
-- Average stock change: ${avgStockChange.toFixed(2)}%
-- Average crypto change: ${avgCryptoChange.toFixed(2)}%
-- Volatility indicator: ${volatility.toFixed(2)}
-
-PORTFOLIO STATUS:
-- Portfolio value: $${snapshot.portfolioValue.toFixed(2)}
-- Open positions: ${snapshot.openPositions}
-- Unrealized P&L: $${snapshot.dailyPnl.toFixed(2)}
-
-TASK:
-Determine the optimal number of active orders (between ${MIN_ORDER_LIMIT} and ${MAX_ORDER_LIMIT}) based on:
-1. Market conditions - bullish markets allow more orders, bearish markets require caution
-2. Volatility - high volatility means higher risk, reduce orders
-3. Portfolio health - significant losses mean reduce exposure
-4. Opportunity assessment - more opportunities = more orders
-
-RESPOND WITH VALID JSON ONLY:
-{
-  "condition": "bullish" | "bearish" | "neutral" | "volatile" | "uncertain",
-  "confidenceScore": 0.0-1.0,
-  "recommendedOrderLimit": ${MIN_ORDER_LIMIT}-${MAX_ORDER_LIMIT},
-  "reasoning": "brief explanation",
-  "riskLevel": "low" | "medium" | "high",
-  "marketIndicators": {
-    "overallTrend": "up/down/sideways",
-    "volatilityLevel": "low/medium/high",
-    "sentimentScore": -1.0 to 1.0,
-    "majorMovers": ["symbol1", "symbol2"]
-  }
-}`;
-    try {
-      const response = await callLLM({
-        role: "risk_manager",
-        criticality: "medium",
-        purpose: "market_condition_analysis",
-        traceId: generateTraceId(),
-        system: "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON.",
-        messages: [{ role: "user", content: prompt }],
-        responseFormat: { type: "json_object" },
-        temperature: 0.3,
-        maxTokens: 500
-      });
-      const content = response.text;
-      if (!content) {
-        throw new Error("Empty AI response");
-      }
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
-      const parsed = JSON.parse(jsonMatch[0]);
-      parsed.recommendedOrderLimit = Math.max(
-        MIN_ORDER_LIMIT,
-        Math.min(MAX_ORDER_LIMIT, parsed.recommendedOrderLimit)
-      );
-      return parsed;
-    } catch (error) {
-      console.error("[MarketAnalyzer] AI analysis failed:", error);
-      return this.calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility);
-    }
-  }
-  calculateAverageChange(data) {
-    if (data.size === 0) return 0;
-    let total = 0;
-    for (const item of data.values()) {
-      total += item.changePercent;
-    }
-    return total / data.size;
-  }
-  calculateVolatility(stocks, crypto4) {
-    const allChanges = [];
-    for (const item of stocks.values()) {
-      allChanges.push(Math.abs(item.changePercent));
-    }
-    for (const item of crypto4.values()) {
-      allChanges.push(Math.abs(item.changePercent));
-    }
-    if (allChanges.length === 0) return 0;
-    const avg = allChanges.reduce((a, b) => a + b, 0) / allChanges.length;
-    const variance = allChanges.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / allChanges.length;
-    return Math.sqrt(variance);
-  }
-  calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility) {
-    const overallChange = (avgStockChange + avgCryptoChange) / 2;
-    let condition = "neutral";
-    let riskLevel = "medium";
-    let recommendedOrderLimit = 20;
-    if (volatility > 3) {
-      condition = "volatile";
-      riskLevel = "high";
-      recommendedOrderLimit = MIN_ORDER_LIMIT;
-    } else if (overallChange > 1) {
-      condition = "bullish";
-      riskLevel = "low";
-      recommendedOrderLimit = Math.min(MAX_ORDER_LIMIT, 35);
-    } else if (overallChange < -1) {
-      condition = "bearish";
-      riskLevel = "high";
-      recommendedOrderLimit = Math.min(15, MIN_ORDER_LIMIT + 5);
-    } else {
-      condition = "neutral";
-      riskLevel = "medium";
-      recommendedOrderLimit = 20;
-    }
-    if (snapshot.dailyPnl < -snapshot.portfolioValue * 0.02) {
-      recommendedOrderLimit = Math.max(MIN_ORDER_LIMIT, recommendedOrderLimit - 10);
-      riskLevel = "high";
-    }
-    const majorMovers = this.identifyMajorMovers(snapshot);
-    return {
-      condition,
-      confidenceScore: 0.6,
-      recommendedOrderLimit,
-      reasoning: `Fallback analysis: ${condition} market with ${volatility.toFixed(1)}% volatility`,
-      riskLevel,
-      marketIndicators: {
-        overallTrend: overallChange > 0.5 ? "up" : overallChange < -0.5 ? "down" : "sideways",
-        volatilityLevel: volatility > 3 ? "high" : volatility > 1.5 ? "medium" : "low",
-        sentimentScore: Math.max(-1, Math.min(1, overallChange / 5)),
-        majorMovers
-      }
-    };
-  }
-  identifyMajorMovers(snapshot) {
-    const allAssets = [];
-    for (const [symbol, data] of snapshot.stocks.entries()) {
-      allAssets.push({ symbol, change: Math.abs(data.changePercent) });
-    }
-    for (const [symbol, data] of snapshot.crypto.entries()) {
-      allAssets.push({ symbol, change: Math.abs(data.changePercent) });
-    }
-    return allAssets.sort((a, b) => b.change - a.change).slice(0, 3).map((a) => a.symbol);
-  }
-  async updateAgentOrderLimit(analysis) {
-    try {
-      await storage.updateAgentStatus({
-        dynamicOrderLimit: analysis.recommendedOrderLimit,
-        marketCondition: analysis.condition,
-        aiConfidenceScore: analysis.confidenceScore.toString(),
-        lastMarketAnalysis: /* @__PURE__ */ new Date(),
-        maxPositionsCount: analysis.recommendedOrderLimit
-      });
-    } catch (error) {
-      console.error("[MarketAnalyzer] Failed to update agent status:", error);
-    }
-  }
-  getDefaultAnalysis() {
-    return {
-      condition: "neutral",
-      confidenceScore: 0.5,
-      recommendedOrderLimit: 15,
-      reasoning: "Default conservative analysis - no market data available",
-      riskLevel: "medium",
-      marketIndicators: {
-        overallTrend: "sideways",
-        volatilityLevel: "medium",
-        sentimentScore: 0,
-        majorMovers: []
-      }
-    };
-  }
-  getLastAnalysis() {
-    return this.lastAnalysis;
-  }
-  getLastAnalysisTime() {
-    return this.lastAnalysisTime;
-  }
-  getCurrentOrderLimit() {
-    return this.lastAnalysis?.recommendedOrderLimit || 15;
-  }
-  getStatus() {
-    return {
-      isRunning: !!this.analysisTimer,
-      lastAnalysis: this.lastAnalysis,
-      lastAnalysisTime: this.lastAnalysisTime,
-      currentOrderLimit: this.getCurrentOrderLimit()
-    };
-  }
-};
-var marketConditionAnalyzer = new MarketConditionAnalyzer();
-
-// server/autonomous/orchestrator.ts
-init_logger();
 
 // server/ai/learning-service.ts
 init_db();
@@ -22547,6 +22292,7 @@ init_tradability_service();
 init_db();
 init_schema();
 init_alpaca();
+init_logger();
 import { eq as eq10, and as and9 } from "drizzle-orm";
 var OTC_EXCHANGES = ["OTC", "OTCBB", "OTCQB", "OTCQX", "PINK"];
 var PENNY_STOCK_THRESHOLD2 = 5;
@@ -22573,15 +22319,15 @@ var AlpacaUniverseService = class {
       includePennyStocks = false,
       traceId
     } = options;
-    console.log(`[UNIVERSE] Starting asset refresh for ${assetClass} (status=${status}), traceId=${traceId}`);
+    log.info("AlpacaUniverse", "Starting asset refresh", { assetClass, status, traceId });
     let alpacaAssets;
     try {
       alpacaAssets = await alpaca.getAssets(status, assetClass);
     } catch (error) {
-      console.error("[UNIVERSE] Failed to fetch Alpaca assets:", error);
+      log.error("AlpacaUniverse", "Failed to fetch Alpaca assets", { error: error instanceof Error ? error.message : String(error) });
       throw new Error(`Failed to fetch Alpaca assets: ${error}`);
     }
-    console.log(`[UNIVERSE] Fetched ${alpacaAssets.length} assets from Alpaca`);
+    log.info("AlpacaUniverse", "Fetched assets from Alpaca", { count: alpacaAssets.length });
     let added = 0;
     let updated = 0;
     let excluded = 0;
@@ -22633,7 +22379,7 @@ var AlpacaUniverseService = class {
           excluded++;
         }
       } catch (error) {
-        console.error(`[UNIVERSE] Failed to upsert asset ${asset.symbol}:`, error);
+        log.error("AlpacaUniverse", "Failed to upsert asset", { symbol: asset.symbol, error: error instanceof Error ? error.message : String(error) });
       }
     }
     const fetchedSymbols = new Set(alpacaAssets.map((a) => a.symbol));
@@ -22648,9 +22394,9 @@ var AlpacaUniverseService = class {
       }).where(eq10(universeAssets.symbol, symbol));
       await db.delete(universeLiquidityMetrics).where(eq10(universeLiquidityMetrics.symbol, symbol));
     }
-    console.log(`[UNIVERSE] Cleaned up ${symbolsToRemove.length} delisted symbols from liquidity metrics`);
+    log.info("AlpacaUniverse", "Cleaned up delisted symbols from liquidity metrics", { count: symbolsToRemove.length });
     const duration = Date.now() - startTime;
-    console.log(`[UNIVERSE] Refresh complete: added=${added}, updated=${updated}, removed=${symbolsToRemove.length}, excluded=${excluded}, duration=${duration}ms`);
+    log.info("AlpacaUniverse", "Refresh complete", { added, updated, removed: symbolsToRemove.length, excluded, duration });
     return {
       success: true,
       added,
@@ -22783,6 +22529,7 @@ var alpacaUniverseService = new AlpacaUniverseService();
 // server/universe/tradingEnforcement.ts
 init_db();
 init_schema();
+init_logger();
 import { eq as eq11 } from "drizzle-orm";
 var TradingEnforcementService = class {
   rejectedAttempts = 0;
@@ -22796,7 +22543,7 @@ var TradingEnforcementService = class {
       });
       if (!candidate) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} NOT in candidates - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol NOT in candidates - trade BLOCKED", { traceId, symbol: upperSymbol });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -22806,7 +22553,7 @@ var TradingEnforcementService = class {
       }
       if (candidate.status !== "APPROVED") {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} status=${candidate.status} - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol status not APPROVED - trade BLOCKED", { traceId, symbol: upperSymbol, status: candidate.status });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -22824,7 +22571,7 @@ var TradingEnforcementService = class {
       });
       if (asset && !asset.tradable) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} marked non-tradable by Alpaca - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol marked non-tradable by Alpaca - trade BLOCKED", { traceId, symbol: upperSymbol });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -22838,7 +22585,7 @@ var TradingEnforcementService = class {
       const isPennyStock = liquidity?.latestPrice && parseFloat(liquidity.latestPrice) < 5;
       if (isPennyStock) {
         this.rejectedAttempts++;
-        console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} is a penny stock ($${liquidity?.latestPrice}) - trade BLOCKED`);
+        log.info("TradingEnforcement", "Symbol is a penny stock - trade BLOCKED", { traceId, symbol: upperSymbol, price: liquidity?.latestPrice });
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -22850,7 +22597,7 @@ var TradingEnforcementService = class {
           }
         };
       }
-      console.log(`[ENFORCEMENT] ${traceId || "?"} Symbol ${upperSymbol} APPROVED - trade ALLOWED`);
+      log.info("TradingEnforcement", "Symbol APPROVED - trade ALLOWED", { traceId, symbol: upperSymbol });
       return {
         symbol: upperSymbol,
         eligible: true,
@@ -22863,7 +22610,7 @@ var TradingEnforcementService = class {
         }
       };
     } catch (error) {
-      console.error(`[ENFORCEMENT] ${traceId || "?"} Error checking ${upperSymbol}:`, error);
+      log.error("TradingEnforcement", "Error checking symbol", { traceId, symbol: upperSymbol, error: error instanceof Error ? error.message : String(error) });
       this.rejectedAttempts++;
       return {
         symbol: upperSymbol,
@@ -22886,10 +22633,10 @@ var TradingEnforcementService = class {
         where: eq11(universeCandidates.status, "APPROVED"),
         columns: { symbol: true }
       });
-      console.log(`[ENFORCEMENT] ${traceId || "?"} Retrieved ${approved.length} approved symbols`);
+      log.info("TradingEnforcement", "Retrieved approved symbols", { traceId, count: approved.length });
       return new Set(approved.map((c) => c.symbol));
     } catch (error) {
-      console.error(`[ENFORCEMENT] ${traceId || "?"} Error getting approved symbols:`, error);
+      log.error("TradingEnforcement", "Error getting approved symbols", { traceId, error: error instanceof Error ? error.message : String(error) });
       return /* @__PURE__ */ new Set();
     }
   }
@@ -22919,6 +22666,7 @@ var tradingEnforcementService = new TradingEnforcementService();
 init_db();
 init_schema();
 init_alpaca();
+init_logger();
 import { eq as eq12, and as and11, desc as desc7, sql as sql9 } from "drizzle-orm";
 var AllocationService = class {
   async getActivePolicy() {
@@ -22964,7 +22712,7 @@ var AllocationService = class {
   async analyzeRebalance(traceId) {
     const policy = await this.getActivePolicy();
     if (!policy) {
-      console.log(`[ALLOCATION] ${traceId} No active policy found`);
+      log.info("Allocation", "No active policy found", { traceId });
       return null;
     }
     const [account, positions2] = await Promise.all([
@@ -22972,7 +22720,7 @@ var AllocationService = class {
       alpaca.getPositions()
     ]);
     const portfolioValue = parseFloat(account.equity);
-    console.log(`[ALLOCATION] ${traceId} Portfolio value: $${portfolioValue.toFixed(2)}`);
+    log.info("Allocation", "Portfolio value calculated", { traceId, portfolioValue: portfolioValue.toFixed(2) });
     const currentPositions = /* @__PURE__ */ new Map();
     for (const pos of positions2) {
       const marketValue = parseFloat(pos.market_value);
@@ -23065,7 +22813,7 @@ var AllocationService = class {
         });
       }
     }
-    console.log(`[ALLOCATION] ${traceId} Analysis complete: ${intents.length} intents generated`);
+    log.info("Allocation", "Analysis complete", { traceId, intentsCount: intents.length });
     return {
       policy,
       portfolioValue,
@@ -23122,12 +22870,13 @@ init_db();
 init_schema();
 import { desc as desc8 } from "drizzle-orm";
 init_alpaca();
+init_logger();
 var RebalancerService = class {
   async executeDryRun(traceId) {
-    console.log(`[REBALANCER] ${traceId} Starting dry run analysis`);
+    log.info("RebalancerService", "Starting dry run analysis", { traceId });
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
-      console.log(`[REBALANCER] ${traceId} No active policy - cannot analyze`);
+      log.info("RebalancerService", "No active policy - cannot analyze", { traceId });
       return null;
     }
     const profitTaking = await this.analyzeProfitTaking(analysis.policy, traceId);
@@ -23145,7 +22894,7 @@ var RebalancerService = class {
         wouldSkip++;
       }
     }
-    console.log(`[REBALANCER] ${traceId} Dry run complete: would submit ${wouldSubmit}, would skip ${wouldSkip}`);
+    log.info("RebalancerService", "Dry run complete", { traceId, wouldSubmit, wouldSkip });
     return {
       analysis,
       profitTaking,
@@ -23155,7 +22904,7 @@ var RebalancerService = class {
   }
   async executeRebalance(traceId, dryRun = false) {
     const startTime = Date.now();
-    console.log(`[REBALANCER] ${traceId} Starting rebalance execution (dryRun=${dryRun})`);
+    log.info("RebalancerService", "Starting rebalance execution", { traceId, dryRun });
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
       return {
@@ -23225,7 +22974,7 @@ var RebalancerService = class {
             const snapshot = snapshots?.[intent.symbol];
             price = snapshot?.latestTrade?.p || snapshot?.latestQuote?.ap || 0;
           } catch (e) {
-            console.warn(`[REBALANCER] ${traceId} Failed to get snapshot for ${intent.symbol}`);
+            log.warn("RebalancerService", "Failed to get snapshot", { traceId, symbol: intent.symbol });
           }
           if (!price || price <= 0 || !isFinite(price)) {
             errors.push(`${intent.symbol}: Could not get valid price`);
@@ -23276,7 +23025,7 @@ var RebalancerService = class {
       try {
         const enforcement = await tradingEnforcementService.canTradeSymbol(intent.symbol, traceId);
         if (!enforcement.eligible) {
-          console.log(`[REBALANCER] ${traceId} Skipping BUY ${intent.symbol}: ${enforcement.reason}`);
+          log.info("RebalancerService", "Skipping BUY", { traceId, symbol: intent.symbol, reason: enforcement.reason });
           ordersSkipped++;
           continue;
         }
@@ -23316,7 +23065,7 @@ var RebalancerService = class {
       executedOrders,
       rationale: `Submitted ${ordersSubmitted} orders, skipped ${ordersSkipped}. ${errors.length} errors.`
     });
-    console.log(`[REBALANCER] ${traceId} Execution complete: ${ordersSubmitted} orders, ${errors.length} errors`);
+    log.info("RebalancerService", "Execution complete", { traceId, ordersSubmitted, errorCount: errors.length });
     return {
       runId: run.id,
       traceId,
@@ -23350,7 +23099,7 @@ var RebalancerService = class {
         });
       }
     }
-    console.log(`[REBALANCER] ${traceId} Profit-taking analysis: ${results.length} candidates`);
+    log.info("RebalancerService", "Profit-taking analysis", { traceId, candidateCount: results.length });
     return results;
   }
   async getStats() {
@@ -23730,6 +23479,16 @@ function createPriceData(quote) {
 
 // server/lib/work-queue.ts
 import crypto2 from "crypto";
+var cachedAdminUserId = null;
+async function getAdminUserId() {
+  if (cachedAdminUserId) return cachedAdminUserId;
+  const adminUser = await storage.getAdminUser();
+  if (!adminUser) {
+    throw new Error("No admin user found - cannot process work items");
+  }
+  cachedAdminUserId = adminUser.id;
+  return cachedAdminUserId;
+}
 var RETRY_DELAYS_MS = {
   ORDER_SUBMIT: [1e3, 5e3, 15e3],
   ORDER_CANCEL: [1e3, 3e3, 1e4],
@@ -23900,6 +23659,18 @@ var WorkQueueServiceImpl = class {
       stop_loss,
       traceId
     } = payload;
+    const agentStatus2 = await storage.getAgentStatus();
+    if (agentStatus2?.killSwitchActive) {
+      log.warn("work-queue", `ORDER_BLOCKED: Kill switch is active - rejecting order for ${symbol}`, {
+        traceId,
+        workItemId: item.id,
+        symbol,
+        side,
+        reason: "KILL_SWITCH_ACTIVE"
+      });
+      await this.markFailed(item.id, "Kill switch is active - all trading halted", false);
+      return;
+    }
     const effectiveTakeProfitLimitPrice = take_profit_limit_price || take_profit?.limit_price;
     const effectiveStopLossStopPrice = stop_loss_stop_price || stop_loss?.stop_price;
     log.info("work-queue", `Processing ORDER_SUBMIT for ${symbol} ${side}`, {
@@ -24159,7 +23930,9 @@ var WorkQueueServiceImpl = class {
       orderId: order.id,
       status: order.status
     });
+    const userId = await getAdminUserId();
     const orderData = {
+      userId,
       broker: "alpaca",
       brokerOrderId: order.id,
       clientOrderId,
@@ -25299,6 +25072,8 @@ var AutonomousOrchestrator = class {
   isAutoStarting = false;
   lastCalibrationDate = null;
   currentTraceId = null;
+  // User ID for database operations (resolved from admin user at startup)
+  userId = null;
   // Cooldown tracking for failed orders to prevent infinite retry loops
   orderCooldowns = /* @__PURE__ */ new Map();
   ORDER_COOLDOWN_MS = 3e5;
@@ -25327,6 +25102,13 @@ var AutonomousOrchestrator = class {
     this.isAutoStarting = true;
     try {
       log.info("Orchestrator", "Auto-start initializing...");
+      const adminUser = await storage.getAdminUser();
+      if (adminUser) {
+        this.userId = adminUser.id;
+        log.info("Orchestrator", `Resolved admin user: ${adminUser.id}`);
+      } else {
+        log.warn("Orchestrator", "No admin user found - database operations may fail");
+      }
       const agentStatus2 = await storage.getAgentStatus();
       this.autoStartEnabled = agentStatus2?.autoStartEnabled ?? true;
       if (!this.autoStartEnabled) {
@@ -25499,8 +25281,10 @@ var AutonomousOrchestrator = class {
       const existingPositions = new Map(this.state.activePositions);
       this.state.activePositions.clear();
       try {
-        await storage.syncPositionsFromAlpaca(positions2);
-        log.info("Orchestrator", `Synced ${positions2.length} positions to database`);
+        if (this.userId) {
+          await storage.syncPositionsFromAlpaca(this.userId, positions2);
+          log.info("Orchestrator", `Synced ${positions2.length} positions to database`);
+        }
       } catch (dbError) {
         log.error("Orchestrator", "Failed to sync positions to database", { error: String(dbError) });
       }
@@ -25701,8 +25485,9 @@ var AutonomousOrchestrator = class {
             } : void 0,
             { traceId: this.currentTraceId || void 0 }
           );
-          if (decision.confidence >= 0.7 && decision.action !== "hold") {
+          if (decision.confidence >= 0.7 && decision.action !== "hold" && this.userId) {
             const aiDecision = await storage.createAiDecision({
+              userId: this.userId,
               strategyId: strategy?.id || null,
               symbol,
               action: decision.action,
@@ -26006,6 +25791,7 @@ var AutonomousOrchestrator = class {
     try {
       const account = await alpaca.getAccount();
       const portfolioValue = safeParseFloat(account.portfolio_value);
+      this.state.portfolioValue = portfolioValue;
       const positionSizePercent = Math.min(
         (decision.suggestedQuantity || 0.05) * 100,
         this.riskLimits.maxPositionSizePercent
@@ -26210,7 +25996,11 @@ var AutonomousOrchestrator = class {
           log.warn("Orchestrator", `Failed to fetch market price for ${symbol}`, { error: String(error) });
         }
       }
+      if (!this.userId) {
+        throw new Error("Cannot create trade: userId not initialized");
+      }
       const trade = await storage.createTrade({
+        userId: this.userId,
         symbol,
         side: "buy",
         quantity: filledQty.toString(),
@@ -26396,7 +26186,11 @@ var AutonomousOrchestrator = class {
       }
       const pnl = (filledPrice - position.entryPrice) * filledQty;
       const exitReason = decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
+      if (!this.userId) {
+        throw new Error("Cannot create trade: userId not initialized");
+      }
       await storage.createTrade({
+        userId: this.userId,
         symbol,
         side: "sell",
         quantity: filledQty.toString(),
@@ -26634,6 +26428,7 @@ var AutonomousOrchestrator = class {
       await this.syncPositionsFromBroker();
       const account = await alpaca.getAccount();
       const portfolioValue = parseFloat(account.portfolio_value);
+      this.state.portfolioValue = portfolioValue;
       const buyingPower = safeParseFloat(account.buying_power);
       const availableCash = safeParseFloat(account.cash);
       if (portfolioValue <= 0) {
@@ -26857,16 +26652,27 @@ function safeParseFloat2(value, fallback = 0) {
   return isNaN(parsed) ? fallback : parsed;
 }
 function mapAlpacaPositionToEnriched(position, fetchedAt = /* @__PURE__ */ new Date()) {
-  const qty = safeParseFloat2(position.qty);
+  const qtyValue = safeParseFloat2(position.qty);
+  const unrealizedPlValue = safeParseFloat2(position.unrealized_pl);
+  const unrealizedPlPctValue = safeParseFloat2(position.unrealized_plpc) * 100;
   return {
     id: position.asset_id,
     symbol: position.symbol,
-    quantity: qty,
+    // SYNC FIX: Provide both field names for backward compatibility
+    qty: qtyValue,
+    quantity: qtyValue,
+    // Deprecated alias
     entryPrice: safeParseFloat2(position.avg_entry_price),
     currentPrice: safeParseFloat2(position.current_price),
-    unrealizedPnl: safeParseFloat2(position.unrealized_pl),
-    unrealizedPnlPercent: safeParseFloat2(position.unrealized_plpc) * 100,
-    side: qty > 0 ? "long" : "short",
+    // SYNC FIX: Provide both field names for backward compatibility
+    unrealizedPl: unrealizedPlValue,
+    unrealizedPnl: unrealizedPlValue,
+    // Deprecated alias
+    // SYNC FIX: Provide both field names for backward compatibility
+    unrealizedPlPct: unrealizedPlPctValue,
+    unrealizedPnlPercent: unrealizedPlPctValue,
+    // Deprecated alias
+    side: qtyValue > 0 ? "long" : "short",
     marketValue: safeParseFloat2(position.market_value),
     costBasis: safeParseFloat2(position.cost_basis),
     changeToday: safeParseFloat2(position.change_today) * 100,
@@ -32185,6 +31991,7 @@ router9.get("/stats", async (_req, res) => {
 var enrichment_default = router9;
 
 // server/routes/providers.ts
+init_logger();
 import { Router as Router12 } from "express";
 import { randomUUID as randomUUID3 } from "crypto";
 var router10 = Router12();
@@ -32230,7 +32037,7 @@ router10.get("/", async (req, res) => {
   try {
     res.json(providers);
   } catch (error) {
-    console.error("Failed to get providers:", error);
+    log.error("ProvidersRoutes", "Failed to get providers", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get providers" });
   }
 });
@@ -32245,7 +32052,7 @@ router10.post("/", async (req, res) => {
     providers.push(provider);
     res.status(201).json(provider);
   } catch (error) {
-    console.error("Failed to create provider:", error);
+    log.error("ProvidersRoutes", "Failed to create provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to create provider" });
   }
 });
@@ -32257,7 +32064,7 @@ router10.get("/:id", async (req, res) => {
     }
     res.json(provider);
   } catch (error) {
-    console.error("Failed to get provider:", error);
+    log.error("ProvidersRoutes", "Failed to get provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get provider" });
   }
 });
@@ -32274,7 +32081,7 @@ router10.patch("/:id", async (req, res) => {
     };
     res.json(providers[index2]);
   } catch (error) {
-    console.error("Failed to update provider:", error);
+    log.error("ProvidersRoutes", "Failed to update provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to update provider" });
   }
 });
@@ -32290,7 +32097,7 @@ router10.delete("/:id", async (req, res) => {
     apiFunctions.delete(req.params.id);
     res.status(204).send();
   } catch (error) {
-    console.error("Failed to delete provider:", error);
+    log.error("ProvidersRoutes", "Failed to delete provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to delete provider" });
   }
 });
@@ -32309,7 +32116,7 @@ router10.post("/:id/test", async (req, res) => {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     });
   } catch (error) {
-    console.error("Failed to test provider:", error);
+    log.error("ProvidersRoutes", "Failed to test provider", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: "Connection test failed",
@@ -32326,7 +32133,7 @@ router10.get("/:id/credentials", async (req, res) => {
     }));
     res.json(maskedCreds);
   } catch (error) {
-    console.error("Failed to get credentials:", error);
+    log.error("ProvidersRoutes", "Failed to get credentials", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get credentials" });
   }
 });
@@ -32349,7 +32156,7 @@ router10.post("/:id/credentials", async (req, res) => {
       encryptedValue: "********"
     });
   } catch (error) {
-    console.error("Failed to add credential:", error);
+    log.error("ProvidersRoutes", "Failed to add credential", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to add credential" });
   }
 });
@@ -32373,7 +32180,7 @@ router10.get("/:id/budget", async (req, res) => {
     }
     res.json(budget);
   } catch (error) {
-    console.error("Failed to get budget:", error);
+    log.error("ProvidersRoutes", "Failed to get budget", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get budget" });
   }
 });
@@ -32394,7 +32201,7 @@ router10.put("/:id/budget", async (req, res) => {
     budgets.set(req.params.id, budget);
     res.json(budget);
   } catch (error) {
-    console.error("Failed to update budget:", error);
+    log.error("ProvidersRoutes", "Failed to update budget", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to update budget" });
   }
 });
@@ -32413,7 +32220,7 @@ router10.get("/:id/usage", async (req, res) => {
     }
     res.json(metrics);
   } catch (error) {
-    console.error("Failed to get usage metrics:", error);
+    log.error("ProvidersRoutes", "Failed to get usage metrics", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get usage metrics" });
   }
 });
@@ -32422,7 +32229,7 @@ router10.get("/:id/functions", async (req, res) => {
     const funcs = apiFunctions.get(req.params.id) || [];
     res.json(funcs);
   } catch (error) {
-    console.error("Failed to get API functions:", error);
+    log.error("ProvidersRoutes", "Failed to get API functions", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get API functions" });
   }
 });
@@ -32461,7 +32268,7 @@ router10.post("/:id/discover", async (req, res) => {
       schemas: []
     });
   } catch (error) {
-    console.error("Failed to discover APIs:", error);
+    log.error("ProvidersRoutes", "Failed to discover APIs", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: "API discovery failed"
@@ -32483,7 +32290,7 @@ router10.patch("/:id/functions/:funcId", async (req, res) => {
     apiFunctions.set(req.params.id, funcs);
     res.json(funcs[index2]);
   } catch (error) {
-    console.error("Failed to update function:", error);
+    log.error("ProvidersRoutes", "Failed to update function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to update function" });
   }
 });
@@ -32505,7 +32312,7 @@ router10.post("/:id/functions/:funcId/test", async (req, res) => {
       latencyMs
     });
   } catch (error) {
-    console.error("Failed to test function:", error);
+    log.error("ProvidersRoutes", "Failed to test function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: "Function test failed"
@@ -32523,7 +32330,7 @@ router10.delete("/:id/functions/:funcId", async (req, res) => {
     apiFunctions.set(req.params.id, funcs);
     res.status(204).send();
   } catch (error) {
-    console.error("Failed to delete function:", error);
+    log.error("ProvidersRoutes", "Failed to delete function", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to delete function" });
   }
 });
@@ -32826,7 +32633,9 @@ router12.post("/close/:symbol", async (req, res) => {
     if (!symbol) {
       return badRequest(res, "Symbol is required");
     }
-    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, void 0, {
+      authorizedByOrchestrator: true
+    });
     if (result.success) {
       res.json({
         success: true,
@@ -32846,7 +32655,10 @@ router12.post("/close/:symbol", async (req, res) => {
 });
 router12.post("/close-all", async (req, res) => {
   try {
-    const result = await alpacaTradingEngine.closeAllPositions();
+    const result = await alpacaTradingEngine.closeAllPositions({
+      authorizedByOrchestrator: true,
+      isEmergencyStop: true
+    });
     res.json({ success: true, ...result });
   } catch (error) {
     log.error("PositionsAPI", `Failed to close all positions: ${error}`);
@@ -32859,6 +32671,7 @@ var positions_default = router12;
 init_storage();
 init_alpaca();
 init_alpaca_trading_engine();
+init_logger();
 import { Router as Router15 } from "express";
 init_tradability_service();
 var router13 = Router15();
@@ -32867,7 +32680,7 @@ router13.get("/autonomous/open-orders", async (req, res) => {
     const orders2 = await alpacaTradingEngine.getOpenOrders();
     res.json(orders2);
   } catch (error) {
-    console.error("Failed to get open orders:", error);
+    log.error("OrdersRoutes", "Failed to get open orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32877,7 +32690,7 @@ router13.post("/autonomous/cancel-stale-orders", async (req, res) => {
     const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error("Failed to cancel stale orders:", error);
+    log.error("OrdersRoutes", "Failed to cancel stale orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32886,7 +32699,7 @@ router13.post("/autonomous/cancel-all-orders", async (req, res) => {
     const result = await alpacaTradingEngine.cancelAllOpenOrders();
     res.json({ success: result.cancelled > 0, ...result });
   } catch (error) {
-    console.error("Failed to cancel all orders:", error);
+    log.error("OrdersRoutes", "Failed to cancel all orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32898,7 +32711,7 @@ router13.get("/unreal", async (req, res) => {
       orders: unrealOrders
     });
   } catch (error) {
-    console.error("Failed to identify unreal orders:", error);
+    log.error("OrdersRoutes", "Failed to identify unreal orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32912,7 +32725,7 @@ router13.post("/cleanup", async (req, res) => {
       errors: result.errors
     });
   } catch (error) {
-    console.error("Failed to cleanup unreal orders:", error);
+    log.error("OrdersRoutes", "Failed to cleanup unreal orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32928,7 +32741,7 @@ router13.post("/reconcile", async (req, res) => {
       synced: result.synced
     });
   } catch (error) {
-    console.error("Failed to reconcile order book:", error);
+    log.error("OrdersRoutes", "Failed to reconcile order book", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32950,7 +32763,7 @@ router13.get("/execution-engine/status", async (req, res) => {
       executions
     });
   } catch (error) {
-    console.error("Failed to get execution engine status:", error);
+    log.error("OrdersRoutes", "Failed to get execution engine status", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32975,7 +32788,7 @@ router13.get("/", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Failed to fetch orders:", error);
+    log.error("OrdersRoutes", "Failed to fetch orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -32994,7 +32807,7 @@ router13.post("/sync", async (req, res) => {
       traceId
     });
   } catch (error) {
-    console.error("Failed to enqueue order sync:", error);
+    log.error("OrdersRoutes", "Failed to enqueue order sync", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -33014,7 +32827,7 @@ router13.get("/recent", async (req, res) => {
       _source: createLiveSourceMetadata()
     });
   } catch (error) {
-    console.error("Failed to fetch recent orders:", error);
+    log.error("OrdersRoutes", "Failed to fetch recent orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(503).json({
       error: "Failed to fetch recent orders",
       _source: createUnavailableSourceMetadata(),
@@ -33044,7 +32857,7 @@ router13.get("/:id", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Failed to fetch order:", error);
+    log.error("OrdersRoutes", "Failed to fetch order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -33072,7 +32885,7 @@ router13.get("/fills", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Failed to fetch fills:", error);
+    log.error("OrdersRoutes", "Failed to fetch fills", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -33092,7 +32905,7 @@ router13.get("/fills/order/:orderId", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Failed to fetch fills:", error);
+    log.error("OrdersRoutes", "Failed to fetch fills for order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -33103,7 +32916,7 @@ router13.get("/alpaca/orders", async (req, res) => {
     const orders2 = await alpaca.getOrders(status, limit4);
     res.json(orders2);
   } catch (error) {
-    console.error("Failed to get Alpaca orders:", error);
+    log.error("OrdersRoutes", "Failed to get Alpaca orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get Alpaca orders" });
   }
 });
@@ -33124,7 +32937,7 @@ router13.post("/alpaca/orders", async (req, res) => {
     const order = await alpaca.createOrder(req.body);
     res.status(201).json(order);
   } catch (error) {
-    console.error("Failed to create Alpaca order:", error);
+    log.error("OrdersRoutes", "Failed to create Alpaca order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to create Alpaca order" });
   }
 });
@@ -33133,7 +32946,7 @@ router13.delete("/alpaca/orders/:orderId", async (req, res) => {
     await alpaca.cancelOrder(req.params.orderId);
     res.status(204).send();
   } catch (error) {
-    console.error("Failed to cancel Alpaca order:", error);
+    log.error("OrdersRoutes", "Failed to cancel Alpaca order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to cancel Alpaca order" });
   }
 });
@@ -33145,6 +32958,7 @@ init_alpaca();
 init_numeric();
 import { Router as Router16 } from "express";
 init_schema();
+init_logger();
 var router14 = Router16();
 router14.get("/", async (req, res) => {
   try {
@@ -33152,7 +32966,7 @@ router14.get("/", async (req, res) => {
     const trades3 = await storage.getTrades(req.userId, limit4);
     res.json(trades3);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get trades: ${error}`);
+    log.error("TradesAPI", "Failed to get trades", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get trades");
   }
 });
@@ -33170,7 +32984,7 @@ router14.get("/enriched", async (req, res) => {
     const result = await storage.getTradesFiltered(req.userId, filters);
     res.json(result);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get enriched trades: ${error}`);
+    log.error("TradesAPI", "Failed to get enriched trades", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get enriched trades");
   }
 });
@@ -33179,7 +32993,7 @@ router14.get("/symbols", async (req, res) => {
     const symbols = await storage.getDistinctSymbols();
     res.json(symbols);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get symbols: ${error}`);
+    log.error("TradesAPI", "Failed to get symbols", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get symbols");
   }
 });
@@ -33191,7 +33005,7 @@ router14.get("/:id", async (req, res) => {
     }
     res.json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get trade: ${error}`);
+    log.error("TradesAPI", "Failed to get trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get trade");
   }
 });
@@ -33203,7 +33017,7 @@ router14.get("/:id/enriched", async (req, res) => {
     }
     res.json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get enriched trade: ${error}`);
+    log.error("TradesAPI", "Failed to get enriched trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get enriched trade");
   }
 });
@@ -33216,7 +33030,7 @@ router14.post("/", async (req, res) => {
     const trade = await storage.createTrade(parsed.data);
     res.status(201).json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to create trade: ${error}`);
+    log.error("TradesAPI", "Failed to create trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to create trade");
   }
 });
@@ -33231,7 +33045,7 @@ router14.post("/backfill-prices", async (req, res) => {
     try {
       orders2 = await alpaca.getOrders("all", 500);
     } catch (e) {
-      console.error("TradesAPI", `Failed to fetch Alpaca orders for backfill: ${e}`);
+      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", { error: e instanceof Error ? e.message : String(e) });
       return serverError(res, "Failed to fetch order history from broker");
     }
     let updated = 0;
@@ -33256,7 +33070,7 @@ router14.post("/backfill-prices", async (req, res) => {
       remaining: zeroTrades.length - updated
     });
   } catch (error) {
-    console.error("TradesAPI", `Trade backfill error: ${error}`);
+    log.error("TradesAPI", "Trade backfill error", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to backfill trade prices");
   }
 });
@@ -33502,6 +33316,7 @@ var market_data_default = router15;
 
 // server/routes/webhooks.ts
 import { Router as Router18 } from "express";
+init_logger();
 var router16 = Router18();
 var redactWebhook = (webhook) => ({
   ...webhook,
@@ -33538,7 +33353,7 @@ router16.post("/", (req, res) => {
     registerWebhook(config);
     res.status(201).json(redactWebhook(config));
   } catch (error) {
-    console.error("Webhook creation error:", error);
+    log.error("Webhooks", "Webhook creation error", { error: error.message });
     res.status(500).json({ error: "Failed to create webhook" });
   }
 });
@@ -33572,7 +33387,7 @@ router16.post("/test", async (req, res) => {
     );
     res.json({ deliveries: results.length, results });
   } catch (error) {
-    console.error("Webhook test error:", error);
+    log.error("Webhooks", "Webhook test error", { error: error.message });
     res.status(500).json({ error: "Failed to send test event" });
   }
 });
@@ -34082,7 +33897,8 @@ router17.post("/autonomous/execute-trades", async (req, res) => {
         const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
           symbol: decision.symbol,
           side: decision.action,
-          quantity
+          quantity,
+          authorizedByOrchestrator: true
         });
         if (orderResult.success) {
           results.push({ decisionId, success: true, order: orderResult.order });
@@ -34115,6 +33931,7 @@ init_alpaca_trading_engine();
 init_storage();
 init_alpaca();
 init_orchestration();
+init_logger();
 function registerAutonomousRoutes(app2, authMiddleware2) {
   app2.get("/api/autonomous/state", authMiddleware2, async (req, res) => {
     try {
@@ -34133,7 +33950,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
         }))
       });
     } catch (error) {
-      console.error("Failed to get autonomous state:", error);
+      log.error("AutonomousRoutes", "Failed to get autonomous state", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get autonomous state" });
     }
   });
@@ -34154,7 +33971,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
         config: status.config || {}
       });
     } catch (error) {
-      console.error("Failed to get autonomous status:", error);
+      log.error("AutonomousRoutes", "Failed to get autonomous status", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get autonomous status" });
     }
   });
@@ -34164,7 +33981,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to start autonomous mode:", error);
+      log.error("AutonomousRoutes", "Failed to start autonomous mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34174,7 +33991,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to stop autonomous mode:", error);
+      log.error("AutonomousRoutes", "Failed to stop autonomous mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to stop autonomous mode" });
     }
   });
@@ -34187,7 +34004,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       await orchestrator.setMode(mode);
       res.json({ success: true, mode: orchestrator.getMode() });
     } catch (error) {
-      console.error("Failed to set mode:", error);
+      log.error("AutonomousRoutes", "Failed to set mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to set mode" });
     }
   });
@@ -34202,7 +34019,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const state = orchestrator.getState();
       res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
     } catch (error) {
-      console.error("Failed to toggle kill switch:", error);
+      log.error("AutonomousRoutes", "Failed to toggle kill switch", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to toggle kill switch" });
     }
   });
@@ -34222,7 +34039,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       });
       res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
     } catch (error) {
-      console.error("Failed to update risk limits:", error);
+      log.error("AutonomousRoutes", "Failed to update risk limits", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to update risk limits" });
     }
   });
@@ -34240,23 +34057,28 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       if (!symbol) {
         return res.status(400).json({ error: "Symbol is required" });
       }
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, void 0, {
+        authorizedByOrchestrator: true
+      });
       if (result.success) {
         res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
       } else {
         res.status(400).json({ success: false, error: result.error || "Failed to close position" });
       }
     } catch (error) {
-      console.error("Failed to close position:", error);
+      log.error("AutonomousRoutes", "Failed to close position", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
   app2.post("/api/autonomous/close-all-positions", authMiddleware2, async (req, res) => {
     try {
-      const result = await alpacaTradingEngine.closeAllPositions();
+      const result = await alpacaTradingEngine.closeAllPositions({
+        authorizedByOrchestrator: true,
+        isEmergencyStop: true
+      });
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to close all positions:", error);
+      log.error("AutonomousRoutes", "Failed to close all positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34265,7 +34087,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const result = await alpacaTradingEngine.reconcilePositions();
       res.json(result);
     } catch (error) {
-      console.error("Failed to reconcile positions:", error);
+      log.error("AutonomousRoutes", "Failed to reconcile positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34275,7 +34097,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const result = await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to sync positions:", error);
+      log.error("AutonomousRoutes", "Failed to sync positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34312,7 +34134,8 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
           const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
             symbol: decision.symbol,
             side: decision.action,
-            quantity
+            quantity,
+            authorizedByOrchestrator: true
           });
           if (orderResult.success) {
             results.push({ decisionId, success: true, order: orderResult.order });
@@ -34330,7 +34153,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
         results
       });
     } catch (error) {
-      console.error("Failed to execute trades:", error);
+      log.error("AutonomousRoutes", "Failed to execute trades", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34339,7 +34162,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const orders2 = await alpacaTradingEngine.getOpenOrders();
       res.json(orders2);
     } catch (error) {
-      console.error("Failed to get open orders:", error);
+      log.error("AutonomousRoutes", "Failed to get open orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34349,7 +34172,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to cancel stale orders:", error);
+      log.error("AutonomousRoutes", "Failed to cancel stale orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34358,7 +34181,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const result = await alpacaTradingEngine.cancelAllOpenOrders();
       res.json({ success: result.cancelled > 0, ...result });
     } catch (error) {
-      console.error("Failed to cancel all orders:", error);
+      log.error("AutonomousRoutes", "Failed to cancel all orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -34368,7 +34191,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const config = coordinator.getConfig();
       res.json({ status, config });
     } catch (error) {
-      console.error("Get orchestration status error:", error);
+      log.error("AutonomousRoutes", "Get orchestration status error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get orchestration status" });
     }
   });
@@ -34377,7 +34200,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       await coordinator.start();
       res.json({ success: true, message: "Coordinator started" });
     } catch (error) {
-      console.error("Start coordinator error:", error);
+      log.error("AutonomousRoutes", "Start coordinator error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to start coordinator" });
     }
   });
@@ -34386,7 +34209,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       await coordinator.stop();
       res.json({ success: true, message: "Coordinator stopped" });
     } catch (error) {
-      console.error("Stop coordinator error:", error);
+      log.error("AutonomousRoutes", "Stop coordinator error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to stop coordinator" });
     }
   });
@@ -34396,7 +34219,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       coordinator.updateConfig(updates);
       res.json({ success: true, config: coordinator.getConfig() });
     } catch (error) {
-      console.error("Update orchestration config error:", error);
+      log.error("AutonomousRoutes", "Update orchestration config error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to update configuration" });
     }
   });
@@ -34410,7 +34233,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       });
       res.json({ logs, stats: logger.getStats() });
     } catch (error) {
-      console.error("Get logs error:", error);
+      log.error("AutonomousRoutes", "Get logs error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get logs" });
     }
   });
@@ -34420,7 +34243,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       const errors = logger.getErrorLogs(limit4 ? parseInt(limit4) : 50);
       res.json({ errors });
     } catch (error) {
-      console.error("Get error logs error:", error);
+      log.error("AutonomousRoutes", "Get error logs error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get error logs" });
     }
   });
@@ -34434,7 +34257,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       });
       res.json({ events, stats: eventBus.getStats() });
     } catch (error) {
-      console.error("Get events error:", error);
+      log.error("AutonomousRoutes", "Get events error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get events" });
     }
   });
@@ -34443,7 +34266,7 @@ function registerAutonomousRoutes(app2, authMiddleware2) {
       coordinator.resetStats();
       res.json({ success: true, message: "Statistics reset" });
     } catch (error) {
-      console.error("Reset stats error:", error);
+      log.error("AutonomousRoutes", "Reset stats error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to reset statistics" });
     }
   });
@@ -35319,398 +35142,6 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to toggle agent" });
     }
   });
-  app2.get("/api/autonomous/state", authMiddleware, async (req, res) => {
-    try {
-      const state = orchestrator.getState();
-      const riskLimits = orchestrator.getRiskLimits();
-      res.json({
-        ...state,
-        riskLimits,
-        activePositions: Array.from(state.activePositions.entries()).map(([key, pos]) => ({
-          ...pos,
-          symbol: key
-        })),
-        pendingSignals: Array.from(state.pendingSignals.entries()).map(([symbol, signal]) => ({
-          symbol,
-          ...signal
-        }))
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get autonomous state", { error });
-      res.status(500).json({ error: "Failed to get autonomous state" });
-    }
-  });
-  app2.post("/api/autonomous/start", authMiddleware, async (req, res) => {
-    try {
-      await orchestrator.start();
-      const state = orchestrator.getState();
-      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
-    } catch (error) {
-      log.error("Routes", "Failed to start autonomous mode", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/stop", authMiddleware, async (req, res) => {
-    try {
-      await orchestrator.stop();
-      const state = orchestrator.getState();
-      res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
-    } catch (error) {
-      log.error("Routes", "Failed to stop autonomous mode", { error });
-      res.status(500).json({ error: "Failed to stop autonomous mode" });
-    }
-  });
-  app2.post("/api/autonomous/kill-switch", authMiddleware, async (req, res) => {
-    try {
-      const { activate, reason } = req.body;
-      if (activate) {
-        await orchestrator.activateKillSwitch(reason || "Manual activation");
-      } else {
-        await orchestrator.deactivateKillSwitch();
-      }
-      const state = orchestrator.getState();
-      res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
-    } catch (error) {
-      log.error("Routes", "Failed to toggle kill switch", { error });
-      res.status(500).json({ error: "Failed to toggle kill switch" });
-    }
-  });
-  app2.put("/api/autonomous/risk-limits", authMiddleware, async (req, res) => {
-    try {
-      const {
-        maxPositionSizePercent,
-        maxTotalExposurePercent,
-        maxPositionsCount,
-        dailyLossLimitPercent
-      } = req.body;
-      await orchestrator.updateRiskLimits({
-        maxPositionSizePercent,
-        maxTotalExposurePercent,
-        maxPositionsCount,
-        dailyLossLimitPercent
-      });
-      res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
-    } catch (error) {
-      log.error("Routes", "Failed to update risk limits", { error });
-      res.status(500).json({ error: "Failed to update risk limits" });
-    }
-  });
-  app2.post("/api/autonomous/mode", authMiddleware, async (req, res) => {
-    try {
-      const { mode } = req.body;
-      if (!["autonomous", "semi-auto", "manual"].includes(mode)) {
-        return res.status(400).json({ error: "Invalid mode. Use: autonomous, semi-auto, or manual" });
-      }
-      await orchestrator.setMode(mode);
-      res.json({ success: true, mode: orchestrator.getMode() });
-    } catch (error) {
-      log.error("Routes", "Failed to set mode", { error });
-      res.status(500).json({ error: "Failed to set mode" });
-    }
-  });
-  app2.get("/api/agent/market-analysis", authMiddleware, async (req, res) => {
-    try {
-      const analyzerStatus = marketConditionAnalyzer.getStatus();
-      const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
-      res.json({
-        isRunning: analyzerStatus.isRunning,
-        lastAnalysis,
-        lastAnalysisTime: analyzerStatus.lastAnalysisTime,
-        currentOrderLimit: analyzerStatus.currentOrderLimit
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get market analysis", { error });
-      res.status(500).json({ error: "Failed to get market analysis" });
-    }
-  });
-  app2.post("/api/agent/market-analysis/refresh", authMiddleware, async (req, res) => {
-    try {
-      const analysis = await marketConditionAnalyzer.runAnalysis();
-      res.json({ success: true, analysis });
-    } catch (error) {
-      log.error("Routes", "Failed to refresh market analysis", { error });
-      res.status(500).json({ error: "Failed to refresh market analysis" });
-    }
-  });
-  app2.get("/api/agent/dynamic-limits", authMiddleware, async (req, res) => {
-    try {
-      const agentStatus2 = await storage.getAgentStatus();
-      const analyzerStatus = marketConditionAnalyzer.getStatus();
-      const minLimit = agentStatus2?.minOrderLimit ?? 10;
-      const maxLimit = agentStatus2?.maxOrderLimit ?? 50;
-      let currentLimit = agentStatus2?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
-      currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
-      res.json({
-        currentDynamicLimit: currentLimit,
-        minOrderLimit: minLimit,
-        maxOrderLimit: maxLimit,
-        marketCondition: agentStatus2?.marketCondition || "neutral",
-        aiConfidenceScore: agentStatus2?.aiConfidenceScore || "0.5",
-        lastMarketAnalysis: agentStatus2?.lastMarketAnalysis
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get dynamic limits", { error });
-      res.status(500).json({ error: "Failed to get dynamic limits" });
-    }
-  });
-  app2.post("/api/agent/set-limits", authMiddleware, async (req, res) => {
-    try {
-      const { minOrderLimit, maxOrderLimit } = req.body;
-      const updates = {};
-      if (minOrderLimit !== void 0) {
-        if (minOrderLimit < 1 || minOrderLimit > 100) {
-          return res.status(400).json({ error: "minOrderLimit must be between 1 and 100" });
-        }
-        updates.minOrderLimit = minOrderLimit;
-      }
-      if (maxOrderLimit !== void 0) {
-        if (maxOrderLimit < 1 || maxOrderLimit > 100) {
-          return res.status(400).json({ error: "maxOrderLimit must be between 1 and 100" });
-        }
-        updates.maxOrderLimit = maxOrderLimit;
-      }
-      if (updates.minOrderLimit && updates.maxOrderLimit && updates.minOrderLimit > updates.maxOrderLimit) {
-        return res.status(400).json({ error: "minOrderLimit cannot be greater than maxOrderLimit" });
-      }
-      await storage.updateAgentStatus(updates);
-      const updatedStatus = await storage.getAgentStatus();
-      res.json({
-        success: true,
-        minOrderLimit: updatedStatus?.minOrderLimit,
-        maxOrderLimit: updatedStatus?.maxOrderLimit
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to set limits", { error });
-      res.status(500).json({ error: "Failed to set limits" });
-    }
-  });
-  app2.get("/api/agent/health", authMiddleware, async (req, res) => {
-    try {
-      const healthStatus = orchestrator.getHealthStatus();
-      const agentStatus2 = await storage.getAgentStatus();
-      res.json({
-        ...healthStatus,
-        autoStartEnabled: agentStatus2?.autoStartEnabled ?? true,
-        lastHeartbeatFromDb: agentStatus2?.lastHeartbeat
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get agent health", { error });
-      res.status(500).json({ error: "Failed to get agent health" });
-    }
-  });
-  app2.post("/api/agent/auto-start", authMiddleware, async (req, res) => {
-    try {
-      const { enabled } = req.body;
-      if (typeof enabled !== "boolean") {
-        return res.status(400).json({ error: "enabled must be a boolean" });
-      }
-      await orchestrator.setAutoStartEnabled(enabled);
-      res.json({ success: true, autoStartEnabled: enabled });
-    } catch (error) {
-      log.error("Routes", "Failed to set auto-start", { error });
-      res.status(500).json({ error: "Failed to set auto-start" });
-    }
-  });
-  app2.get("/api/autonomous/execution-history", authMiddleware, async (req, res) => {
-    try {
-      const state = orchestrator.getState();
-      res.json(state.executionHistory);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get execution history" });
-    }
-  });
-  app2.post("/api/autonomous/close-position", authMiddleware, async (req, res) => {
-    try {
-      const { symbol } = req.body;
-      if (!symbol) {
-        return res.status(400).json({ error: "Symbol is required" });
-      }
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
-      if (result.success) {
-        res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
-      } else {
-        res.status(400).json({ success: false, error: result.error || "Failed to close position" });
-      }
-    } catch (error) {
-      log.error("Routes", "Failed to close position", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/execute-trades", authMiddleware, async (req, res) => {
-    try {
-      const { decisionIds } = req.body;
-      if (!decisionIds || !Array.isArray(decisionIds) || decisionIds.length === 0) {
-        return res.status(400).json({ error: "Decision IDs array is required" });
-      }
-      const results = [];
-      for (const decisionId of decisionIds) {
-        const decisions = await storage.getAiDecisions(100);
-        const decision = decisions.find((d) => d.id === decisionId);
-        if (!decision) {
-          results.push({ decisionId, success: false, error: "Decision not found" });
-          continue;
-        }
-        try {
-          const metadata = decision.metadata ? JSON.parse(decision.metadata) : {};
-          const suggestedPct = metadata?.suggestedQuantity ? parseFloat(String(metadata.suggestedQuantity)) : 0.05;
-          const account = await alpaca.getAccount();
-          const buyingPower = parseFloat(account.buying_power);
-          const price = parseFloat(decision.entryPrice || "0");
-          if (!price) {
-            results.push({ decisionId, success: false, error: "No entry price available" });
-            continue;
-          }
-          const tradeValue = buyingPower * Math.min(Math.max(suggestedPct, 0.01), 0.1);
-          const quantity = Math.floor(tradeValue / price);
-          if (quantity < 1) {
-            results.push({ decisionId, success: false, error: "Calculated quantity less than 1 share" });
-            continue;
-          }
-          const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
-            symbol: decision.symbol,
-            side: decision.action,
-            quantity
-          });
-          if (orderResult.success) {
-            results.push({ decisionId, success: true, order: orderResult.order });
-          } else {
-            results.push({ decisionId, success: false, error: orderResult.error });
-          }
-        } catch (err) {
-          results.push({ decisionId, success: false, error: String(err) });
-        }
-      }
-      const successCount = results.filter((r) => r.success).length;
-      res.json({
-        success: successCount > 0,
-        message: `Executed ${successCount}/${decisionIds.length} trades`,
-        results
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to execute trades", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/autonomous/open-orders", authMiddleware, async (req, res) => {
-    try {
-      const orders2 = await alpacaTradingEngine.getOpenOrders();
-      res.json(orders2);
-    } catch (error) {
-      log.error("Routes", "Failed to get open orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/cancel-stale-orders", authMiddleware, async (req, res) => {
-    try {
-      const { maxAgeMinutes } = req.body;
-      const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
-      res.json({ success: true, ...result });
-    } catch (error) {
-      log.error("Routes", "Failed to cancel stale orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/cancel-all-orders", authMiddleware, async (req, res) => {
-    try {
-      const result = await alpacaTradingEngine.cancelAllOpenOrders();
-      res.json({ success: result.cancelled > 0, ...result });
-    } catch (error) {
-      log.error("Routes", "Failed to cancel all orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/autonomous/reconcile-positions", authMiddleware, async (req, res) => {
-    try {
-      const result = await alpacaTradingEngine.reconcilePositions();
-      res.json(result);
-    } catch (error) {
-      log.error("Routes", "Failed to reconcile positions", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/sync-positions", authMiddleware, async (req, res) => {
-    try {
-      const userId = req.userId;
-      const result = await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
-      res.json({ success: true, ...result });
-    } catch (error) {
-      log.error("Routes", "Failed to sync positions", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/autonomous/close-all-positions", authMiddleware, async (req, res) => {
-    try {
-      const result = await alpacaTradingEngine.closeAllPositions();
-      res.json({ success: true, ...result });
-    } catch (error) {
-      log.error("Routes", "Failed to close all positions", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/orders/unreal", authMiddleware, async (req, res) => {
-    try {
-      const unrealOrders = await identifyUnrealOrders();
-      res.json({
-        count: unrealOrders.length,
-        orders: unrealOrders
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to identify unreal orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/orders/cleanup", authMiddleware, async (req, res) => {
-    try {
-      const result = await cleanupUnrealOrders();
-      res.json({
-        success: result.errors.length === 0,
-        identified: result.identified,
-        canceled: result.canceled,
-        errors: result.errors
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to cleanup unreal orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/orders/reconcile", authMiddleware, async (req, res) => {
-    try {
-      const result = await reconcileOrderBook();
-      res.json({
-        success: true,
-        alpacaOrders: result.alpacaOrders,
-        localTrades: result.localTrades,
-        missingLocal: result.missingLocal,
-        orphanedLocal: result.orphanedLocal,
-        synced: result.synced
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to reconcile order book", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/orders/execution-engine/status", authMiddleware, async (req, res) => {
-    try {
-      const activeExecutions = orderExecutionEngine.getActiveExecutions();
-      const executions = Array.from(activeExecutions.entries()).map(([id, state]) => ({
-        clientOrderId: id,
-        orderId: state.orderId,
-        symbol: state.symbol,
-        side: state.side,
-        status: state.status,
-        attempts: state.attempts,
-        createdAt: state.createdAt.toISOString(),
-        updatedAt: state.updatedAt.toISOString()
-      }));
-      res.json({
-        activeCount: executions.length,
-        executions
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to get execution engine status", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
   app2.get("/api/strategies", authMiddleware, async (req, res) => {
     try {
       const strategies2 = await storage.getStrategies();
@@ -36019,242 +35450,6 @@ async function registerRoutes(app2) {
     } catch (error) {
       log.error("Routes", "Failed to validate strategy", { error });
       res.status(500).json({ error: error.message || "Failed to validate strategy" });
-    }
-  });
-  app2.get("/api/trades", authMiddleware, async (req, res) => {
-    try {
-      const limit4 = parseInt(req.query.limit) || 50;
-      const trades3 = await storage.getTrades(req.userId, limit4);
-      res.json(trades3);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get trades" });
-    }
-  });
-  app2.get("/api/trades/enriched", authMiddleware, async (req, res) => {
-    try {
-      const filters = {
-        limit: parseInt(req.query.limit) || 20,
-        offset: parseInt(req.query.offset) || 0,
-        symbol: req.query.symbol,
-        strategyId: req.query.strategyId,
-        pnlDirection: req.query.pnlDirection || "all",
-        startDate: req.query.startDate ? new Date(req.query.startDate) : void 0,
-        endDate: req.query.endDate ? new Date(req.query.endDate) : void 0
-      };
-      const result = await storage.getTradesFiltered(req.userId, filters);
-      res.json(result);
-    } catch (error) {
-      log.error("Routes", "Failed to get enriched trades", { error });
-      res.status(500).json({ error: "Failed to get enriched trades" });
-    }
-  });
-  app2.get("/api/trades/symbols", authMiddleware, async (req, res) => {
-    try {
-      const symbols = await storage.getDistinctSymbols();
-      res.json(symbols);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get symbols" });
-    }
-  });
-  app2.get("/api/trades/:id", authMiddleware, async (req, res) => {
-    try {
-      const trade = await storage.getTrade(req.params.id);
-      if (!trade) {
-        return res.status(404).json({ error: "Trade not found" });
-      }
-      res.json(trade);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get trade" });
-    }
-  });
-  app2.get("/api/trades/:id/enriched", authMiddleware, async (req, res) => {
-    try {
-      const trade = await storage.getEnrichedTrade(req.params.id);
-      if (!trade) {
-        return res.status(404).json({ error: "Trade not found" });
-      }
-      res.json(trade);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get enriched trade" });
-    }
-  });
-  app2.post("/api/trades", authMiddleware, async (req, res) => {
-    try {
-      const parsed = insertTradeSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-      const trade = await storage.createTrade(parsed.data);
-      res.status(201).json(trade);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create trade" });
-    }
-  });
-  app2.get("/api/positions/snapshot", authMiddleware, async (req, res) => {
-    try {
-      const [alpacaAccount, alpacaPositions] = await Promise.all([
-        alpaca.getAccount(),
-        alpaca.getPositions()
-      ]);
-      const equity = parseFloat(alpacaAccount.equity);
-      const lastEquity = parseFloat(alpacaAccount.last_equity);
-      const buyingPower = parseFloat(alpacaAccount.buying_power);
-      const cash = parseFloat(alpacaAccount.cash);
-      const portfolioValue = parseFloat(alpacaAccount.portfolio_value);
-      const dailyPl = equity - lastEquity;
-      const dailyPlPct = lastEquity > 0 ? dailyPl / lastEquity * 100 : 0;
-      const positions2 = alpacaPositions.map((pos) => ({
-        id: pos.asset_id,
-        symbol: pos.symbol,
-        side: pos.side === "long" ? "long" : "short",
-        qty: parseFloat(pos.qty),
-        entryPrice: parseFloat(pos.avg_entry_price),
-        currentPrice: parseFloat(pos.current_price),
-        marketValue: parseFloat(pos.market_value),
-        unrealizedPl: parseFloat(pos.unrealized_pl),
-        unrealizedPlPct: parseFloat(pos.unrealized_plpc) * 100,
-        costBasis: parseFloat(pos.cost_basis),
-        assetClass: pos.asset_class === "crypto" ? "crypto" : "us_equity"
-      }));
-      const totalUnrealizedPl = positions2.reduce((sum, pos) => sum + pos.unrealizedPl, 0);
-      const trades3 = await storage.getTrades(100);
-      const closedTrades = trades3.filter((t) => t.pnl !== null && t.pnl !== "");
-      const totalRealizedPl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
-      const snapshot = {
-        totalEquity: equity,
-        buyingPower,
-        cash,
-        portfolioValue,
-        dailyPl,
-        dailyPlPct,
-        totalPl: totalRealizedPl + totalUnrealizedPl,
-        totalPlPct: lastEquity > 0 ? (totalRealizedPl + totalUnrealizedPl) / lastEquity * 100 : 0,
-        positions: positions2,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        positionCount: positions2.length,
-        longPositions: positions2.filter((p) => p.side === "long").length,
-        shortPositions: positions2.filter((p) => p.side === "short").length,
-        totalRealizedPl,
-        totalUnrealizedPl
-      };
-      res.json(snapshot);
-    } catch (error) {
-      log.error("Routes", "Get portfolio snapshot error", { error });
-      res.status(500).json({ error: "Failed to get portfolio snapshot", message: error.message });
-    }
-  });
-  app2.get("/api/positions", authMiddleware, async (req, res) => {
-    const fetchedAt = /* @__PURE__ */ new Date();
-    const DUST_THRESHOLD = 1e-4;
-    try {
-      const positions2 = await alpaca.getPositions();
-      const filteredPositions = positions2.filter((p) => {
-        const qty = Math.abs(parseFloat(p.qty || "0"));
-        return qty >= DUST_THRESHOLD;
-      });
-      storage.syncPositionsFromAlpaca(req.userId, filteredPositions).catch(
-        (err) => log.error("Routes", "Failed to sync positions to database", { error: err })
-      );
-      const enrichedPositions = filteredPositions.map((p) => mapAlpacaPositionToEnriched(p, fetchedAt));
-      res.json({
-        positions: enrichedPositions,
-        _source: createLiveSourceMetadata()
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch positions from Alpaca", { error });
-      res.status(503).json({
-        error: "Live position data unavailable from Alpaca",
-        _source: createUnavailableSourceMetadata(),
-        message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
-      });
-    }
-  });
-  app2.get("/api/positions/broker", authMiddleware, async (req, res) => {
-    const fetchedAt = /* @__PURE__ */ new Date();
-    const DUST_THRESHOLD = 1e-4;
-    try {
-      const positions2 = await alpaca.getPositions();
-      const filteredPositions = positions2.filter((p) => {
-        const qty = Math.abs(parseFloat(p.qty || "0"));
-        return qty >= DUST_THRESHOLD;
-      });
-      const enrichedPositions = filteredPositions.map((p) => mapAlpacaPositionToEnriched(p, fetchedAt));
-      res.json({
-        positions: enrichedPositions,
-        _source: createLiveSourceMetadata()
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch broker positions", { error });
-      res.status(503).json({
-        error: "Failed to fetch positions from broker",
-        _source: createUnavailableSourceMetadata(),
-        message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
-      });
-    }
-  });
-  app2.get("/api/positions/:id", authMiddleware, async (req, res) => {
-    try {
-      const position = await storage.getPosition(req.params.id);
-      if (!position) {
-        return res.status(404).json({ error: "Position not found" });
-      }
-      res.json(position);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get position" });
-    }
-  });
-  app2.post("/api/positions", authMiddleware, async (req, res) => {
-    try {
-      const parsed = insertPositionSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-      const position = await storage.createPosition(parsed.data);
-      res.status(201).json(position);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create position" });
-    }
-  });
-  app2.patch("/api/positions/:id", authMiddleware, async (req, res) => {
-    try {
-      const position = await storage.updatePosition(req.params.id, req.body);
-      if (!position) {
-        return res.status(404).json({ error: "Position not found" });
-      }
-      res.json(position);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update position" });
-    }
-  });
-  app2.delete("/api/positions/:id", authMiddleware, async (req, res) => {
-    try {
-      const deleted = await storage.deletePosition(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Position not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete position" });
-    }
-  });
-  app2.post("/api/positions/reconcile", authMiddleware, async (req, res) => {
-    try {
-      const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
-      const force = req.query.force === "true";
-      const result = await positionReconciler2.reconcile(force);
-      res.json(result);
-    } catch (error) {
-      log.error("Routes", "Position reconciliation failed", { error });
-      res.status(500).json({ error: "Failed to reconcile positions" });
-    }
-  });
-  app2.get("/api/positions/reconcile/status", authMiddleware, async (req, res) => {
-    try {
-      const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
-      const status = positionReconciler2.getStatus();
-      res.json(status);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get reconciliation status" });
     }
   });
   app2.get("/api/portfolio/snapshot", authMiddleware, async (req, res) => {
@@ -36625,188 +35820,6 @@ async function registerRoutes(app2) {
           totalEvents: 0
         }
       });
-    }
-  });
-  app2.post("/api/trades/backfill-prices", authMiddleware, async (req, res) => {
-    try {
-      const trades3 = await storage.getTrades(500);
-      const zeroTrades = trades3.filter((t) => safeParseFloat(t.price, 0) === 0);
-      if (zeroTrades.length === 0) {
-        return res.json({ message: "No trades need backfilling", updated: 0 });
-      }
-      let orders2 = [];
-      try {
-        orders2 = await alpaca.getOrders("all", 500);
-      } catch (e) {
-        log.error("Routes", "Failed to fetch Alpaca orders for backfill", { error: e });
-        return res.status(500).json({ error: "Failed to fetch order history from broker" });
-      }
-      let updated = 0;
-      for (const trade of zeroTrades) {
-        const matchingOrder = orders2.find(
-          (o) => o.symbol === trade.symbol && o.side === trade.side && o.status === "filled" && safeParseFloat(o.filled_avg_price, 0) > 0 && Math.abs(new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()) < 6e4
-        );
-        if (matchingOrder) {
-          const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
-          const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
-          await storage.updateTrade(trade.id, {
-            price: filledPrice.toString(),
-            quantity: filledQty.toString(),
-            status: "filled"
-          });
-          updated++;
-        }
-      }
-      res.json({
-        message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
-        updated,
-        remaining: zeroTrades.length - updated
-      });
-    } catch (error) {
-      log.error("Routes", "Trade backfill error", { error });
-      res.status(500).json({ error: "Failed to backfill trade prices" });
-    }
-  });
-  app2.get("/api/orders", authMiddleware, async (req, res) => {
-    const fetchedAt = /* @__PURE__ */ new Date();
-    try {
-      const limit4 = parseInt(req.query.limit) || 50;
-      const status = req.query.status;
-      let orders2;
-      if (status) {
-        orders2 = await storage.getOrdersByStatus(req.userId, status, limit4);
-      } else {
-        orders2 = await storage.getRecentOrders(req.userId, limit4);
-      }
-      res.json({
-        orders: orders2,
-        _source: {
-          type: "database",
-          table: "orders",
-          fetchedAt: fetchedAt.toISOString(),
-          note: "Orders stored in local database, synced from broker"
-        }
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch orders", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/fills", authMiddleware, async (req, res) => {
-    const fetchedAt = /* @__PURE__ */ new Date();
-    try {
-      const limit4 = parseInt(req.query.limit) || 50;
-      const orders2 = await storage.getRecentOrders(req.userId, 100);
-      const orderIds = orders2.map((o) => o.id);
-      let allFills = [];
-      for (const orderId of orderIds) {
-        const fills2 = await storage.getFillsByOrderId(orderId);
-        allFills = allFills.concat(fills2);
-      }
-      allFills.sort(
-        (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
-      );
-      allFills = allFills.slice(0, limit4);
-      res.json({
-        fills: allFills,
-        _source: {
-          type: "database",
-          table: "fills",
-          fetchedAt: fetchedAt.toISOString()
-        }
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch fills", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/fills/order/:orderId", authMiddleware, async (req, res) => {
-    try {
-      const { orderId } = req.params;
-      let fills2 = await storage.getFillsByOrderId(orderId);
-      if (fills2.length === 0) {
-        fills2 = await storage.getFillsByBrokerOrderId(orderId);
-      }
-      res.json({
-        fills: fills2,
-        _source: {
-          type: "database",
-          table: "fills",
-          fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch fills", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.post("/api/orders/sync", authMiddleware, async (req, res) => {
-    try {
-      const traceId = `api-sync-${Date.now()}`;
-      const workItem = await workQueue.enqueue({
-        type: "ORDER_SYNC",
-        payload: JSON.stringify({ traceId }),
-        maxAttempts: 3
-      });
-      res.json({
-        success: true,
-        workItemId: workItem.id,
-        message: "Order sync enqueued",
-        traceId
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to enqueue order sync", { error });
-      res.status(500).json({ error: String(error) });
-    }
-  });
-  app2.get("/api/orders/recent", authMiddleware, async (req, res) => {
-    const fetchedAt = /* @__PURE__ */ new Date();
-    try {
-      const limit4 = parseInt(req.query.limit) || 50;
-      const orders2 = await alpaca.getOrders("all", limit4);
-      const enrichedOrders = orders2.map((o) => ({
-        ...mapAlpacaOrderToEnriched(o, fetchedAt),
-        assetClass: o.asset_class,
-        submittedAt: o.submitted_at,
-        isAI: true
-      }));
-      res.json({
-        orders: enrichedOrders,
-        _source: createLiveSourceMetadata()
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch recent orders", { error });
-      res.status(503).json({
-        error: "Failed to fetch recent orders",
-        _source: createUnavailableSourceMetadata(),
-        message: "Could not connect to Alpaca Paper Trading. Please try again shortly."
-      });
-    }
-  });
-  app2.get("/api/orders/:id", authMiddleware, async (req, res) => {
-    try {
-      const { id } = req.params;
-      let order = await storage.getOrderByBrokerOrderId(id);
-      if (!order) {
-        const orders2 = await storage.getRecentOrders(1e3);
-        order = orders2.find((o) => o.id === id);
-      }
-      if (!order) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-      const fills2 = await storage.getFillsByOrderId(order.id);
-      res.json({
-        order,
-        fills: fills2,
-        _source: {
-          type: "database",
-          table: "orders",
-          fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      });
-    } catch (error) {
-      log.error("Routes", "Failed to fetch order", { error });
-      res.status(500).json({ error: String(error) });
     }
   });
   app2.get("/api/analytics/summary", authMiddleware, async (req, res) => {
@@ -37464,7 +36477,10 @@ async function registerRoutes(app2) {
   app2.post("/api/risk/close-all", authMiddleware, async (req, res) => {
     try {
       log.info("RISK", "Closing all positions via Alpaca...");
-      const result = await alpacaTradingEngine.closeAllPositions();
+      const result = await alpacaTradingEngine.closeAllPositions({
+        authorizedByOrchestrator: true,
+        isEmergencyStop: true
+      });
       res.json({
         ...result,
         _source: createLiveSourceMetadata()
@@ -37563,47 +36579,6 @@ async function registerRoutes(app2) {
     } catch (error) {
       log.error("Routes", "Failed to get Alpaca positions", { error });
       res.status(500).json({ error: "Failed to get Alpaca positions" });
-    }
-  });
-  app2.get("/api/alpaca/orders", authMiddleware, async (req, res) => {
-    try {
-      const status = req.query.status || "all";
-      const limit4 = parseInt(req.query.limit) || 50;
-      const orders2 = await alpaca.getOrders(status, limit4);
-      res.json(orders2);
-    } catch (error) {
-      log.error("Routes", "Failed to get Alpaca orders", { error });
-      res.status(500).json({ error: "Failed to get Alpaca orders" });
-    }
-  });
-  app2.post("/api/alpaca/orders", authMiddleware, async (req, res) => {
-    try {
-      const { symbol } = req.body;
-      if (!symbol) {
-        return res.status(400).json({ error: "Symbol is required" });
-      }
-      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
-      if (!tradabilityCheck.tradable) {
-        return res.status(400).json({
-          error: `Symbol ${symbol} is not tradable`,
-          reason: tradabilityCheck.reason || "Not found in broker universe",
-          tradabilityCheck
-        });
-      }
-      const order = await alpaca.createOrder(req.body);
-      res.status(201).json(order);
-    } catch (error) {
-      log.error("Routes", "Failed to create Alpaca order", { error });
-      res.status(500).json({ error: "Failed to create Alpaca order" });
-    }
-  });
-  app2.delete("/api/alpaca/orders/:orderId", authMiddleware, async (req, res) => {
-    try {
-      await alpaca.cancelOrder(req.params.orderId);
-      res.status(204).send();
-    } catch (error) {
-      log.error("Routes", "Failed to cancel Alpaca order", { error });
-      res.status(500).json({ error: "Failed to cancel Alpaca order" });
     }
   });
   app2.get("/api/alpaca/assets", authMiddleware, async (req, res) => {
@@ -38135,7 +37110,8 @@ async function registerRoutes(app2) {
         strategyId,
         notes,
         orderType,
-        limitPrice: limitPrice ? safeParseFloat(limitPrice) : void 0
+        limitPrice: limitPrice ? safeParseFloat(limitPrice) : void 0,
+        authorizedByOrchestrator: true
       });
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -38150,7 +37126,9 @@ async function registerRoutes(app2) {
     try {
       const { symbol } = req.params;
       const { strategyId } = req.body;
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId);
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId, {
+        authorizedByOrchestrator: true
+      });
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
@@ -38238,91 +37216,6 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to stop all strategies" });
     }
   });
-  app2.get("/api/orchestration/status", authMiddleware, async (req, res) => {
-    try {
-      const status = coordinator.getStatus();
-      const config = coordinator.getConfig();
-      res.json({ status, config });
-    } catch (error) {
-      log.error("Routes", "Get orchestration status error", { error });
-      res.status(500).json({ error: "Failed to get orchestration status" });
-    }
-  });
-  app2.post("/api/orchestration/start", authMiddleware, async (req, res) => {
-    try {
-      await coordinator.start();
-      res.json({ success: true, message: "Coordinator started" });
-    } catch (error) {
-      log.error("Routes", "Start coordinator error", { error });
-      res.status(500).json({ error: "Failed to start coordinator" });
-    }
-  });
-  app2.post("/api/orchestration/stop", authMiddleware, async (req, res) => {
-    try {
-      await coordinator.stop();
-      res.json({ success: true, message: "Coordinator stopped" });
-    } catch (error) {
-      log.error("Routes", "Stop coordinator error", { error });
-      res.status(500).json({ error: "Failed to stop coordinator" });
-    }
-  });
-  app2.put("/api/orchestration/config", authMiddleware, async (req, res) => {
-    try {
-      const updates = req.body;
-      coordinator.updateConfig(updates);
-      res.json({ success: true, config: coordinator.getConfig() });
-    } catch (error) {
-      log.error("Routes", "Update orchestration config error", { error });
-      res.status(500).json({ error: "Failed to update configuration" });
-    }
-  });
-  app2.get("/api/orchestration/logs", authMiddleware, async (req, res) => {
-    try {
-      const { level, category, limit: limit4 } = req.query;
-      const logs = logger.getLogs({
-        level,
-        category,
-        limit: limit4 ? parseInt(limit4) : 100
-      });
-      res.json({ logs, stats: logger.getStats() });
-    } catch (error) {
-      log.error("Routes", "Get logs error", { error });
-      res.status(500).json({ error: "Failed to get logs" });
-    }
-  });
-  app2.get("/api/orchestration/logs/errors", authMiddleware, async (req, res) => {
-    try {
-      const { limit: limit4 } = req.query;
-      const errors = logger.getErrorLogs(limit4 ? parseInt(limit4) : 50);
-      res.json({ errors });
-    } catch (error) {
-      log.error("Routes", "Get error logs error", { error });
-      res.status(500).json({ error: "Failed to get error logs" });
-    }
-  });
-  app2.get("/api/orchestration/events", authMiddleware, async (req, res) => {
-    try {
-      const { type, source, limit: limit4 } = req.query;
-      const events = eventBus.getEventHistory({
-        type,
-        source,
-        limit: limit4 ? parseInt(limit4) : 50
-      });
-      res.json({ events, stats: eventBus.getStats() });
-    } catch (error) {
-      log.error("Routes", "Get events error", { error });
-      res.status(500).json({ error: "Failed to get events" });
-    }
-  });
-  app2.post("/api/orchestration/reset-stats", authMiddleware, async (req, res) => {
-    try {
-      coordinator.resetStats();
-      res.json({ success: true, message: "Statistics reset" });
-    } catch (error) {
-      log.error("Routes", "Reset stats error", { error });
-      res.status(500).json({ error: "Failed to reset statistics" });
-    }
-  });
   app2.get("/api/performance/metrics", authMiddleware, async (req, res) => {
     try {
       const { performanceTracker: performanceTracker2 } = await Promise.resolve().then(() => (init_performance_metrics(), performance_metrics_exports));
@@ -38356,74 +37249,6 @@ async function registerRoutes(app2) {
         ([k, v]) => k.toLowerCase().includes("auth") || k.toLowerCase().includes("token") || k.toLowerCase().includes("key") ? [k, "***REDACTED***"] : [k, v]
       )
     ) : void 0
-  });
-  app2.get("/api/webhooks", authMiddleware, (req, res) => {
-    const webhooks2 = getWebhooks().map(redactWebhook2);
-    res.json({ webhooks: webhooks2, supportedEvents: SUPPORTED_EVENTS });
-  });
-  app2.get("/api/webhooks/:id", authMiddleware, (req, res) => {
-    const webhook = getWebhook(req.params.id);
-    if (!webhook) {
-      return res.status(404).json({ error: "Webhook not found" });
-    }
-    res.json(redactWebhook2(webhook));
-  });
-  app2.post("/api/webhooks", authMiddleware, (req, res) => {
-    try {
-      const { name, url, eventTypes, enabled, headers, secret } = req.body;
-      if (!name || !url) {
-        return res.status(400).json({ error: "name and url are required" });
-      }
-      if (!url.startsWith("https://") && process.env.NODE_ENV === "production") {
-        return res.status(400).json({ error: "Webhook URL must use HTTPS in production" });
-      }
-      const id = `wh_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const config = {
-        id,
-        name,
-        url,
-        eventTypes: eventTypes || ["*"],
-        enabled: enabled !== false,
-        headers,
-        secret
-      };
-      registerWebhook(config);
-      res.status(201).json(redactWebhook2(config));
-    } catch (error) {
-      log.error("Routes", "Webhook creation error", { error });
-      res.status(500).json({ error: "Failed to create webhook" });
-    }
-  });
-  app2.put("/api/webhooks/:id", authMiddleware, (req, res) => {
-    const updated = updateWebhook(req.params.id, req.body);
-    if (!updated) {
-      return res.status(404).json({ error: "Webhook not found" });
-    }
-    res.json(redactWebhook2(updated));
-  });
-  app2.delete("/api/webhooks/:id", authMiddleware, (req, res) => {
-    const result = unregisterWebhook(req.params.id);
-    if (!result) {
-      return res.status(404).json({ error: "Webhook not found" });
-    }
-    res.json({ success: true });
-  });
-  app2.post("/api/webhooks/test", authMiddleware, async (req, res) => {
-    try {
-      const { eventType, payload } = req.body;
-      const results = await emitEvent(eventType || "system.test", payload || { test: true, timestamp: (/* @__PURE__ */ new Date()).toISOString() });
-      res.json({ deliveries: results.length, results });
-    } catch (error) {
-      log.error("Routes", "Webhook test error", { error });
-      res.status(500).json({ error: "Failed to send test event" });
-    }
-  });
-  app2.get("/api/webhooks/stats/overview", authMiddleware, (req, res) => {
-    res.json(getWebhookStats());
-  });
-  app2.get("/api/webhooks/history/deliveries", authMiddleware, (req, res) => {
-    const limit4 = parseInt(req.query.limit) || 50;
-    res.json({ deliveries: getDeliveryHistory(limit4) });
   });
   const {
     registerChannel: registerChannel2,
@@ -40522,8 +39347,7 @@ async function registerRoutes(app2) {
       if (existing) {
         return res.status(409).json({ error: "Username already exists" });
       }
-      const bcrypt3 = await import("bcrypt");
-      const hashedPassword = await bcrypt3.hash(password, 10);
+      const hashedPassword = await bcrypt2.hash(password, 10);
       const user = await storage.createUser({
         username,
         password: hashedPassword,
@@ -40544,8 +39368,7 @@ async function registerRoutes(app2) {
       if (username !== void 0) updates.username = username;
       if (isAdmin !== void 0) updates.isAdmin = isAdmin;
       if (password) {
-        const bcrypt3 = await import("bcrypt");
-        updates.password = await bcrypt3.hash(password, 10);
+        updates.password = await bcrypt2.hash(password, 10);
       }
       const user = await storage.updateUser(id, updates);
       if (!user) {
@@ -40673,6 +39496,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // server/config/env-validator.ts
+init_logger();
 var REQUIRED_ENV_VARS = [
   "DATABASE_URL",
   "ALPACA_API_KEY",
@@ -40769,44 +39593,32 @@ function validateEnvironment() {
   };
 }
 function validateAndReportEnvironment() {
-  console.log("[ENV] Validating environment variables...");
+  log.info("EnvValidator", "Validating environment variables...");
   const result = validateEnvironment();
-  console.log("\n[ENV] Feature Status:");
-  console.log("\u2501".repeat(60));
   const enabledFeatures = result.features.filter((f) => f.enabled);
   const disabledFeatures = result.features.filter((f) => !f.enabled);
-  if (enabledFeatures.length > 0) {
-    console.log("  \u2713 Enabled features:");
-    enabledFeatures.forEach((f) => {
-      console.log(`    \u2022 ${f.name}`);
-    });
-  }
-  if (disabledFeatures.length > 0) {
-    console.log("  \u2717 Disabled features:");
-    disabledFeatures.forEach((f) => {
-      console.log(`    \u2022 ${f.name}`);
-    });
-  }
-  console.log("\u2501".repeat(60));
+  log.info("EnvValidator", "Feature status", {
+    enabledCount: enabledFeatures.length,
+    disabledCount: disabledFeatures.length,
+    enabled: enabledFeatures.map((f) => f.name),
+    disabled: disabledFeatures.map((f) => f.name)
+  });
   if (result.warnings.length > 0) {
-    console.log("\n[ENV] Warnings:");
     result.warnings.forEach((warning) => {
-      console.warn(`  \u26A0  ${warning}`);
+      log.warn("EnvValidator", warning);
     });
   }
   if (result.errors.length > 0) {
-    console.error("\n[ENV] VALIDATION FAILED - Missing or invalid required environment variables:");
-    console.error("\u2501".repeat(60));
-    result.errors.forEach((error) => {
-      console.error(`  \u2717 ${error}`);
+    log.error("EnvValidator", "Validation failed - missing or invalid required environment variables", {
+      errors: result.errors
     });
-    console.error("\u2501".repeat(60));
-    console.error("\n[ENV] Please set all required environment variables and restart the server.");
-    console.error("[ENV] Server startup aborted.\n");
+    result.errors.forEach((error) => {
+      log.error("EnvValidator", error);
+    });
+    log.error("EnvValidator", "Please set all required environment variables and restart the server. Server startup aborted.");
     throw new Error("Environment validation failed - missing or invalid required variables");
   }
-  console.log("\n[ENV] \u2713 Environment validation passed");
-  console.log("[ENV] All required variables are set and valid\n");
+  log.info("EnvValidator", "Environment validation passed - all required variables are set and valid");
 }
 
 // server/index.ts

@@ -90,10 +90,13 @@ export class GeminiClient implements LLMClient {
     const model = req.model || this.model;
     const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${this.apiKey}`;
 
+    // Extract user message content from messages array
+    const userContent = req.messages.map(m => m.content).join("\n");
+
     log.debug("GeminiClient", "Preparing request", {
       model,
-      systemPromptLength: req.systemPrompt?.length || 0,
-      userPromptLength: req.userPrompt.length,
+      systemPromptLength: req.system?.length || 0,
+      userPromptLength: userContent.length,
       temperature: req.temperature,
     });
 
@@ -101,14 +104,14 @@ export class GeminiClient implements LLMClient {
     const contents: GeminiContent[] = [];
 
     // Gemini doesn't have a separate system message - combine with user message
-    if (req.systemPrompt) {
+    if (req.system) {
       contents.push({
-        parts: [{ text: `${req.systemPrompt}\n\n${req.userPrompt}` }],
+        parts: [{ text: `${req.system}\n\n${userContent}` }],
         role: "user",
       });
     } else {
       contents.push({
-        parts: [{ text: req.userPrompt }],
+        parts: [{ text: userContent }],
         role: "user",
       });
     }
@@ -191,16 +194,19 @@ export class GeminiClient implements LLMClient {
       });
 
       return {
+        text: content,
         content,
         model,
-        provider: "gemini",
-        usage: {
-          promptTokens: usage.promptTokenCount,
-          completionTokens: usage.candidatesTokenCount,
-          totalTokens: usage.totalTokenCount,
+        raw: {
+          provider: "gemini",
+          finishReason: candidate.finishReason,
+          latencyMs: latency,
         },
-        finishReason: candidate.finishReason,
-        latencyMs: latency,
+        tokensUsed: {
+          prompt: usage.promptTokenCount,
+          completion: usage.candidatesTokenCount,
+          total: usage.totalTokenCount,
+        },
       };
     } catch (error) {
       const latency = Date.now() - startTime;
@@ -247,13 +253,13 @@ export class GeminiClient implements LLMClient {
 
     try {
       const response = await this.call({
-        userPrompt: "Hello",
-        systemPrompt: "You are a helpful assistant. Respond with 'OK'.",
+        system: "You are a helpful assistant. Respond with 'OK'.",
+        messages: [{ role: "user", content: "Hello" }],
         temperature: 0,
         maxTokens: 10,
       });
 
-      return response.content.toLowerCase().includes("ok");
+      return (response.content || response.text || "").toLowerCase().includes("ok");
     } catch (error) {
       log.error("GeminiClient", "Health check failed", {
         error: (error as Error).message,

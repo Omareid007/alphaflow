@@ -6,6 +6,7 @@
  */
 
 import type { Response } from "express";
+import { log } from "../utils/logger";
 
 export interface StandardError {
   error: string;
@@ -163,7 +164,7 @@ export function asyncHandler(
 ) {
   return (req: any, res: any, next: any) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
-      console.error("[AsyncHandler] Error:", error);
+      log.error("AsyncHandler", "Error caught in async handler", { error: error.message, stack: error.stack });
 
       // Handle specific error types
       if (error.name === 'ZodError') {

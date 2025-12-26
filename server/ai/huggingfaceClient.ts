@@ -217,11 +217,18 @@ export class HuggingFaceClient implements LLMClient {
       });
 
       return {
+        text: content,
         content,
         model,
-        provider: "huggingface",
-        usage,
-        latencyMs: latency,
+        raw: {
+          provider: "huggingface",
+          latencyMs: latency,
+        },
+        tokensUsed: {
+          prompt: usage.promptTokens,
+          completion: usage.completionTokens,
+          total: usage.totalTokens,
+        },
       };
     } catch (error) {
       const latency = Date.now() - startTime;
@@ -235,7 +242,7 @@ export class HuggingFaceClient implements LLMClient {
   }
 
   isAvailable(): boolean {
-    return !!this.accountId && !!this.apiToken;
+    return !!this.apiKey;
   }
 
   getProviderName(): string {
@@ -327,7 +334,7 @@ export class HuggingFaceClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return response.content.toLowerCase().includes("ok");
+      return (response.content || response.text || "").toLowerCase().includes("ok");
     } catch (error) {
       log.error("HuggingFaceClient", "Health check failed", {
         error: (error as Error).message,

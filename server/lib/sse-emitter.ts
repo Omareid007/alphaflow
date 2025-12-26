@@ -11,6 +11,7 @@
 
 import type { Response } from "express";
 import { EventEmitter } from "node:events";
+import { log } from "../utils/logger";
 
 export type SSEEventType =
   | "order:update"
@@ -67,8 +68,8 @@ class SSEEmitter extends EventEmitter {
       this.removeClient(clientId, userId);
     });
 
-    console.log(`[SSE] Client connected: ${clientId} (user: ${userId || "anonymous"})`);
-    console.log(`[SSE] Total clients: ${this.clients.size}`);
+    log.info("SSE", "Client connected", { clientId, userId: userId || "anonymous" });
+    log.debug("SSE", "Total clients", { count: this.clients.size });
   }
 
   /**
@@ -87,8 +88,8 @@ class SSEEmitter extends EventEmitter {
       }
     }
 
-    console.log(`[SSE] Client disconnected: ${clientId}`);
-    console.log(`[SSE] Total clients: ${this.clients.size}`);
+    log.info("SSE", "Client disconnected", { clientId });
+    log.debug("SSE", "Total clients", { count: this.clients.size });
   }
 
   /**
@@ -108,7 +109,7 @@ class SSEEmitter extends EventEmitter {
         this.sendToClient(res, fullEvent);
         successCount++;
       } catch (error) {
-        console.error(`[SSE] Failed to send to client ${clientId}:`, error);
+        log.error("SSE", "Failed to send to client", { clientId, error: error instanceof Error ? error.message : String(error) });
         errorCount++;
         // Remove dead clients
         this.removeClient(clientId);
@@ -116,7 +117,7 @@ class SSEEmitter extends EventEmitter {
     }
 
     if (this.clients.size > 0) {
-      console.log(`[SSE] Broadcast ${event.type}: ${successCount} sent, ${errorCount} failed`);
+      log.debug("SSE", "Broadcast complete", { eventType: event.type, successCount, errorCount });
     }
   }
 
@@ -149,7 +150,7 @@ class SSEEmitter extends EventEmitter {
         this.sendToClient(res, fullEvent);
         successCount++;
       } catch (error) {
-        console.error(`[SSE] Failed to send to user ${userId} client ${clientId}:`, error);
+        log.error("SSE", "Failed to send to user client", { userId, clientId, error: error instanceof Error ? error.message : String(error) });
         deadClients.push(clientId);
       }
     }
@@ -160,7 +161,7 @@ class SSEEmitter extends EventEmitter {
     }
 
     if (successCount > 0) {
-      console.log(`[SSE] Sent ${event.type} to user ${userId}: ${successCount} clients`);
+      log.debug("SSE", "Sent event to user", { eventType: event.type, userId, clientCount: successCount });
     }
   }
 
@@ -180,7 +181,7 @@ class SSEEmitter extends EventEmitter {
       try {
         res.write(": keepalive\n\n");
       } catch (error) {
-        console.error(`[SSE] Keepalive failed for client ${clientId}:`, error);
+        log.error("SSE", "Keepalive failed for client", { clientId, error: error instanceof Error ? error.message : String(error) });
         this.removeClient(clientId);
       }
     }
@@ -210,7 +211,7 @@ setInterval(() => {
 }, 30000);
 
 // Convenience functions for common events
-export const emitOrderUpdate = (orderId: string, orderData: unknown, userId?: string) => {
+export const emitOrderUpdate = (orderId: string, orderData: Record<string, unknown>, userId?: string) => {
   const event = { type: "order:update" as const, data: { orderId, ...orderData } };
   if (userId) {
     sseEmitter.sendToUser(userId, event);
@@ -219,7 +220,7 @@ export const emitOrderUpdate = (orderId: string, orderData: unknown, userId?: st
   }
 };
 
-export const emitOrderFill = (orderId: string, fillData: unknown, userId?: string) => {
+export const emitOrderFill = (orderId: string, fillData: Record<string, unknown>, userId?: string) => {
   const event = { type: "order:fill" as const, data: { orderId, ...fillData } };
   if (userId) {
     sseEmitter.sendToUser(userId, event);
@@ -246,7 +247,7 @@ export const emitTradeNew = (tradeData: unknown, userId?: string) => {
   }
 };
 
-export const emitPriceUpdate = (symbol: string, priceData: unknown) => {
+export const emitPriceUpdate = (symbol: string, priceData: Record<string, unknown>) => {
   const event = { type: "price:update" as const, data: { symbol, ...priceData } };
   sseEmitter.broadcast(event);
 };
@@ -265,7 +266,7 @@ export const emitAgentStatus = (statusData: unknown) => {
   sseEmitter.broadcast(event);
 };
 
-export const emitStrategyUpdate = (strategyId: string, statusData: unknown, userId?: string) => {
+export const emitStrategyUpdate = (strategyId: string, statusData: Record<string, unknown>, userId?: string) => {
   const event = { type: "strategy:update" as const, data: { strategyId, ...statusData } };
   if (userId) {
     sseEmitter.sendToUser(userId, event);

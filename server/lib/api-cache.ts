@@ -1,3 +1,5 @@
+import { log } from "../utils/logger";
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -140,7 +142,7 @@ export async function fetchWithCache<T>(
     
     if (staleData !== null) {
       onStaleServed?.(cacheKey);
-      console.log(`[ApiCache] Serving stale data for ${cacheKey} due to fetch error`);
+      log.debug("ApiCache", "Serving stale data due to fetch error", { cacheKey });
       return staleData;
     }
 
@@ -179,7 +181,7 @@ export async function fetchWithSWR<T>(
           cache.set(cacheKey, data);
           onBackgroundRefresh?.(cacheKey, true);
         } catch (error) {
-          console.log(`[ApiCache] Background refresh failed for ${cacheKey}`);
+          log.debug("ApiCache", "Background refresh failed", { cacheKey });
           onBackgroundRefresh?.(cacheKey, false);
         } finally {
           pendingRefreshes.delete(cacheKey);
@@ -187,7 +189,7 @@ export async function fetchWithSWR<T>(
       }, 0);
     }
     
-    console.log(`[ApiCache] Serving stale data for ${cacheKey}, refreshing in background`);
+    log.debug("ApiCache", "Serving stale data, refreshing in background", { cacheKey });
     return cached.data;
   }
 

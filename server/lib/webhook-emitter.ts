@@ -1,4 +1,5 @@
 import pLimit from 'p-limit';
+import { log } from "../utils/logger";
 
 export interface WebhookConfig {
   id: string;
@@ -37,13 +38,13 @@ const limit = pLimit(5);
 
 export function registerWebhook(config: WebhookConfig): void {
   webhooks.set(config.id, config);
-  console.log(`[Webhook] Registered: ${config.name} (${config.id}) -> ${config.url}`);
+  log.info("Webhook", "Registered", { name: config.name, id: config.id, url: config.url });
 }
 
 export function unregisterWebhook(id: string): boolean {
   const result = webhooks.delete(id);
   if (result) {
-    console.log(`[Webhook] Unregistered: ${id}`);
+    log.info("Webhook", "Unregistered", { id });
   }
   return result;
 }
@@ -141,7 +142,7 @@ export async function emitEvent(type: string, payload: unknown): Promise<Deliver
     return [];
   }
 
-  console.log(`[Webhook] Emitting ${type} to ${matchingWebhooks.length} webhooks`);
+  log.info("Webhook", "Emitting event", { type, webhookCount: matchingWebhooks.length });
 
   const results = await Promise.all(
     matchingWebhooks.map((webhook) => limit(() => deliverWebhook(webhook, event)))
@@ -151,7 +152,7 @@ export async function emitEvent(type: string, payload: unknown): Promise<Deliver
   const failures = results.filter((r) => r.status === 'failed').length;
 
   if (failures > 0) {
-    console.warn(`[Webhook] ${type}: ${successes} success, ${failures} failed`);
+    log.warn("Webhook", "Some deliveries failed", { type, successes, failures });
   }
 
   return results;

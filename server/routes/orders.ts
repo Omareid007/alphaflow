@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
+import { log } from "../utils/logger";
 import {
   orderExecutionEngine,
   identifyUnrealOrders,
@@ -32,7 +33,7 @@ router.get("/autonomous/open-orders", async (req: Request, res: Response) => {
     const orders = await alpacaTradingEngine.getOpenOrders();
     res.json(orders);
   } catch (error) {
-    console.error("Failed to get open orders:", error);
+    log.error("OrdersRoutes", "Failed to get open orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -48,7 +49,7 @@ router.post("/autonomous/cancel-stale-orders", async (req: Request, res: Respons
     const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error("Failed to cancel stale orders:", error);
+    log.error("OrdersRoutes", "Failed to cancel stale orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -62,7 +63,7 @@ router.post("/autonomous/cancel-all-orders", async (req: Request, res: Response)
     const result = await alpacaTradingEngine.cancelAllOpenOrders();
     res.json({ success: result.cancelled > 0, ...result });
   } catch (error) {
-    console.error("Failed to cancel all orders:", error);
+    log.error("OrdersRoutes", "Failed to cancel all orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -83,7 +84,7 @@ router.get("/unreal", async (req: Request, res: Response) => {
       orders: unrealOrders,
     });
   } catch (error) {
-    console.error("Failed to identify unreal orders:", error);
+    log.error("OrdersRoutes", "Failed to identify unreal orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -102,7 +103,7 @@ router.post("/cleanup", async (req: Request, res: Response) => {
       errors: result.errors,
     });
   } catch (error) {
-    console.error("Failed to cleanup unreal orders:", error);
+    log.error("OrdersRoutes", "Failed to cleanup unreal orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -123,7 +124,7 @@ router.post("/reconcile", async (req: Request, res: Response) => {
       synced: result.synced,
     });
   } catch (error) {
-    console.error("Failed to reconcile order book:", error);
+    log.error("OrdersRoutes", "Failed to reconcile order book", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -150,7 +151,7 @@ router.get("/execution-engine/status", async (req: Request, res: Response) => {
       executions,
     });
   } catch (error) {
-    console.error("Failed to get execution engine status:", error);
+    log.error("OrdersRoutes", "Failed to get execution engine status", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -187,7 +188,7 @@ router.get("/", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch orders:", error);
+    log.error("OrdersRoutes", "Failed to fetch orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -214,7 +215,7 @@ router.post("/sync", async (req: Request, res: Response) => {
       traceId,
     });
   } catch (error) {
-    console.error("Failed to enqueue order sync:", error);
+    log.error("OrdersRoutes", "Failed to enqueue order sync", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -242,7 +243,7 @@ router.get("/recent", async (req: Request, res: Response) => {
       _source: createLiveSourceMetadata(),
     });
   } catch (error) {
-    console.error("Failed to fetch recent orders:", error);
+    log.error("OrdersRoutes", "Failed to fetch recent orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(503).json({
       error: "Failed to fetch recent orders",
       _source: createUnavailableSourceMetadata(),
@@ -286,7 +287,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch order:", error);
+    log.error("OrdersRoutes", "Failed to fetch order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -330,7 +331,7 @@ router.get("/fills", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch fills:", error);
+    log.error("OrdersRoutes", "Failed to fetch fills", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -360,7 +361,7 @@ router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch fills:", error);
+    log.error("OrdersRoutes", "Failed to fetch fills for order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -381,7 +382,7 @@ router.get("/alpaca/orders", async (req: Request, res: Response) => {
     const orders = await alpaca.getOrders(status, limit);
     res.json(orders);
   } catch (error) {
-    console.error("Failed to get Alpaca orders:", error);
+    log.error("OrdersRoutes", "Failed to get Alpaca orders", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to get Alpaca orders" });
   }
 });
@@ -410,7 +411,7 @@ router.post("/alpaca/orders", async (req: Request, res: Response) => {
     const order = await alpaca.createOrder(req.body);
     res.status(201).json(order);
   } catch (error) {
-    console.error("Failed to create Alpaca order:", error);
+    log.error("OrdersRoutes", "Failed to create Alpaca order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to create Alpaca order" });
   }
 });
@@ -424,7 +425,7 @@ router.delete("/alpaca/orders/:orderId", async (req: Request, res: Response) => 
     await alpaca.cancelOrder(req.params.orderId);
     res.status(204).send();
   } catch (error) {
-    console.error("Failed to cancel Alpaca order:", error);
+    log.error("OrdersRoutes", "Failed to cancel Alpaca order", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to cancel Alpaca order" });
   }
 });
