@@ -8,6 +8,8 @@ import { log, createRequestLogger } from "./utils/logger";
 import { validateAndReportEnvironment } from "./config/env-validator";
 import { positionReconciliationJob } from "./jobs/position-reconciliation";
 import { cleanupExpiredSessions } from "./lib/session";
+import { errorHandler, notFoundHandler } from "./middleware/error-handler";
+import { requestLogger, performanceLogger } from "./middleware/request-logger";
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err);
@@ -79,7 +81,10 @@ function setupBodyParsing(app: express.Application) {
 }
 
 function setupRequestLogging(app: express.Application) {
-  app.use(createRequestLogger() as express.RequestHandler);
+  // Use new structured request logger with correlation IDs
+  app.use(requestLogger);
+  // Log slow requests (> 1 second)
+  app.use(performanceLogger(1000));
 }
 
 function getAppName(): string {
@@ -189,20 +194,11 @@ function configureExpoAndLanding(app: express.Application) {
 }
 
 function setupErrorHandler(app: express.Application) {
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const error = err as {
-      status?: number;
-      statusCode?: number;
-      message?: string;
-    };
+  // 404 handler for unmatched routes
+  app.use(notFoundHandler);
 
-    const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-
-    throw err;
-  });
+  // Global error handler (must be last)
+  app.use(errorHandler);
 }
 
 (async () => {

@@ -2319,26 +2319,6 @@ function formatTimestamp() {
 function generateId() {
   return Math.random().toString(36).substring(2, 10);
 }
-function createRequestLogger() {
-  return (req, res, next) => {
-    const requestId = log.generateRequestId();
-    req.requestId = requestId;
-    const start = Date.now();
-    res.on("finish", () => {
-      if (!req.path.startsWith("/api")) return;
-      const duration = Date.now() - start;
-      const level = res.statusCode >= 400 ? "warn" : "info";
-      log[level]("API", `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`, {
-        requestId,
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        duration
-      });
-    });
-    next();
-  };
-}
 var LEVEL_PRIORITY, SECRET_PATTERNS, Logger, log;
 var init_logger = __esm({
   "server/utils/logger.ts"() {
@@ -40829,6 +40809,105 @@ function validateAndReportEnvironment() {
 
 // server/index.ts
 init_position_reconciliation();
+
+// server/middleware/error-handler.ts
+init_logger();
+function errorHandler(err, req, res, next) {
+  const correlationId = req.correlationId || "unknown";
+  log.error("ErrorHandler", `Unhandled error in ${req.method} ${req.path}`, {
+    correlationId,
+    error: err.message,
+    stack: err.stack,
+    code: err.code,
+    statusCode: err.statusCode,
+    method: req.method,
+    path: req.path,
+    userId: req.userId
+  });
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const statusCode = err.statusCode || 500;
+  const errorResponse = {
+    error: isDevelopment ? err.message : "Internal server error",
+    code: err.code || "INTERNAL_ERROR",
+    correlationId
+  };
+  if (isDevelopment && err.stack) {
+    errorResponse.stack = err.stack.split("\n").slice(0, 5);
+  }
+  res.status(statusCode).json(errorResponse);
+}
+function notFoundHandler(req, res) {
+  const correlationId = req.correlationId || "unknown";
+  log.warn("ErrorHandler", `Route not found: ${req.method} ${req.path}`, {
+    correlationId,
+    method: req.method,
+    path: req.path
+  });
+  res.status(404).json({
+    error: "Not found",
+    code: "NOT_FOUND",
+    message: `Route ${req.method} ${req.path} not found`,
+    correlationId
+  });
+}
+
+// server/middleware/request-logger.ts
+init_logger();
+import { randomBytes as randomBytes2 } from "crypto";
+function generateCorrelationId() {
+  return `req_${Date.now()}_${randomBytes2(8).toString("hex")}`;
+}
+function requestLogger(req, res, next) {
+  const startTime = Date.now();
+  const correlationId = req.headers["x-correlation-id"] || generateCorrelationId();
+  req.correlationId = correlationId;
+  res.setHeader("X-Correlation-ID", correlationId);
+  log.info("Request", `${req.method} ${req.path}`, {
+    correlationId,
+    method: req.method,
+    path: req.path,
+    query: Object.keys(req.query).length > 0 ? req.query : void 0,
+    userId: req.userId,
+    ip: req.ip || req.socket.remoteAddress,
+    userAgent: req.headers["user-agent"]
+  });
+  const originalSend = res.send;
+  res.send = function(data) {
+    const duration = Date.now() - startTime;
+    log.info("Response", `${req.method} ${req.path} - ${res.statusCode}`, {
+      correlationId,
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs: duration,
+      userId: req.userId
+    });
+    return originalSend.call(this, data);
+  };
+  next();
+}
+function performanceLogger(thresholdMs = 1e3) {
+  return (req, res, next) => {
+    const startTime = Date.now();
+    const correlationId = req.correlationId || "unknown";
+    res.on("finish", () => {
+      const duration = Date.now() - startTime;
+      if (duration > thresholdMs) {
+        log.warn("Performance", `Slow request detected: ${req.method} ${req.path}`, {
+          correlationId,
+          method: req.method,
+          path: req.path,
+          durationMs: duration,
+          threshold: thresholdMs,
+          statusCode: res.statusCode
+        });
+      }
+    });
+    next();
+  };
+}
+
+// server/index.ts
 process.on("uncaughtException", (err) => {
   console.error("[FATAL] Uncaught exception:", err);
 });
@@ -40878,7 +40957,8 @@ function setupBodyParsing(app2) {
   app2.use(express.urlencoded({ extended: false }));
 }
 function setupRequestLogging(app2) {
-  app2.use(createRequestLogger());
+  app2.use(requestLogger);
+  app2.use(performanceLogger(1e3));
 }
 function getAppName() {
   try {
@@ -40959,13 +41039,8 @@ function configureExpoAndLanding(app2) {
   log.info("Server", "Expo routing: Checking expo-platform header on / and /manifest");
 }
 function setupErrorHandler(app2) {
-  app2.use((err, _req, res, _next) => {
-    const error = err;
-    const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
-    res.status(status).json({ message });
-    throw err;
-  });
+  app2.use(notFoundHandler);
+  app2.use(errorHandler);
 }
 (async () => {
   try {
