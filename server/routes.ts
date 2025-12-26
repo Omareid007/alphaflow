@@ -300,15 +300,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Newly modularized routes
   app.use("/api", authRouter); // auth routes: /api/login, /api/signup, /api/logout, /api/me
-  app.use("/api", authMiddleware, positionsRouter); // positions routes
+  app.use("/api/positions", authMiddleware, positionsRouter); // positions routes
   app.use("/api", authMiddleware, ordersRouter); // orders routes
-  app.use("/api", authMiddleware, tradesRouter); // trades routes
+  app.use("/api/trades", authMiddleware, tradesRouter); // trades routes
   app.use("/api", authMiddleware, marketDataRouter); // market-data routes
-  app.use("/api", authMiddleware, webhooksRouter); // webhooks routes
+  app.use("/api/webhooks", authMiddleware, webhooksRouter); // webhooks routes
   app.use("/api", authMiddleware, aiDecisionsRouter); // ai-decisions routes
   registerAutonomousRoutes(app, authMiddleware); // autonomous routes
   app.use("/api", authMiddleware, cacheRouter); // cache routes
-  app.use("/api", authMiddleware, llmRouter); // llm routes
+  app.use("/api/llm", authMiddleware, llmRouter); // llm routes
 
   alertService.startEvaluationJob(60000);
   enrichmentScheduler.start();
