@@ -21,13 +21,7 @@ import { sectorExposureService } from "../services/sector-exposure-service";
 const DEFAULT_HARD_STOP_LOSS_PERCENT = tradingConfig.riskManagement.defaultHardStopLossPercent;
 const DEFAULT_TAKE_PROFIT_PERCENT = tradingConfig.riskManagement.defaultTakeProfitPercent;
 
-// Universe expansion constants (Section A requirements)
-// OLD CONSERVATIVE VALUES (commented for rollback):
-// const MAX_STOCK_SYMBOLS_PER_CYCLE = 120;
-// const MAX_CRYPTO_SYMBOLS_PER_CYCLE = 20;
-// const MIN_CONFIDENCE_FOR_UNIVERSE = 0.65;
-
-// AGGRESSIVE VALUES - Maximize symbol coverage and trading opportunities
+// Universe expansion constants - values loaded from tradingConfig
 const MAX_STOCK_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxStockSymbolsPerCycle;
 const MAX_CRYPTO_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxCryptoSymbolsPerCycle;
 const ALPACA_SNAPSHOT_CHUNK_SIZE = tradingConfig.universe.alpacaSnapshotChunkSize;
@@ -119,16 +113,7 @@ const DEFAULT_CONFIG: OrchestratorConfig = {
   enabled: true,
 };
 
-// OLD CONSERVATIVE RISK LIMITS (commented for rollback):
-// const DEFAULT_RISK_LIMITS: RiskLimits = {
-//   maxPositionSizePercent: 10,
-//   maxTotalExposurePercent: 50,
-//   maxPositionsCount: 10,
-//   dailyLossLimitPercent: 5,
-//   killSwitchActive: false,
-// };
-
-// AGGRESSIVE RISK LIMITS - Maximize buying power utilization with margin
+// Risk limits - values loaded from tradingConfig
 const DEFAULT_RISK_LIMITS: RiskLimits = {
   maxPositionSizePercent: tradingConfig.riskManagement.defaultMaxPositionSizePercent,
   maxTotalExposurePercent: tradingConfig.riskManagement.defaultMaxExposurePercent,
@@ -618,6 +603,9 @@ class AutonomousOrchestrator {
   private lastCalibrationDate: string | null = null;
   private currentTraceId: string | null = null;
 
+  // User ID for database operations (resolved from admin user at startup)
+  private userId: string | null = null;
+
   // Cooldown tracking for failed orders to prevent infinite retry loops
   private orderCooldowns: Map<string, number> = new Map();
   private readonly ORDER_COOLDOWN_MS = 300000; // 5 minute cooldown after failed order
@@ -649,6 +637,15 @@ class AutonomousOrchestrator {
 
     try {
       log.info("Orchestrator", "Auto-start initializing...");
+
+      // Resolve admin user for database operations
+      const adminUser = await storage.getAdminUser();
+      if (adminUser) {
+        this.userId = adminUser.id;
+        log.info("Orchestrator", `Resolved admin user: ${adminUser.id}`);
+      } else {
+        log.warn("Orchestrator", "No admin user found - database operations may fail");
+      }
 
       const agentStatus = await storage.getAgentStatus();
       this.autoStartEnabled = agentStatus?.autoStartEnabled ?? true;
@@ -876,8 +873,10 @@ class AutonomousOrchestrator {
       this.state.activePositions.clear();
 
       try {
-        await storage.syncPositionsFromAlpaca(positions);
-        log.info("Orchestrator", `Synced ${positions.length} positions to database`);
+        if (this.userId) {
+          await storage.syncPositionsFromAlpaca(this.userId, positions);
+          log.info("Orchestrator", `Synced ${positions.length} positions to database`);
+        }
       } catch (dbError) {
         log.error("Orchestrator", "Failed to sync positions to database", { error: String(dbError) });
       }
@@ -1128,8 +1127,9 @@ class AutonomousOrchestrator {
             { traceId: this.currentTraceId || undefined }
           );
 
-          if (decision.confidence >= 0.7 && decision.action !== "hold") {
+          if (decision.confidence >= 0.7 && decision.action !== "hold" && this.userId) {
             const aiDecision = await storage.createAiDecision({
+              userId: this.userId,
               strategyId: strategy?.id || null,
               symbol,
               action: decision.action,
@@ -1500,6 +1500,9 @@ class AutonomousOrchestrator {
       const account = await alpaca.getAccount();
       const portfolioValue = safeParseFloat(account.portfolio_value);
 
+      // CRITICAL FIX: Update state with actual portfolio value to prevent fallback to 100000
+      this.state.portfolioValue = portfolioValue;
+
       const positionSizePercent = Math.min(
         (decision.suggestedQuantity || 0.05) * 100,
         this.riskLimits.maxPositionSizePercent
@@ -1732,7 +1735,11 @@ class AutonomousOrchestrator {
         }
       }
 
+      if (!this.userId) {
+        throw new Error("Cannot create trade: userId not initialized");
+      }
       const trade = await storage.createTrade({
+        userId: this.userId,
         symbol,
         side: "buy",
         quantity: filledQty.toString(),
@@ -1949,7 +1956,11 @@ class AutonomousOrchestrator {
       const pnl = (filledPrice - position.entryPrice) * filledQty;
       const exitReason = decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
 
+      if (!this.userId) {
+        throw new Error("Cannot create trade: userId not initialized");
+      }
       await storage.createTrade({
+        userId: this.userId,
         symbol,
         side: "sell",
         quantity: filledQty.toString(),
@@ -2239,6 +2250,10 @@ class AutonomousOrchestrator {
 
       const account = await alpaca.getAccount();
       const portfolioValue = parseFloat(account.portfolio_value);
+
+      // CRITICAL FIX: Update state with actual portfolio value to prevent fallback to 100000
+      this.state.portfolioValue = portfolioValue;
+
       // CRITICAL: Use buying_power for margin accounts, NOT cash
       // Cash can be negative while buying_power is positive (margin utilization)
       const buyingPower = safeParseFloat(account.buying_power);

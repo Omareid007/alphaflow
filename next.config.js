@@ -1,10 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // TODO: Enable strict builds after fixing 246 TypeScript errors
+  // Run `npx tsc --noEmit` to see current errors
+  // Target: Set both to false once errors are resolved
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // TODO: Set to false
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // TODO: Set to false (246 errors as of 2025-12-26)
   },
   images: { unoptimized: true },
   async rewrites() {
