@@ -8,7 +8,7 @@ import {
   testRejectionReason,
   type AlpacaTradeUpdate,
   type RejectionHandler,
-} from "./order-retry-handler";
+} from "../../server/trading/order-retry-handler";
 
 /**
  * Test suite for order retry handler

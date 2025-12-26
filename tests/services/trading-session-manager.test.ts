@@ -1,4 +1,5 @@
-import { tradingSessionManager } from "../trading-session-manager";
+import { describe, it, expect, beforeEach } from "vitest";
+import { tradingSessionManager } from "../../server/services/trading-session-manager";
 
 describe("TradingSessionManager", () => {
   beforeEach(() => {

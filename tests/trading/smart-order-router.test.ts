@@ -5,14 +5,14 @@
  * to prevent order rejections in various scenarios.
  */
 
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   SmartOrderRouter,
   type OrderInput,
   type CurrentPriceData,
   createPriceData,
-} from "./smart-order-router";
-import type { SessionType } from "../services/trading-session-manager";
+} from "../../server/trading/smart-order-router";
+import type { SessionType } from "../../server/services/trading-session-manager";
 
 describe("SmartOrderRouter", () => {
   let router: SmartOrderRouter;

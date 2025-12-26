@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import {
   sanitizeInput,
   sanitizeObject,
@@ -6,7 +6,7 @@ import {
   sanitizeUserInput,
   sanitizeStrategyInput,
   sanitizeBacktestInput,
-} from './sanitization';
+} from '../../server/lib/sanitization';
 
 describe('XSS Sanitization', () => {
   describe('sanitizeInput', () => {

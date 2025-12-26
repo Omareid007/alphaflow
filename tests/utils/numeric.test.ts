@@ -7,7 +7,7 @@ import {
   formatPercent,
   calculatePnL,
   calculatePercentChange,
-} from './numeric';
+} from '../../server/utils/numeric';
 
 describe('safeParseFloat', () => {
   it('returns the number when given a valid number', () => {

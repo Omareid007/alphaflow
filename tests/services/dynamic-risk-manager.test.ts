@@ -3,8 +3,8 @@
  * Simple tests to verify basic functionality
  */
 
-import { DynamicRiskManager } from './dynamic-risk-manager';
-import type { PortfolioSnapshot } from '../../services/trading-engine/types';
+import { DynamicRiskManager } from '../../server/services/dynamic-risk-manager';
+import type { PortfolioSnapshot } from '../../server/services/trading-engine/types';
 
 async function testBasicFunctionality() {
   console.log('Testing Dynamic Risk Manager...\n');
