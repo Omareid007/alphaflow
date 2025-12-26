@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Newly modularized routes
   app.use("/api/auth", authRouter); // auth routes: /api/auth/login, /api/auth/signup, /api/auth/logout, /api/auth/me
   app.use("/api/positions", authMiddleware, positionsRouter); // positions routes
-  app.use("/api", authMiddleware, ordersRouter); // orders routes
+  app.use("/api/orders", authMiddleware, ordersRouter); // orders routes
   app.use("/api/trades", authMiddleware, tradesRouter); // trades routes
   app.use("/api", authMiddleware, marketDataRouter); // market-data routes
   app.use("/api/webhooks", authMiddleware, webhooksRouter); // webhooks routes
@@ -2262,6 +2262,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error instanceof Error ? error.message : "Failed to check Alpaca health",
         timestamp: new Date().toISOString(),
       });
+    }
+  });
+
+  // Alpaca Orders endpoints
+  app.get("/api/alpaca/orders", authMiddleware, async (req, res) => {
+    try {
+      const status = (req.query.status as "open" | "closed" | "all") || "all";
+      const limit = parseInt(req.query.limit as string) || 50;
+      const orders = await alpaca.getOrders(status, limit);
+      res.json(orders);
+    } catch (error) {
+      log.error("Routes", "Failed to get Alpaca orders", { error: error });
+      res.status(500).json({ error: "Failed to get Alpaca orders" });
+    }
+  });
+
+  app.post("/api/alpaca/orders", authMiddleware, async (req, res) => {
+    try {
+      const { symbol } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      if (!tradabilityCheck.tradable) {
+        return res.status(400).json({
+          error: `Symbol ${symbol} is not tradable`,
+          reason: tradabilityCheck.reason || "Not found in broker universe",
+          tradabilityCheck,
+        });
+      }
+
+      const order = await alpaca.createOrder(req.body);
+      res.status(201).json(order);
+    } catch (error) {
+      log.error("Routes", "Failed to create Alpaca order", { error: error });
+      res.status(500).json({ error: "Failed to create Alpaca order" });
+    }
+  });
+
+  app.delete("/api/alpaca/orders/:orderId", authMiddleware, async (req, res) => {
+    try {
+      await alpaca.cancelOrder(req.params.orderId);
+      res.status(204).send();
+    } catch (error) {
+      log.error("Routes", "Failed to cancel Alpaca order", { error: error });
+      res.status(500).json({ error: "Failed to cancel Alpaca order" });
     }
   });
 

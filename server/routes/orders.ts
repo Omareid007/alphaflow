@@ -21,54 +21,6 @@ import type { Fill } from "@shared/schema";
 const router = Router();
 
 // ============================================================================
-// AUTONOMOUS TRADING ORDERS
-// ============================================================================
-
-/**
- * GET /api/autonomous/open-orders
- * Retrieve all open orders from the trading engine
- */
-router.get("/autonomous/open-orders", async (req: Request, res: Response) => {
-  try {
-    const orders = await alpacaTradingEngine.getOpenOrders();
-    res.json(orders);
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to get open orders", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: String(error) });
-  }
-});
-
-/**
- * POST /api/autonomous/cancel-stale-orders
- * Cancel orders that have been open for longer than maxAgeMinutes
- * Body: { maxAgeMinutes?: number }
- */
-router.post("/autonomous/cancel-stale-orders", async (req: Request, res: Response) => {
-  try {
-    const { maxAgeMinutes } = req.body;
-    const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
-    res.json({ success: true, ...result });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to cancel stale orders", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: String(error) });
-  }
-});
-
-/**
- * POST /api/autonomous/cancel-all-orders
- * Cancel all open orders
- */
-router.post("/autonomous/cancel-all-orders", async (req: Request, res: Response) => {
-  try {
-    const result = await alpacaTradingEngine.cancelAllOpenOrders();
-    res.json({ success: result.cancelled > 0, ...result });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to cancel all orders", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: String(error) });
-  }
-});
-
-// ============================================================================
 // ORDER RECONCILIATION & CLEANUP
 // ============================================================================
 
@@ -252,52 +204,12 @@ router.get("/recent", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/orders/:id
- * Get a single order by ID with its associated fills
- * Supports both database ID and broker order ID
- */
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    // Try by database ID first, then by brokerOrderId
-    let order = await storage.getOrderByBrokerOrderId(id);
-
-    if (!order) {
-      // Could also try by ID if needed
-      const orders = await storage.getRecentOrders(1000);
-      order = orders.find((o) => o.id === id);
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-    // Fetch fills for this order
-    const fills = await storage.getFillsByOrderId(order.id);
-
-    res.json({
-      order,
-      fills,
-      _source: {
-        type: "database",
-        table: "orders",
-        fetchedAt: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch order", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: String(error) });
-  }
-});
-
 // ============================================================================
-// FILLS ENDPOINTS
+// FILLS ENDPOINTS (must be before /:id to avoid being caught by it)
 // ============================================================================
 
 /**
- * GET /api/fills
+ * GET /api/orders/fills
  * Get recent fills from all orders
  * Query params: { limit?: number }
  */
@@ -337,7 +249,7 @@ router.get("/fills", async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/fills/order/:orderId
+ * GET /api/orders/fills/order/:orderId
  * Get fills for a specific order
  */
 router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
@@ -367,66 +279,46 @@ router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
 });
 
 // ============================================================================
-// ALPACA BROKER ORDERS
+// CATCH-ALL ORDER BY ID (must be LAST to not catch other routes)
 // ============================================================================
 
 /**
- * GET /api/alpaca/orders
- * Get orders from Alpaca broker
- * Query params: { status?: "open" | "closed" | "all", limit?: number }
+ * GET /api/orders/:id
+ * Get a single order by ID with its associated fills
+ * Supports both database ID and broker order ID
  */
-router.get("/alpaca/orders", async (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const status = (req.query.status as "open" | "closed" | "all") || "all";
-    const limit = parseInt(req.query.limit as string) || 50;
-    const orders = await alpaca.getOrders(status, limit);
-    res.json(orders);
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to get Alpaca orders", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: "Failed to get Alpaca orders" });
-  }
-});
+    const { id } = req.params;
 
-/**
- * POST /api/alpaca/orders
- * Create a new order on Alpaca broker
- * Body: Order creation parameters (symbol required)
- */
-router.post("/alpaca/orders", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.body;
-    if (!symbol) {
-      return res.status(400).json({ error: "Symbol is required" });
+    // Try by database ID first, then by brokerOrderId
+    let order = await storage.getOrderByBrokerOrderId(id);
+
+    if (!order) {
+      // Could also try by ID if needed
+      const orders = await storage.getRecentOrders(1000);
+      order = orders.find((o) => o.id === id);
     }
 
-    const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
-    if (!tradabilityCheck.tradable) {
-      return res.status(400).json({
-        error: `Symbol ${symbol} is not tradable`,
-        reason: tradabilityCheck.reason || "Not found in broker universe",
-        tradabilityCheck,
-      });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
     }
 
-    const order = await alpaca.createOrder(req.body);
-    res.status(201).json(order);
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to create Alpaca order", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: "Failed to create Alpaca order" });
-  }
-});
+    // Fetch fills for this order
+    const fills = await storage.getFillsByOrderId(order.id);
 
-/**
- * DELETE /api/alpaca/orders/:orderId
- * Cancel an order on Alpaca broker
- */
-router.delete("/alpaca/orders/:orderId", async (req: Request, res: Response) => {
-  try {
-    await alpaca.cancelOrder(req.params.orderId);
-    res.status(204).send();
+    res.json({
+      order,
+      fills,
+      _source: {
+        type: "database",
+        table: "orders",
+        fetchedAt: new Date().toISOString(),
+      },
+    });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to cancel Alpaca order", { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ error: "Failed to cancel Alpaca order" });
+    log.error("OrdersRoutes", "Failed to fetch order", { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: String(error) });
   }
 });
 
