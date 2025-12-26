@@ -38,8 +38,7 @@
     },
     "baseUrl": ".",
     "types": [
-      "react",
-      "react-native"
+      "react"
     ]
   },
   "include": [
@@ -62,6 +61,9 @@
     "babel.config.expo.js",
     "Bolt project",
     "scripts/**/*.ts",
-    "server_dist"
+    "server_dist",
+    "tests/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }

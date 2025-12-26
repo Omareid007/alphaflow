@@ -18,9 +18,9 @@ import {
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { orchestrator } from "../autonomous/orchestrator";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
-import { alpaca } from "../connectors/alpaca";
+import { alpaca, type AlpacaOrder } from "../connectors/alpaca";
 import { insertAiDecisionSchema } from "@shared/schema";
-import type { Order, Trade, Position, AlpacaOrder } from "@shared/schema";
+import type { Order, Trade, Position } from "@shared/schema";
 
 const router = Router();
 

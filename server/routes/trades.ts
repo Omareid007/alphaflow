@@ -3,8 +3,9 @@ import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
 import { badRequest, notFound, serverError } from "../lib/standard-errors";
-import type { InsertTradeSchema } from "@shared/schema";
+import type { InsertTrade } from "@shared/schema";
 import { insertTradeSchema } from "@shared/schema";
+import { log } from "../utils/logger";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get("/", async (req: Request, res: Response) => {
     const trades = await storage.getTrades(req.userId!, limit);
     res.json(trades);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get trades: ${error}`);
+    log.error("TradesAPI", "Failed to get trades", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get trades");
   }
 });
@@ -36,7 +37,7 @@ router.get("/enriched", async (req: Request, res: Response) => {
     const result = await storage.getTradesFiltered(req.userId!, filters);
     res.json(result);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get enriched trades: ${error}`);
+    log.error("TradesAPI", "Failed to get enriched trades", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get enriched trades");
   }
 });
@@ -47,7 +48,7 @@ router.get("/symbols", async (req: Request, res: Response) => {
     const symbols = await storage.getDistinctSymbols();
     res.json(symbols);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get symbols: ${error}`);
+    log.error("TradesAPI", "Failed to get symbols", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get symbols");
   }
 });
@@ -61,7 +62,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     res.json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get trade: ${error}`);
+    log.error("TradesAPI", "Failed to get trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get trade");
   }
 });
@@ -75,7 +76,7 @@ router.get("/:id/enriched", async (req: Request, res: Response) => {
     }
     res.json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to get enriched trade: ${error}`);
+    log.error("TradesAPI", "Failed to get enriched trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to get enriched trade");
   }
 });
@@ -90,7 +91,7 @@ router.post("/", async (req: Request, res: Response) => {
     const trade = await storage.createTrade(parsed.data);
     res.status(201).json(trade);
   } catch (error) {
-    console.error("TradesAPI", `Failed to create trade: ${error}`);
+    log.error("TradesAPI", "Failed to create trade", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to create trade");
   }
 });
@@ -109,7 +110,7 @@ router.post("/backfill-prices", async (req: Request, res: Response) => {
     try {
       orders = await alpaca.getOrders("all", 500);
     } catch (e) {
-      console.error("TradesAPI", `Failed to fetch Alpaca orders for backfill: ${e}`);
+      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", { error: e instanceof Error ? e.message : String(e) });
       return serverError(res, "Failed to fetch order history from broker");
     }
 
@@ -142,7 +143,7 @@ router.post("/backfill-prices", async (req: Request, res: Response) => {
       remaining: zeroTrades.length - updated
     });
   } catch (error) {
-    console.error("TradesAPI", `Trade backfill error: ${error}`);
+    log.error("TradesAPI", "Trade backfill error", { error: error instanceof Error ? error.message : String(error) });
     return serverError(res, "Failed to backfill trade prices");
   }
 });
