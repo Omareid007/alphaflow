@@ -1,6 +1,7 @@
 import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
 import { db } from "./db";
 import { sanitizeInput, sanitizeUserInput, sanitizeStrategyInput } from "./lib/sanitization";
+import { log } from "./utils/logger";
 import {
   users,
   strategies,
@@ -886,13 +887,13 @@ export class DatabaseStorage implements IStorage {
   // AUDIT LOGGING
   // ============================================================================
 
-  async createAuditLog(log: any): Promise<any> {
+  async createAuditLog(logEntry: any): Promise<any> {
     try {
       const { auditLogs } = await import("@shared/schema");
-      const [result] = await db.insert(auditLogs).values(log).returning();
+      const [result] = await db.insert(auditLogs).values(logEntry).returning();
       return result;
     } catch (error) {
-      console.error("[Storage] Failed to create audit log:", error);
+      log.error("Storage", "Failed to create audit log", { error });
       throw error;
     }
   }
@@ -908,7 +909,7 @@ export class DatabaseStorage implements IStorage {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error("[Storage] Failed to get user audit logs:", error);
+      log.error("Storage", "Failed to get user audit logs", { error, userId });
       return [];
     }
   }
@@ -926,7 +927,7 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(auditLogs.timestamp))
         .limit(limit);
     } catch (error) {
-      console.error("[Storage] Failed to get resource audit logs:", error);
+      log.error("Storage", "Failed to get resource audit logs", { error, resource, resourceId });
       return [];
     }
   }
@@ -941,7 +942,7 @@ export class DatabaseStorage implements IStorage {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error("[Storage] Failed to get recent audit logs:", error);
+      log.error("Storage", "Failed to get recent audit logs", { error });
       return [];
     }
   }

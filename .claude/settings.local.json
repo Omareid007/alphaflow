@@ -117,7 +117,10 @@
       "Bash(else echo \"DATABASE_URL not set, skipping migration\")",
       "Bash(/tmp/verify-fixes.sh)",
       "Bash(timeout 30 npm run dev:server:*)",
-      "Bash(git -C /home/runner/workspace status:*)"
+      "Bash(git -C /home/runner/workspace status:*)",
+      "Bash(python /tmp/remove_duplicates.py:*)",
+      "Bash(awk:*)",
+      "Bash(perl -i.bak -pe:*)"
     ]
   }
 }

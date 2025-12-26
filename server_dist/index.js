@@ -1538,6 +1538,137 @@ var init_schema = __esm({
   }
 });
 
+// server/utils/logger.ts
+function redactSecrets(obj) {
+  if (typeof obj !== "object" || obj === null) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(redactSecrets);
+  }
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (SECRET_PATTERNS.some((pattern) => pattern.test(key))) {
+      result[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null) {
+      result[key] = redactSecrets(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+function formatTimestamp() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(11, 23);
+}
+function generateId() {
+  return Math.random().toString(36).substring(2, 10);
+}
+var LEVEL_PRIORITY, SECRET_PATTERNS, Logger, log;
+var init_logger = __esm({
+  "server/utils/logger.ts"() {
+    "use strict";
+    LEVEL_PRIORITY = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3
+    };
+    SECRET_PATTERNS = [
+      /api[_-]?key/i,
+      /secret/i,
+      /password/i,
+      /token/i,
+      /credential/i,
+      /authorization/i
+    ];
+    Logger = class {
+      minLevel = "info";
+      currentRequestId;
+      currentCycleId;
+      setLevel(level) {
+        this.minLevel = level;
+      }
+      setRequestId(requestId) {
+        this.currentRequestId = requestId;
+      }
+      setCycleId(cycleId) {
+        this.currentCycleId = cycleId;
+      }
+      generateRequestId() {
+        return `req-${generateId()}`;
+      }
+      generateCycleId() {
+        return `cyc-${generateId()}`;
+      }
+      shouldLog(level) {
+        return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[this.minLevel];
+      }
+      formatMessage(level, context, message, meta) {
+        const time = formatTimestamp();
+        const levelStr = level.toUpperCase().padEnd(5);
+        const ids = [];
+        const requestId = meta?.requestId || this.currentRequestId;
+        const cycleId = meta?.cycleId || this.currentCycleId;
+        if (requestId) ids.push(requestId);
+        if (cycleId) ids.push(cycleId);
+        const idStr = ids.length > 0 ? ` [${ids.join("|")}]` : "";
+        return `[${time}] [${levelStr}] [${context}]${idStr} ${message}`;
+      }
+      log(level, context, message, meta) {
+        if (!this.shouldLog(level)) return;
+        const formatted = this.formatMessage(level, context, message, meta);
+        const safeMeta = meta ? redactSecrets(meta) : void 0;
+        switch (level) {
+          case "debug":
+            console.debug(formatted, safeMeta || "");
+            break;
+          case "info":
+            console.log(formatted, safeMeta ? JSON.stringify(safeMeta) : "");
+            break;
+          case "warn":
+            console.warn(formatted, safeMeta || "");
+            break;
+          case "error":
+            console.error(formatted, safeMeta || "");
+            break;
+        }
+      }
+      debug(context, message, meta) {
+        this.log("debug", context, message, meta);
+      }
+      info(context, message, meta) {
+        this.log("info", context, message, meta);
+      }
+      warn(context, message, meta) {
+        this.log("warn", context, message, meta);
+      }
+      error(context, message, meta) {
+        this.log("error", context, message, meta);
+      }
+      api(message, meta) {
+        this.info("API", message, meta);
+      }
+      orchestrator(message, meta) {
+        this.info("Orchestrator", message, meta);
+      }
+      alpaca(message, meta) {
+        this.info("Alpaca", message, meta);
+      }
+      ai(message, meta) {
+        this.info("AI", message, meta);
+      }
+      connector(name, message, meta) {
+        this.info(name, message, meta);
+      }
+      trade(action, meta) {
+        this.info("Trade", action, meta);
+      }
+    };
+    log = new Logger();
+  }
+});
+
 // server/db.ts
 var db_exports = {};
 __export(db_exports, {
@@ -1559,6 +1690,7 @@ var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
+    init_logger();
     ({ Pool } = pg);
     if (!process.env.DATABASE_URL) {
       throw new Error(
@@ -1575,10 +1707,10 @@ var init_db = __esm({
     };
     pool = new Pool(poolConfig);
     pool.on("error", (err) => {
-      console.error("[DB Pool] Unexpected error on idle client:", err.message);
+      log.error("DB Pool", "Unexpected error on idle client", { error: err.message });
     });
     pool.on("connect", () => {
-      console.log("[DB Pool] New client connected");
+      log.debug("DB Pool", "New client connected");
     });
     db = drizzle(pool, { schema: schema_exports });
   }
@@ -1648,6 +1780,7 @@ var init_storage = __esm({
     "use strict";
     init_db();
     init_sanitization();
+    init_logger();
     init_schema();
     DatabaseStorage = class {
       async getUser(id) {
@@ -2135,13 +2268,13 @@ var init_storage = __esm({
       // ============================================================================
       // AUDIT LOGGING
       // ============================================================================
-      async createAuditLog(log2) {
+      async createAuditLog(logEntry) {
         try {
           const { auditLogs: auditLogs3 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-          const [result] = await db.insert(auditLogs3).values(log2).returning();
+          const [result] = await db.insert(auditLogs3).values(logEntry).returning();
           return result;
         } catch (error) {
-          console.error("[Storage] Failed to create audit log:", error);
+          log.error("Storage", "Failed to create audit log", { error });
           throw error;
         }
       }
@@ -2150,7 +2283,7 @@ var init_storage = __esm({
           const { auditLogs: auditLogs3 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
           return db.select().from(auditLogs3).where(eq2(auditLogs3.userId, userId)).orderBy(desc(auditLogs3.timestamp)).limit(limit4).offset(offset);
         } catch (error) {
-          console.error("[Storage] Failed to get user audit logs:", error);
+          log.error("Storage", "Failed to get user audit logs", { error, userId });
           return [];
         }
       }
@@ -2162,7 +2295,7 @@ var init_storage = __esm({
             eq2(auditLogs3.resourceId, resourceId)
           )).orderBy(desc(auditLogs3.timestamp)).limit(limit4);
         } catch (error) {
-          console.error("[Storage] Failed to get resource audit logs:", error);
+          log.error("Storage", "Failed to get resource audit logs", { error, resource, resourceId });
           return [];
         }
       }
@@ -2171,7 +2304,7 @@ var init_storage = __esm({
           const { auditLogs: auditLogs3 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
           return db.select().from(auditLogs3).orderBy(desc(auditLogs3.timestamp)).limit(limit4).offset(offset);
         } catch (error) {
-          console.error("[Storage] Failed to get recent audit logs:", error);
+          log.error("Storage", "Failed to get recent audit logs", { error });
           return [];
         }
       }
@@ -2290,137 +2423,6 @@ var init_api_cache = __esm({
       freshDuration: 30 * 1e3,
       staleDuration: 10 * 60 * 1e3
     });
-  }
-});
-
-// server/utils/logger.ts
-function redactSecrets(obj) {
-  if (typeof obj !== "object" || obj === null) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(redactSecrets);
-  }
-  const result = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(key))) {
-      result[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null) {
-      result[key] = redactSecrets(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-function formatTimestamp() {
-  return (/* @__PURE__ */ new Date()).toISOString().slice(11, 23);
-}
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
-}
-var LEVEL_PRIORITY, SECRET_PATTERNS, Logger, log;
-var init_logger = __esm({
-  "server/utils/logger.ts"() {
-    "use strict";
-    LEVEL_PRIORITY = {
-      debug: 0,
-      info: 1,
-      warn: 2,
-      error: 3
-    };
-    SECRET_PATTERNS = [
-      /api[_-]?key/i,
-      /secret/i,
-      /password/i,
-      /token/i,
-      /credential/i,
-      /authorization/i
-    ];
-    Logger = class {
-      minLevel = "info";
-      currentRequestId;
-      currentCycleId;
-      setLevel(level) {
-        this.minLevel = level;
-      }
-      setRequestId(requestId) {
-        this.currentRequestId = requestId;
-      }
-      setCycleId(cycleId) {
-        this.currentCycleId = cycleId;
-      }
-      generateRequestId() {
-        return `req-${generateId()}`;
-      }
-      generateCycleId() {
-        return `cyc-${generateId()}`;
-      }
-      shouldLog(level) {
-        return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[this.minLevel];
-      }
-      formatMessage(level, context, message, meta) {
-        const time = formatTimestamp();
-        const levelStr = level.toUpperCase().padEnd(5);
-        const ids = [];
-        const requestId = meta?.requestId || this.currentRequestId;
-        const cycleId = meta?.cycleId || this.currentCycleId;
-        if (requestId) ids.push(requestId);
-        if (cycleId) ids.push(cycleId);
-        const idStr = ids.length > 0 ? ` [${ids.join("|")}]` : "";
-        return `[${time}] [${levelStr}] [${context}]${idStr} ${message}`;
-      }
-      log(level, context, message, meta) {
-        if (!this.shouldLog(level)) return;
-        const formatted = this.formatMessage(level, context, message, meta);
-        const safeMeta = meta ? redactSecrets(meta) : void 0;
-        switch (level) {
-          case "debug":
-            console.debug(formatted, safeMeta || "");
-            break;
-          case "info":
-            console.log(formatted, safeMeta ? JSON.stringify(safeMeta) : "");
-            break;
-          case "warn":
-            console.warn(formatted, safeMeta || "");
-            break;
-          case "error":
-            console.error(formatted, safeMeta || "");
-            break;
-        }
-      }
-      debug(context, message, meta) {
-        this.log("debug", context, message, meta);
-      }
-      info(context, message, meta) {
-        this.log("info", context, message, meta);
-      }
-      warn(context, message, meta) {
-        this.log("warn", context, message, meta);
-      }
-      error(context, message, meta) {
-        this.log("error", context, message, meta);
-      }
-      api(message, meta) {
-        this.info("API", message, meta);
-      }
-      orchestrator(message, meta) {
-        this.info("Orchestrator", message, meta);
-      }
-      alpaca(message, meta) {
-        this.info("Alpaca", message, meta);
-      }
-      ai(message, meta) {
-        this.info("AI", message, meta);
-      }
-      connector(name, message, meta) {
-        this.info(name, message, meta);
-      }
-      trade(action, meta) {
-        this.info("Trade", action, meta);
-      }
-    };
-    log = new Logger();
   }
 });
 
@@ -35036,6 +35038,7 @@ async function getRelatedEntities(traceId) {
 
 // server/routes.ts
 init_audit_logger();
+init_logger();
 var isProduction = process.env.NODE_ENV === "production";
 function getCookieOptions2() {
   return {
@@ -35050,7 +35053,7 @@ async function authMiddleware(req, res, next) {
   try {
     const sessionId = req.cookies?.session;
     if (!sessionId) {
-      console.warn("[Auth] No session cookie found for request:", req.path);
+      log.warn("Auth", "No session cookie found for request:", { path: req.path });
       return res.status(401).json({
         error: "Not authenticated",
         code: "NO_SESSION",
@@ -35059,7 +35062,7 @@ async function authMiddleware(req, res, next) {
     }
     const session = await getSession(sessionId);
     if (!session) {
-      console.warn("[Auth] Session expired or invalid:", sessionId.substring(0, 8) + "...");
+      log.warn("Auth", "Session expired or invalid:", { sessionId: sessionId.substring(0, 8) + "..." });
       return res.status(401).json({
         error: "Session expired",
         code: "SESSION_EXPIRED",
@@ -35069,7 +35072,7 @@ async function authMiddleware(req, res, next) {
     req.userId = session.userId;
     next();
   } catch (error) {
-    console.error("[Auth] Middleware error:", error);
+    log.error("Auth", "Middleware error", { error });
     return res.status(500).json({
       error: "Authentication error",
       code: "AUTH_ERROR",
@@ -35100,26 +35103,26 @@ function requireCapability(...capabilities) {
   };
 }
 async function registerRoutes(app2) {
-  console.log("[Routes] Starting route registration...");
+  log.info("Routes", "Starting route registration...");
   initializeDefaultModules();
-  console.log("[Routes] Admin module registry initialized");
+  log.info("Routes", "Admin module registry initialized");
   setTimeout(() => {
-    console.log("[Routes] Starting delayed initializations...");
+    log.info("Routes", "Starting delayed initializations...");
     coordinator.start().catch(
-      (err) => console.error("Failed to start trading coordinator:", err)
+      (err) => log.error("Routes", "Failed to start trading coordinator", { error: err })
     );
     alpacaTradingEngine.initialize().catch(
-      (err) => console.error("Failed to initialize Alpaca trading engine:", err)
+      (err) => log.error("Routes", "Failed to initialize Alpaca trading engine", { error: err })
     );
     orchestrator.autoStart().catch(
-      (err) => console.error("Failed to auto-start orchestrator:", err)
+      (err) => log.error("Routes", "Failed to auto-start orchestrator", { error: err })
     );
     workQueue.startWorker(5e3);
-    console.log("[Routes] Work queue worker started with 5s poll interval");
+    log.info("Routes", "Work queue worker started with 5s poll interval");
     alpacaStream.connect().catch((err) => {
-      console.error("[Routes] Failed to connect to Alpaca stream:", err);
+      log.error("Routes", "Failed to connect to Alpaca stream", { error: err });
     });
-    console.log("[Routes] Alpaca trade updates stream connecting...");
+    log.info("Routes", "Alpaca trade updates stream connecting...");
     setInterval(async () => {
       try {
         const traceId = `reconcile-${Date.now()}`;
@@ -35128,37 +35131,37 @@ async function registerRoutes(app2) {
           payload: JSON.stringify({ traceId }),
           idempotencyKey: `ORDER_SYNC:periodic:${Math.floor(Date.now() / 45e3)}`
         });
-        console.log("[Routes] Periodic order reconciliation triggered");
+        log.info("Routes", "Periodic order reconciliation triggered");
       } catch (err) {
-        console.error("[Routes] Failed to trigger order reconciliation:", err);
+        log.error("Routes", "Failed to trigger order reconciliation", { error: err });
       }
     }, 45e3);
-    console.log("[Routes] Order reconciliation job scheduled (45s interval)");
+    log.info("Routes", "Order reconciliation job scheduled (45s interval)");
   }, 2e3);
   setTimeout(async () => {
     try {
-      console.log("[Bootstrap] Checking for admin user...");
+      log.info("Bootstrap", "Checking for admin user...");
       const adminUser = await storage.getUserByUsername("admintest");
-      console.log("[Bootstrap] Admin user check complete:", adminUser ? "exists" : "not found");
+      log.info("Bootstrap", "Admin user check complete:", { status: adminUser ? "exists" : "not found" });
       if (!adminUser) {
         const hashedPassword = await bcrypt2.hash("admin1234", 10);
         await storage.createUser({ username: "admintest", password: hashedPassword, isAdmin: true });
-        console.log("[Bootstrap] Created admin user: admintest");
+        log.info("Bootstrap", "Created admin user: admintest");
       } else {
         if (!adminUser.isAdmin) {
           await storage.updateUser(adminUser.id, { isAdmin: true });
-          console.log("[Bootstrap] Promoted admintest to admin");
+          log.info("Bootstrap", "Promoted admintest to admin");
         } else {
-          console.log("[Bootstrap] Admin user admintest already exists");
+          log.info("Bootstrap", "Admin user admintest already exists");
         }
       }
     } catch (err) {
-      console.error("[Bootstrap] Failed to create admin user:", err);
+      log.error("Bootstrap", "Failed to create admin user", { error: err });
     }
   }, 3e3);
-  console.log("[Routes] Continuing registration (admin bootstrap deferred)...");
+  log.info("Routes", "Continuing registration (admin bootstrap deferred)...");
   app2.use("/api", auditLogger);
-  console.log("[Routes] Audit logging middleware enabled for all API routes");
+  log.info("Routes", "Audit logging middleware enabled for all API routes");
   app2.use("/api/backtests", authMiddleware, backtests_default);
   app2.use("/api/traces", authMiddleware, tracesRouter);
   app2.use("/api/admin/observability", authMiddleware, observabilityRouter);
@@ -35207,7 +35210,7 @@ async function registerRoutes(app2) {
       res.cookie("session", sessionId, getCookieOptions2());
       res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
-      console.error("Signup error:", error);
+      log.error("Routes", "Signup error", { error });
       return serverError(res, "Failed to create account");
     }
   });
@@ -35230,7 +35233,7 @@ async function registerRoutes(app2) {
       res.cookie("session", sessionId, getCookieOptions2());
       res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
     } catch (error) {
-      console.error("Login error:", error);
+      log.error("Routes", "Login error", { error });
       return serverError(res, "Failed to login");
     }
   });
@@ -35312,7 +35315,7 @@ async function registerRoutes(app2) {
       const status = await storage.getAgentStatus();
       res.json(status);
     } catch (error) {
-      console.error("Failed to toggle agent:", error);
+      log.error("Routes", "Failed to toggle agent", { error });
       res.status(500).json({ error: "Failed to toggle agent" });
     }
   });
@@ -35333,7 +35336,7 @@ async function registerRoutes(app2) {
         }))
       });
     } catch (error) {
-      console.error("Failed to get autonomous state:", error);
+      log.error("Routes", "Failed to get autonomous state", { error });
       res.status(500).json({ error: "Failed to get autonomous state" });
     }
   });
@@ -35343,7 +35346,7 @@ async function registerRoutes(app2) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to start autonomous mode:", error);
+      log.error("Routes", "Failed to start autonomous mode", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35353,7 +35356,7 @@ async function registerRoutes(app2) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to stop autonomous mode:", error);
+      log.error("Routes", "Failed to stop autonomous mode", { error });
       res.status(500).json({ error: "Failed to stop autonomous mode" });
     }
   });
@@ -35368,7 +35371,7 @@ async function registerRoutes(app2) {
       const state = orchestrator.getState();
       res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
     } catch (error) {
-      console.error("Failed to toggle kill switch:", error);
+      log.error("Routes", "Failed to toggle kill switch", { error });
       res.status(500).json({ error: "Failed to toggle kill switch" });
     }
   });
@@ -35388,7 +35391,7 @@ async function registerRoutes(app2) {
       });
       res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
     } catch (error) {
-      console.error("Failed to update risk limits:", error);
+      log.error("Routes", "Failed to update risk limits", { error });
       res.status(500).json({ error: "Failed to update risk limits" });
     }
   });
@@ -35401,7 +35404,7 @@ async function registerRoutes(app2) {
       await orchestrator.setMode(mode);
       res.json({ success: true, mode: orchestrator.getMode() });
     } catch (error) {
-      console.error("Failed to set mode:", error);
+      log.error("Routes", "Failed to set mode", { error });
       res.status(500).json({ error: "Failed to set mode" });
     }
   });
@@ -35416,7 +35419,7 @@ async function registerRoutes(app2) {
         currentOrderLimit: analyzerStatus.currentOrderLimit
       });
     } catch (error) {
-      console.error("Failed to get market analysis:", error);
+      log.error("Routes", "Failed to get market analysis", { error });
       res.status(500).json({ error: "Failed to get market analysis" });
     }
   });
@@ -35425,7 +35428,7 @@ async function registerRoutes(app2) {
       const analysis = await marketConditionAnalyzer.runAnalysis();
       res.json({ success: true, analysis });
     } catch (error) {
-      console.error("Failed to refresh market analysis:", error);
+      log.error("Routes", "Failed to refresh market analysis", { error });
       res.status(500).json({ error: "Failed to refresh market analysis" });
     }
   });
@@ -35446,7 +35449,7 @@ async function registerRoutes(app2) {
         lastMarketAnalysis: agentStatus2?.lastMarketAnalysis
       });
     } catch (error) {
-      console.error("Failed to get dynamic limits:", error);
+      log.error("Routes", "Failed to get dynamic limits", { error });
       res.status(500).json({ error: "Failed to get dynamic limits" });
     }
   });
@@ -35477,7 +35480,7 @@ async function registerRoutes(app2) {
         maxOrderLimit: updatedStatus?.maxOrderLimit
       });
     } catch (error) {
-      console.error("Failed to set limits:", error);
+      log.error("Routes", "Failed to set limits", { error });
       res.status(500).json({ error: "Failed to set limits" });
     }
   });
@@ -35491,7 +35494,7 @@ async function registerRoutes(app2) {
         lastHeartbeatFromDb: agentStatus2?.lastHeartbeat
       });
     } catch (error) {
-      console.error("Failed to get agent health:", error);
+      log.error("Routes", "Failed to get agent health", { error });
       res.status(500).json({ error: "Failed to get agent health" });
     }
   });
@@ -35504,7 +35507,7 @@ async function registerRoutes(app2) {
       await orchestrator.setAutoStartEnabled(enabled);
       res.json({ success: true, autoStartEnabled: enabled });
     } catch (error) {
-      console.error("Failed to set auto-start:", error);
+      log.error("Routes", "Failed to set auto-start", { error });
       res.status(500).json({ error: "Failed to set auto-start" });
     }
   });
@@ -35529,7 +35532,7 @@ async function registerRoutes(app2) {
         res.status(400).json({ success: false, error: result.error || "Failed to close position" });
       }
     } catch (error) {
-      console.error("Failed to close position:", error);
+      log.error("Routes", "Failed to close position", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35584,7 +35587,7 @@ async function registerRoutes(app2) {
         results
       });
     } catch (error) {
-      console.error("Failed to execute trades:", error);
+      log.error("Routes", "Failed to execute trades", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35593,7 +35596,7 @@ async function registerRoutes(app2) {
       const orders2 = await alpacaTradingEngine.getOpenOrders();
       res.json(orders2);
     } catch (error) {
-      console.error("Failed to get open orders:", error);
+      log.error("Routes", "Failed to get open orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35603,7 +35606,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to cancel stale orders:", error);
+      log.error("Routes", "Failed to cancel stale orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35612,7 +35615,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.cancelAllOpenOrders();
       res.json({ success: result.cancelled > 0, ...result });
     } catch (error) {
-      console.error("Failed to cancel all orders:", error);
+      log.error("Routes", "Failed to cancel all orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35621,7 +35624,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.reconcilePositions();
       res.json(result);
     } catch (error) {
-      console.error("Failed to reconcile positions:", error);
+      log.error("Routes", "Failed to reconcile positions", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35631,7 +35634,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to sync positions:", error);
+      log.error("Routes", "Failed to sync positions", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35640,7 +35643,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.closeAllPositions();
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to close all positions:", error);
+      log.error("Routes", "Failed to close all positions", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35652,7 +35655,7 @@ async function registerRoutes(app2) {
         orders: unrealOrders
       });
     } catch (error) {
-      console.error("Failed to identify unreal orders:", error);
+      log.error("Routes", "Failed to identify unreal orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35666,7 +35669,7 @@ async function registerRoutes(app2) {
         errors: result.errors
       });
     } catch (error) {
-      console.error("Failed to cleanup unreal orders:", error);
+      log.error("Routes", "Failed to cleanup unreal orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35682,7 +35685,7 @@ async function registerRoutes(app2) {
         synced: result.synced
       });
     } catch (error) {
-      console.error("Failed to reconcile order book:", error);
+      log.error("Routes", "Failed to reconcile order book", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35704,7 +35707,7 @@ async function registerRoutes(app2) {
         executions
       });
     } catch (error) {
-      console.error("Failed to get execution engine status:", error);
+      log.error("Routes", "Failed to get execution engine status", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -35786,7 +35789,7 @@ async function registerRoutes(app2) {
       const updatedStrategy = await storage.getStrategy(req.params.id);
       res.json(updatedStrategy);
     } catch (error) {
-      console.error("Failed to start strategy:", error);
+      log.error("Routes", "Failed to start strategy", { error });
       res.status(500).json({ error: "Failed to start strategy" });
     }
   });
@@ -35803,7 +35806,7 @@ async function registerRoutes(app2) {
       const updatedStrategy = await storage.getStrategy(req.params.id);
       res.json(updatedStrategy);
     } catch (error) {
-      console.error("Failed to stop strategy:", error);
+      log.error("Routes", "Failed to stop strategy", { error });
       res.status(500).json({ error: "Failed to stop strategy" });
     }
   });
@@ -35812,7 +35815,7 @@ async function registerRoutes(app2) {
       const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_moving_average_crossover(), moving_average_crossover_exports));
       res.json(STRATEGY_SCHEMA4);
     } catch (error) {
-      console.error("Failed to get MA strategy schema:", error);
+      log.error("Routes", "Failed to get MA strategy schema", { error });
       res.status(500).json({ error: "Failed to get strategy schema" });
     }
   });
@@ -35824,7 +35827,7 @@ async function registerRoutes(app2) {
       const result = await backtestMovingAverageStrategy2(config, lookbackDays);
       res.json(result);
     } catch (error) {
-      console.error("Failed to run MA backtest:", error);
+      log.error("Routes", "Failed to run MA backtest", { error });
       res.status(500).json({ error: error.message || "Failed to run backtest" });
     }
   });
@@ -35841,7 +35844,7 @@ async function registerRoutes(app2) {
       const result = await validateMovingAverageConfig2(config, marketIntelligence);
       res.json(result);
     } catch (error) {
-      console.error("Failed to AI validate strategy:", error);
+      log.error("Routes", "Failed to AI validate strategy", { error });
       res.status(500).json({ error: error.message || "Failed to validate strategy" });
     }
   });
@@ -35850,7 +35853,7 @@ async function registerRoutes(app2) {
       const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
       res.json(STRATEGY_SCHEMA4);
     } catch (error) {
-      console.error("Failed to get mean reversion strategy schema:", error);
+      log.error("Routes", "Failed to get mean reversion strategy schema", { error });
       res.status(500).json({ error: "Failed to get strategy schema" });
     }
   });
@@ -35862,7 +35865,7 @@ async function registerRoutes(app2) {
       const result = await backtestMeanReversionStrategy2(config, lookbackDays);
       res.json(result);
     } catch (error) {
-      console.error("Failed to run mean reversion backtest:", error);
+      log.error("Routes", "Failed to run mean reversion backtest", { error });
       res.status(500).json({ error: error.message || "Failed to run backtest" });
     }
   });
@@ -35877,7 +35880,7 @@ async function registerRoutes(app2) {
       const signal = generateMeanReversionSignal2(prices, config);
       res.json(signal);
     } catch (error) {
-      console.error("Failed to generate mean reversion signal:", error);
+      log.error("Routes", "Failed to generate mean reversion signal", { error });
       res.status(500).json({ error: error.message || "Failed to generate signal" });
     }
   });
@@ -35886,7 +35889,7 @@ async function registerRoutes(app2) {
       const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
       res.json(STRATEGY_SCHEMA4);
     } catch (error) {
-      console.error("Failed to get momentum strategy schema:", error);
+      log.error("Routes", "Failed to get momentum strategy schema", { error });
       res.status(500).json({ error: "Failed to get strategy schema" });
     }
   });
@@ -35898,7 +35901,7 @@ async function registerRoutes(app2) {
       const result = await backtestMomentumStrategy2(config, lookbackDays);
       res.json(result);
     } catch (error) {
-      console.error("Failed to run momentum backtest:", error);
+      log.error("Routes", "Failed to run momentum backtest", { error });
       res.status(500).json({ error: error.message || "Failed to run backtest" });
     }
   });
@@ -35914,7 +35917,7 @@ async function registerRoutes(app2) {
       const signal = generateMomentumSignal2(prices, config);
       res.json(signal);
     } catch (error) {
-      console.error("Failed to generate momentum signal:", error);
+      log.error("Routes", "Failed to generate momentum signal", { error });
       res.status(500).json({ error: error.message || "Failed to generate signal" });
     }
   });
@@ -35923,7 +35926,7 @@ async function registerRoutes(app2) {
       const { ALL_STRATEGIES: ALL_STRATEGIES2 } = await Promise.resolve().then(() => (init_strategies(), strategies_exports));
       res.json(ALL_STRATEGIES2);
     } catch (error) {
-      console.error("Failed to get all strategy schemas:", error);
+      log.error("Routes", "Failed to get all strategy schemas", { error });
       res.status(500).json({ error: "Failed to get strategy schemas" });
     }
   });
@@ -35988,7 +35991,7 @@ async function registerRoutes(app2) {
       }
       res.json(result);
     } catch (error) {
-      console.error("Failed to run generic backtest:", error);
+      log.error("Routes", "Failed to run generic backtest", { error });
       res.status(500).json({ error: error.message || "Failed to run backtest" });
     }
   });
@@ -35998,7 +36001,7 @@ async function registerRoutes(app2) {
       const config = normalizeMovingAverageConfig2(req.body);
       res.json(config);
     } catch (error) {
-      console.error("Failed to normalize strategy config:", error);
+      log.error("Routes", "Failed to normalize strategy config", { error });
       res.status(500).json({ error: error.message || "Failed to normalize config" });
     }
   });
@@ -36014,7 +36017,7 @@ async function registerRoutes(app2) {
       const result = await validateMovingAverageConfig2(config);
       res.json(result);
     } catch (error) {
-      console.error("Failed to validate strategy:", error);
+      log.error("Routes", "Failed to validate strategy", { error });
       res.status(500).json({ error: error.message || "Failed to validate strategy" });
     }
   });
@@ -36041,7 +36044,7 @@ async function registerRoutes(app2) {
       const result = await storage.getTradesFiltered(req.userId, filters);
       res.json(result);
     } catch (error) {
-      console.error("Failed to get enriched trades:", error);
+      log.error("Routes", "Failed to get enriched trades", { error });
       res.status(500).json({ error: "Failed to get enriched trades" });
     }
   });
@@ -36136,7 +36139,7 @@ async function registerRoutes(app2) {
       };
       res.json(snapshot);
     } catch (error) {
-      console.error("Get portfolio snapshot error:", error);
+      log.error("Routes", "Get portfolio snapshot error", { error });
       res.status(500).json({ error: "Failed to get portfolio snapshot", message: error.message });
     }
   });
@@ -36150,7 +36153,7 @@ async function registerRoutes(app2) {
         return qty >= DUST_THRESHOLD;
       });
       storage.syncPositionsFromAlpaca(req.userId, filteredPositions).catch(
-        (err) => console.error("Failed to sync positions to database:", err)
+        (err) => log.error("Routes", "Failed to sync positions to database", { error: err })
       );
       const enrichedPositions = filteredPositions.map((p) => mapAlpacaPositionToEnriched(p, fetchedAt));
       res.json({
@@ -36158,7 +36161,7 @@ async function registerRoutes(app2) {
         _source: createLiveSourceMetadata()
       });
     } catch (error) {
-      console.error("Failed to fetch positions from Alpaca:", error);
+      log.error("Routes", "Failed to fetch positions from Alpaca", { error });
       res.status(503).json({
         error: "Live position data unavailable from Alpaca",
         _source: createUnavailableSourceMetadata(),
@@ -36181,7 +36184,7 @@ async function registerRoutes(app2) {
         _source: createLiveSourceMetadata()
       });
     } catch (error) {
-      console.error("Failed to fetch broker positions:", error);
+      log.error("Routes", "Failed to fetch broker positions", { error });
       res.status(503).json({
         error: "Failed to fetch positions from broker",
         _source: createUnavailableSourceMetadata(),
@@ -36241,7 +36244,7 @@ async function registerRoutes(app2) {
       const result = await positionReconciler2.reconcile(force);
       res.json(result);
     } catch (error) {
-      console.error("Position reconciliation failed:", error);
+      log.error("Routes", "Position reconciliation failed", { error });
       res.status(500).json({ error: "Failed to reconcile positions" });
     }
   });
@@ -36277,7 +36280,7 @@ async function registerRoutes(app2) {
         patternDayTrader: account.pattern_day_trader
       });
     } catch (error) {
-      console.error("Failed to get portfolio snapshot:", error);
+      log.error("Routes", "Failed to get portfolio snapshot", { error });
       res.status(500).json({ error: "Failed to get portfolio snapshot" });
     }
   });
@@ -36299,7 +36302,7 @@ async function registerRoutes(app2) {
       })).slice(0, 20);
       res.json(candidates);
     } catch (error) {
-      console.error("Failed to get trading candidates:", error);
+      log.error("Routes", "Failed to get trading candidates", { error });
       res.status(500).json({ error: "Failed to get trading candidates" });
     }
   });
@@ -36320,7 +36323,7 @@ async function registerRoutes(app2) {
         config: status.config || {}
       });
     } catch (error) {
-      console.error("Failed to get autonomous status:", error);
+      log.error("Routes", "Failed to get autonomous status", { error });
       res.status(500).json({ error: "Failed to get autonomous status" });
     }
   });
@@ -36480,7 +36483,7 @@ async function registerRoutes(app2) {
         hasMore: offset + limit4 < decisions.length
       });
     } catch (error) {
-      console.error("Failed to get enriched AI decisions:", error);
+      log.error("Routes", "Failed to get enriched AI decisions", { error });
       res.status(500).json({ error: "Failed to get enriched AI decisions" });
     }
   });
@@ -36613,7 +36616,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Timeline fetch error:", error);
+      log.error("Routes", "Timeline fetch error", { error });
       res.status(500).json({
         error: "Failed to fetch activity timeline",
         meta: {
@@ -36635,7 +36638,7 @@ async function registerRoutes(app2) {
       try {
         orders2 = await alpaca.getOrders("all", 500);
       } catch (e) {
-        console.error("Failed to fetch Alpaca orders for backfill:", e);
+        log.error("Routes", "Failed to fetch Alpaca orders for backfill", { error: e });
         return res.status(500).json({ error: "Failed to fetch order history from broker" });
       }
       let updated = 0;
@@ -36660,7 +36663,7 @@ async function registerRoutes(app2) {
         remaining: zeroTrades.length - updated
       });
     } catch (error) {
-      console.error("Trade backfill error:", error);
+      log.error("Routes", "Trade backfill error", { error });
       res.status(500).json({ error: "Failed to backfill trade prices" });
     }
   });
@@ -36685,7 +36688,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Failed to fetch orders:", error);
+      log.error("Routes", "Failed to fetch orders", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -36713,7 +36716,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Failed to fetch fills:", error);
+      log.error("Routes", "Failed to fetch fills", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -36733,7 +36736,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Failed to fetch fills:", error);
+      log.error("Routes", "Failed to fetch fills", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -36752,7 +36755,7 @@ async function registerRoutes(app2) {
         traceId
       });
     } catch (error) {
-      console.error("Failed to enqueue order sync:", error);
+      log.error("Routes", "Failed to enqueue order sync", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -36772,7 +36775,7 @@ async function registerRoutes(app2) {
         _source: createLiveSourceMetadata()
       });
     } catch (error) {
-      console.error("Failed to fetch recent orders:", error);
+      log.error("Routes", "Failed to fetch recent orders", { error });
       res.status(503).json({
         error: "Failed to fetch recent orders",
         _source: createUnavailableSourceMetadata(),
@@ -36802,7 +36805,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Failed to fetch order:", error);
+      log.error("Routes", "Failed to fetch order", { error });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -36824,7 +36827,7 @@ async function registerRoutes(app2) {
         storage.getTrades(100),
         // Reduced from 5000 - only need recent trades
         Promise.all([alpaca.getPositions(), alpaca.getAccount()]).catch((e) => {
-          console.error("Failed to fetch Alpaca data for analytics:", e);
+          log.error("Routes", "Failed to fetch Alpaca data for analytics", { error: e });
           return [[], null];
         })
       ]);
@@ -36909,7 +36912,7 @@ async function registerRoutes(app2) {
       const markets = await coingecko.getMarkets("usd", perPage, page, order);
       res.json(markets);
     } catch (error) {
-      console.error("Failed to fetch crypto markets:", error);
+      log.error("Routes", "Failed to fetch crypto markets", { error });
       res.status(500).json({ error: "Failed to fetch crypto market data" });
     }
   });
@@ -36920,7 +36923,7 @@ async function registerRoutes(app2) {
       const prices = await coingecko.getSimplePrice(coinIds);
       res.json(prices);
     } catch (error) {
-      console.error("Failed to fetch crypto prices:", error);
+      log.error("Routes", "Failed to fetch crypto prices", { error });
       res.status(500).json({ error: "Failed to fetch crypto prices" });
     }
   });
@@ -36931,7 +36934,7 @@ async function registerRoutes(app2) {
       const chart = await coingecko.getMarketChart(coinId, "usd", days);
       res.json(chart);
     } catch (error) {
-      console.error("Failed to fetch crypto chart:", error);
+      log.error("Routes", "Failed to fetch crypto chart", { error });
       res.status(500).json({ error: "Failed to fetch crypto chart data" });
     }
   });
@@ -36940,7 +36943,7 @@ async function registerRoutes(app2) {
       const trending = await coingecko.getTrending();
       res.json(trending);
     } catch (error) {
-      console.error("Failed to fetch trending coins:", error);
+      log.error("Routes", "Failed to fetch trending coins", { error });
       res.status(500).json({ error: "Failed to fetch trending coins" });
     }
   });
@@ -36949,7 +36952,7 @@ async function registerRoutes(app2) {
       const global = await coingecko.getGlobalData();
       res.json(global);
     } catch (error) {
-      console.error("Failed to fetch global market data:", error);
+      log.error("Routes", "Failed to fetch global market data", { error });
       res.status(500).json({ error: "Failed to fetch global market data" });
     }
   });
@@ -36962,7 +36965,7 @@ async function registerRoutes(app2) {
       const results = await coingecko.searchCoins(query);
       res.json(results);
     } catch (error) {
-      console.error("Failed to search coins:", error);
+      log.error("Routes", "Failed to search coins", { error });
       res.status(500).json({ error: "Failed to search coins" });
     }
   });
@@ -36972,7 +36975,7 @@ async function registerRoutes(app2) {
       const quote = await finnhub.getQuote(symbol);
       res.json(quote);
     } catch (error) {
-      console.error("Failed to fetch stock quote:", error);
+      log.error("Routes", "Failed to fetch stock quote", { error });
       res.status(500).json({ error: "Failed to fetch stock quote" });
     }
   });
@@ -36987,7 +36990,7 @@ async function registerRoutes(app2) {
       });
       res.json(result);
     } catch (error) {
-      console.error("Failed to fetch stock quotes:", error);
+      log.error("Routes", "Failed to fetch stock quotes", { error });
       res.status(500).json({ error: "Failed to fetch stock quotes" });
     }
   });
@@ -37000,7 +37003,7 @@ async function registerRoutes(app2) {
       const candles = await finnhub.getCandles(symbol, resolution, from, to);
       res.json(candles);
     } catch (error) {
-      console.error("Failed to fetch stock candles:", error);
+      log.error("Routes", "Failed to fetch stock candles", { error });
       res.status(500).json({ error: "Failed to fetch stock candles" });
     }
   });
@@ -37010,7 +37013,7 @@ async function registerRoutes(app2) {
       const profile = await finnhub.getCompanyProfile(symbol);
       res.json(profile);
     } catch (error) {
-      console.error("Failed to fetch company profile:", error);
+      log.error("Routes", "Failed to fetch company profile", { error });
       res.status(500).json({ error: "Failed to fetch company profile" });
     }
   });
@@ -37023,7 +37026,7 @@ async function registerRoutes(app2) {
       const results = await finnhub.searchSymbols(query);
       res.json(results);
     } catch (error) {
-      console.error("Failed to search stocks:", error);
+      log.error("Routes", "Failed to search stocks", { error });
       res.status(500).json({ error: "Failed to search stocks" });
     }
   });
@@ -37033,7 +37036,7 @@ async function registerRoutes(app2) {
       const news = await finnhub.getMarketNews(category);
       res.json(news);
     } catch (error) {
-      console.error("Failed to fetch market news:", error);
+      log.error("Routes", "Failed to fetch market news", { error });
       res.status(500).json({ error: "Failed to fetch market news" });
     }
   });
@@ -37043,7 +37046,7 @@ async function registerRoutes(app2) {
       const stocks = await uaeMarkets.getTopStocks(exchange);
       res.json(stocks);
     } catch (error) {
-      console.error("Failed to fetch UAE stocks:", error);
+      log.error("Routes", "Failed to fetch UAE stocks", { error });
       res.status(500).json({ error: "Failed to fetch UAE stocks" });
     }
   });
@@ -37053,7 +37056,7 @@ async function registerRoutes(app2) {
       const summary = await uaeMarkets.getMarketSummary(exchange);
       res.json(summary);
     } catch (error) {
-      console.error("Failed to fetch UAE market summary:", error);
+      log.error("Routes", "Failed to fetch UAE market summary", { error });
       res.status(500).json({ error: "Failed to fetch UAE market summary" });
     }
   });
@@ -37062,7 +37065,7 @@ async function registerRoutes(app2) {
       const info = uaeMarkets.getMarketInfo();
       res.json(info);
     } catch (error) {
-      console.error("Failed to fetch UAE market info:", error);
+      log.error("Routes", "Failed to fetch UAE market info", { error });
       res.status(500).json({ error: "Failed to fetch UAE market info" });
     }
   });
@@ -37122,7 +37125,7 @@ async function registerRoutes(app2) {
         createdAt: aiDecisionRecord.createdAt
       });
     } catch (error) {
-      console.error("AI analysis error:", error);
+      log.error("Routes", "AI analysis error", { error });
       res.status(500).json({ error: "Failed to analyze trading opportunity" });
     }
   });
@@ -37158,7 +37161,7 @@ async function registerRoutes(app2) {
       }));
       res.json(events);
     } catch (error) {
-      console.error("Failed to get AI events:", error);
+      log.error("Routes", "Failed to get AI events", { error });
       res.json([]);
     }
   });
@@ -37167,7 +37170,7 @@ async function registerRoutes(app2) {
       const stats = getLLMCacheStats();
       res.json(stats);
     } catch (error) {
-      console.error("Error getting LLM cache stats:", error);
+      log.error("Routes", "Error getting LLM cache stats", { error });
       res.status(500).json({ error: "Failed to get cache stats" });
     }
   });
@@ -37176,7 +37179,7 @@ async function registerRoutes(app2) {
       clearLLMCache();
       res.json({ success: true, message: "LLM cache cleared" });
     } catch (error) {
-      console.error("Error clearing LLM cache:", error);
+      log.error("Routes", "Error clearing LLM cache", { error });
       res.status(500).json({ error: "Failed to clear cache" });
     }
   });
@@ -37186,7 +37189,7 @@ async function registerRoutes(app2) {
       clearLLMCacheForRole(role);
       res.json({ success: true, message: `Cache cleared for role: ${role}` });
     } catch (error) {
-      console.error("Error clearing LLM cache for role:", error);
+      log.error("Routes", "Error clearing LLM cache for role", { error });
       res.status(500).json({ error: "Failed to clear cache for role" });
     }
   });
@@ -37195,7 +37198,7 @@ async function registerRoutes(app2) {
       resetLLMCacheStats();
       res.json({ success: true, message: "Cache statistics reset" });
     } catch (error) {
-      console.error("Error resetting LLM cache stats:", error);
+      log.error("Routes", "Error resetting LLM cache stats", { error });
       res.status(500).json({ error: "Failed to reset cache stats" });
     }
   });
@@ -37347,7 +37350,7 @@ async function registerRoutes(app2) {
       const intelligence = await dataFusionEngine.getMarketIntelligence();
       res.json(intelligence);
     } catch (error) {
-      console.error("Failed to get market intelligence:", error);
+      log.error("Routes", "Failed to get market intelligence", { error });
       res.status(500).json({ error: "Failed to get market intelligence" });
     }
   });
@@ -37356,7 +37359,7 @@ async function registerRoutes(app2) {
       const fusedData = await dataFusionEngine.getFusedMarketData();
       res.json(fusedData);
     } catch (error) {
-      console.error("Failed to get fused market data:", error);
+      log.error("Routes", "Failed to get fused market data", { error });
       res.status(500).json({ error: "Failed to get fused market data" });
     }
   });
@@ -37388,7 +37391,7 @@ async function registerRoutes(app2) {
         dailyLossLimitPercent: status.dailyLossLimitPercent ?? "5"
       });
     } catch (error) {
-      console.error("Failed to get risk settings:", error);
+      log.error("Routes", "Failed to get risk settings", { error });
       res.status(500).json({ error: "Failed to get risk settings" });
     }
   });
@@ -37433,7 +37436,7 @@ async function registerRoutes(app2) {
         dailyLossLimitPercent: status?.dailyLossLimitPercent ?? "5"
       });
     } catch (error) {
-      console.error("Failed to update risk settings:", error);
+      log.error("Routes", "Failed to update risk settings", { error });
       res.status(500).json({ error: "Failed to update risk settings" });
     }
   });
@@ -37454,39 +37457,39 @@ async function registerRoutes(app2) {
         message: shouldActivate ? "Kill switch activated - all trading halted" : "Kill switch deactivated"
       });
     } catch (error) {
-      console.error("Failed to toggle kill switch:", error);
+      log.error("Routes", "Failed to toggle kill switch", { error });
       res.status(500).json({ error: "Failed to toggle kill switch" });
     }
   });
   app2.post("/api/risk/close-all", authMiddleware, async (req, res) => {
     try {
-      console.log("[RISK] Closing all positions via Alpaca...");
+      log.info("RISK", "Closing all positions via Alpaca...");
       const result = await alpacaTradingEngine.closeAllPositions();
       res.json({
         ...result,
         _source: createLiveSourceMetadata()
       });
     } catch (error) {
-      console.error("Failed to close all positions:", error);
+      log.error("Routes", "Failed to close all positions", { error });
       res.status(500).json({ error: "Failed to close all positions" });
     }
   });
   app2.post("/api/risk/emergency-liquidate", authMiddleware, async (req, res) => {
     try {
-      console.log("[EMERGENCY] Initiating full portfolio liquidation...");
+      log.info("EMERGENCY", "Initiating full portfolio liquidation...");
       await storage.updateAgentStatus({ killSwitchActive: true, isRunning: false });
-      console.log("[EMERGENCY] Kill switch activated");
+      log.info("EMERGENCY", "Kill switch activated");
       const openOrders = await alpaca.getOrders("open", 100);
       const orderCount = openOrders.length;
       await alpaca.cancelAllOrders();
-      console.log(`[EMERGENCY] Cancelled ${orderCount} orders`);
+      log.info("EMERGENCY", `Cancelled ${orderCount} orders`);
       const closeResult = await alpaca.closeAllPositions();
-      console.log(`[EMERGENCY] Submitted close orders for ${closeResult.length} positions`);
+      log.info("EMERGENCY", `Submitted close orders for ${closeResult.length} positions`);
       await new Promise((resolve2) => setTimeout(resolve2, 1e3));
       const userId = req.userId;
       await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
       const account = await alpaca.getAccount();
-      console.log(`[EMERGENCY] Synced positions from Alpaca. Account equity: $${account.equity}`);
+      log.info("EMERGENCY", `Synced positions from Alpaca. Account equity: $${account.equity}`);
       res.json({
         success: true,
         killSwitchActivated: true,
@@ -37501,7 +37504,7 @@ async function registerRoutes(app2) {
         message: `Emergency liquidation initiated: ${orderCount} orders cancelled, ${closeResult.length} positions closing`
       });
     } catch (error) {
-      console.error("[EMERGENCY] Liquidation failed:", error);
+      log.error("EMERGENCY", "Liquidation failed", { error });
       res.status(500).json({ error: "Emergency liquidation failed: " + String(error) });
     }
   });
@@ -37510,7 +37513,7 @@ async function registerRoutes(app2) {
       const account = await alpaca.getAccount();
       res.json(account);
     } catch (error) {
-      console.error("Failed to get Alpaca account:", error);
+      log.error("Routes", "Failed to get Alpaca account", { error });
       res.status(500).json({ error: "Failed to get Alpaca account" });
     }
   });
@@ -37544,7 +37547,7 @@ async function registerRoutes(app2) {
       });
       res.json(quotes);
     } catch (error) {
-      console.error("Failed to get market quotes:", error);
+      log.error("Routes", "Failed to get market quotes", { error });
       res.status(500).json({ error: "Failed to get market quotes" });
     }
   });
@@ -37558,7 +37561,7 @@ async function registerRoutes(app2) {
       });
       res.json(filteredPositions);
     } catch (error) {
-      console.error("Failed to get Alpaca positions:", error);
+      log.error("Routes", "Failed to get Alpaca positions", { error });
       res.status(500).json({ error: "Failed to get Alpaca positions" });
     }
   });
@@ -37569,7 +37572,7 @@ async function registerRoutes(app2) {
       const orders2 = await alpaca.getOrders(status, limit4);
       res.json(orders2);
     } catch (error) {
-      console.error("Failed to get Alpaca orders:", error);
+      log.error("Routes", "Failed to get Alpaca orders", { error });
       res.status(500).json({ error: "Failed to get Alpaca orders" });
     }
   });
@@ -37590,7 +37593,7 @@ async function registerRoutes(app2) {
       const order = await alpaca.createOrder(req.body);
       res.status(201).json(order);
     } catch (error) {
-      console.error("Failed to create Alpaca order:", error);
+      log.error("Routes", "Failed to create Alpaca order", { error });
       res.status(500).json({ error: "Failed to create Alpaca order" });
     }
   });
@@ -37599,7 +37602,7 @@ async function registerRoutes(app2) {
       await alpaca.cancelOrder(req.params.orderId);
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to cancel Alpaca order:", error);
+      log.error("Routes", "Failed to cancel Alpaca order", { error });
       res.status(500).json({ error: "Failed to cancel Alpaca order" });
     }
   });
@@ -37609,7 +37612,7 @@ async function registerRoutes(app2) {
       const assets = await alpaca.getAssets("active", assetClass);
       res.json(assets);
     } catch (error) {
-      console.error("Failed to get Alpaca assets:", error);
+      log.error("Routes", "Failed to get Alpaca assets", { error });
       res.status(500).json({ error: "Failed to get Alpaca assets" });
     }
   });
@@ -37618,7 +37621,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.getCurrentAllocations();
       res.json(result);
     } catch (error) {
-      console.error("Failed to get current allocations:", error);
+      log.error("Routes", "Failed to get current allocations", { error });
       res.status(500).json({ error: "Failed to get current allocations" });
     }
   });
@@ -37639,7 +37642,7 @@ async function registerRoutes(app2) {
       const preview = await alpacaTradingEngine.previewRebalance(targetAllocations);
       res.json(preview);
     } catch (error) {
-      console.error("Failed to preview rebalance:", error);
+      log.error("Routes", "Failed to preview rebalance", { error });
       res.status(500).json({ error: error.message || "Failed to preview rebalance" });
     }
   });
@@ -37660,7 +37663,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.executeRebalance(targetAllocations, dryRun);
       res.json(result);
     } catch (error) {
-      console.error("Failed to execute rebalance:", error);
+      log.error("Routes", "Failed to execute rebalance", { error });
       res.status(500).json({ error: error.message || "Failed to execute rebalance" });
     }
   });
@@ -37669,7 +37672,7 @@ async function registerRoutes(app2) {
       const suggestions = await alpacaTradingEngine.getRebalanceSuggestions();
       res.json(suggestions);
     } catch (error) {
-      console.error("Failed to get rebalance suggestions:", error);
+      log.error("Routes", "Failed to get rebalance suggestions", { error });
       res.status(500).json({ error: "Failed to get rebalance suggestions" });
     }
   });
@@ -37682,7 +37685,7 @@ async function registerRoutes(app2) {
       const assets = await alpaca.searchAssets(query);
       res.json(assets);
     } catch (error) {
-      console.error("Failed to search Alpaca assets:", error);
+      log.error("Routes", "Failed to search Alpaca assets", { error });
       res.status(500).json({ error: "Failed to search Alpaca assets" });
     }
   });
@@ -37695,7 +37698,7 @@ async function registerRoutes(app2) {
       const bars = await alpaca.getBars(symbols, timeframe, start, end);
       res.json(bars);
     } catch (error) {
-      console.error("Failed to get Alpaca bars:", error);
+      log.error("Routes", "Failed to get Alpaca bars", { error });
       res.status(500).json({ error: "Failed to get Alpaca bars" });
     }
   });
@@ -37723,7 +37726,7 @@ async function registerRoutes(app2) {
       }
       res.json(result);
     } catch (error) {
-      console.error("Failed to get Alpaca snapshots:", error);
+      log.error("Routes", "Failed to get Alpaca snapshots", { error });
       res.status(500).json({ error: "Failed to get Alpaca snapshots" });
     }
   });
@@ -37737,7 +37740,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Database health check failed:", error);
+      log.error("Routes", "Database health check failed", { error });
       res.status(503).json({
         status: "unhealthy",
         error: error instanceof Error ? error.message : "Unknown error",
@@ -37758,7 +37761,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to check Alpaca health:", error);
+      log.error("Routes", "Failed to check Alpaca health", { error });
       res.status(503).json({
         status: "unhealthy",
         error: error instanceof Error ? error.message : "Failed to check Alpaca health",
@@ -37771,7 +37774,7 @@ async function registerRoutes(app2) {
       const clock = await alpacaTradingEngine.getClock();
       res.json(clock);
     } catch (error) {
-      console.error("Failed to get market clock:", error);
+      log.error("Routes", "Failed to get market clock", { error });
       res.status(500).json({ error: "Failed to get market clock" });
     }
   });
@@ -37780,7 +37783,7 @@ async function registerRoutes(app2) {
       const status = await alpacaTradingEngine.getMarketStatus();
       res.json(status);
     } catch (error) {
-      console.error("Failed to get market status:", error);
+      log.error("Routes", "Failed to get market status", { error });
       res.status(500).json({ error: "Failed to get market status" });
     }
   });
@@ -37790,7 +37793,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.canTradeExtendedHours(symbol);
       res.json(result);
     } catch (error) {
-      console.error("Failed to check extended hours availability:", error);
+      log.error("Routes", "Failed to check extended hours availability", { error });
       res.status(500).json({ error: "Failed to check extended hours availability" });
     }
   });
@@ -37802,7 +37805,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get all trading sessions:", error);
+      log.error("Routes", "Failed to get all trading sessions", { error });
       res.status(500).json({ error: "Failed to get trading sessions" });
     }
   });
@@ -37818,7 +37821,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get trading session:", error);
+      log.error("Routes", "Failed to get trading session", { error });
       res.status(500).json({ error: "Failed to get trading session" });
     }
   });
@@ -37832,7 +37835,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to check if market is open:", error);
+      log.error("Routes", "Failed to check if market is open", { error });
       res.status(500).json({ error: "Failed to check market status" });
     }
   });
@@ -37846,7 +37849,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get next market open:", error);
+      log.error("Routes", "Failed to get next market open", { error });
       res.status(500).json({ error: "Failed to get next market open" });
     }
   });
@@ -37865,7 +37868,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get volatility multiplier:", error);
+      log.error("Routes", "Failed to get volatility multiplier", { error });
       res.status(500).json({ error: "Failed to get volatility multiplier" });
     }
   });
@@ -37876,7 +37879,7 @@ async function registerRoutes(app2) {
       const history = await alpaca.getPortfolioHistory(period, timeframe);
       res.json(history);
     } catch (error) {
-      console.error("Failed to get portfolio history:", error);
+      log.error("Routes", "Failed to get portfolio history", { error });
       res.status(500).json({ error: "Failed to get portfolio history" });
     }
   });
@@ -37886,7 +37889,7 @@ async function registerRoutes(app2) {
       const stocks = await alpaca.getTopStocks(limit4);
       res.json(stocks);
     } catch (error) {
-      console.error("Failed to get top stocks:", error);
+      log.error("Routes", "Failed to get top stocks", { error });
       res.status(500).json({ error: "Failed to get top stocks" });
     }
   });
@@ -37896,7 +37899,7 @@ async function registerRoutes(app2) {
       const crypto4 = await alpaca.getTopCrypto(limit4);
       res.json(crypto4);
     } catch (error) {
-      console.error("Failed to get top crypto:", error);
+      log.error("Routes", "Failed to get top crypto", { error });
       res.status(500).json({ error: "Failed to get top crypto" });
     }
   });
@@ -37906,7 +37909,7 @@ async function registerRoutes(app2) {
       const etfs = await alpaca.getTopETFs(limit4);
       res.json(etfs);
     } catch (error) {
-      console.error("Failed to get top ETFs:", error);
+      log.error("Routes", "Failed to get top ETFs", { error });
       res.status(500).json({ error: "Failed to get top ETFs" });
     }
   });
@@ -37915,7 +37918,7 @@ async function registerRoutes(app2) {
       const validation = alpaca.validateOrder(req.body);
       res.json(validation);
     } catch (error) {
-      console.error("Failed to validate order:", error);
+      log.error("Routes", "Failed to validate order", { error });
       res.status(500).json({ error: "Failed to validate order" });
     }
   });
@@ -37981,7 +37984,7 @@ async function registerRoutes(app2) {
       ];
       res.json(feeds);
     } catch (error) {
-      console.error("Failed to get feed sources:", error);
+      log.error("Routes", "Failed to get feed sources", { error });
       res.status(500).json({ error: "Failed to get feed sources" });
     }
   });
@@ -38001,7 +38004,7 @@ async function registerRoutes(app2) {
       }));
       res.json(sentiments);
     } catch (error) {
-      console.error("Failed to get sentiment signals:", error);
+      log.error("Routes", "Failed to get sentiment signals", { error });
       res.status(500).json({ error: "Failed to get sentiment signals" });
     }
   });
@@ -38012,7 +38015,7 @@ async function registerRoutes(app2) {
       const listings = await coinmarketcap.getLatestListings(start, limit4);
       res.json(listings);
     } catch (error) {
-      console.error("Failed to get CMC listings:", error);
+      log.error("Routes", "Failed to get CMC listings", { error });
       res.status(500).json({ error: "Failed to get CoinMarketCap listings" });
     }
   });
@@ -38022,7 +38025,7 @@ async function registerRoutes(app2) {
       const quotes = await coinmarketcap.getQuotesBySymbols(symbols);
       res.json(quotes);
     } catch (error) {
-      console.error("Failed to get CMC quotes:", error);
+      log.error("Routes", "Failed to get CMC quotes", { error });
       res.status(500).json({ error: "Failed to get CoinMarketCap quotes" });
     }
   });
@@ -38031,7 +38034,7 @@ async function registerRoutes(app2) {
       const metrics = await coinmarketcap.getGlobalMetrics();
       res.json(metrics);
     } catch (error) {
-      console.error("Failed to get CMC global metrics:", error);
+      log.error("Routes", "Failed to get CMC global metrics", { error });
       res.status(500).json({ error: "Failed to get CoinMarketCap global metrics" });
     }
   });
@@ -38044,7 +38047,7 @@ async function registerRoutes(app2) {
       const results = await coinmarketcap.searchCryptos(query);
       res.json(results);
     } catch (error) {
-      console.error("Failed to search CMC:", error);
+      log.error("Routes", "Failed to search CMC", { error });
       res.status(500).json({ error: "Failed to search CoinMarketCap" });
     }
   });
@@ -38056,7 +38059,7 @@ async function registerRoutes(app2) {
       const headlines = await newsapi.getTopHeadlines(category, country, pageSize);
       res.json(headlines);
     } catch (error) {
-      console.error("Failed to get news headlines:", error);
+      log.error("Routes", "Failed to get news headlines", { error });
       res.status(500).json({ error: "Failed to get news headlines" });
     }
   });
@@ -38071,7 +38074,7 @@ async function registerRoutes(app2) {
       const articles = await newsapi.searchNews(query, sortBy, pageSize);
       res.json(articles);
     } catch (error) {
-      console.error("Failed to search news:", error);
+      log.error("Routes", "Failed to search news", { error });
       res.status(500).json({ error: "Failed to search news" });
     }
   });
@@ -38081,7 +38084,7 @@ async function registerRoutes(app2) {
       const articles = await newsapi.getMarketNews(pageSize);
       res.json(articles);
     } catch (error) {
-      console.error("Failed to get market news:", error);
+      log.error("Routes", "Failed to get market news", { error });
       res.status(500).json({ error: "Failed to get market news" });
     }
   });
@@ -38091,7 +38094,7 @@ async function registerRoutes(app2) {
       const articles = await newsapi.getCryptoNews(pageSize);
       res.json(articles);
     } catch (error) {
-      console.error("Failed to get crypto news:", error);
+      log.error("Routes", "Failed to get crypto news", { error });
       res.status(500).json({ error: "Failed to get crypto news" });
     }
   });
@@ -38102,7 +38105,7 @@ async function registerRoutes(app2) {
       const articles = await newsapi.getStockNews(symbol, pageSize);
       res.json(articles);
     } catch (error) {
-      console.error("Failed to get stock news:", error);
+      log.error("Routes", "Failed to get stock news", { error });
       res.status(500).json({ error: "Failed to get stock news" });
     }
   });
@@ -38112,7 +38115,7 @@ async function registerRoutes(app2) {
       const connected = await alpacaTradingEngine.isAlpacaConnected();
       res.json({ ...status, alpacaConnected: connected });
     } catch (error) {
-      console.error("Failed to get Alpaca trading status:", error);
+      log.error("Routes", "Failed to get Alpaca trading status", { error });
       res.status(500).json({ error: "Failed to get Alpaca trading status" });
     }
   });
@@ -38139,7 +38142,7 @@ async function registerRoutes(app2) {
       }
       res.json(result);
     } catch (error) {
-      console.error("Alpaca trade execution error:", error);
+      log.error("Routes", "Alpaca trade execution error", { error });
       res.status(500).json({ error: "Failed to execute Alpaca trade" });
     }
   });
@@ -38153,7 +38156,7 @@ async function registerRoutes(app2) {
       }
       res.json(result);
     } catch (error) {
-      console.error("Close Alpaca position error:", error);
+      log.error("Routes", "Close Alpaca position error", { error });
       res.status(500).json({ error: "Failed to close Alpaca position" });
     }
   });
@@ -38166,7 +38169,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.analyzeSymbol(symbol, strategyId);
       res.json(result);
     } catch (error) {
-      console.error("Analyze symbol error:", error);
+      log.error("Routes", "Analyze symbol error", { error });
       res.status(500).json({ error: "Failed to analyze symbol" });
     }
   });
@@ -38179,7 +38182,7 @@ async function registerRoutes(app2) {
       const result = await alpacaTradingEngine.analyzeAndExecute(symbol, strategyId);
       res.json(result);
     } catch (error) {
-      console.error("Analyze and execute error:", error);
+      log.error("Routes", "Analyze and execute error", { error });
       res.status(500).json({ error: "Failed to analyze and execute trade" });
     }
   });
@@ -38192,7 +38195,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, message: "Strategy started" });
     } catch (error) {
-      console.error("Start strategy error:", error);
+      log.error("Routes", "Start strategy error", { error });
       res.status(500).json({ error: "Failed to start strategy" });
     }
   });
@@ -38205,7 +38208,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, message: "Strategy stopped" });
     } catch (error) {
-      console.error("Stop strategy error:", error);
+      log.error("Routes", "Stop strategy error", { error });
       res.status(500).json({ error: "Failed to stop strategy" });
     }
   });
@@ -38222,7 +38225,7 @@ async function registerRoutes(app2) {
         runState: state || { strategyId: id, isRunning: false }
       });
     } catch (error) {
-      console.error("Get strategy status error:", error);
+      log.error("Routes", "Get strategy status error", { error });
       res.status(500).json({ error: "Failed to get strategy status" });
     }
   });
@@ -38231,7 +38234,7 @@ async function registerRoutes(app2) {
       await alpacaTradingEngine.stopAllStrategies();
       res.json({ success: true, message: "All strategies stopped" });
     } catch (error) {
-      console.error("Stop all strategies error:", error);
+      log.error("Routes", "Stop all strategies error", { error });
       res.status(500).json({ error: "Failed to stop all strategies" });
     }
   });
@@ -38241,7 +38244,7 @@ async function registerRoutes(app2) {
       const config = coordinator.getConfig();
       res.json({ status, config });
     } catch (error) {
-      console.error("Get orchestration status error:", error);
+      log.error("Routes", "Get orchestration status error", { error });
       res.status(500).json({ error: "Failed to get orchestration status" });
     }
   });
@@ -38250,7 +38253,7 @@ async function registerRoutes(app2) {
       await coordinator.start();
       res.json({ success: true, message: "Coordinator started" });
     } catch (error) {
-      console.error("Start coordinator error:", error);
+      log.error("Routes", "Start coordinator error", { error });
       res.status(500).json({ error: "Failed to start coordinator" });
     }
   });
@@ -38259,7 +38262,7 @@ async function registerRoutes(app2) {
       await coordinator.stop();
       res.json({ success: true, message: "Coordinator stopped" });
     } catch (error) {
-      console.error("Stop coordinator error:", error);
+      log.error("Routes", "Stop coordinator error", { error });
       res.status(500).json({ error: "Failed to stop coordinator" });
     }
   });
@@ -38269,7 +38272,7 @@ async function registerRoutes(app2) {
       coordinator.updateConfig(updates);
       res.json({ success: true, config: coordinator.getConfig() });
     } catch (error) {
-      console.error("Update orchestration config error:", error);
+      log.error("Routes", "Update orchestration config error", { error });
       res.status(500).json({ error: "Failed to update configuration" });
     }
   });
@@ -38283,7 +38286,7 @@ async function registerRoutes(app2) {
       });
       res.json({ logs, stats: logger.getStats() });
     } catch (error) {
-      console.error("Get logs error:", error);
+      log.error("Routes", "Get logs error", { error });
       res.status(500).json({ error: "Failed to get logs" });
     }
   });
@@ -38293,7 +38296,7 @@ async function registerRoutes(app2) {
       const errors = logger.getErrorLogs(limit4 ? parseInt(limit4) : 50);
       res.json({ errors });
     } catch (error) {
-      console.error("Get error logs error:", error);
+      log.error("Routes", "Get error logs error", { error });
       res.status(500).json({ error: "Failed to get error logs" });
     }
   });
@@ -38307,7 +38310,7 @@ async function registerRoutes(app2) {
       });
       res.json({ events, stats: eventBus.getStats() });
     } catch (error) {
-      console.error("Get events error:", error);
+      log.error("Routes", "Get events error", { error });
       res.status(500).json({ error: "Failed to get events" });
     }
   });
@@ -38316,7 +38319,7 @@ async function registerRoutes(app2) {
       coordinator.resetStats();
       res.json({ success: true, message: "Statistics reset" });
     } catch (error) {
-      console.error("Reset stats error:", error);
+      log.error("Routes", "Reset stats error", { error });
       res.status(500).json({ error: "Failed to reset statistics" });
     }
   });
@@ -38341,7 +38344,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Performance metrics error:", error);
+      log.error("Routes", "Performance metrics error", { error });
       res.status(500).json({ error: "Failed to get performance metrics" });
     }
   });
@@ -38387,7 +38390,7 @@ async function registerRoutes(app2) {
       registerWebhook(config);
       res.status(201).json(redactWebhook2(config));
     } catch (error) {
-      console.error("Webhook creation error:", error);
+      log.error("Routes", "Webhook creation error", { error });
       res.status(500).json({ error: "Failed to create webhook" });
     }
   });
@@ -38411,7 +38414,7 @@ async function registerRoutes(app2) {
       const results = await emitEvent(eventType || "system.test", payload || { test: true, timestamp: (/* @__PURE__ */ new Date()).toISOString() });
       res.json({ deliveries: results.length, results });
     } catch (error) {
-      console.error("Webhook test error:", error);
+      log.error("Routes", "Webhook test error", { error });
       res.status(500).json({ error: "Failed to send test event" });
     }
   });
@@ -38482,7 +38485,7 @@ async function registerRoutes(app2) {
       registerChannel2(channel);
       res.status(201).json(redactChannelConfig(channel));
     } catch (error) {
-      console.error("Channel creation error:", error);
+      log.error("Routes", "Channel creation error", { error });
       res.status(500).json({ error: "Failed to create channel" });
     }
   });
@@ -38521,7 +38524,7 @@ async function registerRoutes(app2) {
       registerTemplate2(template);
       res.status(201).json(template);
     } catch (error) {
-      console.error("Template creation error:", error);
+      log.error("Routes", "Template creation error", { error });
       res.status(500).json({ error: "Failed to create template" });
     }
   });
@@ -38548,7 +38551,7 @@ async function registerRoutes(app2) {
       const results = await sendNotification2(eventType, data || {});
       res.json({ sent: results.length, results });
     } catch (error) {
-      console.error("Notification send error:", error);
+      log.error("Routes", "Notification send error", { error });
       res.status(500).json({ error: "Failed to send notification" });
     }
   });
@@ -38564,7 +38567,7 @@ async function registerRoutes(app2) {
       }
       res.json(result);
     } catch (error) {
-      console.error("Notification test error:", error);
+      log.error("Routes", "Notification test error", { error });
       res.status(500).json({ error: "Failed to send test notification" });
     }
   });
@@ -38588,7 +38591,7 @@ async function registerRoutes(app2) {
         res.json({ usage: allStats, policies });
       }
     } catch (error) {
-      console.error("Failed to get API usage stats:", error);
+      log.error("Routes", "Failed to get API usage stats", { error });
       res.status(500).json({ error: "Failed to get API usage stats" });
     }
   });
@@ -38600,7 +38603,7 @@ async function registerRoutes(app2) {
       const entries = await getAllCacheEntries(providerFilter);
       res.json({ stats, entries });
     } catch (error) {
-      console.error("Failed to get API cache stats:", error);
+      log.error("Routes", "Failed to get API cache stats", { error });
       res.status(500).json({ error: "Failed to get API cache stats" });
     }
   });
@@ -38621,7 +38624,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, purgedCount, message });
     } catch (error) {
-      console.error("Failed to purge API cache:", error);
+      log.error("Routes", "Failed to purge API cache", { error });
       res.status(500).json({ error: "Failed to purge API cache" });
     }
   });
@@ -38631,7 +38634,7 @@ async function registerRoutes(app2) {
       const statuses = await getAllProviderStatuses2();
       res.json({ providers: statuses });
     } catch (error) {
-      console.error("Failed to get provider statuses:", error);
+      log.error("Routes", "Failed to get provider statuses", { error });
       res.status(500).json({ error: "Failed to get provider statuses" });
     }
   });
@@ -38659,7 +38662,7 @@ async function registerRoutes(app2) {
         });
       }
     } catch (error) {
-      console.error("Failed to force refresh provider:", error);
+      log.error("Routes", "Failed to force refresh provider", { error });
       res.status(500).json({ error: "Failed to force refresh provider" });
     }
   });
@@ -38682,7 +38685,7 @@ async function registerRoutes(app2) {
         message: `Provider ${provider} is now ${policy.enabled ? "enabled" : "disabled"}`
       });
     } catch (error) {
-      console.error("Failed to toggle provider:", error);
+      log.error("Routes", "Failed to toggle provider", { error });
       res.status(500).json({ error: "Failed to toggle provider" });
     }
   });
@@ -38693,7 +38696,7 @@ async function registerRoutes(app2) {
       const config = getValyuBudgetConfig2();
       res.json({ statuses, config });
     } catch (error) {
-      console.error("Failed to get Valyu budget status:", error);
+      log.error("Routes", "Failed to get Valyu budget status", { error });
       res.status(500).json({ error: "Failed to get Valyu budget status" });
     }
   });
@@ -38709,7 +38712,7 @@ async function registerRoutes(app2) {
       const config = getValyuBudgetConfig2();
       res.json({ success: true, config, message: "Valyu budget limits updated" });
     } catch (error) {
-      console.error("Failed to update Valyu budget:", error);
+      log.error("Routes", "Failed to update Valyu budget", { error });
       res.status(500).json({ error: "Failed to update Valyu budget" });
     }
   });
@@ -38849,7 +38852,7 @@ async function registerRoutes(app2) {
         try {
           alpacaHealthResult = await alpaca.healthCheck();
         } catch (err) {
-          console.error("Alpaca health check failed:", err);
+          log.error("Routes", "Alpaca health check failed", { error: err });
         }
       }
       for (const connector of connectors) {
@@ -38911,7 +38914,7 @@ async function registerRoutes(app2) {
       }
       res.json({ connectors });
     } catch (error) {
-      console.error("Failed to get connector health:", error);
+      log.error("Routes", "Failed to get connector health", { error });
       res.status(500).json({ error: "Failed to get connector health" });
     }
   });
@@ -38955,7 +38958,7 @@ async function registerRoutes(app2) {
       };
       res.json({ apiKeys, summary });
     } catch (error) {
-      console.error("Failed to get API keys status:", error);
+      log.error("Routes", "Failed to get API keys status", { error });
       res.status(500).json({ error: "Failed to get API keys status" });
     }
   });
@@ -38968,7 +38971,7 @@ async function registerRoutes(app2) {
       try {
         marketIntelligence = await dataFusionEngine.getMarketIntelligence();
       } catch (err) {
-        console.error("Failed to get market intelligence:", err);
+        log.error("Routes", "Failed to get market intelligence", { error: err });
       }
       const dataSources = [
         // Market Data Sources
@@ -39017,7 +39020,7 @@ async function registerRoutes(app2) {
       };
       res.json(fusionMetrics);
     } catch (error) {
-      console.error("Failed to get data fusion status:", error);
+      log.error("Routes", "Failed to get data fusion status", { error });
       res.status(500).json({ error: "Failed to get data fusion status" });
     }
   });
@@ -39029,7 +39032,7 @@ async function registerRoutes(app2) {
         conservativeMode: agentStatus2?.conservativeMode ?? false
       });
     } catch (error) {
-      console.error("Failed to get AI config:", error);
+      log.error("Routes", "Failed to get AI config", { error });
       res.status(500).json({ error: "Failed to get AI config" });
     }
   });
@@ -39046,7 +39049,7 @@ async function registerRoutes(app2) {
         conservativeMode: status?.conservativeMode ?? false
       });
     } catch (error) {
-      console.error("Failed to update AI config:", error);
+      log.error("Routes", "Failed to update AI config", { error });
       res.status(500).json({ error: "Failed to update AI config" });
     }
   });
@@ -39056,7 +39059,7 @@ async function registerRoutes(app2) {
       const availableProviders = roleBasedRouter.getAvailableProviders();
       res.json({ configs, availableProviders });
     } catch (error) {
-      console.error("Failed to get role configs:", error);
+      log.error("Routes", "Failed to get role configs", { error });
       res.status(500).json({ error: "Failed to get role configurations" });
     }
   });
@@ -39071,7 +39074,7 @@ async function registerRoutes(app2) {
       const updated = await updateRoleConfig(role, updates);
       res.json({ success: true, config: updated });
     } catch (error) {
-      console.error("Failed to update role config:", error);
+      log.error("Routes", "Failed to update role config", { error });
       res.status(500).json({ error: "Failed to update role configuration" });
     }
   });
@@ -39083,7 +39086,7 @@ async function registerRoutes(app2) {
       const calls = await getRecentCalls(limitNum, roleFilter);
       res.json({ calls, count: calls.length });
     } catch (error) {
-      console.error("Failed to get recent LLM calls:", error);
+      log.error("Routes", "Failed to get recent LLM calls", { error });
       res.status(500).json({ error: "Failed to get recent LLM calls" });
     }
   });
@@ -39092,7 +39095,7 @@ async function registerRoutes(app2) {
       const stats = await getCallStats();
       res.json(stats);
     } catch (error) {
-      console.error("Failed to get LLM call stats:", error);
+      log.error("Routes", "Failed to get LLM call stats", { error });
       res.status(500).json({ error: "Failed to get LLM call statistics" });
     }
   });
@@ -39115,7 +39118,7 @@ async function registerRoutes(app2) {
         total: items.length
       });
     } catch (error) {
-      console.error("Failed to get work items:", error);
+      log.error("Routes", "Failed to get work items", { error });
       res.status(500).json({ error: "Failed to get work items" });
     }
   });
@@ -39140,7 +39143,7 @@ async function registerRoutes(app2) {
       });
       res.json({ success: true, message: "Work item queued for retry" });
     } catch (error) {
-      console.error("Failed to retry work item:", error);
+      log.error("Routes", "Failed to retry work item", { error });
       res.status(500).json({ error: "Failed to retry work item" });
     }
   });
@@ -39160,7 +39163,7 @@ async function registerRoutes(app2) {
       });
       res.json({ success: true, message: "Work item moved to dead letter" });
     } catch (error) {
-      console.error("Failed to dead-letter work item:", error);
+      log.error("Routes", "Failed to dead-letter work item", { error });
       res.status(500).json({ error: "Failed to dead-letter work item" });
     }
   });
@@ -39190,7 +39193,7 @@ async function registerRoutes(app2) {
         lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get orchestrator health:", error);
+      log.error("Routes", "Failed to get orchestrator health", { error });
       res.status(500).json({ error: "Failed to get orchestrator health" });
     }
   });
@@ -39202,7 +39205,7 @@ async function registerRoutes(app2) {
         count: modules.length
       });
     } catch (error) {
-      console.error("Failed to get admin modules:", error);
+      log.error("Routes", "Failed to get admin modules", { error });
       res.status(500).json({ error: "Failed to get admin modules" });
     }
   });
@@ -39222,7 +39225,7 @@ async function registerRoutes(app2) {
         userRole: rbacContext.role
       });
     } catch (error) {
-      console.error("Failed to get accessible modules:", error);
+      log.error("Routes", "Failed to get accessible modules", { error });
       res.status(500).json({ error: "Failed to get accessible modules" });
     }
   });
@@ -39234,7 +39237,7 @@ async function registerRoutes(app2) {
       }
       res.json(module);
     } catch (error) {
-      console.error("Failed to get admin module:", error);
+      log.error("Routes", "Failed to get admin module", { error });
       res.status(500).json({ error: "Failed to get admin module" });
     }
   });
@@ -39275,7 +39278,7 @@ async function registerRoutes(app2) {
         fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get admin overview:", error);
+      log.error("Routes", "Failed to get admin overview", { error });
       res.status(500).json({ error: "Failed to get admin overview" });
     }
   });
@@ -39294,7 +39297,7 @@ async function registerRoutes(app2) {
         capabilities: rbacContext.capabilities
       });
     } catch (error) {
-      console.error("Failed to get RBAC context:", error);
+      log.error("Routes", "Failed to get RBAC context", { error });
       res.status(500).json({ error: "Failed to get RBAC context" });
     }
   });
@@ -39303,7 +39306,7 @@ async function registerRoutes(app2) {
       const roles = getAllRoles().map((role) => getRoleInfo(role));
       res.json({ roles });
     } catch (error) {
-      console.error("Failed to get roles:", error);
+      log.error("Routes", "Failed to get roles", { error });
       res.status(500).json({ error: "Failed to get roles" });
     }
   });
@@ -39322,7 +39325,7 @@ async function registerRoutes(app2) {
         userRole: rbacContext.role
       });
     } catch (error) {
-      console.error("Failed to check capability:", error);
+      log.error("Routes", "Failed to check capability", { error });
       res.status(500).json({ error: "Failed to check capability" });
     }
   });
@@ -39337,7 +39340,7 @@ async function registerRoutes(app2) {
         count: sanitized.length
       });
     } catch (error) {
-      console.error("Failed to list settings:", error);
+      log.error("Routes", "Failed to list settings", { error });
       res.status(500).json({ error: "Failed to list settings" });
     }
   });
@@ -39351,7 +39354,7 @@ async function registerRoutes(app2) {
       const sanitized = sanitizeSettingForResponse(setting);
       res.json(sanitized);
     } catch (error) {
-      console.error("Failed to get setting:", error);
+      log.error("Routes", "Failed to get setting", { error });
       res.status(500).json({ error: "Failed to get setting" });
     }
   });
@@ -39373,7 +39376,7 @@ async function registerRoutes(app2) {
       if (error.message?.includes("read-only")) {
         return res.status(403).json({ error: error.message });
       }
-      console.error("Failed to set setting:", error);
+      log.error("Routes", "Failed to set setting", { error });
       res.status(500).json({ error: "Failed to set setting" });
     }
   });
@@ -39389,7 +39392,7 @@ async function registerRoutes(app2) {
       if (error.message?.includes("read-only")) {
         return res.status(403).json({ error: error.message });
       }
-      console.error("Failed to delete setting:", error);
+      log.error("Routes", "Failed to delete setting", { error });
       res.status(500).json({ error: "Failed to delete setting" });
     }
   });
@@ -39406,7 +39409,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Get orchestrator status error:", error);
+      log.error("Routes", "Get orchestrator status error", { error });
       res.status(500).json({ error: "Failed to get orchestrator status" });
     }
   });
@@ -39415,7 +39418,7 @@ async function registerRoutes(app2) {
       await coordinator.stop();
       res.json({ success: true, message: "Orchestrator paused", isRunning: false });
     } catch (error) {
-      console.error("Pause orchestrator error:", error);
+      log.error("Routes", "Pause orchestrator error", { error });
       res.status(500).json({ error: "Failed to pause orchestrator" });
     }
   });
@@ -39424,7 +39427,7 @@ async function registerRoutes(app2) {
       await coordinator.start();
       res.json({ success: true, message: "Orchestrator resumed", isRunning: true });
     } catch (error) {
-      console.error("Resume orchestrator error:", error);
+      log.error("Routes", "Resume orchestrator error", { error });
       res.status(500).json({ error: "Failed to resume orchestrator" });
     }
   });
@@ -39433,7 +39436,7 @@ async function registerRoutes(app2) {
       const result = await coordinator.triggerReconcileNow();
       res.json(result);
     } catch (error) {
-      console.error("Trigger reconcile error:", error);
+      log.error("Routes", "Trigger reconcile error", { error });
       res.status(500).json({ error: "Failed to trigger reconciliation" });
     }
   });
@@ -39443,7 +39446,7 @@ async function registerRoutes(app2) {
       coordinator.updateConfig(updates);
       res.json({ success: true, config: coordinator.getConfig() });
     } catch (error) {
-      console.error("Update orchestrator config error:", error);
+      log.error("Routes", "Update orchestrator config error", { error });
       res.status(500).json({ error: "Failed to update configuration" });
     }
   });
@@ -39452,7 +39455,7 @@ async function registerRoutes(app2) {
       coordinator.resetStats();
       res.json({ success: true, message: "Statistics reset" });
     } catch (error) {
-      console.error("Reset stats error:", error);
+      log.error("Routes", "Reset stats error", { error });
       res.status(500).json({ error: "Failed to reset statistics" });
     }
   });
@@ -39468,7 +39471,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Get job status error:", error);
+      log.error("Routes", "Get job status error", { error });
       res.status(500).json({ error: "Failed to get job status" });
     }
   });
@@ -39481,7 +39484,7 @@ async function registerRoutes(app2) {
           message: "Please wait for the current sync to complete"
         });
       }
-      console.log("[API] Manual position sync triggered by admin");
+      log.info("API", "Manual position sync triggered by admin");
       const result = await positionReconciliationJob2.executeSync();
       res.json({
         success: true,
@@ -39501,7 +39504,7 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Manual sync positions error:", error);
+      log.error("Routes", "Manual sync positions error", { error });
       res.status(500).json({
         error: "Failed to sync positions",
         message: error.message
@@ -39519,7 +39522,7 @@ async function registerRoutes(app2) {
       const results = await globalSearch(query, Math.min(maxResults, 100));
       res.json(results);
     } catch (error) {
-      console.error("Failed to perform global search:", error);
+      log.error("Routes", "Failed to perform global search", { error });
       res.status(500).json({ error: "Failed to perform search" });
     }
   });
@@ -39534,7 +39537,7 @@ async function registerRoutes(app2) {
         ...related
       });
     } catch (error) {
-      console.error("Failed to get related entities:", error);
+      log.error("Routes", "Failed to get related entities", { error });
       res.status(500).json({ error: "Failed to get related entities" });
     }
   });
@@ -39547,7 +39550,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get universe stats:", error);
+      log.error("Routes", "Failed to get universe stats", { error });
       res.status(500).json({ error: "Failed to get universe stats" });
     }
   });
@@ -39570,7 +39573,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get universe assets:", error);
+      log.error("Routes", "Failed to get universe assets", { error });
       res.status(500).json({ error: "Failed to get universe assets" });
     }
   });
@@ -39583,7 +39586,7 @@ async function registerRoutes(app2) {
       }
       res.json(asset);
     } catch (error) {
-      console.error("Failed to get asset:", error);
+      log.error("Routes", "Failed to get asset", { error });
       res.status(500).json({ error: "Failed to get asset" });
     }
   });
@@ -39599,7 +39602,7 @@ async function registerRoutes(app2) {
       });
       res.json(result);
     } catch (error) {
-      console.error("Failed to refresh universe:", error);
+      log.error("Routes", "Failed to refresh universe", { error });
       res.status(500).json({ error: "Failed to refresh universe" });
     }
   });
@@ -39610,7 +39613,7 @@ async function registerRoutes(app2) {
       await alpacaUniverseService.setExcluded(symbol, excluded === true, reason);
       res.json({ success: true, symbol, excluded: excluded === true });
     } catch (error) {
-      console.error("Failed to set exclusion:", error);
+      log.error("Routes", "Failed to set exclusion", { error });
       res.status(500).json({ error: "Failed to set exclusion" });
     }
   });
@@ -39619,7 +39622,7 @@ async function registerRoutes(app2) {
       const symbols = await alpacaUniverseService.getTradableSymbols();
       res.json({ symbols, count: symbols.length });
     } catch (error) {
-      console.error("Failed to get tradable symbols:", error);
+      log.error("Routes", "Failed to get tradable symbols", { error });
       res.status(500).json({ error: "Failed to get tradable symbols" });
     }
   });
@@ -39634,7 +39637,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get liquidity stats:", error);
+      log.error("Routes", "Failed to get liquidity stats", { error });
       res.status(500).json({ error: "Failed to get liquidity stats" });
     }
   });
@@ -39647,7 +39650,7 @@ async function registerRoutes(app2) {
       }
       res.json(metrics);
     } catch (error) {
-      console.error("Failed to get liquidity metrics:", error);
+      log.error("Routes", "Failed to get liquidity metrics", { error });
       res.status(500).json({ error: "Failed to get liquidity metrics" });
     }
   });
@@ -39664,7 +39667,7 @@ async function registerRoutes(app2) {
       );
       res.json({ metrics, count: metrics.length, tier });
     } catch (error) {
-      console.error("Failed to get tier metrics:", error);
+      log.error("Routes", "Failed to get tier metrics", { error });
       res.status(500).json({ error: "Failed to get tier metrics" });
     }
   });
@@ -39676,7 +39679,7 @@ async function registerRoutes(app2) {
       );
       res.json({ metrics: topLiquid, count: topLiquid.length });
     } catch (error) {
-      console.error("Failed to get top liquid assets:", error);
+      log.error("Routes", "Failed to get top liquid assets", { error });
       res.status(500).json({ error: "Failed to get top liquid assets" });
     }
   });
@@ -39690,7 +39693,7 @@ async function registerRoutes(app2) {
       });
       res.json(result);
     } catch (error) {
-      console.error("Failed to compute liquidity metrics:", error);
+      log.error("Routes", "Failed to compute liquidity metrics", { error });
       res.status(500).json({ error: "Failed to compute liquidity metrics" });
     }
   });
@@ -39703,7 +39706,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get fundamentals stats:", error);
+      log.error("Routes", "Failed to get fundamentals stats", { error });
       res.status(500).json({ error: "Failed to get fundamentals stats" });
     }
   });
@@ -39717,7 +39720,7 @@ async function registerRoutes(app2) {
       const scores = fundamentalsService.calculateQualityGrowthScore(fundamentals);
       res.json({ ...fundamentals, ...scores });
     } catch (error) {
-      console.error("Failed to get fundamentals:", error);
+      log.error("Routes", "Failed to get fundamentals", { error });
       res.status(500).json({ error: "Failed to get fundamentals" });
     }
   });
@@ -39729,7 +39732,7 @@ async function registerRoutes(app2) {
       );
       res.json({ fundamentals: top, count: top.length });
     } catch (error) {
-      console.error("Failed to get top fundamentals:", error);
+      log.error("Routes", "Failed to get top fundamentals", { error });
       res.status(500).json({ error: "Failed to get top fundamentals" });
     }
   });
@@ -39743,7 +39746,7 @@ async function registerRoutes(app2) {
       });
       res.json(result);
     } catch (error) {
-      console.error("Failed to fetch fundamentals:", error);
+      log.error("Routes", "Failed to fetch fundamentals", { error });
       res.status(500).json({ error: "Failed to fetch fundamentals" });
     }
   });
@@ -39756,7 +39759,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get candidates stats:", error);
+      log.error("Routes", "Failed to get candidates stats", { error });
       res.status(500).json({ error: "Failed to get candidates stats" });
     }
   });
@@ -39776,7 +39779,7 @@ async function registerRoutes(app2) {
       }
       res.json({ candidates, count: candidates.length });
     } catch (error) {
-      console.error("Failed to get candidates:", error);
+      log.error("Routes", "Failed to get candidates", { error });
       res.status(500).json({ error: "Failed to get candidates" });
     }
   });
@@ -39789,7 +39792,7 @@ async function registerRoutes(app2) {
       }
       res.json(candidate);
     } catch (error) {
-      console.error("Failed to get candidate:", error);
+      log.error("Routes", "Failed to get candidate", { error });
       res.status(500).json({ error: "Failed to get candidate" });
     }
   });
@@ -39804,7 +39807,7 @@ async function registerRoutes(app2) {
       });
       res.json(result);
     } catch (error) {
-      console.error("Failed to generate candidates:", error);
+      log.error("Routes", "Failed to generate candidates", { error });
       res.status(500).json({ error: "Failed to generate candidates" });
     }
   });
@@ -39818,7 +39821,7 @@ async function registerRoutes(app2) {
       const result = await candidatesService.approveCandidate(symbol, userId);
       res.json(result);
     } catch (error) {
-      console.error("Failed to approve candidate:", error);
+      log.error("Routes", "Failed to approve candidate", { error });
       res.status(500).json({ error: "Failed to approve candidate" });
     }
   });
@@ -39828,7 +39831,7 @@ async function registerRoutes(app2) {
       const result = await candidatesService.rejectCandidate(symbol);
       res.json(result);
     } catch (error) {
-      console.error("Failed to reject candidate:", error);
+      log.error("Routes", "Failed to reject candidate", { error });
       res.status(500).json({ error: "Failed to reject candidate" });
     }
   });
@@ -39838,7 +39841,7 @@ async function registerRoutes(app2) {
       const result = await candidatesService.watchlistCandidate(symbol);
       res.json(result);
     } catch (error) {
-      console.error("Failed to watchlist candidate:", error);
+      log.error("Routes", "Failed to watchlist candidate", { error });
       res.status(500).json({ error: "Failed to watchlist candidate" });
     }
   });
@@ -39847,7 +39850,7 @@ async function registerRoutes(app2) {
       const symbols = await candidatesService.getApprovedSymbols();
       res.json({ symbols, count: symbols.length });
     } catch (error) {
-      console.error("Failed to get approved symbols:", error);
+      log.error("Routes", "Failed to get approved symbols", { error });
       res.status(500).json({ error: "Failed to get approved symbols" });
     }
   });
@@ -39860,7 +39863,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get enforcement stats:", error);
+      log.error("Routes", "Failed to get enforcement stats", { error });
       res.status(500).json({ error: "Failed to get enforcement stats" });
     }
   });
@@ -39877,7 +39880,7 @@ async function registerRoutes(app2) {
         res.status(400).json({ error: "Provide symbol or symbols array" });
       }
     } catch (error) {
-      console.error("Failed to check trading eligibility:", error);
+      log.error("Routes", "Failed to check trading eligibility", { error });
       res.status(500).json({ error: "Failed to check trading eligibility" });
     }
   });
@@ -39886,7 +39889,7 @@ async function registerRoutes(app2) {
       tradingEnforcementService.resetStats();
       res.json({ success: true, message: "Enforcement stats reset" });
     } catch (error) {
-      console.error("Failed to reset enforcement stats:", error);
+      log.error("Routes", "Failed to reset enforcement stats", { error });
       res.status(500).json({ error: "Failed to reset enforcement stats" });
     }
   });
@@ -39899,7 +39902,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get allocation stats:", error);
+      log.error("Routes", "Failed to get allocation stats", { error });
       res.status(500).json({ error: "Failed to get allocation stats" });
     }
   });
@@ -39908,7 +39911,7 @@ async function registerRoutes(app2) {
       const policies = await allocationService.listPolicies();
       res.json({ policies, count: policies.length });
     } catch (error) {
-      console.error("Failed to list policies:", error);
+      log.error("Routes", "Failed to list policies", { error });
       res.status(500).json({ error: "Failed to list policies" });
     }
   });
@@ -39920,7 +39923,7 @@ async function registerRoutes(app2) {
       }
       res.json(policy);
     } catch (error) {
-      console.error("Failed to get active policy:", error);
+      log.error("Routes", "Failed to get active policy", { error });
       res.status(500).json({ error: "Failed to get active policy" });
     }
   });
@@ -39933,7 +39936,7 @@ async function registerRoutes(app2) {
       }
       res.json(policy);
     } catch (error) {
-      console.error("Failed to get policy:", error);
+      log.error("Routes", "Failed to get policy", { error });
       res.status(500).json({ error: "Failed to get policy" });
     }
   });
@@ -39946,7 +39949,7 @@ async function registerRoutes(app2) {
       });
       res.status(201).json(policy);
     } catch (error) {
-      console.error("Failed to create policy:", error);
+      log.error("Routes", "Failed to create policy", { error });
       res.status(500).json({ error: "Failed to create policy" });
     }
   });
@@ -39959,7 +39962,7 @@ async function registerRoutes(app2) {
       }
       res.json(policy);
     } catch (error) {
-      console.error("Failed to update policy:", error);
+      log.error("Routes", "Failed to update policy", { error });
       res.status(500).json({ error: "Failed to update policy" });
     }
   });
@@ -39972,7 +39975,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, policy });
     } catch (error) {
-      console.error("Failed to activate policy:", error);
+      log.error("Routes", "Failed to activate policy", { error });
       res.status(500).json({ error: "Failed to activate policy" });
     }
   });
@@ -39985,7 +39988,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, policy });
     } catch (error) {
-      console.error("Failed to deactivate policy:", error);
+      log.error("Routes", "Failed to deactivate policy", { error });
       res.status(500).json({ error: "Failed to deactivate policy" });
     }
   });
@@ -40001,7 +40004,7 @@ async function registerRoutes(app2) {
         currentPositions: Object.fromEntries(analysis.currentPositions)
       });
     } catch (error) {
-      console.error("Failed to analyze rebalance:", error);
+      log.error("Routes", "Failed to analyze rebalance", { error });
       res.status(500).json({ error: "Failed to analyze rebalance" });
     }
   });
@@ -40013,7 +40016,7 @@ async function registerRoutes(app2) {
       );
       res.json({ runs, count: runs.length });
     } catch (error) {
-      console.error("Failed to get rebalance runs:", error);
+      log.error("Routes", "Failed to get rebalance runs", { error });
       res.status(500).json({ error: "Failed to get rebalance runs" });
     }
   });
@@ -40026,7 +40029,7 @@ async function registerRoutes(app2) {
       }
       res.json(run);
     } catch (error) {
-      console.error("Failed to get rebalance run:", error);
+      log.error("Routes", "Failed to get rebalance run", { error });
       res.status(500).json({ error: "Failed to get rebalance run" });
     }
   });
@@ -40039,7 +40042,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get rebalancer stats:", error);
+      log.error("Routes", "Failed to get rebalancer stats", { error });
       res.status(500).json({ error: "Failed to get rebalancer stats" });
     }
   });
@@ -40058,7 +40061,7 @@ async function registerRoutes(app2) {
         } : null
       });
     } catch (error) {
-      console.error("Failed to execute dry run:", error);
+      log.error("Routes", "Failed to execute dry run", { error });
       res.status(500).json({ error: "Failed to execute dry run" });
     }
   });
@@ -40071,7 +40074,7 @@ async function registerRoutes(app2) {
       );
       res.json(result);
     } catch (error) {
-      console.error("Failed to execute rebalance:", error);
+      log.error("Routes", "Failed to execute rebalance", { error });
       res.status(500).json({ error: "Failed to execute rebalance" });
     }
   });
@@ -40085,7 +40088,7 @@ async function registerRoutes(app2) {
       const analysis = await rebalancerService.analyzeProfitTaking(policy, traceId || `profit-${Date.now()}`);
       res.json({ candidates: analysis, count: analysis.length });
     } catch (error) {
-      console.error("Failed to analyze profit-taking:", error);
+      log.error("Routes", "Failed to analyze profit-taking", { error });
       res.status(500).json({ error: "Failed to analyze profit-taking" });
     }
   });
@@ -40094,7 +40097,7 @@ async function registerRoutes(app2) {
       const stats = await tradabilityService.getUniverseStats();
       res.json(stats);
     } catch (error) {
-      console.error("Failed to get universe stats:", error);
+      log.error("Routes", "Failed to get universe stats", { error });
       res.status(500).json({ error: "Failed to get universe stats" });
     }
   });
@@ -40111,7 +40114,7 @@ async function registerRoutes(app2) {
         count: assets.length
       });
     } catch (error) {
-      console.error("Failed to get symbols:", error);
+      log.error("Routes", "Failed to get symbols", { error });
       res.status(500).json({ error: "Failed to get symbols" });
     }
   });
@@ -40127,7 +40130,7 @@ async function registerRoutes(app2) {
       );
       res.json({ assets, count: assets.length });
     } catch (error) {
-      console.error("Failed to search symbols:", error);
+      log.error("Routes", "Failed to search symbols", { error });
       res.status(500).json({ error: "Failed to search symbols" });
     }
   });
@@ -40137,7 +40140,7 @@ async function registerRoutes(app2) {
       const check = await tradabilityService.validateSymbolTradable(symbol);
       res.json(check);
     } catch (error) {
-      console.error("Failed to check tradability:", error);
+      log.error("Routes", "Failed to check tradability", { error });
       res.status(500).json({ error: "Failed to check tradability" });
     }
   });
@@ -40156,7 +40159,7 @@ async function registerRoutes(app2) {
         assetClass: assetClass || "us_equity"
       });
     } catch (error) {
-      console.error("Failed to queue universe sync:", error);
+      log.error("Routes", "Failed to queue universe sync", { error });
       res.status(500).json({ error: "Failed to queue universe sync" });
     }
   });
@@ -40167,7 +40170,7 @@ async function registerRoutes(app2) {
       tradabilityService.clearMemoryCache();
       res.json(result);
     } catch (error) {
-      console.error("Failed to sync universe:", error);
+      log.error("Routes", "Failed to sync universe", { error });
       res.status(500).json({ error: "Failed to sync universe" });
     }
   });
@@ -40187,7 +40190,7 @@ async function registerRoutes(app2) {
       }
       res.json({ candidates, count: candidates.length });
     } catch (error) {
-      console.error("Failed to get candidates:", error);
+      log.error("Routes", "Failed to get candidates", { error });
       res.status(500).json({ error: "Failed to get candidates" });
     }
   });
@@ -40204,7 +40207,7 @@ async function registerRoutes(app2) {
         count: candidates.length
       });
     } catch (error) {
-      console.error("Failed to get watchlist:", error);
+      log.error("Routes", "Failed to get watchlist", { error });
       res.status(500).json({ error: "Failed to get watchlist" });
     }
   });
@@ -40231,7 +40234,7 @@ async function registerRoutes(app2) {
       });
       res.json({ logs, count: logs.length });
     } catch (error) {
-      console.error("Failed to get audit logs:", error);
+      log.error("Routes", "Failed to get audit logs", { error });
       res.status(500).json({ error: "Failed to get audit logs" });
     }
   });
@@ -40245,7 +40248,7 @@ async function registerRoutes(app2) {
       });
       res.json(stats);
     } catch (error) {
-      console.error("Failed to get audit stats:", error);
+      log.error("Routes", "Failed to get audit stats", { error });
       res.status(500).json({ error: "Failed to get audit stats" });
     }
   });
@@ -40256,7 +40259,7 @@ async function registerRoutes(app2) {
       });
       res.json({ policies, count: policies.length });
     } catch (error) {
-      console.error("Failed to get allocation policies:", error);
+      log.error("Routes", "Failed to get allocation policies", { error });
       res.status(500).json({ error: "Failed to get allocation policies" });
     }
   });
@@ -40277,7 +40280,7 @@ async function registerRoutes(app2) {
       }).returning();
       res.json(policy);
     } catch (error) {
-      console.error("Failed to create allocation policy:", error);
+      log.error("Routes", "Failed to create allocation policy", { error });
       res.status(500).json({ error: "Failed to create allocation policy" });
     }
   });
@@ -40297,7 +40300,7 @@ async function registerRoutes(app2) {
       }
       res.json(updated);
     } catch (error) {
-      console.error("Failed to update allocation policy:", error);
+      log.error("Routes", "Failed to update allocation policy", { error });
       res.status(500).json({ error: "Failed to update allocation policy" });
     }
   });
@@ -40309,7 +40312,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, message: "Policy deleted" });
     } catch (error) {
-      console.error("Failed to delete allocation policy:", error);
+      log.error("Routes", "Failed to delete allocation policy", { error });
       res.status(500).json({ error: "Failed to delete allocation policy" });
     }
   });
@@ -40327,7 +40330,7 @@ async function registerRoutes(app2) {
       });
       res.json({ runs, count: runs.length });
     } catch (error) {
-      console.error("Failed to get rebalance runs:", error);
+      log.error("Routes", "Failed to get rebalance runs", { error });
       res.status(500).json({ error: "Failed to get rebalance runs" });
     }
   });
@@ -40347,7 +40350,7 @@ async function registerRoutes(app2) {
       }, 2e3);
       res.json({ success: true, run });
     } catch (error) {
-      console.error("Failed to trigger rebalance:", error);
+      log.error("Routes", "Failed to trigger rebalance", { error });
       res.status(500).json({ error: "Failed to trigger rebalance" });
     }
   });
@@ -40358,7 +40361,7 @@ async function registerRoutes(app2) {
       });
       res.json({ rules, count: rules.length });
     } catch (error) {
-      console.error("Failed to get enforcement rules:", error);
+      log.error("Routes", "Failed to get enforcement rules", { error });
       res.status(500).json({ error: "Failed to get enforcement rules" });
     }
   });
@@ -40379,7 +40382,7 @@ async function registerRoutes(app2) {
       }).returning();
       res.json(rule);
     } catch (error) {
-      console.error("Failed to create enforcement rule:", error);
+      log.error("Routes", "Failed to create enforcement rule", { error });
       res.status(500).json({ error: "Failed to create enforcement rule" });
     }
   });
@@ -40400,7 +40403,7 @@ async function registerRoutes(app2) {
       }
       res.json(updated);
     } catch (error) {
-      console.error("Failed to update enforcement rule:", error);
+      log.error("Routes", "Failed to update enforcement rule", { error });
       res.status(500).json({ error: "Failed to update enforcement rule" });
     }
   });
@@ -40412,7 +40415,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true, message: "Rule deleted" });
     } catch (error) {
-      console.error("Failed to delete enforcement rule:", error);
+      log.error("Routes", "Failed to delete enforcement rule", { error });
       res.status(500).json({ error: "Failed to delete enforcement rule" });
     }
   });
@@ -40435,7 +40438,7 @@ async function registerRoutes(app2) {
       ];
       res.json({ factors: factorList, rawData: factors, count: factors.length });
     } catch (error) {
-      console.error("Failed to get fundamentals:", error);
+      log.error("Routes", "Failed to get fundamentals", { error });
       res.status(500).json({ error: "Failed to get fundamentals" });
     }
   });
@@ -40443,7 +40446,7 @@ async function registerRoutes(app2) {
     try {
       res.json({ success: true, message: "Fundamental data refresh initiated" });
     } catch (error) {
-      console.error("Failed to refresh fundamentals:", error);
+      log.error("Routes", "Failed to refresh fundamentals", { error });
       res.status(500).json({ error: "Failed to refresh fundamentals" });
     }
   });
@@ -40477,7 +40480,7 @@ async function registerRoutes(app2) {
         killSwitch: !(agentStatus2?.autoExecuteTrades ?? false)
       });
     } catch (error) {
-      console.error("Failed to get dashboard stats:", error);
+      log.error("Routes", "Failed to get dashboard stats", { error });
       res.status(500).json({ error: "Failed to get dashboard stats" });
     }
   });
@@ -40491,7 +40494,7 @@ async function registerRoutes(app2) {
       }));
       res.json({ users: sanitizedUsers, count: sanitizedUsers.length });
     } catch (error) {
-      console.error("Failed to get users:", error);
+      log.error("Routes", "Failed to get users", { error });
       res.status(500).json({ error: "Failed to get users" });
     }
   });
@@ -40505,7 +40508,7 @@ async function registerRoutes(app2) {
       const { password, ...sanitizedUser } = user;
       res.json(sanitizedUser);
     } catch (error) {
-      console.error("Failed to get user:", error);
+      log.error("Routes", "Failed to get user", { error });
       res.status(500).json({ error: "Failed to get user" });
     }
   });
@@ -40529,7 +40532,7 @@ async function registerRoutes(app2) {
       const { password: _, ...sanitizedUser } = user;
       res.status(201).json(sanitizedUser);
     } catch (error) {
-      console.error("Failed to create user:", error);
+      log.error("Routes", "Failed to create user", { error });
       res.status(500).json({ error: "Failed to create user" });
     }
   });
@@ -40551,7 +40554,7 @@ async function registerRoutes(app2) {
       const { password: _, ...sanitizedUser } = user;
       res.json(sanitizedUser);
     } catch (error) {
-      console.error("Failed to update user:", error);
+      log.error("Routes", "Failed to update user", { error });
       res.status(500).json({ error: "Failed to update user" });
     }
   });
@@ -40567,7 +40570,7 @@ async function registerRoutes(app2) {
       }
       res.json({ success: true });
     } catch (error) {
-      console.error("Failed to delete user:", error);
+      log.error("Routes", "Failed to delete user", { error });
       res.status(500).json({ error: "Failed to delete user" });
     }
   });
@@ -40604,7 +40607,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get observability metrics:", error);
+      log.error("Routes", "Failed to get observability metrics", { error });
       res.status(500).json({ error: "Failed to get observability metrics" });
     }
   });
@@ -40621,7 +40624,7 @@ async function registerRoutes(app2) {
         offset: offsetNum
       });
     } catch (error) {
-      console.error("Failed to get logs:", error);
+      log.error("Routes", "Failed to get logs", { error });
       res.status(500).json({ error: "Failed to get logs" });
     }
   });
@@ -40656,7 +40659,7 @@ async function registerRoutes(app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (error) {
-      console.error("Failed to get health status:", error);
+      log.error("Routes", "Failed to get health status", { error });
       res.status(500).json({ error: "Failed to get health status" });
     }
   });
@@ -40908,15 +40911,15 @@ function performanceLogger(thresholdMs = 1e3) {
 
 // server/index.ts
 process.on("uncaughtException", (err) => {
-  console.error("[FATAL] Uncaught exception:", err);
+  log.error("FATAL", "Uncaught exception", { error: err });
 });
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("[FATAL] Unhandled rejection at:", promise, "reason:", reason);
+  log.error("FATAL", "Unhandled rejection", { promise, reason });
 });
-process.on("SIGTERM", () => console.log("[SIGNAL] SIGTERM received"));
-process.on("SIGINT", () => console.log("[SIGNAL] SIGINT received"));
-process.on("beforeExit", (code) => console.log("[PROCESS] beforeExit with code:", code));
-process.on("exit", (code) => console.log("[PROCESS] exit with code:", code));
+process.on("SIGTERM", () => log.info("SIGNAL", "SIGTERM received"));
+process.on("SIGINT", () => log.info("SIGNAL", "SIGINT received"));
+process.on("beforeExit", (code) => log.info("PROCESS", "beforeExit", { code }));
+process.on("exit", (code) => log.info("PROCESS", "exit", { code }));
 var app = express();
 function setupCors(app2) {
   app2.use((req, res, next) => {
@@ -41044,30 +41047,30 @@ function setupErrorHandler(app2) {
 (async () => {
   try {
     validateAndReportEnvironment();
-    console.log("[STARTUP] Beginning server initialization...");
+    log.info("STARTUP", "Beginning server initialization...");
     setupCors(app);
     setupBodyParsing(app);
     app.use(cookieParser());
     setupRequestLogging(app);
     configureExpoAndLanding(app);
-    console.log("[STARTUP] Registering routes...");
+    log.info("STARTUP", "Registering routes...");
     const server = await registerRoutes(app);
-    console.log("[STARTUP] Routes registered successfully");
-    console.log("[STARTUP] Starting position reconciliation job...");
+    log.info("STARTUP", "Routes registered successfully");
+    log.info("STARTUP", "Starting position reconciliation job...");
     positionReconciliationJob.start();
-    console.log("[STARTUP] Position reconciliation job started");
-    console.log("[STARTUP] Starting session cleanup job...");
+    log.info("STARTUP", "Position reconciliation job started");
+    log.info("STARTUP", "Starting session cleanup job...");
     setInterval(async () => {
       try {
         await cleanupExpiredSessions();
       } catch (error) {
-        console.error("[SessionCleanup] Error cleaning up expired sessions:", error);
+        log.error("SessionCleanup", "Error cleaning up expired sessions", { error });
       }
     }, 60 * 60 * 1e3);
-    console.log("[STARTUP] Session cleanup job started (runs every hour)");
+    log.info("STARTUP", "Session cleanup job started (runs every hour)");
     setupErrorHandler(app);
     const port = parseInt(process.env.PORT || "5000", 10);
-    console.log(`[STARTUP] Starting server on port ${port}...`);
+    log.info("STARTUP", `Starting server on port ${port}...`);
     server.listen(
       {
         port,
@@ -41079,6 +41082,6 @@ function setupErrorHandler(app2) {
       }
     );
   } catch (error) {
-    console.error("[STARTUP] Fatal error during server initialization:", error);
+    log.error("STARTUP", "Fatal error during server initialization", { error });
   }
 })();

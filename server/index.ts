@@ -12,17 +12,17 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { requestLogger, performanceLogger } from "./middleware/request-logger";
 
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught exception:', err);
+  log.error('FATAL', 'Uncaught exception', { error: err });
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled rejection at:', promise, 'reason:', reason);
+  log.error('FATAL', 'Unhandled rejection', { promise, reason });
 });
 
-process.on('SIGTERM', () => console.log('[SIGNAL] SIGTERM received'));
-process.on('SIGINT', () => console.log('[SIGNAL] SIGINT received'));
-process.on('beforeExit', (code) => console.log('[PROCESS] beforeExit with code:', code));
-process.on('exit', (code) => console.log('[PROCESS] exit with code:', code));
+process.on('SIGTERM', () => log.info('SIGNAL', 'SIGTERM received'));
+process.on('SIGINT', () => log.info('SIGNAL', 'SIGINT received'));
+process.on('beforeExit', (code) => log.info('PROCESS', 'beforeExit', { code }));
+process.on('exit', (code) => log.info('PROCESS', 'exit', { code }));
 
 const app = express();
 
@@ -206,7 +206,7 @@ function setupErrorHandler(app: express.Application) {
     // Validate environment variables before any initialization
     validateAndReportEnvironment();
 
-    console.log("[STARTUP] Beginning server initialization...");
+    log.info("STARTUP", "Beginning server initialization...");
     setupCors(app);
     setupBodyParsing(app);
     app.use(cookieParser());
@@ -214,30 +214,30 @@ function setupErrorHandler(app: express.Application) {
 
     configureExpoAndLanding(app);
 
-    console.log("[STARTUP] Registering routes...");
+    log.info("STARTUP", "Registering routes...");
     const server = await registerRoutes(app);
-    console.log("[STARTUP] Routes registered successfully");
+    log.info("STARTUP", "Routes registered successfully");
 
     // Start position reconciliation job after routes are initialized
-    console.log("[STARTUP] Starting position reconciliation job...");
+    log.info("STARTUP", "Starting position reconciliation job...");
     positionReconciliationJob.start();
-    console.log("[STARTUP] Position reconciliation job started");
+    log.info("STARTUP", "Position reconciliation job started");
 
     // Start session cleanup job - runs every hour
-    console.log("[STARTUP] Starting session cleanup job...");
+    log.info("STARTUP", "Starting session cleanup job...");
     setInterval(async () => {
       try {
         await cleanupExpiredSessions();
       } catch (error) {
-        console.error("[SessionCleanup] Error cleaning up expired sessions:", error);
+        log.error("SessionCleanup", "Error cleaning up expired sessions", { error });
       }
     }, 60 * 60 * 1000); // Every hour
-    console.log("[STARTUP] Session cleanup job started (runs every hour)");
+    log.info("STARTUP", "Session cleanup job started (runs every hour)");
 
     setupErrorHandler(app);
 
     const port = parseInt(process.env.PORT || "5000", 10);
-    console.log(`[STARTUP] Starting server on port ${port}...`);
+    log.info("STARTUP", `Starting server on port ${port}...`);
     server.listen(
       {
         port,
@@ -249,6 +249,6 @@ function setupErrorHandler(app: express.Application) {
       },
     );
   } catch (error) {
-    console.error("[STARTUP] Fatal error during server initialization:", error);
+    log.error("STARTUP", "Fatal error during server initialization", { error });
   }
 })();

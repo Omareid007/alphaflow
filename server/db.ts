@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "@shared/schema";
+import { log } from "./utils/logger";
 
 const { Pool } = pg;
 
@@ -22,11 +23,11 @@ const poolConfig: pg.PoolConfig = {
 export const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
-  console.error('[DB Pool] Unexpected error on idle client:', err.message);
+  log.error('DB Pool', 'Unexpected error on idle client', { error: err.message });
 });
 
 pool.on('connect', () => {
-  console.log('[DB Pool] New client connected');
+  log.debug('DB Pool', 'New client connected');
 });
 
 export function getPoolStats() {
