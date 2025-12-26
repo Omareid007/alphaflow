@@ -724,8 +724,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Symbol is required" });
       }
       
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
-      
+      // SECURITY: Mark as authorized since this is an admin-initiated action
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, undefined, {
+        authorizedByOrchestrator: true,
+      });
+
       if (result.success) {
         res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
       } else {
@@ -779,10 +782,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
+          // SECURITY: Mark as authorized since this is an admin-initiated action
           const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
             symbol: decision.symbol,
             side: decision.action as "buy" | "sell",
             quantity,
+            authorizedByOrchestrator: true,
           });
 
           if (orderResult.success) {
@@ -794,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.push({ decisionId, success: false, error: String(err) });
         }
       }
-      
+
       const successCount = results.filter(r => r.success).length;
       res.json({ 
         success: successCount > 0, 
@@ -861,7 +866,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/autonomous/close-all-positions", authMiddleware, async (req, res) => {
     try {
-      const result = await alpacaTradingEngine.closeAllPositions();
+      // SECURITY: Mark as authorized since this is an admin-initiated emergency action
+      const result = await alpacaTradingEngine.closeAllPositions({
+        authorizedByOrchestrator: true,
+        isEmergencyStop: true,
+      });
       res.json({ success: true, ...result });
     } catch (error) {
       log.error("Routes", "Failed to close all positions", { error: error });
@@ -3033,7 +3042,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/risk/close-all", authMiddleware, async (req, res) => {
     try {
       log.info("RISK", "Closing all positions via Alpaca...");
-      const result = await alpacaTradingEngine.closeAllPositions();
+      // SECURITY: Mark as authorized since this is an admin-initiated emergency action
+      const result = await alpacaTradingEngine.closeAllPositions({
+        authorizedByOrchestrator: true,
+        isEmergencyStop: true,
+      });
       res.json({
         ...result,
         _source: createLiveSourceMetadata(),
@@ -3790,6 +3803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
       }
 
+      // SECURITY: Mark as authorized since this is an admin-initiated action
       const result = await alpacaTradingEngine.executeAlpacaTrade({
         symbol,
         side,
@@ -3798,6 +3812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes,
         orderType,
         limitPrice: limitPrice ? safeParseFloat(limitPrice) : undefined,
+        authorizedByOrchestrator: true,
       });
 
       if (!result.success) {
@@ -3816,7 +3831,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { symbol } = req.params;
       const { strategyId } = req.body;
 
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId);
+      // SECURITY: Mark as authorized since this is an admin-initiated action
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId, {
+        authorizedByOrchestrator: true,
+      });
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });

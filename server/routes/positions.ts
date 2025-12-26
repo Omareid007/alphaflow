@@ -273,7 +273,10 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
       return badRequest(res, "Symbol is required");
     }
 
-    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+    // SECURITY: Mark as authorized since this is an admin-initiated action
+    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, undefined, {
+      authorizedByOrchestrator: true,
+    });
 
     if (result.success) {
       res.json({
@@ -299,7 +302,11 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
  */
 router.post("/close-all", async (req: Request, res: Response) => {
   try {
-    const result = await alpacaTradingEngine.closeAllPositions();
+    // SECURITY: Mark as authorized since this is an admin-initiated emergency action
+    const result = await alpacaTradingEngine.closeAllPositions({
+      authorizedByOrchestrator: true,
+      isEmergencyStop: true,
+    });
     res.json({ success: true, ...result });
   } catch (error) {
     log.error("PositionsAPI", `Failed to close all positions: ${error}`);

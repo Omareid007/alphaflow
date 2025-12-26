@@ -741,10 +741,13 @@ router.post("/autonomous/execute-trades", async (req: Request, res: Response) =>
           continue;
         }
 
+        // SECURITY: Mark as authorized since this is an admin-initiated action
+        // executing a pre-approved AI decision
         const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
           symbol: decision.symbol,
           side: decision.action as "buy" | "sell",
           quantity,
+          authorizedByOrchestrator: true,
         });
 
         if (orderResult.success) {

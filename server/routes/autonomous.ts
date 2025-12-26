@@ -4,6 +4,7 @@ import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { eventBus, logger, coordinator } from "../orchestration";
+import { log } from "../utils/logger";
 
 /**
  * Autonomous Trading Routes
@@ -43,7 +44,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
         })),
       });
     } catch (error) {
-      console.error("Failed to get autonomous state:", error);
+      log.error("AutonomousRoutes", "Failed to get autonomous state", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get autonomous state" });
     }
   });
@@ -72,7 +73,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
         config: status.config || {},
       });
     } catch (error) {
-      console.error("Failed to get autonomous status:", error);
+      log.error("AutonomousRoutes", "Failed to get autonomous status", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get autonomous status" });
     }
   });
@@ -89,7 +90,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to start autonomous mode:", error);
+      log.error("AutonomousRoutes", "Failed to start autonomous mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -104,7 +105,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const state = orchestrator.getState();
       res.json({ success: true, mode: state.mode, isRunning: state.isRunning });
     } catch (error) {
-      console.error("Failed to stop autonomous mode:", error);
+      log.error("AutonomousRoutes", "Failed to stop autonomous mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to stop autonomous mode" });
     }
   });
@@ -122,7 +123,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       await orchestrator.setMode(mode);
       res.json({ success: true, mode: orchestrator.getMode() });
     } catch (error) {
-      console.error("Failed to set mode:", error);
+      log.error("AutonomousRoutes", "Failed to set mode", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to set mode" });
     }
   });
@@ -144,7 +145,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const state = orchestrator.getState();
       res.json({ success: true, killSwitchActive: orchestrator.getRiskLimits().killSwitchActive, state });
     } catch (error) {
-      console.error("Failed to toggle kill switch:", error);
+      log.error("AutonomousRoutes", "Failed to toggle kill switch", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to toggle kill switch" });
     }
   });
@@ -171,7 +172,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
 
       res.json({ success: true, riskLimits: orchestrator.getRiskLimits() });
     } catch (error) {
-      console.error("Failed to update risk limits:", error);
+      log.error("AutonomousRoutes", "Failed to update risk limits", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to update risk limits" });
     }
   });
@@ -204,7 +205,11 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
         return res.status(400).json({ error: "Symbol is required" });
       }
 
-      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol);
+      // SECURITY: Mark as authorized since this is an admin-initiated action
+      // The admin is explicitly requesting to close this position
+      const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, undefined, {
+        authorizedByOrchestrator: true,
+      });
 
       if (result.success) {
         res.json({ success: true, message: `Position ${symbol} closed successfully`, result });
@@ -212,7 +217,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
         res.status(400).json({ success: false, error: result.error || "Failed to close position" });
       }
     } catch (error) {
-      console.error("Failed to close position:", error);
+      log.error("AutonomousRoutes", "Failed to close position", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -223,10 +228,14 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
    */
   app.post("/api/autonomous/close-all-positions", authMiddleware, async (req, res) => {
     try {
-      const result = await alpacaTradingEngine.closeAllPositions();
+      // SECURITY: Mark as authorized since this is an admin-initiated emergency action
+      const result = await alpacaTradingEngine.closeAllPositions({
+        authorizedByOrchestrator: true,
+        isEmergencyStop: true,
+      });
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to close all positions:", error);
+      log.error("AutonomousRoutes", "Failed to close all positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -240,7 +249,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const result = await alpacaTradingEngine.reconcilePositions();
       res.json(result);
     } catch (error) {
-      console.error("Failed to reconcile positions:", error);
+      log.error("AutonomousRoutes", "Failed to reconcile positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -255,7 +264,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const result = await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to sync positions:", error);
+      log.error("AutonomousRoutes", "Failed to sync positions", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -308,10 +317,13 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
             continue;
           }
 
+          // SECURITY: Mark as authorized since this is an admin-initiated action
+          // executing a pre-approved AI decision
           const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
             symbol: decision.symbol,
             side: decision.action as "buy" | "sell",
             quantity,
+            authorizedByOrchestrator: true,
           });
 
           if (orderResult.success) {
@@ -331,7 +343,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
         results
       });
     } catch (error) {
-      console.error("Failed to execute trades:", error);
+      log.error("AutonomousRoutes", "Failed to execute trades", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -347,7 +359,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const orders = await alpacaTradingEngine.getOpenOrders();
       res.json(orders);
     } catch (error) {
-      console.error("Failed to get open orders:", error);
+      log.error("AutonomousRoutes", "Failed to get open orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -362,7 +374,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const result = await alpacaTradingEngine.cancelStaleOrders(maxAgeMinutes || 60);
       res.json({ success: true, ...result });
     } catch (error) {
-      console.error("Failed to cancel stale orders:", error);
+      log.error("AutonomousRoutes", "Failed to cancel stale orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -376,7 +388,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const result = await alpacaTradingEngine.cancelAllOpenOrders();
       res.json({ success: result.cancelled > 0, ...result });
     } catch (error) {
-      console.error("Failed to cancel all orders:", error);
+      log.error("AutonomousRoutes", "Failed to cancel all orders", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: String(error) });
     }
   });
@@ -393,7 +405,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const config = coordinator.getConfig();
       res.json({ status, config });
     } catch (error) {
-      console.error("Get orchestration status error:", error);
+      log.error("AutonomousRoutes", "Get orchestration status error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get orchestration status" });
     }
   });
@@ -407,7 +419,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       await coordinator.start();
       res.json({ success: true, message: "Coordinator started" });
     } catch (error) {
-      console.error("Start coordinator error:", error);
+      log.error("AutonomousRoutes", "Start coordinator error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to start coordinator" });
     }
   });
@@ -421,7 +433,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       await coordinator.stop();
       res.json({ success: true, message: "Coordinator stopped" });
     } catch (error) {
-      console.error("Stop coordinator error:", error);
+      log.error("AutonomousRoutes", "Stop coordinator error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to stop coordinator" });
     }
   });
@@ -436,7 +448,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       coordinator.updateConfig(updates);
       res.json({ success: true, config: coordinator.getConfig() });
     } catch (error) {
-      console.error("Update orchestration config error:", error);
+      log.error("AutonomousRoutes", "Update orchestration config error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to update configuration" });
     }
   });
@@ -455,7 +467,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       });
       res.json({ logs, stats: logger.getStats() });
     } catch (error) {
-      console.error("Get logs error:", error);
+      log.error("AutonomousRoutes", "Get logs error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get logs" });
     }
   });
@@ -470,7 +482,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const errors = logger.getErrorLogs(limit ? parseInt(limit as string) : 50);
       res.json({ errors });
     } catch (error) {
-      console.error("Get error logs error:", error);
+      log.error("AutonomousRoutes", "Get error logs error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get error logs" });
     }
   });
@@ -489,7 +501,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       });
       res.json({ events, stats: eventBus.getStats() });
     } catch (error) {
-      console.error("Get events error:", error);
+      log.error("AutonomousRoutes", "Get events error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to get events" });
     }
   });
@@ -503,7 +515,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       coordinator.resetStats();
       res.json({ success: true, message: "Statistics reset" });
     } catch (error) {
-      console.error("Reset stats error:", error);
+      log.error("AutonomousRoutes", "Reset stats error", { error: error instanceof Error ? error.message : String(error) });
       res.status(500).json({ error: "Failed to reset statistics" });
     }
   });

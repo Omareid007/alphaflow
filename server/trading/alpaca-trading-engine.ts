@@ -112,12 +112,12 @@ class AlpacaTradingEngine {
 
   enableOrchestratorControl(): void {
     this.orchestratorControlEnabled = true;
-    console.log("[AlpacaTradingEngine] Orchestrator control ENABLED - autonomous trading disabled");
+    log.info("AlpacaTradingEngine", "Orchestrator control ENABLED - autonomous trading disabled");
   }
 
   disableOrchestratorControl(): void {
     this.orchestratorControlEnabled = false;
-    console.log("[AlpacaTradingEngine] Orchestrator control DISABLED - autonomous trading allowed");
+    log.info("AlpacaTradingEngine", "Orchestrator control DISABLED - autonomous trading allowed");
   }
 
   isOrchestratorControlEnabled(): boolean {
@@ -177,7 +177,7 @@ class AlpacaTradingEngine {
       let autoPilotStrategy = strategies.find(s => s.name === "Auto-Pilot Strategy");
       
       if (!autoPilotStrategy) {
-        console.log("Creating default Auto-Pilot Strategy...");
+        log.info("AlpacaTradingEngine", "Creating default Auto-Pilot Strategy...");
         autoPilotStrategy = await storage.createStrategy({
           name: "Auto-Pilot Strategy",
           type: "momentum",
@@ -191,7 +191,7 @@ class AlpacaTradingEngine {
             autoExecute: true
           }),
         });
-        console.log(`Created Auto-Pilot Strategy with ID: ${autoPilotStrategy.id}`);
+        log.info("AlpacaTradingEngine", "Created Auto-Pilot Strategy", { strategyId: autoPilotStrategy.id });
       }
       
       this.autoStartStrategyId = autoPilotStrategy.id;
@@ -203,54 +203,54 @@ class AlpacaTradingEngine {
         lastHeartbeat: new Date() 
       });
       
-      console.log("Trading agent initialized and active by default");
-      
-      this.warmupCaches().catch((err: Error) => 
-        console.log("Cache warmup skipped:", err.message)
+      log.info("AlpacaTradingEngine", "Trading agent initialized and active by default");
+
+      this.warmupCaches().catch((err: Error) =>
+        log.debug("AlpacaTradingEngine", "Cache warmup skipped", { error: err.message })
       );
       
       setTimeout(async () => {
         try {
           const isConnected = await this.isAlpacaConnected();
           if (isConnected) {
-            console.log("Alpaca connected, auto-starting all active strategies...");
+            log.info("AlpacaTradingEngine", "Alpaca connected, auto-starting all active strategies...");
             const allStrategies = await storage.getStrategies();
             const activeStrategies = allStrategies.filter(s => s.isActive);
-            
+
             for (const strategy of activeStrategies) {
               if (!this.strategyRunners.has(strategy.id)) {
-                console.log(`Auto-starting strategy: ${strategy.name}`);
+                log.info("AlpacaTradingEngine", "Auto-starting strategy", { strategyName: strategy.name });
                 const result = await this.startStrategy(strategy.id);
                 if (result.success) {
-                  console.log(`Strategy "${strategy.name}" started successfully`);
+                  log.info("AlpacaTradingEngine", "Strategy started successfully", { strategyName: strategy.name });
                 } else {
-                  console.log(`Could not start strategy "${strategy.name}": ${result.error}`);
+                  log.warn("AlpacaTradingEngine", "Could not start strategy", { strategyName: strategy.name, error: result.error });
                 }
               }
             }
-            
+
             if (activeStrategies.length === 0 && this.autoStartStrategyId) {
-              console.log("No active strategies found, starting Auto-Pilot Strategy...");
+              log.info("AlpacaTradingEngine", "No active strategies found, starting Auto-Pilot Strategy...");
               const result = await this.startStrategy(this.autoStartStrategyId);
               if (result.success) {
-                console.log("Auto-Pilot Strategy started successfully");
+                log.info("AlpacaTradingEngine", "Auto-Pilot Strategy started successfully");
               }
             }
           } else {
-            console.log("Alpaca not connected - running in AI suggestion mode only");
+            log.info("AlpacaTradingEngine", "Alpaca not connected - running in AI suggestion mode only");
           }
         } catch (err) {
-          console.error("Error during auto-start:", err);
+          log.error("AlpacaTradingEngine", "Error during auto-start", { error: (err as Error).message });
         }
       }, 5000);
       
     } catch (error) {
-      console.error("Failed to initialize trading engine:", error);
+      log.error("AlpacaTradingEngine", "Failed to initialize trading engine", { error: (error as Error).message });
     }
   }
 
   private async warmupCaches(): Promise<void> {
-    console.log("[Cache] Warming up order execution caches...");
+    log.info("Cache", "Warming up order execution caches...");
     const startTime = Date.now();
     
     try {
@@ -294,9 +294,9 @@ class AlpacaTradingEngine {
       
       const elapsed = Date.now() - startTime;
       const stats = getOrderCacheStats();
-      console.log(`[Cache] Warmup complete in ${elapsed}ms: ${stats.quotes} quotes, ${stats.tradability} assets cached`);
+      log.info("Cache", "Warmup complete", { elapsedMs: elapsed, quotes: stats.quotes, tradability: stats.tradability });
     } catch (error) {
-      console.log("[Cache] Warmup failed:", (error as Error).message);
+      log.warn("Cache", "Warmup failed", { error: (error as Error).message });
     }
   }
 
@@ -305,7 +305,7 @@ class AlpacaTradingEngine {
       clearInterval(this.backgroundGeneratorInterval);
     }
 
-    console.log("Starting background AI suggestion generator...");
+    log.info("AlpacaTradingEngine", "Starting background AI suggestion generator...");
     
     this.generateBackgroundAISuggestions();
     
@@ -319,28 +319,28 @@ class AlpacaTradingEngine {
     try {
       const agentStatus = await storage.getAgentStatus();
       if (agentStatus?.killSwitchActive) {
-        console.log("Kill switch active - skipping background AI generation");
+        log.info("AlpacaTradingEngine", "Kill switch active - skipping background AI generation");
         return;
       }
 
       const batchTraceId = generateTraceId();
-      console.log(`Generating background AI suggestions... (batchTraceId: ${batchTraceId})`);
+      log.info("AlpacaTradingEngine", "Generating background AI suggestions...", { batchTraceId });
       
       const symbolsToAnalyze = this.DEFAULT_WATCHLIST.slice(0, 5);
       
       for (const symbol of symbolsToAnalyze) {
         try {
           await this.analyzeSymbol(symbol, undefined, batchTraceId);
-          console.log(`Generated AI suggestion for ${symbol}`);
+          log.debug("AlpacaTradingEngine", "Generated AI suggestion", { symbol });
         } catch (err) {
-          console.log(`Could not analyze ${symbol}:`, (err as Error).message);
+          log.debug("AlpacaTradingEngine", "Could not analyze symbol", { symbol, error: (err as Error).message });
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       await storage.updateAgentStatus({ lastHeartbeat: new Date() });
     } catch (error) {
-      console.error("Background AI generation error:", error);
+      log.error("AlpacaTradingEngine", "Background AI generation error", { error: (error as Error).message });
     }
   }
 
@@ -348,7 +348,7 @@ class AlpacaTradingEngine {
     if (this.backgroundGeneratorInterval) {
       clearInterval(this.backgroundGeneratorInterval);
       this.backgroundGeneratorInterval = null;
-      console.log("Background AI generator stopped");
+      log.info("AlpacaTradingEngine", "Background AI generator stopped");
     }
   }
 
@@ -553,7 +553,7 @@ class AlpacaTradingEngine {
         order = await alpaca.createBracketOrder(bracketParams);
         logger.info("Trading", `Bracket order submitted for ${symbol}`, { orderId: order.id, status: order.status });
       } else if (trailingStopPercent && side === "sell" && !isCrypto && !extendedHours) {
-        console.log(`[Trading] Creating trailing stop order for ${symbol}: trail=${trailingStopPercent}%`);
+        log.info("Trading", "Creating trailing stop order", { symbol, trailingStopPercent });
         order = await alpaca.createTrailingStopOrder({
           symbol: alpacaSymbol,
           qty: quantity.toString(),
@@ -572,7 +572,7 @@ class AlpacaTradingEngine {
           extended_hours: true,
         };
 
-        console.log(`[Trading] Creating extended hours limit order for ${symbol}: ${side} ${quantity} @ $${limitPrice}`);
+        log.info("Trading", "Creating extended hours limit order", { symbol, side, quantity, limitPrice });
         order = await alpaca.createOrder(orderParams);
       } else {
         // CRITICAL FIX: Market orders CANNOT use GTC time_in_force
@@ -711,7 +711,7 @@ class AlpacaTradingEngine {
       // SECURITY: Orchestrator control check - only allow position closes authorized by orchestrator/work queue
       // Exception: Emergency stops and stop-loss triggers are always allowed for safety
       if (this.orchestratorControlEnabled && !options.authorizedByOrchestrator && !options.isEmergencyStop) {
-        console.log(`[AlpacaTradingEngine] Position close blocked for ${symbol} - orchestrator has control. Direct position close blocked.`);
+        log.warn("AlpacaTradingEngine", "Position close blocked - orchestrator has control", { symbol });
         return { success: false, error: "Orchestrator control active - direct position close blocked. Must go through work queue or be an emergency stop." };
       }
 
@@ -742,10 +742,10 @@ class AlpacaTradingEngine {
       
       if (isAtLoss && !isProtectedClose) {
         const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
-        console.log(`[LossProtection] Blocking close of ${symbol} at ${lossPercent}% loss - waiting for stop-loss or price recovery`);
-        return { 
-          success: false, 
-          error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers` 
+        log.warn("LossProtection", "Blocking close at loss - waiting for stop-loss or price recovery", { symbol, lossPercent: parseFloat(lossPercent) });
+        return {
+          success: false,
+          error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`
         };
       }
 
@@ -793,7 +793,7 @@ class AlpacaTradingEngine {
 
       return { success: true, order, trade };
     } catch (error) {
-      console.error("Close Alpaca position error:", error);
+      log.error("AlpacaTradingEngine", "Close Alpaca position error", { symbol, error: (error as Error).message });
       eventBus.emit("trade:error", { message: (error as Error).message }, "alpaca-trading-engine");
       return { success: false, error: (error as Error).message };
     }
@@ -828,7 +828,7 @@ class AlpacaTradingEngine {
         };
       }
     } catch (e) {
-      console.log(`Could not fetch news for ${symbol}:`, e);
+      log.debug("AlpacaTradingEngine", "Could not fetch news", { symbol, error: (e as Error).message });
     }
 
     // Gather enrichment data from optional sources
@@ -1078,7 +1078,11 @@ class AlpacaTradingEngine {
     const { decision, marketData } = await this.analyzeSymbol(symbol, strategyId, effectiveTraceId);
 
     if (this.orchestratorControlEnabled) {
-      console.log(`[AlpacaTradingEngine] ${symbol} analysis complete (${decision.action}, ${(decision.confidence * 100).toFixed(0)}% confidence) - orchestrator has control, skipping autonomous execution`);
+      log.info("AlpacaTradingEngine", "Analysis complete - orchestrator has control, skipping autonomous execution", {
+        symbol,
+        action: decision.action,
+        confidence: `${(decision.confidence * 100).toFixed(0)}%`
+      });
       return { decision };
     }
 
@@ -1096,7 +1100,7 @@ class AlpacaTradingEngine {
     }
 
     if (!marketData.currentPrice || marketData.currentPrice <= 0 || !Number.isFinite(marketData.currentPrice)) {
-      console.warn(`Skipping trade for ${symbol}: invalid price data (currentPrice=${marketData.currentPrice})`);
+      log.warn("AlpacaTradingEngine", "Skipping trade: invalid price data", { symbol, currentPrice: marketData.currentPrice });
       this.strategyStates.set(strategyId || symbol, {
         strategyId: strategyId || symbol,
         isRunning: true,
@@ -1109,7 +1113,7 @@ class AlpacaTradingEngine {
     const account = await alpaca.getAccount();
     const buyingPower = safeParseFloat(account.buying_power);
     if (!Number.isFinite(buyingPower) || buyingPower <= 0) {
-      console.warn(`Skipping trade for ${symbol}: invalid buying power (${buyingPower})`);
+      log.warn("AlpacaTradingEngine", "Skipping trade: invalid buying power", { symbol, buyingPower });
       return { decision };
     }
 
@@ -1160,19 +1164,19 @@ class AlpacaTradingEngine {
     // Check for existing open orders for this symbol (wash trade prevention)
     // If there are any sell orders (from bracket orders), skip the buy to avoid wash trade error
     try {
-      const alpacaSymbolCheck = this.isCryptoSymbol(symbol) 
-        ? this.normalizeCryptoSymbol(symbol) 
+      const alpacaSymbolCheck = this.isCryptoSymbol(symbol)
+        ? this.normalizeCryptoSymbol(symbol)
         : this.normalizeSymbolForAlpaca(symbol);
       const openOrders = await alpaca.getOrders("open");
       const symbolSellOrders = openOrders.filter(
         o => o.symbol === alpacaSymbolCheck && o.side === "sell"
       );
       if (symbolSellOrders.length > 0) {
-        console.log(`[Trading] Skipping buy for ${symbol}: existing sell orders would trigger wash trade (${symbolSellOrders.length} pending sell orders)`);
+        log.info("Trading", "Skipping buy: existing sell orders would trigger wash trade", { symbol, pendingSellOrders: symbolSellOrders.length });
         return { decision };
       }
     } catch (err) {
-      console.log(`[Trading] Could not check open orders for ${symbol}, proceeding with caution: ${err}`);
+      log.warn("Trading", "Could not check open orders, proceeding with caution", { symbol, error: (err as Error).message });
     }
     
     // Check if we're in extended hours and need to use limit orders
@@ -1218,10 +1222,10 @@ class AlpacaTradingEngine {
       const latestDecision = await storage.getLatestAiDecisionForSymbol(symbol, strategyId);
       if (latestDecision && !latestDecision.executedTradeId) {
         await storage.updateAiDecision(latestDecision.id, { executedTradeId: tradeId });
-        console.log(`Linked AI decision ${latestDecision.id} to trade ${tradeId}`);
+        log.debug("AlpacaTradingEngine", "Linked AI decision to trade", { decisionId: latestDecision.id, tradeId });
       }
     } catch (error) {
-      console.error(`Failed to link AI decision to trade: ${error}`);
+      log.error("AlpacaTradingEngine", "Failed to link AI decision to trade", { error: (error as Error).message });
     }
   }
 
@@ -1253,7 +1257,7 @@ class AlpacaTradingEngine {
     }
 
     if (this.orchestratorControlEnabled) {
-      console.log(`[AlpacaTradingEngine] Strategy ${strategyId} start skipped - orchestrator has control. AI suggestions will still be generated.`);
+      log.info("AlpacaTradingEngine", "Strategy start skipped - orchestrator has control", { strategyId });
       return { success: false, error: "Orchestrator has control - autonomous strategy execution disabled. Use orchestrator for trade execution." };
     }
 
@@ -1285,7 +1289,7 @@ class AlpacaTradingEngine {
             lastSuccessfulDecision = result.decision;
           } catch (assetError) {
             const errorMsg = (assetError as Error).message || String(assetError);
-            console.error(`Error analyzing ${asset}:`, errorMsg);
+            log.error("AlpacaTradingEngine", "Error analyzing asset", { asset, error: errorMsg });
             lastError = `${asset}: ${errorMsg}`;
           }
         }
@@ -1300,7 +1304,7 @@ class AlpacaTradingEngine {
 
         await storage.updateAgentStatus({ lastHeartbeat: new Date() });
       } catch (error) {
-        console.error(`Strategy ${strategyId} run error:`, error);
+        log.error("AlpacaTradingEngine", "Strategy run error", { strategyId, error: (error as Error).message });
         this.strategyStates.set(strategyId, {
           strategyId,
           isRunning: true,
@@ -1362,7 +1366,7 @@ class AlpacaTradingEngine {
   }
 
   async resumeAgent(): Promise<void> {
-    console.log("Resuming trading agent...");
+    log.info("AlpacaTradingEngine", "Resuming trading agent...");
     this.startBackgroundAIGenerator();
     await storage.updateAgentStatus({ 
       isRunning: true, 
@@ -1403,9 +1407,14 @@ class AlpacaTradingEngine {
 
       if (snapshot) {
         const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;
-        
+
         if (!currentPrice || currentPrice <= 0) {
-          console.warn(`No valid price sources for ${symbol}: latestTrade=${snapshot.latestTrade?.p}, dailyBar.c=${snapshot.dailyBar?.c}, prevDailyBar.c=${snapshot.prevDailyBar?.c}`);
+          log.warn("AlpacaTradingEngine", "No valid price sources for symbol", {
+            symbol,
+            latestTrade: snapshot.latestTrade?.p,
+            dailyBarClose: snapshot.dailyBar?.c,
+            prevDailyBarClose: snapshot.prevDailyBar?.c
+          });
           return null;
         }
         
@@ -1424,10 +1433,10 @@ class AlpacaTradingEngine {
         };
       }
 
-      console.warn(`No snapshot data returned for ${symbol}`);
+      log.warn("AlpacaTradingEngine", "No snapshot data returned", { symbol });
       return null;
     } catch (error) {
-      console.error(`Failed to get market data for ${symbol}:`, error);
+      log.error("AlpacaTradingEngine", "Failed to get market data", { symbol, error: (error as Error).message });
       return null;
     }
   }
@@ -1478,7 +1487,7 @@ class AlpacaTradingEngine {
         const price = snapshotData?.latestTrade?.p || snapshotData?.dailyBar?.c || snapshotData?.prevDailyBar?.c || 0;
         
         if (!price || price <= 0 || !Number.isFinite(price)) {
-          console.warn(`Risk check: invalid price for ${symbol} (price=${price})`);
+          log.warn("AlpacaTradingEngine", "Risk check: invalid price", { symbol, price });
           return { allowed: false, reason: `Cannot verify trade value - no valid price data for ${symbol}` };
         }
         
@@ -1501,7 +1510,7 @@ class AlpacaTradingEngine {
           };
         }
       } catch (error) {
-        console.error("Risk check error:", error);
+        log.error("AlpacaTradingEngine", "Risk check error", { error: (error as Error).message });
         return { allowed: false, reason: "Could not verify risk limits" };
       }
     }
@@ -1529,7 +1538,7 @@ class AlpacaTradingEngine {
         lastHeartbeat: new Date(),
       });
     } catch (error) {
-      console.error("Failed to update agent stats:", error);
+      log.error("AlpacaTradingEngine", "Failed to update agent stats", { error: (error as Error).message });
     }
   }
 
@@ -1585,16 +1594,22 @@ class AlpacaTradingEngine {
           try {
             await alpaca.cancelOrder(order.id);
             cancelled.push(order.id);
-            console.log(`[Reconciliation] Cancelled stale ${order.status} order ${order.id} for ${order.symbol} (age: ${Math.round(ageMinutes)} min, threshold: ${effectiveMaxAgeMinutes} min)`);
+            log.info("Reconciliation", "Cancelled stale order", {
+              orderId: order.id,
+              symbol: order.symbol,
+              status: order.status,
+              ageMinutes: Math.round(ageMinutes),
+              thresholdMinutes: effectiveMaxAgeMinutes
+            });
           } catch (err) {
             errors.push({ orderId: order.id, error: (err as Error).message });
           }
         }
       }
 
-      console.log(`[Reconciliation] Cancelled ${cancelled.length} stale orders, ${errors.length} errors`);
+      log.info("Reconciliation", "Stale order cancellation complete", { cancelled: cancelled.length, errors: errors.length });
     } catch (err) {
-      console.error("[Reconciliation] Failed to cancel stale orders:", err);
+      log.error("Reconciliation", "Failed to cancel stale orders", { error: (err as Error).message });
       throw err;
     }
 
@@ -1610,27 +1625,27 @@ class AlpacaTradingEngine {
     try {
       const ordersBefore = await alpaca.getOrders("open", 100);
       const countBefore = ordersBefore.length;
-      
+
       if (countBefore === 0) {
-        console.log("[Reconciliation] No open orders to cancel");
+        log.info("Reconciliation", "No open orders to cancel");
         return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0 };
       }
-      
+
       await alpaca.cancelAllOrders();
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
       const ordersAfter = await alpaca.getOrders("open", 100);
       const countAfter = ordersAfter.length;
       const actualCancelled = countBefore - countAfter;
-      
-      console.log(`[Reconciliation] Cancelled ${actualCancelled} orders (before: ${countBefore}, remaining: ${countAfter})`);
-      return { 
-        cancelled: actualCancelled, 
-        ordersCancelledBefore: countBefore, 
-        remainingAfter: countAfter 
+
+      log.info("Reconciliation", "Cancelled all orders", { cancelled: actualCancelled, before: countBefore, remaining: countAfter });
+      return {
+        cancelled: actualCancelled,
+        ordersCancelledBefore: countBefore,
+        remainingAfter: countAfter
       };
     } catch (err) {
-      console.error("[Reconciliation] Failed to cancel all orders:", err);
+      log.error("Reconciliation", "Failed to cancel all orders", { error: (err as Error).message });
       return { cancelled: 0, ordersCancelledBefore: 0, remainingAfter: 0, error: (err as Error).message };
     }
   }
@@ -1683,7 +1698,7 @@ class AlpacaTradingEngine {
       }
     }
 
-    console.log(`[Reconciliation] Found ${discrepancies.length} discrepancies between Alpaca and DB`);
+    log.info("Reconciliation", "Position reconciliation complete", { discrepancies: discrepancies.length });
 
     return {
       alpacaPositions: alpacaPositions.map(p => ({
@@ -1725,7 +1740,7 @@ class AlpacaTradingEngine {
           throw new Error("No admin user found for system-level position sync");
         }
         effectiveUserId = adminUser.id;
-        console.log(`[Sync] Using admin user ${adminUser.username} for system-level sync`);
+        log.info("Sync", "Using admin user for system-level sync", { username: adminUser.username });
       }
 
       const dbPositions = await storage.getPositions(effectiveUserId);
@@ -1752,7 +1767,7 @@ class AlpacaTradingEngine {
               strategyId: null,
             });
             created.push(symbol);
-            console.log(`[Sync] Created position for ${symbol} (user: ${effectiveUserId})`);
+            log.info("Sync", "Created position", { symbol, userId: effectiveUserId });
           } else {
             await storage.updatePosition(dbPos.id, {
               quantity: alpacaPos.qty,
@@ -1771,27 +1786,41 @@ class AlpacaTradingEngine {
           try {
             await storage.deletePosition(dbPos.id);
             removed.push(symbol);
-            console.log(`[Sync] Removed stale position for ${symbol}`);
+            log.info("Sync", "Removed stale position", { symbol });
           } catch (err) {
             errors.push({ symbol, error: (err as Error).message });
           }
         }
       }
 
-      console.log(`[Sync] Completed: ${created.length} created, ${updated.length} updated, ${removed.length} removed`);
+      log.info("Sync", "Position sync completed", { created: created.length, updated: updated.length, removed: removed.length });
     } catch (err) {
-      console.error("[Sync] Failed to sync positions:", err);
+      log.error("Sync", "Failed to sync positions", { error: (err as Error).message });
       throw err;
     }
 
     return { created, updated, removed, errors };
   }
 
-  async closeAllPositions(): Promise<{
+  async closeAllPositions(options: {
+    /** SECURITY: Only the work queue processor or emergency actions should set this to true */
+    authorizedByOrchestrator?: boolean;
+    isEmergencyStop?: boolean;
+  } = {}): Promise<{
     closed: Array<{ symbol: string; qty: string; pnl: string }>;
     tradesCreated: number;
     errors: Array<{ symbol: string; error: string }>;
   }> {
+    // SECURITY: Orchestrator control check - only allow close-all if authorized or emergency
+    if (this.orchestratorControlEnabled && !options.authorizedByOrchestrator && !options.isEmergencyStop) {
+      log.warn("AlpacaTradingEngine", "Close all positions blocked - orchestrator has control");
+      return {
+        closed: [],
+        tradesCreated: 0,
+        errors: [{ symbol: "ALL", error: "Orchestrator control active - close all blocked. Use emergency stop or go through orchestrator." }],
+      };
+    }
+
     const closed: Array<{ symbol: string; qty: string; pnl: string }> = [];
     const errors: Array<{ symbol: string; error: string }> = [];
     let tradesCreated = 0;
@@ -1827,12 +1856,12 @@ class AlpacaTradingEngine {
           });
           tradesCreated++;
           
-          closed.push({ 
-            symbol: position.symbol, 
-            qty: position.qty, 
-            pnl: realizedPnl.toFixed(2) 
+          closed.push({
+            symbol: position.symbol,
+            qty: position.qty,
+            pnl: realizedPnl.toFixed(2)
           });
-          console.log(`[Reconciliation] Closed ${position.side} position for ${position.symbol}: qty=${qty}, PnL=$${realizedPnl.toFixed(2)}`);
+          log.info("Reconciliation", "Closed position", { symbol: position.symbol, side: position.side, qty, pnl: realizedPnl.toFixed(2) });
         } catch (err) {
           errors.push({ symbol: position.symbol, error: (err as Error).message });
         }
@@ -1840,9 +1869,9 @@ class AlpacaTradingEngine {
 
       await this.syncPositionsFromAlpaca();
       await this.updateAgentStats();
-      console.log(`[Reconciliation] Closed ${closed.length} positions, created ${tradesCreated} trades, ${errors.length} errors`);
+      log.info("Reconciliation", "Close all positions complete", { closed: closed.length, tradesCreated, errors: errors.length });
     } catch (err) {
-      console.error("[Reconciliation] Failed to close all positions:", err);
+      log.error("Reconciliation", "Failed to close all positions", { error: (err as Error).message });
       throw err;
     }
 
