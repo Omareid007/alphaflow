@@ -103,7 +103,7 @@ import { createRBACContext, hasCapability, filterModulesByCapability, getAllRole
 import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
 import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService, allocationService, rebalancerService } from "./universe";
-import type { AdminCapability } from "../shared/types/admin-module";
+import type { AdminCapability } from "@shared/types/admin-module";
 import { auditLogger } from "./middleware/audit-logger";
 import { log } from "./utils/logger";
 
@@ -6613,8 +6613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ error: "Username already exists" });
       }
 
-      // Hash the password
-      const bcrypt = await import("bcrypt");
+      // Hash the password (using bcryptjs imported at top)
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const user = await storage.createUser({
@@ -6641,7 +6640,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin !== undefined) updates.isAdmin = isAdmin;
 
       if (password) {
-        const bcrypt = await import("bcrypt");
         updates.password = await bcrypt.hash(password, 10);
       }
 

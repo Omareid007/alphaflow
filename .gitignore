@@ -3,6 +3,13 @@
 # dependencies
 node_modules/
 
+# Next.js build output
+.next/
+out/
+
+# Server build output
+server_dist/
+
 # Expo
 .expo/
 dist/

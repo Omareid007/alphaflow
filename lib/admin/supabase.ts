@@ -1,9 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const adminSupabase = createClient(supabaseUrl, supabaseKey);
+// Create a null-safe client that will work even without Supabase configured
+let adminSupabase: SupabaseClient | null = null;
+
+if (supabaseUrl && supabaseKey) {
+  adminSupabase = createClient(supabaseUrl, supabaseKey);
+}
+
+export { adminSupabase };
 
 export type Database = {
   public: {
