@@ -1,4 +1,4 @@
-import { adminSupabase } from '../supabase';
+import { getAdminSupabase } from '../supabase';
 import { ApiFunction, ApiSchema, ApiDiscoveryResult } from '../types';
 
 export interface IApiDiscoveryService {
@@ -31,7 +31,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
 
       const result = await this.parseOpenApiSpec(providerId, spec, documentUrl);
 
-      await adminSupabase.from('provider_api_discovery_logs').insert({
+      await getAdminSupabase().from('provider_api_discovery_logs').insert({
         provider_id: providerId,
         source_url: documentUrl,
         source_type: spec.openapi ? 'openapi3' : spec.swagger ? 'swagger2' : 'unknown',
@@ -42,7 +42,7 @@ class ApiDiscoveryService implements IApiDiscoveryService {
 
       return result;
     } catch (error: any) {
-      await adminSupabase.from('provider_api_discovery_logs').insert({
+      await getAdminSupabase().from('provider_api_discovery_logs').insert({
         provider_id: providerId,
         source_url: documentUrl,
         success: false,

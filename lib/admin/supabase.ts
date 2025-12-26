@@ -12,6 +12,17 @@ if (supabaseUrl && supabaseKey) {
 
 export { adminSupabase };
 
+export function isSupabaseConfigured(): boolean {
+  return adminSupabase !== null;
+}
+
+export function getAdminSupabase(): SupabaseClient {
+  if (!adminSupabase) {
+    throw new Error('Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+  }
+  return adminSupabase;
+}
+
 export type Database = {
   public: {
     Tables: {

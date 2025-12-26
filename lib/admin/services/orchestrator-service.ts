@@ -12,6 +12,18 @@ export interface IOrchestratorService {
 
 class OrchestratorService implements IOrchestratorService {
   async getConfig(): Promise<OrchestratorConfig> {
+    if (!adminSupabase) {
+      return {
+        id: 'default',
+        mode: 'paper',
+        enabledAgents: [],
+        agentParams: {},
+        schedules: [],
+        killSwitch: true,
+        metadata: {},
+        updatedAt: new Date().toISOString()
+      };
+    }
     const { data, error } = await adminSupabase
       .from('admin_orchestrator_config')
       .select('*')
@@ -25,6 +37,7 @@ class OrchestratorService implements IOrchestratorService {
   }
 
   async updateConfig(input: Partial<OrchestratorConfig>): Promise<OrchestratorConfig> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const existing = await this.getConfig();
 
     const { data, error } = await adminSupabase
@@ -51,6 +64,7 @@ class OrchestratorService implements IOrchestratorService {
   }
 
   async triggerRun(jobType: string, mode: 'paper' | 'live'): Promise<JobRun> {
+    if (!adminSupabase) throw new Error('Database not configured');
     const config = await this.getConfig();
 
     if (config.killSwitch) {
@@ -71,7 +85,7 @@ class OrchestratorService implements IOrchestratorService {
 
     setTimeout(async () => {
       const success = Math.random() > 0.2;
-      await adminSupabase
+      await adminSupabase!
         .from('admin_job_runs')
         .update({
           status: success ? 'completed' : 'failed',
@@ -90,6 +104,7 @@ class OrchestratorService implements IOrchestratorService {
   }
 
   async getRecentRuns(limit: number = 20): Promise<JobRun[]> {
+    if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
       .from('admin_job_runs')
       .select('*')
@@ -101,6 +116,7 @@ class OrchestratorService implements IOrchestratorService {
   }
 
   async getRunById(id: string): Promise<JobRun | null> {
+    if (!adminSupabase) return null;
     const { data, error } = await adminSupabase
       .from('admin_job_runs')
       .select('*')
