@@ -1,6 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import { StrategyWizard } from "@/components/wizard/strategy-wizard";
+import { LoadingSpinner } from "@/components/ui/loading-state";
 
 export default function CreatePage() {
   return (
@@ -11,7 +13,13 @@ export default function CreatePage() {
           Build and backtest your AI-powered trading strategy
         </p>
       </div>
-      <StrategyWizard />
+      <Suspense fallback={
+        <div className="flex h-96 items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
+      }>
+        <StrategyWizard />
+      </Suspense>
     </div>
   );
 }

@@ -17,10 +17,11 @@ export default function EditStrategyPage() {
   const loading = strategyLoading || backtestLoading;
 
   // Redirect if strategy not found
-  if (!strategyLoading && !strategy) {
-    router.push("/strategies");
-    return null;
-  }
+  useEffect(() => {
+    if (!strategyLoading && !strategy) {
+      router.push("/strategies");
+    }
+  }, [strategyLoading, strategy, router]);
 
   if (loading) {
     return (

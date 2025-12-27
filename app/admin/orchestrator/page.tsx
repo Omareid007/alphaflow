@@ -23,7 +23,7 @@ export default function OrchestratorPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    loadData().catch(console.error);
   }, []);
 
   async function loadData() {

@@ -31,13 +31,15 @@ export default function ProvidersPage() {
   const [discovering, setDiscovering] = useState(false);
 
   useEffect(() => {
-    loadProviders();
+    loadProviders().catch(console.error);
   }, []);
 
   useEffect(() => {
     if (selectedProvider) {
-      loadProviderDetails(selectedProvider.id);
-      loadApiFunctions(selectedProvider.id);
+      Promise.all([
+        loadProviderDetails(selectedProvider.id),
+        loadApiFunctions(selectedProvider.id)
+      ]).catch(console.error);
     }
   }, [selectedProvider]);
 

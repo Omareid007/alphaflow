@@ -60,9 +60,11 @@ export default function ResearchPage() {
   }, [quotes]);
 
   // Set initial active watchlist when data loads
-  if (watchlists.length > 0 && !activeWatchlist) {
-    setActiveWatchlist(watchlists[0].id);
-  }
+  useEffect(() => {
+    if (watchlists.length > 0 && !activeWatchlist) {
+      setActiveWatchlist(watchlists[0].id);
+    }
+  }, [watchlists, activeWatchlist]);
 
   const currentWatchlist = watchlists.find(w => w.id === activeWatchlist);
 
