@@ -1520,7 +1520,7 @@ class AlpacaTradingEngine {
 
   private async updateAgentStats(): Promise<void> {
     try {
-      const trades = await storage.getTrades(1000);
+      const trades = await storage.getTrades(undefined, 1000);
       const closingTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "0");
       const totalRealizedPnl = closingTrades.reduce(
         (sum, t) => sum + safeParseFloat(t.pnl, 0),

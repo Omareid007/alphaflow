@@ -99,7 +99,7 @@ router.post("/", async (req: Request, res: Response) => {
 // POST /api/trades/backfill-prices - Backfill trade prices from Alpaca order history
 router.post("/backfill-prices", async (req: Request, res: Response) => {
   try {
-    const trades = await storage.getTrades(500);
+    const trades = await storage.getTrades(undefined, 500);
     const zeroTrades = trades.filter(t => safeParseFloat(t.price, 0) === 0);
 
     if (zeroTrades.length === 0) {

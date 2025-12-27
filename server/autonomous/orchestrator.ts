@@ -1201,7 +1201,7 @@ class AutonomousOrchestrator {
 
     try {
       // Add symbols from recent high-confidence AI decisions (action != hold)
-      const recentDecisions = await storage.getAiDecisions(RECENT_DECISIONS_LOOKBACK);
+      const recentDecisions = await storage.getAiDecisions(undefined, RECENT_DECISIONS_LOOKBACK);
       const highConfDecisions = recentDecisions.filter(d => {
         const confidence = parseFloat(d.confidence || "0");
         return confidence >= MIN_CONFIDENCE_FOR_UNIVERSE && d.action !== "hold";

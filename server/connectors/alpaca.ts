@@ -1182,3 +1182,6 @@ export interface OrderValidationResult {
 }
 
 export const alpaca = new AlpacaConnector();
+
+// Alias for backwards compatibility
+export const alpacaClient = alpaca;

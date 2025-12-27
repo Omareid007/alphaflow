@@ -57,6 +57,19 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
     try {
       const status = await storage.getAgentStatus();
 
+      if (!status) {
+        return res.json({
+          isRunning: false,
+          killSwitchActive: false,
+          lastRunTime: null,
+          consecutiveErrors: 0,
+          activePositions: 0,
+          recentDecisions: 0,
+          lastDecisionTime: null,
+          config: {},
+        });
+      }
+
       // Get additional runtime stats
       const userId = req.userId!;
       const recentDecisions = await storage.getAiDecisions(userId, 10);
@@ -65,12 +78,19 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       res.json({
         isRunning: status.isRunning,
         killSwitchActive: status.killSwitchActive,
-        lastRunTime: status.lastRunTime,
-        consecutiveErrors: status.consecutiveErrors,
+        lastRunTime: status.lastHeartbeat, // Use lastHeartbeat as lastRunTime
+        consecutiveErrors: 0, // Not tracked in schema, default to 0
         activePositions: positions.length,
         recentDecisions: recentDecisions.length,
         lastDecisionTime: recentDecisions[0]?.createdAt || null,
-        config: status.config || {},
+        config: {
+          maxPositionSizePercent: status.maxPositionSizePercent,
+          maxTotalExposurePercent: status.maxTotalExposurePercent,
+          maxPositionsCount: status.maxPositionsCount,
+          dailyLossLimitPercent: status.dailyLossLimitPercent,
+          autoExecuteTrades: status.autoExecuteTrades,
+          conservativeMode: status.conservativeMode,
+        },
       });
     } catch (error) {
       log.error("AutonomousRoutes", "Failed to get autonomous status", { error: error instanceof Error ? error.message : String(error) });
@@ -285,7 +305,7 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
       const results: Array<{ decisionId: string; success: boolean; error?: string; order?: unknown }> = [];
 
       for (const decisionId of decisionIds) {
-        const decisions = await storage.getAiDecisions(100);
+        const decisions = await storage.getAiDecisions(undefined, 100);
         const decision = decisions.find(d => d.id === decisionId);
         if (!decision) {
           results.push({ decisionId, success: false, error: "Decision not found" });

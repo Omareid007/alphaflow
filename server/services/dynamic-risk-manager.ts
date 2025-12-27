@@ -231,7 +231,7 @@ export class DynamicRiskManager {
       .slice(0, 10)
       .reduce((sum, t) => sum + t.pnl, 0);
 
-    const pnlPercent = (recentPnL / portfolio.totalEquity) * 100;
+    const pnlPercent = (recentPnL / portfolio.equity) * 100;
     const regime = this.classifyPerformanceRegime(pnlPercent);
 
     switch (regime) {
@@ -445,6 +445,7 @@ export class DynamicRiskManager {
       maxTotalExposurePercent: adjusted.maxExposurePct,
       maxPositionsCount: 20, // Keep constant for now
       dailyLossLimitPercent: 5, // Keep constant for now
+      killSwitchActive: false, // Default to off
     };
   }
 

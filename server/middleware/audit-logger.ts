@@ -243,3 +243,57 @@ export async function getRecentAuditLogs(
 ) {
   return storage.getRecentAuditLogs(limit, offset);
 }
+
+/**
+ * Get audit logs (alias for getRecentAuditLogs)
+ */
+export async function getAuditLogs(
+  limit: number = 100,
+  offset: number = 0
+) {
+  return storage.getRecentAuditLogs(limit, offset);
+}
+
+/**
+ * Get audit statistics
+ */
+export async function getAuditStats() {
+  try {
+    const recentLogs = await storage.getRecentAuditLogs(1000, 0);
+    const logs = recentLogs || [];
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const todayLogs = logs.filter((l: any) => new Date(l.timestamp) >= today);
+    const weekLogs = logs.filter((l: any) => new Date(l.timestamp) >= thisWeek);
+
+    const errorLogs = logs.filter((l: any) => l.responseStatus && l.responseStatus >= 400);
+
+    const actionCounts: Record<string, number> = {};
+    logs.forEach((l: any) => {
+      actionCounts[l.action] = (actionCounts[l.action] || 0) + 1;
+    });
+
+    return {
+      totalLogs: logs.length,
+      todayCount: todayLogs.length,
+      weekCount: weekLogs.length,
+      errorCount: errorLogs.length,
+      topActions: Object.entries(actionCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([action, count]) => ({ action, count })),
+    };
+  } catch (error: any) {
+    log.error("AuditLogger", "Failed to get audit stats", { error: error.message });
+    return {
+      totalLogs: 0,
+      todayCount: 0,
+      weekCount: 0,
+      errorCount: 0,
+      topActions: [],
+    };
+  }
+}

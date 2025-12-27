@@ -4,7 +4,7 @@ import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
 import { tradingEnforcementService } from "../universe";
-import type { InsertOrder } from "@shared/schema";
+import type { InsertOrderInput } from "@shared/schema";
 
 const QUEUE_POLL_INTERVAL_MS = 500;
 const QUEUE_POLL_TIMEOUT_MS = 30000;
@@ -329,7 +329,12 @@ class UnifiedOrderExecutor {
         status: order.status,
       });
 
-      const orderData: InsertOrder = {
+      // Get admin user for order tracking
+      const adminUser = await storage.getAdminUser();
+      const userId = adminUser?.id || "system";
+
+      const orderData: InsertOrderInput = {
+        userId,
         broker: "alpaca",
         brokerOrderId: order.id,
         clientOrderId,

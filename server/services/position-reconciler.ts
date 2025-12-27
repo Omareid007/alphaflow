@@ -234,7 +234,12 @@ class PositionReconciler {
   }
 
   private async addPositionToDB(brokerPos: BrokerPosition): Promise<void> {
+    // Get admin user for system-level position tracking
+    const adminUser = await storage.getAdminUser();
+    const userId = adminUser?.id || "system";
+
     const newPosition: InsertPosition = {
+      userId,
       symbol: brokerPos.symbol,
       quantity: brokerPos.qty.toString(),
       side: brokerPos.side,

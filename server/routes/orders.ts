@@ -296,7 +296,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     if (!order) {
       // Could also try by ID if needed
-      const orders = await storage.getRecentOrders(1000);
+      const orders = await storage.getRecentOrders(undefined, 1000);
       order = orders.find((o) => o.id === id);
     }
 

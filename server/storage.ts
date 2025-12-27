@@ -45,6 +45,7 @@ import {
   type AssetClass,
   type Order,
   type InsertOrder,
+  type InsertOrderInput,
   type Fill,
   type InsertFill,
   type DebateSession,
@@ -98,21 +99,21 @@ export interface IStorage {
   updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined>;
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
 
-  getTrades(userId: string, limit?: number): Promise<Trade[]>;
+  getTrades(userId?: string, limit?: number): Promise<Trade[]>;
   getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
   getTrade(id: string): Promise<Trade | undefined>;
   getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined>;
-  createTrade(trade: InsertTrade): Promise<Trade>;
+  createTrade(trade: Omit<InsertTrade, 'userId'> & { userId?: string }): Promise<Trade>;
   getDistinctSymbols(): Promise<string[]>;
 
-  getPositions(userId: string): Promise<Position[]>;
+  getPositions(userId?: string): Promise<Position[]>;
   getPosition(id: string): Promise<Position | undefined>;
   createPosition(position: InsertPosition): Promise<Position>;
   updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position | undefined>;
   deletePosition(id: string): Promise<boolean>;
 
-  getAiDecisions(userId: string, limit?: number): Promise<AiDecision[]>;
-  createAiDecision(decision: InsertAiDecision): Promise<AiDecision>;
+  getAiDecisions(userId?: string, limit?: number): Promise<AiDecision[]>;
+  createAiDecision(decision: Omit<InsertAiDecision, 'userId'> & { userId?: string }): Promise<AiDecision>;
   updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
   getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
   getAiDecisionsByStatus(userId: string, status: string, limit?: number): Promise<AiDecision[]>;
@@ -127,7 +128,7 @@ export interface IStorage {
   getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined>;
   getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined>;
   getOrdersByStatus(userId: string, status: string, limit?: number): Promise<Order[]>;
-  getRecentOrders(userId: string, limit?: number): Promise<Order[]>;
+  getRecentOrders(userId?: string, limit?: number): Promise<Order[]>;
   createFill(fill: InsertFill): Promise<Fill>;
   getFillsByOrderId(orderId: string): Promise<Fill[]>;
   getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]>;
@@ -161,14 +162,14 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     // SECURITY: Sanitize user input to prevent XSS attacks
-    const sanitizedUser = sanitizeUserInput(insertUser);
+    const sanitizedUser = sanitizeUserInput(insertUser) as InsertUser;
     const [user] = await db.insert(users).values(sanitizedUser).returning();
     return user;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
     // SECURITY: Sanitize user input to prevent XSS attacks
-    const sanitizedUpdates = sanitizeUserInput(updates);
+    const sanitizedUpdates = sanitizeUserInput(updates) as Partial<InsertUser>;
     const [user] = await db.update(users).set(sanitizedUpdates).where(eq(users.id, id)).returning();
     return user;
   }
@@ -189,14 +190,14 @@ export class DatabaseStorage implements IStorage {
 
   async createStrategy(insertStrategy: InsertStrategy): Promise<Strategy> {
     // SECURITY: Sanitize strategy input to prevent XSS attacks
-    const sanitizedStrategy = sanitizeStrategyInput(insertStrategy);
+    const sanitizedStrategy = sanitizeStrategyInput(insertStrategy) as InsertStrategy;
     const [strategy] = await db.insert(strategies).values(sanitizedStrategy).returning();
     return strategy;
   }
 
   async updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined> {
     // SECURITY: Sanitize strategy input to prevent XSS attacks
-    const sanitizedUpdates = sanitizeStrategyInput(updates);
+    const sanitizedUpdates = sanitizeStrategyInput(updates) as Partial<InsertStrategy>;
     const [strategy] = await db
       .update(strategies)
       .set({ ...sanitizedUpdates, updatedAt: new Date() })
@@ -209,8 +210,11 @@ export class DatabaseStorage implements IStorage {
     return this.updateStrategy(id, { isActive });
   }
 
-  async getTrades(userId: string, limit: number = 50): Promise<Trade[]> {
-    return db.select().from(trades).where(eq(trades.userId, userId)).orderBy(desc(trades.executedAt)).limit(limit);
+  async getTrades(userId?: string, limit: number = 50): Promise<Trade[]> {
+    if (userId) {
+      return db.select().from(trades).where(eq(trades.userId, userId)).orderBy(desc(trades.executedAt)).limit(limit);
+    }
+    return db.select().from(trades).orderBy(desc(trades.executedAt)).limit(limit);
   }
 
   async getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }> {
@@ -304,8 +308,14 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createTrade(insertTrade: InsertTrade): Promise<Trade> {
-    const [trade] = await db.insert(trades).values(insertTrade).returning();
+  async createTrade(insertTrade: Omit<InsertTrade, 'userId'> & { userId?: string }): Promise<Trade> {
+    // Auto-fill userId if not provided
+    let tradeData = insertTrade as InsertTrade;
+    if (!insertTrade.userId) {
+      const adminUser = await this.getAdminUser();
+      tradeData = { ...insertTrade, userId: adminUser?.id || 'system' };
+    }
+    const [trade] = await db.insert(trades).values(tradeData).returning();
     return trade;
   }
 
@@ -326,8 +336,11 @@ export class DatabaseStorage implements IStorage {
     return result.map(r => r.symbol);
   }
 
-  async getPositions(userId: string): Promise<Position[]> {
-    return db.select().from(positions).where(eq(positions.userId, userId)).orderBy(desc(positions.openedAt));
+  async getPositions(userId?: string): Promise<Position[]> {
+    if (userId) {
+      return db.select().from(positions).where(eq(positions.userId, userId)).orderBy(desc(positions.openedAt));
+    }
+    return db.select().from(positions).orderBy(desc(positions.openedAt));
   }
 
   async getPosition(id: string): Promise<Position | undefined> {
@@ -391,12 +404,21 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getAiDecisions(userId: string, limit: number = 20): Promise<AiDecision[]> {
-    return db.select().from(aiDecisions).where(eq(aiDecisions.userId, userId)).orderBy(desc(aiDecisions.createdAt)).limit(limit);
+  async getAiDecisions(userId?: string, limit: number = 20): Promise<AiDecision[]> {
+    if (userId) {
+      return db.select().from(aiDecisions).where(eq(aiDecisions.userId, userId)).orderBy(desc(aiDecisions.createdAt)).limit(limit);
+    }
+    return db.select().from(aiDecisions).orderBy(desc(aiDecisions.createdAt)).limit(limit);
   }
 
-  async createAiDecision(insertDecision: InsertAiDecision): Promise<AiDecision> {
-    const [decision] = await db.insert(aiDecisions).values(insertDecision).returning();
+  async createAiDecision(insertDecision: Omit<InsertAiDecision, 'userId'> & { userId?: string }): Promise<AiDecision> {
+    // Auto-fill userId if not provided
+    let decisionData = insertDecision as InsertAiDecision;
+    if (!insertDecision.userId) {
+      const adminUser = await this.getAdminUser();
+      decisionData = { ...insertDecision, userId: adminUser?.id || 'system' };
+    }
+    const [decision] = await db.insert(aiDecisions).values(decisionData).returning();
     return decision;
   }
 
@@ -662,22 +684,22 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrder>): Promise<Order> {
+  async upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrderInput>): Promise<Order> {
     const existing = await this.getOrderByBrokerOrderId(brokerOrderId);
     if (existing) {
       const [updated] = await db.update(orders)
-        .set({ ...data, updatedAt: new Date() })
+        .set({ ...data, updatedAt: new Date() } as any)
         .where(eq(orders.brokerOrderId, brokerOrderId))
         .returning();
       return updated;
     }
     try {
-      const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as InsertOrder).returning();
+      const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as any).returning();
       return created;
     } catch (error: any) {
       if (error.code === "23505" || error.message?.includes("duplicate")) {
         const [updated] = await db.update(orders)
-          .set({ ...data, updatedAt: new Date() })
+          .set({ ...data, updatedAt: new Date() } as any)
           .where(eq(orders.brokerOrderId, brokerOrderId))
           .returning();
         return updated;
@@ -700,8 +722,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(orders).where(and(eq(orders.userId, userId), eq(orders.status, status))).limit(limit).orderBy(desc(orders.createdAt));
   }
 
-  async getRecentOrders(userId: string, limit = 50): Promise<Order[]> {
-    return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(limit);
+  async getRecentOrders(userId?: string, limit = 50): Promise<Order[]> {
+    if (userId) {
+      return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(limit);
+    }
+    return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
   }
 
   async createFill(fill: InsertFill): Promise<Fill> {

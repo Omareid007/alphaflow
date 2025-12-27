@@ -58,7 +58,7 @@ router.get("/snapshot", async (req: Request, res: Response) => {
     const totalUnrealizedPl = positions.reduce((sum: number, pos: any) => sum + pos.unrealizedPl, 0);
 
     // Get trades from database for realized P&L
-    const trades = await storage.getTrades(100);
+    const trades = await storage.getTrades(undefined, 100);
     const closedTrades = trades.filter(t => t.pnl !== null && t.pnl !== "");
     const totalRealizedPl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
 

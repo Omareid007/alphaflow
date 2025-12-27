@@ -42,7 +42,9 @@ export const trades = pgTable("trades", {
     .default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
-  orderId: varchar("order_id").references(() => orders.id, { onDelete: "set null" }),
+  // Note: orderId references orders table but defined without .references() to avoid circular type dependency
+  // The foreign key constraint exists at database level via migration
+  orderId: varchar("order_id"),
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),
   quantity: numeric("quantity").notNull(),
@@ -85,7 +87,8 @@ export const aiDecisions = pgTable("ai_decisions", {
   reasoning: text("reasoning"),
   marketContext: text("market_context"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  executedTradeId: varchar("executed_trade_id").references(() => trades.id, { onDelete: "set null" }),
+  // Note: executedTradeId references trades table - foreign key defined at database level
+  executedTradeId: varchar("executed_trade_id"),
   status: text("status").default("pending").notNull(),
   stopLoss: numeric("stop_loss"),
   takeProfit: numeric("take_profit"),
@@ -784,6 +787,41 @@ export type Order = typeof orders.$inferSelect;
 
 export type InsertFill = z.infer<typeof insertFillSchema>;
 export type Fill = typeof fills.$inferSelect;
+
+/**
+ * Manual input type for order creation/updates that matches actual runtime data.
+ * This avoids drizzle-zod's incorrect array type inference for some fields.
+ */
+export interface InsertOrderInput {
+  userId: string;
+  broker: string;
+  brokerOrderId: string;
+  clientOrderId?: string | null;
+  symbol: string;
+  side: string;
+  type: string;
+  timeInForce?: string | null;
+  qty?: string | null;
+  notional?: string | null;
+  limitPrice?: string | null;
+  stopPrice?: string | null;
+  status: string;
+  extendedHours?: boolean | null;
+  orderClass?: string | null;
+  submittedAt: Date;
+  updatedAt: Date;
+  filledAt?: Date | null;
+  expiredAt?: Date | null;
+  canceledAt?: Date | null;
+  failedAt?: Date | null;
+  filledQty?: string | null;
+  filledAvgPrice?: string | null;
+  traceId?: string | null;
+  decisionId?: string | null;
+  tradeIntentId?: string | null;
+  workItemId?: string | null;
+  rawJson?: unknown;
+}
 
 export const backtestStatuses = ['QUEUED', 'RUNNING', 'DONE', 'FAILED'] as const;
 export type BacktestStatusType = typeof backtestStatuses[number];

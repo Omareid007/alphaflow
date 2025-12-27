@@ -661,6 +661,15 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     for (const alpacaOrder of allOrders) {
       try {
+        // Get workItemId if linked to a work item
+        let workItemId: string | undefined;
+        if (alpacaOrder.client_order_id) {
+          const workItem = await storage.getWorkItemByIdempotencyKey(alpacaOrder.client_order_id);
+          if (workItem) {
+            workItemId = workItem.id;
+          }
+        }
+
         const orderData = {
           broker: "alpaca" as const,
           brokerOrderId: alpacaOrder.id,
@@ -686,15 +695,9 @@ class WorkQueueServiceImpl implements WorkQueueService {
           filledQty: alpacaOrder.filled_qty,
           filledAvgPrice: alpacaOrder.filled_avg_price || undefined,
           traceId,
+          workItemId,
           rawJson: alpacaOrder,
         };
-
-        if (alpacaOrder.client_order_id) {
-          const workItem = await storage.getWorkItemByIdempotencyKey(alpacaOrder.client_order_id);
-          if (workItem) {
-            orderData.workItemId = workItem.id;
-          }
-        }
 
         await storage.upsertOrderByBrokerOrderId(alpacaOrder.id, orderData);
         ordersUpserted++;

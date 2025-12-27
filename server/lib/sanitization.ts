@@ -105,8 +105,8 @@ export function sanitizeUserInput(user: {
  */
 export function sanitizeStrategyInput(strategy: {
   name?: string;
-  description?: string;
-  notes?: string;
+  description?: string | null;
+  notes?: string | null;
   [key: string]: any;
 }): typeof strategy {
   const sanitized = { ...strategy };

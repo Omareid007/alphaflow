@@ -1061,7 +1061,7 @@ export async function reconcileOrderBook(): Promise<{
     const alpacaOrders = await alpaca.getOrders("all", 100);
     result.alpacaOrders = alpacaOrders.length;
     
-    const localTrades = await storage.getTrades(100);
+    const localTrades = await storage.getTrades(undefined, 100);
     result.localTrades = localTrades.length;
     
     const alpacaOrderIds = new Set(alpacaOrders.map(o => o.id));

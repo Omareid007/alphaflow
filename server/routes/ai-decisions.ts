@@ -354,21 +354,20 @@ router.get("/events", async (req: Request, res: Response) => {
     const type = req.query.type as string | undefined;
 
     // Get recent AI decisions from storage
-    const decisions = await storage.getAiDecisions({ limit: limit * 2 });
+    const decisions = await storage.getAiDecisions(undefined, limit * 2);
 
     // Transform decisions into events format
+    // Note: type, headline, explanation, signals are derived from action/reasoning
     const events = decisions
-      .filter((d) => !type || d.type === type)
+      .filter((d) => !type || d.action === type)
       .slice(0, limit)
       .map((d) => ({
         id: d.id,
-        type: d.type || "signal",
-        title:
-          d.headline ||
-          `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol || "Market"}`,
-        headline: d.headline,
-        description: d.reasoning || d.explanation,
-        explanation: d.explanation,
+        type: d.action || "signal",
+        title: `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol || "Market"}`,
+        headline: `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol || "Market"}`,
+        description: d.reasoning,
+        explanation: d.reasoning,
         symbol: d.symbol,
         confidence: typeof d.confidence === "string" ? parseFloat(d.confidence) : d.confidence,
         action: d.action,
@@ -376,7 +375,7 @@ router.get("/events", async (req: Request, res: Response) => {
         createdAt: d.createdAt,
         metadata: {
           strategyId: d.strategyId,
-          signals: d.signals,
+          signals: null,
         },
       }));
 
@@ -705,7 +704,7 @@ router.post("/autonomous/execute-trades", async (req: Request, res: Response) =>
     }> = [];
 
     for (const decisionId of decisionIds) {
-      const decisions = await storage.getAiDecisions(100);
+      const decisions = await storage.getAiDecisions(undefined, 100);
       const decision = decisions.find((d) => d.id === decisionId);
       if (!decision) {
         results.push({ decisionId, success: false, error: "Decision not found" });
