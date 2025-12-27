@@ -14,25 +14,8 @@ import {
   insertTradeSchema,
   insertPositionSchema,
   insertAiDecisionSchema,
-  type Fill,
-  type Order,
-  type Trade,
-  type Position,
 } from "@shared/schema";
-import { coingecko } from "./connectors/coingecko";
-import { finnhub } from "./connectors/finnhub";
-import { alpaca, AlpacaOrder } from "./connectors/alpaca";
-import { coinmarketcap } from "./connectors/coinmarketcap";
-import { newsapi } from "./connectors/newsapi";
-import { uaeMarkets } from "./connectors/uae-markets";
-import { valyu } from "./connectors/valyu";
-import { huggingface } from "./connectors/huggingface";
-import { gdelt } from "./connectors/gdelt";
-import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "./ai/decision-engine";
-import { generateTraceId, getLLMCacheStats, clearLLMCache, clearLLMCacheForRole, resetLLMCacheStats } from "./ai/llmGateway";
-import { dataFusionEngine } from "./fusion/data-fusion-engine";
-// DEPRECATED: paperTradingEngine is no longer used in UI paths - Alpaca is source of truth
-// import { paperTradingEngine } from "./trading/paper-trading-engine";
+import { alpaca } from "./connectors/alpaca";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { alpacaStream } from "./trading/alpaca-stream";
 import { tradingSessionManager } from "./services/trading-session-manager";
@@ -43,18 +26,7 @@ import {
   reconcileOrderBook 
 } from "./trading/order-execution-flow";
 import { orchestrator } from "./autonomous/orchestrator";
-import { marketConditionAnalyzer } from "./ai/market-condition-analyzer";
-import { eventBus, logger, coordinator } from "./orchestration";
-import { safeParseFloat } from "./utils/numeric";
-import { 
-  mapAlpacaPositionToEnriched, 
-  mapAlpacaOrderToEnriched,
-  createLiveSourceMetadata,
-  createUnavailableSourceMetadata,
-  type DataSourceMetadata,
-  type EnrichedPosition,
-  type EnrichedOrder,
-} from "@shared/position-mapper";
+import { coordinator } from "./orchestration";
 import {
   registerWebhook,
   unregisterWebhook,

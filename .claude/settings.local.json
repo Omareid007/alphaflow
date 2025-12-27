@@ -125,7 +125,12 @@
       "Bash(npm ls:*)",
       "Bash(npm outdated:*)",
       "Bash(npm update:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(for page in \"/\" \"/home\" \"/login\" \"/strategies\" \"/create\" \"/portfolio\" \"/settings\")",
+      "Bash(do echo -n \"GET $page: \")",
+      "Bash(/dev/null echo echo 'Recent trades from Alpaca:' curl -s http://localhost:5000/api/alpaca/orders?limit=5 -b /tmp/cookies.txt)",
+      "Bash(npx eslint:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

@@ -205,14 +205,6 @@ class TradingSessionManager {
   }
 
   /**
-   * Alias for getCurrentSession for backward compatibility
-   * @deprecated Use getCurrentSession instead
-   */
-  getSessionInfo(exchange: string, now: Date = new Date()): SessionInfo {
-    return this.getCurrentSession(exchange, now);
-  }
-
-  /**
    * Check if a specific date is a market holiday
    */
   isHoliday(exchange: string, date: Date): boolean {
