@@ -1,5 +1,7 @@
 import { log } from "../utils/logger";
 import { tradingConfig, getAlpacaBaseUrl } from '../config/trading-config';
+import { getLimiter, wrapWithLimiter } from '../lib/rateLimiter';
+import { getBreaker } from '../lib/circuitBreaker';
 
 const ALPACA_BASE_URL = getAlpacaBaseUrl();
 const ALPACA_DATA_URL = tradingConfig.alpaca.dataUrl;
@@ -195,11 +197,10 @@ interface CacheEntry<T> {
 class AlpacaConnector {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private cacheDuration = 30 * 1000;
-  private lastRequestTime = 0;
-  private minRequestInterval = 350;
-  private requestQueue: Promise<void> = Promise.resolve();
-  private activeRequests = 0;
-  private maxConcurrentRequests = 3;
+  private readonly providerName = 'alpaca';
+  private failureCount = 0;
+  private readonly maxConsecutiveFailures = 5;
+  private lastFailureReset = Date.now();
 
   private getCredentials(): { apiKey: string; secretKey: string } | null {
     const apiKey = process.env.ALPACA_API_KEY;
@@ -208,29 +209,26 @@ class AlpacaConnector {
     return { apiKey, secretKey };
   }
 
-  private async throttle(): Promise<void> {
-    while (this.activeRequests >= this.maxConcurrentRequests) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+  private recordSuccess(): void {
+    // Reset failure count after 5 minutes of no failures
+    const now = Date.now();
+    if (now - this.lastFailureReset > 5 * 60 * 1000) {
+      this.failureCount = 0;
     }
-    this.activeRequests++;
-    
-    const executeThrottle = async () => {
-      const now = Date.now();
-      const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < this.minRequestInterval) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-        );
-      }
-      this.lastRequestTime = Date.now();
-    };
-    
-    this.requestQueue = this.requestQueue.then(executeThrottle);
-    await this.requestQueue;
+    this.lastFailureReset = now;
   }
-  
-  private releaseThrottle(): void {
-    this.activeRequests = Math.max(0, this.activeRequests - 1);
+
+  private recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureReset = Date.now();
+
+    if (this.failureCount >= this.maxConsecutiveFailures) {
+      log.error('Alpaca', `Circuit breaker threshold reached: ${this.failureCount} consecutive failures`);
+    }
+  }
+
+  private shouldRejectRequest(): boolean {
+    return this.failureCount >= this.maxConsecutiveFailures;
   }
 
   private getCached<T>(key: string): T | null {
@@ -248,14 +246,19 @@ class AlpacaConnector {
   private async fetchWithRetry<T>(
     url: string,
     options: RequestInit = {},
-    retries = 5
+    retries = 3
   ): Promise<T> {
+    // Check circuit breaker before attempting request
+    if (this.shouldRejectRequest()) {
+      const error = new Error('Circuit breaker is open - too many consecutive failures');
+      log.error('Alpaca', error.message);
+      throw error;
+    }
+
     const credentials = this.getCredentials();
     if (!credentials) {
       throw new Error("Alpaca API credentials not configured");
     }
-
-    await this.throttle();
 
     const headers: Record<string, string> = {
       "APCA-API-KEY-ID": credentials.apiKey,
@@ -265,39 +268,88 @@ class AlpacaConnector {
       ...(options.headers as Record<string, string>),
     };
 
-    try {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const response = await fetch(url, {
-            ...options,
-            headers,
-          });
+    // Use circuit breaker for the actual API call
+    const breaker = getBreaker(
+      `alpaca-api`,
+      async () => {
+        // Wrap the fetch in rate limiter
+        return wrapWithLimiter(this.providerName, async () => {
+          for (let i = 0; i < retries; i++) {
+            try {
+              const response = await fetch(url, {
+                ...options,
+                headers,
+              });
 
-          if (response.status === 429) {
-            const waitTime = Math.min(Math.pow(2, i + 1) * 1000, 16000);
-            log.warn("Alpaca", `Rate limited, waiting ${waitTime}ms (attempt ${i + 1}/${retries})`);
-            await new Promise((resolve) => setTimeout(resolve, waitTime));
-            continue;
+              // Handle rate limiting with exponential backoff
+              if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const waitTime = retryAfter
+                  ? parseInt(retryAfter) * 1000
+                  : Math.min(Math.pow(2, i + 1) * 1000, 16000);
+
+                log.warn("Alpaca", `Rate limited (429), waiting ${waitTime}ms (attempt ${i + 1}/${retries})`);
+
+                if (i < retries - 1) {
+                  await new Promise((resolve) => setTimeout(resolve, waitTime));
+                  continue;
+                } else {
+                  throw new Error(`Rate limit exceeded after ${retries} retries`);
+                }
+              }
+
+              if (!response.ok) {
+                const errorBody = await response.text();
+                const error = new Error(`Alpaca API error: ${response.status} - ${errorBody}`);
+
+                // Don't retry on client errors (4xx except 429)
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                  throw error;
+                }
+
+                // Retry on server errors (5xx)
+                if (i < retries - 1) {
+                  const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
+                  log.warn("Alpaca", `Server error ${response.status}, retrying in ${waitTime}ms`);
+                  await new Promise((resolve) => setTimeout(resolve, waitTime));
+                  continue;
+                }
+
+                throw error;
+              }
+
+              const text = await response.text();
+              if (!text) return {} as T;
+              return JSON.parse(text) as T;
+            } catch (error) {
+              if (i === retries - 1) throw error;
+
+              // Network errors get exponential backoff
+              const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
+              log.warn("Alpaca", `Request failed: ${(error as Error).message}, retrying in ${waitTime}ms`);
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+            }
           }
 
-          if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Alpaca API error: ${response.status} - ${errorBody}`);
-          }
-
-          const text = await response.text();
-          if (!text) return {} as T;
-          return JSON.parse(text) as T;
-        } catch (error) {
-          if (i === retries - 1) throw error;
-          const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-        }
+          throw new Error("Failed to fetch from Alpaca after retries");
+        });
+      },
+      {
+        timeout: 30000, // 30 second timeout
+        errorThresholdPercentage: 50, // Open circuit at 50% error rate
+        resetTimeout: 60000, // Try again after 1 minute
+        volumeThreshold: 5, // Need at least 5 requests before calculating error rate
       }
+    );
 
-      throw new Error("Failed to fetch from Alpaca after retries");
-    } finally {
-      this.releaseThrottle();
+    try {
+      const result = await breaker.fire();
+      this.recordSuccess();
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      log.error('Alpaca', `Request failed: ${(error as Error).message}`);
+      throw error;
     }
   }
 
@@ -734,13 +786,51 @@ class AlpacaConnector {
     );
   }
 
-  getConnectionStatus(): { connected: boolean; hasCredentials: boolean; cacheSize: number } {
+  getConnectionStatus(): {
+    connected: boolean;
+    hasCredentials: boolean;
+    cacheSize: number;
+    failureCount: number;
+    circuitBreakerOpen: boolean;
+  } {
     const credentials = this.getCredentials();
     return {
       connected: !!credentials,
       hasCredentials: !!credentials,
       cacheSize: this.cache.size,
+      failureCount: this.failureCount,
+      circuitBreakerOpen: this.shouldRejectRequest(),
     };
+  }
+
+  async getRateLimitStatus(): Promise<{
+    provider: string;
+    running: number;
+    queued: number;
+    reservoir: number | null;
+    failureCount: number;
+    circuitBreakerOpen: boolean;
+  }> {
+    const { getProviderStatus } = await import('../lib/rateLimiter');
+    const { getBreakerStats } = await import('../lib/circuitBreaker');
+
+    const limiterStatus = await getProviderStatus(this.providerName);
+    const breakerStats = getBreakerStats('alpaca-api');
+
+    return {
+      provider: this.providerName,
+      running: limiterStatus.running,
+      queued: limiterStatus.queued,
+      reservoir: limiterStatus.reservoir,
+      failureCount: this.failureCount,
+      circuitBreakerOpen: breakerStats?.state === 'open' || this.shouldRejectRequest(),
+    };
+  }
+
+  resetCircuitBreaker(): void {
+    this.failureCount = 0;
+    this.lastFailureReset = Date.now();
+    log.info('Alpaca', 'Circuit breaker manually reset');
   }
 
   clearCache(): void {

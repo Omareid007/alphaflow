@@ -19,8 +19,53 @@ process.on('unhandledRejection', (reason, promise) => {
   log.error('FATAL', 'Unhandled rejection', { promise, reason });
 });
 
-process.on('SIGTERM', () => log.info('SIGNAL', 'SIGTERM received'));
-process.on('SIGINT', () => log.info('SIGNAL', 'SIGINT received'));
+// Graceful shutdown handler
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  log.info('SHUTDOWN', `${signal} received, starting graceful shutdown...`);
+
+  try {
+    // Stop accepting new requests
+    if (global.httpServer) {
+      log.info('SHUTDOWN', 'Closing HTTP server...');
+      await new Promise<void>((resolve) => {
+        global.httpServer.close(() => {
+          log.info('SHUTDOWN', 'HTTP server closed');
+          resolve();
+        });
+      });
+    }
+
+    // Stop background jobs
+    log.info('SHUTDOWN', 'Stopping background jobs...');
+    positionReconciliationJob.stop();
+
+    // Drain work queue
+    const { workQueue } = await import('./lib/work-queue');
+    log.info('SHUTDOWN', 'Draining work queue...');
+    await workQueue.drain();
+    log.info('SHUTDOWN', 'Work queue drained');
+
+    // Close database connection
+    const { db } = await import('./db');
+    log.info('SHUTDOWN', 'Closing database pool...');
+    await db.$client.end();
+    log.info('SHUTDOWN', 'Database pool closed');
+
+    log.info('SHUTDOWN', 'Graceful shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    log.error('SHUTDOWN', 'Error during graceful shutdown', { error });
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('beforeExit', (code) => log.info('PROCESS', 'beforeExit', { code }));
 process.on('exit', (code) => log.info('PROCESS', 'exit', { code }));
 
@@ -30,6 +75,10 @@ declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
+}
+
+declare global {
+  var httpServer: import("http").Server;
 }
 
 function setupCors(app: express.Application) {
@@ -238,6 +287,10 @@ function setupErrorHandler(app: express.Application) {
 
     const port = parseInt(process.env.PORT || "5000", 10);
     log.info("STARTUP", `Starting server on port ${port}...`);
+
+    // Store server globally for graceful shutdown
+    global.httpServer = server;
+
     server.listen(
       {
         port,
