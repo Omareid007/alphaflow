@@ -1,3 +1,5 @@
+import { mean, variance, stdDev } from "../utils/money";
+
 export interface TechnicalIndicators {
   sma20: number | null;
   sma50: number | null;
@@ -155,12 +157,11 @@ export function calculateBollingerBands(
       lower.push(null);
     } else {
       const slice = prices.slice(i - period + 1, i + 1);
-      const mean = middle[i]!;
-      const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
-      const stdDev = Math.sqrt(variance);
+      const meanValue = middle[i]!;
+      const stdDevValue = stdDev(slice).toNumber();
 
-      upper.push(mean + stdDevMultiplier * stdDev);
-      lower.push(mean - stdDevMultiplier * stdDev);
+      upper.push(meanValue + stdDevMultiplier * stdDevValue);
+      lower.push(meanValue - stdDevMultiplier * stdDevValue);
     }
   }
 
@@ -214,9 +215,7 @@ export function calculateStdDev(prices: number[], period: number): (number | nul
       result.push(null);
     } else {
       const slice = prices.slice(i - period + 1, i + 1);
-      const mean = slice.reduce((a, b) => a + b, 0) / period;
-      const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
-      result.push(Math.sqrt(variance));
+      result.push(stdDev(slice).toNumber());
     }
   }
   return result;

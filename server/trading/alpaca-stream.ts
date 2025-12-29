@@ -3,6 +3,7 @@ import { log } from "../utils/logger";
 import { storage } from "../storage";
 import type { OrderStatus } from "@shared/schema";
 import { hookIntoTradeUpdates } from "./order-retry-handler";
+import { toDecimal, calculatePnL, formatPrice } from "../utils/money";
 
 const ALPACA_STREAM_URL = "wss://paper-api.alpaca.markets/stream";
 
@@ -287,16 +288,9 @@ class AlpacaStreamManager {
               const position = positions.find(p => p.symbol === order.symbol);
 
               if (position && order.side !== position.side) {
-                // This is a closing trade - calculate PnL
-                const entryPrice = parseFloat(position.entryPrice);
-                const exitPrice = parseFloat(price);
-                const quantity = parseFloat(qty);
-
-                if (order.side === "sell") {
-                  pnl = ((exitPrice - entryPrice) * quantity).toFixed(2);
-                } else {
-                  pnl = ((entryPrice - exitPrice) * quantity).toFixed(2);
-                }
+                // This is a closing trade - calculate PnL using Decimal.js for precision
+                const side = order.side === "sell" ? "long" : "short";
+                pnl = formatPrice(calculatePnL(position.entryPrice, price, qty, side), 2);
               }
 
               await storage.createTrade({

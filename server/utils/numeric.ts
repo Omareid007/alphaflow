@@ -1,14 +1,23 @@
+import { toDecimal, toNumber } from "./money";
+
 export function safeParseFloat(value: string | number | null | undefined, defaultValue: number = 0): number {
   if (value === null || value === undefined || value === "") {
     return defaultValue;
   }
-  
+
+  // Handle numbers directly - check for finite before using Decimal
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : defaultValue;
   }
-  
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : defaultValue;
+
+  // Trim string whitespace before parsing (matching original parseFloat behavior)
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return defaultValue;
+  }
+
+  // Use Decimal.js for precision, then convert to number for API compatibility
+  return toNumber(toDecimal(trimmed, defaultValue));
 }
 
 export function safeParseInt(value: string | number | null | undefined, defaultValue: number = 0): number {
@@ -25,19 +34,21 @@ export function safeParseInt(value: string | number | null | undefined, defaultV
 }
 
 export function formatPrice(value: number, decimals: number = 2): string {
-  if (!Number.isFinite(value)) return "0.00";
-  return value.toFixed(decimals);
+  // Use Decimal.js for proper rounding
+  return toDecimal(value).toDecimalPlaces(decimals).toFixed(decimals);
 }
 
 export function formatQuantity(value: number, decimals: number = 4): string {
-  if (!Number.isFinite(value)) return "0";
-  if (Number.isInteger(value)) return value.toString();
-  return value.toFixed(decimals).replace(/\.?0+$/, "");
+  const d = toDecimal(value);
+  if (!d.isFinite()) return "0";
+  if (d.isInteger()) return d.toString();
+  return d.toDecimalPlaces(decimals).toFixed(decimals).replace(/\.?0+$/, "");
 }
 
 export function formatPercent(value: number, decimals: number = 2): string {
-  if (!Number.isFinite(value)) return "0.00%";
-  return `${value.toFixed(decimals)}%`;
+  const d = toDecimal(value);
+  if (!d.isFinite()) return "0.00%";
+  return `${d.toDecimalPlaces(decimals).toFixed(decimals)}%`;
 }
 
 export function calculatePnL(
@@ -46,14 +57,20 @@ export function calculatePnL(
   quantity: number,
   side: "long" | "short" = "long"
 ): number {
+  // Check for non-finite values BEFORE Decimal conversion
   if (!Number.isFinite(entryPrice) || !Number.isFinite(exitPrice) || !Number.isFinite(quantity)) {
     return 0;
   }
-  
+
+  // Use Decimal.js for precise PnL calculation
+  const entry = toDecimal(entryPrice);
+  const exit = toDecimal(exitPrice);
+  const qty = toDecimal(quantity);
+
   if (side === "long") {
-    return (exitPrice - entryPrice) * quantity;
+    return exit.minus(entry).times(qty).toNumber();
   } else {
-    return (entryPrice - exitPrice) * quantity;
+    return entry.minus(exit).times(qty).toNumber();
   }
 }
 
@@ -61,10 +78,16 @@ export function calculatePercentChange(
   currentPrice: number,
   previousPrice: number
 ): number {
+  // Check for non-finite values BEFORE Decimal conversion
   if (!Number.isFinite(currentPrice) || !Number.isFinite(previousPrice) || previousPrice === 0) {
     return 0;
   }
-  return ((currentPrice - previousPrice) / previousPrice) * 100;
+
+  // Use Decimal.js for precise percentage calculation
+  const current = toDecimal(currentPrice);
+  const previous = toDecimal(previousPrice);
+
+  return current.minus(previous).dividedBy(previous).times(100).toNumber();
 }
 
 export interface NormalizedAccountData {

@@ -8,6 +8,7 @@
 
 import { log } from "../utils/logger";
 import { MarketData, AIDecision, NewsContext } from "./decision-engine";
+import { mean, variance, stdDev } from "../utils/money";
 
 interface TechnicalIndicators {
   // Core indicators
@@ -684,11 +685,10 @@ export class TechnicalAnalysisFallback {
     }
 
     const slice = prices.slice(-period);
-    const variance = slice.reduce((sum, p) => sum + Math.pow(p - sma, 2), 0) / period;
-    const stdDev = Math.sqrt(variance);
+    const stdDevValue = stdDev(slice).toNumber();
 
-    const upper = sma + (stdDev * 2);
-    const lower = sma - (stdDev * 2);
+    const upper = sma + (stdDevValue * 2);
+    const lower = sma - (stdDevValue * 2);
     const width = (upper - lower) / sma; // Normalized width as percentage
 
     return { upper, lower, width };

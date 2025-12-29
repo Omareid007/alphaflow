@@ -2,6 +2,7 @@ import { db } from "../db";
 import { aiDecisionFeatures, aiTradeOutcomes, aiCalibrationLog, aiDecisions, trades } from "@shared/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { log } from "../utils/logger";
+import { calculatePnL, percentChange } from "../utils/money";
 
 export interface FeatureVector {
   volatility?: number;
@@ -129,9 +130,9 @@ export async function updateTradeOutcomeOnClose(
     const outcome = existingOutcome[0];
     const entryPrice = parseFloat(outcome.entryPrice || "0");
     const quantity = parseFloat(outcome.quantity || "0");
-    
-    const realizedPnl = (exitPrice - entryPrice) * quantity;
-    const realizedPnlPercent = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice) * 100 : 0;
+
+    const realizedPnl = calculatePnL(entryPrice, exitPrice, quantity, "long").toNumber();
+    const realizedPnlPercent = entryPrice > 0 ? percentChange(exitPrice, entryPrice).toNumber() : 0;
     const isWin = realizedPnl > 0;
     const holdingTimeMs = outcome.createdAt ? Date.now() - outcome.createdAt.getTime() : 0;
     

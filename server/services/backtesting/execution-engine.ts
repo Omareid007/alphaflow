@@ -7,6 +7,7 @@ import type {
   BacktestEquityPoint,
   BacktestResultsSummary,
 } from "../../../shared/types/backtesting";
+import { mean, variance, sharpeRatio as calcSharpeRatio, calculateSlippage as moneyCalcSlippage, calculateFeePercent, positionValue, toDecimal } from "../../utils/money";
 
 export interface StrategySignal {
   symbol: string;
@@ -48,13 +49,12 @@ interface PendingSignalsPerSymbol {
 }
 
 function calculateSlippage(price: number, model: SlippageModel, side: "buy" | "sell"): number {
-  const direction = side === "buy" ? 1 : -1;
-
   if (model.type === "bps") {
-    return price * (model.value / 10000) * direction;
+    return moneyCalcSlippage(price, model.value, side).toNumber();
   } else if (model.type === "spread_proxy") {
-    const estimatedSpread = price * 0.001;
-    return estimatedSpread * model.value * direction;
+    const estimatedSpread = toDecimal(price).times(0.001);
+    const slippage = estimatedSpread.times(model.value);
+    return side === "buy" ? slippage.toNumber() : slippage.negated().toNumber();
   }
   return 0;
 }
@@ -63,7 +63,7 @@ function calculateFees(notional: number, model: FeesModel): number {
   if (model.type === "fixed") {
     return model.value;
   } else if (model.type === "percentage") {
-    return notional * (model.value / 100);
+    return calculateFeePercent(notional, model.value).toNumber();
   }
   return 0;
 }
@@ -84,24 +84,24 @@ function calculateEquity(
   positions: Record<string, Position>,
   prices: Record<string, number>
 ): number {
-  let equity = cash;
+  let equity = toDecimal(cash);
   for (const [symbol, position] of Object.entries(positions)) {
     const price = prices[symbol] || position.avgPrice;
-    equity += position.qty * price;
+    equity = equity.plus(positionValue(position.qty, price));
   }
-  return equity;
+  return equity.toNumber();
 }
 
 function calculateExposure(
   positions: Record<string, Position>,
   prices: Record<string, number>
 ): number {
-  let totalValue = 0;
+  let totalValue = toDecimal(0);
   for (const [symbol, position] of Object.entries(positions)) {
     const price = prices[symbol] || position.avgPrice;
-    totalValue += Math.abs(position.qty * price);
+    totalValue = totalValue.plus(positionValue(position.qty, price).abs());
   }
-  return totalValue;
+  return totalValue.toNumber();
 }
 
 function mergeAndSortBars(bars: Record<string, HistoricalBar[]>): { symbol: string; bar: HistoricalBar; symbolBarIndex: number }[] {
@@ -340,24 +340,20 @@ function calculateMetrics(
   let sortinoRatio: number | null = null;
 
   if (returns.length > 1) {
-    const meanReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / returns.length;
-    const stdDev = Math.sqrt(variance);
+    const meanReturn = mean(returns).toNumber();
+    const returnVariance = variance(returns).toNumber();
+    const stdDev = Math.sqrt(returnVariance);
 
     if (stdDev > 1e-10 && Number.isFinite(stdDev)) {
-      const annualizedMean = meanReturn * 252;
-      const annualizedStd = stdDev * Math.sqrt(252);
-      if (annualizedStd > 0 && Number.isFinite(annualizedStd)) {
-        sharpeRatio = annualizedMean / annualizedStd;
-        if (!Number.isFinite(sharpeRatio)) {
-          sharpeRatio = null;
-        }
+      sharpeRatio = calcSharpeRatio(returns, 0, 252).toNumber();
+      if (!Number.isFinite(sharpeRatio)) {
+        sharpeRatio = null;
       }
     }
 
     const negativeReturns = returns.filter((r) => r < 0);
     if (negativeReturns.length > 0) {
-      const downVariance = negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeReturns.length;
+      const downVariance = variance(negativeReturns).toNumber();
       const downStdDev = Math.sqrt(downVariance);
       if (downStdDev > 1e-10 && Number.isFinite(downStdDev)) {
         const annualizedMean = meanReturn * 252;

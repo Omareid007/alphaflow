@@ -5,6 +5,7 @@ import { coingecko } from "../connectors/coingecko";
 import { storage } from "../storage";
 import type { Strategy, WorkItem } from "@shared/schema";
 import { safeParseFloat } from "../utils/numeric";
+import { toDecimal, calculatePnL, percentChange, percentOf, partialQuantity, trailingStopPrice } from "../utils/money";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
 import { waitForAlpacaOrderFill, cancelExpiredOrders, type OrderFillResult } from "../trading/order-execution-flow";
@@ -907,9 +908,9 @@ class AutonomousOrchestrator {
         }
         
         if (existingPos?.trailingStopPercent && currentPrice > entryPrice) {
-          const profitPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+          const profitPercent = percentChange(currentPrice, entryPrice).toNumber();
           if (profitPercent > 5) {
-            const newStopLoss = currentPrice * (1 - existingPos.trailingStopPercent / 100);
+            const newStopLoss = trailingStopPrice(currentPrice, existingPos.trailingStopPercent).toNumber();
             if (!stopLossPrice || newStopLoss > stopLossPrice) {
               stopLossPrice = newStopLoss;
               log.info("Orchestrator", `Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`);
@@ -1876,7 +1877,7 @@ class AutonomousOrchestrator {
             symbol,
           };
         }
-        const closeQty = (position.quantity * partialPercent) / 100;
+        const closeQty = partialQuantity(position.quantity, partialPercent).toNumber();
         // CRITICAL FIX: Market orders CANNOT use GTC - must use "day" for all market orders
         const orderParams: CreateOrderParams = {
           symbol: brokerSymbol,
@@ -1953,7 +1954,7 @@ class AutonomousOrchestrator {
         }
       }
 
-      const pnl = (filledPrice - position.entryPrice) * filledQty;
+      const pnl = calculatePnL(position.entryPrice, filledPrice, filledQty, "long").toNumber();
       const exitReason = decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
 
       if (!this.userId) {
@@ -1989,7 +1990,7 @@ class AutonomousOrchestrator {
         // Clean up advanced rebalancing rules when position fully closed
         advancedRebalancingService.removePositionRules(symbol);
       } else {
-        const remaining = position.quantity * (1 - partialPercent / 100);
+        const remaining = toDecimal(position.quantity).minus(partialQuantity(position.quantity, partialPercent)).toNumber();
         position.quantity = remaining;
         this.state.activePositions.set(symbol, position);
       }
@@ -2181,9 +2182,8 @@ class AutonomousOrchestrator {
     // CRITICAL FIX: Use actual portfolio value instead of hardcoded 100000
     // Daily loss limit should be calculated as: (dailyPnl / portfolioValue) * 100
     const portfolioValue = this.state.portfolioValue || 100000; // Fallback only if not available
-    const lossPercent = Math.abs(
-      Math.min(0, this.state.dailyPnl) / portfolioValue
-    ) * 100;
+    const dailyLoss = Math.min(0, this.state.dailyPnl);
+    const lossPercent = toDecimal(dailyLoss).abs().dividedBy(toDecimal(portfolioValue)).times(100).toNumber();
     return lossPercent >= this.riskLimits.dailyLossLimitPercent;
   }
 

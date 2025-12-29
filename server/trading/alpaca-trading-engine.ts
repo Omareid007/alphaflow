@@ -5,7 +5,8 @@ import { generateTraceId } from "../ai/llmGateway";
 import { newsapi } from "../connectors/newsapi";
 import type { Trade, Strategy } from "@shared/schema";
 import { eventBus, logger, type TradeExecutedEvent, type StrategySignalEvent, type PositionEvent } from "../orchestration";
-import { safeParseFloat, formatPrice, calculatePnL } from "../utils/numeric";
+import { safeParseFloat } from "../utils/numeric";
+import { toDecimal, percentChange, priceWithBuffer, calculateWholeShares, formatPrice as formatMoneyPrice, positionValue, roundPrice, calculatePnL } from "../utils/money";
 import { fuseMarketData, type FusedMarketIntelligence } from "../ai/data-fusion-engine";
 import { createEnhancedDecisionLog, type EnhancedDecisionLog } from "../ai/enhanced-decision-log";
 import { huggingface } from "../connectors/huggingface";
@@ -446,7 +447,9 @@ class AlpacaTradingEngine {
                                            notes?.toLowerCase().includes('emergency') ||
                                            notes?.toLowerCase().includes('stop loss');
             if (isAtLoss && !isStopLossOrEmergency) {
-              const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
+              // Use Decimal.js for precise percentage calculation
+              const lossPercentDecimal = percentChange(currentPrice, entryPrice).abs();
+              const lossPercent = formatMoneyPrice(lossPercentDecimal, 2);
               log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Loss protection active`, {
                 symbol,
                 side,
@@ -454,7 +457,7 @@ class AlpacaTradingEngine {
                 reason: "LOSS_PROTECTION_ACTIVE",
                 entryPrice,
                 currentPrice,
-                lossPercent: parseFloat(lossPercent),
+                lossPercent: lossPercentDecimal.toNumber(),
                 isStopLossOrEmergency
               });
               return {
@@ -741,8 +744,10 @@ class AlpacaTradingEngine {
       const isProtectedClose = options.isStopLossTriggered || options.isEmergencyStop;
       
       if (isAtLoss && !isProtectedClose) {
-        const lossPercent = ((entryPrice - currentPrice) / entryPrice * 100).toFixed(2);
-        log.warn("LossProtection", "Blocking close at loss - waiting for stop-loss or price recovery", { symbol, lossPercent: parseFloat(lossPercent) });
+        // Use Decimal.js for precise percentage calculation
+        const lossPercentDecimal = percentChange(currentPrice, entryPrice).abs();
+        const lossPercent = formatMoneyPrice(lossPercentDecimal, 2);
+        log.warn("LossProtection", "Blocking close at loss - waiting for stop-loss or price recovery", { symbol, lossPercent: lossPercentDecimal.toNumber() });
         return {
           success: false,
           error: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`
@@ -1122,8 +1127,9 @@ class AlpacaTradingEngine {
 
     // AGGRESSIVE POSITION SIZE - Increased from 5% to 10% for larger positions
     const positionSizePercent = decision.suggestedQuantity || 0.10;  // AGGRESSIVE: Default 10% position size
-    const tradeValue = buyingPower * positionSizePercent;
-    const quantity = Math.floor(tradeValue / marketData.currentPrice);
+    // Use Decimal.js for precise position sizing calculation
+    const tradeValue = toDecimal(buyingPower).times(positionSizePercent);
+    const quantity = calculateWholeShares(tradeValue, marketData.currentPrice).toNumber();
 
     if (!Number.isFinite(quantity) || quantity < 1) {
       return { decision };
@@ -1192,8 +1198,10 @@ class AlpacaTradingEngine {
     // For extended hours, set limit price slightly above current for buys (0.5% buffer)
     // Note: This function only handles BUY orders (side is hardcoded below)
     // SELL orders go through closeAlpacaPosition() which uses Alpaca's closePosition API
-    // Round to 2 decimal places to avoid sub-penny pricing errors
-    const limitPrice = useExtendedHours ? Math.round(marketData.currentPrice * 1.005 * 100) / 100 : undefined;
+    // Use Decimal.js for precise price buffer calculation, rounded to 2 decimals
+    const limitPrice = useExtendedHours
+      ? priceWithBuffer(marketData.currentPrice, 0.005, 1).toDecimalPlaces(2).toNumber()
+      : undefined;
 
     const tradeResult = await this.executeAlpacaTrade({
       symbol,
@@ -1956,46 +1964,47 @@ class AlpacaTradingEngine {
       if (target.symbol === "CASH") continue;
       
       const symbol = target.symbol.toUpperCase();
-      const targetValue = (target.targetPercent / 100) * portfolioValue;
+      // Use Decimal.js for precise portfolio allocation calculations
+      const targetValue = toDecimal(target.targetPercent).dividedBy(100).times(portfolioValue);
       const current = currentMap.get(symbol);
       const currentValue = current?.currentValue || 0;
       const currentPercent = current?.currentPercent || 0;
       const currentPrice = current?.price || 0;
-      
-      const valueDiff = targetValue - currentValue;
-      
-      if (Math.abs(valueDiff) < 10) continue;
-      
-      if (valueDiff > 0 && currentPrice > 0) {
-        const buyQuantity = Math.floor(valueDiff / currentPrice);
+
+      const valueDiff = targetValue.minus(currentValue);
+
+      if (valueDiff.abs().lessThan(10)) continue;
+
+      if (valueDiff.isPositive() && currentPrice > 0) {
+        const buyQuantity = calculateWholeShares(valueDiff, currentPrice).toNumber();
         if (buyQuantity >= 1) {
+          const estimatedValue = positionValue(buyQuantity, currentPrice).toNumber();
           proposedTrades.push({
             symbol,
             side: "buy",
             quantity: buyQuantity,
-            estimatedValue: buyQuantity * currentPrice,
+            estimatedValue,
             currentPercent,
             targetPercent: target.targetPercent,
             reason: `Increase allocation from ${currentPercent.toFixed(1)}% to ${target.targetPercent}%`,
           });
-          estimatedCashChange -= buyQuantity * currentPrice;
+          estimatedCashChange -= estimatedValue;
         }
-      } else if (valueDiff < 0 && currentPrice > 0 && current) {
-        const sellQuantity = Math.min(
-          Math.floor(Math.abs(valueDiff) / currentPrice),
-          current.quantity
-        );
+      } else if (valueDiff.isNegative() && currentPrice > 0 && current) {
+        const maxSellQty = calculateWholeShares(valueDiff.abs(), currentPrice).toNumber();
+        const sellQuantity = Math.min(maxSellQty, current.quantity);
         if (sellQuantity >= 1) {
+          const estimatedValue = positionValue(sellQuantity, currentPrice).toNumber();
           proposedTrades.push({
             symbol,
             side: "sell",
             quantity: sellQuantity,
-            estimatedValue: sellQuantity * currentPrice,
+            estimatedValue,
             currentPercent,
             targetPercent: target.targetPercent,
             reason: `Decrease allocation from ${currentPercent.toFixed(1)}% to ${target.targetPercent}%`,
           });
-          estimatedCashChange += sellQuantity * currentPrice;
+          estimatedCashChange += estimatedValue;
         }
       }
     }
@@ -2116,20 +2125,22 @@ class AlpacaTradingEngine {
     
     for (const target of targetAllocations) {
       if (target.symbol === "CASH") continue;
-      
+
       const symbol = target.symbol.toUpperCase();
-      const targetValue = (safeParseFloat(target.targetPercent) / 100) * refreshedPortfolioValue;
+      // Use Decimal.js for precise rebalance calculations
+      const targetValue = toDecimal(safeParseFloat(target.targetPercent)).dividedBy(100).times(refreshedPortfolioValue);
       const current = refreshedPositionMap.get(symbol);
       const currentValue = current ? safeParseFloat(current.currentValue) : 0;
       const currentPrice = current ? safeParseFloat(current.price) : 0;
-      
-      const valueDiff = targetValue - currentValue;
-      
-      if (valueDiff <= 10 || currentPrice <= 0) continue;
-      
-      const maxBuyValue = Math.min(valueDiff, availableCash * 0.95);
-      const buyQuantity = Math.floor(maxBuyValue / currentPrice);
-      
+
+      const valueDiff = targetValue.minus(currentValue);
+
+      if (valueDiff.lessThanOrEqualTo(10) || currentPrice <= 0) continue;
+
+      const maxBuyValue = toDecimal(availableCash).times(0.95).toNumber();
+      const maxBuyValueCapped = Math.min(valueDiff.toNumber(), maxBuyValue);
+      const buyQuantity = calculateWholeShares(maxBuyValueCapped, currentPrice).toNumber();
+
       if (buyQuantity < 1) continue;
       
       try {

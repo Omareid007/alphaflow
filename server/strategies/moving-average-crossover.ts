@@ -1,4 +1,5 @@
 import { alpaca, type AlpacaBar } from "../connectors/alpaca";
+import { mean, variance, sharpeRatio as calcSharpeRatio } from "../utils/money";
 
 export interface MovingAverageCrossoverConfig {
   id: string;
@@ -358,17 +359,13 @@ export async function backtestMovingAverageStrategy(
   const yearsTraded = tradingDays / 252;
   const annualReturnPct = yearsTraded > 0 ? (Math.pow(1 + totalReturnPct / 100, 1 / yearsTraded) - 1) * 100 : 0;
 
-  const avgReturn = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0;
-  const variance = dailyReturns.length > 0 
-    ? dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length 
-    : 0;
-  const stdDev = Math.sqrt(variance);
-  const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
+  const avgReturn = dailyReturns.length > 0 ? mean(dailyReturns).toNumber() : 0;
+  const returnVariance = dailyReturns.length > 0 ? variance(dailyReturns).toNumber() : 0;
+  const stdDev = Math.sqrt(returnVariance);
+  const sharpeRatioValue = dailyReturns.length > 0 ? calcSharpeRatio(dailyReturns, 0, 252).toNumber() : 0;
 
   const negativeReturns = dailyReturns.filter(r => r < 0);
-  const downsideVariance = negativeReturns.length > 0 
-    ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeReturns.length 
-    : 0;
+  const downsideVariance = negativeReturns.length > 0 ? variance(negativeReturns).toNumber() : 0;
   const downsideStdDev = Math.sqrt(downsideVariance);
   const sortinoRatio = downsideStdDev > 0 ? (avgReturn / downsideStdDev) * Math.sqrt(252) : 0;
 
@@ -393,7 +390,7 @@ export async function backtestMovingAverageStrategy(
       annualReturnPct: Math.round(annualReturnPct * 100) / 100,
       totalReturnPct: Math.round(totalReturnPct * 100) / 100,
       maxDrawdownPct: Math.round(maxDrawdown * 100) / 100,
-      sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+      sharpeRatio: Math.round(sharpeRatioValue * 100) / 100,
       sortinoRatio: Math.round(sortinoRatio * 100) / 100,
       totalTrades: trades.length,
       winRatePct: Math.round(winRatePct * 100) / 100,

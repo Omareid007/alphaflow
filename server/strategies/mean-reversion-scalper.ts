@@ -1,4 +1,5 @@
 import { alpaca, type AlpacaBar } from "../connectors/alpaca";
+import { mean, stdDev, zScore, variance, sharpeRatio as calcSharpeRatio, toDecimal } from "../utils/money";
 
 export interface MeanReversionScalperConfig {
   id: string;
@@ -163,9 +164,7 @@ function calculateStdDev(prices: number[], period: number): (number | null)[] {
       result.push(null);
     } else {
       const slice = prices.slice(i - period + 1, i + 1);
-      const mean = slice.reduce((a, b) => a + b, 0) / period;
-      const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
-      result.push(Math.sqrt(variance));
+      result.push(stdDev(slice).toNumber());
     }
   }
   return result;
@@ -174,16 +173,16 @@ function calculateStdDev(prices: number[], period: number): (number | null)[] {
 function calculateZScore(
   prices: number[],
   sma: (number | null)[],
-  stdDev: (number | null)[]
+  stdDevValues: (number | null)[]
 ): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
-    const mean = sma[i];
-    const std = stdDev[i];
-    if (mean === null || std === null || std === 0) {
+    const avg = sma[i];
+    const std = stdDevValues[i];
+    if (avg === null || std === null || std === 0) {
       result.push(null);
     } else {
-      result.push((prices[i] - mean) / std);
+      result.push(zScore(prices[i], avg, std).toNumber());
     }
   }
   return result;
@@ -389,17 +388,13 @@ export async function backtestMeanReversionStrategy(
   const yearsTraded = tradingDays / 252;
   const annualReturnPct = yearsTraded > 0 ? (Math.pow(1 + totalReturnPct / 100, 1 / yearsTraded) - 1) * 100 : 0;
 
-  const avgReturn = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0;
-  const variance = dailyReturns.length > 0 
-    ? dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length 
-    : 0;
-  const stdDevReturns = Math.sqrt(variance);
-  const sharpeRatio = stdDevReturns > 0 ? (avgReturn / stdDevReturns) * Math.sqrt(252) : 0;
+  const avgReturn = dailyReturns.length > 0 ? mean(dailyReturns).toNumber() : 0;
+  const returnVariance = dailyReturns.length > 0 ? variance(dailyReturns).toNumber() : 0;
+  const stdDevReturns = Math.sqrt(returnVariance);
+  const sharpeRatioValue = dailyReturns.length > 0 ? calcSharpeRatio(dailyReturns, 0, 252).toNumber() : 0;
 
   const negativeReturns = dailyReturns.filter(r => r < 0);
-  const downsideVariance = negativeReturns.length > 0 
-    ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeReturns.length 
-    : 0;
+  const downsideVariance = negativeReturns.length > 0 ? variance(negativeReturns).toNumber() : 0;
   const downsideStdDev = Math.sqrt(downsideVariance);
   const sortinoRatio = downsideStdDev > 0 ? (avgReturn / downsideStdDev) * Math.sqrt(252) : 0;
 
@@ -432,7 +427,7 @@ export async function backtestMeanReversionStrategy(
       annualReturnPct: Math.round(annualReturnPct * 100) / 100,
       totalReturnPct: Math.round(totalReturnPct * 100) / 100,
       maxDrawdownPct: Math.round(maxDrawdown * 100) / 100,
-      sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+      sharpeRatio: Math.round(sharpeRatioValue * 100) / 100,
       sortinoRatio: Math.round(sortinoRatio * 100) / 100,
       totalTrades: trades.length,
       winRatePct: Math.round(winRatePct * 100) / 100,
@@ -467,36 +462,35 @@ export function generateMeanReversionSignal(
   }
 
   const recentPrices = prices.slice(-config.lookbackPeriod);
-  const mean = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
-  const variance = recentPrices.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentPrices.length;
-  const stdDev = Math.sqrt(variance);
+  const meanValue = mean(recentPrices).toNumber();
+  const stdDevValue = stdDev(recentPrices).toNumber();
 
   const currentPrice = prices[prices.length - 1];
-  const zScore = stdDev > 0 ? (currentPrice - mean) / stdDev : 0;
+  const zScoreValue = stdDevValue > 0 ? zScore(currentPrice, meanValue, stdDevValue).toNumber() : 0;
 
-  const upperBand = mean + (config.deviationThreshold * stdDev);
-  const lowerBand = mean - (config.deviationThreshold * stdDev);
+  const upperBand = meanValue + (config.deviationThreshold * stdDevValue);
+  const lowerBand = meanValue - (config.deviationThreshold * stdDevValue);
 
   let signal: "buy" | "sell" | "hold" = "hold";
   let strength = 0;
 
-  if (zScore <= -config.deviationThreshold) {
+  if (zScoreValue <= -config.deviationThreshold) {
     signal = "buy";
-    strength = Math.min(1, Math.abs(zScore) / (config.deviationThreshold * 2));
-  } else if (zScore >= config.deviationThreshold) {
+    strength = Math.min(1, Math.abs(zScoreValue) / (config.deviationThreshold * 2));
+  } else if (zScoreValue >= config.deviationThreshold) {
     signal = "sell";
-    strength = Math.min(1, Math.abs(zScore) / (config.deviationThreshold * 2));
+    strength = Math.min(1, Math.abs(zScoreValue) / (config.deviationThreshold * 2));
   }
 
   return {
     symbol: config.symbol,
     timestamp: new Date(),
     price: currentPrice,
-    zScore: Math.round(zScore * 100) / 100,
+    zScore: Math.round(zScoreValue * 100) / 100,
     signal,
     strength: Math.round(strength * 100) / 100,
     upperBand: Math.round(upperBand * 100) / 100,
     lowerBand: Math.round(lowerBand * 100) / 100,
-    mean: Math.round(mean * 100) / 100,
+    mean: Math.round(meanValue * 100) / 100,
   };
 }

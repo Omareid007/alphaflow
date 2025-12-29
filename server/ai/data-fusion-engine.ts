@@ -19,6 +19,7 @@
  */
 
 import { log } from "../utils/logger";
+import { mean, variance, stdDev } from "../utils/money";
 
 export interface MarketDataPoint {
   source: string;
@@ -363,9 +364,9 @@ function fusePriceData(
   }
 
   const prices = data.filter(d => d.price !== undefined).map(d => d.price!);
-  const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-  const priceVariance = prices.reduce((sum, p) => sum + Math.pow(p - avgPrice, 2), 0) / prices.length;
-  const priceStdDev = Math.sqrt(priceVariance);
+  const avgPrice = mean(prices).toNumber();
+  const priceVarianceValue = variance(prices).toNumber();
+  const priceStdDev = stdDev(prices).toNumber();
   const priceConsistency = avgPrice > 0 ? Math.max(0, 1 - (priceStdDev / avgPrice)) : 0;
 
   if (priceConsistency < 0.95) {

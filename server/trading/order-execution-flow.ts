@@ -13,6 +13,7 @@ import { randomUUID } from "crypto";
 import { alpaca, CreateOrderParams, AlpacaOrder } from "../connectors/alpaca";
 import { storage } from "../storage";
 import { safeParseFloat } from "../utils/numeric";
+import { toDecimal, calculateQuantity, priceWithBuffer, percentChange, positionValue, formatPrice } from "../utils/money";
 import { performanceTracker } from "../lib/performance-metrics";
 import { cacheQuickQuote, getQuickQuote, cacheAccountSnapshot, getAccountSnapshot, cacheTradability, getTradability } from "../lib/order-execution-cache";
 import { emitEvent } from "../lib/webhook-emitter";
@@ -619,29 +620,31 @@ class OrderExecutionEngine {
     } catch {
       currentPrice = params.limit_price ? parseFloat(params.limit_price) : 0;
     }
-    
-    const expectedQty = qty > 0 ? qty : (notional / currentPrice);
+
+    // Use Decimal.js for precise quantity calculation
+    const expectedQty = qty > 0 ? qty : calculateQuantity(notional, currentPrice).toNumber();
     const risks: string[] = [];
-    
+
     let fillPriceMin = currentPrice;
     let fillPriceMax = currentPrice;
     let shouldFillImmediately = false;
     let fillTimeEstimate = 0;
-    
+
     switch (params.type) {
       case "market":
-        fillPriceMin = currentPrice * 0.995;
-        fillPriceMax = currentPrice * 1.005;
+        // Use Decimal.js for precise price buffer calculations (0.5% slippage range)
+        fillPriceMin = priceWithBuffer(currentPrice, 0.005, -1).toNumber();
+        fillPriceMax = priceWithBuffer(currentPrice, 0.005, 1).toNumber();
         shouldFillImmediately = true;
         fillTimeEstimate = 500;
         risks.push("Slippage possible in fast-moving markets");
         break;
-        
+
       case "limit":
         const limitPrice = parseFloat(params.limit_price || "0");
         fillPriceMin = limitPrice;
         fillPriceMax = limitPrice;
-        shouldFillImmediately = params.side === "buy" 
+        shouldFillImmediately = params.side === "buy"
           ? limitPrice >= currentPrice
           : limitPrice <= currentPrice;
         fillTimeEstimate = shouldFillImmediately ? 1000 : 300000;
@@ -649,15 +652,17 @@ class OrderExecutionEngine {
           risks.push("Order may not fill if price doesn't reach limit");
         }
         break;
-        
+
       case "stop":
-        fillPriceMin = parseFloat(params.stop_price || "0") * 0.99;
-        fillPriceMax = parseFloat(params.stop_price || "0") * 1.01;
+        // Use Decimal.js for precise stop price range (1% slippage)
+        const stopPrice = parseFloat(params.stop_price || "0");
+        fillPriceMin = priceWithBuffer(stopPrice, 0.01, -1).toNumber();
+        fillPriceMax = priceWithBuffer(stopPrice, 0.01, 1).toNumber();
         shouldFillImmediately = false;
         fillTimeEstimate = 600000;
         risks.push("Stop orders trigger as market orders - slippage possible");
         break;
-        
+
       case "stop_limit":
         fillPriceMin = parseFloat(params.limit_price || "0");
         fillPriceMax = parseFloat(params.limit_price || "0");
@@ -665,20 +670,25 @@ class OrderExecutionEngine {
         fillTimeEstimate = 600000;
         risks.push("Order may not fill if gap occurs past limit price");
         break;
-        
+
       case "trailing_stop":
-        fillPriceMin = currentPrice * 0.9;
-        fillPriceMax = currentPrice * 1.1;
+        // Use Decimal.js for precise trailing stop range (10% buffer)
+        fillPriceMin = priceWithBuffer(currentPrice, 0.10, -1).toNumber();
+        fillPriceMax = priceWithBuffer(currentPrice, 0.10, 1).toNumber();
         shouldFillImmediately = false;
         fillTimeEstimate = 3600000;
         risks.push("Trailing stop may trigger during normal volatility");
         break;
     }
-    
+
+    // Use Decimal.js for precise estimated cost calculation
+    const avgFillPrice = toDecimal(fillPriceMin).plus(fillPriceMax).dividedBy(2);
+    const estimatedCost = positionValue(expectedQty, avgFillPrice).toNumber();
+
     return {
       fillPrice: { min: fillPriceMin, max: fillPriceMax },
       fillQty: expectedQty,
-      estimatedCost: expectedQty * ((fillPriceMin + fillPriceMax) / 2),
+      estimatedCost,
       shouldFillImmediately,
       fillTimeEstimateMs: fillTimeEstimate,
       risksIdentified: risks
@@ -758,27 +768,31 @@ class OrderExecutionEngine {
     const fillTimeMs = order.filled_at
       ? new Date(order.filled_at).getTime() - state.createdAt.getTime()
       : Date.now() - state.createdAt.getTime();
-    
+
     const requestedPrice = state.requestedPrice ? parseFloat(state.requestedPrice) : null;
+    // Use Decimal.js for precise slippage percentage calculation
     const slippage = requestedPrice && fillPrice
-      ? ((fillPrice - requestedPrice) / requestedPrice) * 100
+      ? percentChange(fillPrice, requestedPrice).toNumber()
       : null;
-    
+
     const unexpectedEvents: string[] = [];
-    
+
     if (order.status === "partially_filled") {
       unexpectedEvents.push(`Only partially filled: ${fillQty} of ${order.qty}`);
     }
-    
+
     if (slippage !== null && Math.abs(slippage) > 1) {
-      unexpectedEvents.push(`Significant slippage: ${slippage.toFixed(2)}%`);
+      unexpectedEvents.push(`Significant slippage: ${formatPrice(slippage, 2)}%`);
     }
-    
+
+    // Use Decimal.js for precise total cost calculation
+    const totalCost = positionValue(fillQty, fillPrice).toNumber();
+
     return {
       filled: order.status === "filled",
       fillPrice,
       fillQty,
-      totalCost: fillPrice * fillQty,
+      totalCost,
       fillTimeMs,
       slippage,
       status: order.status,
@@ -873,10 +887,11 @@ class OrderExecutionEngine {
       case RecoveryStrategy.ADJUST_AND_RETRY:
         if (error.type === OrderErrorType.INSUFFICIENT_FUNDS) {
           const reducedParams = { ...originalParams };
+          // Use Decimal.js for precise 50% reduction calculation
           if (reducedParams.qty) {
-            reducedParams.qty = (parseFloat(reducedParams.qty) * 0.5).toString();
+            reducedParams.qty = toDecimal(reducedParams.qty).times(0.5).toString();
           } else if (reducedParams.notional) {
-            reducedParams.notional = (parseFloat(reducedParams.notional) * 0.5).toString();
+            reducedParams.notional = toDecimal(reducedParams.notional).times(0.5).toString();
           }
           try {
             return await alpaca.createOrder(reducedParams);

@@ -12,6 +12,7 @@ import { db } from "../db";
 import { macroIndicators } from "@shared/schema";
 import { log } from "../utils/logger";
 import { PositionWithRules } from "../autonomous/orchestrator";
+import { toDecimal, trailingStopPrice, kellyFraction as calcKellyFraction, kellySuggestedSize, percentOf } from "../utils/money";
 
 export type MarketRegime = "bullish" | "bearish" | "sideways" | "volatile" | "unknown";
 
@@ -169,15 +170,15 @@ class AdvancedRebalancingService {
     let reason: string;
 
     if (currentProfitPercent >= config.breakEvenTriggerPercent) {
-      const breakEvenStop = rules.entryPrice * 1.005;
-      const trailingStop = config.highWaterMark * (1 - config.trailPercent / 100);
-      
+      const breakEvenStop = toDecimal(rules.entryPrice).times(1.005).toNumber();
+      const trailingStop = trailingStopPrice(config.highWaterMark, config.trailPercent).toNumber();
+
       newStopLoss = Math.max(breakEvenStop, trailingStop);
       reason = currentProfitPercent >= config.breakEvenTriggerPercent * 1.5
         ? `Trailing stop at ${config.trailPercent}% below high water mark ($${config.highWaterMark.toFixed(2)})`
         : `Moved stop to breakeven + 0.5%`;
     } else {
-      newStopLoss = config.highWaterMark * (1 - config.trailPercent / 100);
+      newStopLoss = trailingStopPrice(config.highWaterMark, config.trailPercent).toNumber();
       reason = `Initial trailing stop at ${config.trailPercent}% below current price`;
     }
 
@@ -263,8 +264,8 @@ class AdvancedRebalancingService {
         multiplier = 1.0;
     }
 
-    const adjustedSize = basePositionSizePercent * multiplier;
-    
+    const adjustedSize = toDecimal(basePositionSizePercent).times(multiplier).toNumber();
+
     log.debug("AdvancedRebalancing", `Regime-adjusted position size`, {
       regime: currentRegime,
       base: basePositionSizePercent,
@@ -285,13 +286,13 @@ class AdvancedRebalancingService {
   }): KellyPositionSize {
     const { confidence, targetProfit, stopLoss, entryPrice, portfolioValue, maxPositionSizePercent } = params;
 
-    const winRate = confidence / 100;
-    const lossRate = 1 - winRate;
-    
-    const avgWin = targetProfit - entryPrice;
-    const avgLoss = entryPrice - stopLoss;
-    
-    if (avgLoss <= 0 || avgWin <= 0) {
+    const winRate = toDecimal(confidence).dividedBy(100);
+    const lossRate = toDecimal(1).minus(winRate);
+
+    const avgWin = toDecimal(targetProfit).minus(entryPrice);
+    const avgLoss = toDecimal(entryPrice).minus(stopLoss);
+
+    if (avgLoss.lte(0) || avgWin.lte(0)) {
       return {
         symbol: "",
         rawKellyPercent: 0,
@@ -303,35 +304,38 @@ class AdvancedRebalancingService {
       };
     }
 
-    const winLossRatio = avgWin / avgLoss;
+    const winLossRatio = avgWin.dividedBy(avgLoss);
 
-    const rawKelly = (winLossRatio * winRate - lossRate) / winLossRatio;
-    
-    const adjustedKelly = Math.max(0, rawKelly * this.kellyFraction);
-    
-    const cappedKelly = Math.min(adjustedKelly * 100, maxPositionSizePercent);
-    
-    const suggestedSize = (cappedKelly / 100) * portfolioValue;
+    // Use money module's kellyFraction function (winRate as decimal 0-1)
+    const rawKellyDecimal = calcKellyFraction(winRate, avgWin, avgLoss);
+    const rawKellyPercent = rawKellyDecimal.times(100).toNumber();
 
-    const expectedReturn = (winRate * avgWin) - (lossRate * avgLoss);
+    const adjustedKellyDecimal = rawKellyDecimal.times(this.kellyFraction);
+    const adjustedKellyPercent = adjustedKellyDecimal.times(100).toNumber();
+
+    // Use kellySuggestedSize from money module (handles capping internally)
+    const suggestedSize = kellySuggestedSize(portfolioValue, rawKellyDecimal, this.kellyFraction, maxPositionSizePercent).toNumber();
+    const cappedKelly = Math.min(adjustedKellyPercent, maxPositionSizePercent);
+
+    const expectedReturn = winRate.times(avgWin).minus(lossRate.times(avgLoss)).toNumber();
 
     log.debug("AdvancedRebalancing", `Kelly position size calculated`, {
-      winRate: winRate.toFixed(3),
-      winLossRatio: winLossRatio.toFixed(2),
-      rawKelly: (rawKelly * 100).toFixed(2) + "%",
-      adjustedKelly: (adjustedKelly * 100).toFixed(2) + "%",
+      winRate: winRate.toNumber().toFixed(3),
+      winLossRatio: winLossRatio.toNumber().toFixed(2),
+      rawKelly: rawKellyPercent.toFixed(2) + "%",
+      adjustedKelly: adjustedKellyPercent.toFixed(2) + "%",
       cappedKelly: cappedKelly.toFixed(2) + "%",
       suggestedSize: suggestedSize.toFixed(2),
     });
 
     return {
       symbol: "",
-      rawKellyPercent: rawKelly * 100,
-      adjustedKellyPercent: adjustedKelly * 100,
+      rawKellyPercent,
+      adjustedKellyPercent,
       suggestedPositionSize: suggestedSize,
       confidence,
       expectedReturn,
-      riskRatio: winLossRatio,
+      riskRatio: winLossRatio.toNumber(),
     };
   }
 

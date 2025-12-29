@@ -4,6 +4,7 @@ import { log } from "../utils/logger";
 import { alpacaStream, type AlpacaTradeUpdate } from "./alpaca-stream";
 import type { InsertOrder } from "@shared/schema";
 import { tradingConfig } from "../config/trading-config";
+import { toDecimal, priceWithBuffer, calculateWholeShares, roundPrice } from "../utils/money";
 
 // Re-export AlpacaTradeUpdate for external consumers
 export type { AlpacaTradeUpdate };
@@ -100,9 +101,9 @@ const rejectionHandlers: RejectionHandler[] = [
       const currentPrice = await getCurrentPrice(order.order.symbol);
       if (!currentPrice) return null;
 
-      // Set limit price slightly above current for buys, below for sells
-      const buffer = order.order.side === "buy" ? 1.005 : 0.995;
-      const limitPrice = Math.round(currentPrice * buffer * 100) / 100;
+      // Use Decimal.js for precise limit price buffer calculation (0.5%)
+      const direction = order.order.side === "buy" ? 1 : -1;
+      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
 
       return {
         params: {
@@ -129,8 +130,9 @@ const rejectionHandlers: RejectionHandler[] = [
       const currentPrice = await getCurrentPrice(order.order.symbol);
       if (!currentPrice) return null;
 
-      const buffer = order.order.side === "buy" ? 1.005 : 0.995;
-      const limitPrice = Math.round(currentPrice * buffer * 100) / 100;
+      // Use Decimal.js for precise limit price buffer calculation (0.5%)
+      const direction = order.order.side === "buy" ? 1 : -1;
+      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
 
       return {
         params: {
@@ -156,9 +158,9 @@ const rejectionHandlers: RejectionHandler[] = [
       const currentPrice = await getCurrentPrice(order.order.symbol);
       if (!currentPrice) return null;
 
-      // Use more conservative pricing (0.5% buffer instead of aggressive)
-      const buffer = order.order.side === "buy" ? 1.005 : 0.995;
-      const limitPrice = Math.round(currentPrice * buffer * 100) / 100;
+      // Use Decimal.js for precise limit price buffer calculation (0.5%)
+      const direction = order.order.side === "buy" ? 1 : -1;
+      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
 
       return {
         params: {
@@ -183,9 +185,10 @@ const rejectionHandlers: RejectionHandler[] = [
       const currentPrice = await getCurrentPrice(order.order.symbol);
       if (!currentPrice) return null;
 
+      // Use Decimal.js for precise minimum notional quantity calculation
       // Alpaca minimum is usually $1, increase to $5 minimum
       const minNotional = 5;
-      const requiredQty = Math.ceil(minNotional / currentPrice);
+      const requiredQty = toDecimal(minNotional).dividedBy(currentPrice).ceil().toNumber();
 
       return {
         params: {
@@ -209,13 +212,14 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Not enough buying power",
     fix: async (order, reason) => {
       const account = await alpaca.getAccount();
-      const buyingPower = parseFloat(account.buying_power);
+      const buyingPower = toDecimal(account.buying_power);
       const currentPrice = await getCurrentPrice(order.order.symbol);
 
-      if (!currentPrice || buyingPower <= 0) return null;
+      if (!currentPrice || buyingPower.lessThanOrEqualTo(0)) return null;
 
-      // Use 95% of buying power to leave buffer
-      const affordableQty = Math.floor((buyingPower * 0.95) / currentPrice);
+      // Use Decimal.js for precise affordability calculation (95% of buying power)
+      const affordableValue = buyingPower.times(0.95);
+      const affordableQty = calculateWholeShares(affordableValue, currentPrice).toNumber();
 
       if (affordableQty < 1) {
         return null; // Cannot afford even 1 share
