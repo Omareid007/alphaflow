@@ -201,6 +201,9 @@ class AlpacaConnector {
   private failureCount = 0;
   private readonly maxConsecutiveFailures = 5;
   private lastFailureReset = Date.now();
+  private circuitBreakerOpenedAt: number | null = null;
+  // Auto-reset circuit breaker after 60 seconds (half-open state)
+  private readonly circuitBreakerCooldownMs = 60 * 1000;
 
   private getCredentials(): { apiKey: string; secretKey: string } | null {
     const apiKey = process.env.ALPACA_API_KEY;
@@ -210,12 +213,13 @@ class AlpacaConnector {
   }
 
   private recordSuccess(): void {
-    // Reset failure count after 5 minutes of no failures
-    const now = Date.now();
-    if (now - this.lastFailureReset > 5 * 60 * 1000) {
-      this.failureCount = 0;
+    // Reset failure count on success
+    if (this.failureCount > 0) {
+      log.info('Alpaca', `Circuit breaker recovered after ${this.failureCount} failures`);
     }
-    this.lastFailureReset = now;
+    this.failureCount = 0;
+    this.circuitBreakerOpenedAt = null;
+    this.lastFailureReset = Date.now();
   }
 
   private recordFailure(): void {
@@ -223,12 +227,30 @@ class AlpacaConnector {
     this.lastFailureReset = Date.now();
 
     if (this.failureCount >= this.maxConsecutiveFailures) {
+      if (!this.circuitBreakerOpenedAt) {
+        this.circuitBreakerOpenedAt = Date.now();
+      }
       log.error('Alpaca', `Circuit breaker threshold reached: ${this.failureCount} consecutive failures`);
     }
   }
 
   private shouldRejectRequest(): boolean {
-    return this.failureCount >= this.maxConsecutiveFailures;
+    // If under threshold, allow request
+    if (this.failureCount < this.maxConsecutiveFailures) {
+      return false;
+    }
+
+    // Circuit breaker is open - check if cooldown has passed (half-open state)
+    if (this.circuitBreakerOpenedAt) {
+      const elapsed = Date.now() - this.circuitBreakerOpenedAt;
+      if (elapsed >= this.circuitBreakerCooldownMs) {
+        // Allow a test request (half-open state)
+        log.info('Alpaca', `Circuit breaker entering half-open state after ${Math.round(elapsed / 1000)}s cooldown`);
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private getCached<T>(key: string): T | null {
@@ -269,8 +291,10 @@ class AlpacaConnector {
     };
 
     // Use circuit breaker for the actual API call
+    // IMPORTANT: Use URL-specific key to prevent response mixing across endpoints
+    const breakerKey = `alpaca-api-${url.replace(/[^a-zA-Z0-9]/g, '-')}`;
     const breaker = getBreaker(
-      `alpaca-api`,
+      breakerKey,
       async () => {
         // Wrap the fetch in rate limiter
         return wrapWithLimiter(this.providerName, async () => {
@@ -319,8 +343,22 @@ class AlpacaConnector {
               }
 
               const text = await response.text();
-              if (!text) return {} as T;
-              return JSON.parse(text) as T;
+              console.log('[ALPACA] Response text for', url, ':', text.substring(0, 150));
+
+              if (!text || text.trim() === '') {
+                // Return empty array for endpoints that expect arrays (positions, orders, assets, etc.)
+                // This handles cases where Alpaca returns empty body instead of []
+                console.log('[ALPACA] Empty response for URL:', url);
+                if (url.includes('/positions') || url.includes('/orders') || url.includes('/assets')) {
+                  console.log('[ALPACA] Returning empty array for:', url);
+                  return [] as unknown as T;
+                }
+                console.log('[ALPACA] Returning empty object for:', url);
+                return {} as T;
+              }
+              const parsed = JSON.parse(text) as T;
+              console.log('[ALPACA] Parsed response for:', url, 'Type:', Array.isArray(parsed) ? 'array' : typeof parsed);
+              return parsed;
             } catch (error) {
               if (i === retries - 1) throw error;
 
@@ -367,10 +405,26 @@ class AlpacaConnector {
   async getPositions(): Promise<AlpacaPosition[]> {
     const cacheKey = "positions";
     const cached = this.getCached<AlpacaPosition[]>(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      console.log('[ALPACA] getPositions() returning cached data. Type:', Array.isArray(cached) ? 'array' : typeof cached);
+      return cached;
+    }
 
+    console.log('[ALPACA] getPositions() fetching fresh data from API');
     const url = `${ALPACA_BASE_URL}/v2/positions`;
+    console.log('[ALPACA] Full URL:', url);
     const data = await this.fetchWithRetry<AlpacaPosition[]>(url);
+    console.log('[ALPACA] getPositions() received data. Type:', Array.isArray(data) ? 'array' : typeof data, 'Length:', data?.length);
+    console.log('[ALPACA] getPositions() data content:', JSON.stringify(data).substring(0, 200));
+
+    // FIX: If the API returned an object instead of array, wrap it or return empty array
+    if (!Array.isArray(data)) {
+      console.log('[ALPACA] WARNING: positions endpoint returned non-array, returning empty array');
+      const emptyArray: AlpacaPosition[] = [];
+      this.setCache(cacheKey, emptyArray);
+      return emptyArray;
+    }
+
     this.setCache(cacheKey, data);
     return data;
   }
@@ -829,6 +883,7 @@ class AlpacaConnector {
 
   resetCircuitBreaker(): void {
     this.failureCount = 0;
+    this.circuitBreakerOpenedAt = null;
     this.lastFailureReset = Date.now();
     log.info('Alpaca', 'Circuit breaker manually reset');
   }
