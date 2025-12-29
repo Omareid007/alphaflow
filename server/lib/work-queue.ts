@@ -406,13 +406,24 @@ class WorkQueueServiceImpl implements WorkQueueService {
       });
     }
 
-    // CRITICAL: Generate truly unique client order ID to prevent 422 errors
-    // Combine idempotency key with timestamp and random suffix for guaranteed uniqueness
+    // CRITICAL: Generate consistent client order ID for idempotency
+    // Use the work item's idempotency key as base, append retry suffix only for genuine retries
+    // This ensures first attempt uses consistent ID, and retries get unique IDs per attempt
     const baseClientOrderId = item.idempotencyKey || item.id;
-    const clientOrderId = `${baseClientOrderId.substring(0, 20)}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    // First attempt (attempts=0): use base ID for true idempotency
+    // Retry attempts: append -r1, -r2, etc. to distinguish genuine retry orders
+    const clientOrderId = item.attempts > 0
+      ? `${baseClientOrderId.substring(0, 24)}-r${item.attempts}`
+      : baseClientOrderId.substring(0, 32);
 
-    const existingOrders = await alpaca.getOrders("open", 100);
-    const existingOrder = existingOrders.find(o => o.client_order_id === clientOrderId || o.client_order_id === baseClientOrderId);
+    // Check BOTH open AND recent closed orders to catch filled/cancelled orders
+    // that may have succeeded server-side but timed out locally
+    const existingOrders = await alpaca.getOrders("all", 200);
+    const existingOrder = existingOrders.find(o =>
+      o.client_order_id === clientOrderId ||
+      o.client_order_id === baseClientOrderId ||
+      o.client_order_id?.startsWith(baseClientOrderId.substring(0, 20))
+    );
 
     if (existingOrder) {
       log.info("work-queue", `Order already exists for client_order_id ${clientOrderId}: ${existingOrder.id}`, { traceId });
