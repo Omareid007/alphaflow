@@ -582,6 +582,19 @@ router.get("/versions/:strategyId/latest", async (req: Request, res: Response) =
 });
 
 // STRATEGY PERFORMANCE MONITORING DASHBOARD API
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const deleted = await storage.deleteStrategy(req.params.id);
+    if (!deleted) {
+      return notFound(res, "Strategy not found");
+    }
+    res.json({ success: true, message: "Strategy deleted" });
+  } catch (error) {
+    log.error("StrategiesAPI", "Failed to delete strategy", { error });
+    return serverError(res, "Failed to delete strategy");
+  }
+});
+
 router.get("/:id/performance", async (req: Request, res: Response) => {
   try {
     const strategyId = req.params.id;

@@ -124,6 +124,7 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
         const result = await createStrategyMutation.mutateAsync({
           name: strategyName,
           templateId: selectedTemplate.id,
+          type: selectedTemplate.id, // Required by database schema
           status: "draft",
           config: configValues
         });
@@ -133,7 +134,8 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
         await updateStrategyMutation.mutateAsync({
           id: currentStrategy.id,
           config: configValues,
-          name: strategyName
+          name: strategyName,
+          type: selectedTemplate.id // Ensure type is always sent
         });
       }
 

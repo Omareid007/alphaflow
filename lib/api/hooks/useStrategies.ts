@@ -5,6 +5,7 @@ export interface Strategy {
   id: string;
   name: string;
   description?: string;
+  type: string;
   templateId: string;
   status: 'draft' | 'backtesting' | 'paper' | 'live' | 'paused' | 'stopped';
   mode?: 'paper' | 'live';

@@ -10,6 +10,18 @@ import { log } from "../utils/logger";
 
 const router = Router();
 
+// POST /api/alpaca/clear-cache - Clear Alpaca cache (admin only)
+router.post("/clear-cache", async (req: Request, res: Response) => {
+  try {
+    alpaca.clearCache();
+    log.info("AlpacaAPI", "Cache cleared successfully");
+    res.json({ success: true, message: "Alpaca cache cleared" });
+  } catch (error) {
+    log.error("AlpacaAPI", "Failed to clear cache", { error });
+    res.status(500).json({ error: "Failed to clear cache" });
+  }
+});
+
 // GET /api/alpaca/account - Get Alpaca account info
 router.get("/account", async (req: Request, res: Response) => {
   try {
@@ -209,6 +221,21 @@ router.get("/health", async (req: Request, res: Response) => {
       status: "unhealthy",
       error: error.message || "Connection failed",
     });
+  }
+});
+
+// POST /api/alpaca/reset-circuit-breaker - Reset circuit breaker
+router.post("/reset-circuit-breaker", async (req: Request, res: Response) => {
+  try {
+    alpaca.resetCircuitBreaker();
+    log.info("AlpacaAPI", "Circuit breaker reset successfully via API");
+    res.json({
+      success: true,
+      message: "Circuit breaker reset successfully"
+    });
+  } catch (error) {
+    log.error("AlpacaAPI", "Failed to reset circuit breaker", { error });
+    res.status(500).json({ error: "Failed to reset circuit breaker" });
   }
 });
 

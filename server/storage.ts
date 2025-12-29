@@ -98,6 +98,7 @@ export interface IStorage {
   createStrategy(strategy: InsertStrategy): Promise<Strategy>;
   updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined>;
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
+  deleteStrategy(id: string): Promise<boolean>;
 
   getTrades(userId?: string, limit?: number): Promise<Trade[]>;
   getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
@@ -208,6 +209,11 @@ export class DatabaseStorage implements IStorage {
 
   async toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined> {
     return this.updateStrategy(id, { isActive });
+  }
+
+  async deleteStrategy(id: string): Promise<boolean> {
+    const result = await db.delete(strategies).where(eq(strategies.id, id)).returning();
+    return result.length > 0;
   }
 
   async getTrades(userId?: string, limit: number = 50): Promise<Trade[]> {

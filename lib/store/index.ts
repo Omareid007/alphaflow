@@ -125,6 +125,7 @@ export const store = {
 
     return this.createStrategy({
       name: `${strategy.name} (Copy)`,
+      type: strategy.type,
       templateId: strategy.templateId,
       status: 'Draft',
       configValues: { ...strategy.configValues }

@@ -74,6 +74,7 @@ export interface RiskSummary {
 export interface Strategy {
   id: string;
   name: string;
+  type: string;
   templateId: string;
   status: StrategyStatus;
   configValues: Record<string, string | number | boolean | string[]>;
