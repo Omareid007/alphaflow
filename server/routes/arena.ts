@@ -93,7 +93,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
 
     const decisionsWithAgents = decisions.map(d => ({
       ...d,
-      agent: agentMap.get(d.agentProfileId),
+      agent: d.agentProfileId ? agentMap.get(d.agentProfileId) : null,
     }));
 
     const outcomeLinks = await db.query.aiOutcomeLinks.findMany({
