@@ -152,7 +152,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@anthropic-ai/mcp-alpaca"
+        "alpaca-mcp"
       ],
       "env": {
         "ALPACA_API_KEY": "${ALPACA_API_KEY}",

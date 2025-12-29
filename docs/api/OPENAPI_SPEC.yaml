@@ -1,0 +1,1047 @@
+openapi: 3.0.3
+info:
+  title: AlphaFlow Trading Platform API
+  description: |
+    RESTful API for the AlphaFlow autonomous trading platform.
+
+    ## Authentication
+    All endpoints require authentication via session cookie or API key.
+
+    ## Rate Limiting
+    - Standard: 100 requests/minute
+    - Trading: 10 orders/minute
+    - Data: 60 requests/minute
+  version: 1.0.0
+  contact:
+    name: AlphaFlow Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: https://alphaflow.app/api
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Portfolio
+    description: Portfolio and account management
+  - name: Orders
+    description: Order management
+  - name: Strategies
+    description: Strategy management
+  - name: Backtests
+    description: Backtesting operations
+  - name: Admin
+    description: Administrative operations
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: admintest
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: User logout
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portfolio/snapshot:
+    get:
+      tags: [Portfolio]
+      summary: Get portfolio snapshot
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Portfolio snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSnapshot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portfolio/history:
+    get:
+      tags: [Portfolio]
+      summary: Get portfolio history
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [1D, 1W, 1M, 3M, 1Y, ALL]
+            default: 1M
+      responses:
+        '200':
+          description: Portfolio history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioHistory'
+
+  /positions:
+    get:
+      tags: [Portfolio]
+      summary: Get all positions
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Position'
+
+  /positions/{symbol}:
+    get:
+      tags: [Portfolio]
+      summary: Get position for symbol
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+          example: AAPL
+      responses:
+        '200':
+          description: Position details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders:
+    get:
+      tags: [Orders]
+      summary: Get orders
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, all]
+            default: all
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+    post:
+      tags: [Orders]
+      summary: Place new order
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Order rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Orders]
+      summary: Cancel order
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order cancelled
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Order cannot be cancelled
+
+  /strategies:
+    get:
+      tags: [Strategies]
+      summary: Get all strategies
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Strategy'
+
+    post:
+      tags: [Strategies]
+      summary: Create new strategy
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StrategyCreate'
+      responses:
+        '201':
+          description: Strategy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Strategy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /strategies/{strategyId}:
+    get:
+      tags: [Strategies]
+      summary: Get strategy by ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Strategy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Strategy'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Strategies]
+      summary: Update strategy
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StrategyUpdate'
+      responses:
+        '200':
+          description: Strategy updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Strategy'
+
+    delete:
+      tags: [Strategies]
+      summary: Delete strategy
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Strategy deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /strategies/{strategyId}/deploy:
+    post:
+      tags: [Strategies]
+      summary: Deploy strategy for autonomous trading
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentConfig'
+      responses:
+        '200':
+          description: Strategy deployed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+
+  /strategies/{strategyId}/stop:
+    post:
+      tags: [Strategies]
+      summary: Stop deployed strategy
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Strategy stopped
+
+  /backtests:
+    get:
+      tags: [Backtests]
+      summary: Get all backtests
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: strategyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of backtests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Backtest'
+
+    post:
+      tags: [Backtests]
+      summary: Run new backtest
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRequest'
+      responses:
+        '202':
+          description: Backtest started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backtestId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: running
+
+  /backtests/{backtestId}:
+    get:
+      tags: [Backtests]
+      summary: Get backtest results
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: backtestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Backtest results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /alpaca-trading/analyze:
+    post:
+      tags: [Orders]
+      summary: Analyze symbol with AI
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol]
+              properties:
+                symbol:
+                  type: string
+                  example: AAPL
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+
+  /alpaca-trading/execute:
+    post:
+      tags: [Orders]
+      summary: Execute AI-recommended trade
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol]
+              properties:
+                symbol:
+                  type: string
+                quantity:
+                  type: integer
+      responses:
+        '200':
+          description: Trade executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+
+  /admin/providers:
+    get:
+      tags: [Admin]
+      summary: Get LLM providers
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Provider'
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Get all users
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        message:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        createdAt:
+          type: string
+          format: date-time
+
+    PortfolioSnapshot:
+      type: object
+      properties:
+        equity:
+          type: number
+          example: 125432.50
+        cash:
+          type: number
+          example: 45231.00
+        buyingPower:
+          type: number
+          example: 90462.00
+        dayPnl:
+          type: number
+          example: 1234.56
+        dayPnlPercent:
+          type: number
+          example: 0.99
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+
+    PortfolioHistory:
+      type: object
+      properties:
+        timestamps:
+          type: array
+          items:
+            type: string
+            format: date-time
+        equity:
+          type: array
+          items:
+            type: number
+
+    Position:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        qty:
+          type: number
+          example: 100
+        avgEntryPrice:
+          type: number
+          example: 178.50
+        marketValue:
+          type: number
+          example: 18945.00
+        unrealizedPl:
+          type: number
+          example: 1095.00
+        unrealizedPlPercent:
+          type: number
+          example: 6.13
+        currentPrice:
+          type: number
+          example: 189.45
+        side:
+          type: string
+          enum: [long, short]
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        clientOrderId:
+          type: string
+        symbol:
+          type: string
+        qty:
+          type: number
+        side:
+          type: string
+          enum: [buy, sell]
+        type:
+          type: string
+          enum: [market, limit, stop, stop_limit]
+        status:
+          type: string
+          enum: [new, pending_new, accepted, filled, partially_filled, cancelled, rejected]
+        filledQty:
+          type: number
+        filledAvgPrice:
+          type: number
+        limitPrice:
+          type: number
+        stopPrice:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        filledAt:
+          type: string
+          format: date-time
+
+    OrderRequest:
+      type: object
+      required: [symbol, qty, side, type]
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        qty:
+          type: number
+          example: 10
+        side:
+          type: string
+          enum: [buy, sell]
+        type:
+          type: string
+          enum: [market, limit, stop, stop_limit]
+        timeInForce:
+          type: string
+          enum: [day, gtc, ioc, fok]
+          default: day
+        limitPrice:
+          type: number
+        stopPrice:
+          type: number
+
+    Strategy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [momentum, mean_reversion, trend_following, breakout, custom]
+        status:
+          type: string
+          enum: [draft, backtesting, backtested, paper, live, paused, stopped]
+        templateId:
+          type: string
+        configValues:
+          $ref: '#/components/schemas/StrategyConfig'
+        performanceSummary:
+          $ref: '#/components/schemas/PerformanceSummary'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StrategyCreate:
+      type: object
+      required: [name, type, configValues]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [momentum, mean_reversion, trend_following, breakout, custom]
+        templateId:
+          type: string
+        configValues:
+          $ref: '#/components/schemas/StrategyConfig'
+
+    StrategyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        configValues:
+          $ref: '#/components/schemas/StrategyConfig'
+
+    StrategyConfig:
+      type: object
+      properties:
+        symbols:
+          type: array
+          items:
+            type: string
+        entryThreshold:
+          type: number
+        exitThreshold:
+          type: number
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        positionSize:
+          type: number
+        maxPositions:
+          type: integer
+
+    PerformanceSummary:
+      type: object
+      properties:
+        totalReturn:
+          type: number
+        sharpeRatio:
+          type: number
+        maxDrawdown:
+          type: number
+        winRate:
+          type: number
+        totalTrades:
+          type: integer
+        profitFactor:
+          type: number
+
+    DeploymentConfig:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [paper, live]
+        maxDailyLoss:
+          type: number
+        maxPositionSize:
+          type: number
+        maxPositions:
+          type: integer
+        maxDailyTrades:
+          type: integer
+
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        strategyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, paused, stopped]
+        mode:
+          type: string
+          enum: [paper, live]
+        startedAt:
+          type: string
+          format: date-time
+
+    BacktestRequest:
+      type: object
+      required: [strategyId, startDate, endDate]
+      properties:
+        strategyId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        initialCapital:
+          type: number
+          default: 100000
+        commission:
+          type: number
+          default: 0.001
+
+    Backtest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        strategyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        createdAt:
+          type: string
+          format: date-time
+
+    BacktestResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        strategyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/PerformanceSummary'
+        equityCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              equity:
+                type: number
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacktestTrade'
+        aiInterpretation:
+          type: string
+
+    BacktestTrade:
+      type: object
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        qty:
+          type: number
+        price:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        pnl:
+          type: number
+
+    AnalysisResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        action:
+          type: string
+          enum: [BUY, SELL, HOLD]
+        confidence:
+          type: number
+        quantity:
+          type: integer
+        reasoning:
+          type: string
+        factors:
+          type: object
+          properties:
+            technical:
+              type: number
+            sentiment:
+              type: number
+            fundamental:
+              type: number
+            momentum:
+              type: number
+
+    ExecutionResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orderId:
+          type: string
+        filledQty:
+          type: number
+        avgPrice:
+          type: number
+        error:
+          type: string
+
+    Provider:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, error]
+        models:
+          type: array
+          items:
+            type: string
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+        statusCode:
+          type: integer
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Authentication required
+            code: UNAUTHORIZED
+            statusCode: 401
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Resource not found
+            code: NOT_FOUND
+            statusCode: 404
+
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Invalid request parameters
+            code: BAD_REQUEST
+            statusCode: 400
