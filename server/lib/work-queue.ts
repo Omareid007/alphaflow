@@ -105,6 +105,7 @@ export interface WorkQueueService {
   processKillSwitch(item: WorkItem): Promise<void>;
   startWorker(intervalMs?: number): void;
   stopWorker(): void;
+  drain(): Promise<void>;
 }
 
 class WorkQueueServiceImpl implements WorkQueueService {
@@ -866,6 +867,25 @@ class WorkQueueServiceImpl implements WorkQueueService {
       clearInterval(this.workerInterval);
       this.workerInterval = null;
       log.info("work-queue", "Work queue worker stopped");
+    }
+  }
+
+  async drain(): Promise<void> {
+    // Stop accepting new work and wait for current processing to complete
+    this.stopWorker();
+
+    // Wait for any in-progress work to complete (with timeout)
+    const maxWaitMs = 30000;
+    const startTime = Date.now();
+
+    while (this.processing && Date.now() - startTime < maxWaitMs) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    if (this.processing) {
+      log.warn("work-queue", "Drain timeout - work item still processing");
+    } else {
+      log.info("work-queue", "Work queue drained successfully");
     }
   }
 }

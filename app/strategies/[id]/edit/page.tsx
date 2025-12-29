@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStrategy, useBacktest } from "@/lib/api/hooks";
 import { StrategyWizard } from "@/components/wizard/strategy-wizard";

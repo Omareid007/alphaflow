@@ -17,9 +17,9 @@ router.get("/timeline", async (req: Request, res: Response) => {
 
     // Fetch data from multiple sources in parallel
     const [decisions, brokerOrders, trades] = await Promise.all([
-      storage.getAiDecisions({ limit: limit * 2 }),
+      storage.getAiDecisions(undefined, limit * 2),
       alpaca.getOrders("all", limit).catch(() => [] as AlpacaOrder[]),
-      storage.getTrades(limit),
+      storage.getTrades(undefined, limit),
     ]);
 
     // Check Alpaca connectivity

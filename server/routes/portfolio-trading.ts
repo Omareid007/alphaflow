@@ -87,7 +87,7 @@ export function registerPortfolioTradingRoutes(app: Express) {
       const totalEquity = parseFloat(account.equity);
       const totalCash = parseFloat(account.cash);
       const todayPnL = parseFloat(account.equity) - parseFloat(account.last_equity);
-      const totalPositionValue = positions.reduce((sum, pos) => sum + (parseFloat(pos.currentPrice) * parseFloat(pos.quantity)), 0);
+      const totalPositionValue = positions.reduce((sum, pos) => sum + (parseFloat(pos.currentPrice || "0") * parseFloat(pos.quantity)), 0);
 
       res.json({
         totalEquity,
@@ -99,7 +99,7 @@ export function registerPortfolioTradingRoutes(app: Express) {
         portfolioValue: parseFloat(account.portfolio_value),
         lastEquity: parseFloat(account.last_equity),
         accountStatus: account.status,
-        daytradeCount: parseInt(account.daytrade_count),
+        daytradeCount: parseInt(String(account.daytrade_count)),
         patternDayTrader: account.pattern_day_trader,
       });
     } catch (error) {
@@ -121,7 +121,7 @@ export function registerPortfolioTradingRoutes(app: Express) {
         .filter(d =>
           (d.action === 'buy' || d.action === 'sell') &&
           d.status === 'pending' &&
-          (d.confidence || 0) >= 0.6
+          parseFloat(d.confidence || "0") >= 0.6
         )
         .map(d => ({
           symbol: d.symbol,
