@@ -16,64 +16,83 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 ## Cleanup Status
 
-### Completed (Dec 2024)
+### Completed (Dec 29, 2024)
 - [x] Alpaca account mismatch resolved (dotenv override)
-- [x] MCP servers configured (postgres, sequential-thinking, memory, filesystem)
+- [x] MCP servers configured (7 servers: postgres, sequential-thinking, memory, filesystem, git, fetch, time)
 - [x] Analysis agents created (4 agents)
 - [x] Analysis commands created (4 commands)
 - [x] Safety hooks configured
 - [x] `.next/` removed from Git tracking (471 files, ~26K lines)
 - [x] Old maintenance scripts removed (9 files, 2774 lines)
 - [x] Dependency audit completed
+- [x] **Next.js upgraded 13.5.1 → 14.2.35** (critical security fix)
+- [x] **attached_assets cleaned** (5.1MB → 984KB, 80% reduction)
+- [x] Custom skills created (3 skills: trading-analysis, alpaca-integration, project-structure)
 
 ### Remaining Items (Future)
 | Item | Priority | Notes |
 |------|----------|-------|
-| `attached_assets/` cleanup | Medium | 5.1MB screenshots - archive first |
-| Backtest script consolidation | Low | 19 similar scripts (~550KB) |
-| Next.js upgrade | High | Security vulnerabilities |
+| Backtest script consolidation | Low | 19 scripts (~9K lines) → ~4.5K lines possible |
+| Remaining vulnerabilities | Medium | glob in eslint-config-next (8 remaining) |
 
-## Dependency Audit Results (Dec 29, 2024)
+## Security Status
 
-### Potentially Unused Dependencies
-| Package | Type | Action |
-|---------|------|--------|
-| `@radix-ui/react-progress` | prod | Verify usage before removing |
-| `autoprefixer` | prod | May be used by PostCSS config |
-| `postcss` | prod | May be used by Tailwind |
-| `tsconfig-paths` | prod | Check build config |
-| `@babel/core` | dev | Check test/build config |
-| `@types/cors` | dev | May be needed for types |
+### Fixed (Dec 29, 2024)
+| CVE | Severity | Description |
+|-----|----------|-------------|
+| CVE-2025-29927 | Critical | Next.js Middleware Authorization Bypass |
+| CVE-2025-55184 | High | Next.js DoS via infinite loop |
+| CVE-2025-55183 | Medium | Next.js Source Code Exposure |
 
-### Security Vulnerabilities (8 total)
-| Severity | Count | Source |
-|----------|-------|--------|
-| Critical | 1 | Next.js Authorization Bypass |
-| High | 1 | Next.js DoS |
-| Moderate | 6 | postcss, zod, Next.js |
+### Remaining (Non-Critical)
+- glob vulnerability in eslint-config-next (would require Next.js 15 to fix)
+- esbuild-kit in drizzle-kit (moderate)
 
-**Recommended Action:** Upgrade Next.js from 13.5.1 to latest (breaking changes expected)
+## MCP Servers
 
-### Outdated Packages (Major Updates Available)
-| Package | Current | Latest | Breaking Changes |
-|---------|---------|--------|------------------|
-| next | 13.5.1 | 16.1.1 | Yes - App Router changes |
-| react | 18.3.1 | 19.2.3 | Yes - Concurrent features |
-| express | 4.22.1 | 5.2.1 | Yes - Middleware changes |
-| zod | 3.25.76 | 4.2.1 | Yes - Schema API changes |
-| tailwindcss | 3.4.19 | 4.1.18 | Yes - Config format |
+Configured in `.mcp.json`:
+| Server | Purpose |
+|--------|---------|
+| `postgres` | Database queries |
+| `sequential-thinking` | Complex problem-solving |
+| `memory` | Persistent knowledge graph |
+| `filesystem` | Secure file operations |
+| `git` | Git repository operations |
+| `fetch` | Web content fetching |
+| `time` | Time/timezone utilities |
 
-## Non-Destructive Operation Rules
+## Custom Skills
 
-1. **Always create backup branch** before destructive operations
-2. **Use `git rm --cached`** to untrack files without deleting locally
-3. **Archive before delete** for assets and documentation
-4. **Run tests** after each cleanup phase
-5. **Commit frequently** with clear messages
+Located in `~/.claude/skills/`:
+| Skill | Purpose |
+|-------|---------|
+| `trading-analysis` | Strategy and backtest guidance |
+| `alpaca-integration` | Alpaca API patterns |
+| `project-structure` | Codebase navigation |
+
+## Backtest Script Analysis
+
+### Consolidation Opportunity
+19 scripts (~9,000 lines) with ~50% duplication identified:
+- **Extractable modules**: technical-indicators.ts, alpaca-api.ts, backtest-engine.ts, genetic-algorithm.ts
+- **Potential savings**: ~4,500 lines of code
+- **Strategy**: Create shared modules + base classes
+
+### Script Groups
+1. **Backtest Scripts** (4): omar-backtest*.ts
+2. **Optimizer Scripts** (11): omar-*optimizer*.ts
+3. **Specialized** (4): momentum, pattern, risk, sector-rotation
+
+## Environment Configuration
+
+### Critical: Alpaca Credentials
+The `.env` file takes precedence over Replit Secrets via `dotenv.config({ override: true })`.
+
+Verify with: `GET /api/admin/alpaca-account`
 
 ## Available Analysis Tools
 
-### Commands
+### Commands (use with `/`)
 - `/analyze-codebase` - Full codebase analysis
 - `/find-dead-code` - Detect unused code
 - `/find-duplicates` - Find code duplication
@@ -85,24 +104,26 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - `refactoring-strategist` - Safe refactoring planning
 - `asset-optimizer` - Static asset optimization
 
-## Environment Configuration
+## Non-Destructive Operation Rules
 
-### Critical: Alpaca Credentials
-The `.env` file takes precedence over Replit Secrets via `dotenv.config({ override: true })`.
-
-Verify with: `GET /api/admin/alpaca-account`
-
-### MCP Servers
-Configured in `.mcp.json`:
-- `postgres` - Database access
-- `sequential-thinking` - Complex analysis
-- `memory` - Cross-session findings
-- `filesystem` - Workspace access
+1. **Always create backup branch** before destructive operations
+2. **Use `git rm --cached`** to untrack files without deleting locally
+3. **Archive before delete** for assets and documentation
+4. **Run tests** after each cleanup phase
+5. **Commit frequently** with clear messages
 
 ## Quick Commands
 
 ```bash
-# Run full analysis
+# Build and test
+npm run build
+npm run lint
+npx tsc --noEmit
+
+# Security audit
+npm audit
+
+# Dependency check
 npx depcheck --json > /tmp/depcheck.json
 
 # Find large files
@@ -110,15 +131,15 @@ find . -type f -size +1M -not -path "./.next/*" -not -path "./node_modules/*" | 
 
 # Check bundle sizes
 npx bundle-phobia-cli [package-name]
-
-# Security audit
-npm audit
 ```
 
-## Contact
+## Configuration Locations
 
-For issues with Claude Code configuration, check:
-- `~/.claude/settings.local.json` - Hooks configuration
-- `~/.claude/agents/` - Custom agents
-- `~/.claude/commands/` - Custom commands
-- `.mcp.json` - MCP server configuration
+| File | Purpose |
+|------|---------|
+| `~/.claude/settings.local.json` | Hooks configuration |
+| `~/.claude/agents/` | Custom agents |
+| `~/.claude/commands/` | Custom commands |
+| `~/.claude/skills/` | Custom skills |
+| `.mcp.json` | MCP server configuration |
+| `.env` | Environment variables (source of truth) |

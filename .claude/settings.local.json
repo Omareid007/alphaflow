@@ -171,7 +171,8 @@
       "Bash(while read d)",
       "Bash(git rm:*)",
       "Bash(git branch:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git merge:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
