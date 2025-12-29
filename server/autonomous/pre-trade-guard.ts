@@ -1,9 +1,43 @@
+/**
+ * @module autonomous/pre-trade-guard
+ * @description Pre-Trade Validation Guards
+ *
+ * Validates trading conditions before order submission to prevent failed trades
+ * and ensure compliance with market rules and account constraints.
+ *
+ * Key validation checks:
+ * - Buying power sufficiency
+ * - Market session status (regular/pre-market/after-hours/closed)
+ * - Holiday calendar checks
+ * - Extended hours eligibility
+ * - Symbol tradability verification
+ * - Price discovery for extended hours limit orders
+ *
+ * Supports both stock and cryptocurrency trading with 24/7 crypto market awareness.
+ */
+
 import { alpaca } from "../connectors/alpaca";
 import { tradingSessionManager } from "../services/trading-session-manager";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
 import { isCryptoSymbol, normalizeCryptoSymbol } from "../trading/crypto-trading-config";
 
+/**
+ * Pre-trade validation check result.
+ *
+ * Contains the results of validating whether a trade can be executed,
+ * including market session info, buying power checks, and order type recommendations.
+ *
+ * @interface PreTradeCheck
+ * @property {boolean} canTrade - Whether the trade can proceed
+ * @property {string} [reason] - Explanation if trade cannot proceed
+ * @property {"regular" | "pre_market" | "after_hours" | "closed"} marketSession - Current market session
+ * @property {number} availableBuyingPower - Available buying power in dollars
+ * @property {number} requiredBuyingPower - Required buying power for this trade
+ * @property {boolean} useExtendedHours - Whether to use extended hours trading
+ * @property {boolean} useLimitOrder - Whether a limit order should be used
+ * @property {number} [limitPrice] - Recommended limit price if useLimitOrder is true
+ */
 export interface PreTradeCheck {
   canTrade: boolean;
   reason?: string;
@@ -15,6 +49,41 @@ export interface PreTradeCheck {
   limitPrice?: number;
 }
 
+/**
+ * Pre-trade validation guard.
+ *
+ * Validates all conditions required for successful trade execution:
+ * - Account buying power (for buy orders)
+ * - Market session status (regular/extended/closed)
+ * - Holiday calendar
+ * - Extended hours requirements (limit orders, price discovery)
+ *
+ * For crypto trades: Always allows trading (24/7 markets)
+ * For stocks: Checks market hours and extended hours eligibility
+ *
+ * Side effects:
+ * - Queries Alpaca account data
+ * - Queries market status and snapshots
+ * - Logs validation results
+ *
+ * @param {string} symbol - Trading symbol (e.g., "AAPL", "BTC/USD")
+ * @param {"buy" | "sell"} side - Order side
+ * @param {number} orderValue - Dollar value of the order
+ * @param {boolean} isCrypto - Whether this is a cryptocurrency symbol
+ *
+ * @returns {Promise<PreTradeCheck>} Validation result with canTrade flag and recommendations
+ *
+ * @example
+ * const check = await preTradeGuard("AAPL", "buy", 1000, false);
+ * if (check.canTrade) {
+ *   console.log(`Can trade during ${check.marketSession}`);
+ *   if (check.useLimitOrder) {
+ *     console.log(`Use limit order at $${check.limitPrice}`);
+ *   }
+ * } else {
+ *   console.log(`Cannot trade: ${check.reason}`);
+ * }
+ */
 export async function preTradeGuard(
   symbol: string,
   side: "buy" | "sell",
@@ -116,6 +185,28 @@ export async function preTradeGuard(
   }
 }
 
+/**
+ * Check if a symbol is tradable on Alpaca.
+ *
+ * Validates symbol against Alpaca's asset database to ensure it can be traded.
+ * For crypto symbols, normalizes the symbol format before checking.
+ *
+ * @param {string} symbol - Trading symbol to validate
+ * @param {boolean} isCrypto - Whether this is a cryptocurrency symbol
+ *
+ * @returns {Promise<{ tradable: boolean, reason?: string }>} Tradability status with reason if not tradable
+ *
+ * @example
+ * const stock = await isSymbolTradable("AAPL", false);
+ * if (stock.tradable) {
+ *   console.log("AAPL is tradable");
+ * }
+ *
+ * const crypto = await isSymbolTradable("BTC", true);
+ * if (!crypto.tradable) {
+ *   console.log(`Cannot trade: ${crypto.reason}`);
+ * }
+ */
 export async function isSymbolTradable(symbol: string, isCrypto: boolean): Promise<{ tradable: boolean; reason?: string }> {
   try {
     if (isCrypto) {

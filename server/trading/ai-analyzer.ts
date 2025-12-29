@@ -12,18 +12,84 @@ import { gdelt } from "../connectors/gdelt";
 import { log } from "../utils/logger";
 
 /**
- * AIAnalyzer - Handles AI-powered market analysis and decision-making
+ * @file AI Analyzer Module
+ * @description Handles AI-powered market analysis with multi-source data enrichment.
+ * Integrates market data, news, sentiment, and fundamental analysis for comprehensive trading decisions.
  *
- * Responsibilities:
- * - Analyzing symbols with AI decision engine
- * - Gathering enrichment data from multiple sources (news, sentiment, fundamentals)
- * - Fusing market intelligence from various data providers
- * - Creating enhanced decision logs for transparency
- * - Linking AI decisions to executed trades
+ * @module server/trading/ai-analyzer
+ */
+
+/**
+ * AIAnalyzer - AI-powered market analysis and decision-making engine
+ *
+ * Orchestrates comprehensive market analysis by gathering data from multiple sources,
+ * fusing intelligence, and generating AI trading decisions with full transparency.
+ *
+ * @class AIAnalyzer
+ *
+ * @example Analyze a symbol
+ * ```typescript
+ * const { decision, marketData, fusedIntelligence } = await aiAnalyzer.analyzeSymbol(
+ *   "AAPL",
+ *   "strategy-123",
+ *   "trace-abc-def"
+ * );
+ *
+ * console.log(`Decision: ${decision.action}`);
+ * console.log(`Confidence: ${decision.confidence}%`);
+ * console.log(`Reasoning: ${decision.reasoning}`);
+ *
+ * if (fusedIntelligence) {
+ *   console.log(`Data sources: ${fusedIntelligence.dataQuality.sourceCount}`);
+ *   console.log(`Signal agreement: ${fusedIntelligence.signalAgreement}`);
+ * }
+ * ```
+ *
+ * @example Link decision to trade
+ * ```typescript
+ * await aiAnalyzer.linkAiDecisionToTrade("AAPL", "strategy-123", "trade-456");
+ * ```
+ *
+ * @responsibilities
+ * - Symbol analysis with AI decision engine
+ * - Multi-source data enrichment (news, sentiment, fundamentals)
+ * - Market intelligence data fusion
+ * - Enhanced decision logging for transparency
+ * - AI decision to trade linkage
+ *
+ * @multiSourceEnrichment Data sources integrated:
+ * 1. **Alpaca**: Real-time market data (price, volume, change)
+ * 2. **NewsAPI**: Recent news headlines for sentiment analysis
+ * 3. **GDELT**: Global news event sentiment (FREE, no API key)
+ * 4. **Hugging Face**: FinBERT AI sentiment (optional, requires API key)
+ * 5. **Valyu.ai**: Comprehensive fundamentals (optional, requires API key)
+ *    - Financial ratios (P/E, debt/equity, revenue growth)
+ *    - Cash flow analysis
+ *    - Dividend data
+ *    - Insider transaction sentiment
+ *
+ * @dataFusion When multiple data sources are available:
+ * - Calculates signal agreement across sources
+ * - Measures trend strength based on consensus
+ * - Assesses data quality and completeness
+ * - Identifies warnings and conflicts
  */
 export class AIAnalyzer {
   /**
-   * Normalize crypto symbols to slash format (e.g., BTC/USD)
+   * Normalize crypto symbols to slash format
+   *
+   * Converts crypto symbols to Alpaca's required slash format (e.g., "BTCUSD" -> "BTC/USD")
+   *
+   * @private
+   * @param symbol - Symbol to normalize
+   * @returns Normalized crypto symbol with slash format
+   *
+   * @example
+   * ```typescript
+   * normalizeCryptoSymbol("BTCUSD") // returns "BTC/USD"
+   * normalizeCryptoSymbol("BTC/USD") // returns "BTC/USD"
+   * normalizeCryptoSymbol("SOLUSD") // returns "SOL/USD"
+   * ```
    */
   private normalizeCryptoSymbol(symbol: string): string {
     const upperSymbol = symbol.toUpperCase();
@@ -42,6 +108,20 @@ export class AIAnalyzer {
 
   /**
    * Check if a symbol is a crypto symbol
+   *
+   * Determines if a symbol represents a cryptocurrency pair based on known
+   * crypto pairs and slash format detection.
+   *
+   * @private
+   * @param symbol - Symbol to check
+   * @returns True if symbol is a cryptocurrency pair
+   *
+   * @example
+   * ```typescript
+   * isCryptoSymbol("BTC/USD") // returns true
+   * isCryptoSymbol("BTCUSD") // returns true
+   * isCryptoSymbol("AAPL") // returns false
+   * ```
    */
   private isCryptoSymbol(symbol: string): boolean {
     const upperSymbol = symbol.toUpperCase();
@@ -59,6 +139,24 @@ export class AIAnalyzer {
 
   /**
    * Normalize symbol for Alpaca API calls
+   *
+   * Handles different symbol format requirements for crypto vs stocks
+   * and for orders vs lookups.
+   *
+   * @private
+   * @param symbol - Symbol to normalize
+   * @param forOrder - If true, use format required for orders (default: false)
+   * @returns Normalized symbol for Alpaca API
+   *
+   * @example
+   * ```typescript
+   * // For crypto orders - use slash format
+   * normalizeSymbolForAlpaca("BTC/USD", true) // returns "BTC/USD"
+   *
+   * // For stock lookups - remove slashes
+   * normalizeSymbolForAlpaca("AAPL", false) // returns "AAPL"
+   * normalizeSymbolForAlpaca("BTC/USD", false) // returns "BTCUSD"
+   * ```
    */
   private normalizeSymbolForAlpaca(symbol: string, forOrder: boolean = false): string {
     // For crypto orders, Alpaca requires the slash format (e.g., BTC/USD)
@@ -71,6 +169,25 @@ export class AIAnalyzer {
 
   /**
    * Get market data for a symbol from Alpaca
+   *
+   * Fetches real-time market data including price, volume, and 24-hour changes.
+   * Handles both stocks and crypto with appropriate API endpoints.
+   *
+   * @param symbol - Stock symbol or crypto pair
+   * @returns Promise resolving to market data or null if unavailable
+   *
+   * @example
+   * ```typescript
+   * const data = await aiAnalyzer.getMarketDataForSymbol("AAPL");
+   * if (data) {
+   *   console.log(`Price: $${data.currentPrice}`);
+   *   console.log(`Change: ${data.priceChangePercent24h.toFixed(2)}%`);
+   *   console.log(`Volume: ${data.volume}`);
+   * }
+   * ```
+   *
+   * @note Returns null if no valid price data is available
+   * @note Handles crypto vs stock snapshot endpoints automatically
    */
   async getMarketDataForSymbol(symbol: string): Promise<MarketData | null> {
     try {
@@ -122,6 +239,25 @@ export class AIAnalyzer {
 
   /**
    * Analyze sentiment from news headlines
+   *
+   * Simple keyword-based sentiment analysis of news headlines.
+   * Counts bullish vs bearish keywords to determine overall sentiment.
+   *
+   * @param headlines - Array of news headline strings
+   * @returns Sentiment classification: "bullish", "bearish", or "neutral"
+   *
+   * @example
+   * ```typescript
+   * const headlines = [
+   *   "Stock surges to record high on strong earnings",
+   *   "Company announces major growth initiative"
+   * ];
+   * const sentiment = aiAnalyzer.analyzeSentiment(headlines);
+   * console.log(sentiment); // "bullish"
+   * ```
+   *
+   * @note This is a simple keyword-based approach
+   * @note For advanced sentiment, use Hugging Face FinBERT integration
    */
   analyzeSentiment(headlines: string[]): "bullish" | "bearish" | "neutral" {
     const bullishWords = ["surge", "rally", "gain", "rise", "up", "growth", "positive", "beat", "record", "high"];
@@ -143,8 +279,56 @@ export class AIAnalyzer {
   }
 
   /**
-   * Gather enrichment data from optional sources (Hugging Face, Valyu.ai, GDELT)
-   * Returns empty arrays if API keys aren't configured
+   * Gather enrichment data from multiple optional sources
+   *
+   * Collects sentiment and fundamental data from various providers to enrich
+   * AI decision-making. All sources are optional - returns empty arrays if
+   * API keys aren't configured.
+   *
+   * @param symbol - Stock symbol or crypto pair to analyze
+   * @param marketData - Current market data for the symbol
+   * @param newsContext - Optional news context with headlines
+   *
+   * @returns Promise resolving to enrichment data from available sources
+   *
+   * @example
+   * ```typescript
+   * const enrichment = await aiAnalyzer.gatherEnrichmentData(
+   *   "AAPL",
+   *   marketData,
+   *   newsContext
+   * );
+   *
+   * if (enrichment.hasEnrichment) {
+   *   console.log(`Sentiment sources: ${enrichment.sentimentData.length}`);
+   *   console.log(`Fundamental sources: ${enrichment.fundamentalData.length}`);
+   *
+   *   enrichment.sentimentData.forEach(s => {
+   *     console.log(`${s.source}: ${s.sentiment} (${s.score.toFixed(2)})`);
+   *   });
+   * }
+   * ```
+   *
+   * @enrichmentSources Three primary enrichment sources:
+   * 1. **GDELT** (FREE, no API key needed):
+   *    - Real-time global news sentiment
+   *    - Article volume spike detection
+   *    - Works for both stocks and crypto
+   *
+   * 2. **Hugging Face FinBERT** (optional, requires API key):
+   *    - Advanced AI sentiment analysis
+   *    - Analyzes news headlines with financial context
+   *    - Provides confidence scores
+   *
+   * 3. **Valyu.ai** (optional, requires API key, stocks only):
+   *    - Financial ratios (P/E, debt/equity, revenue growth)
+   *    - Free cash flow analysis
+   *    - Dividend yield data
+   *    - Insider transaction sentiment
+   *
+   * @note Runs all enrichment sources in parallel for performance
+   * @note Gracefully handles missing API keys - logs debug message and continues
+   * @note Crypto symbols skip Valyu.ai (stocks only)
    */
   async gatherEnrichmentData(
     symbol: string,
@@ -296,8 +480,55 @@ export class AIAnalyzer {
 
   /**
    * Analyze a symbol with AI decision engine
-   * Gathers market data, news, sentiment, and fundamental data
-   * Returns AI decision with full transparency via enhanced decision log
+   *
+   * Orchestrates comprehensive market analysis by gathering multi-source data,
+   * fusing intelligence, generating AI decision, and creating full transparency logs.
+   *
+   * This is the main entry point for AI-powered trading analysis.
+   *
+   * @param symbol - Stock symbol or crypto pair to analyze
+   * @param strategyId - Optional strategy ID for context and tracking
+   * @param traceId - Optional trace ID for request tracking (auto-generated if not provided)
+   *
+   * @returns Promise resolving to complete analysis package
+   * @returns result.decision - AI trading decision (buy/sell/hold with confidence)
+   * @returns result.marketData - Real-time market data from Alpaca
+   * @returns result.fusedIntelligence - Fused data from multiple sources (if available)
+   * @returns result.enhancedLog - Full transparency log of decision process
+   *
+   * @example
+   * ```typescript
+   * const analysis = await aiAnalyzer.analyzeSymbol("AAPL", "strategy-123");
+   *
+   * console.log(`Decision: ${analysis.decision.action}`);
+   * console.log(`Confidence: ${analysis.decision.confidence}%`);
+   * console.log(`Reasoning: ${analysis.decision.reasoning}`);
+   *
+   * if (analysis.decision.action === "buy") {
+   *   console.log(`Suggested quantity: ${analysis.decision.suggestedQuantity}`);
+   *   console.log(`Target price: $${analysis.decision.targetPrice}`);
+   *   console.log(`Stop loss: $${analysis.decision.stopLoss}`);
+   * }
+   *
+   * if (analysis.fusedIntelligence) {
+   *   console.log(`Data quality: ${analysis.fusedIntelligence.dataQuality.completeness}%`);
+   *   console.log(`Signal agreement: ${analysis.fusedIntelligence.signalAgreement}`);
+   * }
+   * ```
+   *
+   * @analysisProcess Complete analysis workflow:
+   * 1. **Market Data**: Fetch real-time price, volume, change from Alpaca
+   * 2. **News Context**: Gather recent headlines from NewsAPI
+   * 3. **Enrichment**: Collect sentiment/fundamentals from GDELT, Hugging Face, Valyu.ai
+   * 4. **Data Fusion**: Combine multi-source intelligence with consensus analysis
+   * 5. **AI Decision**: Generate trading decision with GPT-4o-mini
+   * 6. **Transparency Log**: Create enhanced decision log for full auditability
+   * 7. **Database Record**: Store AI decision with all context
+   *
+   * @throws Error if market data cannot be retrieved
+   *
+   * @note Creates AI decision record in database with full context
+   * @note Enhanced log includes all data sources, reasoning, and metadata
    */
   async analyzeSymbol(
     symbol: string,
@@ -419,7 +650,32 @@ export class AIAnalyzer {
 
   /**
    * Link an AI decision to an executed trade
-   * Used for tracking which AI decisions resulted in actual trades
+   *
+   * Creates a linkage between an AI decision and the trade that resulted from it.
+   * This enables tracking of which AI recommendations were actually executed.
+   *
+   * @param symbol - Symbol that was traded
+   * @param strategyId - Optional strategy ID to match decision
+   * @param tradeId - ID of the executed trade to link
+   *
+   * @returns Promise that resolves when link is created
+   *
+   * @example
+   * ```typescript
+   * // After executing a trade based on AI decision
+   * const tradeResult = await orderExecutor.executeAlpacaTrade({ ... });
+   * if (tradeResult.success && tradeResult.trade) {
+   *   await aiAnalyzer.linkAiDecisionToTrade(
+   *     "AAPL",
+   *     "strategy-123",
+   *     tradeResult.trade.id
+   *   );
+   * }
+   * ```
+   *
+   * @note Only links to the most recent AI decision for the symbol/strategy
+   * @note Skips if decision already has an associated trade
+   * @note Errors are logged but don't throw
    */
   async linkAiDecisionToTrade(symbol: string, strategyId: string | undefined, tradeId: string): Promise<void> {
     try {

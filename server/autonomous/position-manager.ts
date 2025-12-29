@@ -1,12 +1,70 @@
 /**
- * Position Manager
+ * @file Position Manager
  *
- * Handles all position lifecycle operations:
- * - Opening new positions (buy execution)
- * - Closing positions (sell execution, partial or full)
+ * Comprehensive position lifecycle management for autonomous trading. Handles all
+ * position operations from opening through monitoring to closing, with advanced
+ * risk management features including graduated take-profits and loss protection.
+ *
+ * @module autonomous/position-manager
+ *
+ * @responsibilities
+ * - Opening new positions with exposure validation and sector limits
+ * - Closing positions (partial or full) with loss protection
  * - Reinforcing existing positions (scale-in buying)
- * - Checking position rules (stop-loss, take-profit, trailing stops)
- * - Adjusting position rules (SL/TP modifications)
+ * - Monitoring position rules (stop-loss, take-profit, trailing stops)
+ * - Adjusting position rules dynamically (SL/TP modifications)
+ *
+ * @position-lifecycle
+ * 1. OPENING:
+ *    - Validate portfolio exposure limits
+ *    - Check sector concentration limits
+ *    - Perform pre-trade checks (buying power, market hours, tradability)
+ *    - Submit order through work queue
+ *    - Wait for fill confirmation
+ *    - Record trade in database
+ *    - Register with advanced rebalancing service (4-tier take-profits)
+ *
+ * 2. MONITORING:
+ *    - Check position rules in priority order (stop-loss → emergency stop → graduated TP → trailing stops)
+ *    - Update trailing stops as position becomes profitable
+ *    - Track unrealized P&L
+ *
+ * 3. CLOSING:
+ *    - Loss protection: block closes at loss unless stop-loss/emergency triggered
+ *    - Cancel pending orders first
+ *    - Submit close order (full or partial)
+ *    - Record P&L in database
+ *    - Update learning service with trade outcome
+ *
+ * @rule-priorities
+ * Position rules are checked and applied in strict priority order:
+ * 1. Stop-loss (highest priority - immediate exit)
+ * 2. Emergency stop (-8% loss protection)
+ * 3. Graduated take-profits (4-tier: 10%, 20%, 35%, 50% - each closes 25%)
+ * 4. Trailing stop updates
+ * 5. Max holding period (168 hours)
+ * 6. Legacy take-profit fallback
+ *
+ * @example
+ * ```typescript
+ * const positionManager = new PositionManager(state, riskLimits, userId);
+ *
+ * // Open a new position
+ * const result = await positionManager.openPosition('AAPL', {
+ *   action: 'buy',
+ *   confidence: 0.85,
+ *   reasoning: 'Strong momentum',
+ *   riskLevel: 'medium',
+ *   suggestedQuantity: 0.05,
+ *   stopLoss: 150,
+ *   targetPrice: 200
+ * });
+ *
+ * // Check position rules periodically
+ * for (const [symbol, position] of positionManager.activePositions) {
+ *   await positionManager.checkPositionRules(symbol, position);
+ * }
+ * ```
  */
 
 import { alpaca, CreateOrderParams } from "../connectors/alpaca";
@@ -36,16 +94,35 @@ import { isCryptoSymbol, normalizeCryptoSymbol } from "./crypto-utils";
 // ============================================================================
 
 /**
- * PositionManager handles all position lifecycle operations.
+ * PositionManager handles all position lifecycle operations
  *
- * It requires a reference to the orchestrator state to:
- * - Access and modify activePositions Map
- * - Track dailyPnl and dailyTradeCount
- * - Access portfolioValue for exposure calculations
+ * Manages the complete lifecycle of trading positions with comprehensive risk management,
+ * loss protection, and advanced exit strategies. Uses dependency injection pattern to
+ * access orchestrator state while maintaining clear separation of concerns.
  *
- * The manager uses dependency injection for state to allow
- * the orchestrator to maintain control over the state while
- * delegating position operations to this class.
+ * @class
+ *
+ * @architecture
+ * - Uses dependency injection for orchestrator state
+ * - Maintains reference to risk limits
+ * - Tracks user ID for database operations
+ * - Correlates operations with trace IDs for debugging
+ *
+ * @state-management
+ * The manager requires references to:
+ * - activePositions Map: tracks all open positions with rules
+ * - dailyPnl: cumulative daily profit/loss
+ * - dailyTradeCount: number of trades executed today
+ * - portfolioValue: total portfolio value for exposure calculations
+ *
+ * @example
+ * ```typescript
+ * const positionManager = new PositionManager(
+ *   orchestratorState,
+ *   { maxPositionSizePercent: 10, maxTotalExposurePercent: 80 },
+ *   userId
+ * );
+ * ```
  */
 export class PositionManager {
   private state: OrchestratorState;
@@ -112,19 +189,52 @@ export class PositionManager {
   /**
    * Open a new position based on an AI decision
    *
-   * This function:
-   * 1. Validates portfolio exposure limits
-   * 2. Checks sector concentration limits
-   * 3. Validates symbol tradability
-   * 4. Performs pre-trade checks (buying power, market hours)
-   * 5. Submits the order through the work queue
-   * 6. Waits for fill confirmation
-   * 7. Records the trade in the database
-   * 8. Updates position tracking with rules
+   * Complete position opening workflow with comprehensive validation and risk management.
+   * Integrates with sector exposure limits, tradability checks, and advanced rebalancing
+   * service for graduated take-profits.
    *
-   * @param symbol - The symbol to buy
-   * @param decision - AI decision with confidence, reasoning, and suggested parameters
-   * @returns ExecutionResult with success/failure status
+   * @async
+   * @param {string} symbol - The symbol to buy (e.g., 'AAPL', 'BTC')
+   * @param {AIDecision} decision - AI decision with confidence, reasoning, and suggested parameters
+   * @returns {Promise<ExecutionResult>} Execution result with success/failure status
+   *
+   * @throws {Error} If userId not initialized
+   *
+   * @validation-steps
+   * 1. Get current portfolio value from broker
+   * 2. Calculate position size (min of suggested or max allowed)
+   * 3. Validate total exposure doesn't exceed limit (default 80%)
+   * 4. Check sector concentration limits (prevent overexposure to single sector)
+   * 5. Validate symbol tradability (approved universe, fractionable, etc.)
+   * 6. Perform pre-trade checks (buying power, market hours, order type)
+   *
+   * @order-execution
+   * - Extended hours: Use limit orders with estimated quantity
+   * - Bracket orders: Disabled temporarily due to work-queue format issues
+   * - Standard orders: Market orders with notional value (fractional shares)
+   *
+   * @post-execution
+   * - Records trade in database with AI decision linkage
+   * - Updates daily trade count
+   * - Registers position with advanced rebalancing (4-tier take-profits)
+   * - Tracks trade outcome for AI learning
+   *
+   * @example
+   * ```typescript
+   * const result = await positionManager.openPosition('AAPL', {
+   *   action: 'buy',
+   *   confidence: 0.85,
+   *   reasoning: 'Strong momentum after earnings',
+   *   riskLevel: 'medium',
+   *   suggestedQuantity: 0.05, // 5% of portfolio
+   *   stopLoss: 150,
+   *   targetPrice: 200
+   * });
+   *
+   * if (result.success) {
+   *   console.log(`Opened ${result.quantity} shares at $${result.price}`);
+   * }
+   * ```
    */
   async openPosition(
     symbol: string,
@@ -428,20 +538,53 @@ export class PositionManager {
   /**
    * Close a position (fully or partially)
    *
-   * This function:
-   * 1. Checks if closing at a loss is permitted (stop-loss or emergency)
-   * 2. Cancels any pending orders for the symbol
-   * 3. Submits the close order
-   * 4. Waits for fill confirmation
-   * 5. Records the trade and PnL
-   * 6. Updates position tracking
+   * Complete position closing workflow with loss protection and P&L tracking.
+   * Implements critical loss protection logic to prevent premature exits at a loss
+   * unless stop-loss or emergency stop conditions are met.
    *
-   * @param symbol - The symbol to sell
-   * @param decision - AI decision with reasoning
-   * @param position - Current position data
-   * @param partialPercent - Percentage to close (default: 100)
-   * @param options - Additional options (isStopLossTriggered, isEmergencyStop)
-   * @returns ExecutionResult with success/failure status
+   * @async
+   * @param {string} symbol - The symbol to sell
+   * @param {AIDecision} decision - AI decision with reasoning for the close
+   * @param {PositionWithRules} position - Current position data with rules
+   * @param {number} partialPercent - Percentage to close (default: 100 for full close)
+   * @param {object} options - Additional control options
+   * @param {boolean} options.isStopLossTriggered - Override loss protection (stop-loss hit)
+   * @param {boolean} options.isEmergencyStop - Override loss protection (emergency -8% stop)
+   * @returns {Promise<ExecutionResult>} Execution result with success/failure status
+   *
+   * @throws {Error} If userId not initialized
+   *
+   * @loss-protection
+   * CRITICAL: Blocks closing positions at a loss UNLESS:
+   * - isStopLossTriggered: true (stop-loss price hit)
+   * - isEmergencyStop: true (emergency -8% stop triggered)
+   *
+   * This prevents the AI from closing positions during temporary dips,
+   * forcing it to hold until stop-loss triggers or price recovers.
+   *
+   * @execution-steps
+   * 1. Check loss protection (block close if at loss without override)
+   * 2. Cancel any pending orders for the symbol
+   * 3. Submit close order (full or partial)
+   * 4. Wait for fill confirmation
+   * 5. Calculate and record P&L
+   * 6. Update learning service with trade outcome
+   * 7. Update position tracking or remove if fully closed
+   * 8. Clean up advanced rebalancing rules if fully closed
+   *
+   * @example
+   * ```typescript
+   * // Close at profit (allowed)
+   * await positionManager.closePosition('AAPL', decision, position, 100);
+   *
+   * // Partial close (25%)
+   * await positionManager.closePosition('AAPL', decision, position, 25);
+   *
+   * // Close at loss (blocked unless stop-loss triggered)
+   * await positionManager.closePosition('AAPL', decision, position, 100, {
+   *   isStopLossTriggered: true
+   * });
+   * ```
    */
   async closePosition(
     symbol: string,
@@ -644,13 +787,31 @@ export class PositionManager {
   /**
    * Reinforce an existing position by adding to it
    *
-   * This scales down the buy size to 50% of the suggested quantity
-   * to manage risk when adding to an existing position.
+   * Scale-in buying strategy that adds to winning positions. Automatically
+   * reduces position size to 50% of suggested quantity to manage risk when
+   * pyramiding into existing positions.
    *
-   * @param symbol - The symbol to reinforce
-   * @param decision - AI decision with reasoning
-   * @param existingPosition - Current position data
-   * @returns ExecutionResult with success/failure status
+   * @async
+   * @param {string} symbol - The symbol to reinforce
+   * @param {AIDecision} decision - AI decision with reasoning for reinforcement
+   * @param {PositionWithRules} existingPosition - Current position data (unused but kept for future enhancements)
+   * @returns {Promise<ExecutionResult>} Execution result with success/failure status
+   *
+   * @risk-management
+   * Automatically scales down buy size to 50% of suggested quantity to prevent
+   * overexposure when adding to existing positions. This is a conservative approach
+   * to pyramiding that limits downside if the position reverses.
+   *
+   * @example
+   * ```typescript
+   * const result = await positionManager.reinforcePosition('AAPL', {
+   *   action: 'buy',
+   *   confidence: 0.9,
+   *   reasoning: 'Breakout confirmed, add to position',
+   *   riskLevel: 'medium',
+   *   suggestedQuantity: 0.04 // Will be scaled to 0.02 (50%)
+   * }, existingPosition);
+   * ```
    */
   async reinforcePosition(
     symbol: string,
@@ -674,16 +835,56 @@ export class PositionManager {
   /**
    * Check and apply position rules (stop-loss, take-profit, trailing stops)
    *
-   * This function checks in priority order:
-   * 1. Stop-loss trigger
-   * 2. Emergency stop (high loss protection at -8%)
-   * 3. Graduated take-profits (4-tier system)
-   * 4. Trailing stop updates
-   * 5. Max holding period check
-   * 6. Legacy take-profit fallback
+   * Comprehensive position rule checking system that evaluates all configured rules
+   * in strict priority order. This is the core monitoring logic that runs periodically
+   * to manage risk and lock in profits.
    *
-   * @param symbol - The symbol to check
-   * @param position - Current position data
+   * @async
+   * @param {string} symbol - The symbol to check
+   * @param {PositionWithRules} position - Current position data with rules
+   * @returns {Promise<void>}
+   *
+   * @rule-priority-order
+   * Rules are checked in strict priority (highest to lowest):
+   *
+   * 1. STOP-LOSS (Highest Priority)
+   *    - Triggers: currentPrice <= stopLossPrice
+   *    - Action: Immediate 100% close with isStopLossTriggered flag
+   *    - Purpose: Cut losses at predetermined level
+   *
+   * 2. EMERGENCY STOP
+   *    - Triggers: unrealizedPnlPercent <= -8%
+   *    - Action: Immediate 100% close with isEmergencyStop flag
+   *    - Purpose: Hard stop to prevent catastrophic losses
+   *
+   * 3. GRADUATED TAKE-PROFITS (4-Tier System)
+   *    - Tier 1: 10% profit → close 25%
+   *    - Tier 2: 20% profit → close 25%
+   *    - Tier 3: 35% profit → close 25%
+   *    - Tier 4: 50% profit → close 25%
+   *    - Purpose: Lock in profits progressively as position becomes more profitable
+   *
+   * 4. TRAILING STOP UPDATES
+   *    - Dynamically adjusts stop-loss as position becomes profitable
+   *    - Purpose: Protect profits while allowing position to run
+   *
+   * 5. MAX HOLDING PERIOD
+   *    - Triggers: holding time > 168 hours (7 days)
+   *    - Action: Close 100%
+   *    - Purpose: Prevent stale positions, force capital rotation
+   *
+   * 6. LEGACY TAKE-PROFIT FALLBACK
+   *    - Triggers: currentPrice >= takeProfitPrice
+   *    - Action: Partial close (50%) if 10-15% profit, full close if >15%
+   *    - Purpose: Backup exit logic if graduated system not registered
+   *
+   * @example
+   * ```typescript
+   * // Check rules for all positions
+   * for (const [symbol, position] of positionManager.activePositions) {
+   *   await positionManager.checkPositionRules(symbol, position);
+   * }
+   * ```
    */
   async checkPositionRules(
     symbol: string,

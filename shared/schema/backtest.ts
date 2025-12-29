@@ -1,3 +1,11 @@
+/**
+ * @module schema/backtest
+ * @description Backtesting system schema for historical strategy simulation.
+ * Enables testing trading strategies against historical market data to evaluate
+ * performance metrics before live deployment. Includes support for realistic
+ * fees, slippage, and execution modeling.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, numeric, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -8,9 +16,25 @@ import { strategies } from "./trading";
 // BACKTEST ENUMS
 // ============================================================================
 
+/**
+ * Lifecycle status of a backtest run.
+ *
+ * @enum {string}
+ * @property {string} QUEUED - Backtest is queued for execution
+ * @property {string} RUNNING - Backtest is currently executing
+ * @property {string} DONE - Backtest completed successfully
+ * @property {string} FAILED - Backtest failed due to error
+ */
 export const backtestStatuses = ['QUEUED', 'RUNNING', 'DONE', 'FAILED'] as const;
 export type BacktestStatusType = typeof backtestStatuses[number];
 
+/**
+ * Rules for determining trade execution prices in backtests.
+ *
+ * @enum {string}
+ * @property {string} NEXT_OPEN - Execute at next bar's open price (realistic)
+ * @property {string} NEXT_CLOSE - Execute at next bar's close price (optimistic)
+ */
 export const executionPriceRules = ['NEXT_OPEN', 'NEXT_CLOSE'] as const;
 export type ExecutionPriceRuleType = typeof executionPriceRules[number];
 
@@ -18,6 +42,17 @@ export type ExecutionPriceRuleType = typeof executionPriceRules[number];
 // BACKTEST TABLES
 // ============================================================================
 
+/**
+ * Backtest run configurations and results.
+ * Stores complete backtest setup and performance summary.
+ *
+ * @table backtest_runs
+ * @description Records backtest executions including strategy configuration,
+ * universe, timeframe, cost models, and summary results. Supports provenance
+ * tracking to link results back to strategy versions.
+ *
+ * @relation strategies - The strategy being backtested (set null on delete)
+ */
 export const backtestRuns = pgTable("backtest_runs", {
   id: varchar("id")
     .primaryKey()
@@ -48,6 +83,17 @@ export const backtestRuns = pgTable("backtest_runs", {
   index("backtest_runs_created_at_idx").on(table.createdAt),
 ]);
 
+/**
+ * Individual trade events that occurred during backtests.
+ * Records each simulated trade with full details.
+ *
+ * @table backtest_trade_events
+ * @description Stores every trade executed during a backtest including timing,
+ * symbol, side, quantity, price, fees, slippage, and resulting position/cash.
+ * Essential for analyzing trade-by-trade behavior and strategy mechanics.
+ *
+ * @relation backtestRuns - Parent backtest run (cascade delete)
+ */
 export const backtestTradeEvents = pgTable("backtest_trade_events", {
   id: varchar("id")
     .primaryKey()
@@ -70,6 +116,17 @@ export const backtestTradeEvents = pgTable("backtest_trade_events", {
   index("backtest_trade_events_symbol_idx").on(table.symbol),
 ]);
 
+/**
+ * Time-series equity curve data for backtests.
+ * Tracks portfolio value over time during the backtest period.
+ *
+ * @table backtest_equity_curve
+ * @description Stores periodic snapshots of portfolio equity, cash, and exposure
+ * throughout a backtest run. Used to calculate drawdowns, visualize performance,
+ * and analyze portfolio dynamics.
+ *
+ * @relation backtestRuns - Parent backtest run (cascade delete)
+ */
 export const backtestEquityCurve = pgTable("backtest_equity_curve", {
   id: varchar("id")
     .primaryKey()

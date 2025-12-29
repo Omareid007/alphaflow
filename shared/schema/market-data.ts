@@ -1,8 +1,25 @@
+/**
+ * @module schema/market-data
+ * @description Market data caching and usage tracking schema.
+ * Provides caching layers for macroeconomic indicators, external API responses,
+ * and usage counters. Optimizes API quota management and reduces latency.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, varchar, text, timestamp, numeric, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+/**
+ * Cached macroeconomic indicators.
+ * Stores latest values for economic data points.
+ *
+ * @table macro_indicators
+ * @description Caches macroeconomic indicator data from sources like FRED
+ * (Federal Reserve Economic Data). Stores current and previous values with
+ * change percentages for trend analysis. Indexed by indicator ID and category
+ * for efficient lookups.
+ */
 export const macroIndicators = pgTable("macro_indicators", {
   id: varchar("id")
     .primaryKey()
@@ -22,6 +39,15 @@ export const macroIndicators = pgTable("macro_indicators", {
   index("macro_indicators_indicator_id_idx").on(table.indicatorId),
 ]);
 
+/**
+ * Generic cache for external API responses.
+ * Implements stale-while-revalidate caching strategy.
+ *
+ * @table external_api_cache_entries
+ * @description Stores cached responses from external APIs (market data, news, etc.)
+ * with expiration and stale-until timestamps. Supports stale-while-revalidate pattern
+ * for improved responsiveness. Tracks hit counts and last access for cache analytics.
+ */
 export const externalApiCacheEntries = pgTable("external_api_cache_entries", {
   id: varchar("id")
     .primaryKey()
@@ -37,6 +63,15 @@ export const externalApiCacheEntries = pgTable("external_api_cache_entries", {
   lastAccessedAt: timestamp("last_accessed_at").defaultNow().notNull(),
 });
 
+/**
+ * Aggregated usage metrics for external API calls.
+ * Tracks request volumes, latency, and quota consumption.
+ *
+ * @table external_api_usage_counters
+ * @description Stores windowed usage statistics for external API providers including
+ * request counts, token usage, error rates, rate limit hits, cache performance,
+ * and latency metrics. Used for quota management and cost optimization.
+ */
 export const externalApiUsageCounters = pgTable("external_api_usage_counters", {
   id: varchar("id")
     .primaryKey()
@@ -56,6 +91,15 @@ export const externalApiUsageCounters = pgTable("external_api_usage_counters", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Valyu API retrieval quota tracking.
+ * Monitors usage of Valyu financial data retrieval limits.
+ *
+ * @table valyu_retrieval_counters
+ * @description Tracks monthly retrieval quotas for Valyu API by source tier.
+ * Prevents exceeding API limits and enables usage monitoring. Organized by
+ * month and tier for granular quota management.
+ */
 export const valyuRetrievalCounters = pgTable("valyu_retrieval_counters", {
   id: varchar("id")
     .primaryKey()

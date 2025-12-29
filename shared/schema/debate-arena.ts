@@ -1,3 +1,11 @@
+/**
+ * @module schema/debate-arena
+ * @description Multi-agent debate system for collaborative trading decisions.
+ * Implements a debate framework where AI agents with different perspectives
+ * (bull, bear, risk manager, etc.) analyze markets and reach consensus on
+ * trading actions. Tracks full conversation history and links decisions to outcomes.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, numeric, boolean, integer, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -11,17 +19,91 @@ import { aiDecisions } from "./ai-decisions";
 // ENUMS
 // ============================================================================
 
+/**
+ * Roles agents can assume in debate sessions.
+ *
+ * @typedef {string} DebateRole
+ * @property {string} bull - Optimistic agent advocating for long positions
+ * @property {string} bear - Pessimistic agent advocating for short positions or caution
+ * @property {string} risk_manager - Focuses on risk assessment and position sizing
+ * @property {string} technical_analyst - Analyzes charts and technical indicators
+ * @property {string} fundamental_analyst - Analyzes company fundamentals and valuations
+ * @property {string} judge - Synthesizes perspectives and makes final decisions
+ */
 export type DebateRole = "bull" | "bear" | "risk_manager" | "technical_analyst" | "fundamental_analyst" | "judge";
+
+/**
+ * Lifecycle status of a debate session.
+ *
+ * @typedef {string} DebateSessionStatus
+ * @property {string} pending - Debate scheduled but not started
+ * @property {string} running - Debate in progress
+ * @property {string} completed - Debate finished successfully
+ * @property {string} failed - Debate failed with error
+ * @property {string} cancelled - Debate was cancelled
+ */
 export type DebateSessionStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+/**
+ * LLM provider for agent execution.
+ *
+ * @typedef {string} AgentProvider
+ * @property {string} openai - OpenAI API
+ * @property {string} openrouter - OpenRouter API
+ * @property {string} groq - Groq API
+ * @property {string} together - Together AI API
+ */
 export type AgentProvider = "openai" | "openrouter" | "groq" | "together";
+
+/**
+ * Cost optimization mode for agent execution.
+ *
+ * @typedef {string} AgentMode
+ * @property {string} cheap_first - Try cheaper models first, escalate if needed
+ * @property {string} escalation_only - Only use in escalation scenarios
+ * @property {string} always - Always use this agent configuration
+ */
 export type AgentMode = "cheap_first" | "escalation_only" | "always";
+
+/**
+ * Operational status of an agent profile.
+ *
+ * @typedef {string} AgentProfileStatus
+ * @property {string} active - Agent is active and available for use
+ * @property {string} disabled - Agent is disabled and won't be used
+ * @property {string} testing - Agent is in testing mode
+ */
 export type AgentProfileStatus = "active" | "disabled" | "testing";
+
+/**
+ * Status of linking a decision to its execution outcome.
+ *
+ * @typedef {string} OutcomeLinkStatus
+ * @property {string} pending - Order not yet submitted
+ * @property {string} submitted - Order submitted to broker
+ * @property {string} filled - Order completely filled
+ * @property {string} partial - Order partially filled
+ * @property {string} cancelled - Order cancelled
+ * @property {string} rejected - Order rejected by broker
+ * @property {string} expired - Order expired
+ */
 export type OutcomeLinkStatus = "pending" | "submitted" | "filled" | "partial" | "cancelled" | "rejected" | "expired";
 
 // ============================================================================
 // AI DEBATE ARENA
 // ============================================================================
 
+/**
+ * Debate sessions coordinating multi-agent market analysis.
+ * Orchestrates conversations between agents with different perspectives.
+ *
+ * @table debate_sessions
+ * @description Tracks debate sessions where multiple AI agents discuss market
+ * opportunities and risks. Records configuration, market context, timing, and costs.
+ * Serves as the parent container for debate messages and consensus decisions.
+ *
+ * @relation strategyVersions - Associated strategy version (database-level FK only)
+ */
 export const debateSessions = pgTable("debate_sessions", {
   id: varchar("id")
     .primaryKey()
@@ -44,6 +126,17 @@ export const debateSessions = pgTable("debate_sessions", {
   index("debate_sessions_created_at_idx").on(table.createdAt),
 ]);
 
+/**
+ * Individual messages from agents during debate sessions.
+ * Captures each agent's perspective, analysis, and recommendations.
+ *
+ * @table debate_messages
+ * @description Stores each agent's contribution to a debate including their role,
+ * stance, confidence, key signals, risks, proposed actions, and evidence references.
+ * Tracks LLM usage metrics for cost and performance monitoring.
+ *
+ * @relation debateSessions - Parent debate session (cascade delete)
+ */
 export const debateMessages = pgTable("debate_messages", {
   id: varchar("id")
     .primaryKey()
@@ -70,6 +163,19 @@ export const debateMessages = pgTable("debate_messages", {
   index("debate_messages_role_idx").on(table.role),
 ]);
 
+/**
+ * Final consensus decision from a debate session.
+ * Synthesizes agent perspectives into an actionable trading decision.
+ *
+ * @table debate_consensus
+ * @description One-to-one with debate sessions. Records the final decision,
+ * order intent, reasoning summary, risk checks, confidence level, and any
+ * dissenting opinions. Links to work items for execution tracking.
+ *
+ * @relation debateSessions - Parent debate session (cascade delete, unique)
+ * @relation workItems - Associated work item for execution (database-level FK only)
+ * Note: workItemId foreign key defined at database level to avoid circular dependency
+ */
 export const debateConsensus = pgTable("debate_consensus", {
   id: varchar("id")
     .primaryKey()
@@ -94,6 +200,15 @@ export const debateConsensus = pgTable("debate_consensus", {
 // AI AGENT PROFILES (Cost-aware Arena)
 // ============================================================================
 
+/**
+ * Reusable agent profile configurations.
+ * Defines agent personalities, capabilities, and cost constraints.
+ *
+ * @table ai_agent_profiles
+ * @description Stores agent configuration profiles including provider, model,
+ * role, execution mode, prompt templates, tool policies, and budget limits.
+ * Tracks usage statistics and performance metrics for each profile.
+ */
 export const aiAgentProfiles = pgTable("ai_agent_profiles", {
   id: varchar("id")
     .primaryKey()
@@ -129,6 +244,21 @@ export const aiAgentProfiles = pgTable("ai_agent_profiles", {
 // AI OUTCOME LINKS (Decision → Order → Fill)
 // ============================================================================
 
+/**
+ * Links AI decisions to their execution outcomes.
+ * Tracks the full lifecycle from decision through order execution to PnL.
+ *
+ * @table ai_outcome_links
+ * @description Creates an audit trail connecting consensus decisions and debate
+ * sessions to work items, broker orders, fills, and realized PnL. Essential for
+ * measuring AI decision quality and calculating true ROI including LLM costs.
+ *
+ * @relation debateConsensus - Source consensus decision (set null on delete)
+ * @relation debateSessions - Source debate session (set null on delete)
+ * @relation aiDecisions - Associated AI decision (set null on delete)
+ * @relation workItems - Execution work item (database-level FK only)
+ * Note: workItemId foreign key defined at database level to avoid circular dependency
+ */
 export const aiOutcomeLinks = pgTable("ai_outcome_links", {
   id: varchar("id")
     .primaryKey()

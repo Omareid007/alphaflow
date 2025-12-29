@@ -7,16 +7,64 @@ import { generateTraceId } from "../ai/llmGateway";
 import type { AIDecision } from "../ai/decision-engine";
 
 /**
- * StrategyRunner: Manages strategy execution lifecycle
+ * @file Strategy Runner Module
+ * @description Manages strategy execution lifecycle including starting, stopping, and tracking strategy runs.
+ * Handles both interval-based strategy execution and background AI suggestion generation.
  *
- * Responsibilities:
- * - Starting/stopping strategies
- * - Running strategies on intervals
- * - Tracking strategy state
- * - Background AI suggestion generation
+ * @module server/trading/strategy-runner
+ */
+
+/**
+ * StrategyRunner - Manages strategy execution lifecycle
  *
- * Note: This class coordinates strategy execution but delegates actual
- * analysis/trading to a callback (dependency injection pattern).
+ * Coordinates strategy execution using dependency injection pattern. This class
+ * manages timing, intervals, and state tracking but delegates actual trading
+ * decisions to provided callbacks.
+ *
+ * @class StrategyRunner
+ *
+ * @example Start a strategy with custom analysis callback
+ * ```typescript
+ * const result = await strategyRunner.startStrategy(
+ *   "strategy-123",
+ *   async (symbol, strategyId, traceId) => {
+ *     const decision = await aiAnalyzer.analyzeSymbol(symbol, strategyId, traceId);
+ *     const trade = await orderExecutor.executeAlpacaTrade({ ... });
+ *     return { decision, tradeResult: trade };
+ *   }
+ * );
+ *
+ * if (result.success) {
+ *   console.log("Strategy started successfully");
+ * }
+ * ```
+ *
+ * @example Stop a running strategy
+ * ```typescript
+ * await strategyRunner.stopStrategy("strategy-123");
+ * ```
+ *
+ * @example Get strategy status
+ * ```typescript
+ * const status = strategyRunner.getStatus();
+ * console.log(`Running strategies: ${status.runningStrategies}`);
+ * status.strategyStates.forEach(state => {
+ *   console.log(`${state.strategyId}: ${state.isRunning ? "Running" : "Stopped"}`);
+ * });
+ * ```
+ *
+ * @responsibilities
+ * - Strategy lifecycle management (start/stop)
+ * - Interval-based strategy execution (default: 60 second intervals)
+ * - Strategy state tracking and reporting
+ * - Background AI suggestion generation (default: 120 second intervals)
+ * - Auto-start strategy management
+ * - Orchestrator control integration
+ *
+ * @intervalManagement
+ * - Strategy check interval: 60 seconds (1 minute)
+ * - Background AI generator: 120 seconds (2 minutes)
+ * - Intervals are properly cleaned up on stop to prevent memory leaks
  */
 export class StrategyRunner {
   private strategyRunners: Map<string, ReturnType<typeof setInterval>> = new Map();
@@ -27,7 +75,12 @@ export class StrategyRunner {
   private autoStartStrategyId: string | null = null;
 
   /**
-   * Set the auto-start strategy ID (typically the Auto-Pilot Strategy)
+   * Set the auto-start strategy ID
+   *
+   * Configures which strategy should automatically start when the agent resumes.
+   * Typically this is the Auto-Pilot Strategy for autonomous trading.
+   *
+   * @param strategyId - ID of the strategy to auto-start
    */
   setAutoStartStrategyId(strategyId: string): void {
     this.autoStartStrategyId = strategyId;
@@ -35,6 +88,8 @@ export class StrategyRunner {
 
   /**
    * Get the auto-start strategy ID
+   *
+   * @returns The strategy ID that will auto-start, or null if not configured
    */
   getAutoStartStrategyId(): string | null {
     return this.autoStartStrategyId;
@@ -43,9 +98,56 @@ export class StrategyRunner {
   /**
    * Start a strategy - analyzes assets on an interval
    *
+   * Starts a strategy that will analyze and trade its configured assets on a regular interval.
+   * The strategy runs immediately once, then on the configured interval (default 60 seconds).
+   *
    * @param strategyId - ID of the strategy to start
    * @param analyzeAndExecuteCallback - Callback to analyze and execute trades for a symbol
-   * @returns Success result with optional error
+   *   - Called for each asset in the strategy
+   *   - Receives: symbol, strategyId, traceId
+   *   - Returns: { decision: AIDecision, tradeResult?: any }
+   *
+   * @returns Promise resolving to success result with optional error
+   *
+   * @example
+   * ```typescript
+   * const result = await strategyRunner.startStrategy(
+   *   "strategy-123",
+   *   async (symbol, strategyId, traceId) => {
+   *     // Analyze the symbol with AI
+   *     const analysis = await aiAnalyzer.analyzeSymbol(symbol, strategyId, traceId);
+   *
+   *     // Execute trade if AI recommends it
+   *     if (analysis.decision.action === "buy") {
+   *       const trade = await orderExecutor.executeAlpacaTrade({ ... });
+   *       return { decision: analysis.decision, tradeResult: trade };
+   *     }
+   *
+   *     return { decision: analysis.decision };
+   *   }
+   * );
+   *
+   * if (!result.success) {
+   *   console.error("Failed to start strategy:", result.error);
+   * }
+   * ```
+   *
+   * @validationChecks Performs several validation checks before starting:
+   * 1. Strategy exists in database
+   * 2. Strategy has at least one asset configured
+   * 3. Kill switch is not active
+   * 4. Strategy is not already running
+   * 5. Orchestrator control is not enabled (would block autonomous execution)
+   *
+   * @strategyLifecycle Strategy lifecycle:
+   * 1. Validates strategy and system state
+   * 2. Marks strategy as active in database
+   * 3. Runs analysis immediately for all assets
+   * 4. Sets up interval for subsequent runs (every 60 seconds)
+   * 5. Updates strategy state map with results
+   * 6. Emits "strategy:started" event
+   *
+   * @note Strategy will auto-stop if kill switch is activated or strategy is deactivated
    */
   async startStrategy(
     strategyId: string,
@@ -149,8 +251,21 @@ export class StrategyRunner {
   /**
    * Stop a running strategy
    *
+   * Stops a running strategy by clearing its interval timer and marking it inactive.
+   * Updates agent running status if this was the last active strategy.
+   *
    * @param strategyId - ID of the strategy to stop
-   * @returns Success result with optional error
+   *
+   * @returns Promise resolving to success result with optional error
+   *
+   * @example
+   * ```typescript
+   * await strategyRunner.stopStrategy("strategy-123");
+   * console.log("Strategy stopped");
+   * ```
+   *
+   * @note If no other strategies are running, sets agent isRunning to false
+   * @note Emits "strategy:stopped" event
    */
   async stopStrategy(strategyId: string): Promise<{ success: boolean; error?: string }> {
     const interval = this.strategyRunners.get(strategyId);
@@ -181,6 +296,19 @@ export class StrategyRunner {
 
   /**
    * Stop all running strategies
+   *
+   * Stops all currently running strategies and the background AI generator.
+   * Sets agent running status to false.
+   *
+   * @returns Promise that resolves when all strategies are stopped
+   *
+   * @example
+   * ```typescript
+   * await strategyRunner.stopAllStrategies();
+   * console.log("All strategies stopped");
+   * ```
+   *
+   * @note Also stops the background AI suggestion generator
    */
   async stopAllStrategies(): Promise<void> {
     for (const [strategyId] of this.strategyRunners) {
@@ -191,10 +319,26 @@ export class StrategyRunner {
   }
 
   /**
-   * Resume the trading agent - restarts background generator and auto-start strategy
+   * Resume the trading agent
+   *
+   * Restarts the background AI generator and attempts to start the auto-start strategy
+   * if Alpaca connection is available.
    *
    * @param isAlpacaConnectedCallback - Callback to check if Alpaca is connected
    * @param backgroundGeneratorCallback - Callback for background AI generation
+   *
+   * @returns Promise that resolves when agent is resumed
+   *
+   * @example
+   * ```typescript
+   * await strategyRunner.resumeAgent(
+   *   async () => alpaca.isConnected(),
+   *   async () => aiAnalyzer.generateBackgroundSuggestions()
+   * );
+   * ```
+   *
+   * @note Sets agent isRunning status to true
+   * @note Only starts auto-start strategy if Alpaca is connected
    */
   async resumeAgent(
     isAlpacaConnectedCallback: () => Promise<boolean>,
@@ -220,8 +364,24 @@ export class StrategyRunner {
   /**
    * Get the state of a specific strategy
    *
+   * Returns the current run state for a strategy including last check time,
+   * last decision, and any errors.
+   *
    * @param strategyId - ID of the strategy
+   *
    * @returns Strategy state or undefined if not found
+   *
+   * @example
+   * ```typescript
+   * const state = strategyRunner.getStrategyState("strategy-123");
+   * if (state) {
+   *   console.log(`Running: ${state.isRunning}`);
+   *   console.log(`Last check: ${state.lastCheck}`);
+   *   if (state.error) {
+   *     console.error(`Error: ${state.error}`);
+   *   }
+   * }
+   * ```
    */
   getStrategyState(strategyId: string): StrategyRunState | undefined {
     return this.strategyStates.get(strategyId);
@@ -230,7 +390,17 @@ export class StrategyRunner {
   /**
    * Get all strategy states
    *
+   * Returns an array of all tracked strategy states, both running and stopped.
+   *
    * @returns Array of all strategy states
+   *
+   * @example
+   * ```typescript
+   * const states = strategyRunner.getAllStrategyStates();
+   * states.forEach(state => {
+   *   console.log(`${state.strategyId}: ${state.isRunning ? "Running" : "Stopped"}`);
+   * });
+   * ```
    */
   getAllStrategyStates(): StrategyRunState[] {
     return Array.from(this.strategyStates.values());
@@ -239,7 +409,13 @@ export class StrategyRunner {
   /**
    * Get count of currently running strategies
    *
-   * @returns Number of running strategies
+   * @returns Number of strategies with active interval timers
+   *
+   * @example
+   * ```typescript
+   * const count = strategyRunner.getRunningStrategiesCount();
+   * console.log(`${count} strategies currently running`);
+   * ```
    */
   getRunningStrategiesCount(): number {
     return this.strategyRunners.size;
@@ -248,7 +424,17 @@ export class StrategyRunner {
   /**
    * Get overall status of the strategy runner
    *
-   * @returns Status object with running strategies and states
+   * Provides a complete status report including count of running strategies
+   * and detailed state for each tracked strategy.
+   *
+   * @returns Status object with running strategies count and all strategy states
+   *
+   * @example
+   * ```typescript
+   * const status = strategyRunner.getStatus();
+   * console.log(`Running: ${status.runningStrategies}`);
+   * console.log(`Total tracked: ${status.strategyStates.length}`);
+   * ```
    */
   getStatus(): {
     runningStrategies: number;
@@ -264,7 +450,23 @@ export class StrategyRunner {
   /**
    * Start the background AI suggestion generator
    *
+   * Starts a background process that generates AI trading suggestions on a regular interval.
+   * Runs immediately once, then every 120 seconds (2 minutes).
+   *
    * @param backgroundGeneratorCallback - Callback for generating background AI suggestions
+   *   - Called immediately and then on interval
+   *   - Should not throw - errors are logged but don't stop the generator
+   *
+   * @example
+   * ```typescript
+   * strategyRunner.startBackgroundAIGenerator(async () => {
+   *   const suggestions = await aiAnalyzer.generateSuggestions();
+   *   await storage.saveSuggestions(suggestions);
+   * });
+   * ```
+   *
+   * @note Clears any existing background generator before starting new one
+   * @note Errors in callback are caught and logged, don't stop the generator
    */
   startBackgroundAIGenerator(backgroundGeneratorCallback: () => Promise<void>): void {
     if (this.backgroundGeneratorInterval) {
@@ -291,6 +493,15 @@ export class StrategyRunner {
 
   /**
    * Stop the background AI suggestion generator
+   *
+   * Stops the background AI generator by clearing its interval timer.
+   *
+   * @example
+   * ```typescript
+   * strategyRunner.stopBackgroundGenerator();
+   * ```
+   *
+   * @note Safe to call even if generator is not running
    */
   stopBackgroundGenerator(): void {
     if (this.backgroundGeneratorInterval) {

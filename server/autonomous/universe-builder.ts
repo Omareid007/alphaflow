@@ -1,13 +1,56 @@
 /**
- * Universe Builder - Dynamic Analysis Universe Construction
+ * @file Universe Builder - Dynamic Analysis Universe Construction
  *
- * Builds the analysis universe by merging multiple sources:
- * - Base watchlist stocks/crypto from database
- * - APPROVED candidates from candidatesService
- * - Symbols from recent high-confidence AI decisions
- * - Symbols from recently executed trades (with boost priority)
+ * Intelligent universe construction system that dynamically builds the analysis
+ * universe by merging multiple data sources and implementing rotation for large
+ * universes. Ensures the most relevant symbols are analyzed each cycle.
  *
- * Implements rotation to handle universes larger than per-cycle limits.
+ * @module autonomous/universe-builder
+ *
+ * @universe-sources
+ * The universe is built by merging four sources (in priority order):
+ *
+ * 1. BASE WATCHLIST
+ *    - Stocks and crypto from database (watchlist table)
+ *    - Cached for performance (1-hour TTL)
+ *    - Foundation symbols always included
+ *
+ * 2. APPROVED CANDIDATES
+ *    - Symbols from candidatesService with "approved" status
+ *    - Pass fundamental and technical screening
+ *    - Higher quality than watchlist alone
+ *
+ * 3. HIGH-CONFIDENCE AI DECISIONS
+ *    - Symbols from recent AI decisions (last 500)
+ *    - Filtered: confidence >= 0.75 AND action != "hold"
+ *    - Ensures recently analyzed symbols stay in universe
+ *
+ * 4. EXECUTED TRADES (Boost Priority)
+ *    - Symbols with actual executed trades
+ *    - Always included regardless of other criteria
+ *    - Ensures active positions remain in analysis universe
+ *
+ * @universe-rotation
+ * When universe exceeds per-cycle limits (default: 50 stocks, 10 crypto):
+ * - Implements hourly rotation through full symbol pool
+ * - Ensures all symbols get analyzed over time
+ * - Prevents bias toward alphabetically early symbols
+ * - Rotation offset advances by half the limit each hour
+ *
+ * @example
+ * ```typescript
+ * const universe = await getAnalysisUniverseSymbols();
+ * console.log(`Analyzing ${universe.stocks.length} stocks, ${universe.crypto.length} crypto`);
+ * console.log('Sources:', universe.sources);
+ * // Sources: { watchlist: 30, candidates: 45, recentDecisions: 12, executedTrades: 5 }
+ *
+ * // Reset rotation for testing
+ * resetUniverseRotation();
+ *
+ * // Check rotation state
+ * const state = getRotationState();
+ * console.log(`Stock offset: ${state.stockRotationOffset}`);
+ * ```
  */
 
 import { storage } from "../storage";
@@ -48,11 +91,38 @@ const universeRotationState: UniverseRotationState = {
 };
 
 /**
- * Get the dynamic analysis universe by merging multiple sources:
- * - Base watchlist stocks/crypto
- * - APPROVED candidates from candidatesService
- * - Symbols from recent high-confidence AI decisions
- * - Symbols from recently executed trades (with boost priority)
+ * Get the dynamic analysis universe by merging multiple sources
+ *
+ * Builds a comprehensive yet focused analysis universe by intelligently merging
+ * symbols from watchlist, approved candidates, recent AI decisions, and executed
+ * trades. Implements rotation for large universes.
+ *
+ * @async
+ * @returns {Promise<UniverseSymbols>} Universe with stocks, crypto, and source counts
+ *
+ * @universe-building-process
+ * 1. Load base watchlist (stocks + crypto) from database cache
+ * 2. Add approved candidates from candidatesService
+ * 3. Add symbols from recent high-confidence AI decisions (last 500)
+ * 4. Filter executed trades for boost priority
+ * 5. Apply rotation if universe exceeds limits
+ * 6. Return final universe with source attribution
+ *
+ * @rotation-logic
+ * - Triggers when stocks > 50 OR crypto > 10 (configurable)
+ * - Rotates hourly through full symbol pool
+ * - Offset advances by half the limit each rotation
+ * - Ensures even coverage over time
+ *
+ * @example
+ * ```typescript
+ * const universe = await getAnalysisUniverseSymbols();
+ * // universe = {
+ * //   stocks: ['AAPL', 'MSFT', ...],
+ * //   crypto: ['BTC', 'ETH', ...],
+ * //   sources: { watchlist: 30, candidates: 45, recentDecisions: 12, executedTrades: 5 }
+ * // }
+ * ```
  */
 export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
   const sources = { watchlist: 0, candidates: 0, recentDecisions: 0, executedTrades: 0 };
@@ -141,6 +211,17 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
 
 /**
  * Reset universe rotation state (useful for testing)
+ *
+ * Resets rotation offsets to zero and updates last rotation time to now.
+ * Primarily used in tests to ensure consistent starting state.
+ *
+ * @returns {void}
+ *
+ * @example
+ * ```typescript
+ * resetUniverseRotation();
+ * // Rotation state is now: { stockRotationOffset: 0, cryptoRotationOffset: 0, lastRotationTime: now }
+ * ```
  */
 export function resetUniverseRotation(): void {
   universeRotationState.stockRotationOffset = 0;
@@ -150,6 +231,19 @@ export function resetUniverseRotation(): void {
 
 /**
  * Get current rotation state (for debugging/monitoring)
+ *
+ * Returns a copy of the current rotation state including offsets and last
+ * rotation time. Useful for monitoring and debugging universe rotation.
+ *
+ * @returns {UniverseRotationState} Current rotation state (copy)
+ *
+ * @example
+ * ```typescript
+ * const state = getRotationState();
+ * console.log(`Stock offset: ${state.stockRotationOffset}`);
+ * console.log(`Crypto offset: ${state.cryptoRotationOffset}`);
+ * console.log(`Last rotation: ${state.lastRotationTime}`);
+ * ```
  */
 export function getRotationState(): UniverseRotationState {
   return { ...universeRotationState };

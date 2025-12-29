@@ -1,10 +1,57 @@
 /**
- * Rebalancing Manager
+ * @file Rebalancing Manager
  *
- * Handles portfolio rebalancing with three strategies:
- * 1. Drift Rebalancing - Sell overweight positions, buy underweight at loss/breakeven
- * 2. Buy-the-Dip - Add to underweight positions during significant dips
- * 3. Pyramid-Up - Add to winning positions within profit sweet spot
+ * Advanced portfolio rebalancing system with three complementary strategies designed
+ * to maintain balanced exposure, capitalize on dips, and pyramid into winners. Each
+ * strategy serves a specific purpose in the portfolio management lifecycle.
+ *
+ * @module autonomous/rebalancing-manager
+ *
+ * @strategies
+ *
+ * 1. DRIFT REBALANCING
+ *    Purpose: Maintain target allocation percentages across all positions
+ *    - Sells overweight positions (drift > +2%) back to target
+ *    - Buys underweight positions (drift < -3%) only if at loss/breakeven
+ *    - Uses position.availableQuantity to avoid conflicts with pending orders
+ *    - Implements 5-minute cooldown after failed orders to prevent retry loops
+ *
+ * 2. BUY-THE-DIP
+ *    Purpose: Add to losing positions during temporary dips
+ *    - Triggers: Position drift < -3% AND unrealizedPnlPercent <= 0
+ *    - Requirements: Symbol must be in approved candidates list
+ *    - Limits: Min $50, Max 2% of portfolio per trade
+ *    - Uses buying power (not cash) for margin accounts
+ *    - Reserves 10% of buying power as safety buffer
+ *
+ * 3. PYRAMID-UP
+ *    Purpose: Add to winning positions in the profit sweet spot
+ *    - Triggers: Position profit between 5-20%
+ *    - Add amount: 50% of original position value
+ *    - Requirements: Symbol in approved list, sufficient cash
+ *    - Limits: Max 5% of portfolio per pyramid trade
+ *    - One pyramid per symbol per cycle to prevent overexposure
+ *
+ * @rebalancing-philosophy
+ * The three strategies work together:
+ * - Drift: Maintains discipline and prevents concentration risk
+ * - Buy-the-dip: Averages down on quality positions during dips
+ * - Pyramid-up: Scales into winners while they're in profit zone
+ *
+ * @example
+ * ```typescript
+ * const rebalancingManager = new RebalancingManager(orchestrator, riskLimits);
+ *
+ * // Run all three strategies
+ * await rebalancingManager.rebalancePositions();
+ * // Drift rebalancing executes first, then pyramid-up
+ *
+ * // Check cooldown status
+ * if (rebalancingManager.isOnCooldown('AAPL')) {
+ *   const remaining = rebalancingManager.getCooldownRemaining('AAPL');
+ *   console.log(`AAPL on cooldown for ${remaining / 1000}s`);
+ * }
+ * ```
  */
 
 import { alpaca } from "../connectors/alpaca";
@@ -64,6 +111,26 @@ const PYRAMID_MAX_PORTFOLIO_PERCENT = 0.05; // Max 5% of portfolio per pyramid
 
 /**
  * Manages portfolio rebalancing with drift correction, buy-the-dip, and pyramid-up strategies
+ *
+ * Coordinates three rebalancing strategies that work together to maintain portfolio
+ * balance, capitalize on temporary dips, and scale into winning positions. Implements
+ * cooldown logic to prevent order retry loops.
+ *
+ * @class
+ *
+ * @architecture
+ * - Uses dependency injection for orchestrator reference
+ * - Maintains cooldown map to track failed order attempts
+ * - Accesses orchestrator state for positions and portfolio value
+ * - Coordinates with candidatesService for approved symbol list
+ *
+ * @example
+ * ```typescript
+ * const rebalancingManager = new RebalancingManager(
+ *   orchestrator,
+ *   { maxPositionSizePercent: 10, maxTotalExposurePercent: 80 }
+ * );
+ * ```
  */
 export class RebalancingManager {
   private orchestrator: OrchestratorReference;
@@ -91,6 +158,28 @@ export class RebalancingManager {
 
   /**
    * Main rebalancing method that coordinates all three strategies
+   *
+   * Orchestrates the complete rebalancing workflow, executing drift correction
+   * and pyramid-up strategies. Syncs positions from broker first to ensure accuracy.
+   *
+   * @async
+   * @returns {Promise<void>}
+   *
+   * @throws {Error} Caught and logged if rebalancing fails
+   *
+   * @execution-order
+   * 1. Sync positions from broker (prevents quantity mismatches)
+   * 2. Get account data (portfolio value, buying power, cash)
+   * 3. Update orchestrator state with actual portfolio value
+   * 4. Get approved symbols from candidatesService
+   * 5. Execute drift rebalancing (sell overweight, buy underweight)
+   * 6. Execute pyramid-up (add to winners in 5-20% profit zone)
+   *
+   * @example
+   * ```typescript
+   * await rebalancingManager.rebalancePositions();
+   * // All three strategies have been evaluated and executed
+   * ```
    */
   async rebalancePositions(): Promise<void> {
     try {

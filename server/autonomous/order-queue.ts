@@ -1,11 +1,19 @@
 /**
- * Order Queue Management
+ * @module autonomous/order-queue
+ * @description Order Queue Management
  *
- * Functions for queuing order execution and cancellation through the work queue.
- * This provides:
- * - Idempotency to prevent duplicate orders
- * - Retry logic with exponential backoff
- * - Polling for order completion status
+ * Functions for queuing order execution and cancellation through the work queue system.
+ *
+ * Key features:
+ * - Idempotency keys prevent duplicate order submissions (5-minute time buckets)
+ * - Automatic retry with exponential backoff (up to 3 attempts)
+ * - Polling-based order status monitoring with 60-second timeout
+ * - Validation of cached order results against broker state
+ * - Graceful handling of cancelled/rejected orders
+ *
+ * The idempotency mechanism uses time-bucketed keys to allow same-symbol orders
+ * to be placed in different time windows while preventing duplicates within a
+ * 5-minute window.
  */
 
 import { alpaca, CreateOrderParams } from "../connectors/alpaca";
@@ -17,7 +25,20 @@ import type { QueuedOrderResult } from "./types";
 // CONSTANTS
 // ============================================================================
 
+/**
+ * Interval between polling attempts when waiting for work queue item completion.
+ * @constant
+ * @type {number}
+ * @private
+ */
 const QUEUE_POLL_INTERVAL_MS = 2000;
+
+/**
+ * Maximum time to wait for work queue item completion before timing out.
+ * @constant
+ * @type {number}
+ * @private
+ */
 const QUEUE_POLL_TIMEOUT_MS = 60000;
 
 // ============================================================================
@@ -25,17 +46,46 @@ const QUEUE_POLL_TIMEOUT_MS = 60000;
 // ============================================================================
 
 /**
- * Queue an order for execution through the work queue
+ * Queue an order for execution through the work queue.
  *
- * This function:
- * 1. Creates an idempotency key to prevent duplicate orders
- * 2. Enqueues the order in the work queue
- * 3. Polls for completion or failure
- * 4. Validates order status with Alpaca for cached results
+ * This function provides idempotent order submission with the following workflow:
+ * 1. Creates an idempotency key based on strategy, symbol, side, and 5-minute time bucket
+ * 2. Enqueues the order in the work queue system
+ * 3. Polls for completion with 2-second intervals (up to 60 seconds)
+ * 4. For cached results, validates order status with Alpaca to prevent stale data issues
  *
- * @param params - Order parameters and metadata
- * @returns QueuedOrderResult with order ID, status, and work item ID
- * @throws Error if order submission fails or times out
+ * Idempotency behavior:
+ * - Same symbol/side within 5-minute window returns cached result
+ * - Orders in different 5-minute windows get fresh idempotency keys
+ * - Cached orders with terminal failed states (canceled/rejected/expired) are invalidated
+ *
+ * Side effects:
+ * - Creates work queue item in database
+ * - May invalidate existing work items if orders are canceled/rejected
+ * - Logs order submission progress
+ *
+ * @param {Object} params - Order parameters and metadata
+ * @param {CreateOrderParams} params.orderParams - Alpaca order parameters
+ * @param {string | null} params.traceId - Trace ID for logging
+ * @param {string} [params.strategyId] - Strategy identifier (defaults to "autonomous")
+ * @param {string} params.symbol - Trading symbol
+ * @param {"buy" | "sell"} params.side - Order side
+ * @param {string} [params.decisionId] - AI decision ID that triggered this order
+ *
+ * @returns {Promise<QueuedOrderResult>} Object containing orderId, status, and workItemId
+ *
+ * @throws {Error} If order submission fails, times out, or broker rejects the order
+ *
+ * @example
+ * const result = await queueOrderExecution({
+ *   orderParams: { symbol: "AAPL", qty: "10", side: "buy", type: "market", time_in_force: "day" },
+ *   traceId: "abc123",
+ *   strategyId: "momentum",
+ *   symbol: "AAPL",
+ *   side: "buy",
+ *   decisionId: "decision-456"
+ * });
+ * console.log(`Order ${result.orderId} status: ${result.status}`);
  */
 export async function queueOrderExecution(params: {
   orderParams: CreateOrderParams;
@@ -210,16 +260,41 @@ export async function queueOrderExecution(params: {
 // ============================================================================
 
 /**
- * Queue an order cancellation through the work queue
+ * Queue an order cancellation through the work queue.
  *
- * This function:
- * 1. Creates an idempotency key for the cancellation
- * 2. Enqueues the cancellation in the work queue
- * 3. Polls for completion or failure
- * 4. Handles already-cancelled orders gracefully
+ * This function provides idempotent order cancellation with the following workflow:
+ * 1. Creates an idempotency key based on orderId and 1-minute time bucket
+ * 2. Enqueues the cancellation in the work queue system
+ * 3. Polls for completion with 2-second intervals (up to 60 seconds)
+ * 4. Gracefully handles already-cancelled or not-found orders
  *
- * @param params - Cancellation parameters
- * @throws Error if cancellation work item not found during polling
+ * Idempotency behavior:
+ * - Same orderId within 1-minute window returns cached result
+ * - Different time buckets allow retry if needed
+ *
+ * Side effects:
+ * - Creates work queue item in database
+ * - Logs cancellation progress and results
+ * - Does not throw on already-cancelled orders (treated as success)
+ *
+ * @param {Object} params - Cancellation parameters
+ * @param {string} params.orderId - Broker order ID to cancel
+ * @param {string | null} params.traceId - Trace ID for logging
+ * @param {string} params.symbol - Trading symbol
+ * @param {string} [params.strategyId] - Strategy identifier (defaults to "autonomous")
+ *
+ * @returns {Promise<void>} Resolves when cancellation completes or is confirmed already done
+ *
+ * @throws {Error} If cancellation work item not found during polling
+ *
+ * @example
+ * await queueOrderCancellation({
+ *   orderId: "abc-123-def",
+ *   traceId: "trace-456",
+ *   symbol: "AAPL",
+ *   strategyId: "momentum"
+ * });
+ * console.log("Order cancelled successfully");
  */
 export async function queueOrderCancellation(params: {
   orderId: string;

@@ -9,24 +9,112 @@ import { checkSellLossProtection } from "./risk-validator";
 import type { AlpacaTradeResult, CurrentAllocation } from "./alpaca-trading-engine";
 
 /**
- * Position Manager
+ * @file Position Manager Module
+ * @description Manages trading positions including closing, reconciliation, syncing, and allocation tracking.
+ * Ensures consistency between Alpaca broker positions and local database state.
+ *
  * Extracted from alpaca-trading-engine.ts
- * Handles position closing, reconciliation, syncing, and allocation tracking
+ *
+ * @module server/trading/position-manager
+ */
+
+/**
+ * PositionManager - Manages trading positions and portfolio state
+ *
+ * Handles all position-related operations with loss protection and orchestrator control.
+ * Maintains consistency between broker (Alpaca) and database positions through reconciliation.
+ *
+ * @class PositionManager
+ *
+ * @example Close a position
+ * ```typescript
+ * const result = await positionManager.closeAlpacaPosition("AAPL", "strategy-123", {
+ *   authorizedByOrchestrator: true
+ * });
+ *
+ * if (result.success) {
+ *   console.log("Position closed with P&L:", result.trade.pnl);
+ * }
+ * ```
+ *
+ * @example Reconcile positions
+ * ```typescript
+ * const reconciliation = await positionManager.reconcilePositions();
+ * console.log("Discrepancies found:", reconciliation.discrepancies.length);
+ * console.log("Positions synced:", reconciliation.synced);
+ * ```
+ *
+ * @responsibilities
+ * - Position closing with loss protection
+ * - Position reconciliation between Alpaca and database
+ * - Position synchronization
+ * - Portfolio allocation tracking
+ * - Agent statistics updates
  */
 export class PositionManager {
   private orchestratorControlEnabled: boolean = false;
 
+  /**
+   * Enable or disable orchestrator control mode
+   *
+   * When enabled, all position operations must be authorized by the orchestrator
+   * to prevent conflicting autonomous actions.
+   *
+   * @param enabled - Whether orchestrator control should be enabled
+   */
   setOrchestratorControl(enabled: boolean): void {
     this.orchestratorControlEnabled = enabled;
   }
 
+  /**
+   * Check if orchestrator control is currently enabled
+   *
+   * @returns True if orchestrator control is active
+   */
   isOrchestratorControlEnabled(): boolean {
     return this.orchestratorControlEnabled;
   }
 
   /**
-   * Close a position in Alpaca
+   * Close a position in Alpaca with loss protection
+   *
+   * Closes an open position, calculating P&L and creating a trade record.
+   * Includes loss protection that prevents closing positions at a loss unless
+   * it's an emergency stop or stop-loss trigger.
+   *
    * Extracted from lines 703-805 of alpaca-trading-engine.ts
+   *
+   * @param symbol - Stock symbol or crypto pair to close
+   * @param strategyId - Optional strategy ID for tracking
+   * @param options - Closing options
+   * @param options.isStopLossTriggered - True if this is a stop-loss execution (bypasses loss protection)
+   * @param options.isEmergencyStop - True if this is an emergency stop (bypasses loss protection)
+   * @param options.authorizedByOrchestrator - SECURITY: Must be true if orchestrator control is enabled
+   *
+   * @returns Promise resolving to trade result with order and trade details
+   *
+   * @example Normal position close
+   * ```typescript
+   * const result = await positionManager.closeAlpacaPosition("AAPL", "strategy-123", {
+   *   authorizedByOrchestrator: true
+   * });
+   * ```
+   *
+   * @example Emergency stop (bypasses loss protection)
+   * ```typescript
+   * const result = await positionManager.closeAlpacaPosition("TSLA", undefined, {
+   *   isEmergencyStop: true
+   * });
+   * ```
+   *
+   * @lossProtection This method implements loss protection:
+   * - Calculates current P&L by comparing entry price vs current price
+   * - If position is at a loss AND not a stop-loss/emergency stop, blocks the close
+   * - Returns error with loss percentage to inform user
+   * - Exception: Stop-loss triggers and emergency stops always execute
+   *
+   * @note For crypto symbols, automatically converts to slash format (e.g., "BTC/USD")
+   * @note Handles 404 errors gracefully if position is already closed
    */
   async closeAlpacaPosition(
     symbol: string,
@@ -134,7 +222,32 @@ export class PositionManager {
 
   /**
    * Reconcile positions between Alpaca and database
+   *
+   * Compares positions in Alpaca broker account with local database records
+   * and identifies any discrepancies that need to be synchronized.
+   *
    * Extracted from lines 1661-1727 of alpaca-trading-engine.ts
+   *
+   * @returns Promise resolving to reconciliation report with positions and discrepancies
+   * @returns result.alpacaPositions - Current positions in Alpaca
+   * @returns result.dbPositions - Current positions in database
+   * @returns result.discrepancies - List of differences requiring sync
+   * @returns result.synced - True if no discrepancies found
+   *
+   * @example
+   * ```typescript
+   * const report = await positionManager.reconcilePositions();
+   *
+   * if (!report.synced) {
+   *   console.log("Found discrepancies:", report.discrepancies);
+   *   // Discrepancies might include:
+   *   // - { symbol: "AAPL", action: "create_in_db" } - exists in Alpaca but not DB
+   *   // - { symbol: "TSLA", action: "update_db_quantity" } - quantity mismatch
+   *   // - { symbol: "MSFT", action: "remove_from_db" } - exists in DB but not Alpaca
+   * }
+   * ```
+   *
+   * @note This is a read-only operation - use syncPositionsFromAlpaca() to apply fixes
    */
   async reconcilePositions(): Promise<{
     alpacaPositions: Array<{ symbol: string; qty: string; side: string; marketValue: string; unrealizedPnl: string }>;
@@ -206,7 +319,33 @@ export class PositionManager {
 
   /**
    * Sync positions from Alpaca to database
+   *
+   * Synchronizes all positions from Alpaca broker to local database.
+   * Creates missing positions, updates existing ones, and removes stale positions.
+   *
    * Extracted from lines 1729-1811 of alpaca-trading-engine.ts
+   *
+   * @param userId - Optional user ID (defaults to admin user for system-level sync)
+   *
+   * @returns Promise resolving to sync report
+   * @returns result.created - Array of symbols for newly created positions
+   * @returns result.updated - Array of symbols for updated positions
+   * @returns result.removed - Array of symbols for removed positions
+   * @returns result.errors - Array of errors encountered during sync
+   *
+   * @example System-level sync (uses admin user)
+   * ```typescript
+   * const result = await positionManager.syncPositionsFromAlpaca();
+   * console.log(`Created: ${result.created.length}, Updated: ${result.updated.length}`);
+   * ```
+   *
+   * @example User-specific sync
+   * ```typescript
+   * const result = await positionManager.syncPositionsFromAlpaca("user-123");
+   * ```
+   *
+   * @note This applies the fixes identified by reconcilePositions()
+   * @note If no userId provided, uses admin user from database
    */
   async syncPositionsFromAlpaca(userId?: string): Promise<{
     created: string[];
@@ -294,7 +433,43 @@ export class PositionManager {
 
   /**
    * Close all positions in Alpaca
+   *
+   * Closes all open positions in the broker account and creates trade records for each.
+   * Includes orchestrator control check to prevent unauthorized mass closures.
+   *
    * Extracted from lines 1813-1887 of alpaca-trading-engine.ts
+   *
+   * @param options - Closing options
+   * @param options.authorizedByOrchestrator - SECURITY: Must be true if orchestrator control is enabled
+   * @param options.isEmergencyStop - True if this is an emergency stop (bypasses orchestrator control)
+   *
+   * @returns Promise resolving to close-all report
+   * @returns result.closed - Array of closed positions with symbols, quantities, and P&L
+   * @returns result.tradesCreated - Number of trade records created
+   * @returns result.errors - Array of errors encountered during closing
+   *
+   * @example Close all positions (requires authorization)
+   * ```typescript
+   * const result = await positionManager.closeAllPositions({
+   *   authorizedByOrchestrator: true
+   * });
+   *
+   * console.log(`Closed ${result.closed.length} positions`);
+   * result.closed.forEach(pos => {
+   *   console.log(`${pos.symbol}: P&L $${pos.pnl}`);
+   * });
+   * ```
+   *
+   * @example Emergency stop (bypasses orchestrator)
+   * ```typescript
+   * const result = await positionManager.closeAllPositions({
+   *   isEmergencyStop: true
+   * });
+   * ```
+   *
+   * @note Automatically syncs positions after closing
+   * @note Updates agent statistics after completion
+   * @note Continues closing remaining positions even if some fail
    */
   async closeAllPositions(options: {
     /** SECURITY: Only the work queue processor or emergency actions should set this to true */
@@ -374,7 +549,34 @@ export class PositionManager {
 
   /**
    * Get current portfolio allocations
+   *
+   * Calculates current portfolio allocation percentages and values for all positions.
+   * Includes cash as a position for complete portfolio view.
+   *
    * Extracted from lines 1897-1943 of alpaca-trading-engine.ts
+   *
+   * @returns Promise resolving to portfolio allocation report
+   * @returns result.allocations - Array of allocations with percentages and values
+   * @returns result.portfolioValue - Total portfolio value (positions + cash)
+   * @returns result.cashBalance - Current cash balance
+   *
+   * @example
+   * ```typescript
+   * const { allocations, portfolioValue, cashBalance } = await positionManager.getCurrentAllocations();
+   *
+   * console.log(`Total Portfolio Value: $${portfolioValue.toFixed(2)}`);
+   * console.log(`Cash: $${cashBalance.toFixed(2)}\n`);
+   *
+   * allocations.forEach(alloc => {
+   *   if (alloc.symbol !== "CASH") {
+   *     console.log(`${alloc.symbol}: ${alloc.currentPercent.toFixed(1)}% ($${alloc.currentValue.toFixed(2)})`);
+   *     console.log(`  Quantity: ${alloc.quantity} @ $${alloc.price.toFixed(2)}/share`);
+   *   }
+   * });
+   * ```
+   *
+   * @note Allocations array includes CASH as the last entry
+   * @note Percentages are calculated as (position value / total portfolio value) * 100
    */
   async getCurrentAllocations(): Promise<{
     allocations: CurrentAllocation[];
@@ -425,8 +627,20 @@ export class PositionManager {
   }
 
   /**
-   * Update agent stats (helper method)
+   * Update agent statistics after position operations
+   *
+   * Calculates and updates key trading performance metrics:
+   * - Total number of trades
+   * - Total realized P&L (profit/loss)
+   * - Win rate percentage
+   * - Last heartbeat timestamp
+   *
    * Extracted from lines 1529-1551 of alpaca-trading-engine.ts
+   *
+   * @private
+   * @returns Promise that resolves when stats are updated
+   *
+   * @note Only counts trades with non-null, non-zero P&L for win rate calculation
    */
   private async updateAgentStats(): Promise<void> {
     try {

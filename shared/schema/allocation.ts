@@ -1,3 +1,10 @@
+/**
+ * @module schema/allocation
+ * @description Portfolio allocation and rebalancing system schema.
+ * Defines allocation policies with risk constraints and tracks rebalancing
+ * runs that adjust portfolio weights based on market conditions and strategy signals.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, varchar, text, timestamp, numeric, boolean, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -9,6 +16,17 @@ import { universeAssets, universeCandidates } from "./universe";
 // ALLOCATION TABLES
 // ============================================================================
 
+/**
+ * Portfolio allocation policy configurations.
+ * Defines risk limits and rebalancing rules for portfolio management.
+ *
+ * @table allocation_policies
+ * @description Stores allocation policy rules including position weight limits,
+ * sector concentration limits, liquidity requirements, profit-taking thresholds,
+ * and rebalancing frequency. Only one policy can be active at a time.
+ *
+ * @relation users - User who created this policy (set null on delete)
+ */
 export const allocationPolicies = pgTable("allocation_policies", {
   id: varchar("id")
     .primaryKey()
@@ -30,6 +48,17 @@ export const allocationPolicies = pgTable("allocation_policies", {
   index("allocation_policies_active_idx").on(table.isActive),
 ]);
 
+/**
+ * Portfolio rebalancing execution records.
+ * Logs each rebalancing run with inputs, decisions, and outcomes.
+ *
+ * @table rebalance_runs
+ * @description Tracks portfolio rebalancing events including trigger type,
+ * input portfolio snapshot, order intents, executed orders, and rationale.
+ * Links to the allocation policy that governed the rebalancing logic.
+ *
+ * @relation allocationPolicies - Policy used for this rebalance (set null on delete)
+ */
 export const rebalanceRuns = pgTable("rebalance_runs", {
   id: varchar("id")
     .primaryKey()

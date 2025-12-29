@@ -1,13 +1,61 @@
 /**
- * Market Data Fetcher - Unified Market Data Collection
+ * @file Market Data Fetcher - Unified Market Data Collection
  *
- * Fetches market data from multiple sources with fallback logic:
- * - Alpaca snapshots for stocks (chunked to avoid URL length issues)
- * - Finnhub as fallback for stocks missing from Alpaca
- * - Alpaca crypto snapshots for cryptocurrency
- * - CoinGecko as fallback for crypto
+ * Intelligent market data fetching system with multi-source fallback chains to ensure
+ * reliable data collection even when primary sources fail. Optimized for batch operations
+ * with chunking to handle large universes efficiently.
  *
- * Returns unified MarketData format for the decision engine.
+ * @module autonomous/market-data-fetcher
+ *
+ * @fallback-chains
+ *
+ * STOCKS: Alpaca → Finnhub
+ * 1. PRIMARY: Alpaca Batch Snapshots
+ *    - Fast batch fetching (50 symbols per chunk)
+ *    - Chunked to avoid URL length limits
+ *    - Provides: price, daily bar, prev close
+ *    - Advantage: Official broker data, batch optimized
+ *
+ * 2. FALLBACK: Finnhub
+ *    - Individual symbol quotes
+ *    - Triggered for symbols missing from Alpaca
+ *    - Limited to 30 symbols max (rate limits)
+ *    - Provides: current price, high/low, volume
+ *
+ * CRYPTO: Alpaca → CoinGecko
+ * 1. PRIMARY: Alpaca Crypto Snapshots
+ *    - Official broker crypto data
+ *    - Supports fractional crypto trading
+ *    - Provides: price, daily bar, volume
+ *
+ * 2. FALLBACK: CoinGecko
+ *    - Free crypto market data API
+ *    - Provides: price, 24h change, volume, market cap
+ *    - More comprehensive crypto metrics
+ *
+ * @data-normalization
+ * All sources are normalized to MarketData format:
+ * - symbol: normalized symbol (BTC not BTC/USD)
+ * - currentPrice: current trading price
+ * - priceChange24h: absolute 24h change
+ * - priceChangePercent24h: percentage 24h change
+ * - high24h, low24h, volume: optional metrics
+ *
+ * @example
+ * ```typescript
+ * const universe = await getAnalysisUniverseSymbols();
+ * const marketData = await fetchMarketData(universe);
+ *
+ * for (const [symbol, data] of marketData) {
+ *   console.log(`${symbol}: $${data.currentPrice} (${data.priceChangePercent24h.toFixed(2)}%)`);
+ * }
+ *
+ * // Fetch single symbol
+ * const btcData = await fetchSingleSymbolData('BTC', true);
+ * if (btcData) {
+ *   console.log(`BTC: $${btcData.currentPrice}`);
+ * }
+ * ```
  */
 
 import { alpaca } from "../connectors/alpaca";
@@ -23,7 +71,38 @@ const ALPACA_SNAPSHOT_CHUNK_SIZE = tradingConfig.universe.alpacaSnapshotChunkSiz
 
 /**
  * Fetch market data for the given universe of symbols
- * Uses Alpaca as primary source with Finnhub/CoinGecko fallbacks
+ *
+ * Primary market data fetching function that orchestrates batch data collection
+ * for the entire analysis universe with intelligent fallback handling.
+ *
+ * @async
+ * @param {UniverseSymbols} universe - Universe containing stocks and crypto to fetch
+ * @returns {Promise<Map<string, MarketData>>} Map of symbol to market data
+ *
+ * @fetching-strategy
+ * STOCKS:
+ * 1. Batch fetch via Alpaca snapshots (chunked into groups of 50)
+ * 2. For missing symbols: fallback to Finnhub (max 30 symbols)
+ * 3. Calculate 24h change from prevDailyBar
+ *
+ * CRYPTO:
+ * 1. Batch fetch via Alpaca crypto snapshots
+ * 2. On failure: fallback to CoinGecko markets API
+ * 3. Normalize symbols (remove /USD suffix)
+ *
+ * @performance
+ * - Chunking prevents URL length errors with large universes
+ * - Batch fetching is much faster than sequential API calls
+ * - Fallback only triggers for missing data, not all symbols
+ *
+ * @example
+ * ```typescript
+ * const universe = await getAnalysisUniverseSymbols();
+ * const marketData = await fetchMarketData(universe);
+ *
+ * console.log(`Fetched data for ${marketData.size} symbols`);
+ * // Fetched data for 58 symbols (48 stocks, 10 crypto)
+ * ```
  */
 export async function fetchMarketData(
   universe: UniverseSymbols
@@ -151,7 +230,34 @@ export async function fetchMarketData(
 
 /**
  * Fetch market data for a single symbol
- * Useful for on-demand price checks
+ *
+ * On-demand market data fetching for individual symbols. Useful for price checks,
+ * position updates, or analyzing symbols outside the main universe.
+ *
+ * @async
+ * @param {string} symbol - Symbol to fetch (e.g., 'AAPL', 'BTC')
+ * @param {boolean} isCrypto - Whether symbol is cryptocurrency
+ * @returns {Promise<MarketData | null>} Market data or null if fetch fails
+ *
+ * @fetching-logic
+ * - Crypto: Uses Alpaca crypto snapshots with /USD normalization
+ * - Stocks: Uses Alpaca stock snapshots
+ * - Returns null on error rather than throwing
+ *
+ * @example
+ * ```typescript
+ * // Check current Bitcoin price
+ * const btcData = await fetchSingleSymbolData('BTC', true);
+ * if (btcData) {
+ *   console.log(`BTC: $${btcData.currentPrice}`);
+ * }
+ *
+ * // Check stock price
+ * const aaplData = await fetchSingleSymbolData('AAPL', false);
+ * if (aaplData) {
+ *   console.log(`AAPL: $${aaplData.currentPrice} (${aaplData.priceChangePercent24h.toFixed(2)}%)`);
+ * }
+ * ```
  */
 export async function fetchSingleSymbolData(
   symbol: string,

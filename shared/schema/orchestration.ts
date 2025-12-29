@@ -1,3 +1,10 @@
+/**
+ * @module schema/orchestration
+ * @description Agent orchestration and work queue system schema.
+ * Manages agent lifecycle, task queuing, execution tracking, and AI arena runs.
+ * Central coordination layer for autonomous trading agent operations.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, varchar, text, timestamp, numeric, boolean, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -8,6 +15,18 @@ import { aiDecisions } from "./ai-decisions";
 // ENUMS
 // ============================================================================
 
+/**
+ * Types of work items that can be queued for execution.
+ *
+ * @enum {string}
+ * @property {string} ORDER_SUBMIT - Submit a new order to the broker
+ * @property {string} ORDER_CANCEL - Cancel an existing order
+ * @property {string} ORDER_SYNC - Synchronize order status with broker
+ * @property {string} POSITION_CLOSE - Close an open position
+ * @property {string} KILL_SWITCH - Emergency stop all trading activity
+ * @property {string} DECISION_EVALUATION - Evaluate an AI trading decision
+ * @property {string} ASSET_UNIVERSE_SYNC - Synchronize asset universe data
+ */
 export const workItemTypes = [
   "ORDER_SUBMIT",
   "ORDER_CANCEL",
@@ -20,6 +39,16 @@ export const workItemTypes = [
 
 export type WorkItemType = typeof workItemTypes[number];
 
+/**
+ * Execution status of a work item.
+ *
+ * @enum {string}
+ * @property {string} PENDING - Work item queued but not yet started
+ * @property {string} RUNNING - Work item currently executing
+ * @property {string} SUCCEEDED - Work item completed successfully
+ * @property {string} FAILED - Work item failed with error
+ * @property {string} DEAD_LETTER - Work item exceeded retry limit and moved to dead letter queue
+ */
 export const workItemStatuses = [
   "PENDING",
   "RUNNING",
@@ -30,13 +59,41 @@ export const workItemStatuses = [
 
 export type WorkItemStatus = typeof workItemStatuses[number];
 
+/**
+ * Status of an AI arena run.
+ *
+ * @typedef {string} ArenaRunStatus
+ * @property {string} pending - Arena run scheduled but not started
+ * @property {string} running - Arena run in progress
+ * @property {string} completed - Arena run finished successfully
+ * @property {string} failed - Arena run failed with error
+ * @property {string} cancelled - Arena run was cancelled
+ */
 export type ArenaRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+/**
+ * Mode of operation for an AI arena run.
+ *
+ * @typedef {string} ArenaMode
+ * @property {string} debate - Multi-agent debate mode with bull/bear perspectives
+ * @property {string} competition - Competition mode where agents compete for best performance
+ * @property {string} consensus - Consensus-seeking mode for collaborative decisions
+ */
 export type ArenaMode = "debate" | "competition" | "consensus";
 
 // ============================================================================
 // AGENT STATUS TABLE
 // ============================================================================
 
+/**
+ * Central agent status and configuration singleton.
+ * Tracks runtime state, risk parameters, and operational mode.
+ *
+ * @table agent_status
+ * @description Single-row table storing the trading agent's current state including
+ * running status, performance metrics, risk limits, kill switch, and operational
+ * parameters. Controls agent behavior and provides real-time health monitoring.
+ */
 export const agentStatus = pgTable("agent_status", {
   id: varchar("id")
     .primaryKey()
@@ -71,6 +128,17 @@ export type InsertAgentStatus = typeof agentStatus.$inferInsert;
 // WORK ITEMS TABLE
 // ============================================================================
 
+/**
+ * Task queue for agent work items.
+ * Implements durable task queue with retry logic and dead letter handling.
+ *
+ * @table work_items
+ * @description Stores all queued and executed tasks for the trading agent including
+ * order submissions, cancellations, position management, and decision evaluations.
+ * Supports retry logic, idempotency, and failure tracking.
+ *
+ * @relation aiDecisions - Associated AI decision (set null on delete)
+ */
 export const workItems = pgTable("work_items", {
   id: varchar("id")
     .primaryKey()
@@ -105,6 +173,17 @@ export type WorkItem = typeof workItems.$inferSelect;
 // WORK ITEM RUNS TABLE
 // ============================================================================
 
+/**
+ * Execution history for work item attempts.
+ * Logs each retry attempt with timing and error details.
+ *
+ * @table work_item_runs
+ * @description Tracks individual execution attempts for work items. Records start/end
+ * times, status, errors, and duration. Essential for debugging failures and analyzing
+ * retry patterns.
+ *
+ * @relation workItems - Parent work item (cascade delete)
+ */
 export const workItemRuns = pgTable("work_item_runs", {
   id: varchar("id")
     .primaryKey()
@@ -131,8 +210,19 @@ export type WorkItemRun = typeof workItemRuns.$inferSelect;
 // AI ARENA RUNS TABLE
 // ============================================================================
 
-// Note: strategyVersionId references strategyVersions table
-// Foreign key left unresolved to avoid circular dependency
+/**
+ * Multi-agent AI arena execution sessions.
+ * Coordinates debate, competition, or consensus-seeking among AI agents.
+ *
+ * @table ai_arena_runs
+ * @description Records AI arena sessions where multiple agents analyze market data
+ * and propose trading decisions. Tracks mode (debate/competition/consensus),
+ * participants, market snapshots, outcomes, and cost metrics. Supports strategy
+ * versioning and escalation workflows.
+ *
+ * @relation strategyVersions - Associated strategy version (database-level FK only)
+ * Note: Foreign key left unresolved to avoid circular dependency
+ */
 export const aiArenaRuns = pgTable("ai_arena_runs", {
   id: varchar("id")
     .primaryKey()
@@ -183,8 +273,19 @@ export type AiArenaRun = typeof aiArenaRuns.$inferSelect;
 
 import { DebateRole } from "./debate-arena";
 
-// Note: agentProfileId references aiAgentProfiles table
-// Foreign key left unresolved to avoid circular dependency
+/**
+ * Individual agent decisions within an AI arena run.
+ * Captures each agent's analysis, proposed actions, and reasoning.
+ *
+ * @table ai_arena_agent_decisions
+ * @description Stores individual agent outputs during arena runs including their role,
+ * action recommendations, confidence levels, rationale, risks, and proposed orders.
+ * Tracks cost metrics and performance data for each agent's contribution.
+ *
+ * @relation aiArenaRuns - Parent arena run (cascade delete)
+ * @relation aiAgentProfiles - Agent profile (database-level FK only)
+ * Note: agentProfileId foreign key left unresolved to avoid circular dependency
+ */
 export const aiArenaAgentDecisions = pgTable("ai_arena_agent_decisions", {
   id: varchar("id")
     .primaryKey()

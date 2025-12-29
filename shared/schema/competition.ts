@@ -1,3 +1,10 @@
+/**
+ * @module schema/competition
+ * @description Trader competition framework for evaluating multiple strategies.
+ * Enables A/B testing of different trader profiles (strategy + model combinations)
+ * in parallel to identify top performers. Supports paper trading and recommendation modes.
+ */
+
 import { sql } from "drizzle-orm";
 import { pgTable, varchar, text, timestamp, numeric, boolean, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -7,10 +14,47 @@ import { z } from "zod";
 // COMPETITION MODE
 // ============================================================================
 
+/**
+ * Operational status of a trader profile.
+ *
+ * @typedef {string} TraderProfileStatus
+ * @property {string} active - Trader is active and participating in competitions
+ * @property {string} inactive - Trader is inactive and excluded from competitions
+ * @property {string} testing - Trader is in testing mode
+ */
 export type TraderProfileStatus = "active" | "inactive" | "testing";
+
+/**
+ * Competition execution mode.
+ *
+ * @typedef {string} CompetitionMode
+ * @property {string} paper_execute_all - Execute all trader decisions in paper trading
+ * @property {string} recommend_only - Generate recommendations without execution
+ */
 export type CompetitionMode = "paper_execute_all" | "recommend_only";
+
+/**
+ * Lifecycle status of a competition run.
+ *
+ * @typedef {string} CompetitionRunStatus
+ * @property {string} pending - Competition scheduled but not started
+ * @property {string} running - Competition in progress
+ * @property {string} completed - Competition finished
+ * @property {string} stopped - Competition stopped early
+ */
 export type CompetitionRunStatus = "pending" | "running" | "completed" | "stopped";
 
+/**
+ * Trader profile configurations for competition mode.
+ * Defines distinct trading strategies with unique AI models and parameters.
+ *
+ * @table trader_profiles
+ * @description Stores trader profile definitions combining strategy versions
+ * with specific model configurations, risk presets, and universe filters.
+ * Profiles can be promoted to production based on competition performance.
+ *
+ * @relation strategyVersions - Associated strategy version (database-level FK only)
+ */
 export const traderProfiles = pgTable("trader_profiles", {
   id: varchar("id")
     .primaryKey()
@@ -30,6 +74,15 @@ export const traderProfiles = pgTable("trader_profiles", {
   index("trader_profiles_promoted_idx").on(table.isPromoted),
 ]);
 
+/**
+ * Competition run sessions comparing multiple traders.
+ * Orchestrates parallel execution of multiple trader profiles.
+ *
+ * @table competition_runs
+ * @description Tracks competition sessions where multiple trader profiles
+ * operate simultaneously on the same universe. Records configuration, duration,
+ * and status. Used for A/B testing and identifying best-performing strategies.
+ */
 export const competitionRuns = pgTable("competition_runs", {
   id: varchar("id")
     .primaryKey()
@@ -50,6 +103,18 @@ export const competitionRuns = pgTable("competition_runs", {
   index("competition_runs_status_idx").on(table.status),
 ]);
 
+/**
+ * Performance scores for traders in competition runs.
+ * Tracks detailed metrics to rank and evaluate trader performance.
+ *
+ * @table competition_scores
+ * @description Stores performance metrics for each trader in a competition run
+ * including PnL, ROI, drawdown, win rate, trade count, error rate, and cost per
+ * decision. Supports periodic snapshots and ranking calculations.
+ *
+ * @relation competitionRuns - Parent competition run (cascade delete)
+ * @relation traderProfiles - Trader being scored (cascade delete)
+ */
 export const competitionScores = pgTable("competition_scores", {
   id: varchar("id")
     .primaryKey()
