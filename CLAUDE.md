@@ -82,18 +82,30 @@ Located in `~/.claude/skills/`:
 | `alpaca-integration` | Alpaca API patterns |
 | `project-structure` | Codebase navigation |
 
-## Backtest Script Analysis
+## Backtest Script Migration (Dec 29, 2024)
 
-### Consolidation Opportunity
-19 scripts (~9,000 lines) with ~50% duplication identified:
-- **Extractable modules**: technical-indicators.ts, alpaca-api.ts, backtest-engine.ts, genetic-algorithm.ts
-- **Potential savings**: ~4,500 lines of code
-- **Strategy**: Create shared modules + base classes
+### Completed Migrations
+| Script | Before | After | Savings |
+|--------|--------|-------|---------|
+| omar-backtest.ts | 779 | 247 | 68% |
+| omar-momentum-optimizer.ts | 805 | 669 | 17% |
+| omar-hyperoptimizer.ts | 957 | 682 | 29% |
+| omar-backtest-enhanced.ts | 1,565 | 731 | 53% |
+| omar-weight-optimizer.ts | 1,335 | 853 | 36% |
+| omar-ultra-hyperoptimizer.ts | 1,843 | 865 | 53% |
 
-### Script Groups
-1. **Backtest Scripts** (4): omar-backtest*.ts
-2. **Optimizer Scripts** (11): omar-*optimizer*.ts
-3. **Specialized** (4): momentum, pattern, risk, sector-rotation
+**Total: 3,237 lines saved (44% average reduction)**
+
+### Shared Modules Created
+Located in `scripts/shared/`:
+- `types.ts` - AlpacaBar, BacktestConfig, Trade, Genome, ParamRange
+- `alpaca-api.ts` - fetchAlpacaBars, fetchHistoricalData, SYMBOL_LISTS
+- `technical-indicators.ts` - 16 indicators (RSI, SMA, EMA, ATR, MACD, BB, etc.)
+- `backtest-engine.ts` - runBacktest, calculateMetrics, generateSignal
+- `genetic-algorithm.ts` - crossover, mutate, tournamentSelect, normalizeWeights
+
+### Remaining Scripts (Lower Priority)
+14 scripts (~8,000 lines) can use same migration pattern when needed
 
 ## Environment Configuration
 
