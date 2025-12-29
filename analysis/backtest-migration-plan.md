@@ -6,17 +6,36 @@
 **Target Reduction:** ~12,000 lines (63%)
 **Reference Implementation:** `omar-backtest-v2.ts` (241 lines, 69% reduction achieved)
 
-## Migration Priority Order
+## Migration Status (Updated Dec 29, 2024)
 
-| Order | Script                     | Lines | Est. After | Savings     | Complexity  |
-| ----- | -------------------------- | ----- | ---------- | ----------- | ----------- |
-| 1     | omar-backtest.ts           | 779   | 150        | 630 (81%)   | Low         |
-| 2     | omar-momentum-optimizer.ts | 805   | 300        | 505 (63%)   | Medium      |
-| 3     | omar-hyperoptimizer.ts     | 957   | 350        | 607 (63%)   | Medium      |
-| 4     | omar-backtest-enhanced.ts  | 1,565 | 400        | 1,165 (74%) | Medium      |
-| 5     | omar-weight-optimizer.ts   | 1,335 | 450        | 885 (66%)   | Medium-High |
+### Completed Migrations
 
-**Top 5 Savings:** ~3,792 lines (70% reduction)
+| Order | Script                     | Before | After | Savings     | Status    |
+| ----- | -------------------------- | ------ | ----- | ----------- | --------- |
+| 1     | omar-backtest.ts           | 779    | 247   | 532 (68%)   | Completed |
+| 2     | omar-momentum-optimizer.ts | 805    | 669   | 136 (17%)   | Completed |
+| 3     | omar-hyperoptimizer.ts     | 957    | 682   | 275 (29%)   | Completed |
+| 4     | omar-backtest-enhanced.ts  | 1,565  | 731   | 834 (53%)   | Completed |
+| 5     | omar-weight-optimizer.ts   | 1,335  | 853   | 482 (36%)   | Completed |
+
+**Total Savings (Top 5):** 2,259 lines (43% average reduction)
+
+### Notes on Actual vs Estimated Savings
+
+- Scripts with more custom logic (momentum-specific signals, multi-factor scoring, walk-forward validation) had lower reduction rates
+- Estimated 70% reduction was optimistic; actual 43% is still significant
+- Scripts retain value in their domain-specific implementations
+
+### Remaining Scripts (Lower Priority)
+
+| Script                      | Lines | Estimated Savings |
+| --------------------------- | ----- | ----------------- |
+| omar-genetic-optimizer.ts   | 1,101 | ~30%              |
+| omar-ml-optimizer.ts        | 1,089 | ~25%              |
+| omar-pattern-scanner.ts     | 890   | ~35%              |
+| omar-sector-rotation.ts     | 756   | ~40%              |
+| omar-risk-analyzer.ts       | 712   | ~35%              |
+| ... (9 more scripts)        | ~6K   | ~30%              |
 
 ## Shared Modules Available
 
@@ -70,3 +89,12 @@ For each migrated script:
 ```bash
 git checkout main -- scripts/<script>.ts
 ```
+
+## Commits
+
+- `fd7c325` - Initial shared module creation
+- `63031b8` - omar-backtest.ts migration
+- `[commit]` - omar-momentum-optimizer.ts migration
+- `[commit]` - omar-hyperoptimizer.ts migration
+- `[commit]` - omar-backtest-enhanced.ts migration
+- `5323774` - omar-weight-optimizer.ts migration
