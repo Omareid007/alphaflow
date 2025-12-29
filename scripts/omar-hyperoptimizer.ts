@@ -12,12 +12,38 @@
  * - Adaptive mutation rates based on convergence
  * - Island model for population diversity
  * - Pattern mining for successful configurations
+ *
+ * Refactored to use shared modules (~957 lines -> ~550 lines, 42% reduction)
  */
+
+import {
+  // Alpaca API
+  fetchAlpacaBars,
+  type AlpacaBar,
+  // Technical indicators
+  calculateSMA,
+  calculateEMA,
+  calculateRSI,
+  calculateATR,
+  calculateMACD,
+  calculateBollingerBands,
+  calculateStochastic,
+  calculateOBV,
+  // Genetic algorithm
+  generateRandomGenome,
+  normalizeWeights,
+  crossover,
+  mutate,
+  tournamentSelect,
+  DEFAULT_PARAM_RANGES,
+  type Genome,
+  type ParamRange,
+  type LearningInsight
+} from "./shared/index.js";
 
 // ============= CONFIGURATION =============
 const ALPACA_KEY = process.env.ALPACA_API_KEY || '';
 const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY || '';
-const ALPACA_DATA_URL = 'https://data.alpaca.markets';
 
 // Hyperoptimizer settings
 const TOTAL_ITERATIONS = 100000;
@@ -32,39 +58,16 @@ const MIGRATION_COUNT = 3;
 const BATCH_SIZE = 20;
 const CONVERGENCE_THRESHOLD = 0.001;
 
-// Parameter ranges for genetic optimization
-const PARAM_RANGES: Record<string, { min: number; max: number; step: number; integer?: boolean; boolean?: boolean }> = {
-  maxPositionPct: { min: 0.02, max: 0.15, step: 0.01 },
-  maxPortfolioExposure: { min: 0.4, max: 0.95, step: 0.05 },
-  maxPositions: { min: 5, max: 40, step: 1, integer: true },
-  atrMultStop: { min: 0.5, max: 3.0, step: 0.1 },
-  atrMultTarget: { min: 1.5, max: 8.0, step: 0.25 },
-  maxDailyLoss: { min: 0.02, max: 0.10, step: 0.01 },
-  buyThreshold: { min: 0.05, max: 0.30, step: 0.01 },
-  confidenceMin: { min: 0.15, max: 0.50, step: 0.01 },
-  technicalWeight: { min: 0.05, max: 0.35, step: 0.01 },
-  momentumWeight: { min: 0.05, max: 0.35, step: 0.01 },
-  volatilityWeight: { min: 0.02, max: 0.20, step: 0.01 },
-  volumeWeight: { min: 0.05, max: 0.25, step: 0.01 },
-  sentimentWeight: { min: 0.05, max: 0.25, step: 0.01 },
-  patternWeight: { min: 0.02, max: 0.20, step: 0.01 },
+// Extended parameter ranges for hyperoptimizer (adds extra params to shared defaults)
+const PARAM_RANGES: Record<string, ParamRange> = {
+  ...DEFAULT_PARAM_RANGES,
+  // Additional hyperoptimizer-specific params
   breadthWeight: { min: 0.02, max: 0.15, step: 0.01 },
   correlationWeight: { min: 0.02, max: 0.20, step: 0.01 },
-  rsiPeriod: { min: 7, max: 21, step: 1, integer: true },
-  rsiOversold: { min: 20, max: 40, step: 1, integer: true },
-  rsiOverbought: { min: 60, max: 80, step: 1, integer: true },
-  macdFast: { min: 8, max: 16, step: 1, integer: true },
-  macdSlow: { min: 20, max: 32, step: 1, integer: true },
-  macdSignal: { min: 6, max: 12, step: 1, integer: true },
-  bbPeriod: { min: 15, max: 25, step: 1, integer: true },
-  bbStdDev: { min: 1.5, max: 3.0, step: 0.1 },
-  atrPeriod: { min: 10, max: 20, step: 1, integer: true },
   regimeFilter: { min: 0, max: 1, step: 1, integer: true, boolean: true },
   regimeLookback: { min: 10, max: 50, step: 5, integer: true },
   useRiskParity: { min: 0, max: 1, step: 1, integer: true, boolean: true },
   sectorRotation: { min: 0, max: 1, step: 1, integer: true, boolean: true },
-  momentumLookback: { min: 5, max: 30, step: 1, integer: true },
-  volatilityLookback: { min: 10, max: 30, step: 1, integer: true },
   correlationLookback: { min: 15, max: 60, step: 5, integer: true },
 };
 
@@ -79,32 +82,6 @@ const SYMBOLS = [
   'XOM', 'CVX', 'COP', 'SLB', 'OXY',
   'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLK', 'XLE',
 ];
-
-interface AlpacaBar {
-  t: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-}
-
-interface Genome {
-  id: string;
-  genes: Record<string, number>;
-  fitness: number;
-  sharpe: number;
-  sortino: number;
-  calmar: number;
-  winRate: number;
-  totalReturn: number;
-  maxDrawdown: number;
-  trades: number;
-  generation: number;
-  island: number;
-  parentIds: string[];
-  mutations: string[];
-}
 
 interface TradeResult {
   symbol: string;
@@ -128,261 +105,6 @@ interface BacktestResult {
   trades: TradeResult[];
   equity: number[];
   dailyReturns: number[];
-}
-
-interface LearningInsight {
-  pattern: string;
-  correlation: number;
-  sampleSize: number;
-  avgImprovement: number;
-}
-
-// ============= ALPACA DATA FETCHER =============
-
-async function fetchAlpacaBars(symbol: string, start: string, end: string): Promise<AlpacaBar[]> {
-  const allBars: AlpacaBar[] = [];
-  let pageToken: string | null = null;
-
-  do {
-    let url = `${ALPACA_DATA_URL}/v2/stocks/${symbol}/bars?timeframe=1Day&start=${start}&end=${end}&limit=10000&feed=iex`;
-    if (pageToken) url += `&page_token=${pageToken}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.bars && Array.isArray(data.bars)) {
-      allBars.push(...data.bars);
-    }
-    pageToken = data.next_page_token || null;
-  } while (pageToken);
-
-  return allBars;
-}
-
-// ============= GENETIC OPERATORS =============
-
-function generateRandomGenome(generation: number, island: number): Genome {
-  const genes: Record<string, number> = {};
-
-  for (const [param, range] of Object.entries(PARAM_RANGES)) {
-    if (range.integer) {
-      genes[param] = Math.floor(Math.random() * ((range.max - range.min) / range.step + 1)) * range.step + range.min;
-    } else {
-      const steps = Math.round((range.max - range.min) / range.step);
-      genes[param] = Math.round((Math.random() * steps) * range.step * 100) / 100 + range.min;
-    }
-  }
-
-  normalizeWeights(genes);
-
-  return {
-    id: `gen${generation}-isl${island}-${Math.random().toString(36).substr(2, 9)}`,
-    genes,
-    fitness: 0,
-    sharpe: 0,
-    sortino: 0,
-    calmar: 0,
-    winRate: 0,
-    totalReturn: 0,
-    maxDrawdown: 0,
-    trades: 0,
-    generation,
-    island,
-    parentIds: [],
-    mutations: [],
-  };
-}
-
-function normalizeWeights(genes: Record<string, number>): void {
-  const weightKeys = ['technicalWeight', 'momentumWeight', 'volatilityWeight', 'volumeWeight',
-                      'sentimentWeight', 'patternWeight', 'breadthWeight', 'correlationWeight'];
-  const total = weightKeys.reduce((sum, key) => sum + (genes[key] || 0), 0);
-  if (total > 0) {
-    for (const key of weightKeys) {
-      genes[key] = Math.round((genes[key] / total) * 100) / 100;
-    }
-  }
-}
-
-function crossover(parent1: Genome, parent2: Genome, generation: number, island: number): Genome {
-  const childGenes: Record<string, number> = {};
-
-  for (const param of Object.keys(PARAM_RANGES)) {
-    const rand = Math.random();
-    if (rand < 0.4) {
-      childGenes[param] = parent1.genes[param];
-    } else if (rand < 0.8) {
-      childGenes[param] = parent2.genes[param];
-    } else {
-      const alpha = Math.random();
-      childGenes[param] = alpha * parent1.genes[param] + (1 - alpha) * parent2.genes[param];
-      const range = PARAM_RANGES[param];
-      childGenes[param] = Math.round(childGenes[param] / range.step) * range.step;
-      childGenes[param] = Math.max(range.min, Math.min(range.max, childGenes[param]));
-      if (range.integer) {
-        childGenes[param] = Math.round(childGenes[param]);
-      }
-    }
-  }
-
-  normalizeWeights(childGenes);
-
-  return {
-    id: `gen${generation}-isl${island}-${Math.random().toString(36).substr(2, 9)}`,
-    genes: childGenes,
-    fitness: 0, sharpe: 0, sortino: 0, calmar: 0, winRate: 0, totalReturn: 0, maxDrawdown: 0, trades: 0,
-    generation, island,
-    parentIds: [parent1.id, parent2.id],
-    mutations: [],
-  };
-}
-
-function mutate(genome: Genome, mutationRate: number, adaptiveFactor: number = 1.0): Genome {
-  const mutatedGenes = { ...genome.genes };
-  const mutations: string[] = [];
-
-  for (const [param, range] of Object.entries(PARAM_RANGES)) {
-    if (Math.random() < mutationRate * adaptiveFactor) {
-      const currentVal = mutatedGenes[param];
-      const sigma = (range.max - range.min) * 0.1 * adaptiveFactor;
-      let newVal = currentVal + (Math.random() - 0.5) * 2 * sigma;
-      newVal = Math.max(range.min, Math.min(range.max, newVal));
-      newVal = Math.round(newVal / range.step) * range.step;
-      if (range.integer) newVal = Math.round(newVal);
-
-      if (newVal !== currentVal) {
-        mutatedGenes[param] = newVal;
-        mutations.push(`${param}: ${currentVal.toFixed(3)} -> ${newVal.toFixed(3)}`);
-      }
-    }
-  }
-
-  normalizeWeights(mutatedGenes);
-  return { ...genome, genes: mutatedGenes, mutations, fitness: 0 };
-}
-
-function tournamentSelect(population: Genome[], tournamentSize: number): Genome {
-  let best: Genome | null = null;
-  for (let i = 0; i < tournamentSize; i++) {
-    const candidate = population[Math.floor(Math.random() * population.length)];
-    if (!best || candidate.fitness > best.fitness) best = candidate;
-  }
-  return best!;
-}
-
-// ============= TECHNICAL INDICATORS =============
-
-function calculateSMA(data: number[], period: number): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) result.push(NaN);
-    else {
-      const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
-      result.push(sum / period);
-    }
-  }
-  return result;
-}
-
-function calculateEMA(data: number[], period: number): number[] {
-  const result: number[] = [];
-  const multiplier = 2 / (period + 1);
-  for (let i = 0; i < data.length; i++) {
-    if (i === 0) result.push(data[0]);
-    else result.push((data[i] - result[i - 1]) * multiplier + result[i - 1]);
-  }
-  return result;
-}
-
-function calculateRSI(closes: number[], period: number): number[] {
-  const changes: number[] = [];
-  for (let i = 1; i < closes.length; i++) changes.push(closes[i] - closes[i - 1]);
-  const gains = changes.map(c => c > 0 ? c : 0);
-  const losses = changes.map(c => c < 0 ? -c : 0);
-  const avgGain = calculateEMA(gains, period);
-  const avgLoss = calculateEMA(losses, period);
-
-  const rsi: number[] = [NaN];
-  for (let i = 0; i < avgGain.length; i++) {
-    if (avgLoss[i] === 0) rsi.push(100);
-    else rsi.push(100 - (100 / (1 + avgGain[i] / avgLoss[i])));
-  }
-  return rsi;
-}
-
-function calculateMACD(closes: number[], fast: number, slow: number, signal: number): { macd: number[], signal: number[], histogram: number[] } {
-  const emaFast = calculateEMA(closes, fast);
-  const emaSlow = calculateEMA(closes, slow);
-  const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalLine = calculateEMA(macdLine, signal);
-  const histogram = macdLine.map((v, i) => v - signalLine[i]);
-  return { macd: macdLine, signal: signalLine, histogram };
-}
-
-function calculateBollingerBands(closes: number[], period: number, stdDev: number): { upper: number[], middle: number[], lower: number[] } {
-  const middle = calculateSMA(closes, period);
-  const upper: number[] = [];
-  const lower: number[] = [];
-
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period - 1) { upper.push(NaN); lower.push(NaN); }
-    else {
-      const slice = closes.slice(i - period + 1, i + 1);
-      const mean = middle[i];
-      const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
-      const std = Math.sqrt(variance);
-      upper.push(mean + stdDev * std);
-      lower.push(mean - stdDev * std);
-    }
-  }
-  return { upper, middle, lower };
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number): number[] {
-  const tr: number[] = [highs[0] - lows[0]];
-  for (let i = 1; i < closes.length; i++) {
-    const hl = highs[i] - lows[i];
-    const hc = Math.abs(highs[i] - closes[i - 1]);
-    const lc = Math.abs(lows[i] - closes[i - 1]);
-    tr.push(Math.max(hl, hc, lc));
-  }
-  return calculateEMA(tr, period);
-}
-
-function calculateStochastic(highs: number[], lows: number[], closes: number[], period: number): { k: number[], d: number[] } {
-  const k: number[] = [];
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period - 1) k.push(NaN);
-    else {
-      const highSlice = highs.slice(i - period + 1, i + 1);
-      const lowSlice = lows.slice(i - period + 1, i + 1);
-      const highest = Math.max(...highSlice);
-      const lowest = Math.min(...lowSlice);
-      const range = highest - lowest;
-      k.push(range === 0 ? 50 : ((closes[i] - lowest) / range) * 100);
-    }
-  }
-  const d = calculateSMA(k.filter(v => !isNaN(v)), 3);
-  return { k, d };
-}
-
-function calculateOBV(closes: number[], volumes: number[]): number[] {
-  const obv: number[] = [0];
-  for (let i = 1; i < closes.length; i++) {
-    if (closes[i] > closes[i - 1]) obv.push(obv[i - 1] + volumes[i]);
-    else if (closes[i] < closes[i - 1]) obv.push(obv[i - 1] - volumes[i]);
-    else obv.push(obv[i - 1]);
-  }
-  return obv;
 }
 
 // ============= PATTERN DETECTION =============
@@ -449,9 +171,9 @@ function generateSignal(bars: AlpacaBar[], genes: Record<string, number>): { sco
 
   const factors: Record<string, number> = {};
 
-  // Technical
+  // Technical - using shared indicators
   const rsi = calculateRSI(closes, genes.rsiPeriod || 14);
-  const currentRSI = rsi[rsi.length - 1];
+  const currentRSI = rsi[rsi.length - 1] ?? 50;
   const macd = calculateMACD(closes, genes.macdFast || 12, genes.macdSlow || 26, genes.macdSignal || 9);
   const bb = calculateBollingerBands(closes, genes.bbPeriod || 20, genes.bbStdDev || 2);
   const stoch = calculateStochastic(highs, lows, closes, 14);
@@ -461,19 +183,19 @@ function generateSignal(bars: AlpacaBar[], genes: Record<string, number>): { sco
   else if (currentRSI > (genes.rsiOverbought || 70)) technicalScore -= 0.3;
   else technicalScore += (50 - currentRSI) / 100;
 
-  const macdCurrent = macd.histogram[macd.histogram.length - 1];
-  const macdPrev = macd.histogram[macd.histogram.length - 2];
+  const macdCurrent = macd.histogram[macd.histogram.length - 1] ?? 0;
+  const macdPrev = macd.histogram[macd.histogram.length - 2] ?? 0;
   if (macdCurrent > 0 && macdCurrent > macdPrev) technicalScore += 0.25;
   else if (macdCurrent < 0 && macdCurrent < macdPrev) technicalScore -= 0.25;
 
   const currentClose = closes[closes.length - 1];
-  const bbLower = bb.lower[bb.lower.length - 1];
-  const bbUpper = bb.upper[bb.upper.length - 1];
-  const bbMiddle = bb.middle[bb.middle.length - 1];
+  const bbLower = bb.lower[bb.lower.length - 1] ?? currentClose;
+  const bbUpper = bb.upper[bb.upper.length - 1] ?? currentClose;
+  const bbMiddle = bb.middle[bb.middle.length - 1] ?? currentClose;
   if (currentClose < bbLower) technicalScore += 0.2;
   else if (currentClose > bbUpper) technicalScore -= 0.2;
 
-  const stochK = stoch.k[stoch.k.length - 1];
+  const stochK = stoch.k[stoch.k.length - 1] ?? 50;
   if (stochK < 20) technicalScore += 0.15;
   else if (stochK > 80) technicalScore -= 0.15;
 
@@ -495,7 +217,7 @@ function generateSignal(bars: AlpacaBar[], genes: Record<string, number>): { sco
   const volatility = Math.sqrt(recentVolReturns.reduce((sum, r) => sum + r * r, 0) / recentVolReturns.length) * Math.sqrt(252);
   factors.volatility = Math.max(-1, Math.min(1, 0.5 - volatility));
 
-  // Volume
+  // Volume - using shared OBV
   const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
   const currentVolume = volumes[volumes.length - 1];
   const volumeRatio = currentVolume / avgVolume;
@@ -514,12 +236,15 @@ function generateSignal(bars: AlpacaBar[], genes: Record<string, number>): { sco
   const patterns = detectPatterns(closes, highs, lows);
   factors.pattern = patterns.length > 0 ? Math.max(-1, Math.min(1, patterns.reduce((sum, p) => sum + p.strength, 0))) : 0;
 
-  // Breadth
+  // Breadth - using shared SMA
   const sma10 = calculateSMA(closes, 10);
   const sma20 = calculateSMA(closes, 20);
   const sma50 = closes.length >= 50 ? calculateSMA(closes, 50) : sma20;
   const current = closes[closes.length - 1];
-  factors.breadth = (current > sma10[sma10.length - 1] ? 0.33 : -0.33) + (current > sma20[sma20.length - 1] ? 0.33 : -0.33) + (current > sma50[sma50.length - 1] ? 0.34 : -0.34);
+  const s10 = sma10[sma10.length - 1] ?? current;
+  const s20 = sma20[sma20.length - 1] ?? current;
+  const s50 = sma50[sma50.length - 1] ?? current;
+  factors.breadth = (current > s10 ? 0.33 : -0.33) + (current > s20 ? 0.33 : -0.33) + (current > s50 ? 0.34 : -0.34);
 
   // Correlation
   const deviation = (current - bbMiddle) / (bbUpper - bbMiddle || 1);
@@ -576,7 +301,6 @@ async function runBacktest(genome: Genome, bars: Map<string, AlpacaBar[]>, start
       const currentBar = symbolBars.find(b => b.t === currentDate);
       if (!currentBar) continue;
 
-      const currentPrice = currentBar.c;
       const high = currentBar.h;
       const low = currentBar.l;
       let exitPrice: number | null = null;
@@ -609,7 +333,7 @@ async function runBacktest(genome: Genome, bars: Map<string, AlpacaBar[]>, start
           const highs = barsToDate.map(b => b.h);
           const lows = barsToDate.map(b => b.l);
           const atr = calculateATR(highs, lows, closes, genes.atrPeriod || 14);
-          candidates.push({ symbol, score: signal.score, confidence: signal.confidence, price: currentBar.c, atr: atr[atr.length - 1] });
+          candidates.push({ symbol, score: signal.score, confidence: signal.confidence, price: currentBar.c, atr: atr[atr.length - 1] ?? 0 });
         }
       }
 
@@ -673,7 +397,7 @@ async function runBacktest(genome: Genome, bars: Map<string, AlpacaBar[]>, start
   return { totalReturn, sharpe, sortino, calmar, maxDrawdown, winRate, trades, equity, dailyReturns };
 }
 
-function calculateFitness(result: BacktestResult): number {
+function calculateFitnessScore(result: BacktestResult): number {
   const { sharpe, sortino, calmar, winRate, totalReturn, maxDrawdown, trades } = result;
   if (trades.length < 50) return -1000 + trades.length;
   if (maxDrawdown > 0.3) return -500 * maxDrawdown;
@@ -761,9 +485,8 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
         bars.set(symbol, symbolBars);
         loaded++;
       }
-      // Rate limit
       await new Promise(r => setTimeout(r, 100));
-    } catch (err) {
+    } catch {
       // Skip errors
     }
     process.stdout.write(`\r  Loaded ${loaded}/${SYMBOLS.length} symbols`);
@@ -791,10 +514,13 @@ async function runHyperoptimizer() {
   const learningEngine = new LearningEngine();
   const judgeSystem = new JudgeSystem();
 
+  // Initialize islands using shared generateRandomGenome
   const islands: Genome[][] = [];
   for (let i = 0; i < NUM_ISLANDS; i++) {
     const population: Genome[] = [];
-    for (let j = 0; j < POPULATION_SIZE / NUM_ISLANDS; j++) population.push(generateRandomGenome(0, i));
+    for (let j = 0; j < POPULATION_SIZE / NUM_ISLANDS; j++) {
+      population.push(generateRandomGenome(0, i, PARAM_RANGES));
+    }
     islands.push(population);
   }
 
@@ -822,7 +548,7 @@ async function runHyperoptimizer() {
           if (genome.fitness === 0) {
             try {
               const result = await runBacktest(genome, bars, startDate, endDate);
-              const fitness = calculateFitness(result);
+              const fitness = calculateFitnessScore(result);
 
               genome.fitness = fitness;
               genome.sharpe = result.sharpe;
@@ -834,7 +560,7 @@ async function runHyperoptimizer() {
               genome.trades = result.trades.length;
               totalEvaluations++;
 
-              const { verdict, suggestions } = judgeSystem.evaluate(genome, result);
+              const { verdict } = judgeSystem.evaluate(genome, result);
 
               if (!globalBest || fitness > globalBest.fitness) {
                 globalBest = { ...genome };
@@ -844,7 +570,7 @@ async function runHyperoptimizer() {
                 console.log(`     Return: ${(result.totalReturn * 100).toFixed(1)}% | MaxDD: ${(result.maxDrawdown * 100).toFixed(1)}% | Trades: ${result.trades.length}`);
                 console.log(`     Verdict: ${verdict}`);
               }
-            } catch (err) { genome.fitness = -10000; }
+            } catch { genome.fitness = -10000; }
           }
         }));
       }
@@ -861,12 +587,12 @@ async function runHyperoptimizer() {
         if (Math.random() < CROSSOVER_RATE) {
           const parent1 = tournamentSelect(island, TOURNAMENT_SIZE);
           const parent2 = tournamentSelect(island, TOURNAMENT_SIZE);
-          let child = crossover(parent1, parent2, generation + 1, islandIdx);
-          if (Math.random() < mutationRate) child = mutate(child, mutationRate);
+          let child = crossover(parent1, parent2, generation + 1, islandIdx, PARAM_RANGES);
+          if (Math.random() < mutationRate) child = mutate(child, mutationRate, PARAM_RANGES);
           newPopulation.push(child);
         } else {
           const parent = tournamentSelect(island, TOURNAMENT_SIZE);
-          const mutant = mutate(parent, mutationRate, 1.5);
+          const mutant = mutate(parent, mutationRate, PARAM_RANGES, 1.5);
           mutant.generation = generation + 1;
           newPopulation.push(mutant);
         }
@@ -910,7 +636,7 @@ async function runHyperoptimizer() {
     if (generation > 100 && diversity < 0.05) {
       console.log('\n  ⚠️ Population converged. Injecting diversity...');
       for (let i = 0; i < NUM_ISLANDS; i++) {
-        for (let j = 0; j < 5; j++) islands[i].push(generateRandomGenome(generation, i));
+        for (let j = 0; j < 5; j++) islands[i].push(generateRandomGenome(generation, i, PARAM_RANGES));
         islands[i].sort((a, b) => b.fitness - a.fitness);
         islands[i].splice(-5);
       }
