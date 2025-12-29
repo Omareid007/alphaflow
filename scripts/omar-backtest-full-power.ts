@@ -17,6 +17,23 @@
  * @author OMAR Full Power System
  */
 
+import {
+  fetchAlpacaBars,
+  calculateSMA,
+  calculateEMA,
+  calculateRSI,
+  calculateATR,
+  calculateADX,
+  calculateMACD,
+  calculateOBV,
+  calculateMFI,
+  calculateROC,
+  calculateWilliamsR,
+  calculateCCI,
+  calculateBollingerBands,
+  type AlpacaBar,
+} from "./shared/index.js";
+
 // ============================================================================
 // MAXIMUM UNIVERSE - 80 Symbols
 // ============================================================================
@@ -49,17 +66,6 @@ const MEGA_UNIVERSE = [
 // ============================================================================
 // COMPREHENSIVE DATA STRUCTURES
 // ============================================================================
-
-interface AlpacaBar {
-  t: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-  n: number;
-  vw: number;
-}
 
 interface AdvancedIndicators {
   // Standard
@@ -200,246 +206,8 @@ interface BacktestConfig {
 }
 
 // ============================================================================
-// DATA FETCHING
+// COMPREHENSIVE INDICATOR CALCULATION (using shared modules)
 // ============================================================================
-
-async function fetchAlpacaBars(symbol: string, startDate: string, endDate: string): Promise<AlpacaBar[]> {
-  const ALPACA_KEY = process.env.ALPACA_API_KEY;
-  const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY;
-
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    throw new Error("Alpaca API credentials not configured");
-  }
-
-  const baseUrl = "https://data.alpaca.markets/v2/stocks";
-  const allBars: AlpacaBar[] = [];
-  let pageToken: string | null = null;
-
-  do {
-    const params = new URLSearchParams({
-      start: `${startDate}T00:00:00Z`,
-      end: `${endDate}T23:59:59Z`,
-      timeframe: "1Day",
-      limit: "10000",
-    });
-
-    if (pageToken) params.set("page_token", pageToken);
-
-    const url = `${baseUrl}/${symbol}/bars?${params.toString()}`;
-
-    const response = await fetch(url, {
-      headers: {
-        "APCA-API-KEY-ID": ALPACA_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Alpaca API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    allBars.push(...(data.bars || []));
-    pageToken = data.next_page_token || null;
-  } while (pageToken);
-
-  return allBars;
-}
-
-// ============================================================================
-// COMPREHENSIVE TECHNICAL INDICATORS
-// ============================================================================
-
-function calculateSMA(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period - 1) result.push(null);
-    else result.push(prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period);
-  }
-  return result;
-}
-
-function calculateEMA(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const k = 2 / (period + 1);
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period - 1) result.push(null);
-    else if (i === period - 1) result.push(prices.slice(0, period).reduce((a, b) => a + b, 0) / period);
-    else result.push((prices[i] - result[i - 1]!) * k + result[i - 1]!);
-  }
-  return result;
-}
-
-function calculateRSI(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period) {
-      result.push(null);
-    } else {
-      let gains = 0, losses = 0;
-      for (let j = i - period + 1; j <= i; j++) {
-        const change = prices[j] - prices[j - 1];
-        if (change > 0) gains += change;
-        else losses += Math.abs(change);
-      }
-      const avgGain = gains / period;
-      const avgLoss = losses / period;
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      result.push(100 - (100 / (1 + rs)));
-    }
-  }
-  return result;
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const tr: number[] = [];
-  for (let i = 0; i < highs.length; i++) {
-    if (i === 0) tr.push(highs[i] - lows[i]);
-    else tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
-  }
-  for (let i = 0; i < tr.length; i++) {
-    if (i < period - 1) result.push(null);
-    else result.push(tr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period);
-  }
-  return result;
-}
-
-function calculateADX(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < highs.length; i++) {
-    if (i < period * 2) result.push(null);
-    else {
-      let sumPlusDM = 0, sumMinusDM = 0, sumTR = 0;
-      for (let j = i - period + 1; j <= i; j++) {
-        const upMove = highs[j] - highs[j - 1];
-        const downMove = lows[j - 1] - lows[j];
-        sumPlusDM += upMove > downMove && upMove > 0 ? upMove : 0;
-        sumMinusDM += downMove > upMove && downMove > 0 ? downMove : 0;
-        sumTR += Math.max(highs[j] - lows[j], Math.abs(highs[j] - closes[j - 1]), Math.abs(lows[j] - closes[j - 1]));
-      }
-      const plusDI = sumTR !== 0 ? (sumPlusDM / sumTR) * 100 : 0;
-      const minusDI = sumTR !== 0 ? (sumMinusDM / sumTR) * 100 : 0;
-      result.push((plusDI + minusDI) !== 0 ? (Math.abs(plusDI - minusDI) / (plusDI + minusDI)) * 100 : 0);
-    }
-  }
-  return result;
-}
-
-function calculateMACD(prices: number[], fast: number, slow: number, signal: number) {
-  const emaFast = calculateEMA(prices, fast);
-  const emaSlow = calculateEMA(prices, slow);
-  const macd: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (emaFast[i] === null || emaSlow[i] === null) macd.push(null);
-    else macd.push(emaFast[i]! - emaSlow[i]!);
-  }
-  const macdVals = macd.filter((v): v is number => v !== null);
-  const signalLine = calculateEMA(macdVals, signal);
-  const hist: (number | null)[] = [];
-  let si = 0;
-  for (let i = 0; i < macd.length; i++) {
-    if (macd[i] === null) hist.push(null);
-    else { hist.push(signalLine[si] !== null && signalLine[si] !== undefined ? macd[i]! - signalLine[si]! : null); si++; }
-  }
-  return { macd, histogram: hist };
-}
-
-function calculateOBV(closes: number[], volumes: number[]): (number | null)[] {
-  const result: (number | null)[] = [volumes[0]];
-  for (let i = 1; i < closes.length; i++) {
-    const prev = result[i - 1]!;
-    if (closes[i] > closes[i - 1]) result.push(prev + volumes[i]);
-    else if (closes[i] < closes[i - 1]) result.push(prev - volumes[i]);
-    else result.push(prev);
-  }
-  return result;
-}
-
-function calculateMFI(highs: number[], lows: number[], closes: number[], volumes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const typicalPrice = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
-  const rawMoneyFlow = typicalPrice.map((tp, i) => tp * volumes[i]);
-
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period) {
-      result.push(null);
-    } else {
-      let posFlow = 0, negFlow = 0;
-      for (let j = i - period + 1; j <= i; j++) {
-        if (typicalPrice[j] > typicalPrice[j - 1]) posFlow += rawMoneyFlow[j];
-        else negFlow += rawMoneyFlow[j];
-      }
-      const mfr = negFlow === 0 ? 100 : posFlow / negFlow;
-      result.push(100 - (100 / (1 + mfr)));
-    }
-  }
-  return result;
-}
-
-function calculateROC(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period) result.push(null);
-    else result.push(((prices[i] - prices[i - period]) / prices[i - period]) * 100);
-  }
-  return result;
-}
-
-function calculateWilliamsR(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period - 1) result.push(null);
-    else {
-      const periodHighs = highs.slice(i - period + 1, i + 1);
-      const periodLows = lows.slice(i - period + 1, i + 1);
-      const hh = Math.max(...periodHighs);
-      const ll = Math.min(...periodLows);
-      result.push(hh === ll ? -50 : ((hh - closes[i]) / (hh - ll)) * -100);
-    }
-  }
-  return result;
-}
-
-function calculateCCI(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const tp = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
-
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period - 1) {
-      result.push(null);
-    } else {
-      const slice = tp.slice(i - period + 1, i + 1);
-      const sma = slice.reduce((a, b) => a + b, 0) / period;
-      const meanDev = slice.reduce((sum, p) => sum + Math.abs(p - sma), 0) / period;
-      result.push(meanDev === 0 ? 0 : (tp[i] - sma) / (0.015 * meanDev));
-    }
-  }
-  return result;
-}
-
-function calculateBollingerBands(prices: number[], period: number, stdDev: number) {
-  const middle = calculateSMA(prices, period);
-  const upper: (number | null)[] = [];
-  const lower: (number | null)[] = [];
-  const width: (number | null)[] = [];
-
-  for (let i = 0; i < prices.length; i++) {
-    if (middle[i] === null) {
-      upper.push(null); lower.push(null); width.push(null);
-    } else {
-      const slice = prices.slice(Math.max(0, i - period + 1), i + 1);
-      const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
-      const variance = slice.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / slice.length;
-      const std = Math.sqrt(variance);
-      upper.push(middle[i]! + stdDev * std);
-      lower.push(middle[i]! - stdDev * std);
-      width.push(middle[i]! > 0 ? ((upper[i]! - lower[i]!) / middle[i]!) * 100 : null);
-    }
-  }
-
-  return { upper, middle, lower, width };
-}
 
 function calculateAllIndicators(bars: AlpacaBar[]): AdvancedIndicators {
   const closes = bars.map(b => b.c);

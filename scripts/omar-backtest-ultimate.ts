@@ -14,6 +14,19 @@
  * @author Omar Ultimate Algorithm
  */
 
+import {
+  fetchAlpacaBars,
+  calculateSMA,
+  calculateEMA,
+  calculateRSI,
+  calculateATR,
+  calculateStochastic,
+  calculateMACD,
+  calculateBollingerBands,
+  calculateADX,
+  type AlpacaBar,
+} from "./shared/index.js";
+
 // ============================================================================
 // EXTENDED UNIVERSE - 50 Most Liquid US Stocks + ETFs
 // ============================================================================
@@ -40,17 +53,6 @@ const FULL_UNIVERSE = [
 // ============================================================================
 // DATA STRUCTURES
 // ============================================================================
-
-interface AlpacaBar {
-  t: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-  n: number;
-  vw: number;
-}
 
 interface SentimentData {
   symbol: string;
@@ -129,273 +131,6 @@ interface ComprehensiveMetrics {
   technicalContribution: number;
   // By sector
   sectorPerformance: Record<string, { trades: number; pnl: number; winRate: number }>;
-}
-
-// ============================================================================
-// ALPACA DATA FETCHING
-// ============================================================================
-
-async function fetchAlpacaBars(
-  symbol: string,
-  startDate: string,
-  endDate: string
-): Promise<AlpacaBar[]> {
-  const ALPACA_KEY = process.env.ALPACA_API_KEY;
-  const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY;
-
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    throw new Error("Alpaca API credentials not configured");
-  }
-
-  const baseUrl = "https://data.alpaca.markets/v2/stocks";
-  const allBars: AlpacaBar[] = [];
-  let pageToken: string | null = null;
-
-  do {
-    const params = new URLSearchParams({
-      start: `${startDate}T00:00:00Z`,
-      end: `${endDate}T23:59:59Z`,
-      timeframe: "1Day",
-      limit: "10000",
-    });
-
-    if (pageToken) {
-      params.set("page_token", pageToken);
-    }
-
-    const url = `${baseUrl}/${symbol}/bars?${params.toString()}`;
-
-    const response = await fetch(url, {
-      headers: {
-        "APCA-API-KEY-ID": ALPACA_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Alpaca API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    const bars = data.bars || [];
-    allBars.push(...bars);
-    pageToken = data.next_page_token || null;
-
-  } while (pageToken);
-
-  return allBars;
-}
-
-// ============================================================================
-// TECHNICAL INDICATORS (Optimized versions)
-// ============================================================================
-
-function calculateSMA(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period - 1) {
-      result.push(null);
-    } else {
-      const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
-      result.push(sum / period);
-    }
-  }
-  return result;
-}
-
-function calculateEMA(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const multiplier = 2 / (period + 1);
-
-  for (let i = 0; i < prices.length; i++) {
-    if (i < period - 1) {
-      result.push(null);
-    } else if (i === period - 1) {
-      const sma = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
-      result.push(sma);
-    } else {
-      const prevEMA = result[i - 1]!;
-      const ema = (prices[i] - prevEMA) * multiplier + prevEMA;
-      result.push(ema);
-    }
-  }
-  return result;
-}
-
-function calculateRSI(prices: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const gains: number[] = [];
-  const losses: number[] = [];
-
-  for (let i = 1; i < prices.length; i++) {
-    const change = prices[i] - prices[i - 1];
-    gains.push(change > 0 ? change : 0);
-    losses.push(change < 0 ? Math.abs(change) : 0);
-  }
-
-  result.push(null);
-
-  for (let i = 0; i < gains.length; i++) {
-    if (i < period - 1) {
-      result.push(null);
-    } else {
-      const avgGain = gains.slice(Math.max(0, i - period + 1), i + 1).reduce((a, b) => a + b, 0) / period;
-      const avgLoss = losses.slice(Math.max(0, i - period + 1), i + 1).reduce((a, b) => a + b, 0) / period;
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      result.push(100 - (100 / (1 + rs)));
-    }
-  }
-
-  return result;
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const trueRanges: number[] = [];
-
-  for (let i = 0; i < highs.length; i++) {
-    if (i === 0) {
-      trueRanges.push(highs[i] - lows[i]);
-    } else {
-      const tr = Math.max(
-        highs[i] - lows[i],
-        Math.abs(highs[i] - closes[i - 1]),
-        Math.abs(lows[i] - closes[i - 1])
-      );
-      trueRanges.push(tr);
-    }
-  }
-
-  for (let i = 0; i < trueRanges.length; i++) {
-    if (i < period - 1) {
-      result.push(null);
-    } else {
-      const atr = trueRanges.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
-      result.push(atr);
-    }
-  }
-
-  return result;
-}
-
-function calculateStochastic(highs: number[], lows: number[], closes: number[], period: number) {
-  const k: (number | null)[] = [];
-
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period - 1) {
-      k.push(null);
-    } else {
-      const periodHighs = highs.slice(i - period + 1, i + 1);
-      const periodLows = lows.slice(i - period + 1, i + 1);
-      const highestHigh = Math.max(...periodHighs);
-      const lowestLow = Math.min(...periodLows);
-      if (highestHigh === lowestLow) {
-        k.push(50);
-      } else {
-        k.push(((closes[i] - lowestLow) / (highestHigh - lowestLow)) * 100);
-      }
-    }
-  }
-
-  return { k, d: calculateSMA(k.filter((v): v is number => v !== null), 3) };
-}
-
-function calculateMACD(prices: number[], fast: number, slow: number, signal: number) {
-  const emaFast = calculateEMA(prices, fast);
-  const emaSlow = calculateEMA(prices, slow);
-
-  const macd: (number | null)[] = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (emaFast[i] === null || emaSlow[i] === null) {
-      macd.push(null);
-    } else {
-      macd.push(emaFast[i]! - emaSlow[i]!);
-    }
-  }
-
-  const macdValues = macd.filter((v): v is number => v !== null);
-  const signalLine = calculateEMA(macdValues, signal);
-
-  const histogram: (number | null)[] = [];
-  let signalIndex = 0;
-  for (let i = 0; i < macd.length; i++) {
-    if (macd[i] === null) {
-      histogram.push(null);
-    } else {
-      const sig = signalLine[signalIndex] ?? null;
-      histogram.push(sig !== null ? macd[i]! - sig : null);
-      signalIndex++;
-    }
-  }
-
-  return { macd, histogram };
-}
-
-function calculateBollingerBands(prices: number[], period: number, stdDev: number) {
-  const middle = calculateSMA(prices, period);
-  const upper: (number | null)[] = [];
-  const lower: (number | null)[] = [];
-
-  for (let i = 0; i < prices.length; i++) {
-    if (middle[i] === null) {
-      upper.push(null);
-      lower.push(null);
-    } else {
-      const slice = prices.slice(Math.max(0, i - period + 1), i + 1);
-      const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
-      const variance = slice.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / slice.length;
-      const std = Math.sqrt(variance);
-      upper.push(middle[i]! + stdDev * std);
-      lower.push(middle[i]! - stdDev * std);
-    }
-  }
-
-  return { upper, middle, lower };
-}
-
-function calculateADX(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
-  const result: (number | null)[] = [];
-  const plusDM: number[] = [];
-  const minusDM: number[] = [];
-  const trueRanges: number[] = [];
-
-  for (let i = 0; i < highs.length; i++) {
-    if (i === 0) {
-      plusDM.push(0);
-      minusDM.push(0);
-      trueRanges.push(highs[i] - lows[i]);
-    } else {
-      const upMove = highs[i] - highs[i - 1];
-      const downMove = lows[i - 1] - lows[i];
-      plusDM.push(upMove > downMove && upMove > 0 ? upMove : 0);
-      minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
-      const tr = Math.max(
-        highs[i] - lows[i],
-        Math.abs(highs[i] - closes[i - 1]),
-        Math.abs(lows[i] - closes[i - 1])
-      );
-      trueRanges.push(tr);
-    }
-  }
-
-  // Simplified ADX calculation
-  for (let i = 0; i < highs.length; i++) {
-    if (i < period * 2 - 1) {
-      result.push(null);
-    } else {
-      const smoothPlusDM = plusDM.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
-      const smoothMinusDM = minusDM.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
-      const smoothTR = trueRanges.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
-
-      const plusDI = smoothTR !== 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
-      const minusDI = smoothTR !== 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
-      const dx = (plusDI + minusDI) !== 0 ? (Math.abs(plusDI - minusDI) / (plusDI + minusDI)) * 100 : 0;
-      result.push(dx);
-    }
-  }
-
-  return result;
 }
 
 // ============================================================================

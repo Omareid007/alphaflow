@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
+import { RootErrorBoundary } from "@/components/error-boundaries";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,7 +29,9 @@ export default function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
-            <AppShell>{children}</AppShell>
+            <RootErrorBoundary>
+              <AppShell>{children}</AppShell>
+            </RootErrorBoundary>
             <Toaster />
           </ThemeProvider>
         </QueryProvider>

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Trading platform with autonomous strategy management, backtesting, and broker integrations (Alpaca, IBKR).
+Trading platform with autonomous strategy management, backtesting, and broker integrations (Alpaca). Futures trading (IBKR) is planned - see `docs/FUTURES_ROADMAP.md`.
 
 ## Codebase Metrics (as of Dec 29, 2024)
 
@@ -41,6 +41,16 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Created image optimization script** (scripts/optimize-images.ts)
 - [x] **Added new npm scripts** (clean:code, clean:deps, optimize:images)
 
+### Phase 4 Enhancements (Dec 29, 2024)
+- [x] **Added 4 finance MCP servers** (financial-datasets, alpaca-trading, alphavantage, polygon)
+- [x] **Removed Docker MCP** (not functional in Replit)
+- [x] **Created error boundaries** (`components/error-boundaries/`)
+  - `RootErrorBoundary.tsx` - App-wide error catching
+  - `ComponentErrorBoundary.tsx` - Granular component isolation
+- [x] **Created validation middleware** (`server/middleware/validate.ts`)
+- [x] **Removed futures stubs** (51 unimplemented methods)
+- [x] **Created futures roadmap** (`docs/FUTURES_ROADMAP.md`)
+
 ### Remaining Items (Future)
 | Item | Priority | Notes |
 |------|----------|-------|
@@ -63,6 +73,8 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ## MCP Servers
 
 Configured in `.mcp.json`:
+
+### Core Servers (No API Key Required)
 | Server | Purpose |
 |--------|---------|
 | `postgres` | Database queries |
@@ -72,6 +84,27 @@ Configured in `.mcp.json`:
 | `git` | Git repository operations |
 | `fetch` | Web content fetching |
 | `time` | Time/timezone utilities |
+| `ts-morph` | TypeScript AST refactoring |
+| `playwright` | Browser automation, E2E testing |
+| `puppeteer` | Headless Chrome automation |
+| `sqlite` | Local persistent storage |
+
+### API Key Required (Configure When Available)
+| Server | Purpose | Env Variable |
+|--------|---------|--------------|
+| `github` | Repository operations, issues | `GITHUB_PERSONAL_ACCESS_TOKEN` |
+| `slack` | Trade alerts, notifications | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
+| `brave-search` | Privacy-focused web search | `BRAVE_API_KEY` |
+| `sentry` | Error tracking & monitoring | OAuth (auto-configured) |
+| `exa` | AI-powered web search | `EXA_API_KEY` |
+
+### Finance-Specific MCP Servers (New Dec 29, 2024)
+| Server | Purpose | Env Variable |
+|--------|---------|--------------|
+| `financial-datasets` | Income statements, balance sheets, prices | `FINANCIAL_DATASETS_API_KEY` |
+| `alpaca-trading` | Direct MCP trading via Alpaca | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` |
+| `alphavantage` | 100+ financial APIs, fundamentals | `ALPHAVANTAGE_API_KEY` |
+| `polygon` | Real-time market data, options | `POLYGON_API_KEY` |
 
 ## Custom Skills
 
@@ -81,6 +114,45 @@ Located in `~/.claude/skills/`:
 | `trading-analysis` | Strategy and backtest guidance |
 | `alpaca-integration` | Alpaca API patterns |
 | `project-structure` | Codebase navigation |
+| `backtest-framework` | Shared backtest modules |
+| `npm-dependencies` | Dependency management |
+| `market-analysis` | Market condition detection, indicators |
+| `risk-management` | Position sizing, pre-trade validation |
+| `ai-llm-patterns` | LLM Gateway, provider fallbacks |
+| `product-analyst` | PM & UI/UX discovery system |
+
+## Product Analyst Skill (New Dec 29, 2024)
+
+Expert PM & UI/UX Discovery System with 6 subagents and 8 commands.
+
+### Product Analysis Commands
+| Command | Purpose |
+|---------|---------|
+| `/discover-app` | Map entire application structure |
+| `/analyze-flows` | Document all user journeys |
+| `/audit-components` | Audit every UI element |
+| `/find-incomplete` | Find all gaps and TODOs |
+| `/create-spec [feature]` | Create feature specification |
+| `/create-test-plan [feature]` | Create comprehensive test plan |
+| `/plan-enhancement [feature]` | Plan safe enhancement with rollback |
+| `/generate-product-docs` | Generate product documentation |
+
+### Product Analysis Agents
+| Agent | Purpose |
+|-------|---------|
+| `app-discoverer` | Structure discovery |
+| `ui-analyst` | Component analysis |
+| `flow-mapper` | User journey mapping |
+| `spec-writer` | PRD/specification writing |
+| `qa-designer` | Test planning |
+| `enhancement-planner` | Safe enhancement planning |
+
+### Analysis Output Directories
+- `./analysis/` - Discovery results, gap analysis
+- `./specs/` - Feature specifications
+- `./proposals/` - Enhancement plans
+- `./tests/` - Test plans
+- `./docs/` - Product documentation
 
 ## Backtest Script Migration (Dec 29, 2024)
 
@@ -117,16 +189,26 @@ Verify with: `GET /api/admin/alpaca-account`
 ## Available Analysis Tools
 
 ### Commands (use with `/`)
-- `/analyze-codebase` - Full codebase analysis
-- `/find-dead-code` - Detect unused code
-- `/find-duplicates` - Find code duplication
-- `/cleanup-dependencies` - Dependency audit
+| Command | Purpose |
+|---------|---------|
+| `/analyze-codebase` | Full codebase analysis |
+| `/find-dead-code` | Detect unused code |
+| `/find-duplicates` | Find code duplication |
+| `/cleanup-dependencies` | Dependency audit |
+| `/security-scan` | Security vulnerability scanning |
+| `/optimize-performance` | Performance analysis and SLO checks |
+| `/generate-tests` | Auto-generate tests from code |
 
 ### Agents (via ~/.claude/agents/)
-- `codebase-analyzer` - Structure and pattern analysis
-- `dependency-auditor` - Package auditing
-- `refactoring-strategist` - Safe refactoring planning
-- `asset-optimizer` - Static asset optimization
+| Agent | Purpose |
+|-------|---------|
+| `codebase-analyzer` | Structure and pattern analysis |
+| `dependency-auditor` | Package auditing |
+| `refactoring-strategist` | Safe refactoring planning |
+| `asset-optimizer` | Static asset optimization |
+| `security-auditor` | OWASP checks, auth testing, SSRF |
+| `performance-profiler` | Latency, SLOs, memory analysis |
+| `test-generator` | Generate unit/integration tests |
 
 ## Non-Destructive Operation Rules
 

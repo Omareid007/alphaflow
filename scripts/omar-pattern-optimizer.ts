@@ -19,10 +19,20 @@
  * - Multi-objective fitness (Sharpe, Win Rate, Return, Calmar)
  */
 
+// ============= IMPORTS FROM SHARED MODULES =============
+import {
+  fetchAlpacaBars,
+  calculateSMA,
+  calculateEMA,
+  calculateRSI,
+  calculateATR,
+  calculateMACD,
+  tournamentSelect as sharedTournamentSelect,
+  normalizeWeights as sharedNormalizeWeights,
+  type AlpacaBar,
+} from "./shared/index.js";
+
 // ============= CONFIGURATION =============
-const ALPACA_KEY = process.env.ALPACA_API_KEY || '';
-const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY || '';
-const ALPACA_DATA_URL = 'https://data.alpaca.markets';
 
 // Optimizer settings
 const TOTAL_ITERATIONS = 1000;
@@ -104,15 +114,6 @@ const SYMBOLS = [
   'SPY', 'QQQ', 'IWM', 'XLF', 'XLK', 'XLE', 'XLV',
 ];
 
-interface AlpacaBar {
-  t: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-}
-
 interface PatternGenome {
   id: string;
   genes: Record<string, number>;
@@ -173,33 +174,6 @@ interface BacktestResult {
   patternTypeStats: Record<string, { count: number; winRate: number; avgReturn: number }>;
 }
 
-// ============= ALPACA DATA FETCHER =============
-
-async function fetchAlpacaBars(symbol: string, start: string, end: string): Promise<AlpacaBar[]> {
-  const allBars: AlpacaBar[] = [];
-  let pageToken: string | null = null;
-
-  do {
-    let url = `${ALPACA_DATA_URL}/v2/stocks/${symbol}/bars?timeframe=1Day&start=${start}&end=${end}&limit=10000&feed=iex`;
-    if (pageToken) url += `&page_token=${pageToken}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
-      },
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data = await response.json();
-    if (data.bars && Array.isArray(data.bars)) allBars.push(...data.bars);
-    pageToken = data.next_page_token || null;
-  } while (pageToken);
-
-  return allBars;
-}
-
 // ============= GENETIC OPERATORS =============
 
 function generateRandomGenome(generation: number): PatternGenome {
@@ -235,15 +209,12 @@ function generateRandomGenome(generation: number): PatternGenome {
   };
 }
 
+// Pattern-specific weight keys (includes breadthWeight and correlationWeight)
+const PATTERN_WEIGHT_KEYS = ['technicalWeight', 'momentumWeight', 'volatilityWeight', 'volumeWeight',
+                              'sentimentWeight', 'patternWeight', 'breadthWeight', 'correlationWeight'];
+
 function normalizeWeights(genes: Record<string, number>): void {
-  const weightKeys = ['technicalWeight', 'momentumWeight', 'volatilityWeight', 'volumeWeight',
-                      'sentimentWeight', 'patternWeight', 'breadthWeight', 'correlationWeight'];
-  const total = weightKeys.reduce((sum, key) => sum + (genes[key] || 0), 0);
-  if (total > 0) {
-    for (const key of weightKeys) {
-      genes[key] = Math.round((genes[key] / total) * 100) / 100;
-    }
-  }
+  sharedNormalizeWeights(genes, PATTERN_WEIGHT_KEYS);
 }
 
 function crossover(parent1: PatternGenome, parent2: PatternGenome, generation: number): PatternGenome {
@@ -298,73 +269,22 @@ function mutate(genome: PatternGenome, mutationRate: number): PatternGenome {
   return { ...genome, genes: mutatedGenes, fitness: 0 };
 }
 
+// Pattern-specific tournament selection (uses shared algorithm with PatternGenome type)
 function tournamentSelect(population: PatternGenome[], tournamentSize: number): PatternGenome {
-  let best: PatternGenome | null = null;
-  for (let i = 0; i < tournamentSize; i++) {
-    const candidate = population[Math.floor(Math.random() * population.length)];
-    if (!best || candidate.fitness > best.fitness) best = candidate;
-  }
-  return best!;
+  // PatternGenome is compatible with Genome interface for fitness-based selection
+  return sharedTournamentSelect(population as any, tournamentSize) as unknown as PatternGenome;
 }
 
-// ============= TECHNICAL INDICATORS =============
+// ============= INDICATOR HELPERS =============
+// Wrapper to convert nullable arrays to NaN-filled arrays for compatibility
 
-function calculateSMA(data: number[], period: number): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) result.push(NaN);
-    else {
-      const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
-      result.push(sum / period);
-    }
-  }
-  return result;
+function toNaNArray(arr: (number | null)[]): number[] {
+  return arr.map(v => v ?? NaN);
 }
 
-function calculateEMA(data: number[], period: number): number[] {
-  const result: number[] = [];
-  const multiplier = 2 / (period + 1);
-  for (let i = 0; i < data.length; i++) {
-    if (i === 0) result.push(data[0]);
-    else result.push((data[i] - result[i - 1]) * multiplier + result[i - 1]);
-  }
-  return result;
-}
-
-function calculateRSI(closes: number[], period: number = 14): number[] {
-  const changes: number[] = [];
-  for (let i = 1; i < closes.length; i++) changes.push(closes[i] - closes[i - 1]);
-  const gains = changes.map(c => c > 0 ? c : 0);
-  const losses = changes.map(c => c < 0 ? -c : 0);
-  const avgGain = calculateEMA(gains, period);
-  const avgLoss = calculateEMA(losses, period);
-
-  const rsi: number[] = [NaN];
-  for (let i = 0; i < avgGain.length; i++) {
-    if (avgLoss[i] === 0) rsi.push(100);
-    else rsi.push(100 - (100 / (1 + avgGain[i] / avgLoss[i])));
-  }
-  return rsi;
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number = 14): number[] {
-  const tr: number[] = [highs[0] - lows[0]];
-  for (let i = 1; i < closes.length; i++) {
-    const hl = highs[i] - lows[i];
-    const hc = Math.abs(highs[i] - closes[i - 1]);
-    const lc = Math.abs(lows[i] - closes[i - 1]);
-    tr.push(Math.max(hl, hc, lc));
-  }
-  return calculateEMA(tr, period);
-}
-
-function calculateMACD(closes: number[]): { histogram: number[] } {
-  const emaFast = calculateEMA(closes, 12);
-  const emaSlow = calculateEMA(closes, 26);
-  const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalLine = calculateEMA(macdLine, 9);
-  const histogram = macdLine.map((v, i) => v - signalLine[i]);
-  return { histogram };
+function getLastValue(arr: (number | null)[]): number {
+  const val = arr[arr.length - 1];
+  return val ?? NaN;
 }
 
 // ============= ADVANCED PATTERN DETECTION =============
@@ -688,21 +608,25 @@ function generateSignal(
   const lows = bars.map(b => b.l);
   const volumes = bars.map(b => b.v);
 
-  // Basic technical factors
-  const rsi = calculateRSI(closes);
-  const currentRSI = rsi[rsi.length - 1];
+  // Basic technical factors (using shared indicators with null handling)
+  const rsi = calculateRSI(closes, 14);
+  const currentRSI = getLastValue(rsi);
   const macd = calculateMACD(closes);
   const sma20 = calculateSMA(closes, 20);
   const sma50 = calculateSMA(closes, 50);
 
   let technical = 0;
-  if (currentRSI < 30) technical += 0.5;
-  else if (currentRSI > 70) technical -= 0.5;
-  else technical += (50 - currentRSI) / 100;
+  if (!isNaN(currentRSI)) {
+    if (currentRSI < 30) technical += 0.5;
+    else if (currentRSI > 70) technical -= 0.5;
+    else technical += (50 - currentRSI) / 100;
+  }
 
-  const macdHist = macd.histogram[macd.histogram.length - 1];
-  if (macdHist > 0) technical += 0.3;
-  else technical -= 0.3;
+  const macdHist = getLastValue(macd.histogram);
+  if (!isNaN(macdHist)) {
+    if (macdHist > 0) technical += 0.3;
+    else technical -= 0.3;
+  }
   technical = Math.max(-1, Math.min(1, technical));
 
   // Momentum
@@ -721,7 +645,10 @@ function generateSignal(
 
   // Sentiment (trend)
   const current = closes[closes.length - 1];
-  const sentiment = (current > sma20[sma20.length - 1] ? 0.4 : -0.4) + (current > sma50[sma50.length - 1] ? 0.4 : -0.4);
+  const sma20Last = getLastValue(sma20);
+  const sma50Last = getLastValue(sma50);
+  const sentiment = (!isNaN(sma20Last) && current > sma20Last ? 0.4 : -0.4) +
+                    (!isNaN(sma50Last) && current > sma50Last ? 0.4 : -0.4);
 
   // PATTERN DETECTION (KEY FOCUS)
   const patterns = detectAdvancedPatterns(closes, highs, lows, genes);
@@ -732,7 +659,7 @@ function generateSignal(
   patternScore = Math.max(-1, Math.min(1, patternScore));
 
   // Breadth
-  const breadth = (current > sma20[sma20.length - 1] ? 0.5 : -0.5);
+  const breadth = (!isNaN(sma20Last) && current > sma20Last ? 0.5 : -0.5);
 
   // Correlation (mean reversion)
   const correlation = -sentiment * 0.3;
@@ -850,15 +777,18 @@ async function runBacktest(
           const highs = barsToDate.map(b => b.h);
           const lows = barsToDate.map(b => b.l);
           const atr = calculateATR(highs, lows, closes, 14);
-          candidates.push({
-            symbol,
-            score: signal.score,
-            confidence: signal.confidence,
-            price: currentBar.c,
-            atr: atr[atr.length - 1],
-            patterns: signal.patterns,
-            patternScore: signal.patternScore,
-          });
+          const atrValue = getLastValue(atr);
+          if (!isNaN(atrValue)) {
+            candidates.push({
+              symbol,
+              score: signal.score,
+              confidence: signal.confidence,
+              price: currentBar.c,
+              atr: atrValue,
+              patterns: signal.patterns,
+              patternScore: signal.patternScore,
+            });
+          }
         }
       }
 

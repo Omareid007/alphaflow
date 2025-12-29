@@ -53,6 +53,132 @@
         "-y",
         "@modelcontextprotocol/server-time"
       ]
+    },
+    "ts-morph": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sirosuzume/mcp-tsmorph-refactor"
+      ],
+      "env": {
+        "LOG_LEVEL": "info"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      }
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-puppeteer"
+      ]
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-sqlite",
+        "/tmp/claude-local.db"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+      }
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.sentry.dev/mcp"
+      ]
+    },
+    "exa": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-exa"
+      ],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
+    },
+    "financial-datasets": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "financial-datasets-mcp"
+      ],
+      "env": {
+        "FINANCIAL_DATASETS_API_KEY": "${FINANCIAL_DATASETS_API_KEY}"
+      }
+    },
+    "alpaca-trading": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-alpaca"
+      ],
+      "env": {
+        "ALPACA_API_KEY": "${ALPACA_API_KEY}",
+        "ALPACA_SECRET_KEY": "${ALPACA_SECRET_KEY}",
+        "ALPACA_PAPER": "true"
+      }
+    },
+    "alphavantage": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "alphavantage-mcp"
+      ],
+      "env": {
+        "ALPHAVANTAGE_API_KEY": "${ALPHAVANTAGE_API_KEY}"
+      }
+    },
+    "polygon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "polygon-mcp-server"
+      ],
+      "env": {
+        "POLYGON_API_KEY": "${POLYGON_API_KEY}"
+      }
     }
   }
 }
