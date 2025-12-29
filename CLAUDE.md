@@ -4,15 +4,17 @@
 
 Trading platform with autonomous strategy management, backtesting, and broker integrations (Alpaca, IBKR).
 
-## Codebase Metrics (as of Dec 2024)
+## Codebase Metrics (as of Dec 29, 2024)
 
-| Metric | Value |
-|--------|-------|
-| Total Workspace | 2.0 GB |
-| Source Code | 535 MB |
-| TypeScript/React Files | 501 files |
-| Lines of Code | ~151,826 |
-| Dependencies | 104 packages |
+| Metric | Before | After | Savings |
+|--------|--------|-------|---------|
+| Total Workspace | 2.0 GB | 1.9 GB | 100 MB |
+| Source Code | 535 MB | 530 MB | 5 MB |
+| TypeScript/React Files | 501 | 485 | 16 files |
+| Lines of Code | ~154,138 | ~152,000 | ~2,000 |
+| Dependencies | 104 | 81 | 23 packages |
+| Static Assets | 3.88 MB | 400 KB | 86% reduction |
+| Security Vulns | 8 | 7 | 1 fixed |
 
 ## Cleanup Status
 
@@ -28,6 +30,16 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Next.js upgraded 13.5.1 → 14.2.35** (critical security fix)
 - [x] **attached_assets cleaned** (5.1MB → 984KB, 80% reduction)
 - [x] Custom skills created (3 skills: trading-analysis, alpaca-integration, project-structure)
+
+### Phase 3 Cleanup Completed (Dec 29, 2024)
+- [x] **Removed 23 unused packages** (104 → 81 dependencies)
+- [x] **Removed 16 unused UI components** (accordion, carousel, drawer, form, etc.)
+- [x] **Optimized icons** (2.9 MB → 400 KB, 86% reduction via Sharp)
+- [x] **Removed unused @types** (@types/decimal.js, @types/p-limit, @types/p-retry, @types/cors)
+- [x] **Removed dev screenshots** from attached_assets
+- [x] **Installed code quality tools** (knip, sharp)
+- [x] **Created image optimization script** (scripts/optimize-images.ts)
+- [x] **Added new npm scripts** (clean:code, clean:deps, optimize:images)
 
 ### Remaining Items (Future)
 | Item | Priority | Notes |
@@ -122,6 +134,11 @@ npx tsc --noEmit
 
 # Security audit
 npm audit
+
+# Code quality (new)
+npm run clean:code      # Run knip for unused code detection
+npm run clean:deps      # Run depcheck for unused dependencies
+npm run optimize:images # Optimize PNG icons with Sharp
 
 # Dependency check
 npx depcheck --json > /tmp/depcheck.json
