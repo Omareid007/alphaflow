@@ -1,10 +1,10 @@
 "use client";
 
-import { BacktestRun } from "@/lib/types";
+import { BacktestMetrics } from "@/lib/types";
 import { MetricTile } from "./MetricTile";
 
 interface MetricsGridProps {
-  metrics: BacktestRun["metrics"];
+  metrics: BacktestMetrics;
 }
 
 export function MetricsGrid({ metrics }: MetricsGridProps) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { BacktestRun } from "@/lib/types";
+import { BacktestMetrics, BacktestChartSeries } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   LineChart,
@@ -19,8 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 
 interface PerformanceChartsProps {
-  chartSeries: BacktestRun["chartSeries"];
-  metrics: BacktestRun["metrics"];
+  chartSeries: BacktestChartSeries;
+  metrics: BacktestMetrics;
 }
 
 export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsProps) {

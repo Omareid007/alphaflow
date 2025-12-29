@@ -1,6 +1,6 @@
 "use client";
 
-import { BacktestRun } from "@/lib/types";
+import { Interpretation } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   AlertTriangle,
@@ -9,11 +9,41 @@ import {
 } from "lucide-react";
 
 interface AIInterpretationProps {
-  interpretation: BacktestRun["interpretation"];
+  interpretation: Interpretation | string | undefined;
   onApplySuggestions: () => void;
 }
 
-export function AIInterpretation({ interpretation, onApplySuggestions }: AIInterpretationProps) {
+// Normalize interpretation to expected format
+function normalizeInterpretation(input: Interpretation | string | undefined): Interpretation {
+  if (!input) {
+    return {
+      summary: "Backtest completed. No AI interpretation available.",
+      strengths: [],
+      risks: [],
+      suggestedEdits: [],
+    };
+  }
+
+  if (typeof input === 'string') {
+    return {
+      summary: input,
+      strengths: [],
+      risks: [],
+      suggestedEdits: [],
+    };
+  }
+
+  return {
+    summary: input.summary || "Backtest completed.",
+    strengths: input.strengths || [],
+    risks: input.risks || [],
+    suggestedEdits: input.suggestedEdits || [],
+  };
+}
+
+export function AIInterpretation({ interpretation: rawInterpretation, onApplySuggestions }: AIInterpretationProps) {
+  const interpretation = normalizeInterpretation(rawInterpretation);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
