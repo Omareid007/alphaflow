@@ -19,7 +19,7 @@
  */
 
 import { log } from "../utils/logger";
-import { mean, variance, stdDev } from "../utils/money";
+import { mean, variance, stdDev, toDecimal } from "../utils/money";
 
 export interface MarketDataPoint {
   source: string;
@@ -340,9 +340,9 @@ function fusePriceData(
 
   for (const point of data) {
     if (point.price === undefined) continue;
-    
+
     const weight = point.reliability * (SOURCE_RELIABILITY[point.source] || 0.5);
-    weightedPrice += point.price * weight;
+    weightedPrice += toDecimal(point.price).times(weight).toNumber();
     weightedChange += (point.priceChange || 0) * weight;
     weightedChangePercent += (point.priceChangePercent || 0) * weight;
     totalWeight += weight;

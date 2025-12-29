@@ -61,6 +61,7 @@ import { preTradeGuard } from "./pre-trade-guard";
 import { candidatesService } from "../universe/candidatesService";
 import { isCryptoSymbol, normalizeCryptoSymbol } from "./crypto-utils";
 import { safeParseFloat } from "../utils/numeric";
+import { toDecimal } from "../utils/money";
 import type { OrchestratorState, RiskLimits, PositionWithRules, ExecutionResult } from "./types";
 import type { AIDecision } from "../ai/decision-engine";
 
@@ -451,7 +452,7 @@ export class RebalancingManager {
         }
 
         // Calculate 50% of original position value as pyramid amount
-        const originalPositionValue = position.quantity * position.entryPrice;
+        const originalPositionValue = toDecimal(position.quantity).times(position.entryPrice).toNumber();
         const pyramidValue = Math.min(
           originalPositionValue * PYRAMID_POSITION_MULTIPLIER,  // 50% of original position
           availableForBuying,
