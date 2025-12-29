@@ -1,4 +1,8 @@
 import { eventBus, type SystemEvent, type TradingEvent } from "./events";
+import { pinoLogger } from "../utils/logger";
+
+// Create a child logger for orchestration
+const orchestrationLogger = pinoLogger.child({ module: 'orchestration' });
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical";
 
@@ -55,24 +59,18 @@ class TradingLogger {
       this.logs = this.logs.slice(-this.maxLogSize);
     }
 
-    const formattedTime = entry.timestamp
-      .toISOString()
-      .split("T")[1]
-      .slice(0, 12);
-    const prefix = `[${formattedTime}] [${level.toUpperCase()}] [${category}]`;
+    // Log to Pino structured logger (Pino handles timestamp formatting)
+    const logMeta = { category, correlationId, ...metadata };
 
     switch (level) {
       case "debug":
-        console.debug(`${prefix} ${message}`, metadata || "");
+        orchestrationLogger.debug(logMeta, message);
         break;
       case "info":
-        console.log(
-          `${prefix} ${message}`,
-          metadata ? JSON.stringify(metadata) : ""
-        );
+        orchestrationLogger.info(logMeta, message);
         break;
       case "warn":
-        console.warn(`${prefix} ${message}`, metadata || "");
+        orchestrationLogger.warn(logMeta, message);
         eventBus.emit<SystemEvent>(
           "system:warning",
           {
@@ -86,7 +84,7 @@ class TradingLogger {
         break;
       case "error":
       case "critical":
-        console.error(`${prefix} ${message}`, metadata || "");
+        orchestrationLogger.error(logMeta, message);
         eventBus.emit<SystemEvent>(
           "system:error",
           {

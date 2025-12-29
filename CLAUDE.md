@@ -77,13 +77,20 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - `docs/product/USER_JOURNEYS.md` - Visual user flow documentation
   - `docs/api/OPENAPI_SPEC.yaml` - Full OpenAPI 3.0 specification
 
+### Phase 6: Structured Logging (Dec 29, 2024)
+- [x] **Installed Pino logging stack** (pino, pino-http, pino-pretty)
+- [x] **Upgraded `server/utils/logger.ts`** to use Pino internally
+- [x] **Migrated console.log statements** in server code to structured logger
+- [x] **Added ESLint no-console rule** for server code enforcement
+- [x] **Created module-specific child loggers** (trading, autonomous, ai, api, connector)
+- [x] **Implemented automatic credential redaction** (API keys, passwords, tokens)
+
 ### Remaining Items (Future)
 | Item | Priority | Notes |
 |------|----------|-------|
 | Backtest script consolidation | Low | 14 scripts (~8K lines) remaining |
 | Type safety upgrade | P1 | 289 `:any` annotations |
 | Test coverage | P0 | <5% → 60% target |
-| Console log removal | P1 | 7,758 statements |
 | Email notifications | P1 | Code stub exists |
 | Remaining vulnerabilities | Medium | glob in eslint-config-next |
 
@@ -215,6 +222,53 @@ Located in `scripts/shared/`:
 The `.env` file takes precedence over Replit Secrets via `dotenv.config({ override: true })`.
 
 Verify with: `GET /api/admin/alpaca-account`
+
+## Structured Logging
+
+### Overview
+The platform uses **Pino** for high-performance structured JSON logging with automatic credential redaction.
+
+### Usage
+```typescript
+import { log } from '../utils/logger';
+
+// Standard logging (backward compatible API)
+log.info('Trading', 'Order placed', { symbol: 'AAPL', quantity: 100 });
+log.warn('Alpaca', 'Rate limit approaching', { remaining: 5 });
+log.error('AI', 'Provider failed', { provider: 'openai', error });
+
+// Module-specific loggers (direct Pino child loggers)
+import { tradingLogger, autonomousLogger, aiLogger } from '../utils/logger';
+
+tradingLogger.info({ symbol: 'AAPL', price: 150.25 }, 'Position opened');
+autonomousLogger.debug({ cycleId: 'cyc-abc123' }, 'Cycle started');
+```
+
+### Features
+| Feature | Description |
+|---------|-------------|
+| JSON output | Production logs are structured JSON for log aggregation |
+| Pretty printing | Development logs are colorized and human-readable |
+| Auto-redaction | API keys, passwords, tokens automatically censored |
+| Correlation IDs | Request/cycle IDs for distributed tracing |
+| Module loggers | Child loggers for trading, autonomous, ai, api, connector |
+
+### Automatic Redaction
+These fields are automatically redacted to `[REDACTED]`:
+- `alpacaApiKey`, `alpacaSecretKey`, `apiKey`, `secretKey`
+- `password`, `token`, `accessToken`, `refreshToken`
+- `authorization`, `cookie`, `session`, `jwt`
+- Nested patterns: `*.apiKey`, `*.password`, `body.token`
+
+### ESLint Enforcement
+The `no-console` rule is enabled for `server/**/*.ts` files. Use the structured logger instead:
+```typescript
+// ❌ Bad - will trigger ESLint warning
+console.log('Order placed:', orderId);
+
+// ✅ Good - use structured logger
+log.info('Trading', 'Order placed', { orderId });
+```
 
 ## Available Analysis Tools
 

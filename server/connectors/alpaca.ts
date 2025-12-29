@@ -438,33 +438,26 @@ class AlpacaConnector {
     const cacheKey = "positions";
     const cached = this.getCached<AlpacaPosition[]>(cacheKey);
     if (cached) {
-      console.log(
-        "[ALPACA] getPositions() returning cached data. Type:",
-        Array.isArray(cached) ? "array" : typeof cached
-      );
+      log.debug('Alpaca', 'getPositions() returning cached data', {
+        type: Array.isArray(cached) ? 'array' : typeof cached
+      });
       return cached;
     }
 
-    console.log("[ALPACA] getPositions() fetching fresh data from API");
+    log.debug('Alpaca', 'getPositions() fetching fresh data from API');
     const url = `${ALPACA_BASE_URL}/v2/positions`;
-    console.log("[ALPACA] Full URL:", url);
+    log.debug('Alpaca', 'Positions request', { url });
     const data = await this.fetchWithRetry<AlpacaPosition[]>(url);
-    console.log(
-      "[ALPACA] getPositions() received data. Type:",
-      Array.isArray(data) ? "array" : typeof data,
-      "Length:",
-      data?.length
-    );
-    console.log(
-      "[ALPACA] getPositions() data content:",
-      JSON.stringify(data).substring(0, 200)
-    );
+    log.debug('Alpaca', 'getPositions() received data', {
+      type: Array.isArray(data) ? 'array' : typeof data,
+      length: data?.length
+    });
 
     // FIX: If the API returned an object instead of array, wrap it or return empty array
     if (!Array.isArray(data)) {
-      console.log(
-        "[ALPACA] WARNING: positions endpoint returned non-array, returning empty array"
-      );
+      log.warn('Alpaca', 'positions endpoint returned non-array, returning empty array', {
+        receivedType: typeof data
+      });
       const emptyArray: AlpacaPosition[] = [];
       this.setCache(cacheKey, emptyArray);
       return emptyArray;

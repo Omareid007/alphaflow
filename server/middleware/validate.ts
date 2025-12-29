@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Request, Response, NextFunction } from 'express'
+import { log } from '../utils/logger'
 
 type ValidationTarget = 'body' | 'query' | 'params'
 
@@ -29,7 +30,11 @@ export function validate<T extends z.ZodTypeAny>(
         code: err.code
       }))
 
-      console.warn(`[Validation] Failed for ${req.method} ${req.path}:`, errors)
+      log.warn('Validation', `Failed for ${req.method} ${req.path}`, {
+        method: req.method,
+        path: req.path,
+        errors
+      })
 
       return res.status(400).json({
         error: 'Validation failed',
@@ -38,8 +43,13 @@ export function validate<T extends z.ZodTypeAny>(
     }
 
     // Attach validated data to request
-    const key = `validated${target.charAt(0).toUpperCase() + target.slice(1)}` as keyof ValidatedRequest
-    ;(req as Record<string, unknown>)[key] = result.data
+    if (target === 'body') {
+      req.validatedBody = result.data
+    } else if (target === 'query') {
+      req.validatedQuery = result.data
+    } else if (target === 'params') {
+      req.validatedParams = result.data
+    }
     next()
   }
 }
@@ -76,7 +86,11 @@ export function validateAll(schemas: {
     }
 
     if (allErrors.length > 0) {
-      console.warn(`[Validation] Failed for ${req.method} ${req.path}:`, allErrors)
+      log.warn('Validation', `Failed for ${req.method} ${req.path}`, {
+        method: req.method,
+        path: req.path,
+        errors: allErrors
+      })
 
       return res.status(400).json({
         error: 'Validation failed',
