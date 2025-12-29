@@ -22,7 +22,8 @@
     "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
     "clean:code": "knip",
     "clean:deps": "npx depcheck",
-    "optimize:images": "tsx scripts/optimize-images.ts"
+    "optimize:images": "tsx scripts/optimize-images.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -86,6 +87,15 @@
     "ws": "^8.18.0",
     "zod": "^3.25.76"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
@@ -104,7 +114,9 @@
     "eslint-config-next": "^14.2.35",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
     "knip": "^5.78.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "sharp": "^0.34.5",
     "typescript": "^5.2.2"
