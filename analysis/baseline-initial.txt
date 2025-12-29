@@ -1,0 +1,32 @@
+=== SIZE OVERVIEW ===
+1.2G	.
+
+=== LARGEST DIRECTORIES ===
+849M	node_modules/
+5.1M	attached_assets/
+3.2M	docs/
+3.1M	server/
+2.9M	assets/
+1.5M	server_dist/
+1.3M	scripts/
+652K	scale/
+460K	app/
+380K	components/
+
+=== SOURCE FILE COUNT ===
+TypeScript: 6676
+TSX: 498
+JavaScript: 15259
+
+=== DEPENDENCY CHECK ===
+Unused packages:
+Unused dependencies
+* @alpacahq/alpaca-trade-api
+* @hookform/resolvers
+* @radix-ui/react-progress
+* autoprefixer
+* cors
+* nats
+* postcss
+* tsconfig-paths
+* zod-validation-error
