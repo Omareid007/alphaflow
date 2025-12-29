@@ -1,7 +1,7 @@
 import { log } from "../utils/logger";
-import { tradingConfig, getAlpacaBaseUrl } from '../config/trading-config';
-import { getLimiter, wrapWithLimiter } from '../lib/rateLimiter';
-import { getBreaker } from '../lib/circuitBreaker';
+import { tradingConfig, getAlpacaBaseUrl } from "../config/trading-config";
+import { getLimiter, wrapWithLimiter } from "../lib/rateLimiter";
+import { getBreaker } from "../lib/circuitBreaker";
 
 const ALPACA_BASE_URL = getAlpacaBaseUrl();
 const ALPACA_DATA_URL = tradingConfig.alpaca.dataUrl;
@@ -197,7 +197,7 @@ interface CacheEntry<T> {
 class AlpacaConnector {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private cacheDuration = 30 * 1000;
-  private readonly providerName = 'alpaca';
+  private readonly providerName = "alpaca";
   private failureCount = 0;
   private readonly maxConsecutiveFailures = 5;
   private lastFailureReset = Date.now();
@@ -215,7 +215,10 @@ class AlpacaConnector {
   private recordSuccess(): void {
     // Reset failure count on success
     if (this.failureCount > 0) {
-      log.info('Alpaca', `Circuit breaker recovered after ${this.failureCount} failures`);
+      log.info(
+        "Alpaca",
+        `Circuit breaker recovered after ${this.failureCount} failures`
+      );
     }
     this.failureCount = 0;
     this.circuitBreakerOpenedAt = null;
@@ -230,7 +233,10 @@ class AlpacaConnector {
       if (!this.circuitBreakerOpenedAt) {
         this.circuitBreakerOpenedAt = Date.now();
       }
-      log.error('Alpaca', `Circuit breaker threshold reached: ${this.failureCount} consecutive failures`);
+      log.error(
+        "Alpaca",
+        `Circuit breaker threshold reached: ${this.failureCount} consecutive failures`
+      );
     }
   }
 
@@ -245,7 +251,10 @@ class AlpacaConnector {
       const elapsed = Date.now() - this.circuitBreakerOpenedAt;
       if (elapsed >= this.circuitBreakerCooldownMs) {
         // Allow a test request (half-open state)
-        log.info('Alpaca', `Circuit breaker entering half-open state after ${Math.round(elapsed / 1000)}s cooldown`);
+        log.info(
+          "Alpaca",
+          `Circuit breaker entering half-open state after ${Math.round(elapsed / 1000)}s cooldown`
+        );
         return false;
       }
     }
@@ -272,8 +281,10 @@ class AlpacaConnector {
   ): Promise<T> {
     // Check circuit breaker before attempting request
     if (this.shouldRejectRequest()) {
-      const error = new Error('Circuit breaker is open - too many consecutive failures');
-      log.error('Alpaca', error.message);
+      const error = new Error(
+        "Circuit breaker is open - too many consecutive failures"
+      );
+      log.error("Alpaca", error.message);
       throw error;
     }
 
@@ -292,7 +303,7 @@ class AlpacaConnector {
 
     // Use circuit breaker for the actual API call
     // IMPORTANT: Use URL-specific key to prevent response mixing across endpoints
-    const breakerKey = `alpaca-api-${url.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    const breakerKey = `alpaca-api-${url.replace(/[^a-zA-Z0-9]/g, "-")}`;
     const breaker = getBreaker(
       breakerKey,
       async () => {
@@ -307,34 +318,48 @@ class AlpacaConnector {
 
               // Handle rate limiting with exponential backoff
               if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After');
+                const retryAfter = response.headers.get("Retry-After");
                 const waitTime = retryAfter
                   ? parseInt(retryAfter) * 1000
                   : Math.min(Math.pow(2, i + 1) * 1000, 16000);
 
-                log.warn("Alpaca", `Rate limited (429), waiting ${waitTime}ms (attempt ${i + 1}/${retries})`);
+                log.warn(
+                  "Alpaca",
+                  `Rate limited (429), waiting ${waitTime}ms (attempt ${i + 1}/${retries})`
+                );
 
                 if (i < retries - 1) {
                   await new Promise((resolve) => setTimeout(resolve, waitTime));
                   continue;
                 } else {
-                  throw new Error(`Rate limit exceeded after ${retries} retries`);
+                  throw new Error(
+                    `Rate limit exceeded after ${retries} retries`
+                  );
                 }
               }
 
               if (!response.ok) {
                 const errorBody = await response.text();
-                const error = new Error(`Alpaca API error: ${response.status} - ${errorBody}`);
+                const error = new Error(
+                  `Alpaca API error: ${response.status} - ${errorBody}`
+                );
 
                 // Don't retry on client errors (4xx except 429)
-                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                if (
+                  response.status >= 400 &&
+                  response.status < 500 &&
+                  response.status !== 429
+                ) {
                   throw error;
                 }
 
                 // Retry on server errors (5xx)
                 if (i < retries - 1) {
                   const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
-                  log.warn("Alpaca", `Server error ${response.status}, retrying in ${waitTime}ms`);
+                  log.warn(
+                    "Alpaca",
+                    `Server error ${response.status}, retrying in ${waitTime}ms`
+                  );
                   await new Promise((resolve) => setTimeout(resolve, waitTime));
                   continue;
                 }
@@ -343,28 +368,35 @@ class AlpacaConnector {
               }
 
               const text = await response.text();
-              console.log('[ALPACA] Response text for', url, ':', text.substring(0, 150));
 
-              if (!text || text.trim() === '') {
+              // Only log in development mode to avoid exposing sensitive data in production
+              if (process.env.NODE_ENV === "development" && process.env.ALPACA_DEBUG === "true") {
+                log.debug("Alpaca", `Response for ${url}: ${text.substring(0, 150)}`);
+              }
+
+              if (!text || text.trim() === "") {
                 // Return empty array for endpoints that expect arrays (positions, orders, assets, etc.)
                 // This handles cases where Alpaca returns empty body instead of []
-                console.log('[ALPACA] Empty response for URL:', url);
-                if (url.includes('/positions') || url.includes('/orders') || url.includes('/assets')) {
-                  console.log('[ALPACA] Returning empty array for:', url);
+                if (
+                  url.includes("/positions") ||
+                  url.includes("/orders") ||
+                  url.includes("/assets")
+                ) {
                   return [] as unknown as T;
                 }
-                console.log('[ALPACA] Returning empty object for:', url);
                 return {} as T;
               }
               const parsed = JSON.parse(text) as T;
-              console.log('[ALPACA] Parsed response for:', url, 'Type:', Array.isArray(parsed) ? 'array' : typeof parsed);
               return parsed;
             } catch (error) {
               if (i === retries - 1) throw error;
 
               // Network errors get exponential backoff
               const waitTime = Math.min(1000 * Math.pow(2, i), 8000);
-              log.warn("Alpaca", `Request failed: ${(error as Error).message}, retrying in ${waitTime}ms`);
+              log.warn(
+                "Alpaca",
+                `Request failed: ${(error as Error).message}, retrying in ${waitTime}ms`
+              );
               await new Promise((resolve) => setTimeout(resolve, waitTime));
             }
           }
@@ -386,7 +418,7 @@ class AlpacaConnector {
       return result;
     } catch (error) {
       this.recordFailure();
-      log.error('Alpaca', `Request failed: ${(error as Error).message}`);
+      log.error("Alpaca", `Request failed: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -406,20 +438,33 @@ class AlpacaConnector {
     const cacheKey = "positions";
     const cached = this.getCached<AlpacaPosition[]>(cacheKey);
     if (cached) {
-      console.log('[ALPACA] getPositions() returning cached data. Type:', Array.isArray(cached) ? 'array' : typeof cached);
+      console.log(
+        "[ALPACA] getPositions() returning cached data. Type:",
+        Array.isArray(cached) ? "array" : typeof cached
+      );
       return cached;
     }
 
-    console.log('[ALPACA] getPositions() fetching fresh data from API');
+    console.log("[ALPACA] getPositions() fetching fresh data from API");
     const url = `${ALPACA_BASE_URL}/v2/positions`;
-    console.log('[ALPACA] Full URL:', url);
+    console.log("[ALPACA] Full URL:", url);
     const data = await this.fetchWithRetry<AlpacaPosition[]>(url);
-    console.log('[ALPACA] getPositions() received data. Type:', Array.isArray(data) ? 'array' : typeof data, 'Length:', data?.length);
-    console.log('[ALPACA] getPositions() data content:', JSON.stringify(data).substring(0, 200));
+    console.log(
+      "[ALPACA] getPositions() received data. Type:",
+      Array.isArray(data) ? "array" : typeof data,
+      "Length:",
+      data?.length
+    );
+    console.log(
+      "[ALPACA] getPositions() data content:",
+      JSON.stringify(data).substring(0, 200)
+    );
 
     // FIX: If the API returned an object instead of array, wrap it or return empty array
     if (!Array.isArray(data)) {
-      console.log('[ALPACA] WARNING: positions endpoint returned non-array, returning empty array');
+      console.log(
+        "[ALPACA] WARNING: positions endpoint returned non-array, returning empty array"
+      );
       const emptyArray: AlpacaPosition[] = [];
       this.setCache(cacheKey, emptyArray);
       return emptyArray;
@@ -479,18 +524,30 @@ class AlpacaConnector {
       orderParams.limit_price = params.limit_price;
     }
 
-    log.info("Alpaca", `Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}, TIF=day`);
+    log.info(
+      "Alpaca",
+      `Creating bracket order for ${params.symbol}: TP=${params.take_profit_price}, SL=${params.stop_loss_price}, TIF=day`
+    );
     try {
       const order = await this.createOrder(orderParams);
-      log.info("Alpaca", `Bracket order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      log.info(
+        "Alpaca",
+        `Bracket order created successfully for ${params.symbol}`,
+        { orderId: order.id, status: order.status }
+      );
       return order;
     } catch (error) {
-      log.error("Alpaca", `Bracket order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      log.error(
+        "Alpaca",
+        `Bracket order FAILED for ${params.symbol}: ${(error as Error).message}`
+      );
       throw error;
     }
   }
 
-  async createTrailingStopOrder(params: TrailingStopOrderParams): Promise<AlpacaOrder> {
+  async createTrailingStopOrder(
+    params: TrailingStopOrderParams
+  ): Promise<AlpacaOrder> {
     const orderParams: CreateOrderParams = {
       symbol: params.symbol,
       qty: params.qty,
@@ -507,7 +564,10 @@ class AlpacaConnector {
       orderParams.trail_percent = "2";
     }
 
-    log.debug("Alpaca", `Creating trailing stop order for ${params.symbol}: trail=${params.trail_percent || params.trail_price}`);
+    log.debug(
+      "Alpaca",
+      `Creating trailing stop order for ${params.symbol}: trail=${params.trail_percent || params.trail_price}`
+    );
     return this.createOrder(orderParams);
   }
 
@@ -530,7 +590,10 @@ class AlpacaConnector {
       orderParams.limit_price = limitPrice;
     }
 
-    log.debug("Alpaca", `Creating stop loss order for ${symbol} at $${stopPrice}`);
+    log.debug(
+      "Alpaca",
+      `Creating stop loss order for ${symbol} at $${stopPrice}`
+    );
     return this.createOrder(orderParams);
   }
 
@@ -548,7 +611,10 @@ class AlpacaConnector {
       limit_price: limitPrice,
     };
 
-    log.debug("Alpaca", `Creating take profit order for ${symbol} at $${limitPrice}`);
+    log.debug(
+      "Alpaca",
+      `Creating take profit order for ${symbol} at $${limitPrice}`
+    );
     return this.createOrder(orderParams);
   }
 
@@ -586,13 +652,23 @@ class AlpacaConnector {
       },
     };
 
-    log.info("Alpaca", `Creating OCO order for ${params.symbol}: TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`);
+    log.info(
+      "Alpaca",
+      `Creating OCO order for ${params.symbol}: TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`
+    );
     try {
       const order = await this.createOrder(orderParams);
-      log.info("Alpaca", `OCO order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      log.info(
+        "Alpaca",
+        `OCO order created successfully for ${params.symbol}`,
+        { orderId: order.id, status: order.status }
+      );
       return order;
     } catch (error) {
-      log.error("Alpaca", `OCO order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      log.error(
+        "Alpaca",
+        `OCO order FAILED for ${params.symbol}: ${(error as Error).message}`
+      );
       throw error;
     }
   }
@@ -633,13 +709,23 @@ class AlpacaConnector {
       orderParams.limit_price = params.primaryLimitPrice;
     }
 
-    log.info("Alpaca", `Creating OTO order for ${params.symbol}: Primary=${params.primaryType}, SL=$${params.stopLossPrice}`);
+    log.info(
+      "Alpaca",
+      `Creating OTO order for ${params.symbol}: Primary=${params.primaryType}, SL=$${params.stopLossPrice}`
+    );
     try {
       const order = await this.createOrder(orderParams);
-      log.info("Alpaca", `OTO order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      log.info(
+        "Alpaca",
+        `OTO order created successfully for ${params.symbol}`,
+        { orderId: order.id, status: order.status }
+      );
       return order;
     } catch (error) {
-      log.error("Alpaca", `OTO order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      log.error(
+        "Alpaca",
+        `OTO order FAILED for ${params.symbol}: ${(error as Error).message}`
+      );
       throw error;
     }
   }
@@ -681,18 +767,31 @@ class AlpacaConnector {
       orderParams.limit_price = params.primaryLimitPrice;
     }
 
-    log.info("Alpaca", `Creating OTO+TP order for ${params.symbol}: Primary=${params.primaryType}, TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`);
+    log.info(
+      "Alpaca",
+      `Creating OTO+TP order for ${params.symbol}: Primary=${params.primaryType}, TP=$${params.takeProfitPrice}, SL=$${params.stopLossPrice}`
+    );
     try {
       const order = await this.createOrder(orderParams);
-      log.info("Alpaca", `OTO+TP order created successfully for ${params.symbol}`, { orderId: order.id, status: order.status });
+      log.info(
+        "Alpaca",
+        `OTO+TP order created successfully for ${params.symbol}`,
+        { orderId: order.id, status: order.status }
+      );
       return order;
     } catch (error) {
-      log.error("Alpaca", `OTO+TP order FAILED for ${params.symbol}: ${(error as Error).message}`);
+      log.error(
+        "Alpaca",
+        `OTO+TP order FAILED for ${params.symbol}: ${(error as Error).message}`
+      );
       throw error;
     }
   }
 
-  async getOrders(status: "open" | "closed" | "all" = "all", limit = 50): Promise<AlpacaOrder[]> {
+  async getOrders(
+    status: "open" | "closed" | "all" = "all",
+    limit = 50
+  ): Promise<AlpacaOrder[]> {
     const cacheKey = `orders_${status}_${limit}`;
     const cached = this.getCached<AlpacaOrder[]>(cacheKey);
     if (cached) return cached;
@@ -752,7 +851,7 @@ class AlpacaConnector {
     pageToken?: string
   ): Promise<AlpacaBarsResponse> {
     const symbolsParam = symbols.join(",");
-    
+
     if (!pageToken) {
       const cacheKey = `bars_${symbolsParam}_${timeframe}_${start}_${end}`;
       const cached = this.getCached<AlpacaBarsResponse>(cacheKey);
@@ -765,7 +864,7 @@ class AlpacaConnector {
     if (pageToken) url += `&page_token=${pageToken}`;
 
     const data = await this.fetchWithRetry<AlpacaBarsResponse>(url);
-    
+
     if (!pageToken) {
       const cacheKey = `bars_${symbolsParam}_${timeframe}_${start}_${end}`;
       this.setCache(cacheKey, data);
@@ -773,40 +872,50 @@ class AlpacaConnector {
     return data;
   }
 
-  async getSnapshots(symbols: string[]): Promise<{ [symbol: string]: AlpacaSnapshot }> {
+  async getSnapshots(
+    symbols: string[]
+  ): Promise<{ [symbol: string]: AlpacaSnapshot }> {
     const symbolsParam = symbols.join(",");
     const cacheKey = `snapshots_${symbolsParam}`;
-    const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(cacheKey);
+    const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(
+      cacheKey
+    );
     if (cached) return cached;
 
     const url = `${ALPACA_DATA_URL}/v2/stocks/snapshots?symbols=${symbolsParam}&feed=iex`;
-    const data = await this.fetchWithRetry<{ [symbol: string]: AlpacaSnapshot }>(url);
+    const data = await this.fetchWithRetry<{
+      [symbol: string]: AlpacaSnapshot;
+    }>(url);
     this.setCache(cacheKey, data);
     return data;
   }
 
-  async getCryptoSnapshots(symbols: string[]): Promise<{ [symbol: string]: AlpacaSnapshot }> {
+  async getCryptoSnapshots(
+    symbols: string[]
+  ): Promise<{ [symbol: string]: AlpacaSnapshot }> {
     const symbolsParam = symbols.join(",");
     const cacheKey = `crypto_snapshots_${symbolsParam}`;
-    const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(cacheKey);
+    const cached = this.getCached<{ [symbol: string]: AlpacaSnapshot }>(
+      cacheKey
+    );
     if (cached) return cached;
 
     const url = `${ALPACA_DATA_URL}/v1beta3/crypto/us/snapshots?symbols=${symbolsParam}`;
-    
+
     interface CryptoSnapshotResponse {
-      snapshots: { 
+      snapshots: {
         [symbol: string]: {
           dailyBar?: AlpacaBar;
           prevDailyBar?: AlpacaBar;
           latestTrade?: { p: number; s: number; t: string };
           latestQuote?: AlpacaQuote;
           minuteBar?: AlpacaBar;
-        } 
+        };
       };
     }
-    
+
     const response = await this.fetchWithRetry<CryptoSnapshotResponse>(url);
-    
+
     const result: { [symbol: string]: AlpacaSnapshot } = {};
     for (const [symbol, snapshot] of Object.entries(response.snapshots || {})) {
       result[symbol] = {
@@ -819,13 +928,46 @@ class AlpacaConnector {
           i: 0,
           z: "",
         },
-        latestQuote: snapshot.latestQuote || { ap: 0, as: 0, bp: 0, bs: 0, t: "" },
-        minuteBar: snapshot.minuteBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
-        dailyBar: snapshot.dailyBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
-        prevDailyBar: snapshot.prevDailyBar || { t: "", o: 0, h: 0, l: 0, c: 0, v: 0, n: 0, vw: 0 },
+        latestQuote: snapshot.latestQuote || {
+          ap: 0,
+          as: 0,
+          bp: 0,
+          bs: 0,
+          t: "",
+        },
+        minuteBar: snapshot.minuteBar || {
+          t: "",
+          o: 0,
+          h: 0,
+          l: 0,
+          c: 0,
+          v: 0,
+          n: 0,
+          vw: 0,
+        },
+        dailyBar: snapshot.dailyBar || {
+          t: "",
+          o: 0,
+          h: 0,
+          l: 0,
+          c: 0,
+          v: 0,
+          n: 0,
+          vw: 0,
+        },
+        prevDailyBar: snapshot.prevDailyBar || {
+          t: "",
+          o: 0,
+          h: 0,
+          l: 0,
+          c: 0,
+          v: 0,
+          n: 0,
+          vw: 0,
+        },
       };
     }
-    
+
     this.setCache(cacheKey, result);
     return result;
   }
@@ -865,11 +1007,11 @@ class AlpacaConnector {
     failureCount: number;
     circuitBreakerOpen: boolean;
   }> {
-    const { getProviderStatus } = await import('../lib/rateLimiter');
-    const { getBreakerStats } = await import('../lib/circuitBreaker');
+    const { getProviderStatus } = await import("../lib/rateLimiter");
+    const { getBreakerStats } = await import("../lib/circuitBreaker");
 
     const limiterStatus = await getProviderStatus(this.providerName);
-    const breakerStats = getBreakerStats('alpaca-api');
+    const breakerStats = getBreakerStats("alpaca-api");
 
     return {
       provider: this.providerName,
@@ -877,7 +1019,8 @@ class AlpacaConnector {
       queued: limiterStatus.queued,
       reservoir: limiterStatus.reservoir,
       failureCount: this.failureCount,
-      circuitBreakerOpen: breakerStats?.state === 'open' || this.shouldRejectRequest(),
+      circuitBreakerOpen:
+        breakerStats?.state === "open" || this.shouldRejectRequest(),
     };
   }
 
@@ -885,7 +1028,7 @@ class AlpacaConnector {
     this.failureCount = 0;
     this.circuitBreakerOpenedAt = null;
     this.lastFailureReset = Date.now();
-    log.info('Alpaca', 'Circuit breaker manually reset');
+    log.info("Alpaca", "Circuit breaker manually reset");
   }
 
   clearCache(): void {
@@ -908,26 +1051,35 @@ class AlpacaConnector {
     const now = new Date(clock.timestamp);
     const nextOpen = new Date(clock.next_open);
     const nextClose = new Date(clock.next_close);
-    
+
     const etHour = parseInt(
-      now.toLocaleString("en-US", { timeZone: "America/New_York", hour: "2-digit", hour12: false })
+      now.toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        hour: "2-digit",
+        hour12: false,
+      })
     );
     const etMinute = parseInt(
-      now.toLocaleString("en-US", { timeZone: "America/New_York", minute: "2-digit" })
+      now.toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        minute: "2-digit",
+      })
     );
     const etTime = etHour * 60 + etMinute;
-    
+
     const preMarketStart = 4 * 60;
     const marketOpen = 9 * 60 + 30;
     const marketClose = 16 * 60;
     const afterHoursEnd = 20 * 60;
-    
+
     const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
-    const isPreMarket = isWeekday && etTime >= preMarketStart && etTime < marketOpen;
+    const isPreMarket =
+      isWeekday && etTime >= preMarketStart && etTime < marketOpen;
     const isRegularHours = clock.is_open;
-    const isAfterHours = isWeekday && etTime >= marketClose && etTime < afterHoursEnd;
+    const isAfterHours =
+      isWeekday && etTime >= marketClose && etTime < afterHoursEnd;
     const isExtendedHours = isPreMarket || isAfterHours;
-    
+
     let session: "pre-market" | "regular" | "after-hours" | "closed";
     if (isRegularHours) {
       session = "regular";
@@ -938,7 +1090,7 @@ class AlpacaConnector {
     } else {
       session = "closed";
     }
-    
+
     return {
       isOpen: clock.is_open,
       isPreMarket,
@@ -983,7 +1135,8 @@ class AlpacaConnector {
       } catch (error) {
         result.endpoints[name].status = "error";
         result.endpoints[name].latencyMs = Date.now() - start;
-        result.endpoints[name].error = error instanceof Error ? error.message : "Unknown error";
+        result.endpoints[name].error =
+          error instanceof Error ? error.message : "Unknown error";
       }
     };
 
@@ -1049,7 +1202,7 @@ class AlpacaConnector {
 
     const symbols = tradableAssets.slice(0, 50).map((a) => a.symbol);
     let snapshots: { [symbol: string]: AlpacaSnapshot } = {};
-    
+
     try {
       snapshots = await this.getSnapshots(symbols);
     } catch {
@@ -1061,9 +1214,10 @@ class AlpacaConnector {
         const snapshot = snapshots[asset.symbol];
         const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
         const prevClose = snapshot?.prevDailyBar?.c ?? price;
-        const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+        const change =
+          price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
         const volume = snapshot?.dailyBar?.v ?? 0;
-        
+
         return {
           symbol: asset.symbol,
           name: asset.name,
@@ -1092,43 +1246,49 @@ class AlpacaConnector {
     const tradableAssets = assets.filter((a) => a.tradable).slice(0, limit * 2);
 
     const symbols = tradableAssets.map((a) => a.symbol);
-    
+
     interface CryptoSnapshot {
       dailyBar?: AlpacaBar;
       prevDailyBar?: AlpacaBar;
       latestTrade?: { p: number };
     }
-    
-    let cryptoSnapshots: { snapshots: { [symbol: string]: CryptoSnapshot } } = { snapshots: {} };
-    
+
+    let cryptoSnapshots: { snapshots: { [symbol: string]: CryptoSnapshot } } = {
+      snapshots: {},
+    };
+
     try {
       const url = `${ALPACA_DATA_URL}/v1beta3/crypto/us/snapshots?symbols=${symbols.join(",")}`;
-      cryptoSnapshots = await this.fetchWithRetry<{ snapshots: { [symbol: string]: CryptoSnapshot } }>(url);
+      cryptoSnapshots = await this.fetchWithRetry<{
+        snapshots: { [symbol: string]: CryptoSnapshot };
+      }>(url);
     } catch {
       cryptoSnapshots = { snapshots: {} };
     }
 
-    const result: TopAsset[] = tradableAssets.map((asset) => {
-      const snapshot = cryptoSnapshots.snapshots?.[asset.symbol];
-      const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
-      const prevClose = snapshot?.prevDailyBar?.c ?? price;
-      const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
-      const volume = snapshot?.dailyBar?.v ?? 0;
+    const result: TopAsset[] = tradableAssets
+      .map((asset) => {
+        const snapshot = cryptoSnapshots.snapshots?.[asset.symbol];
+        const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
+        const prevClose = snapshot?.prevDailyBar?.c ?? price;
+        const change =
+          price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+        const volume = snapshot?.dailyBar?.v ?? 0;
 
-      return {
-        symbol: asset.symbol,
-        name: asset.name,
-        price,
-        change,
-        volume,
-        tradable: asset.tradable,
-        fractionable: asset.fractionable,
-        assetClass: "crypto" as const,
-      };
-    })
-    .filter((a) => a.price > 0)
-    .sort((a, b) => b.volume - a.volume)
-    .slice(0, limit);
+        return {
+          symbol: asset.symbol,
+          name: asset.name,
+          price,
+          change,
+          volume,
+          tradable: asset.tradable,
+          fractionable: asset.fractionable,
+          assetClass: "crypto" as const,
+        };
+      })
+      .filter((a) => a.price > 0)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, limit);
 
     this.setCache(cacheKey, result);
     return result;
@@ -1177,26 +1337,28 @@ class AlpacaConnector {
       snapshots = {};
     }
 
-    const result: TopAsset[] = etfList.map((etf) => {
-      const snapshot = snapshots[etf.symbol];
-      const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
-      const prevClose = snapshot?.prevDailyBar?.c ?? price;
-      const change = price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
-      const volume = snapshot?.dailyBar?.v ?? 0;
+    const result: TopAsset[] = etfList
+      .map((etf) => {
+        const snapshot = snapshots[etf.symbol];
+        const price = snapshot?.dailyBar?.c ?? snapshot?.latestTrade?.p ?? 0;
+        const prevClose = snapshot?.prevDailyBar?.c ?? price;
+        const change =
+          price && prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+        const volume = snapshot?.dailyBar?.v ?? 0;
 
-      return {
-        symbol: etf.symbol,
-        name: etf.name,
-        price,
-        change,
-        volume,
-        tradable: true,
-        fractionable: true,
-        assetClass: "us_equity" as const,
-      };
-    })
-    .filter((a) => a.price > 0)
-    .sort((a, b) => b.volume - a.volume);
+        return {
+          symbol: etf.symbol,
+          name: etf.name,
+          price,
+          change,
+          volume,
+          tradable: true,
+          fractionable: true,
+          assetClass: "us_equity" as const,
+        };
+      })
+      .filter((a) => a.price > 0)
+      .sort((a, b) => b.volume - a.volume);
 
     this.setCache(cacheKey, result);
     return result;
@@ -1205,7 +1367,12 @@ class AlpacaConnector {
   validateOrder(params: CreateOrderParams): OrderValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const adjustments: { field: string; from: unknown; to: unknown; reason: string }[] = [];
+    const adjustments: {
+      field: string;
+      from: unknown;
+      to: unknown;
+      reason: string;
+    }[] = [];
 
     if (!params.symbol || params.symbol.trim() === "") {
       errors.push("Symbol is required");
@@ -1244,7 +1411,10 @@ class AlpacaConnector {
       errors.push("Stop price required for stop orders");
     }
 
-    if (params.type === "stop_limit" && (!params.limit_price || !params.stop_price)) {
+    if (
+      params.type === "stop_limit" &&
+      (!params.limit_price || !params.stop_price)
+    ) {
       errors.push("Both limit and stop prices required for stop-limit orders");
     }
 

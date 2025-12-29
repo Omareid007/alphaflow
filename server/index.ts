@@ -1,3 +1,8 @@
+// Load environment variables from .env file with OVERRIDE enabled
+// This ensures .env values ALWAYS take precedence over Replit Secrets
+import * as dotenv from "dotenv";
+dotenv.config({ override: true });
+
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
@@ -7,16 +12,17 @@ import * as path from "path";
 import { log, createRequestLogger } from "./utils/logger";
 import { validateAndReportEnvironment } from "./config/env-validator";
 import { positionReconciliationJob } from "./jobs/position-reconciliation";
+import { alpaca } from "./connectors/alpaca";
 import { cleanupExpiredSessions } from "./lib/session";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { requestLogger, performanceLogger } from "./middleware/request-logger";
 
-process.on('uncaughtException', (err) => {
-  log.error('FATAL', 'Uncaught exception', { error: err });
+process.on("uncaughtException", (err) => {
+  log.error("FATAL", "Uncaught exception", { error: err });
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  log.error('FATAL', 'Unhandled rejection', { promise, reason });
+process.on("unhandledRejection", (reason, promise) => {
+  log.error("FATAL", "Unhandled rejection", { promise, reason });
 });
 
 // Graceful shutdown handler
@@ -26,48 +32,48 @@ async function gracefulShutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
-  log.info('SHUTDOWN', `${signal} received, starting graceful shutdown...`);
+  log.info("SHUTDOWN", `${signal} received, starting graceful shutdown...`);
 
   try {
     // Stop accepting new requests
     if (global.httpServer) {
-      log.info('SHUTDOWN', 'Closing HTTP server...');
+      log.info("SHUTDOWN", "Closing HTTP server...");
       await new Promise<void>((resolve) => {
         global.httpServer.close(() => {
-          log.info('SHUTDOWN', 'HTTP server closed');
+          log.info("SHUTDOWN", "HTTP server closed");
           resolve();
         });
       });
     }
 
     // Stop background jobs
-    log.info('SHUTDOWN', 'Stopping background jobs...');
+    log.info("SHUTDOWN", "Stopping background jobs...");
     positionReconciliationJob.stop();
 
     // Drain work queue
-    const { workQueue } = await import('./lib/work-queue');
-    log.info('SHUTDOWN', 'Draining work queue...');
+    const { workQueue } = await import("./lib/work-queue");
+    log.info("SHUTDOWN", "Draining work queue...");
     await workQueue.drain();
-    log.info('SHUTDOWN', 'Work queue drained');
+    log.info("SHUTDOWN", "Work queue drained");
 
     // Close database connection
-    const { db } = await import('./db');
-    log.info('SHUTDOWN', 'Closing database pool...');
+    const { db } = await import("./db");
+    log.info("SHUTDOWN", "Closing database pool...");
     await db.$client.end();
-    log.info('SHUTDOWN', 'Database pool closed');
+    log.info("SHUTDOWN", "Database pool closed");
 
-    log.info('SHUTDOWN', 'Graceful shutdown complete');
+    log.info("SHUTDOWN", "Graceful shutdown complete");
     process.exit(0);
   } catch (error) {
-    log.error('SHUTDOWN', 'Error during graceful shutdown', { error });
+    log.error("SHUTDOWN", "Error during graceful shutdown", { error });
     process.exit(1);
   }
 }
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('beforeExit', (code) => log.info('PROCESS', 'beforeExit', { code }));
-process.on('exit', (code) => log.info('PROCESS', 'exit', { code }));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("beforeExit", (code) => log.info("PROCESS", "beforeExit", { code }));
+process.on("exit", (code) => log.info("PROCESS", "exit", { code }));
 
 const app = express();
 
@@ -103,7 +109,7 @@ function setupCors(app: express.Application) {
       res.header("Access-Control-Allow-Origin", origin || "*");
       res.header(
         "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS",
+        "GET, POST, PUT, DELETE, OPTIONS"
       );
       res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
@@ -123,7 +129,7 @@ function setupBodyParsing(app: express.Application) {
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
-    }),
+    })
   );
 
   app.use(express.urlencoded({ extended: false }));
@@ -152,7 +158,7 @@ function serveExpoManifest(platform: string, res: Response) {
     process.cwd(),
     "static-build",
     platform,
-    "manifest.json",
+    "manifest.json"
   );
 
   if (!fs.existsSync(manifestPath)) {
@@ -203,7 +209,7 @@ function configureExpoAndLanding(app: express.Application) {
     process.cwd(),
     "server",
     "templates",
-    "landing-page.html",
+    "landing-page.html"
   );
   const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   const appName = getAppName();
@@ -239,7 +245,10 @@ function configureExpoAndLanding(app: express.Application) {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  log.info("Server", "Expo routing: Checking expo-platform header on / and /manifest");
+  log.info(
+    "Server",
+    "Expo routing: Checking expo-platform header on / and /manifest"
+  );
 }
 
 function setupErrorHandler(app: express.Application) {
@@ -250,10 +259,35 @@ function setupErrorHandler(app: express.Application) {
   app.use(errorHandler);
 }
 
+// Verify Alpaca account on startup to catch credential mismatches early
+async function verifyAlpacaAccount() {
+  const apiKey = process.env.ALPACA_API_KEY;
+  const maskedKey = apiKey ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}` : "NOT SET";
+
+  log.info("ALPACA_VERIFY", `Using API Key: ${maskedKey}`);
+
+  try {
+    const account = await alpaca.getAccount();
+    log.info("ALPACA_VERIFY", `Connected to Alpaca account: ${account.id}`);
+    log.info("ALPACA_VERIFY", `Account Status: ${account.status}`);
+    log.info("ALPACA_VERIFY", `Buying Power: $${parseFloat(account.buying_power).toFixed(2)}`);
+    log.info("ALPACA_VERIFY", `Portfolio Value: $${parseFloat(account.portfolio_value).toFixed(2)}`);
+    return true;
+  } catch (error) {
+    log.error("ALPACA_VERIFY", "Failed to connect to Alpaca", { error });
+    log.warn("ALPACA_VERIFY", "Server will continue but trading features may not work");
+    return false;
+  }
+}
+
 (async () => {
   try {
     // Validate environment variables before any initialization
     validateAndReportEnvironment();
+
+    // Verify Alpaca account credentials
+    log.info("STARTUP", "Verifying Alpaca account...");
+    await verifyAlpacaAccount();
 
     log.info("STARTUP", "Beginning server initialization...");
     setupCors(app);
@@ -274,13 +308,18 @@ function setupErrorHandler(app: express.Application) {
 
     // Start session cleanup job - runs every hour
     log.info("STARTUP", "Starting session cleanup job...");
-    setInterval(async () => {
-      try {
-        await cleanupExpiredSessions();
-      } catch (error) {
-        log.error("SessionCleanup", "Error cleaning up expired sessions", { error });
-      }
-    }, 60 * 60 * 1000); // Every hour
+    setInterval(
+      async () => {
+        try {
+          await cleanupExpiredSessions();
+        } catch (error) {
+          log.error("SessionCleanup", "Error cleaning up expired sessions", {
+            error,
+          });
+        }
+      },
+      60 * 60 * 1000
+    ); // Every hour
     log.info("STARTUP", "Session cleanup job started (runs every hour)");
 
     setupErrorHandler(app);
@@ -299,7 +338,7 @@ function setupErrorHandler(app: express.Application) {
       },
       () => {
         log.info("Server", `Express server listening on port ${port}`);
-      },
+      }
     );
   } catch (error) {
     log.error("STARTUP", "Fatal error during server initialization", { error });
