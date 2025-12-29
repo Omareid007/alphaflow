@@ -169,7 +169,9 @@
       "Bash(while read dir)",
       "Bash(git -C /home/runner/workspace ls-files:*)",
       "Bash(while read d)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git branch:*)",
+      "WebFetch(domain:github.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
