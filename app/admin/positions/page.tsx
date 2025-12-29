@@ -2,7 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Layers, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePositions } from "@/lib/api/hooks";
@@ -14,7 +21,9 @@ export default function PositionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Positions</h1>
-        <p className="mt-1 text-muted-foreground">Active positions across all strategies</p>
+        <p className="mt-1 text-muted-foreground">
+          Active positions across all strategies
+        </p>
       </div>
 
       <Card>
@@ -32,9 +41,14 @@ export default function PositionsPage() {
           ) : error ? (
             <div className="py-8 text-center space-y-3">
               <p className="text-sm text-destructive">
-                Failed to load positions. {error instanceof Error ? error.message : 'Please try again.'}
+                Failed to load positions.{" "}
+                {error instanceof Error ? error.message : "Please try again."}
               </p>
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+              >
                 <Loader2 className="mr-2 h-4 w-4" />
                 Retry
               </Button>
@@ -56,19 +70,39 @@ export default function PositionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map(pos => (
+                {positions.map((pos) => (
                   <TableRow key={pos.id}>
                     <TableCell className="font-medium">{pos.symbol}</TableCell>
                     <TableCell>
-                      {pos.side === 'long' ? `+${pos.qty}` : `-${Math.abs(pos.qty)}`}
+                      {pos.side === "long"
+                        ? `+${pos.qty}`
+                        : `-${Math.abs(pos.qty)}`}
                     </TableCell>
-                    <TableCell>${Number(pos.entryPrice || 0).toFixed(2)}</TableCell>
-                    <TableCell>${Number(pos.currentPrice || 0).toFixed(2)}</TableCell>
-                    <TableCell className={cn((pos.unrealizedPl || 0) >= 0 ? 'text-success' : 'text-destructive')}>
-                      {(pos.unrealizedPl || 0) >= 0 ? '+' : ''}${Number(pos.unrealizedPl || 0).toFixed(2)}
+                    <TableCell>
+                      ${Number(pos.entryPrice || 0).toFixed(2)}
                     </TableCell>
-                    <TableCell className={cn((pos.unrealizedPlPct || 0) >= 0 ? 'text-success' : 'text-destructive')}>
-                      {(pos.unrealizedPlPct || 0) >= 0 ? '+' : ''}{Number(pos.unrealizedPlPct || 0).toFixed(2)}%
+                    <TableCell>
+                      ${Number(pos.currentPrice || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        (pos.unrealizedPl || 0) >= 0
+                          ? "text-success"
+                          : "text-destructive"
+                      )}
+                    >
+                      {(pos.unrealizedPl || 0) >= 0 ? "+" : ""}$
+                      {Number(pos.unrealizedPl || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        (pos.unrealizedPlPct || 0) >= 0
+                          ? "text-success"
+                          : "text-destructive"
+                      )}
+                    >
+                      {(pos.unrealizedPlPct || 0) >= 0 ? "+" : ""}
+                      {Number(pos.unrealizedPlPct || 0).toFixed(2)}%
                     </TableCell>
                   </TableRow>
                 ))}

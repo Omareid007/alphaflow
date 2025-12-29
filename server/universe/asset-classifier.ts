@@ -17,7 +17,18 @@ import { eq, and, desc, sql, gte, isNotNull } from "drizzle-orm";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 
-const CRYPTO_MAJORS = ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "AVAX", "DOT", "LINK", "MATIC"];
+const CRYPTO_MAJORS = [
+  "BTC",
+  "ETH",
+  "SOL",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "AVAX",
+  "DOT",
+  "LINK",
+  "MATIC",
+];
 
 export interface ClassificationResult {
   symbol: string;
@@ -49,7 +60,10 @@ export class AssetClassifier {
     return "micro";
   }
 
-  determineVolatilityTier(atr14: number | null, price: number | null): VolatilityTier {
+  determineVolatilityTier(
+    atr14: number | null,
+    price: number | null
+  ): VolatilityTier {
     if (!atr14 || !price || price === 0) return "medium";
     const atrPct = (atr14 / price) * 100;
     if (atrPct > 5) return "high";
@@ -71,7 +85,13 @@ export class AssetClassifier {
     const sma20Above50 = sma20 > sma50;
     const sma50Above200 = sma50 > sma200;
 
-    const bullishCount = [above20, above50, above200, sma20Above50, sma50Above200].filter(Boolean).length;
+    const bullishCount = [
+      above20,
+      above50,
+      above200,
+      sma20Above50,
+      sma50Above200,
+    ].filter(Boolean).length;
 
     if (bullishCount >= 5) return "strong_up";
     if (bullishCount >= 3) return "weak_up";
@@ -80,7 +100,11 @@ export class AssetClassifier {
     return "neutral";
   }
 
-  calculateMomentumScore(rsi14: number | null, macd: number | null, macdSignal: number | null): number {
+  calculateMomentumScore(
+    rsi14: number | null,
+    macd: number | null,
+    macdSignal: number | null
+  ): number {
     let score = 0;
 
     if (rsi14 !== null) {
@@ -181,7 +205,18 @@ export class AssetClassifier {
     }
 
     if (isEtf) {
-      const sectorEtfs = ["XLK", "XLF", "XLE", "XLV", "XLI", "XLB", "XLU", "XLP", "XLY", "XLRE"];
+      const sectorEtfs = [
+        "XLK",
+        "XLF",
+        "XLE",
+        "XLV",
+        "XLI",
+        "XLB",
+        "XLU",
+        "XLP",
+        "XLY",
+        "XLRE",
+      ];
       return sectorEtfs.includes(symbol) ? "etf_sector" : "etf_index";
     }
 
@@ -224,13 +259,29 @@ export class AssetClassifier {
         .limit(1);
 
       const isCrypto = asset?.assetClass === "crypto";
-      const isEtf = asset?.assetClass === "us_equity" && symbol.length <= 4 && 
-        ["SPY", "QQQ", "IWM", "DIA", "VTI", "VOO", "XLK", "XLF", "XLE", "XLV"].includes(symbol);
+      const isEtf =
+        asset?.assetClass === "us_equity" &&
+        symbol.length <= 4 &&
+        [
+          "SPY",
+          "QQQ",
+          "IWM",
+          "DIA",
+          "VTI",
+          "VOO",
+          "XLK",
+          "XLF",
+          "XLE",
+          "XLV",
+        ].includes(symbol);
 
-      const marketCap = fundamentals?.marketCap ? Number(fundamentals.marketCap) : null;
+      const marketCap = fundamentals?.marketCap
+        ? Number(fundamentals.marketCap)
+        : null;
       const marketCapTier = this.determineMarketCapTier(marketCap);
 
-      const liquidityTier: LiquidityTier = (liquidity?.liquidityTier as LiquidityTier) || "C";
+      const liquidityTier: LiquidityTier =
+        (liquidity?.liquidityTier as LiquidityTier) || "C";
 
       const atr14 = technicals?.atr14 ? Number(technicals.atr14) : null;
       const currentPrice = technicals?.close ? Number(technicals.close) : null;
@@ -239,25 +290,66 @@ export class AssetClassifier {
       const sma20 = technicals?.sma20 ? Number(technicals.sma20) : null;
       const sma50 = technicals?.sma50 ? Number(technicals.sma50) : null;
       const sma200 = technicals?.sma200 ? Number(technicals.sma200) : null;
-      const trendStrength = this.determineTrendStrength(sma20, sma50, sma200, currentPrice);
+      const trendStrength = this.determineTrendStrength(
+        sma20,
+        sma50,
+        sma200,
+        currentPrice
+      );
 
       const rsi14 = technicals?.rsi14 ? Number(technicals.rsi14) : null;
       const macd = technicals?.macd ? Number(technicals.macd) : null;
-      const macdSignal = technicals?.macdSignal ? Number(technicals.macdSignal) : null;
-      const momentumScore = this.calculateMomentumScore(rsi14, macd, macdSignal);
+      const macdSignal = technicals?.macdSignal
+        ? Number(technicals.macdSignal)
+        : null;
+      const momentumScore = this.calculateMomentumScore(
+        rsi14,
+        macd,
+        macdSignal
+      );
 
-      const revenue = fundamentals?.revenueTtm ? Number(fundamentals.revenueTtm) : null;
-      const peRatio = fundamentals?.peRatio ? Number(fundamentals.peRatio) : null;
-      const priceToBook = fundamentals?.priceToBook ? Number(fundamentals.priceToBook) : null;
-      const valueScore = this.calculateValueScore(peRatio, priceToBook, marketCap, revenue);
+      const revenue = fundamentals?.revenueTtm
+        ? Number(fundamentals.revenueTtm)
+        : null;
+      const peRatio = fundamentals?.peRatio
+        ? Number(fundamentals.peRatio)
+        : null;
+      const priceToBook = fundamentals?.priceToBook
+        ? Number(fundamentals.priceToBook)
+        : null;
+      const valueScore = this.calculateValueScore(
+        peRatio,
+        priceToBook,
+        marketCap,
+        revenue
+      );
 
-      const grossMargin = fundamentals?.grossMargin ? Number(fundamentals.grossMargin) : null;
-      const operatingMargin = fundamentals?.operatingMargin ? Number(fundamentals.operatingMargin) : null;
-      const debtToEquity = fundamentals?.debtToEquity ? Number(fundamentals.debtToEquity) : null;
-      const fcfMargin = fundamentals?.freeCashFlowMargin ? Number(fundamentals.freeCashFlowMargin) : null;
-      const qualityScore = this.calculateQualityScore(grossMargin, operatingMargin, debtToEquity, fcfMargin);
+      const grossMargin = fundamentals?.grossMargin
+        ? Number(fundamentals.grossMargin)
+        : null;
+      const operatingMargin = fundamentals?.operatingMargin
+        ? Number(fundamentals.operatingMargin)
+        : null;
+      const debtToEquity = fundamentals?.debtToEquity
+        ? Number(fundamentals.debtToEquity)
+        : null;
+      const fcfMargin = fundamentals?.freeCashFlowMargin
+        ? Number(fundamentals.freeCashFlowMargin)
+        : null;
+      const qualityScore = this.calculateQualityScore(
+        grossMargin,
+        operatingMargin,
+        debtToEquity,
+        fcfMargin
+      );
 
-      const assetClass = this.determineAssetClass(symbol, marketCapTier, valueScore, isCrypto, isEtf);
+      const assetClass = this.determineAssetClass(
+        symbol,
+        marketCapTier,
+        valueScore,
+        isCrypto,
+        isEtf
+      );
 
       return {
         symbol,
@@ -271,7 +363,10 @@ export class AssetClassifier {
         qualityScore,
       };
     } catch (error: any) {
-      log.error("AssetClassifier", "Error classifying symbol", { symbol, error: error.message });
+      log.error("AssetClassifier", "Error classifying symbol", {
+        symbol,
+        error: error.message,
+      });
       return null;
     }
   }
@@ -315,11 +410,13 @@ export class AssetClassifier {
     return true;
   }
 
-  async classifyBatch(options: {
-    symbols?: string[];
-    batchSize?: number;
-    traceId?: string;
-  } = {}): Promise<ClassifyBatchResult> {
+  async classifyBatch(
+    options: {
+      symbols?: string[];
+      batchSize?: number;
+      traceId?: string;
+    } = {}
+  ): Promise<ClassifyBatchResult> {
     const startTime = Date.now();
     const { symbols, batchSize = 50, traceId } = options;
     const errors: string[] = [];
@@ -333,7 +430,12 @@ export class AssetClassifier {
       const assets = await db
         .select({ symbol: universeAssets.symbol })
         .from(universeAssets)
-        .where(and(eq(universeAssets.tradable, true), eq(universeAssets.excluded, false)));
+        .where(
+          and(
+            eq(universeAssets.tradable, true),
+            eq(universeAssets.excluded, false)
+          )
+        );
       targetSymbols = assets.map((a) => a.symbol);
     }
 
@@ -357,7 +459,11 @@ export class AssetClassifier {
     }
 
     const duration = Date.now() - startTime;
-    log.info("AssetClassifier", "Batch classification completed", { classified, total: targetSymbols.length, durationMs: duration });
+    log.info("AssetClassifier", "Batch classification completed", {
+      classified,
+      total: targetSymbols.length,
+      durationMs: duration,
+    });
 
     return {
       success: errors.length === 0,
@@ -377,7 +483,9 @@ export class AssetClassifier {
     return result || null;
   }
 
-  async getClassificationsByClass(assetClass: AssetClassType): Promise<AssetClassification[]> {
+  async getClassificationsByClass(
+    assetClass: AssetClassType
+  ): Promise<AssetClassification[]> {
     return db
       .select()
       .from(assetClassifications)
@@ -390,9 +498,12 @@ export class AssetClassifier {
     volatilityTier?: VolatilityTier
   ): Promise<AssetClassification[]> {
     const conditions = [];
-    if (marketCapTier) conditions.push(eq(assetClassifications.marketCapTier, marketCapTier));
-    if (liquidityTier) conditions.push(eq(assetClassifications.liquidityTier, liquidityTier));
-    if (volatilityTier) conditions.push(eq(assetClassifications.volatilityTier, volatilityTier));
+    if (marketCapTier)
+      conditions.push(eq(assetClassifications.marketCapTier, marketCapTier));
+    if (liquidityTier)
+      conditions.push(eq(assetClassifications.liquidityTier, liquidityTier));
+    if (volatilityTier)
+      conditions.push(eq(assetClassifications.volatilityTier, volatilityTier));
 
     if (conditions.length === 0) {
       return db.select().from(assetClassifications);

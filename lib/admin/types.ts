@@ -7,9 +7,22 @@ export interface AdminUser {
   updatedAt: string;
 }
 
-export type ProviderType = 'data' | 'llm' | 'broker' | 'news' | 'sentiment' | 'analytics' | 'other';
-export type ProviderStatus = 'active' | 'inactive' | 'error' | 'maintenance';
-export type AuthMethod = 'header' | 'query' | 'body' | 'oauth2' | 'basic' | 'bearer';
+export type ProviderType =
+  | "data"
+  | "llm"
+  | "broker"
+  | "news"
+  | "sentiment"
+  | "analytics"
+  | "other";
+export type ProviderStatus = "active" | "inactive" | "error" | "maintenance";
+export type AuthMethod =
+  | "header"
+  | "query"
+  | "body"
+  | "oauth2"
+  | "basic"
+  | "bearer";
 
 export interface Provider {
   id: string;
@@ -48,7 +61,7 @@ export interface Provider {
   updatedAt: string;
 }
 
-export type CredentialKind = 'apiKey' | 'oauth' | 'token' | 'certificate';
+export type CredentialKind = "apiKey" | "oauth" | "token" | "certificate";
 
 export interface Credential {
   id: string;
@@ -99,7 +112,7 @@ export interface LlmRouteRule {
 
 export interface OrchestratorConfig {
   id: string;
-  mode: 'paper' | 'live';
+  mode: "paper" | "live";
   enabledAgents: string[];
   agentParams: Record<string, unknown>;
   schedules: Array<{ name: string; cron: string; enabled: boolean }>;
@@ -108,7 +121,12 @@ export interface OrchestratorConfig {
   updatedAt: string;
 }
 
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type JobStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export interface JobRun {
   id: string;
@@ -123,11 +141,11 @@ export interface JobRun {
 
 export interface RiskRule {
   id: string;
-  scope: 'portfolio' | 'strategy' | 'order';
+  scope: "portfolio" | "strategy" | "order";
   ruleType: string;
   params: Record<string, unknown>;
   enabled: boolean;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   description?: string;
   createdAt: string;
 }
@@ -187,7 +205,7 @@ export interface Candidate {
   rationale?: string;
   asOf: string;
   sourceRunId?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
 }
 
@@ -196,7 +214,7 @@ export interface AdminOrder {
   externalId?: string;
   strategyId?: string;
   symbol: string;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   quantity: number;
   price?: number;
   status: string;
@@ -260,7 +278,7 @@ export interface ConnectionTestResult {
 
 export interface ApiParameter {
   name: string;
-  in: 'query' | 'path' | 'header' | 'body';
+  in: "query" | "path" | "header" | "body";
   required: boolean;
   type: string;
   description?: string;

@@ -42,8 +42,10 @@ class MarketConditionAnalyzer {
   async initialize(): Promise<void> {
     log.info("MarketAnalyzer", "Initializing market condition analyzer...");
     // Run initial analysis in background (non-blocking) to prevent startup hangs
-    this.runAnalysis().catch(err => {
-      log.error("MarketAnalyzer", "Initial analysis failed", { error: err instanceof Error ? err.message : String(err) });
+    this.runAnalysis().catch((err) => {
+      log.error("MarketAnalyzer", "Initial analysis failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
     this.startPeriodicAnalysis();
   }
@@ -54,12 +56,16 @@ class MarketConditionAnalyzer {
     }
 
     this.analysisTimer = setInterval(() => {
-      this.runAnalysis().catch(err => {
-        log.error("MarketAnalyzer", "Periodic analysis error", { error: err instanceof Error ? err.message : String(err) });
+      this.runAnalysis().catch((err) => {
+        log.error("MarketAnalyzer", "Periodic analysis error", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
     }, ANALYSIS_INTERVAL_MS);
 
-    log.info("MarketAnalyzer", "Periodic analysis started", { intervalSeconds: ANALYSIS_INTERVAL_MS / 1000 });
+    log.info("MarketAnalyzer", "Periodic analysis started", {
+      intervalSeconds: ANALYSIS_INTERVAL_MS / 1000,
+    });
   }
 
   stop(): void {
@@ -87,11 +93,16 @@ class MarketConditionAnalyzer {
 
       await this.updateAgentOrderLimit(analysis);
 
-      log.info("MarketAnalyzer", "Analysis complete", { condition: analysis.condition, orderLimit: analysis.recommendedOrderLimit });
+      log.info("MarketAnalyzer", "Analysis complete", {
+        condition: analysis.condition,
+        orderLimit: analysis.recommendedOrderLimit,
+      });
 
       return analysis;
     } catch (error) {
-      log.error("MarketAnalyzer", "Analysis failed", { error: error instanceof Error ? error.message : String(error) });
+      log.error("MarketAnalyzer", "Analysis failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.lastAnalysis || this.getDefaultAnalysis();
     } finally {
       this.isAnalyzing = false;
@@ -118,10 +129,14 @@ class MarketConditionAnalyzer {
         watchlistStocks = dynamicWatchlist.stocks.slice(0, 15);
       }
       if (dynamicWatchlist.crypto.length > 0) {
-        watchlistCrypto = dynamicWatchlist.crypto.map(c => c.toLowerCase());
+        watchlistCrypto = dynamicWatchlist.crypto.map((c) => c.toLowerCase());
       }
     } catch (error) {
-      log.warn("MarketAnalyzer", "Failed to load watchlist from database, using fallback", { error: error instanceof Error ? error.message : String(error) });
+      log.warn(
+        "MarketAnalyzer",
+        "Failed to load watchlist from database, using fallback",
+        { error: error instanceof Error ? error.message : String(error) }
+      );
     }
 
     try {
@@ -137,12 +152,14 @@ class MarketConditionAnalyzer {
         }
       }
     } catch (error) {
-      log.error("MarketAnalyzer", "Failed to fetch stock data", { error: error instanceof Error ? error.message : String(error) });
+      log.error("MarketAnalyzer", "Failed to fetch stock data", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
       const cryptoMarkets = await coingecko.getMarkets();
-      const watchedCrypto = cryptoMarkets.filter(c =>
+      const watchedCrypto = cryptoMarkets.filter((c) =>
         watchlistCrypto.includes(c.symbol.toLowerCase())
       );
 
@@ -154,7 +171,9 @@ class MarketConditionAnalyzer {
         });
       }
     } catch (error) {
-      log.error("MarketAnalyzer", "Failed to fetch crypto data", { error: error instanceof Error ? error.message : String(error) });
+      log.error("MarketAnalyzer", "Failed to fetch crypto data", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
@@ -170,24 +189,37 @@ class MarketConditionAnalyzer {
       }
       snapshot.dailyPnl = totalPnl;
     } catch (error) {
-      log.error("MarketAnalyzer", "Failed to fetch portfolio data", { error: error instanceof Error ? error.message : String(error) });
+      log.error("MarketAnalyzer", "Failed to fetch portfolio data", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return snapshot;
   }
 
-  private async analyzeWithAI(snapshot: MarketSnapshot): Promise<MarketConditionAnalysis> {
+  private async analyzeWithAI(
+    snapshot: MarketSnapshot
+  ): Promise<MarketConditionAnalysis> {
     const stockSummary = Array.from(snapshot.stocks.entries())
-      .map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`)
+      .map(
+        ([symbol, data]) =>
+          `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`
+      )
       .join(", ");
 
     const cryptoSummary = Array.from(snapshot.crypto.entries())
-      .map(([symbol, data]) => `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`)
+      .map(
+        ([symbol, data]) =>
+          `${symbol}: $${data.price.toFixed(2)} (${data.changePercent >= 0 ? "+" : ""}${data.changePercent.toFixed(2)}%)`
+      )
       .join(", ");
 
     const avgStockChange = this.calculateAverageChange(snapshot.stocks);
     const avgCryptoChange = this.calculateAverageChange(snapshot.crypto);
-    const volatility = this.calculateVolatility(snapshot.stocks, snapshot.crypto);
+    const volatility = this.calculateVolatility(
+      snapshot.stocks,
+      snapshot.crypto
+    );
 
     const prompt = `You are an expert market analyst AI. Analyze the following market snapshot and determine the optimal trading aggressiveness.
 
@@ -233,7 +265,8 @@ RESPOND WITH VALID JSON ONLY:
         criticality: "medium",
         purpose: "market_condition_analysis",
         traceId: generateTraceId(),
-        system: "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON.",
+        system:
+          "You are a market analyst AI. Respond only with valid JSON. No markdown, no explanations outside the JSON.",
         messages: [{ role: "user", content: prompt }],
         responseFormat: { type: "json_object" },
         temperature: 0.3,
@@ -259,12 +292,21 @@ RESPOND WITH VALID JSON ONLY:
 
       return parsed;
     } catch (error) {
-      log.error("MarketAnalyzer", "AI analysis failed", { error: error instanceof Error ? error.message : String(error) });
-      return this.calculateFallbackAnalysis(snapshot, avgStockChange, avgCryptoChange, volatility);
+      log.error("MarketAnalyzer", "AI analysis failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.calculateFallbackAnalysis(
+        snapshot,
+        avgStockChange,
+        avgCryptoChange,
+        volatility
+      );
     }
   }
 
-  private calculateAverageChange(data: Map<string, { changePercent: number }>): number {
+  private calculateAverageChange(
+    data: Map<string, { changePercent: number }>
+  ): number {
     if (data.size === 0) return 0;
     let total = 0;
     for (const item of data.values()) {
@@ -288,7 +330,9 @@ RESPOND WITH VALID JSON ONLY:
     if (allChanges.length === 0) return 0;
 
     const avg = allChanges.reduce((a, b) => a + b, 0) / allChanges.length;
-    const variance = allChanges.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / allChanges.length;
+    const variance =
+      allChanges.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) /
+      allChanges.length;
     return Math.sqrt(variance);
   }
 
@@ -323,7 +367,10 @@ RESPOND WITH VALID JSON ONLY:
     }
 
     if (snapshot.dailyPnl < -snapshot.portfolioValue * 0.02) {
-      recommendedOrderLimit = Math.max(MIN_ORDER_LIMIT, recommendedOrderLimit - 10);
+      recommendedOrderLimit = Math.max(
+        MIN_ORDER_LIMIT,
+        recommendedOrderLimit - 10
+      );
       riskLevel = "high";
     }
 
@@ -336,8 +383,14 @@ RESPOND WITH VALID JSON ONLY:
       reasoning: `Fallback analysis: ${condition} market with ${volatility.toFixed(1)}% volatility`,
       riskLevel,
       marketIndicators: {
-        overallTrend: overallChange > 0.5 ? "up" : overallChange < -0.5 ? "down" : "sideways",
-        volatilityLevel: volatility > 3 ? "high" : volatility > 1.5 ? "medium" : "low",
+        overallTrend:
+          overallChange > 0.5
+            ? "up"
+            : overallChange < -0.5
+              ? "down"
+              : "sideways",
+        volatilityLevel:
+          volatility > 3 ? "high" : volatility > 1.5 ? "medium" : "low",
         sentimentScore: Math.max(-1, Math.min(1, overallChange / 5)),
         majorMovers,
       },
@@ -357,10 +410,12 @@ RESPOND WITH VALID JSON ONLY:
     return allAssets
       .sort((a, b) => b.change - a.change)
       .slice(0, 3)
-      .map(a => a.symbol);
+      .map((a) => a.symbol);
   }
 
-  private async updateAgentOrderLimit(analysis: MarketConditionAnalysis): Promise<void> {
+  private async updateAgentOrderLimit(
+    analysis: MarketConditionAnalysis
+  ): Promise<void> {
     try {
       await storage.updateAgentStatus({
         dynamicOrderLimit: analysis.recommendedOrderLimit,
@@ -370,7 +425,9 @@ RESPOND WITH VALID JSON ONLY:
         maxPositionsCount: analysis.recommendedOrderLimit,
       });
     } catch (error) {
-      log.error("MarketAnalyzer", "Failed to update agent status", { error: error instanceof Error ? error.message : String(error) });
+      log.error("MarketAnalyzer", "Failed to update agent status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

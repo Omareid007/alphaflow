@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from "isomorphic-dompurify";
 
 /**
  * Sanitizes a single string input by stripping all HTML tags and attributes.
@@ -8,7 +8,7 @@ import DOMPurify from 'isomorphic-dompurify';
  * @returns Sanitized string with all HTML tags removed
  */
 export function sanitizeInput(input: string): string {
-  if (typeof input !== 'string') {
+  if (typeof input !== "string") {
     return input;
   }
 
@@ -27,7 +27,7 @@ export function sanitizeInput(input: string): string {
  * @returns New object with all string values sanitized
  */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
-  if (!obj || typeof obj !== 'object') {
+  if (!obj || typeof obj !== "object") {
     return obj;
   }
 
@@ -36,15 +36,17 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
     if (Object.prototype.hasOwnProperty.call(sanitized, key)) {
       const value = sanitized[key];
 
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         sanitized[key] = sanitizeInput(value);
       } else if (Array.isArray(value)) {
         sanitized[key] = value.map((item: unknown) =>
-          typeof item === 'string' ? sanitizeInput(item) :
-          typeof item === 'object' && item !== null ? sanitizeObject(item as Record<string, unknown>) :
-          item
+          typeof item === "string"
+            ? sanitizeInput(item)
+            : typeof item === "object" && item !== null
+              ? sanitizeObject(item as Record<string, unknown>)
+              : item
         );
-      } else if (value && typeof value === 'object') {
+      } else if (value && typeof value === "object") {
         sanitized[key] = sanitizeObject(value as Record<string, unknown>);
       }
     }
@@ -62,7 +64,9 @@ export function sanitizeArray(arr: string[]): string[] {
   if (!Array.isArray(arr)) {
     return arr;
   }
-  return arr.map(item => typeof item === 'string' ? sanitizeInput(item) : item);
+  return arr.map((item) =>
+    typeof item === "string" ? sanitizeInput(item) : item
+  );
 }
 
 /**

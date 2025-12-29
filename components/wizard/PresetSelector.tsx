@@ -11,7 +11,11 @@ interface PresetSelectorProps {
   onPresetSelect: (preset: Preset) => void;
 }
 
-export function PresetSelector({ presets, selectedPreset, onPresetSelect }: PresetSelectorProps) {
+export function PresetSelector({
+  presets,
+  selectedPreset,
+  onPresetSelect,
+}: PresetSelectorProps) {
   return (
     <Card>
       <CardHeader>
@@ -19,7 +23,7 @@ export function PresetSelector({ presets, selectedPreset, onPresetSelect }: Pres
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {presets.map(preset => (
+          {presets.map((preset) => (
             <button
               key={preset.id}
               onClick={() => onPresetSelect(preset)}

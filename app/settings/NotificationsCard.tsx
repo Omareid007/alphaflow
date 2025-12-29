@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -9,10 +15,16 @@ import { UserSettings } from "@/lib/types";
 
 interface NotificationsCardProps {
   settings: UserSettings;
-  onNotificationChange: (key: keyof UserSettings["notifications"], value: boolean) => void;
+  onNotificationChange: (
+    key: keyof UserSettings["notifications"],
+    value: boolean
+  ) => void;
 }
 
-export function NotificationsCard({ settings, onNotificationChange }: NotificationsCardProps) {
+export function NotificationsCard({
+  settings,
+  onNotificationChange,
+}: NotificationsCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -34,7 +46,7 @@ export function NotificationsCard({ settings, onNotificationChange }: Notificati
           </div>
           <Switch
             checked={settings.notifications.trades}
-            onCheckedChange={v => onNotificationChange("trades", v)}
+            onCheckedChange={(v) => onNotificationChange("trades", v)}
           />
         </div>
         <Separator />
@@ -47,7 +59,7 @@ export function NotificationsCard({ settings, onNotificationChange }: Notificati
           </div>
           <Switch
             checked={settings.notifications.aiAlerts}
-            onCheckedChange={v => onNotificationChange("aiAlerts", v)}
+            onCheckedChange={(v) => onNotificationChange("aiAlerts", v)}
           />
         </div>
         <Separator />
@@ -60,7 +72,7 @@ export function NotificationsCard({ settings, onNotificationChange }: Notificati
           </div>
           <Switch
             checked={settings.notifications.riskWarnings}
-            onCheckedChange={v => onNotificationChange("riskWarnings", v)}
+            onCheckedChange={(v) => onNotificationChange("riskWarnings", v)}
           />
         </div>
         <Separator />
@@ -73,7 +85,7 @@ export function NotificationsCard({ settings, onNotificationChange }: Notificati
           </div>
           <Switch
             checked={settings.notifications.dailyDigest}
-            onCheckedChange={v => onNotificationChange("dailyDigest", v)}
+            onCheckedChange={(v) => onNotificationChange("dailyDigest", v)}
           />
         </div>
       </CardContent>

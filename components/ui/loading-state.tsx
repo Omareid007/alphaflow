@@ -8,9 +8,17 @@ interface LoadingStateProps {
   className?: string;
 }
 
-export function LoadingState({ message = "Loading...", className }: LoadingStateProps) {
+export function LoadingState({
+  message = "Loading...",
+  className,
+}: LoadingStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center py-12",
+        className
+      )}
+    >
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
       <p className="mt-4 text-sm text-muted-foreground">{message}</p>
     </div>
@@ -22,7 +30,10 @@ interface LoadingSpinnerProps {
   className?: string;
 }
 
-export function LoadingSpinner({ size = "md", className }: LoadingSpinnerProps) {
+export function LoadingSpinner({
+  size = "md",
+  className,
+}: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-8 w-8",

@@ -1,4 +1,4 @@
-import type { PerformanceMetrics } from './walk-forward-engine';
+import type { PerformanceMetrics } from "./walk-forward-engine";
 
 export interface OverfittingAnalysis {
   degreeOfFreedom: number; // # of parameters
@@ -25,7 +25,8 @@ export function analyzeOverfittingRisk(
   const warnings: string[] = [];
 
   // Rule of thumb: need 30+ trades per parameter
-  const dofRatio = parameterCount > 0 ? tradeCount / parameterCount : tradeCount;
+  const dofRatio =
+    parameterCount > 0 ? tradeCount / parameterCount : tradeCount;
 
   if (dofRatio < 30) {
     warnings.push(`Low DOF ratio: ${dofRatio.toFixed(1)} (recommend 30+)`);
@@ -33,20 +34,27 @@ export function analyzeOverfittingRisk(
 
   // Sharpe degradation
   if (inSampleSharpe > 0) {
-    const sharpeDegradation = (inSampleSharpe - outOfSampleSharpe) / inSampleSharpe;
+    const sharpeDegradation =
+      (inSampleSharpe - outOfSampleSharpe) / inSampleSharpe;
     if (sharpeDegradation > 0.5) {
-      warnings.push(`High Sharpe degradation: ${(sharpeDegradation * 100).toFixed(0)}%`);
+      warnings.push(
+        `High Sharpe degradation: ${(sharpeDegradation * 100).toFixed(0)}%`
+      );
     }
   }
 
   // Suspiciously high in-sample performance
   if (inSampleSharpe > 3) {
-    warnings.push(`In-sample Sharpe of ${inSampleSharpe.toFixed(2)} is suspiciously high`);
+    warnings.push(
+      `In-sample Sharpe of ${inSampleSharpe.toFixed(2)} is suspiciously high`
+    );
   }
 
   // Negative out-of-sample after positive in-sample
   if (inSampleSharpe > 0.5 && outOfSampleSharpe < 0) {
-    warnings.push('Out-of-sample performance is negative despite positive in-sample');
+    warnings.push(
+      "Out-of-sample performance is negative despite positive in-sample"
+    );
   }
 
   return {
@@ -54,7 +62,7 @@ export function analyzeOverfittingRisk(
     dataPoints: tradeCount,
     dofRatio,
     isSuspicious: warnings.length >= 2 || dofRatio < 20,
-    warnings
+    warnings,
   };
 }
 
@@ -73,7 +81,10 @@ export function calculatePBO(
   inSampleScores: number[],
   outOfSampleScores: number[]
 ): number {
-  if (inSampleScores.length !== outOfSampleScores.length || inSampleScores.length === 0) {
+  if (
+    inSampleScores.length !== outOfSampleScores.length ||
+    inSampleScores.length === 0
+  ) {
     return 0;
   }
 
@@ -81,7 +92,7 @@ export function calculatePBO(
   const combined = inSampleScores.map((is, i) => ({
     is,
     oos: outOfSampleScores[i],
-    index: i
+    index: i,
   }));
 
   // Sort by in-sample score descending
@@ -97,7 +108,9 @@ export function calculatePBO(
   const medianOOS = allOOS[Math.floor(allOOS.length / 2)];
 
   // Count how many top IS performers have OOS below median
-  const underperformingCount = topHalfIS.filter(item => item.oos < medianOOS).length;
+  const underperformingCount = topHalfIS.filter(
+    (item) => item.oos < medianOOS
+  ).length;
 
   // PBO is the proportion that underperformed
   const pbo = underperformingCount / topHalfIS.length;
@@ -126,13 +139,22 @@ export function calculateDeflatedSharpe(
   if (numObservations < 2 || numTrials < 1) return 0;
 
   // Variance of Sharpe ratio estimator
-  const sharpeVariance = (1 + sharpe * sharpe / 2 - skewness * sharpe + (kurtosis - 1) * sharpe * sharpe / 4) / numObservations;
+  const sharpeVariance =
+    (1 +
+      (sharpe * sharpe) / 2 -
+      skewness * sharpe +
+      ((kurtosis - 1) * sharpe * sharpe) / 4) /
+    numObservations;
 
   // Expected maximum Sharpe from N(0,1) distribution after numTrials attempts
-  const expectedMaxSharpe = (1 - 0.5772 / Math.sqrt(Math.log(numTrials))) * Math.sqrt(2 * Math.log(numTrials));
+  const expectedMaxSharpe =
+    (1 - 0.5772 / Math.sqrt(Math.log(numTrials))) *
+    Math.sqrt(2 * Math.log(numTrials));
 
   // Deflate the observed Sharpe
-  const deflatedSharpe = (sharpe - expectedMaxSharpe * Math.sqrt(sharpeVariance)) / Math.sqrt(sharpeVariance);
+  const deflatedSharpe =
+    (sharpe - expectedMaxSharpe * Math.sqrt(sharpeVariance)) /
+    Math.sqrt(sharpeVariance);
 
   return deflatedSharpe;
 }
@@ -144,13 +166,15 @@ export function calculateDeflatedSharpe(
  * @param windowMetrics Array of performance metrics from different windows
  * @returns Consistency score between 0 and 1 (higher = more consistent)
  */
-export function calculateConsistencyScore(windowMetrics: PerformanceMetrics[]): number {
+export function calculateConsistencyScore(
+  windowMetrics: PerformanceMetrics[]
+): number {
   if (windowMetrics.length < 2) return 1;
 
   // Calculate coefficient of variation for key metrics
-  const sharpeRatios = windowMetrics.map(m => m.sharpeRatio);
-  const returns = windowMetrics.map(m => m.totalReturn);
-  const winRates = windowMetrics.map(m => m.winRate);
+  const sharpeRatios = windowMetrics.map((m) => m.sharpeRatio);
+  const returns = windowMetrics.map((m) => m.totalReturn);
+  const winRates = windowMetrics.map((m) => m.winRate);
 
   const cvSharpe = coefficientOfVariation(sharpeRatios);
   const cvReturns = coefficientOfVariation(returns);
@@ -163,7 +187,9 @@ export function calculateConsistencyScore(windowMetrics: PerformanceMetrics[]): 
   const winRateConsistency = Math.max(0, 1 - cvWinRate);
 
   // Weighted average
-  return (sharpeConsistency * 0.5 + returnConsistency * 0.3 + winRateConsistency * 0.2);
+  return (
+    sharpeConsistency * 0.5 + returnConsistency * 0.3 + winRateConsistency * 0.2
+  );
 }
 
 /**
@@ -177,7 +203,9 @@ function coefficientOfVariation(values: number[]): number {
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   if (mean === 0) return Infinity;
 
-  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  const variance =
+    values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+    values.length;
   const stdDev = Math.sqrt(variance);
 
   return stdDev / Math.abs(mean);
@@ -221,10 +249,11 @@ export function generateOverfittingReport(
 ): string {
   const lines: string[] = [];
 
-  lines.push('=== OVERFITTING ANALYSIS REPORT ===\n');
+  lines.push("=== OVERFITTING ANALYSIS REPORT ===\n");
 
   // Data sufficiency
-  const dofRatio = parameterCount > 0 ? totalTrades / parameterCount : totalTrades;
+  const dofRatio =
+    parameterCount > 0 ? totalTrades / parameterCount : totalTrades;
   lines.push(`Data Sufficiency:`);
   lines.push(`  Parameters: ${parameterCount}`);
   lines.push(`  Total Trades: ${totalTrades}`);
@@ -245,7 +274,7 @@ export function generateOverfittingReport(
   } else {
     lines.push(`  ✓ Low overfitting risk`);
   }
-  lines.push('');
+  lines.push("");
 
   // Robustness
   lines.push(`Robustness Score: ${(robustnessScore * 100).toFixed(1)}%`);
@@ -256,7 +285,7 @@ export function generateOverfittingReport(
   } else {
     lines.push(`  ✓ Good robustness`);
   }
-  lines.push('');
+  lines.push("");
 
   // Consistency
   lines.push(`Consistency Score: ${(consistencyScore * 100).toFixed(1)}%`);
@@ -265,7 +294,7 @@ export function generateOverfittingReport(
   } else {
     lines.push(`  ✓ Consistent performance`);
   }
-  lines.push('');
+  lines.push("");
 
   // Performance degradation
   lines.push(`Average IS→OOS Degradation: ${avgDegradation.toFixed(1)}%`);
@@ -278,18 +307,18 @@ export function generateOverfittingReport(
   } else {
     lines.push(`  ✓ No degradation (or improvement!)`);
   }
-  lines.push('');
+  lines.push("");
 
   // Final verdict
   const isOverfit = overfittingScore > 0.4 || robustnessScore < 0.5;
-  lines.push('=== VERDICT ===');
+  lines.push("=== VERDICT ===");
   if (isOverfit) {
-    lines.push('❌ Strategy is likely OVERFIT');
-    lines.push('   Do NOT deploy to live trading');
+    lines.push("❌ Strategy is likely OVERFIT");
+    lines.push("   Do NOT deploy to live trading");
   } else {
-    lines.push('✓ Strategy passes overfitting checks');
-    lines.push('  Recommend paper trading before live deployment');
+    lines.push("✓ Strategy passes overfitting checks");
+    lines.push("  Recommend paper trading before live deployment");
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

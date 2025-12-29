@@ -7,7 +7,7 @@ import { AlgorithmTemplate, Preset, BacktestRun, Strategy } from "@/lib/types";
 import {
   useCreateStrategy,
   useUpdateStrategy,
-  useDeployStrategy
+  useDeployStrategy,
 } from "@/lib/api/hooks";
 import { useRunBacktest, useBacktest } from "@/lib/api/hooks";
 import { BacktestResults } from "./backtest-results";
@@ -25,17 +25,29 @@ interface StrategyWizardProps {
   existingBacktest?: BacktestRun;
 }
 
-export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyWizardProps) {
+export function StrategyWizard({
+  existingStrategy,
+  existingBacktest,
+}: StrategyWizardProps) {
   const router = useRouter();
   const [templates] = useState<AlgorithmTemplate[]>(algorithmTemplates);
-  const [selectedTemplate, setSelectedTemplate] = useState<AlgorithmTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<AlgorithmTemplate | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
-  const [configValues, setConfigValues] = useState<Record<string, string | number | boolean | string[]>>({});
+  const [configValues, setConfigValues] = useState<
+    Record<string, string | number | boolean | string[]>
+  >({});
   const [currentStep, setCurrentStep] = useState(0);
   const [strategyName, setStrategyName] = useState("");
   const [backtestProgress, setBacktestProgress] = useState(0);
-  const [strategy, setStrategy] = useState<Strategy | null>(existingStrategy || null);
-  const [runningBacktestId, setRunningBacktestId] = useState<string | null>(null);
+  const [strategy, setStrategy] = useState<Strategy | null>(
+    existingStrategy || null
+  );
+  const [runningBacktestId, setRunningBacktestId] = useState<string | null>(
+    null
+  );
+  const [completedBacktest, setCompletedBacktest] =
+    useState<BacktestRun | null>(existingBacktest || null);
 
   // React Query mutations
   const createStrategyMutation = useCreateStrategy();
@@ -49,14 +61,17 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
   // Track backtest progress based on status
   useEffect(() => {
     if (polledBacktest) {
-      if (polledBacktest.status === 'running') {
+      if (polledBacktest.status === "running") {
         // Simulate progress based on time
-        setBacktestProgress(prev => Math.min(prev + 5, 90));
-      } else if (polledBacktest.status === 'completed') {
+        setBacktestProgress((prev) => Math.min(prev + 5, 90));
+      } else if (polledBacktest.status === "completed") {
         setBacktestProgress(100);
+        // Store the completed backtest BEFORE clearing the running ID
+        // This prevents race condition where polledBacktest becomes undefined
+        setCompletedBacktest(polledBacktest as unknown as BacktestRun);
         setRunningBacktestId(null);
         toast.success("Backtest completed");
-      } else if (polledBacktest.status === 'failed') {
+      } else if (polledBacktest.status === "failed") {
         setBacktestProgress(0);
         setRunningBacktestId(null);
         toast.error("Backtest failed");
@@ -66,7 +81,9 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
 
   useEffect(() => {
     if (existingStrategy) {
-      const template = templates.find(t => t.id === existingStrategy.templateId);
+      const template = templates.find(
+        (t) => t.id === existingStrategy.templateId
+      );
       if (template) {
         setSelectedTemplate(template);
         setConfigValues(existingStrategy.configValues);
@@ -78,11 +95,11 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
 
   const initializeConfig = useCallback((template: AlgorithmTemplate) => {
     const defaults: Record<string, string | number | boolean | string[]> = {};
-    template.stepSchema.steps.forEach(step => {
-      step.fields.forEach(field => {
+    template.stepSchema.steps.forEach((step) => {
+      step.fields.forEach((field) => {
         defaults[field.key] = field.default;
       });
-      step.advancedFields?.forEach(field => {
+      step.advancedFields?.forEach((field) => {
         defaults[field.key] = field.default;
       });
     });
@@ -99,14 +116,19 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
   const handlePresetSelect = (preset: Preset) => {
     setSelectedPreset(preset);
     if (preset.name !== "Custom") {
-      setConfigValues(prev => ({ ...prev, ...preset.valuesByFieldKey }));
+      setConfigValues((prev) => ({ ...prev, ...preset.valuesByFieldKey }));
     }
   };
 
-  const handleFieldChange = (key: string, value: string | number | boolean | string[]) => {
-    setConfigValues(prev => ({ ...prev, [key]: value }));
+  const handleFieldChange = (
+    key: string,
+    value: string | number | boolean | string[]
+  ) => {
+    setConfigValues((prev) => ({ ...prev, [key]: value }));
     if (selectedPreset?.name !== "Custom") {
-      const customPreset = selectedTemplate?.presets.find(p => p.name === "Custom");
+      const customPreset = selectedTemplate?.presets.find(
+        (p) => p.name === "Custom"
+      );
       if (customPreset) setSelectedPreset(customPreset);
     }
   };
@@ -126,7 +148,7 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
           templateId: selectedTemplate.id,
           type: selectedTemplate.id, // Required by database schema
           status: "draft",
-          config: configValues
+          config: configValues,
         });
         currentStrategy = result as unknown as Strategy;
         setStrategy(currentStrategy);
@@ -135,14 +157,16 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
           id: currentStrategy.id,
           config: configValues,
           name: strategyName,
-          type: selectedTemplate.id // Ensure type is always sent
+          type: selectedTemplate.id, // Ensure type is always sent
         });
       }
 
       // Run backtest
       const backtestResult = await runBacktestMutation.mutateAsync({
         strategyId: currentStrategy.id,
-        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+        startDate: new Date(
+          Date.now() - 365 * 24 * 60 * 60 * 1000
+        ).toISOString(),
         endDate: new Date().toISOString(),
         initialCapital: 100000,
       });
@@ -160,7 +184,13 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
     // Interpretation is a string in the API, not an object with suggestedEdits
     // This feature requires backend enhancement to return structured interpretation
     toast.info("AI suggestions not yet available from backend");
+  };
+
+  const handleRunAgain = () => {
+    // Clear completed backtest to allow running a new one
+    setCompletedBacktest(null);
     setRunningBacktestId(null);
+    setBacktestProgress(0);
   };
 
   const handleDeploy = async (mode: "paper" | "live") => {
@@ -169,7 +199,7 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
     try {
       await deployStrategyMutation.mutateAsync({
         id: strategy.id,
-        mode
+        mode,
       });
       toast.success(`Strategy deployed to ${mode} trading`);
       router.push("/strategies");
@@ -178,9 +208,12 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
     }
   };
 
-  const totalSteps = selectedTemplate ? selectedTemplate.stepSchema.steps.length : 0;
+  const totalSteps = selectedTemplate
+    ? selectedTemplate.stepSchema.steps.length
+    : 0;
   const isBacktesting = runBacktestMutation.isPending || !!runningBacktestId;
-  const backtest = (polledBacktest?.status === 'completed' ? polledBacktest : existingBacktest) as any;
+  // Use stored completedBacktest to prevent race condition when polledBacktest becomes undefined
+  const backtest = completedBacktest as any;
 
   if (!selectedTemplate) {
     return (
@@ -241,17 +274,13 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
         />
       )}
 
-      {isBacktesting && (
-        <BacktestProgress progress={backtestProgress} />
-      )}
+      {isBacktesting && <BacktestProgress progress={backtestProgress} />}
 
       {backtest && (
         <BacktestResults
           backtest={backtest}
           onApplySuggestions={handleApplySuggestions}
-          onRunAgain={() => {
-            setRunningBacktestId(null);
-          }}
+          onRunAgain={handleRunAgain}
           onDeploy={handleDeploy}
         />
       )}
@@ -265,13 +294,17 @@ export function StrategyWizard({ existingStrategy, existingBacktest }: StrategyW
             setSelectedTemplate(null);
             setSelectedPreset(null);
             setRunningBacktestId(null);
+            setCompletedBacktest(null);
           } else if (backtest) {
+            // Go back to config step when viewing backtest results
+            setCompletedBacktest(null);
             setRunningBacktestId(null);
+            setBacktestProgress(0);
           } else {
-            setCurrentStep(prev => prev - 1);
+            setCurrentStep((prev) => prev - 1);
           }
         }}
-        onNext={() => setCurrentStep(prev => prev + 1)}
+        onNext={() => setCurrentStep((prev) => prev + 1)}
       />
     </div>
   );

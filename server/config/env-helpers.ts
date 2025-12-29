@@ -74,7 +74,10 @@ export function getEnvFloat(key: string, defaultValue?: number): number {
  * Accepts 'true', '1', 'yes' (case-insensitive) as truthy.
  * All other values are considered falsy.
  */
-export function getEnvBool(key: string, defaultValue: boolean = false): boolean {
+export function getEnvBool(
+  key: string,
+  defaultValue: boolean = false
+): boolean {
   const value = process.env[key];
   if (value === undefined || value === "") return defaultValue;
   const lower = value.toLowerCase();

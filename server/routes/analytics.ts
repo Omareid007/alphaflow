@@ -32,16 +32,19 @@ router.get("/summary", async (req: Request, res: Response) => {
     // Parallelize Alpaca calls and DB query for faster response
     const [trades, alpacaData] = await Promise.all([
       storage.getTrades(undefined, 100),
-      Promise.all([alpaca.getPositions(), alpaca.getAccount()]).catch(e => {
+      Promise.all([alpaca.getPositions(), alpaca.getAccount()]).catch((e) => {
         log.error("AnalyticsAPI", "Failed to fetch Alpaca data", { error: e });
         return [[], null];
-      })
+      }),
     ]);
 
     const [positions, account] = alpacaData;
     if (positions && positions.length > 0) {
       alpacaPositions = positions;
-      unrealizedPnl = alpacaPositions.reduce((sum, p) => sum + safeParseFloat(p.unrealized_pl, 0), 0);
+      unrealizedPnl = alpacaPositions.reduce(
+        (sum, p) => sum + safeParseFloat(p.unrealized_pl, 0),
+        0
+      );
     }
 
     if (account && !Array.isArray(account)) {
@@ -59,14 +62,16 @@ router.get("/summary", async (req: Request, res: Response) => {
     }
 
     // Filter to only count filled/completed trades (not pending or failed)
-    const filledTrades = trades.filter(t => {
+    const filledTrades = trades.filter((t) => {
       const status = (t.status || "").toLowerCase();
-      return status === "filled" || status === "completed" || status === "executed";
+      return (
+        status === "filled" || status === "completed" || status === "executed"
+      );
     });
 
-    const sellTrades = filledTrades.filter(t => t.side === "sell");
+    const sellTrades = filledTrades.filter((t) => t.side === "sell");
 
-    const closedTrades = sellTrades.filter(t => {
+    const closedTrades = sellTrades.filter((t) => {
       if (t.pnl === null || t.pnl === undefined) return false;
       const pnlStr = String(t.pnl).trim();
       if (pnlStr === "") return false;
@@ -74,24 +79,41 @@ router.get("/summary", async (req: Request, res: Response) => {
       return Number.isFinite(pnlValue);
     });
 
-    const realizedPnl = closedTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+    const realizedPnl = closedTrades.reduce(
+      (sum, t) => sum + safeParseFloat(t.pnl, 0),
+      0
+    );
     const totalPnl = unrealizedPnl + realizedPnl;
 
-    const winningTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
-    const losingTrades = closedTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
-    const winRate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
+    const winningTrades = closedTrades.filter(
+      (t) => safeParseFloat(t.pnl, 0) > 0
+    );
+    const losingTrades = closedTrades.filter(
+      (t) => safeParseFloat(t.pnl, 0) < 0
+    );
+    const winRate =
+      closedTrades.length > 0
+        ? (winningTrades.length / closedTrades.length) * 100
+        : 0;
 
     // Daily stats
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const todaysTrades = closedTrades.filter(t => {
+    const todaysTrades = closedTrades.filter((t) => {
       const executedAt = new Date(t.executedAt);
       return executedAt >= todayStart;
     });
     const dailyTradeCount = todaysTrades.length;
-    const dailyWinningTrades = todaysTrades.filter(t => safeParseFloat(t.pnl, 0) > 0);
-    const dailyLosingTrades = todaysTrades.filter(t => safeParseFloat(t.pnl, 0) < 0);
-    const dailyRealizedPnl = todaysTrades.reduce((sum, t) => sum + safeParseFloat(t.pnl, 0), 0);
+    const dailyWinningTrades = todaysTrades.filter(
+      (t) => safeParseFloat(t.pnl, 0) > 0
+    );
+    const dailyLosingTrades = todaysTrades.filter(
+      (t) => safeParseFloat(t.pnl, 0) < 0
+    );
+    const dailyRealizedPnl = todaysTrades.reduce(
+      (sum, t) => sum + safeParseFloat(t.pnl, 0),
+      0
+    );
 
     res.json({
       totalTrades: filledTrades.length,

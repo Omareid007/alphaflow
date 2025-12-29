@@ -12,42 +12,48 @@ import { MonitoringTab } from "./MonitoringTab";
 interface ProviderFormProps {
   onSubmit: (data: any) => void;
   initialData?: any;
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
 }
 
-export function ProviderForm({ onSubmit, initialData, mode }: ProviderFormProps) {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    type: 'data',
-    baseUrl: '',
-    apiVersion: '',
-    authMethod: 'header',
-    status: 'active',
-    rateLimitRequests: 100,
-    rateLimitWindowSeconds: 60,
-    rateLimitPerKey: false,
-    retryEnabled: true,
-    retryMaxAttempts: 3,
-    retryBackoffMs: 1000,
-    retryBackoffMultiplier: 2.0,
-    timeoutConnectMs: 5000,
-    timeoutRequestMs: 30000,
-    timeoutTotalMs: 60000,
-    healthCheckEnabled: true,
-    healthCheckEndpoint: '/health',
-    healthCheckIntervalSeconds: 300,
-    healthCheckTimeoutMs: 5000,
-    connectionPoolSize: 10,
-    connectionPoolTimeoutMs: 30000,
-    webhookUrl: '',
-    webhookSecret: '',
-    webhookEvents: [],
-    requestFormat: 'json',
-    responseFormat: 'json',
-    customHeaders: {},
-    tags: [],
-    metadata: {}
-  });
+export function ProviderForm({
+  onSubmit,
+  initialData,
+  mode,
+}: ProviderFormProps) {
+  const [formData, setFormData] = useState(
+    initialData || {
+      name: "",
+      type: "data",
+      baseUrl: "",
+      apiVersion: "",
+      authMethod: "header",
+      status: "active",
+      rateLimitRequests: 100,
+      rateLimitWindowSeconds: 60,
+      rateLimitPerKey: false,
+      retryEnabled: true,
+      retryMaxAttempts: 3,
+      retryBackoffMs: 1000,
+      retryBackoffMultiplier: 2.0,
+      timeoutConnectMs: 5000,
+      timeoutRequestMs: 30000,
+      timeoutTotalMs: 60000,
+      healthCheckEnabled: true,
+      healthCheckEndpoint: "/health",
+      healthCheckIntervalSeconds: 300,
+      healthCheckTimeoutMs: 5000,
+      connectionPoolSize: 10,
+      connectionPoolTimeoutMs: 30000,
+      webhookUrl: "",
+      webhookSecret: "",
+      webhookEvents: [],
+      requestFormat: "json",
+      responseFormat: "json",
+      customHeaders: {},
+      tags: [],
+      metadata: {},
+    }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +98,7 @@ export function ProviderForm({ onSubmit, initialData, mode }: ProviderFormProps)
 
       <div className="flex justify-end gap-2 pt-4 border-t">
         <Button type="submit" className="w-full sm:w-auto">
-          {mode === 'create' ? 'Create Provider' : 'Update Provider'}
+          {mode === "create" ? "Create Provider" : "Update Provider"}
         </Button>
       </div>
     </form>

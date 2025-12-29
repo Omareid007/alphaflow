@@ -13,7 +13,7 @@ import {
   Activity,
   AlertTriangle,
   Brain,
-  Zap
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +74,7 @@ function MetricCard({
   value,
   change,
   changeLabel,
-  icon: Icon
+  icon: Icon,
 }: {
   title: string;
   value: string;
@@ -90,7 +90,9 @@ function MetricCard({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight">
+              {value}
+            </p>
             {change !== undefined && (
               <div className="mt-2 flex items-center gap-1">
                 {isPositive ? (
@@ -130,7 +132,7 @@ function StrategyCard({ strategy }: { strategy: any }) {
     Backtested: "bg-blue-500/10 text-blue-500",
     Deployed: "bg-success/10 text-success",
     Paused: "bg-warning/10 text-warning",
-    Stopped: "bg-destructive/10 text-destructive"
+    Stopped: "bg-destructive/10 text-destructive",
   };
 
   return (
@@ -140,7 +142,13 @@ function StrategyCard({ strategy }: { strategy: any }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h3 className="truncate font-medium">{strategy.name}</h3>
-              <Badge variant="secondary" className={statusColors[strategy.status] || "bg-muted text-muted-foreground"}>
+              <Badge
+                variant="secondary"
+                className={
+                  statusColors[strategy.status] ||
+                  "bg-muted text-muted-foreground"
+                }
+              >
                 {strategy.status}
               </Badge>
             </div>
@@ -155,7 +163,9 @@ function StrategyCard({ strategy }: { strategy: any }) {
                         : "text-destructive"
                     }
                   >
-                    {(strategy.performanceSummary.totalReturn || 0) >= 0 ? "+" : ""}
+                    {(strategy.performanceSummary.totalReturn || 0) >= 0
+                      ? "+"
+                      : ""}
                     {(strategy.performanceSummary.totalReturn || 0).toFixed(1)}%
                   </span>
                 </span>
@@ -168,7 +178,11 @@ function StrategyCard({ strategy }: { strategy: any }) {
             )}
           </div>
           <Link href={`/strategies/${strategy.id}`}>
-            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100"
+            >
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -184,7 +198,7 @@ function AiEventCard({ event }: { event: any }) {
     sentiment: Activity,
     news: Brain,
     risk: AlertTriangle,
-    suggestion: Brain
+    suggestion: Brain,
   };
 
   const typeColors: Record<string, string> = {
@@ -192,14 +206,19 @@ function AiEventCard({ event }: { event: any }) {
     sentiment: "text-blue-400",
     news: "text-muted-foreground",
     risk: "text-warning",
-    suggestion: "text-success"
+    suggestion: "text-success",
   };
 
   const Icon = typeIcons[event.type] || Brain;
 
   return (
     <div className="flex gap-3 py-3">
-      <div className={cn("mt-0.5", typeColors[event.type] || "text-muted-foreground")}>
+      <div
+        className={cn(
+          "mt-0.5",
+          typeColors[event.type] || "text-muted-foreground"
+        )}
+      >
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
@@ -228,28 +247,35 @@ export default function HomePage() {
     data: portfolio,
     isLoading: portfolioLoading,
     error: portfolioError,
-    refetch: refetchPortfolio
+    refetch: refetchPortfolio,
   } = usePortfolioSnapshot();
 
   const {
     data: strategies = [],
     isLoading: strategiesLoading,
     error: strategiesError,
-    refetch: refetchStrategies
+    refetch: refetchStrategies,
   } = useStrategies();
 
   const {
     data: events = [],
     isLoading: eventsLoading,
     error: eventsError,
-    refetch: refetchEvents
+    refetch: refetchEvents,
   } = useAiEvents({ limit: 10 });
 
   const hasError = portfolioError || strategiesError || eventsError;
-  const activeStrategies = strategies.filter((s: any) => s.status === "live" || s.status === "paper");
+  const activeStrategies = strategies.filter(
+    (s: any) => s.status === "live" || s.status === "paper"
+  );
 
   // Handle critical errors (all data failed to load)
-  if (hasError && !portfolio && strategies.length === 0 && events.length === 0) {
+  if (
+    hasError &&
+    !portfolio &&
+    strategies.length === 0 &&
+    events.length === 0
+  ) {
     return (
       <div className="space-y-8">
         <div>
@@ -261,12 +287,17 @@ export default function HomePage() {
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-8">
           <div className="flex flex-col items-center text-center">
             <AlertTriangle className="h-12 w-12 text-destructive" />
-            <h3 className="mt-4 text-lg font-semibold">Unable to load dashboard</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+              Unable to load dashboard
+            </h3>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              {portfolioError instanceof Error ? portfolioError.message :
-               strategiesError instanceof Error ? strategiesError.message :
-               eventsError instanceof Error ? eventsError.message :
-               "Could not connect to the server. Please check if the backend is running."}
+              {portfolioError instanceof Error
+                ? portfolioError.message
+                : strategiesError instanceof Error
+                  ? strategiesError.message
+                  : eventsError instanceof Error
+                    ? eventsError.message
+                    : "Could not connect to the server. Please check if the backend is running."}
             </p>
             <div className="mt-6 flex gap-3">
               <Button
@@ -308,7 +339,8 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning" />
             <p className="text-sm text-warning">
-              Unable to load portfolio data. Some information may be unavailable.
+              Unable to load portfolio data. Some information may be
+              unavailable.
             </p>
           </div>
         </div>
@@ -326,14 +358,22 @@ export default function HomePage() {
           <>
             <MetricCard
               title="Total Equity"
-              value={portfolio?.totalEquity ? `$${portfolio.totalEquity.toLocaleString()}` : "Unavailable"}
+              value={
+                portfolio?.totalEquity
+                  ? `$${portfolio.totalEquity.toLocaleString()}`
+                  : "Unavailable"
+              }
               change={portfolio?.dailyPlPct}
               changeLabel="today"
               icon={TrendingUp}
             />
             <MetricCard
               title="Day P&L"
-              value={portfolio?.dailyPl ? `$${portfolio.dailyPl.toLocaleString()}` : "Unavailable"}
+              value={
+                portfolio?.dailyPl
+                  ? `$${portfolio.dailyPl.toLocaleString()}`
+                  : "Unavailable"
+              }
               change={portfolio?.dailyPlPct}
               icon={Activity}
             />
@@ -344,7 +384,11 @@ export default function HomePage() {
             />
             <MetricCard
               title="Buying Power"
-              value={portfolio?.buyingPower ? `$${portfolio.buyingPower.toLocaleString()}` : "Unavailable"}
+              value={
+                portfolio?.buyingPower
+                  ? `$${portfolio.buyingPower.toLocaleString()}`
+                  : "Unavailable"
+              }
               icon={AlertTriangle}
             />
           </>
@@ -395,9 +439,11 @@ export default function HomePage() {
                   </Link>
                 </div>
               ) : (
-                strategies.slice(0, 5).map(strategy => (
-                  <StrategyCard key={strategy.id} strategy={strategy} />
-                ))
+                strategies
+                  .slice(0, 5)
+                  .map((strategy) => (
+                    <StrategyCard key={strategy.id} strategy={strategy} />
+                  ))
               )}
             </CardContent>
           </Card>
@@ -438,11 +484,13 @@ export default function HomePage() {
                 </div>
               ) : events.length === 0 ? (
                 <div className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No recent AI activity</p>
+                  <p className="text-sm text-muted-foreground">
+                    No recent AI activity
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {events.slice(0, 5).map(event => (
+                  {events.slice(0, 5).map((event) => (
                     <AiEventCard key={event.id} event={event} />
                   ))}
                 </div>

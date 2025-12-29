@@ -37,7 +37,7 @@ router.get("/snapshot", async (req: Request, res: Response) => {
 
     // Calculate P&L
     const dailyPl = equity - lastEquity;
-    const dailyPlPct = lastEquity > 0 ? ((dailyPl / lastEquity) * 100) : 0;
+    const dailyPlPct = lastEquity > 0 ? (dailyPl / lastEquity) * 100 : 0;
 
     // Map positions to required format
     const positions = alpacaPositions.map((pos: any) => ({
@@ -55,12 +55,18 @@ router.get("/snapshot", async (req: Request, res: Response) => {
     }));
 
     // Calculate total unrealized P&L from positions
-    const totalUnrealizedPl = positions.reduce((sum: number, pos: any) => sum + pos.unrealizedPl, 0);
+    const totalUnrealizedPl = positions.reduce(
+      (sum: number, pos: any) => sum + pos.unrealizedPl,
+      0
+    );
 
     // Get trades from database for realized P&L
     const trades = await storage.getTrades(undefined, 100);
-    const closedTrades = trades.filter(t => t.pnl !== null && t.pnl !== "");
-    const totalRealizedPl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
+    const closedTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "");
+    const totalRealizedPl = closedTrades.reduce(
+      (sum, t) => sum + parseFloat(t.pnl || "0"),
+      0
+    );
 
     const snapshot = {
       totalEquity: equity,
@@ -70,7 +76,10 @@ router.get("/snapshot", async (req: Request, res: Response) => {
       dailyPl,
       dailyPlPct,
       totalPl: totalRealizedPl + totalUnrealizedPl,
-      totalPlPct: lastEquity > 0 ? ((totalRealizedPl + totalUnrealizedPl) / lastEquity * 100) : 0,
+      totalPlPct:
+        lastEquity > 0
+          ? ((totalRealizedPl + totalUnrealizedPl) / lastEquity) * 100
+          : 0,
       positions,
       timestamp: new Date().toISOString(),
       positionCount: positions.length,
@@ -103,30 +112,41 @@ router.get("/", async (req: Request, res: Response) => {
     const positions = await alpaca.getPositions();
 
     // Filter out dust positions (< 0.0001 shares) to avoid displaying floating point residuals
-    const filteredPositions = positions.filter(p => {
+    const filteredPositions = positions.filter((p) => {
       const qty = Math.abs(parseFloat(p.qty || "0"));
       return qty >= DUST_THRESHOLD;
     });
 
     // Sync to database in background (don't block response) - write-behind cache
-    storage.syncPositionsFromAlpaca(req.userId!, filteredPositions).catch(err =>
-      log.error("PositionsAPI", `Failed to sync positions to database: ${err}`)
-    );
+    storage
+      .syncPositionsFromAlpaca(req.userId!, filteredPositions)
+      .catch((err) =>
+        log.error(
+          "PositionsAPI",
+          `Failed to sync positions to database: ${err}`
+        )
+      );
 
-    const enrichedPositions = filteredPositions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
+    const enrichedPositions = filteredPositions.map((p) =>
+      mapAlpacaPositionToEnriched(p, fetchedAt)
+    );
 
     res.json({
       positions: enrichedPositions,
       _source: createLiveSourceMetadata(),
     });
   } catch (error) {
-    log.error("PositionsAPI", `Failed to fetch positions from Alpaca: ${error}`);
+    log.error(
+      "PositionsAPI",
+      `Failed to fetch positions from Alpaca: ${error}`
+    );
     // Per SOURCE_OF_TRUTH_CONTRACT.md: Do NOT fallback to stale DB data without warning
     // Return error with source metadata so UI can display appropriate message
     res.status(503).json({
       error: "Live position data unavailable from Alpaca",
       _source: createUnavailableSourceMetadata(),
-      message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      message:
+        "Could not connect to Alpaca Paper Trading. Please try again shortly.",
     });
   }
 });
@@ -142,11 +162,13 @@ router.get("/broker", async (req: Request, res: Response) => {
   try {
     const positions = await alpaca.getPositions();
     // Filter out dust positions
-    const filteredPositions = positions.filter(p => {
+    const filteredPositions = positions.filter((p) => {
       const qty = Math.abs(parseFloat(p.qty || "0"));
       return qty >= DUST_THRESHOLD;
     });
-    const enrichedPositions = filteredPositions.map(p => mapAlpacaPositionToEnriched(p, fetchedAt));
+    const enrichedPositions = filteredPositions.map((p) =>
+      mapAlpacaPositionToEnriched(p, fetchedAt)
+    );
 
     res.json({
       positions: enrichedPositions,
@@ -157,7 +179,8 @@ router.get("/broker", async (req: Request, res: Response) => {
     res.status(503).json({
       error: "Failed to fetch positions from broker",
       _source: createUnavailableSourceMetadata(),
-      message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      message:
+        "Could not connect to Alpaca Paper Trading. Please try again shortly.",
     });
   }
 });
@@ -237,7 +260,8 @@ router.delete("/:id", async (req: Request, res: Response) => {
  */
 router.post("/reconcile", async (req: Request, res: Response) => {
   try {
-    const { positionReconciler } = await import("../services/position-reconciler");
+    const { positionReconciler } =
+      await import("../services/position-reconciler");
     const force = req.query.force === "true";
     const result = await positionReconciler.reconcile(force);
     res.json(result);
@@ -253,7 +277,8 @@ router.post("/reconcile", async (req: Request, res: Response) => {
  */
 router.get("/reconcile/status", async (req: Request, res: Response) => {
   try {
-    const { positionReconciler } = await import("../services/position-reconciler");
+    const { positionReconciler } =
+      await import("../services/position-reconciler");
     const status = positionReconciler.getStatus();
     res.json(status);
   } catch (error) {
@@ -274,9 +299,13 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
     }
 
     // SECURITY: Mark as authorized since this is an admin-initiated action
-    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, undefined, {
-      authorizedByOrchestrator: true,
-    });
+    const result = await alpacaTradingEngine.closeAlpacaPosition(
+      symbol,
+      undefined,
+      {
+        authorizedByOrchestrator: true,
+      }
+    );
 
     if (result.success) {
       res.json({

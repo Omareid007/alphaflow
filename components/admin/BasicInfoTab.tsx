@@ -2,7 +2,13 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BasicInfoTabProps {
   formData: {
@@ -26,7 +32,7 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
           <Input
             id="name"
             value={formData.name}
-            onChange={(e) => updateField('name', e.target.value)}
+            onChange={(e) => updateField("name", e.target.value)}
             placeholder="e.g. OpenAI GPT-4"
             required
           />
@@ -34,7 +40,10 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
 
         <div className="space-y-2">
           <Label htmlFor="type">Type *</Label>
-          <Select value={formData.type} onValueChange={(value) => updateField('type', value)}>
+          <Select
+            value={formData.type}
+            onValueChange={(value) => updateField("type", value)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -56,7 +65,7 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
             id="baseUrl"
             type="url"
             value={formData.baseUrl}
-            onChange={(e) => updateField('baseUrl', e.target.value)}
+            onChange={(e) => updateField("baseUrl", e.target.value)}
             placeholder="https://api.provider.com"
             required
           />
@@ -67,14 +76,17 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
           <Input
             id="apiVersion"
             value={formData.apiVersion}
-            onChange={(e) => updateField('apiVersion', e.target.value)}
+            onChange={(e) => updateField("apiVersion", e.target.value)}
             placeholder="v1, 2024-01, etc."
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="requestFormat">Request Format</Label>
-          <Select value={formData.requestFormat} onValueChange={(value) => updateField('requestFormat', value)}>
+          <Select
+            value={formData.requestFormat}
+            onValueChange={(value) => updateField("requestFormat", value)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -89,7 +101,10 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
 
         <div className="space-y-2">
           <Label htmlFor="responseFormat">Response Format</Label>
-          <Select value={formData.responseFormat} onValueChange={(value) => updateField('responseFormat', value)}>
+          <Select
+            value={formData.responseFormat}
+            onValueChange={(value) => updateField("responseFormat", value)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -107,8 +122,16 @@ export function BasicInfoTab({ formData, updateField }: BasicInfoTabProps) {
         <Label htmlFor="tags">Tags (comma-separated)</Label>
         <Input
           id="tags"
-          value={formData.tags.join(', ')}
-          onChange={(e) => updateField('tags', e.target.value.split(',').map((t: string) => t.trim()).filter(Boolean))}
+          value={formData.tags.join(", ")}
+          onChange={(e) =>
+            updateField(
+              "tags",
+              e.target.value
+                .split(",")
+                .map((t: string) => t.trim())
+                .filter(Boolean)
+            )
+          }
           placeholder="production, high-priority, ml"
         />
       </div>

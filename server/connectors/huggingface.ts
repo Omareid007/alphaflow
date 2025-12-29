@@ -1,14 +1,14 @@
 /**
  * Hugging Face Connector - Financial sentiment analysis and signal enrichment
- * 
+ *
  * Uses specialized financial models:
  * - FinBERT (ProsusAI/finbert) - Financial text sentiment
  * - FinancialBERT - Pre-trained on financial corpora
  * - DeBERTa v3 - Fast financial news sentiment
- * 
+ *
  * These outputs serve as enrichment inputs to the LLM decision engine,
  * not as standalone trading signals.
- * 
+ *
  * @see docs/CONNECTORS_AND_INTEGRATIONS.md
  */
 
@@ -72,7 +72,10 @@ class HuggingFaceConnector {
     if (!apiKey) {
       const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("HuggingFace", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        log.debug(
+          "HuggingFace",
+          `No API key, serving stale L1 data for ${l1CacheKey}`
+        );
         return stale;
       }
       throw new Error("HUGGINGFACE_API_KEY is not configured");
@@ -104,7 +107,10 @@ class HuggingFaceConnector {
     } catch (error) {
       const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("HuggingFace", `Error fetching, serving stale L1 data for ${l1CacheKey}`);
+        log.debug(
+          "HuggingFace",
+          `Error fetching, serving stale L1 data for ${l1CacheKey}`
+        );
         return stale;
       }
       throw error;
@@ -168,7 +174,10 @@ class HuggingFaceConnector {
           sentiment: topSentiment,
         });
       } catch (error) {
-        log.warn("HuggingFace", `Failed to analyze headline: ${headline.substring(0, 30)}...`);
+        log.warn(
+          "HuggingFace",
+          `Failed to analyze headline: ${headline.substring(0, 30)}...`
+        );
         results.push({
           headline,
           sentiment: { label: "neutral", score: 0.5 },
@@ -208,13 +217,13 @@ class HuggingFaceConnector {
       totalConfidence += result.sentiment.score;
     }
 
-    const netSentiment = sentimentResults.length > 0 
-      ? totalScore / sentimentResults.length 
-      : 0;
+    const netSentiment =
+      sentimentResults.length > 0 ? totalScore / sentimentResults.length : 0;
 
-    const avgConfidence = sentimentResults.length > 0
-      ? totalConfidence / sentimentResults.length
-      : 0.5;
+    const avgConfidence =
+      sentimentResults.length > 0
+        ? totalConfidence / sentimentResults.length
+        : 0.5;
 
     let overallLabel: SentimentLabel = "neutral";
     if (netSentiment > 0.2) overallLabel = "positive";
@@ -223,8 +232,9 @@ class HuggingFaceConnector {
     let trendStrength: number | undefined;
     if (priceChange !== undefined) {
       const priceDirection = priceChange > 0 ? 1 : priceChange < 0 ? -1 : 0;
-      const sentimentDirection = netSentiment > 0 ? 1 : netSentiment < 0 ? -1 : 0;
-      
+      const sentimentDirection =
+        netSentiment > 0 ? 1 : netSentiment < 0 ? -1 : 0;
+
       if (priceDirection === sentimentDirection) {
         trendStrength = Math.abs(netSentiment) * avgConfidence;
       } else {
@@ -265,14 +275,21 @@ class HuggingFaceConnector {
         const signal = await this.generateEnrichmentSignal(symbol, headlines);
         results.set(symbol, signal);
       } catch (error) {
-        log.warn("HuggingFace", `Failed to analyze ${symbol}: ${String(error)}`);
+        log.warn(
+          "HuggingFace",
+          `Failed to analyze ${symbol}: ${String(error)}`
+        );
       }
     }
 
     return results;
   }
 
-  getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
+  getConnectionStatus(): {
+    connected: boolean;
+    hasApiKey: boolean;
+    cacheSize: number;
+  } {
     return {
       connected: this.isAvailable(),
       hasApiKey: this.isAvailable(),

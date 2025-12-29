@@ -16,7 +16,9 @@ router.get("/all", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get all trading sessions", { error: error });
+    log.error("TradingSessionsRoutes", "Failed to get all trading sessions", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get trading sessions" });
   }
 });
@@ -28,8 +30,12 @@ router.get("/all", async (req: Request, res: Response) => {
 router.get("/:exchange", async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
-    const session = tradingSessionManager.getCurrentSession(exchange.toUpperCase());
-    const config = tradingSessionManager.getSessionConfig(exchange.toUpperCase());
+    const session = tradingSessionManager.getCurrentSession(
+      exchange.toUpperCase()
+    );
+    const config = tradingSessionManager.getSessionConfig(
+      exchange.toUpperCase()
+    );
 
     res.json({
       exchange: exchange.toUpperCase(),
@@ -38,7 +44,9 @@ router.get("/:exchange", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get trading session", { error: error });
+    log.error("TradingSessionsRoutes", "Failed to get trading session", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get trading session" });
   }
 });
@@ -58,7 +66,9 @@ router.get("/:exchange/is-open", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to check if market is open", { error: error });
+    log.error("TradingSessionsRoutes", "Failed to check if market is open", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to check market status" });
   }
 });
@@ -70,7 +80,9 @@ router.get("/:exchange/is-open", async (req: Request, res: Response) => {
 router.get("/:exchange/next-open", async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
-    const nextOpen = tradingSessionManager.getNextMarketOpen(exchange.toUpperCase());
+    const nextOpen = tradingSessionManager.getNextMarketOpen(
+      exchange.toUpperCase()
+    );
 
     res.json({
       exchange: exchange.toUpperCase(),
@@ -78,7 +90,9 @@ router.get("/:exchange/next-open", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get next market open", { error: error });
+    log.error("TradingSessionsRoutes", "Failed to get next market open", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get next market open" });
   }
 });
@@ -90,11 +104,14 @@ router.get("/:exchange/next-open", async (req: Request, res: Response) => {
 router.get("/:exchange/volatility", async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
-    const session = tradingSessionManager.getCurrentSession(exchange.toUpperCase());
-    const volatilityMultiplier = tradingSessionManager.getSessionVolatilityMultiplier(
-      exchange.toUpperCase(),
-      session.session
+    const session = tradingSessionManager.getCurrentSession(
+      exchange.toUpperCase()
     );
+    const volatilityMultiplier =
+      tradingSessionManager.getSessionVolatilityMultiplier(
+        exchange.toUpperCase(),
+        session.session
+      );
 
     res.json({
       exchange: exchange.toUpperCase(),
@@ -103,7 +120,9 @@ router.get("/:exchange/volatility", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get volatility multiplier", { error: error });
+    log.error("TradingSessionsRoutes", "Failed to get volatility multiplier", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get volatility multiplier" });
   }
 });

@@ -17,11 +17,11 @@ router.get("/metrics", async (req: Request, res: Response) => {
     const poolStats = getPoolStats();
 
     res.json({
-      orderExecution: performanceTracker.getMetricSummary('orderExecution'),
-      quoteRetrieval: performanceTracker.getMetricSummary('quoteRetrieval'),
-      aiDecision: performanceTracker.getMetricSummary('aiDecision'),
-      databaseQuery: performanceTracker.getMetricSummary('databaseQuery'),
-      apiCall: performanceTracker.getMetricSummary('apiCall'),
+      orderExecution: performanceTracker.getMetricSummary("orderExecution"),
+      quoteRetrieval: performanceTracker.getMetricSummary("quoteRetrieval"),
+      aiDecision: performanceTracker.getMetricSummary("aiDecision"),
+      databaseQuery: performanceTracker.getMetricSummary("databaseQuery"),
+      apiCall: performanceTracker.getMetricSummary("apiCall"),
       sloCompliance: sloStatus,
       cache: cacheStats,
       dbPool: poolStats,

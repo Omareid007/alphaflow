@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../client';
-import { AiEvent as AiEventType } from '@/lib/types';
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../client";
+import { AiEvent as AiEventType } from "@/lib/types";
 
 export interface AiDecision {
   id: string;
   symbol?: string;
-  action: 'buy' | 'sell' | 'hold' | 'wait';
+  action: "buy" | "sell" | "hold" | "wait";
   confidence: number;
   reasoning: string;
   signals?: string[];
@@ -16,7 +16,7 @@ export interface AiDecision {
 
 export interface SentimentData {
   symbol: string;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  sentiment: "bullish" | "bearish" | "neutral";
   score: number;
   sources: string[];
   updatedAt: string;
@@ -25,7 +25,7 @@ export interface SentimentData {
 // Use AiEvent from lib/types but with compatible fields
 export interface AiEvent {
   id: string;
-  type: 'signal' | 'risk' | 'sentiment' | 'news' | 'suggestion';
+  type: "signal" | "risk" | "sentiment" | "news" | "suggestion";
   title?: string;
   description?: string;
   headline?: string;
@@ -33,18 +33,21 @@ export interface AiEvent {
   time?: string;
   createdAt?: string;
   confidence?: number;
-  severity?: 'low' | 'medium' | 'high' | 'critical';
+  severity?: "low" | "medium" | "high" | "critical";
   symbol?: string;
   metadata?: Record<string, unknown>;
   impactedStrategies?: { id: string; name: string }[];
   action?: string;
 }
 
-export function useAiDecisions(options?: { limit?: number; strategyId?: string }) {
+export function useAiDecisions(options?: {
+  limit?: number;
+  strategyId?: string;
+}) {
   return useQuery({
-    queryKey: ['ai', 'decisions', options],
+    queryKey: ["ai", "decisions", options],
     queryFn: () =>
-      api.get<AiDecision[]>('/api/ai-decisions', {
+      api.get<AiDecision[]>("/api/ai-decisions", {
         params: options,
       }),
   });
@@ -52,9 +55,9 @@ export function useAiDecisions(options?: { limit?: number; strategyId?: string }
 
 export function useAiEvents(options?: { limit?: number; type?: string }) {
   return useQuery({
-    queryKey: ['ai', 'events', options],
+    queryKey: ["ai", "events", options],
     queryFn: () =>
-      api.get<AiEvent[]>('/api/ai/events', {
+      api.get<AiEvent[]>("/api/ai/events", {
         params: options,
       }),
     refetchInterval: 60000, // Reduced from 30s
@@ -75,14 +78,14 @@ export function useAiEvents(options?: { limit?: number; type?: string }) {
 
 export function useMarketCondition() {
   return useQuery({
-    queryKey: ['ai', 'market-condition'],
+    queryKey: ["ai", "market-condition"],
     queryFn: () =>
       api.get<{
-        regime: 'bullish' | 'bearish' | 'neutral' | 'volatile';
+        regime: "bullish" | "bearish" | "neutral" | "volatile";
         confidence: number;
         indicators: Record<string, number>;
         updatedAt: string;
-      }>('/api/ai/market-condition'),
+      }>("/api/ai/market-condition"),
     refetchInterval: 60000,
   });
 }

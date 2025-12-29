@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 
@@ -20,7 +26,9 @@ export function ConnectionsCard() {
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
           <div>
             <p className="font-medium">Brokerage Account</p>
-            <p className="text-sm text-muted-foreground">Connect your trading account</p>
+            <p className="text-sm text-muted-foreground">
+              Connect your trading account
+            </p>
           </div>
           <Button variant="outline" disabled>
             Coming Soon
@@ -29,7 +37,9 @@ export function ConnectionsCard() {
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
           <div>
             <p className="font-medium">Market Data Feed</p>
-            <p className="text-sm text-muted-foreground">Real-time market data provider</p>
+            <p className="text-sm text-muted-foreground">
+              Real-time market data provider
+            </p>
           </div>
           <Button variant="outline" disabled>
             Coming Soon

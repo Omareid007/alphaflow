@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 interface User {
@@ -86,7 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Redirect logic after loading completes
     if (!isLoading) {
-      const isPublicPath = PUBLIC_PATHS.some(path => pathname?.startsWith(path));
+      const isPublicPath = PUBLIC_PATHS.some((path) =>
+        pathname?.startsWith(path)
+      );
 
       if (!user && !isPublicPath) {
         // Not authenticated and not on public path - redirect to login

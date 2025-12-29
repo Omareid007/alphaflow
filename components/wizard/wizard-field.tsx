@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
@@ -30,7 +30,7 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
           <Input
             type="number"
             value={value as number}
-            onChange={e => onChange(parseFloat(e.target.value) || 0)}
+            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
             min={field.constraints?.min}
             max={field.constraints?.max}
             step={field.constraints?.step || 1}
@@ -43,7 +43,7 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
           <Input
             type="text"
             value={value as string}
-            onChange={e => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value)}
             className="w-full"
           />
         );
@@ -55,7 +55,7 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
               <SelectValue placeholder="Select option" />
             </SelectTrigger>
             <SelectContent>
-              {field.constraints?.options?.map(opt => (
+              {field.constraints?.options?.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>
@@ -94,11 +94,10 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
       case "toggle":
         return (
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{field.helpText}</span>
-            <Switch
-              checked={value as boolean}
-              onCheckedChange={onChange}
-            />
+            <span className="text-sm text-muted-foreground">
+              {field.helpText}
+            </span>
+            <Switch checked={value as boolean} onCheckedChange={onChange} />
           </div>
         );
 
@@ -107,12 +106,12 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
         return (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              {selectedValues.map(val => (
+              {selectedValues.map((val) => (
                 <Badge key={val} variant="secondary" className="gap-1 pr-1">
                   {val}
                   <button
                     onClick={() =>
-                      onChange(selectedValues.filter(v => v !== val))
+                      onChange(selectedValues.filter((v) => v !== val))
                     }
                     className="ml-1 rounded-full p-0.5 hover:bg-muted"
                   >
@@ -123,8 +122,8 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {field.constraints?.options
-                ?.filter(opt => !selectedValues.includes(opt.value))
-                .map(opt => (
+                ?.filter((opt) => !selectedValues.includes(opt.value))
+                .map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => onChange([...selectedValues, opt.value])}

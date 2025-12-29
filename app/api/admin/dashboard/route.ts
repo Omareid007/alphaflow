@@ -1,5 +1,9 @@
-import { NextResponse } from 'next/server';
-import { providerService, llmRouterService, orchestratorService } from '@/lib/admin/services';
+import { NextResponse } from "next/server";
+import {
+  providerService,
+  llmRouterService,
+  orchestratorService,
+} from "@/lib/admin/services";
 
 export async function GET() {
   try {
@@ -7,27 +11,34 @@ export async function GET() {
       providerService.listProviders(),
       llmRouterService.listModels(),
       orchestratorService.getConfig(),
-      orchestratorService.getRecentRuns(100)
+      orchestratorService.getRecentRuns(100),
     ]);
 
     const stats = {
       providers: {
         total: providers.length,
-        active: providers.filter(p => p.status === 'active').length
+        active: providers.filter((p) => p.status === "active").length,
       },
       models: {
         total: models.length,
-        enabled: models.filter(m => m.enabled).length
+        enabled: models.filter((m) => m.enabled).length,
       },
       jobs: {
-        running: jobs.filter(j => j.status === 'running').length,
-        failed: jobs.filter(j => j.status === 'failed' && new Date(j.startedAt) > new Date(Date.now() - 86400000)).length
+        running: jobs.filter((j) => j.status === "running").length,
+        failed: jobs.filter(
+          (j) =>
+            j.status === "failed" &&
+            new Date(j.startedAt) > new Date(Date.now() - 86400000)
+        ).length,
       },
-      killSwitch: config.killSwitch
+      killSwitch: config.killSwitch,
     };
 
     return NextResponse.json(stats);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to load dashboard' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load dashboard" },
+      { status: 500 }
+    );
   }
 }

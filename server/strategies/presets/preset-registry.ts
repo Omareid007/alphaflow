@@ -28,26 +28,29 @@ import type {
 /**
  * Standard risk profiles shared across all strategies
  */
-export const BASE_RISK_PROFILES: Record<"conservative" | "moderate" | "aggressive", RiskParameters> = {
+export const BASE_RISK_PROFILES: Record<
+  "conservative" | "moderate" | "aggressive",
+  RiskParameters
+> = {
   conservative: {
     maxPositionSizePct: 0.05,
-    maxTotalExposurePct: 0.30,
+    maxTotalExposurePct: 0.3,
     stopLossPct: 0.02,
     takeProfitPct: 0.04,
     maxDailyLossPct: 0.03,
   },
   moderate: {
     maxPositionSizePct: 0.08,
-    maxTotalExposurePct: 0.50,
+    maxTotalExposurePct: 0.5,
     stopLossPct: 0.03,
     takeProfitPct: 0.06,
     maxDailyLossPct: 0.05,
   },
   aggressive: {
     maxPositionSizePct: 0.15,
-    maxTotalExposurePct: 0.80,
+    maxTotalExposurePct: 0.8,
     stopLossPct: 0.05,
-    takeProfitPct: 0.10,
+    takeProfitPct: 0.1,
     maxDailyLossPct: 0.08,
   },
 };
@@ -60,7 +63,8 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
   conservative: {
     name: "conservative",
     displayName: "Conservative Momentum",
-    description: "Lower sensitivity, longer lookback, smaller positions. Best for risk-averse traders.",
+    description:
+      "Lower sensitivity, longer lookback, smaller positions. Best for risk-averse traders.",
     riskLevel: 2,
     parameters: {
       // Risk parameters
@@ -94,7 +98,8 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
   moderate: {
     name: "moderate",
     displayName: "Balanced Momentum",
-    description: "Standard momentum settings for regular market conditions. Good balance of risk and reward.",
+    description:
+      "Standard momentum settings for regular market conditions. Good balance of risk and reward.",
     riskLevel: 3,
     parameters: {
       // Risk parameters
@@ -127,7 +132,8 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
   aggressive: {
     name: "aggressive",
     displayName: "Aggressive Momentum",
-    description: "Higher sensitivity, faster reactions, larger positions. For experienced traders.",
+    description:
+      "Higher sensitivity, faster reactions, larger positions. For experienced traders.",
     riskLevel: 4,
     parameters: {
       // Risk parameters
@@ -160,7 +166,8 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
   scalper: {
     name: "scalper",
     displayName: "Momentum Scalper",
-    description: "Very short-term momentum plays. High frequency, small profits per trade.",
+    description:
+      "Very short-term momentum plays. High frequency, small profits per trade.",
     riskLevel: 5,
     parameters: {
       // Risk parameters
@@ -196,7 +203,8 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
   swing: {
     name: "swing",
     displayName: "Swing Momentum",
-    description: "Multi-day momentum trades. Captures larger trends with patience.",
+    description:
+      "Multi-day momentum trades. Captures larger trends with patience.",
     riskLevel: 3,
     parameters: {
       // Risk parameters
@@ -212,7 +220,7 @@ export const MOMENTUM_PRESETS: Record<PresetName, StrategyPreset> = {
       rsiOversold: 25,
 
       // Position parameters
-      allocationPct: 0.10,
+      allocationPct: 0.1,
       riskLimitPct: 0.06,
 
       // Position limits
@@ -300,7 +308,8 @@ export const MA_CROSSOVER_PRESETS: Record<PresetName, StrategyPreset> = {
   moderate: {
     name: "moderate",
     displayName: "Balanced Crossover",
-    description: "Standard 7/20 crossover. Good balance of signals and reliability.",
+    description:
+      "Standard 7/20 crossover. Good balance of signals and reliability.",
     riskLevel: 3,
     parameters: {
       // Risk parameters
@@ -311,7 +320,7 @@ export const MA_CROSSOVER_PRESETS: Record<PresetName, StrategyPreset> = {
       slowMaPeriod: 20,
 
       // Position parameters
-      allocationPct: 0.10,
+      allocationPct: 0.1,
       riskLimitPct: 0.08,
 
       // Position limits
@@ -407,7 +416,7 @@ export const MA_CROSSOVER_PRESETS: Record<PresetName, StrategyPreset> = {
 
       // Position parameters
       allocationPct: 0.12,
-      riskLimitPct: 0.10,
+      riskLimitPct: 0.1,
 
       // Position limits
       maxOpenPositions: 4,
@@ -435,7 +444,7 @@ export const MA_CROSSOVER_PRESETS: Record<PresetName, StrategyPreset> = {
       slowMaPeriod: 15,
 
       // Position parameters
-      allocationPct: 0.10,
+      allocationPct: 0.1,
       riskLimitPct: 0.08,
 
       // Position limits
@@ -461,7 +470,8 @@ export const MEAN_REVERSION_PRESETS: Record<PresetName, StrategyPreset> = {
   conservative: {
     name: "conservative",
     displayName: "Conservative Reversion",
-    description: "Higher deviation threshold, smaller positions. High probability trades.",
+    description:
+      "Higher deviation threshold, smaller positions. High probability trades.",
     riskLevel: 2,
     parameters: {
       // Risk parameters
@@ -651,7 +661,10 @@ export const MEAN_REVERSION_PRESETS: Record<PresetName, StrategyPreset> = {
 /**
  * Central registry mapping strategy types to their presets
  */
-const STRATEGY_PRESETS: Record<StrategyType, Record<PresetName, StrategyPreset>> = {
+const STRATEGY_PRESETS: Record<
+  StrategyType,
+  Record<PresetName, StrategyPreset>
+> = {
   momentum: MOMENTUM_PRESETS,
   maCrossover: MA_CROSSOVER_PRESETS,
   meanReversion: MEAN_REVERSION_PRESETS,
@@ -668,7 +681,10 @@ export class PresetFramework {
   /**
    * Get preset for a specific strategy and preset name
    */
-  static getPreset(strategy: StrategyType, presetName: PresetName): StrategyPreset {
+  static getPreset(
+    strategy: StrategyType,
+    presetName: PresetName
+  ): StrategyPreset {
     const presets = STRATEGY_PRESETS[strategy];
     if (!presets) {
       throw new Error(`Unknown strategy type: ${strategy}`);
@@ -676,7 +692,9 @@ export class PresetFramework {
 
     const preset = presets[presetName];
     if (!preset) {
-      throw new Error(`Unknown preset: ${presetName} for strategy: ${strategy}`);
+      throw new Error(
+        `Unknown preset: ${presetName} for strategy: ${strategy}`
+      );
     }
 
     return preset;
@@ -697,7 +715,10 @@ export class PresetFramework {
   /**
    * Get preset by risk level
    */
-  static getPresetByRiskLevel(strategy: StrategyType, riskLevel: number): StrategyPreset {
+  static getPresetByRiskLevel(
+    strategy: StrategyType,
+    riskLevel: number
+  ): StrategyPreset {
     const presets = this.getPresetsForStrategy(strategy);
     const matching = presets.find((p) => p.riskLevel === riskLevel);
 
@@ -723,7 +744,10 @@ export class PresetFramework {
   /**
    * Get preset parameters as a flat object (for backward compatibility)
    */
-  static getParameters(strategy: StrategyType, presetName: PresetName): PresetParameters {
+  static getParameters(
+    strategy: StrategyType,
+    presetName: PresetName
+  ): PresetParameters {
     const preset = this.getPreset(strategy, presetName);
     return preset.parameters;
   }
@@ -752,19 +776,22 @@ export class PresetFramework {
     }
 
     if (parameters.maxPositionSizePct !== undefined) {
-      if (parameters.maxPositionSizePct < 0.01 || parameters.maxPositionSizePct > 0.25) {
+      if (
+        parameters.maxPositionSizePct < 0.01 ||
+        parameters.maxPositionSizePct > 0.25
+      ) {
         errors.push("maxPositionSizePct must be between 1% and 25%");
       }
     }
 
     if (parameters.stopLossPct !== undefined) {
-      if (parameters.stopLossPct < 0.005 || parameters.stopLossPct > 0.20) {
+      if (parameters.stopLossPct < 0.005 || parameters.stopLossPct > 0.2) {
         errors.push("stopLossPct must be between 0.5% and 20%");
       }
     }
 
     if (parameters.takeProfitPct !== undefined) {
-      if (parameters.takeProfitPct < 0.01 || parameters.takeProfitPct > 0.50) {
+      if (parameters.takeProfitPct < 0.01 || parameters.takeProfitPct > 0.5) {
         errors.push("takeProfitPct must be between 1% and 50%");
       }
     }
@@ -782,7 +809,10 @@ export class PresetFramework {
 
     if (strategy === "meanReversion") {
       if (parameters.deviationThreshold !== undefined) {
-        if (parameters.deviationThreshold < 1.0 || parameters.deviationThreshold > 4.0) {
+        if (
+          parameters.deviationThreshold < 1.0 ||
+          parameters.deviationThreshold > 4.0
+        ) {
           errors.push("deviationThreshold must be between 1.0 and 4.0");
         }
       }
@@ -790,12 +820,18 @@ export class PresetFramework {
 
     if (strategy === "momentum") {
       if (parameters.momentumThreshold !== undefined) {
-        if (parameters.momentumThreshold < 0.005 || parameters.momentumThreshold > 0.10) {
+        if (
+          parameters.momentumThreshold < 0.005 ||
+          parameters.momentumThreshold > 0.1
+        ) {
           errors.push("momentumThreshold must be between 0.5% and 10%");
         }
       }
 
-      if (parameters.rsiOverbought !== undefined && parameters.rsiOversold !== undefined) {
+      if (
+        parameters.rsiOverbought !== undefined &&
+        parameters.rsiOversold !== undefined
+      ) {
         if (parameters.rsiOversold >= parameters.rsiOverbought) {
           errors.push("rsiOversold must be less than rsiOverbought");
         }
@@ -803,11 +839,17 @@ export class PresetFramework {
     }
 
     // Warnings for potentially risky settings
-    if (parameters.maxOpenPositions !== undefined && parameters.maxOpenPositions > 10) {
+    if (
+      parameters.maxOpenPositions !== undefined &&
+      parameters.maxOpenPositions > 10
+    ) {
       warnings.push("More than 10 open positions may be difficult to manage");
     }
 
-    if (parameters.maxTotalExposurePct !== undefined && parameters.maxTotalExposurePct > 0.75) {
+    if (
+      parameters.maxTotalExposurePct !== undefined &&
+      parameters.maxTotalExposurePct > 0.75
+    ) {
       warnings.push("Total exposure above 75% is considered very aggressive");
     }
 
@@ -865,7 +907,14 @@ export class PresetFramework {
    * List all available preset names
    */
   static getAvailablePresets(): PresetName[] {
-    return ["conservative", "moderate", "aggressive", "scalper", "swing", "daytrader"];
+    return [
+      "conservative",
+      "moderate",
+      "aggressive",
+      "scalper",
+      "swing",
+      "daytrader",
+    ];
   }
 
   /**
@@ -878,7 +927,10 @@ export class PresetFramework {
   /**
    * Get human-readable description of a preset
    */
-  static getPresetDescription(strategy: StrategyType, presetName: PresetName): string {
+  static getPresetDescription(
+    strategy: StrategyType,
+    presetName: PresetName
+  ): string {
     const preset = this.getPreset(strategy, presetName);
     return `${preset.displayName}: ${preset.description} (Risk Level: ${preset.riskLevel}/5)`;
   }

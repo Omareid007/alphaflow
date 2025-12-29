@@ -13,7 +13,7 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
       <Input
         placeholder="Search symbols..."
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         className="w-60 pl-9"
       />
     </div>

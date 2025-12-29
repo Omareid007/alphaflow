@@ -1,7 +1,7 @@
 import { connectorFetch } from "../../lib/connectorClient";
 import { ApiCache } from "../../lib/api-cache";
 import { log } from "../../utils/logger";
-import { 
+import {
   OhlcLatestResponseSchema,
   NewsListResponseSchema,
   EconomicEventResponseSchema,
@@ -99,7 +99,7 @@ async function aitradosFetch<T>(
     endpoint: options.endpoint,
     cacheKey: options.cacheKey,
     headers: {
-      "Accept": "application/json",
+      Accept: "application/json",
     },
   });
 
@@ -125,8 +125,14 @@ export async function fetchOhlcLatest(
   params: OhlcLatestParams
 ): Promise<AitradosClientResult<OhlcLatestResponse>> {
   const url = buildOhlcLatestUrl(params);
-  const cacheKey = buildCacheKey("ohlc", params.schemaAsset, params.countrySymbol, params.interval, "latest");
-  
+  const cacheKey = buildCacheKey(
+    "ohlc",
+    params.schemaAsset,
+    params.countrySymbol,
+    params.interval,
+    "latest"
+  );
+
   const result = await aitradosFetch<OhlcLatestResponse>(url, {
     endpoint: `/ohlc/${params.countrySymbol}/${params.interval}/latest`,
     cacheKey,
@@ -136,9 +142,13 @@ export async function fetchOhlcLatest(
 
   const parsed = OhlcLatestResponseSchema.safeParse(result.data);
   if (!parsed.success) {
-    log.warn("AitradosClient", `Invalid OHLC response for ${params.countrySymbol}`, {
-      errors: parsed.error.errors.slice(0, 3),
-    });
+    log.warn(
+      "AitradosClient",
+      `Invalid OHLC response for ${params.countrySymbol}`,
+      {
+        errors: parsed.error.errors.slice(0, 3),
+      }
+    );
   }
 
   return result;
@@ -149,8 +159,12 @@ export async function fetchNewsList(
 ): Promise<AitradosClientResult<NewsListResponse>> {
   const url = buildNewsListUrl(params);
   const symbolsKey = params.symbols?.join("-") || "all";
-  const cacheKey = buildCacheKey("news", symbolsKey, params.limit?.toString() || "20");
-  
+  const cacheKey = buildCacheKey(
+    "news",
+    symbolsKey,
+    params.limit?.toString() || "20"
+  );
+
   const result = await aitradosFetch<NewsListResponse>(url, {
     endpoint: "/news/list",
     cacheKey,
@@ -172,8 +186,12 @@ export async function fetchEconomicEvent(
   params: EconomicEventParams = {}
 ): Promise<AitradosClientResult<EconomicEventResponse>> {
   const url = buildEconomicEventUrl(params);
-  const cacheKey = buildCacheKey("econ", params.eventId || "list", params.country || "all");
-  
+  const cacheKey = buildCacheKey(
+    "econ",
+    params.eventId || "list",
+    params.country || "all"
+  );
+
   const result = await aitradosFetch<EconomicEventResponse>(url, {
     endpoint: "/economic_calendar/event",
     cacheKey,

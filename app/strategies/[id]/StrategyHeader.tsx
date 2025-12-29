@@ -3,14 +3,7 @@ import { AlgorithmTemplate } from "@/lib/types";
 import { Strategy } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  Play,
-  Pause,
-  Square,
-  Pencil,
-  Rocket
-} from "lucide-react";
+import { ArrowLeft, Play, Pause, Square, Pencil, Rocket } from "lucide-react";
 
 const statusConfig: Record<string, { color: string; label: string }> = {
   draft: { color: "bg-muted text-muted-foreground", label: "Draft" },
@@ -18,10 +11,13 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   paper: { color: "bg-blue-500/10 text-blue-500", label: "Paper Trading" },
   live: { color: "bg-success/10 text-success", label: "Live Trading" },
   paused: { color: "bg-warning/10 text-warning", label: "Paused" },
-  stopped: { color: "bg-destructive/10 text-destructive", label: "Stopped" }
+  stopped: { color: "bg-destructive/10 text-destructive", label: "Stopped" },
 };
 
-const DEFAULT_STATUS = { color: "bg-muted text-muted-foreground", label: "Unknown" };
+const DEFAULT_STATUS = {
+  color: "bg-muted text-muted-foreground",
+  label: "Unknown",
+};
 
 interface StrategyHeaderProps {
   strategy: Strategy;
@@ -38,7 +34,7 @@ export function StrategyHeader({
   onPause,
   onResume,
   onStop,
-  onDeploy
+  onDeploy,
 }: StrategyHeaderProps) {
   const statusInfo = statusConfig[strategy.status] || DEFAULT_STATUS;
 
@@ -51,7 +47,9 @@ export function StrategyHeader({
       </Link>
       <div className="flex-1">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{strategy.name}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {strategy.name}
+          </h1>
           <Badge variant="secondary" className={statusInfo.color}>
             {statusInfo.label}
           </Badge>
@@ -77,7 +75,9 @@ export function StrategyHeader({
             </Button>
           </>
         )}
-        {(strategy.status === "draft" || strategy.status === "stopped" || strategy.status === "backtesting") && (
+        {(strategy.status === "draft" ||
+          strategy.status === "stopped" ||
+          strategy.status === "backtesting") && (
           <>
             <Button variant="outline" onClick={() => onDeploy("paper")}>
               <Play className="mr-2 h-4 w-4" />

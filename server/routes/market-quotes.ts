@@ -15,11 +15,11 @@ router.get("/quotes", async (req: Request, res: Response) => {
     if (!symbolsParam) {
       return res.status(400).json({ error: "symbols parameter required" });
     }
-    const symbols = symbolsParam.split(",").map(s => s.trim().toUpperCase());
+    const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
     const snapshots = await alpaca.getSnapshots(symbols);
 
     // Transform to a simpler format
-    const quotes = symbols.map(symbol => {
+    const quotes = symbols.map((symbol) => {
       const snap = snapshots[symbol];
       if (!snap) {
         return { symbol, price: null, change: null, changePercent: null };
@@ -27,7 +27,7 @@ router.get("/quotes", async (req: Request, res: Response) => {
       const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
       const prevClose = snap.prevDailyBar?.c || price;
       const change = price - prevClose;
-      const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+      const changePercent = prevClose ? (change / prevClose) * 100 : 0;
       return {
         symbol,
         price,
@@ -41,7 +41,9 @@ router.get("/quotes", async (req: Request, res: Response) => {
     });
     res.json(quotes);
   } catch (error) {
-    log.error("MarketQuotesRoutes", "Failed to get market quotes", { error: error });
+    log.error("MarketQuotesRoutes", "Failed to get market quotes", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get market quotes" });
   }
 });

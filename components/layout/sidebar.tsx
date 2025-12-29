@@ -19,7 +19,7 @@ import {
   TrendingUp,
   ShieldCheck,
   LogOut,
-  User
+  User,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,8 @@ export function Sidebar() {
 
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
@@ -120,7 +121,12 @@ export function Sidebar() {
               )}
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-3" disabled>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-3"
+              disabled
+            >
               <div className="h-4 w-4 rounded-full bg-muted animate-pulse" />
               <span className="text-muted-foreground">Theme</span>
             </Button>

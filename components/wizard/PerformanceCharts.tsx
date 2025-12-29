@@ -14,7 +14,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine
+  ReferenceLine,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,10 @@ interface PerformanceChartsProps {
   metrics: BacktestMetrics;
 }
 
-export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsProps) {
+export function PerformanceCharts({
+  chartSeries,
+  metrics,
+}: PerformanceChartsProps) {
   return (
     <Tabs defaultValue="equity">
       <TabsList>
@@ -38,17 +41,27 @@ export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsPro
             <AreaChart data={chartSeries.equityCurve}>
               <defs>
                 <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <stop
+                    offset="5%"
+                    stopColor="hsl(var(--primary))"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="hsl(var(--primary))"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short" })}
+                tickFormatter={(d) =>
+                  new Date(d).toLocaleDateString("en-US", { month: "short" })
+                }
               />
               <YAxis
-                tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 domain={["dataMin - 5000", "dataMax + 5000"]}
               />
               <Tooltip
@@ -84,16 +97,29 @@ export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsPro
             <AreaChart data={chartSeries.drawdown}>
               <defs>
                 <linearGradient id="ddGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                  <stop
+                    offset="5%"
+                    stopColor="hsl(var(--destructive))"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="hsl(var(--destructive))"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short" })}
+                tickFormatter={(d) =>
+                  new Date(d).toLocaleDateString("en-US", { month: "short" })
+                }
               />
-              <YAxis tickFormatter={v => `${v}%`} domain={["dataMin - 5", 0]} />
+              <YAxis
+                tickFormatter={(v) => `${v}%`}
+                domain={["dataMin - 5", 0]}
+              />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
@@ -109,7 +135,11 @@ export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsPro
                   );
                 }}
               />
-              <ReferenceLine y={-metrics.maxDrawdown} stroke="hsl(var(--destructive))" strokeDasharray="5 5" />
+              <ReferenceLine
+                y={-metrics.maxDrawdown}
+                stroke="hsl(var(--destructive))"
+                strokeDasharray="5 5"
+              />
               <Area
                 type="monotone"
                 dataKey="value"
@@ -129,9 +159,11 @@ export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsPro
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short" })}
+                tickFormatter={(d) =>
+                  new Date(d).toLocaleDateString("en-US", { month: "short" })
+                }
               />
-              <YAxis tickFormatter={v => `${v}%`} />
+              <YAxis tickFormatter={(v) => `${v}%`} />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
@@ -141,8 +173,14 @@ export function PerformanceCharts({ chartSeries, metrics }: PerformanceChartsPro
                       <p className="text-sm text-muted-foreground">
                         {new Date(payload[0].payload.date).toLocaleDateString()}
                       </p>
-                      <p className={cn("text-lg font-semibold", value >= 0 ? "text-success" : "text-destructive")}>
-                        {value >= 0 ? "+" : ""}{value.toFixed(2)}%
+                      <p
+                        className={cn(
+                          "text-lg font-semibold",
+                          value >= 0 ? "text-success" : "text-destructive"
+                        )}
+                      >
+                        {value >= 0 ? "+" : ""}
+                        {value.toFixed(2)}%
                       </p>
                     </div>
                   );

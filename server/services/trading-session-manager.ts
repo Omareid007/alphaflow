@@ -106,7 +106,8 @@ const MARKET_SESSIONS: Record<string, MarketSession> = {
 };
 
 class TradingSessionManager {
-  private sessionCache: Map<string, { info: SessionInfo; timestamp: number }> = new Map();
+  private sessionCache: Map<string, { info: SessionInfo; timestamp: number }> =
+    new Map();
   private readonly CACHE_TTL_MS = 60000; // 1 minute cache
 
   /**
@@ -219,7 +220,10 @@ class TradingSessionManager {
    * Get volatility multiplier based on session
    * Higher volatility during extended hours and market opens/closes
    */
-  getSessionVolatilityMultiplier(exchange: string, session: SessionType): number {
+  getSessionVolatilityMultiplier(
+    exchange: string,
+    session: SessionType
+  ): number {
     // Crypto has higher baseline volatility
     if (exchange === "CRYPTO") {
       return 1.5;
@@ -288,49 +292,78 @@ class TradingSessionManager {
 
     // Check regular hours
     if (currentMinutes >= regularStart && currentMinutes < regularEnd) {
-      const nextClose = this.createDateFromTime(now, config.regularHours.end, timezone);
+      const nextClose = this.createDateFromTime(
+        now,
+        config.regularHours.end,
+        timezone
+      );
       return {
         session: "regular",
         isOpen: true,
         isExtendedHours: false,
         nextOpen: null,
         nextClose,
-        volatilityMultiplier: this.getSessionVolatilityMultiplier(config.exchange, "regular"),
+        volatilityMultiplier: this.getSessionVolatilityMultiplier(
+          config.exchange,
+          "regular"
+        ),
         timezone,
       };
     }
 
     // Check extended hours if available
     if (config.extendedHours) {
-      const preMarketStart = this.timeToMinutes(config.extendedHours.preMarket.start);
-      const preMarketEnd = this.timeToMinutes(config.extendedHours.preMarket.end);
-      const afterHoursStart = this.timeToMinutes(config.extendedHours.afterHours.start);
-      const afterHoursEnd = this.timeToMinutes(config.extendedHours.afterHours.end);
+      const preMarketStart = this.timeToMinutes(
+        config.extendedHours.preMarket.start
+      );
+      const preMarketEnd = this.timeToMinutes(
+        config.extendedHours.preMarket.end
+      );
+      const afterHoursStart = this.timeToMinutes(
+        config.extendedHours.afterHours.start
+      );
+      const afterHoursEnd = this.timeToMinutes(
+        config.extendedHours.afterHours.end
+      );
 
       // Pre-market
       if (currentMinutes >= preMarketStart && currentMinutes < preMarketEnd) {
-        const nextClose = this.createDateFromTime(now, config.extendedHours.preMarket.end, timezone);
+        const nextClose = this.createDateFromTime(
+          now,
+          config.extendedHours.preMarket.end,
+          timezone
+        );
         return {
           session: "pre_market",
           isOpen: true,
           isExtendedHours: true,
           nextOpen: null,
           nextClose,
-          volatilityMultiplier: this.getSessionVolatilityMultiplier(config.exchange, "pre_market"),
+          volatilityMultiplier: this.getSessionVolatilityMultiplier(
+            config.exchange,
+            "pre_market"
+          ),
           timezone,
         };
       }
 
       // After-hours
       if (currentMinutes >= afterHoursStart && currentMinutes < afterHoursEnd) {
-        const nextClose = this.createDateFromTime(now, config.extendedHours.afterHours.end, timezone);
+        const nextClose = this.createDateFromTime(
+          now,
+          config.extendedHours.afterHours.end,
+          timezone
+        );
         return {
           session: "after_hours",
           isOpen: true,
           isExtendedHours: true,
           nextOpen: null,
           nextClose,
-          volatilityMultiplier: this.getSessionVolatilityMultiplier(config.exchange, "after_hours"),
+          volatilityMultiplier: this.getSessionVolatilityMultiplier(
+            config.exchange,
+            "after_hours"
+          ),
           timezone,
         };
       }
@@ -452,10 +485,12 @@ class TradingSessionManager {
     const upperSymbol = symbol.toUpperCase();
 
     // Crypto detection
-    if (upperSymbol.includes("/") ||
-        upperSymbol.includes("BTC") ||
-        upperSymbol.includes("ETH") ||
-        upperSymbol.includes("USD") && upperSymbol.length <= 8) {
+    if (
+      upperSymbol.includes("/") ||
+      upperSymbol.includes("BTC") ||
+      upperSymbol.includes("ETH") ||
+      (upperSymbol.includes("USD") && upperSymbol.length <= 8)
+    ) {
       return "CRYPTO";
     }
 

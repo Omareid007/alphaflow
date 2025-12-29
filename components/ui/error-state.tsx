@@ -20,7 +20,8 @@ export function ErrorState({
   showRetry = true,
 }: ErrorStateProps) {
   // Parse error message
-  const errorMessage = message || (error instanceof Error ? error.message : String(error));
+  const errorMessage =
+    message || (error instanceof Error ? error.message : String(error));
 
   // Check if it's an auth error
   const isAuthError =
@@ -72,10 +73,13 @@ interface InlineErrorProps {
 }
 
 export function InlineError({ message, error, className }: InlineErrorProps) {
-  const errorMessage = message || (error instanceof Error ? error.message : String(error));
+  const errorMessage =
+    message || (error instanceof Error ? error.message : String(error));
 
   return (
-    <div className={`flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm ${className}`}>
+    <div
+      className={`flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm ${className}`}
+    >
       <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
       <p className="text-destructive">{errorMessage}</p>
     </div>

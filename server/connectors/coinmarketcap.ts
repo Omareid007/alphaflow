@@ -195,7 +195,7 @@ class CoinMarketCapConnector {
     sortDir: "asc" | "desc" = "desc"
   ): Promise<CMCCryptocurrency[]> {
     const l1CacheKey = `listings_${start}_${limit}_${sort}_${sortDir}`;
-    
+
     const l1Cached = this.listingsCache.get(l1CacheKey);
     if (l1Cached?.isFresh) {
       log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
@@ -213,7 +213,14 @@ class CoinMarketCapConnector {
     }
 
     const url = `${CMC_BASE_URL}/v1/cryptocurrency/listings/latest?start=${start}&limit=${limit}&sort=${sort}&sort_dir=${sortDir}&convert=USD`;
-    const cacheKey = buildCacheKey(PROVIDER, "listings", start, limit, sort, sortDir);
+    const cacheKey = buildCacheKey(
+      PROVIDER,
+      "listings",
+      start,
+      limit,
+      sort,
+      sortDir
+    );
 
     const result = await connectorFetch<CMCListingsResponse>(url, {
       provider: PROVIDER,
@@ -223,7 +230,9 @@ class CoinMarketCapConnector {
     });
 
     if (result.data.status.error_code !== 0) {
-      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+      throw new Error(
+        result.data.status.error_message || "CoinMarketCap API error"
+      );
     }
 
     const data = result.data.data;
@@ -234,7 +243,7 @@ class CoinMarketCapConnector {
   async getQuotes(ids: number[]): Promise<{ [id: string]: CMCCryptocurrency }> {
     const idsParam = ids.join(",");
     const l1CacheKey = `quotes_${idsParam}`;
-    
+
     const l1Cached = this.quotesCache.get(l1CacheKey);
     if (l1Cached?.isFresh) {
       log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
@@ -262,7 +271,9 @@ class CoinMarketCapConnector {
     });
 
     if (result.data.status.error_code !== 0) {
-      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+      throw new Error(
+        result.data.status.error_message || "CoinMarketCap API error"
+      );
     }
 
     const data = result.data.data;
@@ -270,10 +281,12 @@ class CoinMarketCapConnector {
     return data;
   }
 
-  async getQuotesBySymbols(symbols: string[]): Promise<{ [id: string]: CMCCryptocurrency }> {
+  async getQuotesBySymbols(
+    symbols: string[]
+  ): Promise<{ [id: string]: CMCCryptocurrency }> {
     const symbolsParam = symbols.join(",");
     const l1CacheKey = `quotes_symbols_${symbolsParam}`;
-    
+
     const l1Cached = this.quotesCache.get(l1CacheKey);
     if (l1Cached?.isFresh) {
       log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
@@ -301,7 +314,9 @@ class CoinMarketCapConnector {
     });
 
     if (result.data.status.error_code !== 0) {
-      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+      throw new Error(
+        result.data.status.error_message || "CoinMarketCap API error"
+      );
     }
 
     const data = result.data.data;
@@ -311,7 +326,7 @@ class CoinMarketCapConnector {
 
   async getGlobalMetrics(): Promise<CMCGlobalMetrics["data"]> {
     const l1CacheKey = "global_metrics";
-    
+
     const l1Cached = this.globalCache.get(l1CacheKey);
     if (l1Cached?.isFresh) {
       log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
@@ -339,7 +354,9 @@ class CoinMarketCapConnector {
     });
 
     if (result.data.status.error_code !== 0) {
-      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+      throw new Error(
+        result.data.status.error_message || "CoinMarketCap API error"
+      );
     }
 
     const data = result.data.data;
@@ -353,7 +370,7 @@ class CoinMarketCapConnector {
     sort = "cmc_rank"
   ): Promise<CMCMapItem[]> {
     const l1CacheKey = `map_${start}_${limit}_${sort}`;
-    
+
     const l1Cached = this.mapCache.get(l1CacheKey);
     if (l1Cached?.isFresh) {
       log.debug("CMC", `L1 cache HIT for ${l1CacheKey}`);
@@ -381,7 +398,9 @@ class CoinMarketCapConnector {
     });
 
     if (result.data.status.error_code !== 0) {
-      throw new Error(result.data.status.error_message || "CoinMarketCap API error");
+      throw new Error(
+        result.data.status.error_message || "CoinMarketCap API error"
+      );
     }
 
     const data = result.data.data;
@@ -392,7 +411,7 @@ class CoinMarketCapConnector {
   async searchCryptos(query: string, limit = 20): Promise<CMCMapItem[]> {
     const allCryptos = await this.getCryptoMap(1, 500);
     const lowerQuery = query.toLowerCase();
-    
+
     return allCryptos
       .filter(
         (crypto) =>
@@ -402,13 +421,17 @@ class CoinMarketCapConnector {
       .slice(0, limit);
   }
 
-  getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
-    const totalCacheSize = 
-      this.listingsCache.size() + 
-      this.quotesCache.size() + 
-      this.globalCache.size() + 
+  getConnectionStatus(): {
+    connected: boolean;
+    hasApiKey: boolean;
+    cacheSize: number;
+  } {
+    const totalCacheSize =
+      this.listingsCache.size() +
+      this.quotesCache.size() +
+      this.globalCache.size() +
       this.mapCache.size();
-    
+
     return {
       connected: !!this.getApiKey(),
       hasApiKey: !!this.getApiKey(),

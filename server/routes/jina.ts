@@ -10,7 +10,11 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     if (!input) {
       return res.status(400).json({ error: "input is required" });
     }
-    const result = await jina.generateEmbeddings(input, { model, task, dimensions });
+    const result = await jina.generateEmbeddings(input, {
+      model,
+      task,
+      dimensions,
+    });
     res.json(result);
   } catch (error) {
     log.error("JinaRoutes", `Embeddings error: ${error}`);
@@ -24,7 +28,10 @@ router.get("/read", async (req: Request, res: Response) => {
     if (!url || typeof url !== "string") {
       return res.status(400).json({ error: "url query parameter is required" });
     }
-    const normalizedUrl = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+    const normalizedUrl =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `https://${url}`;
     const result = await jina.readUrl(normalizedUrl);
     res.json(result);
   } catch (error) {
@@ -53,7 +60,9 @@ router.post("/rerank", async (req: Request, res: Response) => {
   try {
     const { query, documents, model, top_n } = req.body;
     if (!query || !documents || !Array.isArray(documents)) {
-      return res.status(400).json({ error: "query and documents array are required" });
+      return res
+        .status(400)
+        .json({ error: "query and documents array are required" });
     }
     const result = await jina.rerank(query, documents, { model, top_n });
     res.json(result);
@@ -67,13 +76,19 @@ router.post("/semantic-search", async (req: Request, res: Response) => {
   try {
     const { query, corpus, topK } = req.body;
     if (!query || !corpus || !Array.isArray(corpus)) {
-      return res.status(400).json({ error: "query and corpus array are required" });
+      return res
+        .status(400)
+        .json({ error: "query and corpus array are required" });
     }
     if (corpus.length > 100) {
-      return res.status(413).json({ error: "corpus exceeds maximum size of 100 documents" });
+      return res
+        .status(413)
+        .json({ error: "corpus exceeds maximum size of 100 documents" });
     }
     if (query.length > 10000) {
-      return res.status(413).json({ error: "query exceeds maximum length of 10000 characters" });
+      return res
+        .status(413)
+        .json({ error: "query exceeds maximum length of 10000 characters" });
     }
     const result = await jina.semanticSearch(query, corpus, { topK });
     res.json(result);
@@ -88,7 +103,13 @@ router.get("/health", async (_req: Request, res: Response) => {
   res.json({
     status: hasKey ? "configured" : "missing_api_key",
     provider: "jina",
-    capabilities: ["embeddings", "reader", "search", "rerank", "semantic-search"],
+    capabilities: [
+      "embeddings",
+      "reader",
+      "search",
+      "rerank",
+      "semantic-search",
+    ],
   });
 });
 

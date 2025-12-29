@@ -18,90 +18,98 @@ const DATA_QUERY_TOOLS: LLMTool[] = [
     type: "function",
     function: {
       name: "get_news_sentiment",
-      description: "Get real-time news sentiment and headlines for a stock or crypto symbol from GDELT (free, updates every 15 min)",
+      description:
+        "Get real-time news sentiment and headlines for a stock or crypto symbol from GDELT (free, updates every 15 min)",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker (e.g., AAPL, MSFT) or crypto name (e.g., Bitcoin, Ethereum)"
+            description:
+              "The stock ticker (e.g., AAPL, MSFT) or crypto name (e.g., Bitcoin, Ethereum)",
           },
           isCrypto: {
             type: "boolean",
-            description: "Whether this is a cryptocurrency (true) or stock (false)"
-          }
+            description:
+              "Whether this is a cryptocurrency (true) or stock (false)",
+          },
         },
         required: ["symbol", "isCrypto"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_financial_ratios",
-      description: "Get fundamental financial ratios for a stock (P/E, ROE, debt-to-equity, etc.) from Valyu.ai",
+      description:
+        "Get fundamental financial ratios for a stock (P/E, ROE, debt-to-equity, etc.) from Valyu.ai",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_earnings_data",
-      description: "Get recent earnings data (EPS, revenue, surprises) for a stock",
+      description:
+        "Get recent earnings data (EPS, revenue, surprises) for a stock",
       parameters: {
         type: "object",
         properties: {
           symbol: {
-            type: "string", 
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            type: "string",
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_insider_transactions",
-      description: "Get recent insider trading activity (buys/sells by executives)",
+      description:
+        "Get recent insider trading activity (buys/sells by executives)",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_additional_news",
-      description: "Get additional news headlines from NewsAPI for broader market context",
+      description:
+        "Get additional news headlines from NewsAPI for broader market context",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "Search query for news (e.g., 'Apple earnings', 'tech sector')"
-          }
+            description:
+              "Search query for news (e.g., 'Apple earnings', 'tech sector')",
+          },
         },
         required: ["query"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
@@ -113,113 +121,122 @@ const DATA_QUERY_TOOLS: LLMTool[] = [
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   // New tools for enhanced data sources
   {
     type: "function",
     function: {
       name: "get_short_interest",
-      description: "Get FINRA RegSHO short interest data including short ratio, days to cover, and short squeeze potential",
+      description:
+        "Get FINRA RegSHO short interest data including short ratio, days to cover, and short squeeze potential",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT, GME)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT, GME)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_sec_insider_activity",
-      description: "Get SEC EDGAR Form 4 insider trading activity (executives buying/selling) with sentiment analysis",
+      description:
+        "Get SEC EDGAR Form 4 insider trading activity (executives buying/selling) with sentiment analysis",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_sec_fundamentals",
-      description: "Get SEC EDGAR company fundamentals from official filings (revenue, net income, assets, EPS)",
+      description:
+        "Get SEC EDGAR company fundamentals from official filings (revenue, net income, assets, EPS)",
       parameters: {
         type: "object",
         properties: {
           symbol: {
             type: "string",
-            description: "The stock ticker symbol (e.g., AAPL, MSFT)"
-          }
+            description: "The stock ticker symbol (e.g., AAPL, MSFT)",
+          },
         },
         required: ["symbol"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_macro_indicators",
-      description: "Get FRED macroeconomic indicators including VIX, Fed Funds Rate, yield curve spread, unemployment rate, and inflation (CPI). Returns all critical indicators.",
+      description:
+        "Get FRED macroeconomic indicators including VIX, Fed Funds Rate, yield curve spread, unemployment rate, and inflation (CPI). Returns all critical indicators.",
       parameters: {
         type: "object",
         properties: {},
         required: [],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_forex_rate",
-      description: "Get exchange rate between two currencies from Frankfurter (ECB data)",
+      description:
+        "Get exchange rate between two currencies from Frankfurter (ECB data)",
       parameters: {
         type: "object",
         properties: {
           base: {
             type: "string",
-            description: "Base currency code (e.g., USD, EUR, GBP)"
+            description: "Base currency code (e.g., USD, EUR, GBP)",
           },
           quote: {
             type: "string",
-            description: "Quote currency code (e.g., EUR, JPY, GBP)"
-          }
+            description: "Quote currency code (e.g., EUR, JPY, GBP)",
+          },
         },
         required: ["base", "quote"],
-      }
-    }
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "get_usd_strength",
-      description: "Get USD strength index (DXY proxy) showing dollar strength against major currencies",
+      description:
+        "Get USD strength index (DXY proxy) showing dollar strength against major currencies",
       parameters: {
         type: "object",
         properties: {},
         required: [],
-      }
-    }
-  }
+      },
+    },
+  },
 ];
 
-async function executeToolCall(name: string, args: Record<string, unknown>): Promise<string> {
+async function executeToolCall(
+  name: string,
+  args: Record<string, unknown>
+): Promise<string> {
   try {
     switch (name) {
       case "get_news_sentiment": {
@@ -232,18 +249,29 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
             articleCount: sentiment.articleCount,
             averageTone: sentiment.averageTone,
             volumeSpike: sentiment.volumeSpike,
-            topHeadlines: sentiment.topHeadlines.slice(0, 3)
+            topHeadlines: sentiment.topHeadlines.slice(0, 3),
           });
         } else {
-          const articles = await gdelt.searchArticles(`${symbol} stock`, { timespan: "24hours", maxRecords: 20 });
-          const tone = await gdelt.getToneTimeline(`${symbol} stock`, "24hours");
-          const sentiment = tone.averageTone > 2 ? "bullish" : tone.averageTone < -2 ? "bearish" : "neutral";
+          const articles = await gdelt.searchArticles(`${symbol} stock`, {
+            timespan: "24hours",
+            maxRecords: 20,
+          });
+          const tone = await gdelt.getToneTimeline(
+            `${symbol} stock`,
+            "24hours"
+          );
+          const sentiment =
+            tone.averageTone > 2
+              ? "bullish"
+              : tone.averageTone < -2
+                ? "bearish"
+                : "neutral";
           return JSON.stringify({
             sentiment,
             articleCount: articles.totalResults,
             averageTone: tone.averageTone,
             volumeSpike: false,
-            topHeadlines: articles.articles.slice(0, 3).map(a => a.title)
+            topHeadlines: articles.articles.slice(0, 3).map((a) => a.title),
           });
         }
       }
@@ -253,7 +281,7 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
           peRatio: ratios.peRatio,
           roe: ratios.roe,
           debtToEquity: ratios.debtToEquity,
-          hasData: !!ratios.rawData
+          hasData: !!ratios.rawData,
         });
       }
       case "get_earnings_data": {
@@ -261,29 +289,39 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
         return JSON.stringify({
           eps: earnings.eps,
           revenue: earnings.revenue,
-          hasData: !!earnings.rawData
+          hasData: !!earnings.rawData,
         });
       }
       case "get_insider_transactions": {
-        const insider = await valyu.getInsiderTransactions(args.symbol as string);
-        const buys = insider.transactions.filter(t => t.transactionType === "buy");
-        const sells = insider.transactions.filter(t => t.transactionType === "sell");
+        const insider = await valyu.getInsiderTransactions(
+          args.symbol as string
+        );
+        const buys = insider.transactions.filter(
+          (t) => t.transactionType === "buy"
+        );
+        const sells = insider.transactions.filter(
+          (t) => t.transactionType === "sell"
+        );
         return JSON.stringify({
           recentBuys: buys.length,
           recentSells: sells.length,
           netInsiderSentiment: insider.netInsiderSentiment,
           totalBuyValue: insider.totalBuyValue,
-          totalSellValue: insider.totalSellValue
+          totalSellValue: insider.totalSellValue,
         });
       }
       case "get_additional_news": {
-        const news = await newsapi.searchNews(args.query as string, "relevancy", 5);
+        const news = await newsapi.searchNews(
+          args.query as string,
+          "relevancy",
+          5
+        );
         return JSON.stringify({
-          articles: news.slice(0, 3).map(a => ({
+          articles: news.slice(0, 3).map((a) => ({
             title: a.title,
-            source: a.source
+            source: a.source,
           })),
-          totalResults: news.length
+          totalResults: news.length,
         });
       }
       case "get_market_quote": {
@@ -295,7 +333,7 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
           high: quote.h,
           low: quote.l,
           open: quote.o,
-          previousClose: quote.pc
+          previousClose: quote.pc,
         });
       }
       // New enhanced data source handlers
@@ -303,7 +341,9 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
         const symbol = args.symbol as string;
         const summary = await finra.getShortInterestSummary(symbol);
         if (!summary) {
-          return JSON.stringify({ error: `No short interest data available for ${symbol}` });
+          return JSON.stringify({
+            error: `No short interest data available for ${symbol}`,
+          });
         }
         const analysis = finra.analyzeShortSqueezePotential(summary);
         return JSON.stringify({
@@ -314,54 +354,71 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
           squeezePotential: analysis.potential,
           squeezeScore: analysis.score,
           factors: analysis.factors,
-          dataSource: "FINRA RegSHO"
+          dataSource: "FINRA RegSHO",
         });
       }
       case "get_sec_insider_activity": {
         const symbol = args.symbol as string;
         const summary = await secEdgarConnector.getInsiderSummary(symbol);
         if (!summary) {
-          return JSON.stringify({ error: `No insider data available for ${symbol}` });
+          return JSON.stringify({
+            error: `No insider data available for ${symbol}`,
+          });
         }
         return JSON.stringify({
           totalBuys: summary.totalInsiderBuys,
           totalSells: summary.totalInsiderSells,
           netActivity: summary.netInsiderActivity,
           netValue: summary.netInsiderValue,
-          buyToSellRatio: summary.buyToSellRatio === Infinity ? "All buys" : summary.buyToSellRatio.toFixed(2),
+          buyToSellRatio:
+            summary.buyToSellRatio === Infinity
+              ? "All buys"
+              : summary.buyToSellRatio.toFixed(2),
           sentiment: summary.sentiment,
-          recentTransactions: summary.recentTransactions.slice(0, 5).map(t => ({
-            owner: t.reportingOwner,
-            type: t.transactionType,
-            shares: t.sharesTransacted,
-            date: t.transactionDate.toISOString().split('T')[0]
-          })),
-          dataSource: "SEC EDGAR Form 4"
+          recentTransactions: summary.recentTransactions
+            .slice(0, 5)
+            .map((t) => ({
+              owner: t.reportingOwner,
+              type: t.transactionType,
+              shares: t.sharesTransacted,
+              date: t.transactionDate.toISOString().split("T")[0],
+            })),
+          dataSource: "SEC EDGAR Form 4",
         });
       }
       case "get_sec_fundamentals": {
         const symbol = args.symbol as string;
         const facts = await secEdgarConnector.getCompanyFacts(symbol);
         if (!facts) {
-          return JSON.stringify({ error: `No SEC fundamentals available for ${symbol}` });
+          return JSON.stringify({
+            error: `No SEC fundamentals available for ${symbol}`,
+          });
         }
         return JSON.stringify({
           companyName: facts.name,
-          revenue: facts.revenue ? `$${(facts.revenue / 1e9).toFixed(2)}B` : "N/A",
-          netIncome: facts.netIncome ? `$${(facts.netIncome / 1e9).toFixed(2)}B` : "N/A",
-          totalAssets: facts.totalAssets ? `$${(facts.totalAssets / 1e9).toFixed(2)}B` : "N/A",
+          revenue: facts.revenue
+            ? `$${(facts.revenue / 1e9).toFixed(2)}B`
+            : "N/A",
+          netIncome: facts.netIncome
+            ? `$${(facts.netIncome / 1e9).toFixed(2)}B`
+            : "N/A",
+          totalAssets: facts.totalAssets
+            ? `$${(facts.totalAssets / 1e9).toFixed(2)}B`
+            : "N/A",
           eps: facts.eps?.toFixed(2) || "N/A",
-          sharesOutstanding: facts.sharesOutstanding ? `${(facts.sharesOutstanding / 1e9).toFixed(2)}B` : "N/A",
-          dataSource: "SEC EDGAR XBRL"
+          sharesOutstanding: facts.sharesOutstanding
+            ? `${(facts.sharesOutstanding / 1e9).toFixed(2)}B`
+            : "N/A",
+          dataSource: "SEC EDGAR XBRL",
         });
       }
       case "get_macro_indicators": {
         const indicators = await fred.getCriticalIndicators();
-        const vix = indicators.find(i => i.indicatorId === "VIXCLS");
-        const fedFunds = indicators.find(i => i.indicatorId === "FEDFUNDS");
-        const yieldCurve = indicators.find(i => i.indicatorId === "T10Y2Y");
-        const unemployment = indicators.find(i => i.indicatorId === "UNRATE");
-        const cpi = indicators.find(i => i.indicatorId === "CPIAUCSL");
+        const vix = indicators.find((i) => i.indicatorId === "VIXCLS");
+        const fedFunds = indicators.find((i) => i.indicatorId === "FEDFUNDS");
+        const yieldCurve = indicators.find((i) => i.indicatorId === "T10Y2Y");
+        const unemployment = indicators.find((i) => i.indicatorId === "UNRATE");
+        const cpi = indicators.find((i) => i.indicatorId === "CPIAUCSL");
 
         let marketRegime = "neutral";
         if (vix && vix.latestValue !== null) {
@@ -376,7 +433,7 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
           unemployment: unemployment?.latestValue?.toFixed(1) + "%" || "N/A",
           inflation: cpi?.changePercent?.toFixed(1) + "% (YoY change)" || "N/A",
           marketRegime,
-          dataSource: "FRED (Federal Reserve)"
+          dataSource: "FRED (Federal Reserve)",
         });
       }
       case "get_forex_rate": {
@@ -384,7 +441,9 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
         const quote = args.quote as string;
         const summary = await frankfurter.getForexPairSummary(base, quote);
         if (!summary) {
-          return JSON.stringify({ error: `No forex data available for ${base}/${quote}` });
+          return JSON.stringify({
+            error: `No forex data available for ${base}/${quote}`,
+          });
         }
         return JSON.stringify({
           pair: summary.pair,
@@ -394,23 +453,25 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
           high30d: summary.high30d.toFixed(4),
           low30d: summary.low30d.toFixed(4),
           trend: summary.trend,
-          dataSource: "Frankfurter (ECB)"
+          dataSource: "Frankfurter (ECB)",
         });
       }
       case "get_usd_strength": {
         const strength = await frankfurter.getUSDStrengthIndex();
         if (!strength) {
-          return JSON.stringify({ error: "Unable to calculate USD strength index" });
+          return JSON.stringify({
+            error: "Unable to calculate USD strength index",
+          });
         }
         return JSON.stringify({
           index: strength.index.toFixed(2),
           trend: strength.trend,
-          components: strength.components.map(c => ({
+          components: strength.components.map((c) => ({
             currency: c.currency,
             weight: (c.weight * 100).toFixed(1) + "%",
-            rate: c.rate.toFixed(4)
+            rate: c.rate.toFixed(4),
           })),
-          dataSource: "Frankfurter (ECB)"
+          dataSource: "Frankfurter (ECB)",
         });
       }
       default:
@@ -418,10 +479,11 @@ async function executeToolCall(name: string, args: Record<string, unknown>): Pro
     }
   } catch (error) {
     log.warn("AI", `Tool call failed: ${name}`, { error: String(error) });
-    return JSON.stringify({ error: `Failed to fetch data: ${(error as Error).message}` });
+    return JSON.stringify({
+      error: `Failed to fetch data: ${(error as Error).message}`,
+    });
   }
 }
-
 
 export interface MarketData {
   symbol: string;
@@ -463,9 +525,9 @@ export interface AIDecision {
 function isRateLimitOrQuotaError(error: unknown): boolean {
   const errorMsg = (error as { message?: string })?.message || String(error);
   return (
-    errorMsg.includes("401") ||  // Unauthorized - invalid/not approved API key
+    errorMsg.includes("401") || // Unauthorized - invalid/not approved API key
     errorMsg.includes("429") ||
-    errorMsg.includes("402") ||  // Payment required - budget exhausted
+    errorMsg.includes("402") || // Payment required - budget exhausted
     errorMsg.includes("403") ||
     errorMsg.includes("RATELIMIT_EXCEEDED") ||
     errorMsg.toLowerCase().includes("quota") ||
@@ -510,7 +572,12 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
     options?: { criticality?: Criticality; traceId?: string }
   ): Promise<AIDecision> {
     const systemPrompt = this.getSystemPrompt();
-    const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
+    const userPrompt = this.buildUserPrompt(
+      symbol,
+      marketData,
+      newsContext,
+      strategy
+    );
     const traceId = options?.traceId || generateTraceId();
     const criticality = options?.criticality || "high";
 
@@ -534,7 +601,10 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
             const content = response.text;
             if (!content) {
               log.warn("AI", "Empty response from LLM Gateway", { traceId });
-              return { ...this.getDefaultDecision("AI returned empty response"), traceId };
+              return {
+                ...this.getDefaultDecision("AI returned empty response"),
+                traceId,
+              };
             }
 
             const parsed = (response.json as AIDecision) || JSON.parse(content);
@@ -544,17 +614,32 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
             log.error("AI", "LLM Gateway failed", { traceId, error: errorMsg });
 
             // Use technical analysis fallback for rate limit / budget exhausted errors
-            if (isRateLimitOrQuotaError(error) || technicalAnalysisFallback.shouldUseFallback(errorMsg)) {
-              log.info("AI", "Using technical analysis fallback", { symbol, traceId, reason: errorMsg });
-              const fallbackDecision = await technicalAnalysisFallback.analyzeWithoutLLM(
+            if (
+              isRateLimitOrQuotaError(error) ||
+              technicalAnalysisFallback.shouldUseFallback(errorMsg)
+            ) {
+              log.info("AI", "Using technical analysis fallback", {
                 symbol,
-                marketData,
-                newsContext
-              );
-              return { ...fallbackDecision, traceId, aiDecisionId: `tech-fallback-${Date.now()}` };
+                traceId,
+                reason: errorMsg,
+              });
+              const fallbackDecision =
+                await technicalAnalysisFallback.analyzeWithoutLLM(
+                  symbol,
+                  marketData,
+                  newsContext
+                );
+              return {
+                ...fallbackDecision,
+                traceId,
+                aiDecisionId: `tech-fallback-${Date.now()}`,
+              };
             }
 
-            return { ...this.getDefaultDecision(`AI analysis failed: ${errorMsg}`), traceId };
+            return {
+              ...this.getDefaultDecision(`AI analysis failed: ${errorMsg}`),
+              traceId,
+            };
           }
         },
         {
@@ -563,10 +648,18 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
           maxTimeout: 5000,
           factor: 2,
           onFailedAttempt: async (error) => {
-            const errorMsg = (error.error as Error).message || String(error.error);
+            const errorMsg =
+              (error.error as Error).message || String(error.error);
             // If all retries exhausted and it's a provider error, use technical fallback
-            if (error.retriesLeft === 0 && technicalAnalysisFallback.shouldUseFallback(errorMsg)) {
-              log.info("AI", "Retries exhausted, technical fallback will be used", { symbol, traceId });
+            if (
+              error.retriesLeft === 0 &&
+              technicalAnalysisFallback.shouldUseFallback(errorMsg)
+            ) {
+              log.info(
+                "AI",
+                "Retries exhausted, technical fallback will be used",
+                { symbol, traceId }
+              );
             }
           },
         }
@@ -574,13 +667,22 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
     ).catch(async (error) => {
       // Final catch - if all retries fail, use technical analysis fallback
       const errorMsg = (error as Error).message || String(error);
-      log.warn("AI", "All LLM retries failed, using technical analysis fallback", { symbol, traceId, error: errorMsg });
-      const fallbackDecision = await technicalAnalysisFallback.analyzeWithoutLLM(
-        symbol,
-        marketData,
-        newsContext
+      log.warn(
+        "AI",
+        "All LLM retries failed, using technical analysis fallback",
+        { symbol, traceId, error: errorMsg }
       );
-      return { ...fallbackDecision, traceId, aiDecisionId: `tech-fallback-${Date.now()}` };
+      const fallbackDecision =
+        await technicalAnalysisFallback.analyzeWithoutLLM(
+          symbol,
+          marketData,
+          newsContext
+        );
+      return {
+        ...fallbackDecision,
+        traceId,
+        aiDecisionId: `tech-fallback-${Date.now()}`,
+      };
     });
   }
 
@@ -606,15 +708,18 @@ After gathering the data you need, provide your final recommendation as a valid 
 
 This is for PAPER TRADING only. Be decisive but conservative.`;
 
-    const userPrompt = this.buildUserPrompt(symbol, marketData, newsContext, strategy);
+    const userPrompt = this.buildUserPrompt(
+      symbol,
+      marketData,
+      newsContext,
+      strategy
+    );
     const toolsUsed: string[] = [];
     const traceId = options?.traceId || generateTraceId();
     const criticality = options?.criticality || "high";
 
     try {
-      const messages: LLMMessage[] = [
-        { role: "user", content: userPrompt },
-      ];
+      const messages: LLMMessage[] = [{ role: "user", content: userPrompt }];
 
       let response = await callLLM({
         role: "technical_analyst",
@@ -633,12 +738,21 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
       let iterations = 0;
       const maxIterations = 3;
 
-      while (response.toolCalls && response.toolCalls.length > 0 && iterations < maxIterations) {
+      while (
+        response.toolCalls &&
+        response.toolCalls.length > 0 &&
+        iterations < maxIterations
+      ) {
         for (const toolCall of response.toolCalls) {
-          log.debug("AI", `Function call: ${toolCall.name}`, { args: toolCall.arguments });
+          log.debug("AI", `Function call: ${toolCall.name}`, {
+            args: toolCall.arguments,
+          });
           toolsUsed.push(toolCall.name);
 
-          const result = await executeToolCall(toolCall.name, toolCall.arguments);
+          const result = await executeToolCall(
+            toolCall.name,
+            toolCall.arguments
+          );
           messages.push({
             role: "tool",
             content: result,
@@ -665,42 +779,76 @@ This is for PAPER TRADING only. Be decisive but conservative.`;
 
       const content = response.text;
       if (!content) {
-        log.warn("AI", "Empty response from function-calling analysis", { traceId });
-        return { ...this.getDefaultDecision("Empty response"), toolsUsed, traceId };
+        log.warn("AI", "Empty response from function-calling analysis", {
+          traceId,
+        });
+        return {
+          ...this.getDefaultDecision("Empty response"),
+          toolsUsed,
+          traceId,
+        };
       }
 
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        log.warn("AI", "No JSON found in function-calling response", { traceId });
-        return { ...this.getDefaultDecision("No JSON in response"), toolsUsed, traceId };
+        log.warn("AI", "No JSON found in function-calling response", {
+          traceId,
+        });
+        return {
+          ...this.getDefaultDecision("No JSON in response"),
+          toolsUsed,
+          traceId,
+        };
       }
 
       const parsed = JSON.parse(jsonMatch[0]) as AIDecision;
-      log.info("AI", `Function-calling analysis complete`, { 
-        symbol, 
-        action: parsed.action, 
+      log.info("AI", `Function-calling analysis complete`, {
+        symbol,
+        action: parsed.action,
         toolsUsed: toolsUsed.length,
         traceId,
       });
-      
+
       return { ...this.validateDecision(parsed), toolsUsed, traceId };
     } catch (error) {
       const errorMsg = (error as Error).message || String(error);
-      log.error("AI", "Function-calling analysis failed", { error: errorMsg, traceId });
+      log.error("AI", "Function-calling analysis failed", {
+        error: errorMsg,
+        traceId,
+      });
 
       // Use technical analysis fallback if LLM providers unavailable
       if (technicalAnalysisFallback.shouldUseFallback(errorMsg)) {
-        log.info("AI", "Using technical analysis fallback for function-calling", { symbol, traceId });
-        const fallbackDecision = await technicalAnalysisFallback.analyzeWithoutLLM(
-          symbol,
-          marketData,
-          newsContext
+        log.info(
+          "AI",
+          "Using technical analysis fallback for function-calling",
+          { symbol, traceId }
         );
-        return { ...fallbackDecision, toolsUsed, traceId, aiDecisionId: `tech-fallback-fc-${Date.now()}` };
+        const fallbackDecision =
+          await technicalAnalysisFallback.analyzeWithoutLLM(
+            symbol,
+            marketData,
+            newsContext
+          );
+        return {
+          ...fallbackDecision,
+          toolsUsed,
+          traceId,
+          aiDecisionId: `tech-fallback-fc-${Date.now()}`,
+        };
       }
 
       // Try simpler analysis as fallback (which will also use tech fallback if needed)
-      return { ...await this.analyzeOpportunity(symbol, marketData, newsContext, strategy, { traceId, criticality }), toolsUsed };
+      return {
+        ...(await this.analyzeOpportunity(
+          symbol,
+          marketData,
+          newsContext,
+          strategy,
+          { traceId, criticality }
+        )),
+        toolsUsed,
+      };
     }
   }
 
@@ -749,7 +897,10 @@ Symbol: ${symbol}
         prompt += `\n- Overall Sentiment: ${newsContext.sentiment}`;
       }
       if (newsContext.headlines && newsContext.headlines.length > 0) {
-        prompt += `\n- Recent Headlines:\n${newsContext.headlines.slice(0, 5).map(h => `  - ${h}`).join("\n")}`;
+        prompt += `\n- Recent Headlines:\n${newsContext.headlines
+          .slice(0, 5)
+          .map((h) => `  - ${h}`)
+          .join("\n")}`;
       }
       if (newsContext.summary) {
         prompt += `\n- Summary: ${newsContext.summary}`;
@@ -774,7 +925,9 @@ Symbol: ${symbol}
     const validActions = ["buy", "sell", "hold"] as const;
     const validRiskLevels = ["low", "medium", "high"] as const;
 
-    const action = validActions.includes(decision.action as "buy" | "sell" | "hold")
+    const action = validActions.includes(
+      decision.action as "buy" | "sell" | "hold"
+    )
       ? (decision.action as "buy" | "sell" | "hold")
       : "hold";
 
@@ -783,14 +936,20 @@ Symbol: ${symbol}
       confidence = 0.5;
     }
 
-    const riskLevel = validRiskLevels.includes(decision.riskLevel as "low" | "medium" | "high")
+    const riskLevel = validRiskLevels.includes(
+      decision.riskLevel as "low" | "medium" | "high"
+    )
       ? (decision.riskLevel as "low" | "medium" | "high")
       : "medium";
 
     let trailingStopPercent = decision.trailingStopPercent;
     if (trailingStopPercent !== undefined) {
       trailingStopPercent = Number(trailingStopPercent);
-      if (isNaN(trailingStopPercent) || trailingStopPercent < 0.5 || trailingStopPercent > 20) {
+      if (
+        isNaN(trailingStopPercent) ||
+        trailingStopPercent < 0.5 ||
+        trailingStopPercent > 20
+      ) {
         trailingStopPercent = undefined;
       }
     }
@@ -827,8 +986,13 @@ Symbol: ${symbol}
         );
         results.set(opp.symbol, decision);
       } catch (error) {
-        log.error("AI", `Failed to analyze ${opp.symbol}`, { error: String(error) });
-        results.set(opp.symbol, this.getDefaultDecision(`Analysis failed for ${opp.symbol}`));
+        log.error("AI", `Failed to analyze ${opp.symbol}`, {
+          error: String(error),
+        });
+        results.set(
+          opp.symbol,
+          this.getDefaultDecision(`Analysis failed for ${opp.symbol}`)
+        );
       }
     });
 
@@ -836,14 +1000,20 @@ Symbol: ${symbol}
     return results;
   }
 
-  getStatus(): { available: boolean; model: string; provider: string; usingGateway: boolean } {
+  getStatus(): {
+    available: boolean;
+    model: string;
+    provider: string;
+    usingGateway: boolean;
+  } {
     const { llmGateway } = require("./llmGateway");
     const availableProviders = llmGateway.getAvailableProviders();
-    
+
     return {
       available: availableProviders.length > 0,
       model: "dynamic (gateway-routed)",
-      provider: availableProviders.length > 0 ? availableProviders.join(", ") : "none",
+      provider:
+        availableProviders.length > 0 ? availableProviders.join(", ") : "none",
       usingGateway: true,
     };
   }

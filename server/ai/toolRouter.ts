@@ -35,10 +35,15 @@ const toolRegistry = new Map<string, ToolDefinition>();
 
 export function registerTool(tool: ToolDefinition): void {
   if (toolRegistry.has(tool.name)) {
-    log.warn("ToolRouter", `Tool already registered: ${tool.name}, overwriting`);
+    log.warn(
+      "ToolRouter",
+      `Tool already registered: ${tool.name}, overwriting`
+    );
   }
   toolRegistry.set(tool.name, tool);
-  log.debug("ToolRouter", `Registered tool: ${tool.name}`, { category: tool.category });
+  log.debug("ToolRouter", `Registered tool: ${tool.name}`, {
+    category: tool.category,
+  });
 }
 
 export function getTool(name: string): ToolDefinition | undefined {
@@ -50,14 +55,21 @@ export function listTools(): ToolDefinition[] {
 }
 
 export function listToolsByCategory(category: ToolCategory): ToolDefinition[] {
-  return Array.from(toolRegistry.values()).filter(t => t.category === category);
+  return Array.from(toolRegistry.values()).filter(
+    (t) => t.category === category
+  );
 }
 
-export function getToolSchemas(): Array<{ name: string; description: string; inputSchema: unknown }> {
-  return Array.from(toolRegistry.values()).map(t => ({
+export function getToolSchemas(): Array<{
+  name: string;
+  description: string;
+  inputSchema: unknown;
+}> {
+  return Array.from(toolRegistry.values()).map((t) => ({
     name: t.name,
     description: t.description,
-    inputSchema: t.inputSchema instanceof z.ZodObject ? t.inputSchema.shape : {},
+    inputSchema:
+      t.inputSchema instanceof z.ZodObject ? t.inputSchema.shape : {},
   }));
 }
 
@@ -70,7 +82,9 @@ export async function invokeTool(
   const tool = toolRegistry.get(toolName);
 
   if (!tool) {
-    log.error("ToolRouter", `Tool not found: ${toolName}`, { traceId: context.traceId });
+    log.error("ToolRouter", `Tool not found: ${toolName}`, {
+      traceId: context.traceId,
+    });
     return {
       success: false,
       error: `Tool not found: ${toolName}`,
@@ -185,14 +199,26 @@ registerTool({
   category: "market_data",
   inputSchema: z.object({
     symbol: z.string(),
-    timeframe: z.enum(["1Min", "5Min", "15Min", "1Hour", "1Day"]).default("1Day"),
+    timeframe: z
+      .enum(["1Min", "5Min", "15Min", "1Hour", "1Day"])
+      .default("1Day"),
     limit: z.number().min(1).max(100).default(20),
   }),
   cacheable: true,
   cacheTtlMs: 60000,
   execute: async (params: unknown) => {
-    const { symbol, timeframe, limit } = params as { symbol: string; timeframe: string; limit: number };
-    const barsResponse = await alpaca.getBars([symbol], timeframe, undefined, undefined, limit);
+    const { symbol, timeframe, limit } = params as {
+      symbol: string;
+      timeframe: string;
+      limit: number;
+    };
+    const barsResponse = await alpaca.getBars(
+      [symbol],
+      timeframe,
+      undefined,
+      undefined,
+      limit
+    );
     const bars = barsResponse.bars[symbol] || [];
     return bars.map((b) => ({
       timestamp: b.t,
@@ -212,14 +238,23 @@ registerTool({
   inputSchema: z.object({}),
   execute: async () => {
     const positions = await alpaca.getPositions();
-    return positions.map((p: { symbol: string; qty: string; market_value: string; avg_entry_price: string; unrealized_pl: string; side: string }) => ({
-      symbol: p.symbol,
-      qty: parseFloat(p.qty),
-      marketValue: parseFloat(p.market_value),
-      avgEntryPrice: parseFloat(p.avg_entry_price),
-      unrealizedPnl: parseFloat(p.unrealized_pl),
-      side: p.side,
-    }));
+    return positions.map(
+      (p: {
+        symbol: string;
+        qty: string;
+        market_value: string;
+        avg_entry_price: string;
+        unrealized_pl: string;
+        side: string;
+      }) => ({
+        symbol: p.symbol,
+        qty: parseFloat(p.qty),
+        marketValue: parseFloat(p.market_value),
+        avgEntryPrice: parseFloat(p.avg_entry_price),
+        unrealizedPnl: parseFloat(p.unrealized_pl),
+        side: p.side,
+      })
+    );
   },
 });
 
@@ -252,7 +287,10 @@ registerTool({
     limit: z.number().min(1).max(100).default(50),
   }),
   execute: async (params: unknown) => {
-    const { status, limit } = params as { status: "open" | "closed" | "all"; limit: number };
+    const { status, limit } = params as {
+      status: "open" | "closed" | "all";
+      limit: number;
+    };
     const orders = await alpaca.getOrders(status, limit);
     return orders.map((o) => ({
       id: o.id,

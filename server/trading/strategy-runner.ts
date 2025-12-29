@@ -67,10 +67,12 @@ import type { AIDecision } from "../ai/decision-engine";
  * - Intervals are properly cleaned up on stop to prevent memory leaks
  */
 export class StrategyRunner {
-  private strategyRunners: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private strategyRunners: Map<string, ReturnType<typeof setInterval>> =
+    new Map();
   private strategyStates: Map<string, StrategyRunState> = new Map();
   private checkIntervalMs = 60000;
-  private backgroundGeneratorInterval: ReturnType<typeof setInterval> | null = null;
+  private backgroundGeneratorInterval: ReturnType<typeof setInterval> | null =
+    null;
   private backgroundGeneratorIntervalMs = 120000;
   private autoStartStrategyId: string | null = null;
 
@@ -151,7 +153,11 @@ export class StrategyRunner {
    */
   async startStrategy(
     strategyId: string,
-    analyzeAndExecuteCallback: (symbol: string, strategyId: string, traceId: string) => Promise<{ decision: AIDecision; tradeResult?: any }>
+    analyzeAndExecuteCallback: (
+      symbol: string,
+      strategyId: string,
+      traceId: string
+    ) => Promise<{ decision: AIDecision; tradeResult?: any }>
   ): Promise<{ success: boolean; error?: string }> {
     const strategy = await storage.getStrategy(strategyId);
     if (!strategy) {
@@ -161,13 +167,17 @@ export class StrategyRunner {
     if (!strategy.assets || strategy.assets.length === 0) {
       return {
         success: false,
-        error: "Strategy has no assets configured. Please add at least one symbol/asset to trade before starting the strategy."
+        error:
+          "Strategy has no assets configured. Please add at least one symbol/asset to trade before starting the strategy.",
       };
     }
 
     const agentStatus = await storage.getAgentStatus();
     if (agentStatus?.killSwitchActive) {
-      return { success: false, error: "Kill switch is active - trading disabled" };
+      return {
+        success: false,
+        error: "Kill switch is active - trading disabled",
+      };
     }
 
     if (this.strategyRunners.has(strategyId)) {
@@ -175,12 +185,23 @@ export class StrategyRunner {
     }
 
     if (orchestratorController.isOrchestratorControlEnabled()) {
-      log.info("StrategyRunner", "Strategy start skipped - orchestrator has control", { strategyId });
-      return { success: false, error: "Orchestrator has control - autonomous strategy execution disabled. Use orchestrator for trade execution." };
+      log.info(
+        "StrategyRunner",
+        "Strategy start skipped - orchestrator has control",
+        { strategyId }
+      );
+      return {
+        success: false,
+        error:
+          "Orchestrator has control - autonomous strategy execution disabled. Use orchestrator for trade execution.",
+      };
     }
 
     await storage.toggleStrategy(strategyId, true);
-    await storage.updateAgentStatus({ isRunning: true, lastHeartbeat: new Date() });
+    await storage.updateAgentStatus({
+      isRunning: true,
+      lastHeartbeat: new Date(),
+    });
 
     const runStrategy = async () => {
       try {
@@ -203,11 +224,19 @@ export class StrategyRunner {
 
         for (const asset of assets) {
           try {
-            const result = await analyzeAndExecuteCallback(asset, strategyId, runTraceId);
+            const result = await analyzeAndExecuteCallback(
+              asset,
+              strategyId,
+              runTraceId
+            );
             lastSuccessfulDecision = result.decision;
           } catch (assetError) {
-            const errorMsg = (assetError as Error).message || String(assetError);
-            log.error("StrategyRunner", "Error analyzing asset", { asset, error: errorMsg });
+            const errorMsg =
+              (assetError as Error).message || String(assetError);
+            log.error("StrategyRunner", "Error analyzing asset", {
+              asset,
+              error: errorMsg,
+            });
             lastError = `${asset}: ${errorMsg}`;
           }
         }
@@ -222,7 +251,10 @@ export class StrategyRunner {
 
         await storage.updateAgentStatus({ lastHeartbeat: new Date() });
       } catch (error) {
-        log.error("StrategyRunner", "Strategy run error", { strategyId, error: (error as Error).message });
+        log.error("StrategyRunner", "Strategy run error", {
+          strategyId,
+          error: (error as Error).message,
+        });
         this.strategyStates.set(strategyId, {
           strategyId,
           isRunning: true,
@@ -242,7 +274,11 @@ export class StrategyRunner {
       lastCheck: new Date(),
     });
 
-    eventBus.emit("strategy:started", { strategyId, strategyName: strategy.name }, "strategy-runner");
+    eventBus.emit(
+      "strategy:started",
+      { strategyId, strategyName: strategy.name },
+      "strategy-runner"
+    );
     logger.strategy(strategy.name, "Started", { assets: strategy.assets });
 
     return { success: true };
@@ -267,7 +303,9 @@ export class StrategyRunner {
    * @note If no other strategies are running, sets agent isRunning to false
    * @note Emits "strategy:stopped" event
    */
-  async stopStrategy(strategyId: string): Promise<{ success: boolean; error?: string }> {
+  async stopStrategy(
+    strategyId: string
+  ): Promise<{ success: boolean; error?: string }> {
     const interval = this.strategyRunners.get(strategyId);
     if (interval) {
       clearInterval(interval);
@@ -288,7 +326,11 @@ export class StrategyRunner {
       await storage.updateAgentStatus({ isRunning: false });
     }
 
-    eventBus.emit("strategy:stopped", { strategyId, strategyName: strategy?.name || strategyId }, "strategy-runner");
+    eventBus.emit(
+      "strategy:stopped",
+      { strategyId, strategyName: strategy?.name || strategyId },
+      "strategy-runner"
+    );
     logger.strategy(strategy?.name || strategyId, "Stopped");
 
     return { success: true };
@@ -348,7 +390,7 @@ export class StrategyRunner {
     this.startBackgroundAIGenerator(backgroundGeneratorCallback);
     await storage.updateAgentStatus({
       isRunning: true,
-      lastHeartbeat: new Date()
+      lastHeartbeat: new Date(),
     });
 
     if (this.autoStartStrategyId) {
@@ -356,7 +398,9 @@ export class StrategyRunner {
       if (isConnected) {
         // Note: This will require the callback to be passed in when resumeAgent is called
         // For now, we log that we need to start the strategy
-        log.info("StrategyRunner", "Auto-start strategy should be started", { strategyId: this.autoStartStrategyId });
+        log.info("StrategyRunner", "Auto-start strategy should be started", {
+          strategyId: this.autoStartStrategyId,
+        });
       }
     }
   }
@@ -468,27 +512,33 @@ export class StrategyRunner {
    * @note Clears any existing background generator before starting new one
    * @note Errors in callback are caught and logged, don't stop the generator
    */
-  startBackgroundAIGenerator(backgroundGeneratorCallback: () => Promise<void>): void {
+  startBackgroundAIGenerator(
+    backgroundGeneratorCallback: () => Promise<void>
+  ): void {
     if (this.backgroundGeneratorInterval) {
       clearInterval(this.backgroundGeneratorInterval);
     }
 
-    log.info("StrategyRunner", "Starting background AI suggestion generator...");
+    log.info(
+      "StrategyRunner",
+      "Starting background AI suggestion generator..."
+    );
 
     // Run immediately
     backgroundGeneratorCallback().catch((err: Error) =>
-      log.error("StrategyRunner", "Background AI generation failed", { error: err.message })
+      log.error("StrategyRunner", "Background AI generation failed", {
+        error: err.message,
+      })
     );
 
     // Then run on interval
-    this.backgroundGeneratorInterval = setInterval(
-      () => {
-        backgroundGeneratorCallback().catch((err: Error) =>
-          log.error("StrategyRunner", "Background AI generation failed", { error: err.message })
-        );
-      },
-      this.backgroundGeneratorIntervalMs
-    );
+    this.backgroundGeneratorInterval = setInterval(() => {
+      backgroundGeneratorCallback().catch((err: Error) =>
+        log.error("StrategyRunner", "Background AI generation failed", {
+          error: err.message,
+        })
+      );
+    }, this.backgroundGeneratorIntervalMs);
   }
 
   /**

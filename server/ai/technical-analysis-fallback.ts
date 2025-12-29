@@ -79,20 +79,27 @@ const ANALYSIS_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes fresh
 const ANALYSIS_STALE_TTL_MS = 10 * 60 * 1000; // 10 minutes stale-but-usable
 
 export class TechnicalAnalysisFallback {
-
   /**
    * Get cached analysis if available and fresh enough
    */
-  getCachedAnalysis(symbol: string, currentPrice: number): { decision: AIDecision; isStale: boolean } | null {
+  getCachedAnalysis(
+    symbol: string,
+    currentPrice: number
+  ): { decision: AIDecision; isStale: boolean } | null {
     const cached = analysisCache.get(symbol);
     if (!cached) return null;
 
     const age = Date.now() - cached.timestamp.getTime();
 
     // Check if price has moved significantly (>2%)
-    const priceChange = Math.abs(currentPrice - cached.marketData.currentPrice) / cached.marketData.currentPrice;
+    const priceChange =
+      Math.abs(currentPrice - cached.marketData.currentPrice) /
+      cached.marketData.currentPrice;
     if (priceChange > 0.02) {
-      log.debug("TechFallback", `Cache invalid for ${symbol} - price moved ${(priceChange * 100).toFixed(1)}%`);
+      log.debug(
+        "TechFallback",
+        `Cache invalid for ${symbol} - price moved ${(priceChange * 100).toFixed(1)}%`
+      );
       return null;
     }
 
@@ -108,7 +115,11 @@ export class TechnicalAnalysisFallback {
   /**
    * Cache analysis result
    */
-  cacheAnalysis(symbol: string, decision: AIDecision, marketData: MarketData): void {
+  cacheAnalysis(
+    symbol: string,
+    decision: AIDecision,
+    marketData: MarketData
+  ): void {
     analysisCache.set(symbol, {
       decision,
       timestamp: new Date(),
@@ -130,15 +141,18 @@ export class TechnicalAnalysisFallback {
     if (cached && !cached.isStale) {
       log.info("TechFallback", `Using cached analysis for ${symbol}`, {
         confidence: cached.decision.confidence,
-        action: cached.decision.action
+        action: cached.decision.action,
       });
-      return { ...cached.decision, reasoning: cached.decision.reasoning + " (cached)" };
+      return {
+        ...cached.decision,
+        reasoning: cached.decision.reasoning + " (cached)",
+      };
     }
 
     log.info("TechFallback", `Analyzing ${symbol} without LLM`, {
       price: marketData.currentPrice,
       change: marketData.priceChangePercent24h,
-      usingStaleCache: cached?.isStale || false
+      usingStaleCache: cached?.isStale || false,
     });
 
     try {
@@ -166,7 +180,12 @@ export class TechnicalAnalysisFallback {
       ]);
 
       // Generate decision with enhanced metrics
-      const decision = this.generateDecision(combinedScore, marketData, indicators, regime);
+      const decision = this.generateDecision(
+        combinedScore,
+        marketData,
+        indicators,
+        regime
+      );
 
       // Cache the result
       this.cacheAnalysis(symbol, decision, marketData);
@@ -176,12 +195,15 @@ export class TechnicalAnalysisFallback {
         confidence: decision.confidence,
         combinedSignal: combinedScore.signal,
         regime: regime.type,
-        indicatorCount: Object.values(indicators).filter(v => v !== null).length,
+        indicatorCount: Object.values(indicators).filter((v) => v !== null)
+          .length,
       });
 
       return decision;
     } catch (error) {
-      log.error("TechFallback", `Analysis failed for ${symbol}`, { error: String(error) });
+      log.error("TechFallback", `Analysis failed for ${symbol}`, {
+        error: String(error),
+      });
       return this.getSafeDefaultDecision(symbol, marketData);
     }
   }
@@ -194,11 +216,13 @@ export class TechnicalAnalysisFallback {
     const prices: number[] = [];
 
     // Create synthetic 20-period history based on available data
-    const previousPrice = priceChange24h !== undefined
-      ? currentPrice - priceChange24h
-      : currentPrice;
+    const previousPrice =
+      priceChange24h !== undefined
+        ? currentPrice - priceChange24h
+        : currentPrice;
 
-    const range = (high24h ?? currentPrice * 1.02) - (low24h ?? currentPrice * 0.98);
+    const range =
+      (high24h ?? currentPrice * 1.02) - (low24h ?? currentPrice * 0.98);
     const volatility = range / currentPrice;
 
     // Generate 20 synthetic prices
@@ -219,7 +243,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Calculate technical indicators from price data
    */
-  private calculateIndicators(prices: number[], marketData: MarketData): TechnicalIndicators {
+  private calculateIndicators(
+    prices: number[],
+    marketData: MarketData
+  ): TechnicalIndicators {
     const currentPrice = marketData.currentPrice;
     const high24h = marketData.high24h ?? currentPrice * 1.02;
     const low24h = marketData.low24h ?? currentPrice * 0.98;
@@ -351,7 +378,8 @@ export class TechnicalAnalysisFallback {
 
     // Mean deviation (simplified)
     const recentPrices = prices.slice(-period);
-    const meanDeviation = recentPrices.reduce((sum, p) => sum + Math.abs(p - sma), 0) / period;
+    const meanDeviation =
+      recentPrices.reduce((sum, p) => sum + Math.abs(p - sma), 0) / period;
 
     if (meanDeviation === 0) return 0;
 
@@ -367,7 +395,8 @@ export class TechnicalAnalysisFallback {
     low24h: number,
     period: number = 14
   ): { adx: number | null; plusDI: number | null; minusDI: number | null } {
-    if (prices.length < period + 1) return { adx: null, plusDI: null, minusDI: null };
+    if (prices.length < period + 1)
+      return { adx: null, plusDI: null, minusDI: null };
 
     // Simplified ADX calculation using price movements
     let plusDM = 0;
@@ -406,7 +435,7 @@ export class TechnicalAnalysisFallback {
     const plusDI = (plusDM / tr) * 100;
     const minusDI = (minusDM / tr) * 100;
 
-    const dx = Math.abs(plusDI - minusDI) / (plusDI + minusDI + 0.001) * 100;
+    const dx = (Math.abs(plusDI - minusDI) / (plusDI + minusDI + 0.001)) * 100;
 
     // ADX is smoothed DX (simplified)
     const adx = dx * 0.9;
@@ -429,7 +458,7 @@ export class TechnicalAnalysisFallback {
 
     for (let i = prices.length - period; i < prices.length; i++) {
       const currentHigh = prices[i] * 1.005; // Estimate intraday high
-      const currentLow = prices[i] * 0.995;  // Estimate intraday low
+      const currentLow = prices[i] * 0.995; // Estimate intraday low
       const prevClose = prices[i - 1];
 
       const trueRange = Math.max(
@@ -498,7 +527,9 @@ export class TechnicalAnalysisFallback {
   /**
    * Determine trend strength from ADX value
    */
-  private determineTrendStrength(adx: number | null): "strong" | "moderate" | "weak" | "none" | null {
+  private determineTrendStrength(
+    adx: number | null
+  ): "strong" | "moderate" | "weak" | "none" | null {
     if (adx === null) return null;
     if (adx >= 40) return "strong";
     if (adx >= 25) return "moderate";
@@ -509,7 +540,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Detect market regime for adaptive weighting
    */
-  private detectMarketRegime(indicators: TechnicalIndicators, marketData: MarketData): MarketRegime {
+  private detectMarketRegime(
+    indicators: TechnicalIndicators,
+    marketData: MarketData
+  ): MarketRegime {
     const volatility = indicators.volatility;
     const adx = indicators.adx ?? 20;
     const bbWidth = indicators.bollingerWidth ?? 0.04;
@@ -538,7 +572,7 @@ export class TechnicalAnalysisFallback {
     // Ranging market
     else {
       type = "ranging";
-      strength = 1 - (adx / 30);
+      strength = 1 - adx / 30;
     }
 
     // Adaptive weights based on regime
@@ -555,25 +589,30 @@ export class TechnicalAnalysisFallback {
     volatility: "high" | "medium" | "low" | null
   ): MarketRegime["adaptiveWeights"] {
     // Default weights
-    const defaults = { momentum: 0.35, trend: 0.30, volatility: 0.15, sentiment: 0.20 };
+    const defaults = {
+      momentum: 0.35,
+      trend: 0.3,
+      volatility: 0.15,
+      sentiment: 0.2,
+    };
 
     switch (regime) {
       case "trending_up":
       case "trending_down":
         // In trends, favor momentum and trend signals
-        return { momentum: 0.40, trend: 0.35, volatility: 0.10, sentiment: 0.15 };
+        return { momentum: 0.4, trend: 0.35, volatility: 0.1, sentiment: 0.15 };
 
       case "volatile":
         // In volatile markets, reduce all but increase volatility awareness
-        return { momentum: 0.25, trend: 0.25, volatility: 0.30, sentiment: 0.20 };
+        return { momentum: 0.25, trend: 0.25, volatility: 0.3, sentiment: 0.2 };
 
       case "breakout":
         // Breakouts favor momentum heavily
-        return { momentum: 0.45, trend: 0.30, volatility: 0.10, sentiment: 0.15 };
+        return { momentum: 0.45, trend: 0.3, volatility: 0.1, sentiment: 0.15 };
 
       case "ranging":
         // Ranging markets need balance, more sentiment
-        return { momentum: 0.30, trend: 0.25, volatility: 0.15, sentiment: 0.30 };
+        return { momentum: 0.3, trend: 0.25, volatility: 0.15, sentiment: 0.3 };
 
       default:
         return defaults;
@@ -601,7 +640,7 @@ export class TechnicalAnalysisFallback {
     if (avgLoss === 0) return 100;
 
     const rs = avgGain / avgLoss;
-    return 100 - (100 / (1 + rs));
+    return 100 - 100 / (1 + rs);
   }
 
   /**
@@ -632,7 +671,11 @@ export class TechnicalAnalysisFallback {
   /**
    * Calculate MACD with proper EMA9 signal line
    */
-  private calculateMACD(prices: number[]): { line: number | null; signal: number | null; histogram: number | null } {
+  private calculateMACD(prices: number[]): {
+    line: number | null;
+    signal: number | null;
+    histogram: number | null;
+  } {
     const ema12 = this.calculateEMA(prices, 12);
     const ema26 = this.calculateEMA(prices, 26);
 
@@ -678,7 +721,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Calculate Bollinger Bands with width metric
    */
-  private calculateBollinger(prices: number[], period: number = 20): { upper: number | null; lower: number | null; width: number | null } {
+  private calculateBollinger(
+    prices: number[],
+    period: number = 20
+  ): { upper: number | null; lower: number | null; width: number | null } {
     const sma = this.calculateSMA(prices, period);
     if (sma === null || prices.length < period) {
       return { upper: null, lower: null, width: null };
@@ -687,8 +733,8 @@ export class TechnicalAnalysisFallback {
     const slice = prices.slice(-period);
     const stdDevValue = stdDev(slice).toNumber();
 
-    const upper = sma + (stdDevValue * 2);
-    const lower = sma - (stdDevValue * 2);
+    const upper = sma + stdDevValue * 2;
+    const lower = sma - stdDevValue * 2;
     const width = (upper - lower) / sma; // Normalized width as percentage
 
     return { upper, lower, width };
@@ -697,7 +743,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Determine price position relative to SMA
    */
-  private determinePricePosition(price: number, sma: number | null): "above_sma" | "below_sma" | "at_sma" | null {
+  private determinePricePosition(
+    price: number,
+    sma: number | null
+  ): "above_sma" | "below_sma" | "at_sma" | null {
     if (sma === null) return null;
     const threshold = sma * 0.005; // 0.5% threshold
     if (price > sma + threshold) return "above_sma";
@@ -708,7 +757,9 @@ export class TechnicalAnalysisFallback {
   /**
    * Estimate volume trend from available data
    */
-  private estimateVolumeTrend(marketData: MarketData): "increasing" | "decreasing" | "stable" | null {
+  private estimateVolumeTrend(
+    marketData: MarketData
+  ): "increasing" | "decreasing" | "stable" | null {
     // Without historical volume data, use price change as proxy
     const changePercent = marketData.priceChangePercent24h ?? 0;
     if (Math.abs(changePercent) > 3) return "increasing";
@@ -719,20 +770,25 @@ export class TechnicalAnalysisFallback {
   /**
    * Estimate volatility from price range
    */
-  private estimateVolatility(marketData: MarketData): "high" | "medium" | "low" | null {
+  private estimateVolatility(
+    marketData: MarketData
+  ): "high" | "medium" | "low" | null {
     const { currentPrice, high24h, low24h } = marketData;
     if (high24h === undefined || low24h === undefined) return null;
 
     const range = (high24h - low24h) / currentPrice;
-    if (range > 0.05) return "high";      // >5% range
-    if (range > 0.02) return "medium";    // 2-5% range
-    return "low";                          // <2% range
+    if (range > 0.05) return "high"; // >5% range
+    if (range > 0.02) return "medium"; // 2-5% range
+    return "low"; // <2% range
   }
 
   /**
    * Score momentum indicators (enhanced with Stochastic, Williams %R, CCI)
    */
-  private scoreMomentum(indicators: TechnicalIndicators, marketData: MarketData): SignalScore {
+  private scoreMomentum(
+    indicators: TechnicalIndicators,
+    marketData: MarketData
+  ): SignalScore {
     const signals: string[] = [];
     let bullishPoints = 0;
     let bearishPoints = 0;
@@ -764,10 +820,16 @@ export class TechnicalAnalysisFallback {
         signals.push("Stochastic overbought");
       }
       // Stochastic crossover
-      if (indicators.stochasticK > indicators.stochasticD && indicators.stochasticK < 50) {
+      if (
+        indicators.stochasticK > indicators.stochasticD &&
+        indicators.stochasticK < 50
+      ) {
         bullishPoints += 1;
         signals.push("Stochastic bullish crossover");
-      } else if (indicators.stochasticK < indicators.stochasticD && indicators.stochasticK > 50) {
+      } else if (
+        indicators.stochasticK < indicators.stochasticD &&
+        indicators.stochasticK > 50
+      ) {
         bearishPoints += 1;
         signals.push("Stochastic bearish crossover");
       }
@@ -806,10 +868,16 @@ export class TechnicalAnalysisFallback {
       }
       // MACD line crossing signal
       if (indicators.macdLine !== null && indicators.macdSignal !== null) {
-        if (indicators.macdLine > indicators.macdSignal && indicators.macdHistogram > 0) {
+        if (
+          indicators.macdLine > indicators.macdSignal &&
+          indicators.macdHistogram > 0
+        ) {
           bullishPoints += 1;
           signals.push("MACD bullish crossover");
-        } else if (indicators.macdLine < indicators.macdSignal && indicators.macdHistogram < 0) {
+        } else if (
+          indicators.macdLine < indicators.macdSignal &&
+          indicators.macdHistogram < 0
+        ) {
           bearishPoints += 1;
           signals.push("MACD bearish crossover");
         }
@@ -850,10 +918,18 @@ export class TechnicalAnalysisFallback {
     }
 
     const totalPoints = bullishPoints + bearishPoints;
-    const strength = totalPoints > 0 ? Math.abs(bullishPoints - bearishPoints) / (totalPoints + 3) : 0;
+    const strength =
+      totalPoints > 0
+        ? Math.abs(bullishPoints - bearishPoints) / (totalPoints + 3)
+        : 0;
 
     return {
-      signal: bullishPoints > bearishPoints ? "bullish" : bearishPoints > bullishPoints ? "bearish" : "neutral",
+      signal:
+        bullishPoints > bearishPoints
+          ? "bullish"
+          : bearishPoints > bullishPoints
+            ? "bearish"
+            : "neutral",
       strength: Math.min(strength, 1),
       indicators: signals,
     };
@@ -862,7 +938,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Score trend indicators (enhanced with ADX, SMA200, multi-timeframe)
    */
-  private scoreTrend(indicators: TechnicalIndicators, marketData: MarketData): SignalScore {
+  private scoreTrend(
+    indicators: TechnicalIndicators,
+    marketData: MarketData
+  ): SignalScore {
     const signals: string[] = [];
     let bullishPoints = 0;
     let bearishPoints = 0;
@@ -901,16 +980,24 @@ export class TechnicalAnalysisFallback {
     }
 
     // ADX trend strength and direction (high weight)
-    if (indicators.adx !== null && indicators.plusDI !== null && indicators.minusDI !== null) {
+    if (
+      indicators.adx !== null &&
+      indicators.plusDI !== null &&
+      indicators.minusDI !== null
+    ) {
       const trendStrength = indicators.trendStrength;
 
       if (trendStrength === "strong" || trendStrength === "moderate") {
         if (indicators.plusDI > indicators.minusDI) {
           bullishPoints += trendStrength === "strong" ? 4 : 2;
-          signals.push(`ADX ${indicators.adx.toFixed(0)} - Strong uptrend (+DI>${-1}DI)`);
+          signals.push(
+            `ADX ${indicators.adx.toFixed(0)} - Strong uptrend (+DI>${-1}DI)`
+          );
         } else {
           bearishPoints += trendStrength === "strong" ? 4 : 2;
-          signals.push(`ADX ${indicators.adx.toFixed(0)} - Strong downtrend (-DI>+DI)`);
+          signals.push(
+            `ADX ${indicators.adx.toFixed(0)} - Strong downtrend (-DI>+DI)`
+          );
         }
       } else if (trendStrength === "weak" || trendStrength === "none") {
         signals.push(`ADX ${indicators.adx.toFixed(0)} - Ranging/weak trend`);
@@ -929,7 +1016,10 @@ export class TechnicalAnalysisFallback {
     }
 
     // Bollinger band position
-    if (indicators.bollingerLower !== null && indicators.bollingerUpper !== null) {
+    if (
+      indicators.bollingerLower !== null &&
+      indicators.bollingerUpper !== null
+    ) {
       const price = marketData.currentPrice;
       if (price < indicators.bollingerLower) {
         bullishPoints += 2;
@@ -940,16 +1030,27 @@ export class TechnicalAnalysisFallback {
       }
 
       // Bollinger squeeze detection (low volatility before breakout)
-      if (indicators.bollingerWidth !== null && indicators.bollingerWidth < 0.03) {
+      if (
+        indicators.bollingerWidth !== null &&
+        indicators.bollingerWidth < 0.03
+      ) {
         signals.push("Bollinger squeeze - potential breakout");
       }
     }
 
     const totalPoints = bullishPoints + bearishPoints;
-    const strength = totalPoints > 0 ? Math.abs(bullishPoints - bearishPoints) / (totalPoints + 4) : 0;
+    const strength =
+      totalPoints > 0
+        ? Math.abs(bullishPoints - bearishPoints) / (totalPoints + 4)
+        : 0;
 
     return {
-      signal: bullishPoints > bearishPoints ? "bullish" : bearishPoints > bullishPoints ? "bearish" : "neutral",
+      signal:
+        bullishPoints > bearishPoints
+          ? "bullish"
+          : bearishPoints > bullishPoints
+            ? "bearish"
+            : "neutral",
       strength: Math.min(strength, 1),
       indicators: signals,
     };
@@ -958,7 +1059,10 @@ export class TechnicalAnalysisFallback {
   /**
    * Score volatility conditions (enhanced with ATR analysis)
    */
-  private scoreVolatility(indicators: TechnicalIndicators, marketData: MarketData): SignalScore {
+  private scoreVolatility(
+    indicators: TechnicalIndicators,
+    marketData: MarketData
+  ): SignalScore {
     const signals: string[] = [];
     let riskAdjustment = 0; // Negative means more cautious
 
@@ -966,16 +1070,24 @@ export class TechnicalAnalysisFallback {
     if (indicators.atrPercent !== null) {
       if (indicators.atrPercent > 5) {
         riskAdjustment -= 3;
-        signals.push(`Very high ATR volatility (${indicators.atrPercent.toFixed(1)}%)`);
+        signals.push(
+          `Very high ATR volatility (${indicators.atrPercent.toFixed(1)}%)`
+        );
       } else if (indicators.atrPercent > 3) {
         riskAdjustment -= 2;
-        signals.push(`High ATR volatility (${indicators.atrPercent.toFixed(1)}%)`);
+        signals.push(
+          `High ATR volatility (${indicators.atrPercent.toFixed(1)}%)`
+        );
       } else if (indicators.atrPercent > 1.5) {
         riskAdjustment -= 1;
-        signals.push(`Moderate ATR volatility (${indicators.atrPercent.toFixed(1)}%)`);
+        signals.push(
+          `Moderate ATR volatility (${indicators.atrPercent.toFixed(1)}%)`
+        );
       } else if (indicators.atrPercent < 1) {
         riskAdjustment += 1;
-        signals.push(`Low ATR volatility (${indicators.atrPercent.toFixed(1)}%) - stable`);
+        signals.push(
+          `Low ATR volatility (${indicators.atrPercent.toFixed(1)}%) - stable`
+        );
       }
     }
 
@@ -1004,7 +1116,12 @@ export class TechnicalAnalysisFallback {
     }
 
     return {
-      signal: riskAdjustment > 0 ? "bullish" : riskAdjustment < 0 ? "bearish" : "neutral",
+      signal:
+        riskAdjustment > 0
+          ? "bullish"
+          : riskAdjustment < 0
+            ? "bearish"
+            : "neutral",
       strength: Math.abs(riskAdjustment) / 5,
       indicators: signals,
     };
@@ -1034,7 +1151,12 @@ export class TechnicalAnalysisFallback {
     }
 
     return {
-      signal: sentimentScore > 0 ? "bullish" : sentimentScore < 0 ? "bearish" : "neutral",
+      signal:
+        sentimentScore > 0
+          ? "bullish"
+          : sentimentScore < 0
+            ? "bearish"
+            : "neutral",
       strength: Math.abs(sentimentScore) * 0.5,
       indicators: signals,
     };
@@ -1063,7 +1185,8 @@ export class TechnicalAnalysisFallback {
     const strength = Math.abs(netSignal);
 
     return {
-      signal: netSignal > 0.1 ? "bullish" : netSignal < -0.1 ? "bearish" : "neutral",
+      signal:
+        netSignal > 0.1 ? "bullish" : netSignal < -0.1 ? "bearish" : "neutral",
       strength: Math.min(strength, 1),
       indicators: allIndicators,
     };
@@ -1081,9 +1204,14 @@ export class TechnicalAnalysisFallback {
     const { signal, strength, indicators: usedIndicators } = combinedScore;
 
     // Adaptive threshold based on market regime
-    const actionThreshold = regime.type === "volatile" ? 0.35 :
-                           regime.type === "trending_up" || regime.type === "trending_down" ? 0.15 :
-                           regime.type === "breakout" ? 0.20 : 0.25;
+    const actionThreshold =
+      regime.type === "volatile"
+        ? 0.35
+        : regime.type === "trending_up" || regime.type === "trending_down"
+          ? 0.15
+          : regime.type === "breakout"
+            ? 0.2
+            : 0.25;
 
     // Map signal to action with adaptive thresholds
     let action: "buy" | "sell" | "hold";
@@ -1107,7 +1235,13 @@ export class TechnicalAnalysisFallback {
     const riskLevel = this.calculateRiskLevel(indicators, regime);
 
     // Generate enhanced reasoning with regime context
-    const reasoning = this.generateReasoning(action, usedIndicators, signal, strength, regime);
+    const reasoning = this.generateReasoning(
+      action,
+      usedIndicators,
+      signal,
+      strength,
+      regime
+    );
 
     // Calculate ATR-based stop loss and target (only for buy/sell)
     let stopLoss: number | undefined;
@@ -1115,13 +1249,21 @@ export class TechnicalAnalysisFallback {
     let suggestedQuantity: number | undefined;
 
     if (action === "buy") {
-      const { stop, target } = this.calculateATRBasedTargets(marketData, indicators, riskLevel);
+      const { stop, target } = this.calculateATRBasedTargets(
+        marketData,
+        indicators,
+        riskLevel
+      );
       stopLoss = stop;
       targetPrice = target;
-      suggestedQuantity = this.calculateDynamicPositionSize(confidence, riskLevel, indicators);
+      suggestedQuantity = this.calculateDynamicPositionSize(
+        confidence,
+        riskLevel,
+        indicators
+      );
     } else if (action === "sell") {
       // For sell signals, suggest taking profits based on strength
-      suggestedQuantity = strength > 0.5 ? 0.50 : strength > 0.3 ? 0.35 : 0.25;
+      suggestedQuantity = strength > 0.5 ? 0.5 : strength > 0.3 ? 0.35 : 0.25;
     }
 
     return {
@@ -1145,18 +1287,18 @@ export class TechnicalAnalysisFallback {
     indicatorCount: number
   ): number {
     // Base confidence from signal strength (35-65% range)
-    let confidence = 0.35 + (signalStrength * 0.30);
+    let confidence = 0.35 + signalStrength * 0.3;
 
     // Indicator coverage bonus (more indicators = more confident)
     const totalPossibleIndicators = 20;
     const coverageRatio = indicatorCount / totalPossibleIndicators;
-    confidence += coverageRatio * 0.10;
+    confidence += coverageRatio * 0.1;
 
     // Regime-specific adjustments
     if (regime.type === "trending_up" || regime.type === "trending_down") {
       confidence += 0.08; // Trends are more predictable
     } else if (regime.type === "volatile") {
-      confidence -= 0.10; // Volatile markets are unpredictable
+      confidence -= 0.1; // Volatile markets are unpredictable
     } else if (regime.type === "breakout") {
       confidence += 0.05; // Breakouts have momentum
     }
@@ -1174,19 +1316,19 @@ export class TechnicalAnalysisFallback {
 
     // Multiple oscillator agreement bonus
     const oscillatorAgreement = this.checkOscillatorAgreement(indicators);
-    confidence += oscillatorAgreement * 0.10;
+    confidence += oscillatorAgreement * 0.1;
 
     // Volatility penalty
     if (indicators.atrPercent !== null) {
       if (indicators.atrPercent > 5) {
-        confidence -= 0.10;
+        confidence -= 0.1;
       } else if (indicators.atrPercent > 3) {
         confidence -= 0.05;
       }
     }
 
     // Cap confidence: 40% min, 88% max for algorithmic decisions
-    return Math.max(0.40, Math.min(confidence, 0.88));
+    return Math.max(0.4, Math.min(confidence, 0.88));
   }
 
   /**
@@ -1276,18 +1418,22 @@ export class TechnicalAnalysisFallback {
 
     if (atr !== null && atr > 0) {
       // ATR-based stops: 2x ATR for stop, 3x ATR for target (1.5 R:R)
-      const atrMultiplier = riskLevel === "high" ? 2.5 : riskLevel === "medium" ? 2.0 : 1.5;
-      const targetMultiplier = riskLevel === "high" ? 3.0 : riskLevel === "medium" ? 3.5 : 4.0;
+      const atrMultiplier =
+        riskLevel === "high" ? 2.5 : riskLevel === "medium" ? 2.0 : 1.5;
+      const targetMultiplier =
+        riskLevel === "high" ? 3.0 : riskLevel === "medium" ? 3.5 : 4.0;
 
-      const stop = currentPrice - (atr * atrMultiplier);
-      const target = currentPrice + (atr * targetMultiplier);
+      const stop = currentPrice - atr * atrMultiplier;
+      const target = currentPrice + atr * targetMultiplier;
 
       return { stop, target };
     }
 
     // Fallback to percentage-based stops
-    const stopPercent = riskLevel === "high" ? 0.05 : riskLevel === "medium" ? 0.04 : 0.03;
-    const targetPercent = riskLevel === "high" ? 0.06 : riskLevel === "medium" ? 0.07 : 0.08;
+    const stopPercent =
+      riskLevel === "high" ? 0.05 : riskLevel === "medium" ? 0.04 : 0.03;
+    const targetPercent =
+      riskLevel === "high" ? 0.06 : riskLevel === "medium" ? 0.07 : 0.08;
 
     return {
       stop: currentPrice * (1 - stopPercent),
@@ -1304,10 +1450,11 @@ export class TechnicalAnalysisFallback {
     indicators: TechnicalIndicators
   ): number {
     // Base position size by risk level
-    const baseSize = riskLevel === "low" ? 0.10 : riskLevel === "medium" ? 0.06 : 0.03;
+    const baseSize =
+      riskLevel === "low" ? 0.1 : riskLevel === "medium" ? 0.06 : 0.03;
 
     // Confidence multiplier (0.7x to 1.3x)
-    const confidenceMultiplier = 0.7 + (confidence * 0.6);
+    const confidenceMultiplier = 0.7 + confidence * 0.6;
 
     // Volatility adjustment
     let volatilityAdjustment = 1.0;
@@ -1322,7 +1469,8 @@ export class TechnicalAnalysisFallback {
     if (indicators.trendStrength === "strong") trendBonus = 1.15;
     else if (indicators.trendStrength === "moderate") trendBonus = 1.05;
 
-    const finalSize = baseSize * confidenceMultiplier * volatilityAdjustment * trendBonus;
+    const finalSize =
+      baseSize * confidenceMultiplier * volatilityAdjustment * trendBonus;
 
     // Cap at 15% max, 2% min
     return Math.max(0.02, Math.min(finalSize, 0.15));
@@ -1338,7 +1486,8 @@ export class TechnicalAnalysisFallback {
     strength: number,
     regime: MarketRegime
   ): string {
-    const signalStrength = strength > 0.5 ? "strong" : strength > 0.25 ? "moderate" : "weak";
+    const signalStrength =
+      strength > 0.5 ? "strong" : strength > 0.25 ? "moderate" : "weak";
     const topIndicators = indicators.slice(0, 4).join(", ");
     const regimeDesc = this.getRegimeDescription(regime);
 
@@ -1374,10 +1523,13 @@ export class TechnicalAnalysisFallback {
   /**
    * Safe default when everything fails
    */
-  private getSafeDefaultDecision(symbol: string, marketData: MarketData): AIDecision {
+  private getSafeDefaultDecision(
+    symbol: string,
+    marketData: MarketData
+  ): AIDecision {
     return {
       action: "hold",
-      confidence: 0.40,
+      confidence: 0.4,
       reasoning: `Technical analysis fallback for ${symbol} at $${marketData.currentPrice.toFixed(2)}. Insufficient data for confident signal. Holding for safety.`,
       riskLevel: "medium",
     };
@@ -1390,10 +1542,10 @@ export class TechnicalAnalysisFallback {
     if (!llmError) return false;
     const errorLower = llmError.toLowerCase();
     return (
-      errorLower.includes("401") ||  // Unauthorized - invalid/not approved API key
-      errorLower.includes("402") ||  // Payment required - out of credits
-      errorLower.includes("403") ||  // Forbidden - access denied
-      errorLower.includes("429") ||  // Rate limit exceeded
+      errorLower.includes("401") || // Unauthorized - invalid/not approved API key
+      errorLower.includes("402") || // Payment required - out of credits
+      errorLower.includes("403") || // Forbidden - access denied
+      errorLower.includes("429") || // Rate limit exceeded
       errorLower.includes("rate limit") ||
       errorLower.includes("budget") ||
       errorLower.includes("credits") ||

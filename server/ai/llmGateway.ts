@@ -19,7 +19,13 @@ import { randomUUID, createHash } from "crypto";
 import { log } from "../utils/logger";
 import { db } from "../db";
 import { llmCalls, type LLMRole, type InsertLlmCall } from "@shared/schema";
-import { LLMRequest, LLMResponse, LLMMessage, LLMTool, LLMToolChoice } from "./llmClient";
+import {
+  LLMRequest,
+  LLMResponse,
+  LLMMessage,
+  LLMTool,
+  LLMToolChoice,
+} from "./llmClient";
 import { openaiClient } from "./openaiClient";
 import { openrouterClient } from "./openrouterClient";
 import { groqClient } from "./groqClient";
@@ -65,7 +71,11 @@ export interface LLMGatewayRequest {
 export interface LLMGatewayResponse {
   text?: string;
   json?: unknown;
-  toolCalls?: Array<{ id: string; name: string; arguments: Record<string, unknown> }>;
+  toolCalls?: Array<{
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+  }>;
   provider: string;
   model: string;
   tokensUsed: number;
@@ -153,30 +163,39 @@ class LLMResponseCache {
   /**
    * Generate a cache key from role, system prompt, and messages
    */
-  private generateCacheKey(role: LLMRole, system: string | undefined, messages: LLMMessage[]): string {
+  private generateCacheKey(
+    role: LLMRole,
+    system: string | undefined,
+    messages: LLMMessage[]
+  ): string {
     // Normalize whitespace in content
-    const normalizeWhitespace = (text: string) => text.replace(/\s+/g, ' ').trim();
+    const normalizeWhitespace = (text: string) =>
+      text.replace(/\s+/g, " ").trim();
 
-    const systemNormalized = system ? normalizeWhitespace(system) : '';
+    const systemNormalized = system ? normalizeWhitespace(system) : "";
     const messagesContent = messages
-      .map(m => {
-        if (typeof m.content === 'string') {
+      .map((m) => {
+        if (typeof m.content === "string") {
           return normalizeWhitespace(m.content);
         }
         return JSON.stringify(m.content);
       })
-      .join('|');
+      .join("|");
 
     const combined = `${role}:${systemNormalized}:${messagesContent}`;
 
-    return createHash('md5').update(combined).digest('hex');
+    return createHash("md5").update(combined).digest("hex");
   }
 
   /**
    * Get cached response if available
    * Returns fresh or stale data based on TTL configuration
    */
-  get(role: LLMRole, system: string | undefined, messages: LLMMessage[]): CacheEntry | null {
+  get(
+    role: LLMRole,
+    system: string | undefined,
+    messages: LLMMessage[]
+  ): CacheEntry | null {
     const config = ROLE_CACHE_CONFIG[role];
     if (!config.enabled) {
       return null;
@@ -210,14 +229,21 @@ class LLMResponseCache {
     }
 
     // Stale but valid - return immediately and trigger background refresh
-    log.ai(`LLMCache: Stale hit for ${role} (will refresh in background)`, { cacheKey });
+    log.ai(`LLMCache: Stale hit for ${role} (will refresh in background)`, {
+      cacheKey,
+    });
     return entry;
   }
 
   /**
    * Store response in cache with role-based TTL
    */
-  set(role: LLMRole, system: string | undefined, messages: LLMMessage[], response: LLMGatewayResponse): void {
+  set(
+    role: LLMRole,
+    system: string | undefined,
+    messages: LLMMessage[],
+    response: LLMGatewayResponse
+  ): void {
     const config = ROLE_CACHE_CONFIG[role];
     if (!config.enabled) {
       return;
@@ -245,7 +271,11 @@ class LLMResponseCache {
   /**
    * Check if entry needs refresh (is in stale window)
    */
-  needsRefresh(role: LLMRole, system: string | undefined, messages: LLMMessage[]): boolean {
+  needsRefresh(
+    role: LLMRole,
+    system: string | undefined,
+    messages: LLMMessage[]
+  ): boolean {
     const config = ROLE_CACHE_CONFIG[role];
     if (!config.enabled) {
       return false;
@@ -272,7 +302,7 @@ class LLMResponseCache {
         keysToDelete.push(key);
       }
     });
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -323,24 +353,30 @@ class LLMResponseCache {
       costSaved: number;
       cacheSize: number;
     };
-    byRole: Record<string, {
-      hits: number;
-      misses: number;
-      hitRate: number;
-    }>;
+    byRole: Record<
+      string,
+      {
+        hits: number;
+        misses: number;
+        hitRate: number;
+      }
+    >;
   } {
     let totalHits = 0;
     let totalMisses = 0;
 
-    this.hitsByRole.forEach(hits => totalHits += hits);
-    this.missByRole.forEach(misses => totalMisses += misses);
+    this.hitsByRole.forEach((hits) => (totalHits += hits));
+    this.missByRole.forEach((misses) => (totalMisses += misses));
 
-    const byRole: Record<string, { hits: number; misses: number; hitRate: number }> = {};
+    const byRole: Record<
+      string,
+      { hits: number; misses: number; hitRate: number }
+    > = {};
 
     const hitRoles = Array.from(this.hitsByRole.keys());
     const missRoles = Array.from(this.missByRole.keys());
     const allRoles = new Set([...hitRoles, ...missRoles]);
-    allRoles.forEach(role => {
+    allRoles.forEach((role) => {
       const hits = this.hitsByRole.get(role) || 0;
       const misses = this.missByRole.get(role) || 0;
       const total = hits + misses;
@@ -353,7 +389,10 @@ class LLMResponseCache {
 
     return {
       overall: {
-        hitRate: totalHits + totalMisses > 0 ? totalHits / (totalHits + totalMisses) : 0,
+        hitRate:
+          totalHits + totalMisses > 0
+            ? totalHits / (totalHits + totalMisses)
+            : 0,
         totalHits,
         totalMisses,
         tokensSaved: this.tokensSaved,
@@ -391,144 +430,337 @@ interface ModelConfig {
 // Environment overrides for model chains
 const getEnvModel = (key: string): string | undefined => process.env[key];
 
-const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = {
+const CRITICALITY_CHAINS: Record<
+  LLMRole,
+  Record<Criticality, ModelConfig[]>
+> = {
   technical_analyst: {
     high: [
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: getEnvModel("TECH_ANALYST_HIGH_MODEL") || "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: getEnvModel("TECH_ANALYST_HIGH_MODEL") || "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
     ],
     low: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
   risk_manager: {
     high: [
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: getEnvModel("RISK_MANAGER_HIGH_MODEL") || "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model:
+          getEnvModel("RISK_MANAGER_HIGH_MODEL") ||
+          "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
     ],
     low: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
   execution_planner: {
     high: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "cloudflare",
+        model: "@cf/meta/llama-3.1-8b-instruct",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     low: [
-      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "cloudflare",
+        model: "@cf/meta/llama-3.1-8b-instruct",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
   },
   market_news_summarizer: {
     high: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     medium: [
-      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        costPer1kTokens: 0.00002,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
     ],
     low: [
-      { provider: "gemini", model: "gemini-2.5-flash-lite", costPer1kTokens: 0.00001 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash-lite",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "cloudflare",
+        model: "@cf/meta/llama-3.1-8b-instruct",
+        costPer1kTokens: 0.00001,
+      },
     ],
   },
   post_trade_reporter: {
     high: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
     medium: [
-      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        costPer1kTokens: 0.00002,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
     ],
     low: [
-      { provider: "gemini", model: "gemini-2.5-flash-lite", costPer1kTokens: 0.00001 },
-      { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", costPer1kTokens: 0.00001 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash-lite",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "cloudflare",
+        model: "@cf/meta/llama-3.1-8b-instruct",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
     ],
   },
   // NEW ROLE: Position sizing optimization based on risk and market conditions
   position_sizer: {
     high: [
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     low: [
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
   // NEW ROLE: Dedicated sentiment analysis from news and social sources
   sentiment_analyst: {
     high: [
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     medium: [
-      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        costPer1kTokens: 0.00002,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     low: [
-      { provider: "gemini", model: "gemini-2.5-flash", costPer1kTokens: 0.00002 },
-      { provider: "huggingface", model: "meta-llama/Llama-3.2-3B-Instruct", costPer1kTokens: 0.00001 },
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        costPer1kTokens: 0.00002,
+      },
+      {
+        provider: "huggingface",
+        model: "meta-llama/Llama-3.2-3B-Instruct",
+        costPer1kTokens: 0.00001,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
   // NEW ROLE: Detailed post-trade performance analysis and learning
   post_trade_analyzer: {
     high: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
     ],
     medium: [
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     low: [
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
   // NEW ROLE: Specialized futures market analysis
   futures_analyst: {
     high: [
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "claude", model: "claude-sonnet-4-20250514", costPer1kTokens: 0.003 },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
+      {
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        costPer1kTokens: 0.003,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     medium: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     low: [
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
     ],
   },
 };
@@ -537,16 +769,40 @@ const CRITICALITY_CHAINS: Record<LLMRole, Record<Criticality, ModelConfig[]>> = 
 // PROVIDER CLIENTS
 // ============================================================================
 
-const PROVIDER_CLIENTS: Record<string, { client: any; isAvailable: () => boolean }> = {
-  openai: { client: openaiClient, isAvailable: () => openaiClient.isAvailable() },
+const PROVIDER_CLIENTS: Record<
+  string,
+  { client: any; isAvailable: () => boolean }
+> = {
+  openai: {
+    client: openaiClient,
+    isAvailable: () => openaiClient.isAvailable(),
+  },
   groq: { client: groqClient, isAvailable: () => groqClient.isAvailable() },
-  together: { client: togetherClient, isAvailable: () => togetherClient.isAvailable() },
+  together: {
+    client: togetherClient,
+    isAvailable: () => togetherClient.isAvailable(),
+  },
   aimlapi: { client: aimlClient, isAvailable: () => aimlClient.isAvailable() },
-  openrouter: { client: openrouterClient, isAvailable: () => openrouterClient.isAvailable() },
-  claude: { client: claudeClient, isAvailable: () => claudeClient.isAvailable() },
-  gemini: { client: geminiClient, isAvailable: () => geminiClient.isAvailable() },
-  cloudflare: { client: cloudflareClient, isAvailable: () => cloudflareClient.isAvailable() },
-  huggingface: { client: huggingfaceClient, isAvailable: () => huggingfaceClient.isAvailable() },
+  openrouter: {
+    client: openrouterClient,
+    isAvailable: () => openrouterClient.isAvailable(),
+  },
+  claude: {
+    client: claudeClient,
+    isAvailable: () => claudeClient.isAvailable(),
+  },
+  gemini: {
+    client: geminiClient,
+    isAvailable: () => geminiClient.isAvailable(),
+  },
+  cloudflare: {
+    client: cloudflareClient,
+    isAvailable: () => cloudflareClient.isAvailable(),
+  },
+  huggingface: {
+    client: huggingfaceClient,
+    isAvailable: () => huggingfaceClient.isAvailable(),
+  },
 };
 
 // ============================================================================
@@ -565,7 +821,13 @@ function getModelChain(role: LLMRole, criticality: Criticality): ModelConfig[] {
   return roleChains[criticality] || roleChains.medium;
 }
 
-async function logCall(callData: InsertLlmCall & { traceId?: string; criticality?: string; purpose?: string }): Promise<void> {
+async function logCall(
+  callData: InsertLlmCall & {
+    traceId?: string;
+    criticality?: string;
+    purpose?: string;
+  }
+): Promise<void> {
   try {
     const metadata = JSON.stringify({
       traceId: callData.traceId,
@@ -629,7 +891,9 @@ function extractTokenCount(tokensUsed: LLMResponse["tokensUsed"]): number {
  * });
  * ```
  */
-export async function callLLM(req: LLMGatewayRequest): Promise<LLMGatewayResponse> {
+export async function callLLM(
+  req: LLMGatewayRequest
+): Promise<LLMGatewayResponse> {
   const startTime = Date.now();
 
   // Check cache first
@@ -641,14 +905,21 @@ export async function callLLM(req: LLMGatewayRequest): Promise<LLMGatewayRespons
     // If stale, trigger background refresh but return cached data immediately
     if (llmResponseCache.needsRefresh(req.role, req.system, req.messages)) {
       // Background refresh - don't await
-      callLLMUncached(req).then(freshResponse => {
-        llmResponseCache.set(req.role, req.system, req.messages, freshResponse);
-      }).catch(err => {
-        log.warn("LLMGateway", "Background refresh failed", {
-          role: req.role,
-          error: String(err)
+      callLLMUncached(req)
+        .then((freshResponse) => {
+          llmResponseCache.set(
+            req.role,
+            req.system,
+            req.messages,
+            freshResponse
+          );
+        })
+        .catch((err) => {
+          log.warn("LLMGateway", "Background refresh failed", {
+            role: req.role,
+            error: String(err),
+          });
         });
-      });
     }
 
     log.ai(`LLMGateway: Cache hit for ${req.role}/${req.criticality}`, {
@@ -674,18 +945,20 @@ export async function callLLM(req: LLMGatewayRequest): Promise<LLMGatewayRespons
  * Internal function to call LLM without caching
  * Separated to support background refresh pattern
  */
-async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayResponse> {
+async function callLLMUncached(
+  req: LLMGatewayRequest
+): Promise<LLMGatewayResponse> {
   const startTime = Date.now();
   const chain = getModelChain(req.role, req.criticality);
 
   let fallbackUsed = false;
   let fallbackReason: string | undefined;
   let lastError: Error | undefined;
-  
+
   for (let i = 0; i < chain.length; i++) {
     const modelConfig = chain[i];
     const providerEntry = PROVIDER_CLIENTS[modelConfig.provider];
-    
+
     if (!providerEntry || !providerEntry.isAvailable()) {
       if (i === 0) {
         fallbackUsed = true;
@@ -693,7 +966,7 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
       }
       continue;
     }
-    
+
     try {
       const llmRequest: LLMRequest & { responseFormat?: ResponseFormat } = {
         model: modelConfig.model,
@@ -705,17 +978,20 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
         temperature: req.temperature,
         responseFormat: req.responseFormat,
       };
-      
+
       const response: LLMResponse = await providerEntry.client.call(llmRequest);
       const latencyMs = Date.now() - startTime;
       const tokensUsed = extractTokenCount(response.tokensUsed);
-      const estimatedCost = estimateCost(tokensUsed, modelConfig.costPer1kTokens);
-      
+      const estimatedCost = estimateCost(
+        tokensUsed,
+        modelConfig.costPer1kTokens
+      );
+
       let jsonResponse: unknown | null = null;
       if (req.responseFormat && response.text) {
         jsonResponse = parseJsonFromText(response.text);
       }
-      
+
       await logCall({
         role: req.role,
         provider: modelConfig.provider,
@@ -727,7 +1003,10 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
         latencyMs,
         status: "success",
         systemPrompt: req.system || null,
-        userPrompt: req.messages.map(m => m.content).join("\n").slice(0, 2000),
+        userPrompt: req.messages
+          .map((m) => m.content)
+          .join("\n")
+          .slice(0, 2000),
         response: response.text?.slice(0, 2000) || null,
         cacheHit: false,
         fallbackUsed,
@@ -736,7 +1015,7 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
         criticality: req.criticality,
         purpose: req.purpose,
       });
-      
+
       log.ai(`LLMGateway: ${req.role}/${req.criticality} succeeded`, {
         role: req.role,
         criticality: req.criticality,
@@ -749,7 +1028,7 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
         latencyMs,
         fallbackUsed,
       });
-      
+
       return {
         text: response.text,
         json: jsonResponse,
@@ -766,29 +1045,34 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
     } catch (error) {
       lastError = error as Error;
       const errorMsg = (error as Error).message || String(error);
-      
-      log.warn("LLMGateway", `${modelConfig.provider}/${modelConfig.model} failed for ${req.role}`, {
-        traceId: req.traceId,
-        criticality: req.criticality,
-        purpose: req.purpose,
-        error: errorMsg,
-      });
-      
+
+      log.warn(
+        "LLMGateway",
+        `${modelConfig.provider}/${modelConfig.model} failed for ${req.role}`,
+        {
+          traceId: req.traceId,
+          criticality: req.criticality,
+          purpose: req.purpose,
+          error: errorMsg,
+        }
+      );
+
       if (i === 0) {
         fallbackUsed = true;
-        fallbackReason = errorMsg.includes("rate") || errorMsg.includes("429")
-          ? "Rate limit exceeded"
-          : errorMsg.includes("401") || errorMsg.includes("403")
-            ? "Auth error"
-            : "Provider error";
+        fallbackReason =
+          errorMsg.includes("rate") || errorMsg.includes("429")
+            ? "Rate limit exceeded"
+            : errorMsg.includes("401") || errorMsg.includes("403")
+              ? "Auth error"
+              : "Provider error";
       }
-      
+
       if (errorMsg.includes("429") || errorMsg.includes("rate")) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
-  
+
   const latencyMs = Date.now() - startTime;
   await logCall({
     role: req.role,
@@ -798,22 +1082,34 @@ async function callLLMUncached(req: LLMGatewayRequest): Promise<LLMGatewayRespon
     errorMessage: String(lastError),
     latencyMs,
     systemPrompt: req.system || null,
-    userPrompt: req.messages.map(m => m.content).join("\n").slice(0, 2000),
+    userPrompt: req.messages
+      .map((m) => m.content)
+      .join("\n")
+      .slice(0, 2000),
     fallbackUsed: true,
     fallbackReason: "All providers failed",
     traceId: req.traceId,
     criticality: req.criticality,
     purpose: req.purpose,
   });
-  
-  log.error("LLMGateway", `All providers failed for ${req.role}/${req.criticality}`, {
-    traceId: req.traceId,
-    purpose: req.purpose,
-    triedProviders: chain.map(c => c.provider),
-    lastError: String(lastError),
-  });
-  
-  throw lastError || new Error(`All LLM providers failed for role: ${req.role}, criticality: ${req.criticality}`);
+
+  log.error(
+    "LLMGateway",
+    `All providers failed for ${req.role}/${req.criticality}`,
+    {
+      traceId: req.traceId,
+      purpose: req.purpose,
+      triedProviders: chain.map((c) => c.provider),
+      lastError: String(lastError),
+    }
+  );
+
+  throw (
+    lastError ||
+    new Error(
+      `All LLM providers failed for role: ${req.role}, criticality: ${req.criticality}`
+    )
+  );
 }
 
 // ============================================================================

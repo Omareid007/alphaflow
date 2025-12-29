@@ -2,11 +2,18 @@ import { log } from "../utils/logger";
 import { macroIndicatorsService } from "./macro-indicators-service";
 import { fundamentalsService } from "../universe/fundamentalsService";
 import { db } from "../db";
-import { universeTechnicals, brokerAssets, universeLiquidityMetrics } from "@shared/schema";
+import {
+  universeTechnicals,
+  brokerAssets,
+  universeLiquidityMetrics,
+} from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { finnhub } from "../connectors/finnhub";
 import { alpaca, type AlpacaBar } from "../connectors/alpaca";
-import { computeAllIndicators, type OHLCBar } from "../lib/technical-indicators";
+import {
+  computeAllIndicators,
+  type OHLCBar,
+} from "../lib/technical-indicators";
 
 interface EnrichmentJobStatus {
   name: string;
@@ -67,13 +74,18 @@ class EnrichmentScheduler {
     }
 
     log.info("EnrichmentScheduler", "Starting enrichment scheduler", {
-      macroIntervalHours: this.config.macroIndicatorsIntervalMs / (60 * 60 * 1000),
-      fundamentalsIntervalHours: this.config.fundamentalsIntervalMs / (60 * 60 * 1000),
-      technicalsIntervalHours: this.config.technicalsIntervalMs / (60 * 60 * 1000),
+      macroIntervalHours:
+        this.config.macroIndicatorsIntervalMs / (60 * 60 * 1000),
+      fundamentalsIntervalHours:
+        this.config.fundamentalsIntervalMs / (60 * 60 * 1000),
+      technicalsIntervalHours:
+        this.config.technicalsIntervalMs / (60 * 60 * 1000),
     });
 
-    this.scheduleJob("macro_indicators", this.config.macroIndicatorsIntervalMs, () =>
-      this.runMacroIndicatorsJob()
+    this.scheduleJob(
+      "macro_indicators",
+      this.config.macroIndicatorsIntervalMs,
+      () => this.runMacroIndicatorsJob()
     );
     this.scheduleJob("fundamentals", this.config.fundamentalsIntervalMs, () =>
       this.runFundamentalsJob()
@@ -95,9 +107,14 @@ class EnrichmentScheduler {
       .from(sql`macro_indicators`);
 
     if (Number(macroCount?.count || 0) === 0) {
-      log.info("EnrichmentScheduler", "Macro indicators empty, running initial sync");
+      log.info(
+        "EnrichmentScheduler",
+        "Macro indicators empty, running initial sync"
+      );
       this.runMacroIndicatorsJob().catch((e) =>
-        log.error("EnrichmentScheduler", "Initial macro sync failed", { error: e })
+        log.error("EnrichmentScheduler", "Initial macro sync failed", {
+          error: e,
+        })
       );
     }
 
@@ -115,13 +132,19 @@ class EnrichmentScheduler {
     const coverageThreshold = Math.min(assetCount, 50) * 0.5;
 
     if (techCount < coverageThreshold) {
-      log.info("EnrichmentScheduler", "Technicals coverage low, running initial sync", {
-        currentCount: techCount,
-        threshold: coverageThreshold,
-        brokerAssets: assetCount,
-      });
+      log.info(
+        "EnrichmentScheduler",
+        "Technicals coverage low, running initial sync",
+        {
+          currentCount: techCount,
+          threshold: coverageThreshold,
+          brokerAssets: assetCount,
+        }
+      );
       this.runTechnicalsJob().catch((e) =>
-        log.error("EnrichmentScheduler", "Initial technicals sync failed", { error: e })
+        log.error("EnrichmentScheduler", "Initial technicals sync failed", {
+          error: e,
+        })
       );
     }
   }
@@ -136,7 +159,11 @@ class EnrichmentScheduler {
     this.isStarted = false;
   }
 
-  private scheduleJob(name: string, intervalMs: number, job: () => Promise<void>) {
+  private scheduleJob(
+    name: string,
+    intervalMs: number,
+    job: () => Promise<void>
+  ) {
     const status = this.jobStatus.get(name);
     if (status) {
       status.nextRun = new Date(Date.now() + intervalMs);
@@ -170,7 +197,8 @@ class EnrichmentScheduler {
       log.info("EnrichmentScheduler", `Completed job: ${name}`);
     } catch (error) {
       status.lastSuccess = false;
-      status.lastError = error instanceof Error ? error.message : "Unknown error";
+      status.lastError =
+        error instanceof Error ? error.message : "Unknown error";
       log.error("EnrichmentScheduler", `Failed job: ${name}`, { error });
     } finally {
       status.isRunning = false;
@@ -213,7 +241,10 @@ class EnrichmentScheduler {
 
   async runTechnicalsJob(): Promise<void> {
     const assets = await db
-      .select({ symbol: brokerAssets.symbol, assetClass: brokerAssets.assetClass })
+      .select({
+        symbol: brokerAssets.symbol,
+        assetClass: brokerAssets.assetClass,
+      })
       .from(brokerAssets)
       .where(eq(brokerAssets.tradable, true))
       .limit(50);
@@ -237,7 +268,10 @@ class EnrichmentScheduler {
 
         const bars = barsResponse.bars[symbol];
         if (!bars || bars.length < 200) {
-          log.warn("EnrichmentScheduler", `Insufficient bars for ${symbol}: ${bars?.length || 0}`);
+          log.warn(
+            "EnrichmentScheduler",
+            `Insufficient bars for ${symbol}: ${bars?.length || 0}`
+          );
           continue;
         }
 
@@ -255,7 +289,9 @@ class EnrichmentScheduler {
         }
 
         const lastBar = bars[bars.length - 1];
-        const technicalSignals = await finnhub.getTechnicalSignals(symbol).catch(() => ({ adx: null }));
+        const technicalSignals = await finnhub
+          .getTechnicalSignals(symbol)
+          .catch(() => ({ adx: null }));
 
         await db
           .insert(universeTechnicals)
@@ -308,15 +344,24 @@ class EnrichmentScheduler {
             },
           });
         processed++;
-        log.info("EnrichmentScheduler", `Computed technicals for ${symbol}`, { 
+        log.info("EnrichmentScheduler", `Computed technicals for ${symbol}`, {
           rsi14: indicators.rsi14?.toFixed(2),
           sma20: indicators.sma20?.toFixed(2),
         });
       } catch (error) {
-        const errorDetails = error instanceof Error 
-          ? { message: error.message, name: error.name, stack: error.stack?.split('\n').slice(0, 3).join(' | ') }
-          : { raw: String(error) };
-        log.warn("EnrichmentScheduler", `Failed to compute technicals for ${symbol}`, errorDetails);
+        const errorDetails =
+          error instanceof Error
+            ? {
+                message: error.message,
+                name: error.name,
+                stack: error.stack?.split("\n").slice(0, 3).join(" | "),
+              }
+            : { raw: String(error) };
+        log.warn(
+          "EnrichmentScheduler",
+          `Failed to compute technicals for ${symbol}`,
+          errorDetails
+        );
       }
     }
 
@@ -326,14 +371,24 @@ class EnrichmentScheduler {
     }
   }
 
-  async runJobManually(jobName: string): Promise<{ success: boolean; message: string; statusCode: number }> {
+  async runJobManually(
+    jobName: string
+  ): Promise<{ success: boolean; message: string; statusCode: number }> {
     const status = this.jobStatus.get(jobName);
     if (!status) {
-      return { success: false, message: `Unknown job: ${jobName}`, statusCode: 400 };
+      return {
+        success: false,
+        message: `Unknown job: ${jobName}`,
+        statusCode: 400,
+      };
     }
 
     if (status.isRunning) {
-      return { success: false, message: `Job ${jobName} is already running`, statusCode: 409 };
+      return {
+        success: false,
+        message: `Job ${jobName} is already running`,
+        statusCode: 409,
+      };
     }
 
     try {
@@ -348,9 +403,17 @@ class EnrichmentScheduler {
           await this.executeJob(jobName, () => this.runTechnicalsJob());
           break;
         default:
-          return { success: false, message: `Unknown job: ${jobName}`, statusCode: 400 };
+          return {
+            success: false,
+            message: `Unknown job: ${jobName}`,
+            statusCode: 400,
+          };
       }
-      return { success: true, message: `Job ${jobName} completed successfully`, statusCode: 200 };
+      return {
+        success: true,
+        message: `Job ${jobName} completed successfully`,
+        statusCode: 200,
+      };
     } catch (error) {
       return {
         success: false,

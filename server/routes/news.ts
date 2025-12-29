@@ -11,10 +11,16 @@ const router = Router();
 // Get top news headlines by category and country
 router.get("/headlines", async (req: Request, res: Response) => {
   try {
-    const category = (req.query.category as "business" | "technology" | "general") || "business";
+    const category =
+      (req.query.category as "business" | "technology" | "general") ||
+      "business";
     const country = (req.query.country as string) || "us";
     const pageSize = parseInt(req.query.pageSize as string) || 20;
-    const headlines = await newsapi.getTopHeadlines(category, country, pageSize);
+    const headlines = await newsapi.getTopHeadlines(
+      category,
+      country,
+      pageSize
+    );
     res.json(headlines);
   } catch (error) {
     log.error("Routes", "Failed to get news headlines", { error: error });
@@ -29,7 +35,9 @@ router.get("/search", async (req: Request, res: Response) => {
     if (!query) {
       return badRequest(res, "Search query required");
     }
-    const sortBy = (req.query.sortBy as "relevancy" | "popularity" | "publishedAt") || "publishedAt";
+    const sortBy =
+      (req.query.sortBy as "relevancy" | "popularity" | "publishedAt") ||
+      "publishedAt";
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.searchNews(query, sortBy, pageSize);
     res.json(articles);

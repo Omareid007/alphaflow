@@ -1,4 +1,9 @@
-import { alpaca, type AlpacaOrder, type CreateOrderParams, type BracketOrderParams } from "../connectors/alpaca";
+import {
+  alpaca,
+  type AlpacaOrder,
+  type CreateOrderParams,
+  type BracketOrderParams,
+} from "../connectors/alpaca";
 import { storage } from "../storage";
 import { eventBus, logger, type TradeExecutedEvent } from "../orchestration";
 import { log } from "../utils/logger";
@@ -144,13 +149,23 @@ export class OrderExecutor {
    * - Links stop-loss order ID to trade record for tracking
    * - Non-blocking: Logs error if stop-loss creation fails but doesn't fail the main trade
    */
-  async executeAlpacaTrade(request: AlpacaTradeRequest): Promise<AlpacaTradeResult> {
+  async executeAlpacaTrade(
+    request: AlpacaTradeRequest
+  ): Promise<AlpacaTradeResult> {
     try {
       const {
-        symbol, side, quantity, strategyId, notes,
-        orderType = "market", limitPrice,
-        stopLossPrice, takeProfitPrice, useBracketOrder, trailingStopPercent,
-        extendedHours = false
+        symbol,
+        side,
+        quantity,
+        strategyId,
+        notes,
+        orderType = "market",
+        limitPrice,
+        stopLossPrice,
+        takeProfitPrice,
+        useBracketOrder,
+        trailingStopPercent,
+        extendedHours = false,
       } = request;
 
       // ============================================================================
@@ -159,44 +174,70 @@ export class OrderExecutor {
 
       // Guard 1: Quantity validation
       if (quantity <= 0) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Quantity must be greater than 0`, {
-          symbol,
-          side,
-          quantity,
-          reason: "INVALID_QUANTITY"
-        });
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Quantity must be greater than 0`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "INVALID_QUANTITY",
+          }
+        );
         return { success: false, error: "Quantity must be greater than 0" };
       }
 
       // Guard 2: Orchestrator control check
       // SECURITY: Only allow trades authorized by the orchestrator/work queue
       // This cannot be bypassed by manipulating notes strings
-      if (orchestratorController.isOrchestratorControlEnabled() && !request.authorizedByOrchestrator) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Orchestrator control active`, {
-          symbol,
-          side,
-          quantity,
-          reason: "ORCHESTRATOR_CONTROL_ACTIVE",
-          orchestratorControlEnabled: orchestratorController.isOrchestratorControlEnabled(),
-          authorizedByOrchestrator: request.authorizedByOrchestrator
-        });
-        return { success: false, error: "Orchestrator control active - direct trade execution blocked. Trades must go through the work queue." };
+      if (
+        orchestratorController.isOrchestratorControlEnabled() &&
+        !request.authorizedByOrchestrator
+      ) {
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Orchestrator control active`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "ORCHESTRATOR_CONTROL_ACTIVE",
+            orchestratorControlEnabled:
+              orchestratorController.isOrchestratorControlEnabled(),
+            authorizedByOrchestrator: request.authorizedByOrchestrator,
+          }
+        );
+        return {
+          success: false,
+          error:
+            "Orchestrator control active - direct trade execution blocked. Trades must go through the work queue.",
+        };
       }
 
       // Guard 3: Loss protection for sells
       // LOSS PROTECTION: Block direct sell orders at a loss unless it's a stop-loss
       if (side === "sell") {
-        const lossProtectionResult = await checkSellLossProtection(symbol, notes, normalizeSymbolForAlpaca);
+        const lossProtectionResult = await checkSellLossProtection(
+          symbol,
+          notes,
+          normalizeSymbolForAlpaca
+        );
         if (!lossProtectionResult.allowed) {
-          log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Loss protection active`, {
-            symbol,
-            side,
-            quantity,
-            reason: "LOSS_PROTECTION_ACTIVE"
-          });
+          log.warn(
+            "Trading",
+            `ORDER_BLOCKED: ${symbol} - Loss protection active`,
+            {
+              symbol,
+              side,
+              quantity,
+              reason: "LOSS_PROTECTION_ACTIVE",
+            }
+          );
           return {
             success: false,
-            error: lossProtectionResult.reason || "Position at loss - holding until stop-loss triggers or price recovers"
+            error:
+              lossProtectionResult.reason ||
+              "Position at loss - holding until stop-loss triggers or price recovers",
           };
         }
       }
@@ -216,22 +257,26 @@ export class OrderExecutor {
           side,
           quantity,
           reason: "RISK_LIMIT_EXCEEDED",
-          riskCheckReason: riskCheck.reason
+          riskCheckReason: riskCheck.reason,
         });
         return { success: false, error: riskCheck.reason };
       }
 
       // Guard 5: Tradability validation
-      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      const tradabilityCheck =
+        await tradabilityService.validateSymbolTradable(symbol);
       if (!tradabilityCheck.tradable) {
         log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Symbol not tradable`, {
           symbol,
           side,
           quantity,
           reason: "SYMBOL_NOT_TRADABLE",
-          tradabilityReason: tradabilityCheck.reason
+          tradabilityReason: tradabilityCheck.reason,
         });
-        return { success: false, error: `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}` };
+        return {
+          success: false,
+          error: `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || "Not found in broker universe"}`,
+        };
       }
 
       const alpacaSymbol = normalizeSymbolForAlpaca(symbol, true);
@@ -240,39 +285,83 @@ export class OrderExecutor {
 
       // Guard 6: Extended hours restrictions
       if (extendedHours && isCrypto) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours not available for crypto`, {
-          symbol, side, quantity, reason: "EXTENDED_HOURS_CRYPTO_NOT_SUPPORTED"
-        });
-        return { success: false, error: "Extended hours trading is not available for crypto" };
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Extended hours not available for crypto`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "EXTENDED_HOURS_CRYPTO_NOT_SUPPORTED",
+          }
+        );
+        return {
+          success: false,
+          error: "Extended hours trading is not available for crypto",
+        };
       }
 
       // FIXED: Extended hours allows both limit AND stop_limit orders per Alpaca API docs
       if (extendedHours && !["limit", "stop_limit"].includes(orderType)) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit or stop_limit orders`, {
-          symbol, side, quantity, orderType, reason: "EXTENDED_HOURS_REQUIRES_LIMIT_OR_STOP_LIMIT"
-        });
-        return { success: false, error: "Extended hours trading requires limit or stop_limit orders only" };
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Extended hours requires limit or stop_limit orders`,
+          {
+            symbol,
+            side,
+            quantity,
+            orderType,
+            reason: "EXTENDED_HOURS_REQUIRES_LIMIT_OR_STOP_LIMIT",
+          }
+        );
+        return {
+          success: false,
+          error:
+            "Extended hours trading requires limit or stop_limit orders only",
+        };
       }
 
       if (extendedHours && !limitPrice) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires limit price`, {
-          symbol, side, quantity, reason: "EXTENDED_HOURS_REQUIRES_LIMIT_PRICE"
-        });
-        return { success: false, error: "Extended hours trading requires a limit price" };
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Extended hours requires limit price`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "EXTENDED_HOURS_REQUIRES_LIMIT_PRICE",
+          }
+        );
+        return {
+          success: false,
+          error: "Extended hours trading requires a limit price",
+        };
       }
 
       if (extendedHours && !Number.isInteger(quantity)) {
-        log.warn("Trading", `ORDER_BLOCKED: ${symbol} - Extended hours requires whole shares`, {
-          symbol, side, quantity, reason: "EXTENDED_HOURS_REQUIRES_WHOLE_SHARES"
-        });
-        return { success: false, error: "Extended hours trading requires whole share quantities (no fractional shares)" };
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Extended hours requires whole shares`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "EXTENDED_HOURS_REQUIRES_WHOLE_SHARES",
+          }
+        );
+        return {
+          success: false,
+          error:
+            "Extended hours trading requires whole share quantities (no fractional shares)",
+        };
       }
 
       // ============================================================================
       // ORDER TYPE SELECTION - Choose appropriate order type based on parameters
       // ============================================================================
 
-      const shouldUseBracketOrder = useBracketOrder &&
+      const shouldUseBracketOrder =
+        useBracketOrder &&
         side === "buy" &&
         stopLossPrice &&
         takeProfitPrice &&
@@ -287,7 +376,7 @@ export class OrderExecutor {
           qty: quantity.toString(),
           side,
           type: orderType === "limit" ? "limit" : "market",
-          time_in_force: "day",  // FIXED: Was "gtc" which causes 422 rejection
+          time_in_force: "day", // FIXED: Was "gtc" which causes 422 rejection
           take_profit_price: takeProfitPrice.toFixed(2),
           stop_loss_price: stopLossPrice.toFixed(2),
         };
@@ -296,11 +385,25 @@ export class OrderExecutor {
           bracketParams.limit_price = limitPrice.toString();
         }
 
-        logger.info("Trading", `Creating bracket order for ${symbol}: Entry=${limitPrice || 'market'}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}, TIF=day`);
+        logger.info(
+          "Trading",
+          `Creating bracket order for ${symbol}: Entry=${limitPrice || "market"}, TP=$${takeProfitPrice.toFixed(2)}, SL=$${stopLossPrice.toFixed(2)}, TIF=day`
+        );
         order = await alpaca.createBracketOrder(bracketParams);
-        logger.info("Trading", `Bracket order submitted for ${symbol}`, { orderId: order.id, status: order.status });
-      } else if (trailingStopPercent && side === "sell" && !isCrypto && !extendedHours) {
-        log.info("Trading", "Creating trailing stop order", { symbol, trailingStopPercent });
+        logger.info("Trading", `Bracket order submitted for ${symbol}`, {
+          orderId: order.id,
+          status: order.status,
+        });
+      } else if (
+        trailingStopPercent &&
+        side === "sell" &&
+        !isCrypto &&
+        !extendedHours
+      ) {
+        log.info("Trading", "Creating trailing stop order", {
+          symbol,
+          trailingStopPercent,
+        });
         order = await alpaca.createTrailingStopOrder({
           symbol: alpacaSymbol,
           qty: quantity.toString(),
@@ -319,15 +422,23 @@ export class OrderExecutor {
           extended_hours: true,
         };
 
-        log.info("Trading", "Creating extended hours limit order", { symbol, side, quantity, limitPrice });
+        log.info("Trading", "Creating extended hours limit order", {
+          symbol,
+          side,
+          quantity,
+          limitPrice,
+        });
         order = await alpaca.createOrder(orderParams);
       } else {
         // CRITICAL FIX: Market orders CANNOT use GTC time_in_force
         // Market orders must use: day, ioc, fok, opg, or cls
         // For crypto with limit orders, GTC is valid; for market orders, use "day"
-        const effectiveTif = (orderType === "market")
-          ? "day"  // Market orders cannot be GTC
-          : (isCrypto ? "gtc" : "day");  // Limit orders can use GTC for crypto
+        const effectiveTif =
+          orderType === "market"
+            ? "day" // Market orders cannot be GTC
+            : isCrypto
+              ? "gtc"
+              : "day"; // Limit orders can use GTC for crypto
 
         const orderParams: CreateOrderParams = {
           symbol: alpacaSymbol,
@@ -381,10 +492,19 @@ export class OrderExecutor {
         strategyId,
       };
       eventBus.emit("trade:executed", tradeEvent, "order-executor");
-      logger.trade(`Executed ${side} ${quantity} ${symbol} @ $${filledPrice}`, { orderId: order.id, status: order.status });
+      logger.trade(`Executed ${side} ${quantity} ${symbol} @ $${filledPrice}`, {
+        orderId: order.id,
+        status: order.status,
+      });
 
       // AUTOMATED STOP-LOSS: Create stop-loss order after successful buy
-      if (side === "buy" && order.status === "filled" && !shouldUseBracketOrder && !isCrypto && !extendedHours) {
+      if (
+        side === "buy" &&
+        order.status === "filled" &&
+        !shouldUseBracketOrder &&
+        !isCrypto &&
+        !extendedHours
+      ) {
         try {
           // Calculate stop-loss price (2% below entry for risk management)
           const entryPrice = filledPrice || limitPrice || 0;
@@ -418,32 +538,44 @@ export class OrderExecutor {
           });
         } catch (stopLossError) {
           // Log error but don't fail the main trade
-          logger.error("Trading", `Failed to create automated stop-loss for ${symbol}`, {
-            error: (stopLossError as Error).message,
-            tradeId: trade.id,
-          });
+          logger.error(
+            "Trading",
+            `Failed to create automated stop-loss for ${symbol}`,
+            {
+              error: (stopLossError as Error).message,
+              tradeId: trade.id,
+            }
+          );
         }
       }
 
       return { success: true, order, trade };
     } catch (error) {
       const errorMsg = (error as Error).message;
-      logger.error("Trading", `Trade execution FAILED for ${request.symbol}: ${errorMsg}`, {
-        symbol: request.symbol,
-        side: request.side,
-        quantity: request.quantity,
-        orderType: request.orderType,
-        useBracketOrder: request.useBracketOrder,
-        error: errorMsg
-      });
-      eventBus.emit("trade:error", {
-        symbol: request.symbol,
-        side: request.side,
-        quantity: request.quantity,
-        message: errorMsg,
-        orderType: request.orderType,
-        useBracketOrder: request.useBracketOrder
-      }, "order-executor");
+      logger.error(
+        "Trading",
+        `Trade execution FAILED for ${request.symbol}: ${errorMsg}`,
+        {
+          symbol: request.symbol,
+          side: request.side,
+          quantity: request.quantity,
+          orderType: request.orderType,
+          useBracketOrder: request.useBracketOrder,
+          error: errorMsg,
+        }
+      );
+      eventBus.emit(
+        "trade:error",
+        {
+          symbol: request.symbol,
+          side: request.side,
+          quantity: request.quantity,
+          message: errorMsg,
+          orderType: request.orderType,
+          useBracketOrder: request.useBracketOrder,
+        },
+        "order-executor"
+      );
       return { success: false, error: errorMsg };
     }
   }
@@ -465,15 +597,20 @@ export class OrderExecutor {
   private async updateAgentStats(): Promise<void> {
     try {
       const trades = await storage.getTrades(undefined, 1000);
-      const closingTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "0");
+      const closingTrades = trades.filter(
+        (t) => t.pnl !== null && t.pnl !== "0"
+      );
       const totalRealizedPnl = closingTrades.reduce(
         (sum, t) => sum + safeParseFloat(t.pnl, 0),
         0
       );
-      const winningTrades = closingTrades.filter((t) => safeParseFloat(t.pnl, 0) > 0);
-      const winRate = closingTrades.length > 0
-        ? (winningTrades.length / closingTrades.length) * 100
-        : 0;
+      const winningTrades = closingTrades.filter(
+        (t) => safeParseFloat(t.pnl, 0) > 0
+      );
+      const winRate =
+        closingTrades.length > 0
+          ? (winningTrades.length / closingTrades.length) * 100
+          : 0;
 
       await storage.updateAgentStatus({
         totalTrades: trades.length,
@@ -482,7 +619,9 @@ export class OrderExecutor {
         lastHeartbeat: new Date(),
       });
     } catch (error) {
-      log.error("OrderExecutor", "Failed to update agent stats", { error: (error as Error).message });
+      log.error("OrderExecutor", "Failed to update agent stats", {
+        error: (error as Error).message,
+      });
     }
   }
 }

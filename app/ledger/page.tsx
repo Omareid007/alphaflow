@@ -11,7 +11,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Table,
@@ -19,14 +19,15 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
 import { TrendingUp, TrendingDown, Search, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function LedgerPage() {
   const { data: trades = [], isLoading: tradesLoading } = useTrades();
-  const { data: strategies = [], isLoading: strategiesLoading } = useStrategies();
+  const { data: strategies = [], isLoading: strategiesLoading } =
+    useStrategies();
 
   const [searchSymbol, setSearchSymbol] = useState("");
   const [filterSide, setFilterSide] = useState<string>("all");
@@ -36,7 +37,7 @@ export default function LedgerPage() {
   const loading = tradesLoading || strategiesLoading;
 
   // Map trades to ledger entry format
-  const entries = trades.map(trade => ({
+  const entries = trades.map((trade) => ({
     id: trade.id,
     symbol: trade.symbol,
     side: trade.side,
@@ -46,25 +47,25 @@ export default function LedgerPage() {
     strategyId: trade.strategyId,
     strategyName: trade.strategyName,
     time: trade.executedAt,
-    realizedPnl: trade.pnl,  // Use actual P&L from trade data
-    unrealizedPnl: undefined as number | undefined
+    realizedPnl: trade.pnl, // Use actual P&L from trade data
+    unrealizedPnl: undefined as number | undefined,
   }));
 
   const filteredEntries = useMemo(() => {
     let result = [...entries];
 
     if (searchSymbol) {
-      result = result.filter(e =>
+      result = result.filter((e) =>
         e.symbol.toLowerCase().includes(searchSymbol.toLowerCase())
       );
     }
 
     if (filterSide !== "all") {
-      result = result.filter(e => e.side === filterSide);
+      result = result.filter((e) => e.side === filterSide);
     }
 
     if (filterStrategy !== "all") {
-      result = result.filter(e => e.strategyId === filterStrategy);
+      result = result.filter((e) => e.strategyId === filterStrategy);
     }
 
     if (filterTime !== "all") {
@@ -77,7 +78,7 @@ export default function LedgerPage() {
       } else if (filterTime === "month") {
         cutoff.setMonth(now.getMonth() - 1);
       }
-      result = result.filter(e => new Date(e.time) >= cutoff);
+      result = result.filter((e) => new Date(e.time) >= cutoff);
     }
 
     return result;
@@ -96,7 +97,11 @@ export default function LedgerPage() {
     setFilterTime("all");
   };
 
-  const hasFilters = searchSymbol || filterSide !== "all" || filterStrategy !== "all" || filterTime !== "all";
+  const hasFilters =
+    searchSymbol ||
+    filterSide !== "all" ||
+    filterStrategy !== "all" ||
+    filterTime !== "all";
 
   if (loading) {
     return (
@@ -119,13 +124,20 @@ export default function LedgerPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Orders</p>
-            <p className="mt-1 text-2xl font-semibold">{filteredEntries.length}</p>
+            <p className="mt-1 text-2xl font-semibold">
+              {filteredEntries.length}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Realized P&L</p>
-            <p className={cn("mt-1 text-2xl font-semibold", totalPnl >= 0 ? "text-success" : "text-destructive")}>
+            <p
+              className={cn(
+                "mt-1 text-2xl font-semibold",
+                totalPnl >= 0 ? "text-success" : "text-destructive"
+              )}
+            >
               {totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString()}
             </p>
           </CardContent>
@@ -133,14 +145,22 @@ export default function LedgerPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Fees</p>
-            <p className="mt-1 text-2xl font-semibold">${totalFees.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-semibold">
+              ${totalFees.toFixed(2)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Net P&L</p>
-            <p className={cn("mt-1 text-2xl font-semibold", totalPnl - totalFees >= 0 ? "text-success" : "text-destructive")}>
-              {totalPnl - totalFees >= 0 ? "+" : ""}${(totalPnl - totalFees).toLocaleString()}
+            <p
+              className={cn(
+                "mt-1 text-2xl font-semibold",
+                totalPnl - totalFees >= 0 ? "text-success" : "text-destructive"
+              )}
+            >
+              {totalPnl - totalFees >= 0 ? "+" : ""}$
+              {(totalPnl - totalFees).toLocaleString()}
             </p>
           </CardContent>
         </Card>
@@ -156,7 +176,7 @@ export default function LedgerPage() {
                 <Input
                   placeholder="Search symbol..."
                   value={searchSymbol}
-                  onChange={e => setSearchSymbol(e.target.value)}
+                  onChange={(e) => setSearchSymbol(e.target.value)}
                   className="w-40 pl-9"
                 />
               </div>
@@ -190,8 +210,10 @@ export default function LedgerPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Strategies</SelectItem>
-                  {strategies.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  {strategies.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -226,20 +248,29 @@ export default function LedgerPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEntries.map(entry => {
+                {filteredEntries.map((entry) => {
                   const renderPnl = () => {
-                    if (typeof entry.realizedPnl === 'number') {
+                    if (typeof entry.realizedPnl === "number") {
                       const pnl = entry.realizedPnl;
                       return (
-                        <span className={pnl >= 0 ? "text-success" : "text-destructive"}>
+                        <span
+                          className={
+                            pnl >= 0 ? "text-success" : "text-destructive"
+                          }
+                        >
                           {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
                         </span>
                       );
                     }
-                    if (typeof entry.unrealizedPnl === 'number') {
+                    if (typeof entry.unrealizedPnl === "number") {
                       const pnl = entry.unrealizedPnl;
                       return (
-                        <span className={cn("text-sm", pnl >= 0 ? "text-success/70" : "text-destructive/70")}>
+                        <span
+                          className={cn(
+                            "text-sm",
+                            pnl >= 0 ? "text-success/70" : "text-destructive/70"
+                          )}
+                        >
                           {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
                         </span>
                       );
@@ -252,26 +283,47 @@ export default function LedgerPage() {
                       <TableCell className="text-muted-foreground">
                         {new Date(entry.time).toLocaleString()}
                       </TableCell>
-                      <TableCell className="font-medium">{entry.symbol}</TableCell>
+                      <TableCell className="font-medium">
+                        {entry.symbol}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={entry.side === "buy" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
+                          className={
+                            entry.side === "buy"
+                              ? "bg-success/10 text-success"
+                              : "bg-destructive/10 text-destructive"
+                          }
                         >
                           {entry.side === "buy" ? (
                             <TrendingUp className="mr-1 h-3 w-3" />
                           ) : (
                             <TrendingDown className="mr-1 h-3 w-3" />
                           )}
-                          {entry.side?.toUpperCase() || 'N/A'}
+                          {entry.side?.toUpperCase() || "N/A"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{entry.qty ?? 'N/A'}</TableCell>
-                      <TableCell className="text-right">${entry.price != null ? entry.price.toFixed(2) : '0.00'}</TableCell>
-                      <TableCell className="text-right">${entry.qty != null && entry.price != null ? (entry.qty * entry.price).toLocaleString() : '0.00'}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">${entry.fee != null ? entry.fee.toFixed(2) : '0.00'}</TableCell>
-                      <TableCell className="text-right">{renderPnl()}</TableCell>
-                      <TableCell className="text-muted-foreground">{entry.strategyName}</TableCell>
+                      <TableCell className="text-right">
+                        {entry.qty ?? "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ${entry.price != null ? entry.price.toFixed(2) : "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        $
+                        {entry.qty != null && entry.price != null
+                          ? (entry.qty * entry.price).toLocaleString()
+                          : "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        ${entry.fee != null ? entry.fee.toFixed(2) : "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {renderPnl()}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {entry.strategyName}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

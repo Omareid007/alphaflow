@@ -32,7 +32,7 @@ router.get("/snapshot", async (req: Request, res: Response) => {
 
     // Calculate P&L
     const dailyPl = equity - lastEquity;
-    const dailyPlPct = lastEquity > 0 ? ((dailyPl / lastEquity) * 100) : 0;
+    const dailyPlPct = lastEquity > 0 ? (dailyPl / lastEquity) * 100 : 0;
 
     // Map positions to required format
     const positions = alpacaPositions.map((pos: any) => ({
@@ -50,12 +50,18 @@ router.get("/snapshot", async (req: Request, res: Response) => {
     }));
 
     // Calculate total unrealized P&L from positions
-    const totalUnrealizedPl = positions.reduce((sum, pos) => sum + pos.unrealizedPl, 0);
+    const totalUnrealizedPl = positions.reduce(
+      (sum, pos) => sum + pos.unrealizedPl,
+      0
+    );
 
     // Get trades from database for realized P&L
     const trades = await storage.getTrades(undefined, 100);
-    const closedTrades = trades.filter(t => t.pnl !== null && t.pnl !== "");
-    const totalRealizedPl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0);
+    const closedTrades = trades.filter((t) => t.pnl !== null && t.pnl !== "");
+    const totalRealizedPl = closedTrades.reduce(
+      (sum, t) => sum + parseFloat(t.pnl || "0"),
+      0
+    );
 
     const snapshot = {
       totalEquity: equity,
@@ -65,23 +71,29 @@ router.get("/snapshot", async (req: Request, res: Response) => {
       dailyPl,
       dailyPlPct,
       totalPl: totalRealizedPl + totalUnrealizedPl,
-      totalPlPct: lastEquity > 0 ? ((totalRealizedPl + totalUnrealizedPl) / lastEquity * 100) : 0,
+      totalPlPct:
+        lastEquity > 0
+          ? ((totalRealizedPl + totalUnrealizedPl) / lastEquity) * 100
+          : 0,
       positions,
       timestamp: new Date().toISOString(),
       // Additional metrics
       positionCount: positions.length,
-      longPositions: positions.filter(p => p.side === "long").length,
-      shortPositions: positions.filter(p => p.side === "short").length,
+      longPositions: positions.filter((p) => p.side === "long").length,
+      shortPositions: positions.filter((p) => p.side === "short").length,
       totalRealizedPl,
       totalUnrealizedPl,
     };
 
     res.json(snapshot);
   } catch (error) {
-    log.error("PortfolioSnapshot", `Failed to get portfolio snapshot: ${error}`);
+    log.error(
+      "PortfolioSnapshot",
+      `Failed to get portfolio snapshot: ${error}`
+    );
     res.status(500).json({
       error: "Failed to get portfolio snapshot",
-      message: (error as Error).message
+      message: (error as Error).message,
     });
   }
 });

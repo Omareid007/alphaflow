@@ -24,8 +24,9 @@ router.get("/quote/:symbol", async (req: Request, res: Response) => {
 // GET /api/stock/quotes - Get multiple stock quotes
 router.get("/quotes", async (req: Request, res: Response) => {
   try {
-    const symbols = (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
-    const symbolList = symbols.split(",").map(s => s.trim().toUpperCase());
+    const symbols =
+      (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
+    const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
     const quotes = await finnhub.getMultipleQuotes(symbolList);
     const result: Record<string, unknown> = {};
     quotes.forEach((quote, symbol) => {
@@ -43,7 +44,9 @@ router.get("/candles/:symbol", async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const resolution = (req.query.resolution as string) || "D";
-    const from = req.query.from ? parseInt(req.query.from as string) : undefined;
+    const from = req.query.from
+      ? parseInt(req.query.from as string)
+      : undefined;
     const to = req.query.to ? parseInt(req.query.to as string) : undefined;
     const candles = await finnhub.getCandles(symbol, resolution, from, to);
     res.json(candles);

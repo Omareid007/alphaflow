@@ -25,19 +25,25 @@ import { getEnvFloat, getEnvString, getEnvBool } from "./env-helpers";
  */
 const alpacaConfig = Object.freeze({
   // Trading mode: 'paper' or 'live'
-  tradingMode: getEnvString('ALPACA_TRADING_MODE', 'paper') as 'paper' | 'live',
+  tradingMode: getEnvString("ALPACA_TRADING_MODE", "paper") as "paper" | "live",
 
   // Paper trading URL (default for testing)
-  paperUrl: getEnvString('ALPACA_PAPER_URL', 'https://paper-api.alpaca.markets'),
+  paperUrl: getEnvString(
+    "ALPACA_PAPER_URL",
+    "https://paper-api.alpaca.markets"
+  ),
 
   // Live trading URL (use with caution!)
-  liveUrl: getEnvString('ALPACA_LIVE_URL', 'https://api.alpaca.markets'),
+  liveUrl: getEnvString("ALPACA_LIVE_URL", "https://api.alpaca.markets"),
 
   // Market data URL (same for both paper and live)
-  dataUrl: getEnvString('ALPACA_DATA_URL', 'https://data.alpaca.markets'),
+  dataUrl: getEnvString("ALPACA_DATA_URL", "https://data.alpaca.markets"),
 
   // WebSocket streaming URL (same for both paper and live)
-  streamUrl: getEnvString('ALPACA_STREAM_URL', 'wss://stream.data.alpaca.markets'),
+  streamUrl: getEnvString(
+    "ALPACA_STREAM_URL",
+    "wss://stream.data.alpaca.markets"
+  ),
 });
 
 // ============================================================================
@@ -55,21 +61,21 @@ const alpacaConfig = Object.freeze({
  */
 const orderRetryConfig = Object.freeze({
   // Maximum number of retry attempts per order before giving up
-  maxRetriesPerOrder: getEnvFloat('MAX_RETRIES_PER_ORDER', 3),
+  maxRetriesPerOrder: getEnvFloat("MAX_RETRIES_PER_ORDER", 3),
 
   // Base delay in milliseconds for exponential backoff (doubles each retry)
   // Formula: delay = retryBackoffBaseMs * 2^(attemptNumber - 1)
   // Example: 2000ms, 4000ms, 8000ms for 3 attempts
-  retryBackoffBaseMs: getEnvFloat('RETRY_BACKOFF_BASE_MS', 2000),
+  retryBackoffBaseMs: getEnvFloat("RETRY_BACKOFF_BASE_MS", 2000),
 
   // Circuit breaker: number of failures before opening circuit
-  circuitBreakerThreshold: getEnvFloat('CIRCUIT_BREAKER_THRESHOLD', 10),
+  circuitBreakerThreshold: getEnvFloat("CIRCUIT_BREAKER_THRESHOLD", 10),
 
   // Circuit breaker: time window in ms to count failures (1 minute default)
-  circuitBreakerWindowMs: getEnvFloat('CIRCUIT_BREAKER_WINDOW_MS', 60000),
+  circuitBreakerWindowMs: getEnvFloat("CIRCUIT_BREAKER_WINDOW_MS", 60000),
 
   // Circuit breaker: cooldown period before auto-reset (5 minutes default)
-  circuitBreakerResetMs: getEnvFloat('CIRCUIT_BREAKER_RESET_MS', 300000),
+  circuitBreakerResetMs: getEnvFloat("CIRCUIT_BREAKER_RESET_MS", 300000),
 });
 
 // ============================================================================
@@ -89,13 +95,13 @@ const orderRetryConfig = Object.freeze({
  */
 const orderExecutionConfig = Object.freeze({
   // Polling interval in ms to check if order is filled (500ms default)
-  orderFillPollIntervalMs: getEnvFloat('ORDER_FILL_POLL_INTERVAL_MS', 500),
+  orderFillPollIntervalMs: getEnvFloat("ORDER_FILL_POLL_INTERVAL_MS", 500),
 
   // Maximum time in ms to wait for order fill before timing out (30 seconds default)
-  orderFillTimeoutMs: getEnvFloat('ORDER_FILL_TIMEOUT_MS', 30000),
+  orderFillTimeoutMs: getEnvFloat("ORDER_FILL_TIMEOUT_MS", 30000),
 
   // Maximum age in ms for unfilled orders before auto-cancellation (5 minutes default)
-  staleOrderTimeoutMs: getEnvFloat('STALE_ORDER_TIMEOUT_MS', 300000),
+  staleOrderTimeoutMs: getEnvFloat("STALE_ORDER_TIMEOUT_MS", 300000),
 });
 
 // ============================================================================
@@ -120,17 +126,20 @@ const orderExecutionConfig = Object.freeze({
  */
 const riskManagementConfig = Object.freeze({
   // Default hard stop loss percentage (exit when position loses this much)
-  defaultHardStopLossPercent: getEnvFloat('DEFAULT_HARD_STOP_LOSS_PERCENT', 3),
+  defaultHardStopLossPercent: getEnvFloat("DEFAULT_HARD_STOP_LOSS_PERCENT", 3),
 
   // Default take profit percentage (exit when position gains this much)
-  defaultTakeProfitPercent: getEnvFloat('DEFAULT_TAKE_PROFIT_PERCENT', 6),
+  defaultTakeProfitPercent: getEnvFloat("DEFAULT_TAKE_PROFIT_PERCENT", 6),
 
   // Maximum position size as percentage of portfolio (10% = conservative, 15% = aggressive)
-  defaultMaxPositionSizePercent: getEnvFloat('DEFAULT_MAX_POSITION_SIZE_PERCENT', 15),
+  defaultMaxPositionSizePercent: getEnvFloat(
+    "DEFAULT_MAX_POSITION_SIZE_PERCENT",
+    15
+  ),
 
   // Maximum total exposure as percentage of portfolio
   // 100% = fully invested, 200% = 2x leverage (margin account)
-  defaultMaxExposurePercent: getEnvFloat('DEFAULT_MAX_EXPOSURE_PERCENT', 200),
+  defaultMaxExposurePercent: getEnvFloat("DEFAULT_MAX_EXPOSURE_PERCENT", 200),
 });
 
 // ============================================================================
@@ -158,19 +167,19 @@ const riskManagementConfig = Object.freeze({
 const universeConfig = Object.freeze({
   // Maximum number of stock symbols to analyze per cycle
   // Conservative: 120, Moderate: 300, Aggressive: 500
-  maxStockSymbolsPerCycle: getEnvFloat('MAX_STOCK_SYMBOLS_PER_CYCLE', 500),
+  maxStockSymbolsPerCycle: getEnvFloat("MAX_STOCK_SYMBOLS_PER_CYCLE", 500),
 
   // Maximum number of crypto symbols to analyze per cycle
   // Conservative: 20, Moderate: 50, Aggressive: 100
-  maxCryptoSymbolsPerCycle: getEnvFloat('MAX_CRYPTO_SYMBOLS_PER_CYCLE', 100),
+  maxCryptoSymbolsPerCycle: getEnvFloat("MAX_CRYPTO_SYMBOLS_PER_CYCLE", 100),
 
   // Minimum AI confidence score (0-1) to include symbol in universe
   // Conservative: 0.70, Moderate: 0.60, Aggressive: 0.50
-  minConfidenceForUniverse: getEnvFloat('MIN_CONFIDENCE_FOR_UNIVERSE', 0.50),
+  minConfidenceForUniverse: getEnvFloat("MIN_CONFIDENCE_FOR_UNIVERSE", 0.5),
 
   // Number of symbols to fetch per Alpaca snapshot API request
   // Max supported: 100, Recommended: 50 for reliability
-  alpacaSnapshotChunkSize: getEnvFloat('ALPACA_SNAPSHOT_CHUNK_SIZE', 50),
+  alpacaSnapshotChunkSize: getEnvFloat("ALPACA_SNAPSHOT_CHUNK_SIZE", 50),
 });
 
 // ============================================================================
@@ -191,13 +200,13 @@ const universeConfig = Object.freeze({
  */
 const queueConfig = Object.freeze({
   // Interval in ms to poll work queue for pending tasks (2 seconds default)
-  queuePollIntervalMs: getEnvFloat('QUEUE_POLL_INTERVAL_MS', 2000),
+  queuePollIntervalMs: getEnvFloat("QUEUE_POLL_INTERVAL_MS", 2000),
 
   // Maximum time in ms for a work item to complete before timing out (1 minute default)
-  queuePollTimeoutMs: getEnvFloat('QUEUE_POLL_TIMEOUT_MS', 60000),
+  queuePollTimeoutMs: getEnvFloat("QUEUE_POLL_TIMEOUT_MS", 60000),
 
   // Interval in ms to send heartbeat signals (30 seconds default)
-  heartbeatIntervalMs: getEnvFloat('HEARTBEAT_INTERVAL_MS', 30000),
+  heartbeatIntervalMs: getEnvFloat("HEARTBEAT_INTERVAL_MS", 30000),
 });
 
 // ============================================================================
@@ -245,7 +254,7 @@ export const tradingConfig = Object.freeze({
  * ```
  */
 export function getAlpacaBaseUrl(): string {
-  return tradingConfig.alpaca.tradingMode === 'live'
+  return tradingConfig.alpaca.tradingMode === "live"
     ? tradingConfig.alpaca.liveUrl
     : tradingConfig.alpaca.paperUrl;
 }
@@ -289,55 +298,104 @@ export function validateTradingConfig(): void {
   const errors: string[] = [];
 
   // Validate trading mode
-  if (!['paper', 'live'].includes(tradingConfig.alpaca.tradingMode)) {
-    errors.push(`Invalid trading mode: ${tradingConfig.alpaca.tradingMode}. Must be 'paper' or 'live'.`);
+  if (!["paper", "live"].includes(tradingConfig.alpaca.tradingMode)) {
+    errors.push(
+      `Invalid trading mode: ${tradingConfig.alpaca.tradingMode}. Must be 'paper' or 'live'.`
+    );
   }
 
   // Validate URLs
-  if (!tradingConfig.alpaca.paperUrl.startsWith('http')) {
+  if (!tradingConfig.alpaca.paperUrl.startsWith("http")) {
     errors.push(`Invalid paper URL: ${tradingConfig.alpaca.paperUrl}`);
   }
-  if (!tradingConfig.alpaca.liveUrl.startsWith('http')) {
+  if (!tradingConfig.alpaca.liveUrl.startsWith("http")) {
     errors.push(`Invalid live URL: ${tradingConfig.alpaca.liveUrl}`);
   }
 
   // Validate retry config
-  if (tradingConfig.orderRetry.maxRetriesPerOrder < 0 || tradingConfig.orderRetry.maxRetriesPerOrder > 10) {
-    errors.push(`Max retries must be between 0 and 10, got: ${tradingConfig.orderRetry.maxRetriesPerOrder}`);
+  if (
+    tradingConfig.orderRetry.maxRetriesPerOrder < 0 ||
+    tradingConfig.orderRetry.maxRetriesPerOrder > 10
+  ) {
+    errors.push(
+      `Max retries must be between 0 and 10, got: ${tradingConfig.orderRetry.maxRetriesPerOrder}`
+    );
   }
-  if (tradingConfig.orderRetry.retryBackoffBaseMs < 100 || tradingConfig.orderRetry.retryBackoffBaseMs > 30000) {
-    errors.push(`Retry backoff base must be between 100ms and 30000ms, got: ${tradingConfig.orderRetry.retryBackoffBaseMs}`);
+  if (
+    tradingConfig.orderRetry.retryBackoffBaseMs < 100 ||
+    tradingConfig.orderRetry.retryBackoffBaseMs > 30000
+  ) {
+    errors.push(
+      `Retry backoff base must be between 100ms and 30000ms, got: ${tradingConfig.orderRetry.retryBackoffBaseMs}`
+    );
   }
 
   // Validate execution config
-  if (tradingConfig.orderExecution.orderFillPollIntervalMs < 100 || tradingConfig.orderExecution.orderFillPollIntervalMs > 5000) {
-    errors.push(`Poll interval must be between 100ms and 5000ms, got: ${tradingConfig.orderExecution.orderFillPollIntervalMs}`);
+  if (
+    tradingConfig.orderExecution.orderFillPollIntervalMs < 100 ||
+    tradingConfig.orderExecution.orderFillPollIntervalMs > 5000
+  ) {
+    errors.push(
+      `Poll interval must be between 100ms and 5000ms, got: ${tradingConfig.orderExecution.orderFillPollIntervalMs}`
+    );
   }
 
   // Validate risk config
-  if (tradingConfig.riskManagement.defaultHardStopLossPercent <= 0 || tradingConfig.riskManagement.defaultHardStopLossPercent > 50) {
-    errors.push(`Stop loss percent must be between 0 and 50, got: ${tradingConfig.riskManagement.defaultHardStopLossPercent}`);
+  if (
+    tradingConfig.riskManagement.defaultHardStopLossPercent <= 0 ||
+    tradingConfig.riskManagement.defaultHardStopLossPercent > 50
+  ) {
+    errors.push(
+      `Stop loss percent must be between 0 and 50, got: ${tradingConfig.riskManagement.defaultHardStopLossPercent}`
+    );
   }
-  if (tradingConfig.riskManagement.defaultTakeProfitPercent <= 0 || tradingConfig.riskManagement.defaultTakeProfitPercent > 100) {
-    errors.push(`Take profit percent must be between 0 and 100, got: ${tradingConfig.riskManagement.defaultTakeProfitPercent}`);
+  if (
+    tradingConfig.riskManagement.defaultTakeProfitPercent <= 0 ||
+    tradingConfig.riskManagement.defaultTakeProfitPercent > 100
+  ) {
+    errors.push(
+      `Take profit percent must be between 0 and 100, got: ${tradingConfig.riskManagement.defaultTakeProfitPercent}`
+    );
   }
-  if (tradingConfig.riskManagement.defaultMaxPositionSizePercent <= 0 || tradingConfig.riskManagement.defaultMaxPositionSizePercent > 100) {
-    errors.push(`Max position size must be between 0 and 100, got: ${tradingConfig.riskManagement.defaultMaxPositionSizePercent}`);
+  if (
+    tradingConfig.riskManagement.defaultMaxPositionSizePercent <= 0 ||
+    tradingConfig.riskManagement.defaultMaxPositionSizePercent > 100
+  ) {
+    errors.push(
+      `Max position size must be between 0 and 100, got: ${tradingConfig.riskManagement.defaultMaxPositionSizePercent}`
+    );
   }
 
   // Validate universe config
-  if (tradingConfig.universe.maxStockSymbolsPerCycle < 1 || tradingConfig.universe.maxStockSymbolsPerCycle > 10000) {
-    errors.push(`Max stock symbols must be between 1 and 10000, got: ${tradingConfig.universe.maxStockSymbolsPerCycle}`);
+  if (
+    tradingConfig.universe.maxStockSymbolsPerCycle < 1 ||
+    tradingConfig.universe.maxStockSymbolsPerCycle > 10000
+  ) {
+    errors.push(
+      `Max stock symbols must be between 1 and 10000, got: ${tradingConfig.universe.maxStockSymbolsPerCycle}`
+    );
   }
-  if (tradingConfig.universe.minConfidenceForUniverse < 0 || tradingConfig.universe.minConfidenceForUniverse > 1) {
-    errors.push(`Min confidence must be between 0 and 1, got: ${tradingConfig.universe.minConfidenceForUniverse}`);
+  if (
+    tradingConfig.universe.minConfidenceForUniverse < 0 ||
+    tradingConfig.universe.minConfidenceForUniverse > 1
+  ) {
+    errors.push(
+      `Min confidence must be between 0 and 1, got: ${tradingConfig.universe.minConfidenceForUniverse}`
+    );
   }
-  if (tradingConfig.universe.alpacaSnapshotChunkSize < 1 || tradingConfig.universe.alpacaSnapshotChunkSize > 100) {
-    errors.push(`Snapshot chunk size must be between 1 and 100, got: ${tradingConfig.universe.alpacaSnapshotChunkSize}`);
+  if (
+    tradingConfig.universe.alpacaSnapshotChunkSize < 1 ||
+    tradingConfig.universe.alpacaSnapshotChunkSize > 100
+  ) {
+    errors.push(
+      `Snapshot chunk size must be between 1 and 100, got: ${tradingConfig.universe.alpacaSnapshotChunkSize}`
+    );
   }
 
   if (errors.length > 0) {
-    throw new Error(`Trading configuration validation failed:\n${errors.join('\n')}`);
+    throw new Error(
+      `Trading configuration validation failed:\n${errors.join("\n")}`
+    );
   }
 }
 

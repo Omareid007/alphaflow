@@ -1,8 +1,19 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import { generateTraceId, getLLMCacheStats, clearLLMCache, clearLLMCacheForRole, resetLLMCacheStats } from "../ai/llmGateway";
-import { aiDecisionEngine, type MarketData, type NewsContext, type StrategyContext } from "../ai/decision-engine";
+import {
+  generateTraceId,
+  getLLMCacheStats,
+  clearLLMCache,
+  clearLLMCacheForRole,
+  resetLLMCacheStats,
+} from "../ai/llmGateway";
+import {
+  aiDecisionEngine,
+  type MarketData,
+  type NewsContext,
+  type StrategyContext,
+} from "../ai/decision-engine";
 
 const router = Router();
 
@@ -13,7 +24,9 @@ router.post("/analyze", async (req: Request, res: Response) => {
     const { symbol, marketData, newsContext, strategyId } = req.body;
 
     if (!symbol || !marketData) {
-      return res.status(400).json({ error: "Symbol and market data are required" });
+      return res
+        .status(400)
+        .json({ error: "Symbol and market data are required" });
     }
 
     let strategy: StrategyContext | undefined;
@@ -24,7 +37,9 @@ router.post("/analyze", async (req: Request, res: Response) => {
           id: dbStrategy.id,
           name: dbStrategy.name,
           type: dbStrategy.type,
-          parameters: dbStrategy.parameters ? JSON.parse(dbStrategy.parameters) : undefined,
+          parameters: dbStrategy.parameters
+            ? JSON.parse(dbStrategy.parameters)
+            : undefined,
         };
       }
     }
@@ -90,17 +105,20 @@ router.get("/events", async (req: Request, res: Response) => {
     // Transform decisions into events format
     // Note: type, headline, explanation, signals are derived from action/reasoning
     const events = decisions
-      .filter(d => !type || d.action === type)
+      .filter((d) => !type || d.action === type)
       .slice(0, limit)
-      .map(d => ({
+      .map((d) => ({
         id: d.id,
-        type: d.action || 'signal',
-        title: `${d.action?.toUpperCase() || 'SIGNAL'} - ${d.symbol || 'Market'}`,
-        headline: `${d.action?.toUpperCase() || 'SIGNAL'} - ${d.symbol}`,
+        type: d.action || "signal",
+        title: `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol || "Market"}`,
+        headline: `${d.action?.toUpperCase() || "SIGNAL"} - ${d.symbol}`,
         description: d.reasoning,
         explanation: d.reasoning,
         symbol: d.symbol,
-        confidence: typeof d.confidence === 'string' ? parseFloat(d.confidence) : d.confidence,
+        confidence:
+          typeof d.confidence === "string"
+            ? parseFloat(d.confidence)
+            : d.confidence,
         action: d.action,
         time: d.createdAt,
         createdAt: d.createdAt,
@@ -171,17 +189,28 @@ router.post("/cache/reset-stats", async (req: Request, res: Response) => {
 // Get sentiment signals for symbols
 router.get("/sentiment", async (req: Request, res: Response) => {
   try {
-    const symbols = (req.query.symbols as string)?.split(',') || ['SPY', 'QQQ', 'AAPL', 'TSLA', 'NVDA'];
+    const symbols = (req.query.symbols as string)?.split(",") || [
+      "SPY",
+      "QQQ",
+      "AAPL",
+      "TSLA",
+      "NVDA",
+    ];
 
     // Generate sentiment signals based on available data
     // In production, this would call the data fusion engine or sentiment analysis service
-    const sentiments = symbols.map(symbol => ({
+    const sentiments = symbols.map((symbol) => ({
       id: `sent-${symbol}-${Date.now()}`,
-      sourceId: 'data-fusion',
-      sourceName: 'Data Fusion Engine',
+      sourceId: "data-fusion",
+      sourceName: "Data Fusion Engine",
       symbol,
       score: Math.random() * 100 - 50, // -50 to +50
-      trend: Math.random() > 0.5 ? 'up' as const : Math.random() > 0.5 ? 'down' as const : 'neutral' as const,
+      trend:
+        Math.random() > 0.5
+          ? ("up" as const)
+          : Math.random() > 0.5
+            ? ("down" as const)
+            : ("neutral" as const),
       explanation: `Aggregate sentiment analysis for ${symbol} based on news, social media, and market data`,
       timestamp: new Date().toISOString(),
     }));

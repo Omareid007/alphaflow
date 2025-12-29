@@ -1,5 +1,9 @@
 import { callExternal, type CallExternalResult } from "../../lib/callExternal";
-import { alpaca, type AlpacaBar, type AlpacaBarsResponse } from "../../connectors/alpaca";
+import {
+  alpaca,
+  type AlpacaBar,
+  type AlpacaBarsResponse,
+} from "../../connectors/alpaca";
 import { log } from "../../utils/logger";
 import type { DataProvenance } from "../../../shared/types/backtesting";
 
@@ -45,7 +49,8 @@ async function fetchBarsPage(
   const endpoint = `bars/${symbol}/${timeframe}/${startDate}/${endDate}`;
 
   return callExternal<AlpacaBarsResponse>(
-    () => alpaca.getBars([symbol], timeframe, startDate, endDate, limit, pageToken),
+    () =>
+      alpaca.getBars([symbol], timeframe, startDate, endDate, limit, pageToken),
     {
       provider: "alpaca",
       endpoint,
@@ -64,10 +69,19 @@ export async function fetchHistoricalBars(options: {
   endDate: string;
   maxBarsPerSymbol?: number;
 }): Promise<FetchBarsResult> {
-  const { symbols, timeframe, startDate, endDate, maxBarsPerSymbol = 5000 } = options;
+  const {
+    symbols,
+    timeframe,
+    startDate,
+    endDate,
+    maxBarsPerSymbol = 5000,
+  } = options;
   const BATCH_LIMIT = 5000;
 
-  log.info("HistoricalData", `Fetching bars for ${symbols.length} symbols from ${startDate} to ${endDate}`);
+  log.info(
+    "HistoricalData",
+    `Fetching bars for ${symbols.length} symbols from ${startDate} to ${endDate}`
+  );
 
   const allBars: Record<string, HistoricalBar[]> = {};
   const barsCountBySymbol: Record<string, number> = {};
@@ -85,15 +99,16 @@ export async function fetchHistoricalBars(options: {
       const tokenSuffix: string = currentPageToken || "first";
 
       try {
-        const fetchResult: CallExternalResult<AlpacaBarsResponse> = await fetchBarsPage(
-          symbol,
-          timeframe,
-          startDate,
-          endDate,
-          BATCH_LIMIT,
-          tokenSuffix,
-          currentPageToken ?? undefined
-        );
+        const fetchResult: CallExternalResult<AlpacaBarsResponse> =
+          await fetchBarsPage(
+            symbol,
+            timeframe,
+            startDate,
+            endDate,
+            BATCH_LIMIT,
+            tokenSuffix,
+            currentPageToken ?? undefined
+          );
 
         totalRequests++;
 
@@ -102,11 +117,14 @@ export async function fetchHistoricalBars(options: {
         }
 
         const symbolBars: AlpacaBar[] = fetchResult.data.bars?.[symbol] || [];
-        const transformedBars: HistoricalBar[] = symbolBars.map(bar => transformAlpacaBar(bar, symbol));
+        const transformedBars: HistoricalBar[] = symbolBars.map((bar) =>
+          transformAlpacaBar(bar, symbol)
+        );
         allBars[symbol].push(...transformedBars);
         totalBarsForSymbol += transformedBars.length;
 
-        const nextToken: string | null = fetchResult.data.next_page_token ?? null;
+        const nextToken: string | null =
+          fetchResult.data.next_page_token ?? null;
         if (nextToken) {
           currentPageToken = nextToken;
           nextPageTokensUsed++;
@@ -115,21 +133,32 @@ export async function fetchHistoricalBars(options: {
         }
 
         if (totalBarsForSymbol >= maxBarsPerSymbol) {
-          log.debug("HistoricalData", `Reached max bars limit for ${symbol}: ${totalBarsForSymbol}`);
+          log.debug(
+            "HistoricalData",
+            `Reached max bars limit for ${symbol}: ${totalBarsForSymbol}`
+          );
           hasMorePages = false;
         }
       } catch (error) {
-        log.error("HistoricalData", `Failed to fetch bars for ${symbol}: ${error}`);
+        log.error(
+          "HistoricalData",
+          `Failed to fetch bars for ${symbol}: ${error}`
+        );
         hasMorePages = false;
       }
     }
 
     barsCountBySymbol[symbol] = allBars[symbol].length;
-    log.debug("HistoricalData", `Fetched ${allBars[symbol].length} bars for ${symbol}`);
+    log.debug(
+      "HistoricalData",
+      `Fetched ${allBars[symbol].length} bars for ${symbol}`
+    );
   }
 
   for (const symbol of symbols) {
-    allBars[symbol].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    allBars[symbol].sort(
+      (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
+    );
   }
 
   const cacheHitRate = totalRequests > 0 ? totalCacheHits / totalRequests : 0;
@@ -144,7 +173,10 @@ export async function fetchHistoricalBars(options: {
     nextPageTokensUsed,
   };
 
-  log.info("HistoricalData", `Completed fetching bars. Cache hit rate: ${(cacheHitRate * 100).toFixed(1)}%`);
+  log.info(
+    "HistoricalData",
+    `Completed fetching bars. Cache hit rate: ${(cacheHitRate * 100).toFixed(1)}%`
+  );
 
   return { bars: allBars, provenance };
 }

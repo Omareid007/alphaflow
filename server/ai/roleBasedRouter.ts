@@ -1,9 +1,9 @@
 /**
  * Role-Based LLM Router
- * 
+ *
  * Routes LLM requests based on functional roles with per-role fallback chains.
  * Supports parallel role execution, budget-aware routing, and call logging.
- * 
+ *
  * Roles:
  * - market_news_summarizer: cheap + fast model for summarizing news
  * - technical_analyst: strong reasoning model for analysis
@@ -20,7 +20,13 @@ import { togetherClient } from "./togetherClient";
 import { aimlClient } from "./aimlClient";
 import { openrouterClient } from "./openrouterClient";
 import { db } from "../db";
-import { llmCalls, llmRoleConfigs, type LLMRole, type InsertLlmCall, type LlmRoleConfig } from "@shared/schema";
+import {
+  llmCalls,
+  llmRoleConfigs,
+  type LLMRole,
+  type InsertLlmCall,
+  type LlmRoleConfig,
+} from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface ModelConfig {
@@ -38,12 +44,24 @@ export interface RoleConfig {
   enableCitations?: boolean;
 }
 
-const PROVIDER_CLIENTS: Record<string, { client: any; isAvailable: () => boolean }> = {
-  openai: { client: openaiClient, isAvailable: () => openaiClient.isAvailable() },
+const PROVIDER_CLIENTS: Record<
+  string,
+  { client: any; isAvailable: () => boolean }
+> = {
+  openai: {
+    client: openaiClient,
+    isAvailable: () => openaiClient.isAvailable(),
+  },
   groq: { client: groqClient, isAvailable: () => groqClient.isAvailable() },
-  together: { client: togetherClient, isAvailable: () => togetherClient.isAvailable() },
+  together: {
+    client: togetherClient,
+    isAvailable: () => togetherClient.isAvailable(),
+  },
   aimlapi: { client: aimlClient, isAvailable: () => aimlClient.isAvailable() },
-  openrouter: { client: openrouterClient, isAvailable: () => openrouterClient.isAvailable() },
+  openrouter: {
+    client: openrouterClient,
+    isAvailable: () => openrouterClient.isAvailable(),
+  },
 };
 
 const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
@@ -51,8 +69,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "market_news_summarizer",
     description: "Cheap + fast model for summarizing market news",
     fallbackChain: [
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 500,
@@ -62,8 +88,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "technical_analyst",
     description: "Strong reasoning model for technical analysis",
     fallbackChain: [
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 2000,
@@ -71,11 +105,20 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
   },
   risk_manager: {
     role: "risk_manager",
-    description: "Conservative, instruction-following model for risk assessment",
+    description:
+      "Conservative, instruction-following model for risk assessment",
     fallbackChain: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "google/gemini-pro-1.5", costPer1kTokens: 0.00125 },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: "google/gemini-pro-1.5",
+        costPer1kTokens: 0.00125,
+      },
     ],
     maxTokens: 1500,
     temperature: 0.1,
@@ -86,8 +129,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     description: "Deterministic, tool-use friendly model for trade execution",
     fallbackChain: [
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
-      { provider: "groq", model: "llama-3.1-70b-versatile", costPer1kTokens: 0.00059 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "groq",
+        model: "llama-3.1-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
     ],
     maxTokens: 1000,
     temperature: 0.0,
@@ -96,8 +147,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "post_trade_reporter",
     description: "Cheap summarizer for post-trade reports",
     fallbackChain: [
-      { provider: "groq", model: "llama-3.1-8b-instant", costPer1kTokens: 0.00005 },
-      { provider: "together", model: "meta-llama/Llama-3.2-3B-Instruct-Turbo", costPer1kTokens: 0.0001 },
+      {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        costPer1kTokens: 0.00005,
+      },
+      {
+        provider: "together",
+        model: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        costPer1kTokens: 0.0001,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 800,
@@ -108,8 +167,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "position_sizer",
     description: "Optimal position sizing based on risk and market conditions",
     fallbackChain: [
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 1500,
@@ -119,8 +186,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "sentiment_analyst",
     description: "Dedicated sentiment analysis from news and social sources",
     fallbackChain: [
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 1200,
@@ -130,8 +205,16 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "post_trade_analyzer",
     description: "Detailed trade performance analysis and learning",
     fallbackChain: [
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
       { provider: "openai", model: "gpt-4o-mini", costPer1kTokens: 0.00015 },
     ],
     maxTokens: 2000,
@@ -141,9 +224,21 @@ const DEFAULT_ROLE_CONFIGS: Record<LLMRole, RoleConfig> = {
     role: "futures_analyst",
     description: "Specialized futures market analysis and recommendations",
     fallbackChain: [
-      { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", costPer1kTokens: 0.003 },
-      { provider: "openrouter", model: "deepseek/deepseek-r1", costPer1kTokens: 0.00055 },
-      { provider: "groq", model: "llama-3.3-70b-versatile", costPer1kTokens: 0.00059 },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-3.5-sonnet",
+        costPer1kTokens: 0.003,
+      },
+      {
+        provider: "openrouter",
+        model: "deepseek/deepseek-r1",
+        costPer1kTokens: 0.00055,
+      },
+      {
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        costPer1kTokens: 0.00059,
+      },
     ],
     maxTokens: 2500,
     temperature: 0.2,
@@ -186,7 +281,8 @@ async function getRoleConfig(role: LLMRole): Promise<RoleConfig> {
     if (dbConfig && dbConfig.isActive) {
       return {
         role: role,
-        description: dbConfig.description || DEFAULT_ROLE_CONFIGS[role].description,
+        description:
+          dbConfig.description || DEFAULT_ROLE_CONFIGS[role].description,
         fallbackChain: parseFallbackChain(dbConfig.fallbackChain),
         maxTokens: dbConfig.maxTokens || DEFAULT_ROLE_CONFIGS[role].maxTokens,
         temperature: parseFloat(dbConfig.temperature || "0.3"),
@@ -194,7 +290,11 @@ async function getRoleConfig(role: LLMRole): Promise<RoleConfig> {
       };
     }
   } catch (error) {
-    log.warn("RoleBasedRouter", `Failed to load config for ${role}, using defaults`, { error: String(error) });
+    log.warn(
+      "RoleBasedRouter",
+      `Failed to load config for ${role}, using defaults`,
+      { error: String(error) }
+    );
   }
 
   return DEFAULT_ROLE_CONFIGS[role];
@@ -204,14 +304,18 @@ async function logCall(callData: InsertLlmCall): Promise<void> {
   try {
     await db.insert(llmCalls).values(callData);
   } catch (error) {
-    log.warn("RoleBasedRouter", "Failed to log LLM call", { error: String(error) });
+    log.warn("RoleBasedRouter", "Failed to log LLM call", {
+      error: String(error),
+    });
   }
 }
 
-export async function roleBasedLLMCall(req: RoleBasedRequest): Promise<RoleBasedResponse> {
+export async function roleBasedLLMCall(
+  req: RoleBasedRequest
+): Promise<RoleBasedResponse> {
   const startTime = Date.now();
   const config = await getRoleConfig(req.role);
-  
+
   let fallbackUsed = false;
   let fallbackReason: string | undefined;
   let lastError: Error | undefined;
@@ -243,7 +347,10 @@ export async function roleBasedLLMCall(req: RoleBasedRequest): Promise<RoleBased
       const response = await providerEntry.client.call(llmRequest);
       const latencyMs = Date.now() - startTime;
       const totalTokens = response.tokensUsed?.total || 0;
-      const estimatedCost = estimateCost(totalTokens, modelConfig.costPer1kTokens || 0.0001);
+      const estimatedCost = estimateCost(
+        totalTokens,
+        modelConfig.costPer1kTokens || 0.0001
+      );
 
       await logCall({
         role: req.role,
@@ -256,7 +363,10 @@ export async function roleBasedLLMCall(req: RoleBasedRequest): Promise<RoleBased
         latencyMs,
         status: "success",
         systemPrompt: req.system || null,
-        userPrompt: req.messages.map(m => m.content).join("\n").slice(0, 2000),
+        userPrompt: req.messages
+          .map((m) => m.content)
+          .join("\n")
+          .slice(0, 2000),
         response: response.content?.slice(0, 2000) || null,
         cacheHit: false,
         fallbackUsed,
@@ -285,23 +395,27 @@ export async function roleBasedLLMCall(req: RoleBasedRequest): Promise<RoleBased
       lastError = error as Error;
       const llmError = error as LLMClientError;
 
-      log.warn("RoleBasedRouter", `${modelConfig.provider}/${modelConfig.model} failed for ${req.role}`, {
-        isRateLimit: llmError?.isRateLimit,
-        isAuthError: llmError?.isAuthError,
-        error: String(error),
-      });
+      log.warn(
+        "RoleBasedRouter",
+        `${modelConfig.provider}/${modelConfig.model} failed for ${req.role}`,
+        {
+          isRateLimit: llmError?.isRateLimit,
+          isAuthError: llmError?.isAuthError,
+          error: String(error),
+        }
+      );
 
       if (i === 0) {
         fallbackUsed = true;
-        fallbackReason = llmError?.isRateLimit 
-          ? "Rate limit exceeded" 
-          : llmError?.isAuthError 
-            ? "Auth error" 
+        fallbackReason = llmError?.isRateLimit
+          ? "Rate limit exceeded"
+          : llmError?.isAuthError
+            ? "Auth error"
             : "Provider error";
       }
 
       if (llmError?.isRateLimit) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
@@ -315,34 +429,42 @@ export async function roleBasedLLMCall(req: RoleBasedRequest): Promise<RoleBased
     errorMessage: String(lastError),
     latencyMs,
     systemPrompt: req.system || null,
-    userPrompt: req.messages.map(m => m.content).join("\n").slice(0, 2000),
+    userPrompt: req.messages
+      .map((m) => m.content)
+      .join("\n")
+      .slice(0, 2000),
     fallbackUsed: true,
     fallbackReason: "All providers failed",
   });
 
   log.error("RoleBasedRouter", `All providers failed for ${req.role}`, {
     role: req.role,
-    triedProviders: config.fallbackChain.map(c => c.provider),
+    triedProviders: config.fallbackChain.map((c) => c.provider),
     lastError: String(lastError),
   });
 
-  throw lastError || new Error(`All LLM providers failed for role: ${req.role}`);
+  throw (
+    lastError || new Error(`All LLM providers failed for role: ${req.role}`)
+  );
 }
 
 export async function getAllRoleConfigs(): Promise<RoleConfig[]> {
   const configs: RoleConfig[] = [];
-  
+
   for (const role of Object.keys(DEFAULT_ROLE_CONFIGS) as LLMRole[]) {
     const config = await getRoleConfig(role);
     configs.push(config);
   }
-  
+
   return configs;
 }
 
-export async function updateRoleConfig(role: LLMRole, updates: Partial<RoleConfig>): Promise<LlmRoleConfig> {
-  const fallbackChainJson = updates.fallbackChain 
-    ? JSON.stringify(updates.fallbackChain) 
+export async function updateRoleConfig(
+  role: LLMRole,
+  updates: Partial<RoleConfig>
+): Promise<LlmRoleConfig> {
+  const fallbackChainJson = updates.fallbackChain
+    ? JSON.stringify(updates.fallbackChain)
     : JSON.stringify(DEFAULT_ROLE_CONFIGS[role].fallbackChain);
 
   const existing = await db
@@ -371,11 +493,17 @@ export async function updateRoleConfig(role: LLMRole, updates: Partial<RoleConfi
     .insert(llmRoleConfigs)
     .values({
       role,
-      description: updates.description || DEFAULT_ROLE_CONFIGS[role].description,
+      description:
+        updates.description || DEFAULT_ROLE_CONFIGS[role].description,
       fallbackChain: fallbackChainJson,
       maxTokens: updates.maxTokens || DEFAULT_ROLE_CONFIGS[role].maxTokens,
-      temperature: (updates.temperature ?? DEFAULT_ROLE_CONFIGS[role].temperature)?.toString(),
-      enableCitations: updates.enableCitations ?? DEFAULT_ROLE_CONFIGS[role].enableCitations ?? false,
+      temperature: (
+        updates.temperature ?? DEFAULT_ROLE_CONFIGS[role].temperature
+      )?.toString(),
+      enableCitations:
+        updates.enableCitations ??
+        DEFAULT_ROLE_CONFIGS[role].enableCitations ??
+        false,
       isActive: true,
     })
     .returning();
@@ -385,18 +513,37 @@ export async function updateRoleConfig(role: LLMRole, updates: Partial<RoleConfi
 
 export async function getRecentCalls(limit: number = 20, role?: LLMRole) {
   if (role) {
-    return db.select().from(llmCalls).where(eq(llmCalls.role, role)).orderBy(desc(llmCalls.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(llmCalls)
+      .where(eq(llmCalls.role, role))
+      .orderBy(desc(llmCalls.createdAt))
+      .limit(limit);
   }
-  return db.select().from(llmCalls).orderBy(desc(llmCalls.createdAt)).limit(limit);
+  return db
+    .select()
+    .from(llmCalls)
+    .orderBy(desc(llmCalls.createdAt))
+    .limit(limit);
 }
 
 export async function getCallStats() {
-  const calls = await db.select().from(llmCalls).orderBy(desc(llmCalls.createdAt)).limit(1000);
-  
+  const calls = await db
+    .select()
+    .from(llmCalls)
+    .orderBy(desc(llmCalls.createdAt))
+    .limit(1000);
+
   const stats = {
     total: calls.length,
-    byRole: {} as Record<string, { count: number; totalCost: number; avgLatency: number }>,
-    byProvider: {} as Record<string, { count: number; totalCost: number; successRate: number }>,
+    byRole: {} as Record<
+      string,
+      { count: number; totalCost: number; avgLatency: number }
+    >,
+    byProvider: {} as Record<
+      string,
+      { count: number; totalCost: number; successRate: number }
+    >,
     totalCost: 0,
   };
 
@@ -412,7 +559,11 @@ export async function getCallStats() {
     stats.byRole[call.role].avgLatency += call.latencyMs || 0;
 
     if (!stats.byProvider[call.provider]) {
-      stats.byProvider[call.provider] = { count: 0, totalCost: 0, successRate: 0 };
+      stats.byProvider[call.provider] = {
+        count: 0,
+        totalCost: 0,
+        successRate: 0,
+      };
     }
     stats.byProvider[call.provider].count++;
     stats.byProvider[call.provider].totalCost += cost;
@@ -426,8 +577,10 @@ export async function getCallStats() {
   }
 
   for (const provider of Object.keys(stats.byProvider)) {
-    stats.byProvider[provider].successRate = 
-      (stats.byProvider[provider].successRate / stats.byProvider[provider].count) * 100;
+    stats.byProvider[provider].successRate =
+      (stats.byProvider[provider].successRate /
+        stats.byProvider[provider].count) *
+      100;
   }
 
   return stats;

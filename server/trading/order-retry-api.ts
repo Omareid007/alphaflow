@@ -55,7 +55,9 @@ export async function resetCircuitBreakerHandler(req: Request, res: Response) {
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log.error("RetryAPI", "Failed to reset circuit breaker", { error: errorMsg });
+    log.error("RetryAPI", "Failed to reset circuit breaker", {
+      error: errorMsg,
+    });
     res.status(500).json({
       success: false,
       error: errorMsg,
@@ -117,16 +119,20 @@ export async function testRejectionReasonHandler(req: Request, res: Response) {
       data: {
         matched: result.matched,
         category: result.category,
-        handler: result.handler ? {
-          description: result.handler.description,
-          category: result.handler.category,
-          pattern: result.handler.pattern.source,
-        } : null,
+        handler: result.handler
+          ? {
+              description: result.handler.description,
+              category: result.handler.category,
+              pattern: result.handler.pattern.source,
+            }
+          : null,
       },
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log.error("RetryAPI", "Failed to test rejection reason", { error: errorMsg });
+    log.error("RetryAPI", "Failed to test rejection reason", {
+      error: errorMsg,
+    });
     res.status(500).json({
       success: false,
       error: errorMsg,
@@ -146,7 +152,7 @@ export async function getRetryHandlersHandler(req: Request, res: Response) {
       success: true,
       data: {
         count: handlers.length,
-        handlers: handlers.map(h => ({
+        handlers: handlers.map((h) => ({
           category: h.category,
           description: h.description,
           pattern: h.pattern.source,
@@ -194,13 +200,21 @@ export async function manualRetryHandler(req: Request, res: Response) {
       order: {
         id: orderId,
         client_order_id: order.clientOrderId || "",
-        created_at: order.submittedAt?.toISOString() || new Date().toISOString(),
+        created_at:
+          order.submittedAt?.toISOString() || new Date().toISOString(),
         updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
-        submitted_at: order.submittedAt?.toISOString() || new Date().toISOString(),
+        submitted_at:
+          order.submittedAt?.toISOString() || new Date().toISOString(),
         filled_at: order.filledAt?.toISOString() || null,
         expired_at: null,
-        canceled_at: order.status === "canceled" ? order.updatedAt?.toISOString() || null : null,
-        failed_at: order.status === "rejected" ? order.updatedAt?.toISOString() || null : null,
+        canceled_at:
+          order.status === "canceled"
+            ? order.updatedAt?.toISOString() || null
+            : null,
+        failed_at:
+          order.status === "rejected"
+            ? order.updatedAt?.toISOString() || null
+            : null,
         asset_id: "",
         symbol: order.symbol,
         asset_class: "us_equity",
@@ -238,7 +252,9 @@ export async function manualRetryHandler(req: Request, res: Response) {
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log.error("RetryAPI", "Failed to manually retry order", { error: errorMsg });
+    log.error("RetryAPI", "Failed to manually retry order", {
+      error: errorMsg,
+    });
     res.status(500).json({
       success: false,
       error: errorMsg,
@@ -251,7 +267,10 @@ export async function manualRetryHandler(req: Request, res: Response) {
  */
 export function registerRetryAPIRoutes(app: any) {
   app.get("/api/trading/retry-stats", getRetryStatsHandler);
-  app.post("/api/trading/retry-circuit-breaker/reset", resetCircuitBreakerHandler);
+  app.post(
+    "/api/trading/retry-circuit-breaker/reset",
+    resetCircuitBreakerHandler
+  );
   app.delete("/api/trading/retry-history/:orderId", clearRetryHistoryHandler);
   app.post("/api/trading/test-rejection-reason", testRejectionReasonHandler);
   app.get("/api/trading/retry-handlers", getRetryHandlersHandler);

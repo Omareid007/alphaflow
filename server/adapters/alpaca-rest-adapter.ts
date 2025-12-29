@@ -9,7 +9,7 @@
  * follow this same pattern but use different underlying implementations.
  */
 
-import { alpaca } from '../connectors/alpaca';
+import { alpaca } from "../connectors/alpaca";
 import type {
   AlpacaAccount,
   AlpacaPosition,
@@ -17,7 +17,7 @@ import type {
   CreateOrderParams,
   BracketOrderParams as AlpacaBracketOrderParams,
   AlpacaSnapshot,
-} from '../connectors/alpaca';
+} from "../connectors/alpaca";
 import type {
   IBrokerAdapter,
   BrokerAccount,
@@ -29,7 +29,7 @@ import type {
   BrokerQuote,
   BrokerHealthCheck,
   BrokerConnectionStatus,
-} from './broker-adapter.interface';
+} from "./broker-adapter.interface";
 
 /**
  * AlpacaRestAdapter - Implements IBrokerAdapter using the Alpaca REST API connector
@@ -65,7 +65,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       marketValue: parseFloat(pos.market_value),
       unrealizedPnl: parseFloat(pos.unrealized_pl),
       unrealizedPnlPercent: parseFloat(pos.unrealized_plpc) * 100, // Convert to percentage
-      side: pos.side as 'long' | 'short',
+      side: pos.side as "long" | "short",
     };
   }
 
@@ -77,12 +77,19 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       id: order.id,
       clientOrderId: order.client_order_id,
       symbol: order.symbol,
-      side: order.side as 'buy' | 'sell',
-      type: order.type as 'market' | 'limit' | 'stop' | 'stop_limit' | 'trailing_stop',
+      side: order.side as "buy" | "sell",
+      type: order.type as
+        | "market"
+        | "limit"
+        | "stop"
+        | "stop_limit"
+        | "trailing_stop",
       status: this.normalizeOrderStatus(order.status),
       quantity: parseFloat(order.qty),
       filledQuantity: parseFloat(order.filled_qty),
-      filledAvgPrice: order.filled_avg_price ? parseFloat(order.filled_avg_price) : null,
+      filledAvgPrice: order.filled_avg_price
+        ? parseFloat(order.filled_avg_price)
+        : null,
       limitPrice: order.limit_price ? parseFloat(order.limit_price) : undefined,
       stopPrice: order.stop_price ? parseFloat(order.stop_price) : undefined,
       timeInForce: order.time_in_force,
@@ -95,25 +102,28 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
   /**
    * Normalizes Alpaca order status to standard status values
    */
-  private normalizeOrderStatus(alpacaStatus: string): BrokerOrder['status'] {
-    const statusMap: Record<string, BrokerOrder['status']> = {
-      'new': 'new',
-      'accepted': 'accepted',
-      'pending_new': 'pending_new',
-      'filled': 'filled',
-      'partially_filled': 'partially_filled',
-      'canceled': 'canceled',
-      'cancelled': 'canceled', // Handle both spellings
-      'rejected': 'rejected',
-      'expired': 'expired',
+  private normalizeOrderStatus(alpacaStatus: string): BrokerOrder["status"] {
+    const statusMap: Record<string, BrokerOrder["status"]> = {
+      new: "new",
+      accepted: "accepted",
+      pending_new: "pending_new",
+      filled: "filled",
+      partially_filled: "partially_filled",
+      canceled: "canceled",
+      cancelled: "canceled", // Handle both spellings
+      rejected: "rejected",
+      expired: "expired",
     };
-    return statusMap[alpacaStatus] || 'new';
+    return statusMap[alpacaStatus] || "new";
   }
 
   /**
    * Maps Alpaca snapshot to MarketSnapshot interface
    */
-  private mapAlpacaSnapshot(symbol: string, snapshot: AlpacaSnapshot): MarketSnapshot {
+  private mapAlpacaSnapshot(
+    symbol: string,
+    snapshot: AlpacaSnapshot
+  ): MarketSnapshot {
     return {
       symbol,
       bid: snapshot.latestQuote.bp,
@@ -134,7 +144,8 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       symbol: params.symbol,
       side: params.side,
       type: params.type,
-      time_in_force: (params.timeInForce || 'day') as CreateOrderParams['time_in_force'],
+      time_in_force: (params.timeInForce ||
+        "day") as CreateOrderParams["time_in_force"],
       extended_hours: params.extendedHours,
       client_order_id: params.clientOrderId,
     };
@@ -180,7 +191,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       const alpacaAccount = await alpaca.getAccount();
       return this.mapAlpacaAccount(alpacaAccount);
     } catch (error) {
-      throw this.wrapError(error, 'getAccount');
+      throw this.wrapError(error, "getAccount");
     }
   }
 
@@ -192,9 +203,9 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
   async getPositions(): Promise<BrokerPosition[]> {
     try {
       const alpacaPositions = await alpaca.getPositions();
-      return alpacaPositions.map(pos => this.mapAlpacaPosition(pos));
+      return alpacaPositions.map((pos) => this.mapAlpacaPosition(pos));
     } catch (error) {
-      throw this.wrapError(error, 'getPositions');
+      throw this.wrapError(error, "getPositions");
     }
   }
 
@@ -209,7 +220,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       }
       return this.mapAlpacaPosition(alpacaPosition);
     } catch (error) {
-      throw this.wrapError(error, 'getPosition');
+      throw this.wrapError(error, "getPosition");
     }
   }
 
@@ -221,7 +232,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       const alpacaOrder = await alpaca.closePosition(symbol);
       return this.mapAlpacaOrder(alpacaOrder);
     } catch (error) {
-      throw this.wrapError(error, 'closePosition');
+      throw this.wrapError(error, "closePosition");
     }
   }
 
@@ -231,9 +242,9 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
   async closeAllPositions(): Promise<BrokerOrder[]> {
     try {
       const alpacaOrders = await alpaca.closeAllPositions();
-      return alpacaOrders.map(order => this.mapAlpacaOrder(order));
+      return alpacaOrders.map((order) => this.mapAlpacaOrder(order));
     } catch (error) {
-      throw this.wrapError(error, 'closeAllPositions');
+      throw this.wrapError(error, "closeAllPositions");
     }
   }
 
@@ -248,7 +259,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       const alpacaOrder = await alpaca.createOrder(alpacaParams);
       return this.mapAlpacaOrder(alpacaOrder);
     } catch (error) {
-      throw this.wrapError(error, 'createOrder');
+      throw this.wrapError(error, "createOrder");
     }
   }
 
@@ -259,15 +270,20 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
     try {
       // Validate required parameters
       if (!params.quantity) {
-        throw new Error('Bracket order requires quantity parameter');
+        throw new Error("Bracket order requires quantity parameter");
       }
 
       const alpacaParams: AlpacaBracketOrderParams = {
         symbol: params.symbol,
         qty: params.quantity.toString(),
         side: params.side,
-        type: (params.type === 'market' || params.type === 'limit' ? params.type : 'market') as 'market' | 'limit',
-        time_in_force: (params.timeInForce === 'day' || params.timeInForce === 'gtc' ? params.timeInForce : 'day') as 'day' | 'gtc',
+        type: (params.type === "market" || params.type === "limit"
+          ? params.type
+          : "market") as "market" | "limit",
+        time_in_force: (params.timeInForce === "day" ||
+        params.timeInForce === "gtc"
+          ? params.timeInForce
+          : "day") as "day" | "gtc",
         take_profit_price: params.takeProfitPrice.toString(),
         stop_loss_price: params.stopLossPrice.toString(),
       };
@@ -280,19 +296,22 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       const alpacaOrder = await alpaca.createBracketOrder(alpacaParams);
       return this.mapAlpacaOrder(alpacaOrder);
     } catch (error) {
-      throw this.wrapError(error, 'createBracketOrder');
+      throw this.wrapError(error, "createBracketOrder");
     }
   }
 
   /**
    * Get all orders filtered by status
    */
-  async getOrders(status: 'open' | 'closed' | 'all' = 'all', limit: number = 50): Promise<BrokerOrder[]> {
+  async getOrders(
+    status: "open" | "closed" | "all" = "all",
+    limit: number = 50
+  ): Promise<BrokerOrder[]> {
     try {
       const alpacaOrders = await alpaca.getOrders(status, limit);
-      return alpacaOrders.map(order => this.mapAlpacaOrder(order));
+      return alpacaOrders.map((order) => this.mapAlpacaOrder(order));
     } catch (error) {
-      throw this.wrapError(error, 'getOrders');
+      throw this.wrapError(error, "getOrders");
     }
   }
 
@@ -307,7 +326,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       }
       return this.mapAlpacaOrder(alpacaOrder);
     } catch (error) {
-      throw this.wrapError(error, 'getOrder');
+      throw this.wrapError(error, "getOrder");
     }
   }
 
@@ -318,7 +337,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
     try {
       await alpaca.cancelOrder(orderId);
     } catch (error) {
-      throw this.wrapError(error, 'cancelOrder');
+      throw this.wrapError(error, "cancelOrder");
     }
   }
 
@@ -329,7 +348,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
     try {
       await alpaca.cancelAllOrders();
     } catch (error) {
-      throw this.wrapError(error, 'cancelAllOrders');
+      throw this.wrapError(error, "cancelAllOrders");
     }
   }
 
@@ -353,7 +372,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
         last: snapshot.latestTrade.p,
       };
     } catch (error) {
-      throw this.wrapError(error, 'getQuote');
+      throw this.wrapError(error, "getQuote");
     }
   }
 
@@ -373,7 +392,7 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
 
       return snapshotMap;
     } catch (error) {
-      throw this.wrapError(error, 'getSnapshots');
+      throw this.wrapError(error, "getSnapshots");
     }
   }
 
@@ -389,11 +408,11 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
       const latencyMs = Date.now() - startTime;
 
       return {
-        healthy: healthResult.overall === 'healthy',
+        healthy: healthResult.overall === "healthy",
         latencyMs,
       };
     } catch (error) {
-      throw this.wrapError(error, 'healthCheck');
+      throw this.wrapError(error, "healthCheck");
     }
   }
 
@@ -406,10 +425,10 @@ export class AlpacaRestAdapter implements IBrokerAdapter {
 
       return {
         connected: status.connected,
-        mode: 'paper', // Alpaca connector is currently using paper trading
+        mode: "paper", // Alpaca connector is currently using paper trading
       };
     } catch (error) {
-      throw this.wrapError(error, 'getConnectionStatus');
+      throw this.wrapError(error, "getConnectionStatus");
     }
   }
 }

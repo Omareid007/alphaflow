@@ -7,6 +7,29 @@
         "@modelcontextprotocol/server-postgres",
         "postgresql://postgres:password@helium/heliumdb?sslmode=disable"
       ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/runner/workspace",
+        "/tmp/analysis"
+      ]
     }
   }
 }

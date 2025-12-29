@@ -67,7 +67,10 @@ class OrchestratorController {
    */
   enableOrchestratorControl(): void {
     this.orchestratorControlEnabled = true;
-    log.info("OrchestratorController", "Orchestrator control ENABLED - autonomous trading disabled");
+    log.info(
+      "OrchestratorController",
+      "Orchestrator control ENABLED - autonomous trading disabled"
+    );
   }
 
   /**
@@ -85,7 +88,10 @@ class OrchestratorController {
    */
   disableOrchestratorControl(): void {
     this.orchestratorControlEnabled = false;
-    log.info("OrchestratorController", "Orchestrator control DISABLED - autonomous trading allowed");
+    log.info(
+      "OrchestratorController",
+      "Orchestrator control DISABLED - autonomous trading allowed"
+    );
   }
 
   /**

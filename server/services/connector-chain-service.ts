@@ -1,7 +1,12 @@
 import { log } from "../utils/logger";
 import { connectorMetricsService } from "./connector-metrics-service";
 
-export type ChainType = "stock_prices" | "crypto_prices" | "news" | "fundamentals" | "macro";
+export type ChainType =
+  | "stock_prices"
+  | "crypto_prices"
+  | "news"
+  | "fundamentals"
+  | "macro";
 
 export interface ConnectorConfig {
   name: string;
@@ -33,9 +38,30 @@ const CONNECTOR_CHAINS: Record<ChainType, ChainConfig> = {
   stock_prices: {
     type: "stock_prices",
     connectors: [
-      { name: "Alpaca", priority: 1, enabled: true, rateLimitPerMinute: 9999, isFree: true, tier: "primary" },
-      { name: "Finnhub", priority: 2, enabled: true, rateLimitPerMinute: 60, isFree: true, tier: "secondary" },
-      { name: "TwelveData", priority: 3, enabled: true, rateLimitPerMinute: 800, isFree: true, tier: "tertiary" },
+      {
+        name: "Alpaca",
+        priority: 1,
+        enabled: true,
+        rateLimitPerMinute: 9999,
+        isFree: true,
+        tier: "primary",
+      },
+      {
+        name: "Finnhub",
+        priority: 2,
+        enabled: true,
+        rateLimitPerMinute: 60,
+        isFree: true,
+        tier: "secondary",
+      },
+      {
+        name: "TwelveData",
+        priority: 3,
+        enabled: true,
+        rateLimitPerMinute: 800,
+        isFree: true,
+        tier: "tertiary",
+      },
     ],
     retryDelayMs: 100,
     maxRetries: 3,
@@ -43,8 +69,22 @@ const CONNECTOR_CHAINS: Record<ChainType, ChainConfig> = {
   crypto_prices: {
     type: "crypto_prices",
     connectors: [
-      { name: "CoinGecko", priority: 1, enabled: true, rateLimitPerMinute: 50, isFree: true, tier: "primary" },
-      { name: "CoinMarketCap", priority: 2, enabled: true, rateLimitPerMinute: 30, isFree: false, tier: "secondary" },
+      {
+        name: "CoinGecko",
+        priority: 1,
+        enabled: true,
+        rateLimitPerMinute: 50,
+        isFree: true,
+        tier: "primary",
+      },
+      {
+        name: "CoinMarketCap",
+        priority: 2,
+        enabled: true,
+        rateLimitPerMinute: 30,
+        isFree: false,
+        tier: "secondary",
+      },
     ],
     retryDelayMs: 200,
     maxRetries: 2,
@@ -52,8 +92,22 @@ const CONNECTOR_CHAINS: Record<ChainType, ChainConfig> = {
   news: {
     type: "news",
     connectors: [
-      { name: "NewsAPI", priority: 1, enabled: true, rateLimitPerMinute: 100, isFree: true, tier: "primary" },
-      { name: "GDELT", priority: 2, enabled: true, rateLimitPerMinute: 9999, isFree: true, tier: "secondary" },
+      {
+        name: "NewsAPI",
+        priority: 1,
+        enabled: true,
+        rateLimitPerMinute: 100,
+        isFree: true,
+        tier: "primary",
+      },
+      {
+        name: "GDELT",
+        priority: 2,
+        enabled: true,
+        rateLimitPerMinute: 9999,
+        isFree: true,
+        tier: "secondary",
+      },
     ],
     retryDelayMs: 100,
     maxRetries: 2,
@@ -61,7 +115,14 @@ const CONNECTOR_CHAINS: Record<ChainType, ChainConfig> = {
   fundamentals: {
     type: "fundamentals",
     connectors: [
-      { name: "Finnhub", priority: 1, enabled: true, rateLimitPerMinute: 60, isFree: true, tier: "primary" },
+      {
+        name: "Finnhub",
+        priority: 1,
+        enabled: true,
+        rateLimitPerMinute: 60,
+        isFree: true,
+        tier: "primary",
+      },
     ],
     retryDelayMs: 100,
     maxRetries: 2,
@@ -69,7 +130,14 @@ const CONNECTOR_CHAINS: Record<ChainType, ChainConfig> = {
   macro: {
     type: "macro",
     connectors: [
-      { name: "FRED", priority: 1, enabled: true, rateLimitPerMinute: 9999, isFree: true, tier: "primary" },
+      {
+        name: "FRED",
+        priority: 1,
+        enabled: true,
+        rateLimitPerMinute: 9999,
+        isFree: true,
+        tier: "primary",
+      },
     ],
     retryDelayMs: 100,
     maxRetries: 1,
@@ -80,18 +148,24 @@ type ConnectorFetcher<T> = (connectorName: string) => Promise<T>;
 
 class ConnectorChainService {
   private chainConfigs: Map<ChainType, ChainConfig>;
-  private connectorHealth: Map<string, {
-    consecutiveFailures: number;
-    lastFailure: Date | null;
-    isCircuitOpen: boolean;
-  }>;
+  private connectorHealth: Map<
+    string,
+    {
+      consecutiveFailures: number;
+      lastFailure: Date | null;
+      isCircuitOpen: boolean;
+    }
+  >;
 
   private readonly CIRCUIT_BREAK_THRESHOLD = 5;
   private readonly CIRCUIT_RESET_MS = 60000;
 
   constructor() {
     this.chainConfigs = new Map(
-      Object.entries(CONNECTOR_CHAINS).map(([key, config]) => [key as ChainType, config])
+      Object.entries(CONNECTOR_CHAINS).map(([key, config]) => [
+        key as ChainType,
+        config,
+      ])
     );
     this.connectorHealth = new Map();
   }
@@ -156,11 +230,13 @@ class ConnectorChainService {
         };
       } catch (error) {
         const latencyMs = Date.now() - connectorStartTime;
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         lastError = errorMessage;
 
-        const isRateLimited = errorMessage.toLowerCase().includes("rate limit") ||
-                             errorMessage.includes("429");
+        const isRateLimited =
+          errorMessage.toLowerCase().includes("rate limit") ||
+          errorMessage.includes("429");
 
         this.recordFailure(connector.name);
         connectorMetricsService.recordEvent({
@@ -174,10 +250,14 @@ class ConnectorChainService {
           error: errorMessage,
         });
 
-        log.warn("ConnectorChainService", `${connector.name} failed for ${chainType}`, {
-          error: errorMessage,
-          attemptedConnectors,
-        });
+        log.warn(
+          "ConnectorChainService",
+          `${connector.name} failed for ${chainType}`,
+          {
+            error: errorMessage,
+            attemptedConnectors,
+          }
+        );
 
         await this.delay(config.retryDelayMs);
       }
@@ -200,7 +280,10 @@ class ConnectorChainService {
       return false;
     }
 
-    if (health.lastFailure && Date.now() - health.lastFailure.getTime() > this.CIRCUIT_RESET_MS) {
+    if (
+      health.lastFailure &&
+      Date.now() - health.lastFailure.getTime() > this.CIRCUIT_RESET_MS
+    ) {
       health.isCircuitOpen = false;
       health.consecutiveFailures = 0;
       return false;
@@ -231,7 +314,10 @@ class ConnectorChainService {
 
     if (health.consecutiveFailures >= this.CIRCUIT_BREAK_THRESHOLD) {
       health.isCircuitOpen = true;
-      log.warn("ConnectorChainService", `Circuit breaker opened for ${connectorName}`);
+      log.warn(
+        "ConnectorChainService",
+        `Circuit breaker opened for ${connectorName}`
+      );
     }
 
     this.connectorHealth.set(connectorName, health);
@@ -249,11 +335,14 @@ class ConnectorChainService {
     return Array.from(this.chainConfigs.values());
   }
 
-  getConnectorHealth(): Map<string, {
-    consecutiveFailures: number;
-    lastFailure: Date | null;
-    isCircuitOpen: boolean;
-  }> {
+  getConnectorHealth(): Map<
+    string,
+    {
+      consecutiveFailures: number;
+      lastFailure: Date | null;
+      isCircuitOpen: boolean;
+    }
+  > {
     return new Map(this.connectorHealth);
   }
 
@@ -271,25 +360,38 @@ class ConnectorChainService {
     if (health) {
       health.isCircuitOpen = false;
       health.consecutiveFailures = 0;
-      log.info("ConnectorChainService", `Circuit breaker reset for ${connectorName}`);
+      log.info(
+        "ConnectorChainService",
+        `Circuit breaker reset for ${connectorName}`
+      );
     }
   }
 
   getStatus(): {
-    chains: { type: ChainType; activeConnectors: number; totalConnectors: number }[];
+    chains: {
+      type: ChainType;
+      activeConnectors: number;
+      totalConnectors: number;
+    }[];
     circuitBreakers: { connector: string; isOpen: boolean; failures: number }[];
   } {
-    const chains = Array.from(this.chainConfigs.entries()).map(([type, config]) => ({
-      type,
-      activeConnectors: config.connectors.filter((c) => c.enabled && !this.isCircuitOpen(c.name)).length,
-      totalConnectors: config.connectors.length,
-    }));
+    const chains = Array.from(this.chainConfigs.entries()).map(
+      ([type, config]) => ({
+        type,
+        activeConnectors: config.connectors.filter(
+          (c) => c.enabled && !this.isCircuitOpen(c.name)
+        ).length,
+        totalConnectors: config.connectors.length,
+      })
+    );
 
-    const circuitBreakers = Array.from(this.connectorHealth.entries()).map(([connector, health]) => ({
-      connector,
-      isOpen: health.isCircuitOpen,
-      failures: health.consecutiveFailures,
-    }));
+    const circuitBreakers = Array.from(this.connectorHealth.entries()).map(
+      ([connector, health]) => ({
+        connector,
+        isOpen: health.isCircuitOpen,
+        failures: health.consecutiveFailures,
+      })
+    );
 
     return { chains, circuitBreakers };
   }

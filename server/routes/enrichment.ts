@@ -12,7 +12,9 @@ router.get("/status", async (_req: Request, res: Response) => {
     res.json({ success: true, data: status });
   } catch (error) {
     log.error("EnrichmentRoutes", "Failed to get status", { error });
-    res.status(500).json({ success: false, error: "Failed to get enrichment status" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to get enrichment status" });
   }
 });
 
@@ -32,7 +34,9 @@ router.get("/status/:jobName", async (req: Request, res: Response) => {
 router.post("/run/:jobName", async (req: Request, res: Response) => {
   try {
     const result = await enrichmentScheduler.runJobManually(req.params.jobName);
-    res.status(result.statusCode).json({ success: result.success, message: result.message });
+    res
+      .status(result.statusCode)
+      .json({ success: result.success, message: result.message });
   } catch (error) {
     log.error("EnrichmentRoutes", "Failed to run job", { error });
     res.status(500).json({ success: false, error: "Failed to run job" });
@@ -41,11 +45,21 @@ router.post("/run/:jobName", async (req: Request, res: Response) => {
 
 router.get("/stats", async (_req: Request, res: Response) => {
   try {
-    const technicals = await db.execute(sql`SELECT COUNT(*) as count FROM universe_technicals`);
-    const macro = await db.execute(sql`SELECT COUNT(*) as count FROM macro_indicators`);
-    const fundamentals = await db.execute(sql`SELECT COUNT(*) as count FROM universe_fundamentals`);
-    const classifications = await db.execute(sql`SELECT COUNT(*) as count FROM asset_classifications`);
-    const assets = await db.execute(sql`SELECT COUNT(*) as count FROM broker_assets`);
+    const technicals = await db.execute(
+      sql`SELECT COUNT(*) as count FROM universe_technicals`
+    );
+    const macro = await db.execute(
+      sql`SELECT COUNT(*) as count FROM macro_indicators`
+    );
+    const fundamentals = await db.execute(
+      sql`SELECT COUNT(*) as count FROM universe_fundamentals`
+    );
+    const classifications = await db.execute(
+      sql`SELECT COUNT(*) as count FROM asset_classifications`
+    );
+    const assets = await db.execute(
+      sql`SELECT COUNT(*) as count FROM broker_assets`
+    );
 
     res.json({
       success: true,

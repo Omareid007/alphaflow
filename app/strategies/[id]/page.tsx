@@ -27,7 +27,11 @@ export default function StrategyDetailPage() {
   const id = params.id as string;
 
   // Fetch strategy data with React Query
-  const { data: strategy, isLoading: strategyLoading, error: strategyError } = useStrategy(id);
+  const {
+    data: strategy,
+    isLoading: strategyLoading,
+    error: strategyError,
+  } = useStrategy(id);
 
   // Fetch backtest data if available (with auto-polling when running)
   // useBacktest automatically polls every 2s when status is 'running'
@@ -35,7 +39,7 @@ export default function StrategyDetailPage() {
 
   // Get template from static data
   const template = strategy
-    ? algorithmTemplates.find(t => t.id === strategy.templateId) || null
+    ? algorithmTemplates.find((t) => t.id === strategy.templateId) || null
     : null;
 
   // Mutation hooks for actions
@@ -102,9 +106,13 @@ export default function StrategyDetailPage() {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
-          <p className="text-lg font-semibold text-destructive">Failed to load strategy</p>
+          <p className="text-lg font-semibold text-destructive">
+            Failed to load strategy
+          </p>
           <p className="text-sm text-muted-foreground mt-2">
-            {strategyError instanceof Error ? strategyError.message : "Unknown error"}
+            {strategyError instanceof Error
+              ? strategyError.message
+              : "Unknown error"}
           </p>
         </div>
       </div>
@@ -128,13 +136,17 @@ export default function StrategyDetailPage() {
         onDeploy={handleDeploy}
       />
 
-      <PerformanceMetricsGrid performanceSummary={strategy.performanceSummary} />
+      <PerformanceMetricsGrid
+        performanceSummary={strategy.performanceSummary}
+      />
 
       <Tabs defaultValue="performance">
         <TabsList>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="config">Configuration</TabsTrigger>
-          {backtest && <TabsTrigger value="interpretation">AI Analysis</TabsTrigger>}
+          {backtest && (
+            <TabsTrigger value="interpretation">AI Analysis</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="performance" className="mt-4">

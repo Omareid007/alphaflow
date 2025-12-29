@@ -7,18 +7,29 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Database, RefreshCw, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUniverseStats, useUniverseSymbols, useUniverseSearch, useSyncUniverse } from "@/lib/api/hooks";
+import {
+  useUniverseStats,
+  useUniverseSymbols,
+  useUniverseSearch,
+  useSyncUniverse,
+} from "@/lib/api/hooks";
 
 export default function UniversePage() {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [assetClassFilter, setAssetClassFilter] = useState<string | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assetClassFilter, setAssetClassFilter] = useState<string | undefined>(
+    undefined
+  );
 
   const { data: stats, isLoading: statsLoading } = useUniverseStats();
-  const { data: symbols = [], isLoading: symbolsLoading, refetch } = useUniverseSymbols({
+  const {
+    data: symbols = [],
+    isLoading: symbolsLoading,
+    refetch,
+  } = useUniverseSymbols({
     assetClass: assetClassFilter,
     tradableOnly: true,
-    limit: 100
+    limit: 100,
   });
   const { data: searchResults = [] } = useUniverseSearch(searchQuery);
   const syncUniverse = useSyncUniverse();
@@ -50,10 +61,14 @@ export default function UniversePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Universe</h1>
-          <p className="mt-1 text-muted-foreground">Manage trading universes and symbol eligibility</p>
+          <p className="mt-1 text-muted-foreground">
+            Manage trading universes and symbol eligibility
+          </p>
         </div>
         <Button onClick={handleSync} disabled={syncUniverse.isPending}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${syncUniverse.isPending ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${syncUniverse.isPending ? "animate-spin" : ""}`}
+          />
           Sync Universe
         </Button>
       </div>
@@ -62,34 +77,50 @@ export default function UniversePage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Symbols</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Symbols
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats?.totalSymbols?.toLocaleString() || 0}</p>
+            <p className="text-2xl font-bold">
+              {stats?.totalSymbols?.toLocaleString() || 0}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Symbols</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Active Symbols
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats?.activeSymbols?.toLocaleString() || 0}</p>
+            <p className="text-2xl font-bold">
+              {stats?.activeSymbols?.toLocaleString() || 0}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">US Equities</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              US Equities
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats?.equityCount?.toLocaleString() || 0}</p>
+            <p className="text-2xl font-bold">
+              {stats?.equityCount?.toLocaleString() || 0}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Crypto Assets</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Crypto Assets
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats?.cryptoCount?.toLocaleString() || 0}</p>
+            <p className="text-2xl font-bold">
+              {stats?.cryptoCount?.toLocaleString() || 0}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -142,23 +173,41 @@ export default function UniversePage() {
           {displaySymbols.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">
-                {searchQuery ? 'No symbols match your search.' : 'No symbols found. Click "Sync Universe" to fetch from Alpaca.'}
+                {searchQuery
+                  ? "No symbols match your search."
+                  : 'No symbols found. Click "Sync Universe" to fetch from Alpaca.'}
               </p>
             </div>
           ) : (
             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {displaySymbols.slice(0, 50).map(asset => (
-                <div key={asset.symbol} className="flex items-center justify-between rounded-lg border border-border p-3">
+              {displaySymbols.slice(0, 50).map((asset) => (
+                <div
+                  key={asset.symbol}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                   <div>
                     <p className="font-medium">{asset.symbol}</p>
-                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{asset.name}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      {asset.name}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={asset.tradable ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>
-                      {asset.tradable ? 'Tradable' : 'Non-tradable'}
+                    <Badge
+                      variant="outline"
+                      className={
+                        asset.tradable
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }
+                    >
+                      {asset.tradable ? "Tradable" : "Non-tradable"}
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
-                      {asset.assetClass === 'us_equity' ? 'Equity' : asset.assetClass === 'crypto' ? 'Crypto' : asset.assetClass}
+                      {asset.assetClass === "us_equity"
+                        ? "Equity"
+                        : asset.assetClass === "crypto"
+                          ? "Crypto"
+                          : asset.assetClass}
                     </Badge>
                   </div>
                 </div>
@@ -167,7 +216,8 @@ export default function UniversePage() {
           )}
           {displaySymbols.length > 50 && (
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Showing first 50 of {displaySymbols.length} symbols. Use search to find specific symbols.
+              Showing first 50 of {displaySymbols.length} symbols. Use search to
+              find specific symbols.
             </p>
           )}
         </CardContent>

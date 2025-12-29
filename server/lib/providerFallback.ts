@@ -1,7 +1,7 @@
-import { wrapWithLimiter } from './rateLimiter';
-import { getBreaker, isCircuitOpen } from './circuitBreaker';
-import { ApiCache } from './api-cache';
-import { log } from '../utils/logger';
+import { wrapWithLimiter } from "./rateLimiter";
+import { getBreaker, isCircuitOpen } from "./circuitBreaker";
+import { ApiCache } from "./api-cache";
+import { log } from "../utils/logger";
 
 export interface ProviderAdapter<T> {
   name: string;
@@ -42,8 +42,9 @@ export class ProviderFallbackManager<T> {
     this.providers = providers.sort((a, b) => a.priority - b.priority);
     this.cachePrefix = options.cachePrefix;
     this.circuitBreakerTimeout = options.circuitBreakerTimeout ?? 15000;
-    this.circuitBreakerResetTimeout = options.circuitBreakerResetTimeout ?? 60000;
-    
+    this.circuitBreakerResetTimeout =
+      options.circuitBreakerResetTimeout ?? 60000;
+
     this.cache = new ApiCache<T>({
       freshDuration: options.cacheTTLMs ?? 60000,
       staleDuration: options.staleCacheTTLMs ?? 30 * 60 * 1000,
@@ -52,42 +53,46 @@ export class ProviderFallbackManager<T> {
 
   async fetch(cacheKey: string, ...args: any[]): Promise<FallbackResult<T>> {
     const fullCacheKey = `${this.cachePrefix}:${cacheKey}`;
-    
+
     const cached = this.cache.get(fullCacheKey);
     if (cached?.isFresh) {
       return {
         data: cached.data,
-        provider: 'cache',
+        provider: "cache",
         cached: true,
         latencyMs: 0,
       };
     }
 
-    const enabledProviders = this.providers.filter(p => p.isEnabled());
+    const enabledProviders = this.providers.filter((p) => p.isEnabled());
     const errors: Error[] = [];
 
     for (const provider of enabledProviders) {
       if (isCircuitOpen(`provider:${provider.name}`)) {
-        log.debug('ProviderFallback', `Skipping ${provider.name} - circuit open`);
+        log.debug(
+          "ProviderFallback",
+          `Skipping ${provider.name} - circuit open`
+        );
         continue;
       }
 
       const startTime = Date.now();
-      
+
       try {
         const breaker = getBreaker(
           `provider:${provider.name}`,
-          async () => wrapWithLimiter(provider.name, () => provider.fetch(...args)),
-          { 
-            timeout: this.circuitBreakerTimeout, 
+          async () =>
+            wrapWithLimiter(provider.name, () => provider.fetch(...args)),
+          {
+            timeout: this.circuitBreakerTimeout,
             resetTimeout: this.circuitBreakerResetTimeout,
             errorThresholdPercentage: 50,
             volumeThreshold: 3,
           }
         );
 
-        let data: T = await breaker.fire() as T;
-        
+        let data: T = (await breaker.fire()) as T;
+
         if (provider.normalize) {
           data = provider.normalize(data) as T;
         }
@@ -95,7 +100,10 @@ export class ProviderFallbackManager<T> {
         this.cache.set(fullCacheKey, data);
 
         const latencyMs = Date.now() - startTime;
-        log.debug('ProviderFallback', `${provider.name} succeeded in ${latencyMs}ms for ${cacheKey}`);
+        log.debug(
+          "ProviderFallback",
+          `${provider.name} succeeded in ${latencyMs}ms for ${cacheKey}`
+        );
 
         return {
           data,
@@ -105,27 +113,38 @@ export class ProviderFallbackManager<T> {
         };
       } catch (error) {
         errors.push(error as Error);
-        log.warn('ProviderFallback', `${provider.name} failed for ${cacheKey}: ${(error as Error).message}`);
+        log.warn(
+          "ProviderFallback",
+          `${provider.name} failed for ${cacheKey}: ${(error as Error).message}`
+        );
         continue;
       }
     }
 
     if (cached?.data) {
-      log.warn('ProviderFallback', `All providers failed, using stale cache for ${cacheKey}`);
+      log.warn(
+        "ProviderFallback",
+        `All providers failed, using stale cache for ${cacheKey}`
+      );
       return {
         data: cached.data,
-        provider: 'stale-cache',
+        provider: "stale-cache",
         cached: true,
         latencyMs: 0,
         fromStaleCache: true,
       };
     }
 
-    const errorMessages = errors.map(e => e.message).join('; ');
-    throw new Error(`All ${enabledProviders.length} providers failed for ${cacheKey}: ${errorMessages}`);
+    const errorMessages = errors.map((e) => e.message).join("; ");
+    throw new Error(
+      `All ${enabledProviders.length} providers failed for ${cacheKey}: ${errorMessages}`
+    );
   }
 
-  async fetchWithFallbackOnly(cacheKey: string, ...args: any[]): Promise<FallbackResult<T> | null> {
+  async fetchWithFallbackOnly(
+    cacheKey: string,
+    ...args: any[]
+  ): Promise<FallbackResult<T> | null> {
     try {
       return await this.fetch(cacheKey, ...args);
     } catch {
@@ -134,11 +153,11 @@ export class ProviderFallbackManager<T> {
   }
 
   getEnabledProviders(): string[] {
-    return this.providers.filter(p => p.isEnabled()).map(p => p.name);
+    return this.providers.filter((p) => p.isEnabled()).map((p) => p.name);
   }
 
   getProviderByName(name: string): ProviderAdapter<T> | undefined {
-    return this.providers.find(p => p.name === name);
+    return this.providers.find((p) => p.name === name);
   }
 
   addProvider(provider: ProviderAdapter<T>): void {
@@ -147,7 +166,7 @@ export class ProviderFallbackManager<T> {
   }
 
   removeProvider(name: string): boolean {
-    const index = this.providers.findIndex(p => p.name === name);
+    const index = this.providers.findIndex((p) => p.name === name);
     if (index !== -1) {
       this.providers.splice(index, 1);
       return true;

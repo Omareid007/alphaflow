@@ -1,6 +1,10 @@
 import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
 import { db } from "./db";
-import { sanitizeInput, sanitizeUserInput, sanitizeStrategyInput } from "./lib/sanitization";
+import {
+  sanitizeInput,
+  sanitizeUserInput,
+  sanitizeStrategyInput,
+} from "./lib/sanitization";
 import { log } from "./utils/logger";
 import {
   users,
@@ -74,7 +78,7 @@ export interface TradeFilters {
   offset?: number;
   symbol?: string;
   strategyId?: string;
-  pnlDirection?: 'profit' | 'loss' | 'all';
+  pnlDirection?: "profit" | "loss" | "all";
   startDate?: Date;
   endDate?: Date;
 }
@@ -90,34 +94,60 @@ export interface IStorage {
   getAdminUser(): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
+  updateUser(
+    id: string,
+    updates: Partial<InsertUser>
+  ): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
 
   getStrategies(): Promise<Strategy[]>;
   getStrategy(id: string): Promise<Strategy | undefined>;
   createStrategy(strategy: InsertStrategy): Promise<Strategy>;
-  updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined>;
+  updateStrategy(
+    id: string,
+    updates: Partial<InsertStrategy>
+  ): Promise<Strategy | undefined>;
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
   deleteStrategy(id: string): Promise<boolean>;
 
   getTrades(userId?: string, limit?: number): Promise<Trade[]>;
-  getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }>;
+  getTradesFiltered(
+    userId: string,
+    filters: TradeFilters
+  ): Promise<{ trades: EnrichedTrade[]; total: number }>;
   getTrade(id: string): Promise<Trade | undefined>;
   getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined>;
-  createTrade(trade: Omit<InsertTrade, 'userId'> & { userId?: string }): Promise<Trade>;
+  createTrade(
+    trade: Omit<InsertTrade, "userId"> & { userId?: string }
+  ): Promise<Trade>;
   getDistinctSymbols(): Promise<string[]>;
 
   getPositions(userId?: string): Promise<Position[]>;
   getPosition(id: string): Promise<Position | undefined>;
   createPosition(position: InsertPosition): Promise<Position>;
-  updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position | undefined>;
+  updatePosition(
+    id: string,
+    updates: Partial<InsertPosition>
+  ): Promise<Position | undefined>;
   deletePosition(id: string): Promise<boolean>;
 
   getAiDecisions(userId?: string, limit?: number): Promise<AiDecision[]>;
-  createAiDecision(decision: Omit<InsertAiDecision, 'userId'> & { userId?: string }): Promise<AiDecision>;
-  updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined>;
-  getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined>;
-  getAiDecisionsByStatus(userId: string, status: string, limit?: number): Promise<AiDecision[]>;
+  createAiDecision(
+    decision: Omit<InsertAiDecision, "userId"> & { userId?: string }
+  ): Promise<AiDecision>;
+  updateAiDecision(
+    id: string,
+    updates: Partial<InsertAiDecision>
+  ): Promise<AiDecision | undefined>;
+  getLatestAiDecisionForSymbol(
+    symbol: string,
+    strategyId?: string
+  ): Promise<AiDecision | undefined>;
+  getAiDecisionsByStatus(
+    userId: string,
+    status: string,
+    limit?: number
+  ): Promise<AiDecision[]>;
   getPendingAiDecisions(userId: string, limit?: number): Promise<AiDecision[]>;
   getOrdersByDecisionId(decisionId: string): Promise<Order[]>;
 
@@ -125,10 +155,17 @@ export interface IStorage {
   updateAgentStatus(updates: Partial<AgentStatus>): Promise<AgentStatus>;
 
   createOrder(order: InsertOrder): Promise<Order>;
-  upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrder>): Promise<Order>;
+  upsertOrderByBrokerOrderId(
+    brokerOrderId: string,
+    data: Partial<InsertOrder>
+  ): Promise<Order>;
   getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined>;
   getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined>;
-  getOrdersByStatus(userId: string, status: string, limit?: number): Promise<Order[]>;
+  getOrdersByStatus(
+    userId: string,
+    status: string,
+    limit?: number
+  ): Promise<Order[]>;
   getRecentOrders(userId?: string, limit?: number): Promise<Order[]>;
   createFill(fill: InsertFill): Promise<Fill>;
   getFillsByOrderId(orderId: string): Promise<Fill[]>;
@@ -136,8 +173,16 @@ export interface IStorage {
 
   // Audit Logging
   createAuditLog(log: any): Promise<any>;
-  getUserAuditLogs(userId: string, limit?: number, offset?: number): Promise<any[]>;
-  getResourceAuditLogs(resource: string, resourceId: string, limit?: number): Promise<any[]>;
+  getUserAuditLogs(
+    userId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<any[]>;
+  getResourceAuditLogs(
+    resource: string,
+    resourceId: string,
+    limit?: number
+  ): Promise<any[]>;
   getRecentAuditLogs(limit?: number, offset?: number): Promise<any[]>;
 }
 
@@ -148,12 +193,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
     return user;
   }
 
   async getAdminUser(): Promise<User | undefined> {
-    const [adminUser] = await db.select().from(users).where(eq(users.isAdmin, true)).limit(1);
+    const [adminUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.isAdmin, true))
+      .limit(1);
     return adminUser;
   }
 
@@ -168,10 +220,17 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(
+    id: string,
+    updates: Partial<InsertUser>
+  ): Promise<User | undefined> {
     // SECURITY: Sanitize user input to prevent XSS attacks
     const sanitizedUpdates = sanitizeUserInput(updates) as Partial<InsertUser>;
-    const [user] = await db.update(users).set(sanitizedUpdates).where(eq(users.id, id)).returning();
+    const [user] = await db
+      .update(users)
+      .set(sanitizedUpdates)
+      .where(eq(users.id, id))
+      .returning();
     return user;
   }
 
@@ -185,20 +244,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStrategy(id: string): Promise<Strategy | undefined> {
-    const [strategy] = await db.select().from(strategies).where(eq(strategies.id, id));
+    const [strategy] = await db
+      .select()
+      .from(strategies)
+      .where(eq(strategies.id, id));
     return strategy;
   }
 
   async createStrategy(insertStrategy: InsertStrategy): Promise<Strategy> {
     // SECURITY: Sanitize strategy input to prevent XSS attacks
-    const sanitizedStrategy = sanitizeStrategyInput(insertStrategy) as InsertStrategy;
-    const [strategy] = await db.insert(strategies).values(sanitizedStrategy).returning();
+    const sanitizedStrategy = sanitizeStrategyInput(
+      insertStrategy
+    ) as InsertStrategy;
+    const [strategy] = await db
+      .insert(strategies)
+      .values(sanitizedStrategy)
+      .returning();
     return strategy;
   }
 
-  async updateStrategy(id: string, updates: Partial<InsertStrategy>): Promise<Strategy | undefined> {
+  async updateStrategy(
+    id: string,
+    updates: Partial<InsertStrategy>
+  ): Promise<Strategy | undefined> {
     // SECURITY: Sanitize strategy input to prevent XSS attacks
-    const sanitizedUpdates = sanitizeStrategyInput(updates) as Partial<InsertStrategy>;
+    const sanitizedUpdates = sanitizeStrategyInput(
+      updates
+    ) as Partial<InsertStrategy>;
     const [strategy] = await db
       .update(strategies)
       .set({ ...sanitizedUpdates, updatedAt: new Date() })
@@ -207,23 +279,41 @@ export class DatabaseStorage implements IStorage {
     return strategy;
   }
 
-  async toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined> {
+  async toggleStrategy(
+    id: string,
+    isActive: boolean
+  ): Promise<Strategy | undefined> {
     return this.updateStrategy(id, { isActive });
   }
 
   async deleteStrategy(id: string): Promise<boolean> {
-    const result = await db.delete(strategies).where(eq(strategies.id, id)).returning();
+    const result = await db
+      .delete(strategies)
+      .where(eq(strategies.id, id))
+      .returning();
     return result.length > 0;
   }
 
   async getTrades(userId?: string, limit: number = 50): Promise<Trade[]> {
     if (userId) {
-      return db.select().from(trades).where(eq(trades.userId, userId)).orderBy(desc(trades.executedAt)).limit(limit);
+      return db
+        .select()
+        .from(trades)
+        .where(eq(trades.userId, userId))
+        .orderBy(desc(trades.executedAt))
+        .limit(limit);
     }
-    return db.select().from(trades).orderBy(desc(trades.executedAt)).limit(limit);
+    return db
+      .select()
+      .from(trades)
+      .orderBy(desc(trades.executedAt))
+      .limit(limit);
   }
 
-  async getTradesFiltered(userId: string, filters: TradeFilters): Promise<{ trades: EnrichedTrade[]; total: number }> {
+  async getTradesFiltered(
+    userId: string,
+    filters: TradeFilters
+  ): Promise<{ trades: EnrichedTrade[]; total: number }> {
     const conditions: any[] = [eq(trades.userId, userId)];
 
     if (filters.symbol) {
@@ -242,9 +332,9 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(trades.executedAt, filters.endDate));
     }
 
-    if (filters.pnlDirection === 'profit') {
+    if (filters.pnlDirection === "profit") {
       conditions.push(sql`CAST(${trades.pnl} AS numeric) >= 0`);
-    } else if (filters.pnlDirection === 'loss') {
+    } else if (filters.pnlDirection === "loss") {
       conditions.push(sql`CAST(${trades.pnl} AS numeric) < 0`);
     }
 
@@ -291,13 +381,13 @@ export class DatabaseStorage implements IStorage {
   async getEnrichedTrade(id: string): Promise<EnrichedTrade | undefined> {
     const [trade] = await db.select().from(trades).where(eq(trades.id, id));
     if (!trade) return undefined;
-    
+
     const [aiDecision] = await db
       .select()
       .from(aiDecisions)
       .where(eq(aiDecisions.executedTradeId, trade.id))
       .limit(1);
-    
+
     let strategyName: string | null = null;
     if (trade.strategyId) {
       const [strategy] = await db
@@ -306,7 +396,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(strategies.id, trade.strategyId));
       strategyName = strategy?.name ?? null;
     }
-    
+
     return {
       ...trade,
       aiDecision: aiDecision ?? null,
@@ -314,18 +404,23 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createTrade(insertTrade: Omit<InsertTrade, 'userId'> & { userId?: string }): Promise<Trade> {
+  async createTrade(
+    insertTrade: Omit<InsertTrade, "userId"> & { userId?: string }
+  ): Promise<Trade> {
     // Auto-fill userId if not provided
     let tradeData = insertTrade as InsertTrade;
     if (!insertTrade.userId) {
       const adminUser = await this.getAdminUser();
-      tradeData = { ...insertTrade, userId: adminUser?.id || 'system' };
+      tradeData = { ...insertTrade, userId: adminUser?.id || "system" };
     }
     const [trade] = await db.insert(trades).values(tradeData).returning();
     return trade;
   }
 
-  async updateTrade(id: string, updates: Partial<InsertTrade>): Promise<Trade | undefined> {
+  async updateTrade(
+    id: string,
+    updates: Partial<InsertTrade>
+  ): Promise<Trade | undefined> {
     const [trade] = await db
       .update(trades)
       .set(updates)
@@ -339,27 +434,40 @@ export class DatabaseStorage implements IStorage {
       .selectDistinct({ symbol: trades.symbol })
       .from(trades)
       .orderBy(trades.symbol);
-    return result.map(r => r.symbol);
+    return result.map((r) => r.symbol);
   }
 
   async getPositions(userId?: string): Promise<Position[]> {
     if (userId) {
-      return db.select().from(positions).where(eq(positions.userId, userId)).orderBy(desc(positions.openedAt));
+      return db
+        .select()
+        .from(positions)
+        .where(eq(positions.userId, userId))
+        .orderBy(desc(positions.openedAt));
     }
     return db.select().from(positions).orderBy(desc(positions.openedAt));
   }
 
   async getPosition(id: string): Promise<Position | undefined> {
-    const [position] = await db.select().from(positions).where(eq(positions.id, id));
+    const [position] = await db
+      .select()
+      .from(positions)
+      .where(eq(positions.id, id));
     return position;
   }
 
   async createPosition(insertPosition: InsertPosition): Promise<Position> {
-    const [position] = await db.insert(positions).values(insertPosition).returning();
+    const [position] = await db
+      .insert(positions)
+      .values(insertPosition)
+      .returning();
     return position;
   }
 
-  async updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position | undefined> {
+  async updatePosition(
+    id: string,
+    updates: Partial<InsertPosition>
+  ): Promise<Position | undefined> {
     const [position] = await db
       .update(positions)
       .set(updates)
@@ -369,7 +477,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePosition(id: string): Promise<boolean> {
-    const result = await db.delete(positions).where(eq(positions.id, id)).returning();
+    const result = await db
+      .delete(positions)
+      .where(eq(positions.id, id))
+      .returning();
     return result.length > 0;
   }
 
@@ -378,14 +489,17 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async syncPositionsFromAlpaca(userId: string, alpacaPositions: Array<{
-    symbol: string;
-    qty: string;
-    avg_entry_price: string;
-    current_price: string;
-    unrealized_pl: string;
-    side: string;
-  }>): Promise<Position[]> {
+  async syncPositionsFromAlpaca(
+    userId: string,
+    alpacaPositions: Array<{
+      symbol: string;
+      qty: string;
+      avg_entry_price: string;
+      current_price: string;
+      unrealized_pl: string;
+      side: string;
+    }>
+  ): Promise<Position[]> {
     // TRANSACTION FIX: Wrap delete + insert in a transaction to ensure atomicity
     return await db.transaction(async (tx) => {
       // Delete all positions for this user
@@ -395,7 +509,7 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      const positionsToInsert = alpacaPositions.map(pos => ({
+      const positionsToInsert = alpacaPositions.map((pos) => ({
         userId,
         symbol: pos.symbol,
         quantity: pos.qty,
@@ -405,30 +519,53 @@ export class DatabaseStorage implements IStorage {
         side: pos.side === "long" ? "long" : "short",
       }));
 
-      const insertedPositions = await tx.insert(positions).values(positionsToInsert).returning();
+      const insertedPositions = await tx
+        .insert(positions)
+        .values(positionsToInsert)
+        .returning();
       return insertedPositions;
     });
   }
 
-  async getAiDecisions(userId?: string, limit: number = 20): Promise<AiDecision[]> {
+  async getAiDecisions(
+    userId?: string,
+    limit: number = 20
+  ): Promise<AiDecision[]> {
     if (userId) {
-      return db.select().from(aiDecisions).where(eq(aiDecisions.userId, userId)).orderBy(desc(aiDecisions.createdAt)).limit(limit);
+      return db
+        .select()
+        .from(aiDecisions)
+        .where(eq(aiDecisions.userId, userId))
+        .orderBy(desc(aiDecisions.createdAt))
+        .limit(limit);
     }
-    return db.select().from(aiDecisions).orderBy(desc(aiDecisions.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(aiDecisions)
+      .orderBy(desc(aiDecisions.createdAt))
+      .limit(limit);
   }
 
-  async createAiDecision(insertDecision: Omit<InsertAiDecision, 'userId'> & { userId?: string }): Promise<AiDecision> {
+  async createAiDecision(
+    insertDecision: Omit<InsertAiDecision, "userId"> & { userId?: string }
+  ): Promise<AiDecision> {
     // Auto-fill userId if not provided
     let decisionData = insertDecision as InsertAiDecision;
     if (!insertDecision.userId) {
       const adminUser = await this.getAdminUser();
-      decisionData = { ...insertDecision, userId: adminUser?.id || 'system' };
+      decisionData = { ...insertDecision, userId: adminUser?.id || "system" };
     }
-    const [decision] = await db.insert(aiDecisions).values(decisionData).returning();
+    const [decision] = await db
+      .insert(aiDecisions)
+      .values(decisionData)
+      .returning();
     return decision;
   }
 
-  async updateAiDecision(id: string, updates: Partial<InsertAiDecision>): Promise<AiDecision | undefined> {
+  async updateAiDecision(
+    id: string,
+    updates: Partial<InsertAiDecision>
+  ): Promise<AiDecision | undefined> {
     const [decision] = await db
       .update(aiDecisions)
       .set(updates)
@@ -437,7 +574,10 @@ export class DatabaseStorage implements IStorage {
     return decision;
   }
 
-  async getLatestAiDecisionForSymbol(symbol: string, strategyId?: string): Promise<AiDecision | undefined> {
+  async getLatestAiDecisionForSymbol(
+    symbol: string,
+    strategyId?: string
+  ): Promise<AiDecision | undefined> {
     const conditions = [eq(aiDecisions.symbol, symbol.toUpperCase())];
     if (strategyId) {
       conditions.push(eq(aiDecisions.strategyId, strategyId));
@@ -459,16 +599,25 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(orders.submittedAt));
   }
 
-  async getAiDecisionsByStatus(userId: string, status: string, limit: number = 100): Promise<AiDecision[]> {
+  async getAiDecisionsByStatus(
+    userId: string,
+    status: string,
+    limit: number = 100
+  ): Promise<AiDecision[]> {
     return db
       .select()
       .from(aiDecisions)
-      .where(and(eq(aiDecisions.userId, userId), eq(aiDecisions.status, status)))
+      .where(
+        and(eq(aiDecisions.userId, userId), eq(aiDecisions.status, status))
+      )
       .orderBy(desc(aiDecisions.createdAt))
       .limit(limit);
   }
 
-  async getPendingAiDecisions(userId: string, limit: number = 50): Promise<AiDecision[]> {
+  async getPendingAiDecisions(
+    userId: string,
+    limit: number = 50
+  ): Promise<AiDecision[]> {
     return this.getAiDecisionsByStatus(userId, "pending", limit);
   }
 
@@ -487,10 +636,13 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return status;
     } else {
-      const [status] = await db.insert(agentStatus).values({
-        isRunning: updates.isRunning ?? false,
-        ...updates,
-      }).returning();
+      const [status] = await db
+        .insert(agentStatus)
+        .values({
+          isRunning: updates.isRunning ?? false,
+          ...updates,
+        })
+        .returning();
       return status;
     }
   }
@@ -501,16 +653,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWorkItem(id: string): Promise<WorkItem | undefined> {
-    const [item] = await db.select().from(workItems).where(eq(workItems.id, id));
+    const [item] = await db
+      .select()
+      .from(workItems)
+      .where(eq(workItems.id, id));
     return item;
   }
 
   async getWorkItemByIdempotencyKey(key: string): Promise<WorkItem | null> {
-    const [item] = await db.select().from(workItems).where(eq(workItems.idempotencyKey, key));
+    const [item] = await db
+      .select()
+      .from(workItems)
+      .where(eq(workItems.idempotencyKey, key));
     return item || null;
   }
 
-  async updateWorkItem(id: string, updates: Partial<WorkItem>): Promise<WorkItem | undefined> {
+  async updateWorkItem(
+    id: string,
+    updates: Partial<WorkItem>
+  ): Promise<WorkItem | undefined> {
     const [item] = await db
       .update(workItems)
       .set({ ...updates, updatedAt: new Date() })
@@ -525,47 +686,57 @@ export class DatabaseStorage implements IStorage {
       eq(workItems.status, "PENDING"),
       lte(workItems.nextRunAt, now),
     ];
-    
+
     const query = db
       .select()
       .from(workItems)
       .where(and(...conditions))
       .orderBy(workItems.nextRunAt)
       .limit(1);
-    
+
     const [item] = await query;
-    
+
     if (!item) return null;
-    
-    if (types && types.length > 0 && !types.includes(item.type as WorkItemType)) {
+
+    if (
+      types &&
+      types.length > 0 &&
+      !types.includes(item.type as WorkItemType)
+    ) {
       return null;
     }
-    
+
     const [claimed] = await db
       .update(workItems)
       .set({ status: "RUNNING", updatedAt: new Date() })
       .where(and(eq(workItems.id, item.id), eq(workItems.status, "PENDING")))
       .returning();
-    
+
     return claimed || null;
   }
 
-  async getWorkItemCount(status?: WorkItemStatus, type?: WorkItemType): Promise<number> {
+  async getWorkItemCount(
+    status?: WorkItemStatus,
+    type?: WorkItemType
+  ): Promise<number> {
     const conditions = [];
     if (status) conditions.push(eq(workItems.status, status));
     if (type) conditions.push(eq(workItems.type, type));
-    
+
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(workItems)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
-    
+
     return Number(result[0]?.count || 0);
   }
 
-  async getWorkItems(limit: number = 50, status?: WorkItemStatus): Promise<WorkItem[]> {
+  async getWorkItems(
+    limit: number = 50,
+    status?: WorkItemStatus
+  ): Promise<WorkItem[]> {
     const conditions = status ? [eq(workItems.status, status)] : [];
-    
+
     return db
       .select()
       .from(workItems)
@@ -603,7 +774,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
     if (assetClass) conditions.push(eq(brokerAssets.assetClass, assetClass));
     if (tradableOnly) conditions.push(eq(brokerAssets.tradable, true));
-    
+
     return db
       .select()
       .from(brokerAssets)
@@ -617,7 +788,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(brokerAssets)
       .where(eq(brokerAssets.symbol, asset.symbol.toUpperCase()));
-    
+
     if (existing) {
       const [updated] = await db
         .update(brokerAssets)
@@ -626,7 +797,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
-    
+
     const [created] = await db
       .insert(brokerAssets)
       .values({ ...asset, symbol: asset.symbol.toUpperCase() })
@@ -637,7 +808,7 @@ export class DatabaseStorage implements IStorage {
   async bulkUpsertBrokerAssets(assets: InsertBrokerAsset[]): Promise<number> {
     let count = 0;
     const batchSize = 100;
-    
+
     for (let i = 0; i < assets.length; i += batchSize) {
       const batch = assets.slice(i, i + batchSize);
       for (const asset of batch) {
@@ -645,18 +816,20 @@ export class DatabaseStorage implements IStorage {
         count++;
       }
     }
-    
+
     return count;
   }
 
   async getBrokerAssetCount(assetClass?: AssetClass): Promise<number> {
-    const conditions = assetClass ? [eq(brokerAssets.assetClass, assetClass)] : [];
-    
+    const conditions = assetClass
+      ? [eq(brokerAssets.assetClass, assetClass)]
+      : [];
+
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(brokerAssets)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
-    
+
     return Number(result[0]?.count || 0);
   }
 
@@ -667,7 +840,10 @@ export class DatabaseStorage implements IStorage {
     return result?.lastSynced || null;
   }
 
-  async searchBrokerAssets(query: string, limit: number = 20): Promise<BrokerAsset[]> {
+  async searchBrokerAssets(
+    query: string,
+    limit: number = 20
+  ): Promise<BrokerAsset[]> {
     const searchPattern = `%${query.toUpperCase()}%`;
     return db
       .select()
@@ -690,21 +866,29 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async upsertOrderByBrokerOrderId(brokerOrderId: string, data: Partial<InsertOrderInput>): Promise<Order> {
+  async upsertOrderByBrokerOrderId(
+    brokerOrderId: string,
+    data: Partial<InsertOrderInput>
+  ): Promise<Order> {
     const existing = await this.getOrderByBrokerOrderId(brokerOrderId);
     if (existing) {
-      const [updated] = await db.update(orders)
+      const [updated] = await db
+        .update(orders)
         .set({ ...data, updatedAt: new Date() } as any)
         .where(eq(orders.brokerOrderId, brokerOrderId))
         .returning();
       return updated;
     }
     try {
-      const [created] = await db.insert(orders).values({ ...data, brokerOrderId } as any).returning();
+      const [created] = await db
+        .insert(orders)
+        .values({ ...data, brokerOrderId } as any)
+        .returning();
       return created;
     } catch (error: any) {
       if (error.code === "23505" || error.message?.includes("duplicate")) {
-        const [updated] = await db.update(orders)
+        const [updated] = await db
+          .update(orders)
           .set({ ...data, updatedAt: new Date() } as any)
           .where(eq(orders.brokerOrderId, brokerOrderId))
           .returning();
@@ -714,25 +898,55 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined> {
-    const [result] = await db.select().from(orders).where(eq(orders.brokerOrderId, brokerOrderId)).limit(1);
+  async getOrderByBrokerOrderId(
+    brokerOrderId: string
+  ): Promise<Order | undefined> {
+    const [result] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.brokerOrderId, brokerOrderId))
+      .limit(1);
     return result;
   }
 
-  async getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined> {
-    const [result] = await db.select().from(orders).where(eq(orders.clientOrderId, clientOrderId)).limit(1);
+  async getOrderByClientOrderId(
+    clientOrderId: string
+  ): Promise<Order | undefined> {
+    const [result] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.clientOrderId, clientOrderId))
+      .limit(1);
     return result;
   }
 
-  async getOrdersByStatus(userId: string, status: string, limit = 100): Promise<Order[]> {
-    return db.select().from(orders).where(and(eq(orders.userId, userId), eq(orders.status, status))).limit(limit).orderBy(desc(orders.createdAt));
+  async getOrdersByStatus(
+    userId: string,
+    status: string,
+    limit = 100
+  ): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.userId, userId), eq(orders.status, status)))
+      .limit(limit)
+      .orderBy(desc(orders.createdAt));
   }
 
   async getRecentOrders(userId?: string, limit = 50): Promise<Order[]> {
     if (userId) {
-      return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(limit);
+      return db
+        .select()
+        .from(orders)
+        .where(eq(orders.userId, userId))
+        .orderBy(desc(orders.createdAt))
+        .limit(limit);
     }
-    return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(orders)
+      .orderBy(desc(orders.createdAt))
+      .limit(limit);
   }
 
   async createFill(fill: InsertFill): Promise<Fill> {
@@ -741,57 +955,112 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFillsByOrderId(orderId: string): Promise<Fill[]> {
-    return db.select().from(fills).where(eq(fills.orderId, orderId)).orderBy(desc(fills.occurredAt));
+    return db
+      .select()
+      .from(fills)
+      .where(eq(fills.orderId, orderId))
+      .orderBy(desc(fills.occurredAt));
   }
 
   async getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]> {
-    return db.select().from(fills).where(eq(fills.brokerOrderId, brokerOrderId)).orderBy(desc(fills.occurredAt));
+    return db
+      .select()
+      .from(fills)
+      .where(eq(fills.brokerOrderId, brokerOrderId))
+      .orderBy(desc(fills.occurredAt));
   }
 
   // ============================================================================
   // DEBATE ARENA
   // ============================================================================
 
-  async createDebateSession(session: InsertDebateSession): Promise<DebateSession> {
-    const [result] = await db.insert(debateSessions).values(session as any).returning();
+  async createDebateSession(
+    session: InsertDebateSession
+  ): Promise<DebateSession> {
+    const [result] = await db
+      .insert(debateSessions)
+      .values(session as any)
+      .returning();
     return result;
   }
 
   async getDebateSession(id: string): Promise<DebateSession | undefined> {
-    const [result] = await db.select().from(debateSessions).where(eq(debateSessions.id, id));
+    const [result] = await db
+      .select()
+      .from(debateSessions)
+      .where(eq(debateSessions.id, id));
     return result;
   }
 
   async getDebateSessions(limit = 50): Promise<DebateSession[]> {
-    return db.select().from(debateSessions).orderBy(desc(debateSessions.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(debateSessions)
+      .orderBy(desc(debateSessions.createdAt))
+      .limit(limit);
   }
 
-  async updateDebateSession(id: string, updates: Partial<InsertDebateSession>): Promise<DebateSession | undefined> {
-    const [result] = await db.update(debateSessions).set(updates as any).where(eq(debateSessions.id, id)).returning();
+  async updateDebateSession(
+    id: string,
+    updates: Partial<InsertDebateSession>
+  ): Promise<DebateSession | undefined> {
+    const [result] = await db
+      .update(debateSessions)
+      .set(updates as any)
+      .where(eq(debateSessions.id, id))
+      .returning();
     return result;
   }
 
-  async createDebateMessage(message: InsertDebateMessage): Promise<DebateMessage> {
-    const [result] = await db.insert(debateMessages).values(message as any).returning();
+  async createDebateMessage(
+    message: InsertDebateMessage
+  ): Promise<DebateMessage> {
+    const [result] = await db
+      .insert(debateMessages)
+      .values(message as any)
+      .returning();
     return result;
   }
 
-  async getDebateMessagesBySession(sessionId: string): Promise<DebateMessage[]> {
-    return db.select().from(debateMessages).where(eq(debateMessages.sessionId, sessionId)).orderBy(debateMessages.createdAt);
+  async getDebateMessagesBySession(
+    sessionId: string
+  ): Promise<DebateMessage[]> {
+    return db
+      .select()
+      .from(debateMessages)
+      .where(eq(debateMessages.sessionId, sessionId))
+      .orderBy(debateMessages.createdAt);
   }
 
-  async createDebateConsensus(consensus: InsertDebateConsensus): Promise<DebateConsensus> {
-    const [result] = await db.insert(debateConsensus).values(consensus).returning();
+  async createDebateConsensus(
+    consensus: InsertDebateConsensus
+  ): Promise<DebateConsensus> {
+    const [result] = await db
+      .insert(debateConsensus)
+      .values(consensus)
+      .returning();
     return result;
   }
 
-  async getDebateConsensusBySession(sessionId: string): Promise<DebateConsensus | undefined> {
-    const [result] = await db.select().from(debateConsensus).where(eq(debateConsensus.sessionId, sessionId));
+  async getDebateConsensusBySession(
+    sessionId: string
+  ): Promise<DebateConsensus | undefined> {
+    const [result] = await db
+      .select()
+      .from(debateConsensus)
+      .where(eq(debateConsensus.sessionId, sessionId));
     return result;
   }
 
-  async updateDebateConsensus(id: string, updates: Partial<InsertDebateConsensus>): Promise<DebateConsensus | undefined> {
-    const [result] = await db.update(debateConsensus).set(updates).where(eq(debateConsensus.id, id)).returning();
+  async updateDebateConsensus(
+    id: string,
+    updates: Partial<InsertDebateConsensus>
+  ): Promise<DebateConsensus | undefined> {
+    const [result] = await db
+      .update(debateConsensus)
+      .set(updates)
+      .where(eq(debateConsensus.id, id))
+      .returning();
     return result;
   }
 
@@ -799,55 +1068,108 @@ export class DatabaseStorage implements IStorage {
   // TRADER PROFILES & COMPETITION
   // ============================================================================
 
-  async createTraderProfile(profile: InsertTraderProfile): Promise<TraderProfile> {
-    const [result] = await db.insert(traderProfiles).values(profile as any).returning();
+  async createTraderProfile(
+    profile: InsertTraderProfile
+  ): Promise<TraderProfile> {
+    const [result] = await db
+      .insert(traderProfiles)
+      .values(profile as any)
+      .returning();
     return result;
   }
 
   async getTraderProfile(id: string): Promise<TraderProfile | undefined> {
-    const [result] = await db.select().from(traderProfiles).where(eq(traderProfiles.id, id));
+    const [result] = await db
+      .select()
+      .from(traderProfiles)
+      .where(eq(traderProfiles.id, id));
     return result;
   }
 
   async getTraderProfiles(): Promise<TraderProfile[]> {
-    return db.select().from(traderProfiles).orderBy(desc(traderProfiles.createdAt));
+    return db
+      .select()
+      .from(traderProfiles)
+      .orderBy(desc(traderProfiles.createdAt));
   }
 
-  async updateTraderProfile(id: string, updates: Partial<InsertTraderProfile>): Promise<TraderProfile | undefined> {
-    const [result] = await db.update(traderProfiles).set({ ...updates, updatedAt: new Date() } as any).where(eq(traderProfiles.id, id)).returning();
+  async updateTraderProfile(
+    id: string,
+    updates: Partial<InsertTraderProfile>
+  ): Promise<TraderProfile | undefined> {
+    const [result] = await db
+      .update(traderProfiles)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(traderProfiles.id, id))
+      .returning();
     return result;
   }
 
-  async createCompetitionRun(run: InsertCompetitionRun): Promise<CompetitionRun> {
-    const [result] = await db.insert(competitionRuns).values(run as any).returning();
+  async createCompetitionRun(
+    run: InsertCompetitionRun
+  ): Promise<CompetitionRun> {
+    const [result] = await db
+      .insert(competitionRuns)
+      .values(run as any)
+      .returning();
     return result;
   }
 
   async getCompetitionRun(id: string): Promise<CompetitionRun | undefined> {
-    const [result] = await db.select().from(competitionRuns).where(eq(competitionRuns.id, id));
+    const [result] = await db
+      .select()
+      .from(competitionRuns)
+      .where(eq(competitionRuns.id, id));
     return result;
   }
 
   async getCompetitionRuns(limit = 20): Promise<CompetitionRun[]> {
-    return db.select().from(competitionRuns).orderBy(desc(competitionRuns.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(competitionRuns)
+      .orderBy(desc(competitionRuns.createdAt))
+      .limit(limit);
   }
 
-  async updateCompetitionRun(id: string, updates: Partial<InsertCompetitionRun>): Promise<CompetitionRun | undefined> {
-    const [result] = await db.update(competitionRuns).set(updates as any).where(eq(competitionRuns.id, id)).returning();
+  async updateCompetitionRun(
+    id: string,
+    updates: Partial<InsertCompetitionRun>
+  ): Promise<CompetitionRun | undefined> {
+    const [result] = await db
+      .update(competitionRuns)
+      .set(updates as any)
+      .where(eq(competitionRuns.id, id))
+      .returning();
     return result;
   }
 
-  async createCompetitionScore(score: InsertCompetitionScore): Promise<CompetitionScore> {
-    const [result] = await db.insert(competitionScores).values(score).returning();
+  async createCompetitionScore(
+    score: InsertCompetitionScore
+  ): Promise<CompetitionScore> {
+    const [result] = await db
+      .insert(competitionScores)
+      .values(score)
+      .returning();
     return result;
   }
 
   async getCompetitionScoresByRun(runId: string): Promise<CompetitionScore[]> {
-    return db.select().from(competitionScores).where(eq(competitionScores.runId, runId)).orderBy(competitionScores.rank);
+    return db
+      .select()
+      .from(competitionScores)
+      .where(eq(competitionScores.runId, runId))
+      .orderBy(competitionScores.rank);
   }
 
-  async updateCompetitionScore(id: string, updates: Partial<InsertCompetitionScore>): Promise<CompetitionScore | undefined> {
-    const [result] = await db.update(competitionScores).set(updates).where(eq(competitionScores.id, id)).returning();
+  async updateCompetitionScore(
+    id: string,
+    updates: Partial<InsertCompetitionScore>
+  ): Promise<CompetitionScore | undefined> {
+    const [result] = await db
+      .update(competitionScores)
+      .set(updates)
+      .where(eq(competitionScores.id, id))
+      .returning();
     return result;
   }
 
@@ -855,22 +1177,43 @@ export class DatabaseStorage implements IStorage {
   // STRATEGY VERSIONS
   // ============================================================================
 
-  async createStrategyVersion(version: InsertStrategyVersion): Promise<StrategyVersion> {
-    const [result] = await db.insert(strategyVersions).values(version as any).returning();
+  async createStrategyVersion(
+    version: InsertStrategyVersion
+  ): Promise<StrategyVersion> {
+    const [result] = await db
+      .insert(strategyVersions)
+      .values(version as any)
+      .returning();
     return result;
   }
 
   async getStrategyVersion(id: string): Promise<StrategyVersion | undefined> {
-    const [result] = await db.select().from(strategyVersions).where(eq(strategyVersions.id, id));
+    const [result] = await db
+      .select()
+      .from(strategyVersions)
+      .where(eq(strategyVersions.id, id));
     return result;
   }
 
-  async getStrategyVersionsByStrategy(strategyId: string): Promise<StrategyVersion[]> {
-    return db.select().from(strategyVersions).where(eq(strategyVersions.strategyId, strategyId)).orderBy(desc(strategyVersions.version));
+  async getStrategyVersionsByStrategy(
+    strategyId: string
+  ): Promise<StrategyVersion[]> {
+    return db
+      .select()
+      .from(strategyVersions)
+      .where(eq(strategyVersions.strategyId, strategyId))
+      .orderBy(desc(strategyVersions.version));
   }
 
-  async getLatestStrategyVersion(strategyId: string): Promise<StrategyVersion | undefined> {
-    const [result] = await db.select().from(strategyVersions).where(eq(strategyVersions.strategyId, strategyId)).orderBy(desc(strategyVersions.version)).limit(1);
+  async getLatestStrategyVersion(
+    strategyId: string
+  ): Promise<StrategyVersion | undefined> {
+    const [result] = await db
+      .select()
+      .from(strategyVersions)
+      .where(eq(strategyVersions.strategyId, strategyId))
+      .orderBy(desc(strategyVersions.version))
+      .limit(1);
     return result;
   }
 
@@ -879,39 +1222,76 @@ export class DatabaseStorage implements IStorage {
     return (latest?.version || 0) + 1;
   }
 
-  async updateStrategyVersion(id: string, updates: Partial<InsertStrategyVersion>): Promise<StrategyVersion | undefined> {
-    const [result] = await db.update(strategyVersions).set(updates as any).where(eq(strategyVersions.id, id)).returning();
+  async updateStrategyVersion(
+    id: string,
+    updates: Partial<InsertStrategyVersion>
+  ): Promise<StrategyVersion | undefined> {
+    const [result] = await db
+      .update(strategyVersions)
+      .set(updates as any)
+      .where(eq(strategyVersions.id, id))
+      .returning();
     return result;
   }
 
   async getActiveStrategyVersions(): Promise<StrategyVersion[]> {
-    return db.select().from(strategyVersions).where(eq(strategyVersions.status, "active")).orderBy(strategyVersions.createdAt);
+    return db
+      .select()
+      .from(strategyVersions)
+      .where(eq(strategyVersions.status, "active"))
+      .orderBy(strategyVersions.createdAt);
   }
 
   // ============================================================================
   // TOOL INVOCATIONS
   // ============================================================================
 
-  async createToolInvocation(invocation: InsertToolInvocation): Promise<ToolInvocation> {
-    const [result] = await db.insert(toolInvocations).values(invocation as any).returning();
+  async createToolInvocation(
+    invocation: InsertToolInvocation
+  ): Promise<ToolInvocation> {
+    const [result] = await db
+      .insert(toolInvocations)
+      .values(invocation as any)
+      .returning();
     return result;
   }
 
-  async updateToolInvocation(id: string, updates: Partial<InsertToolInvocation>): Promise<ToolInvocation | undefined> {
-    const [result] = await db.update(toolInvocations).set(updates as any).where(eq(toolInvocations.id, id)).returning();
+  async updateToolInvocation(
+    id: string,
+    updates: Partial<InsertToolInvocation>
+  ): Promise<ToolInvocation | undefined> {
+    const [result] = await db
+      .update(toolInvocations)
+      .set(updates as any)
+      .where(eq(toolInvocations.id, id))
+      .returning();
     return result;
   }
 
   async getToolInvocationsByTrace(traceId: string): Promise<ToolInvocation[]> {
-    return db.select().from(toolInvocations).where(eq(toolInvocations.traceId, traceId)).orderBy(toolInvocations.createdAt);
+    return db
+      .select()
+      .from(toolInvocations)
+      .where(eq(toolInvocations.traceId, traceId))
+      .orderBy(toolInvocations.createdAt);
   }
 
-  async getToolInvocationsBySession(sessionId: string): Promise<ToolInvocation[]> {
-    return db.select().from(toolInvocations).where(eq(toolInvocations.debateSessionId, sessionId)).orderBy(toolInvocations.createdAt);
+  async getToolInvocationsBySession(
+    sessionId: string
+  ): Promise<ToolInvocation[]> {
+    return db
+      .select()
+      .from(toolInvocations)
+      .where(eq(toolInvocations.debateSessionId, sessionId))
+      .orderBy(toolInvocations.createdAt);
   }
 
   async getRecentToolInvocations(limit = 100): Promise<ToolInvocation[]> {
-    return db.select().from(toolInvocations).orderBy(desc(toolInvocations.createdAt)).limit(limit);
+    return db
+      .select()
+      .from(toolInvocations)
+      .orderBy(desc(toolInvocations.createdAt))
+      .limit(limit);
   }
 
   // ============================================================================
@@ -929,7 +1309,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserAuditLogs(userId: string, limit = 100, offset = 0): Promise<any[]> {
+  async getUserAuditLogs(
+    userId: string,
+    limit = 100,
+    offset = 0
+  ): Promise<any[]> {
     try {
       const { auditLogs } = await import("@shared/schema");
       return db
@@ -945,20 +1329,30 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getResourceAuditLogs(resource: string, resourceId: string, limit = 50): Promise<any[]> {
+  async getResourceAuditLogs(
+    resource: string,
+    resourceId: string,
+    limit = 50
+  ): Promise<any[]> {
     try {
       const { auditLogs } = await import("@shared/schema");
       return db
         .select()
         .from(auditLogs)
-        .where(and(
-          eq(auditLogs.resource, resource),
-          eq(auditLogs.resourceId, resourceId)
-        ))
+        .where(
+          and(
+            eq(auditLogs.resource, resource),
+            eq(auditLogs.resourceId, resourceId)
+          )
+        )
         .orderBy(desc(auditLogs.timestamp))
         .limit(limit);
     } catch (error) {
-      log.error("Storage", "Failed to get resource audit logs", { error, resource, resourceId });
+      log.error("Storage", "Failed to get resource audit logs", {
+        error,
+        resource,
+        resourceId,
+      });
       return [];
     }
   }

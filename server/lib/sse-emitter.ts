@@ -68,7 +68,10 @@ class SSEEmitter extends EventEmitter {
       this.removeClient(clientId, userId);
     });
 
-    log.info("SSE", "Client connected", { clientId, userId: userId || "anonymous" });
+    log.info("SSE", "Client connected", {
+      clientId,
+      userId: userId || "anonymous",
+    });
     log.debug("SSE", "Total clients", { count: this.clients.size });
   }
 
@@ -109,7 +112,10 @@ class SSEEmitter extends EventEmitter {
         this.sendToClient(res, fullEvent);
         successCount++;
       } catch (error) {
-        log.error("SSE", "Failed to send to client", { clientId, error: error instanceof Error ? error.message : String(error) });
+        log.error("SSE", "Failed to send to client", {
+          clientId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         errorCount++;
         // Remove dead clients
         this.removeClient(clientId);
@@ -117,14 +123,21 @@ class SSEEmitter extends EventEmitter {
     }
 
     if (this.clients.size > 0) {
-      log.debug("SSE", "Broadcast complete", { eventType: event.type, successCount, errorCount });
+      log.debug("SSE", "Broadcast complete", {
+        eventType: event.type,
+        successCount,
+        errorCount,
+      });
     }
   }
 
   /**
    * Send event to specific user's clients
    */
-  sendToUser(userId: string, event: Omit<SSEEvent, "timestamp" | "userId">): void {
+  sendToUser(
+    userId: string,
+    event: Omit<SSEEvent, "timestamp" | "userId">
+  ): void {
     const clientIds = this.userClients.get(userId);
     if (!clientIds || clientIds.size === 0) {
       return;
@@ -150,7 +163,11 @@ class SSEEmitter extends EventEmitter {
         this.sendToClient(res, fullEvent);
         successCount++;
       } catch (error) {
-        log.error("SSE", "Failed to send to user client", { userId, clientId, error: error instanceof Error ? error.message : String(error) });
+        log.error("SSE", "Failed to send to user client", {
+          userId,
+          clientId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         deadClients.push(clientId);
       }
     }
@@ -161,7 +178,11 @@ class SSEEmitter extends EventEmitter {
     }
 
     if (successCount > 0) {
-      log.debug("SSE", "Sent event to user", { eventType: event.type, userId, clientCount: successCount });
+      log.debug("SSE", "Sent event to user", {
+        eventType: event.type,
+        userId,
+        clientCount: successCount,
+      });
     }
   }
 
@@ -181,7 +202,10 @@ class SSEEmitter extends EventEmitter {
       try {
         res.write(": keepalive\n\n");
       } catch (error) {
-        log.error("SSE", "Keepalive failed for client", { clientId, error: error instanceof Error ? error.message : String(error) });
+        log.error("SSE", "Keepalive failed for client", {
+          clientId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         this.removeClient(clientId);
       }
     }
@@ -194,10 +218,12 @@ class SSEEmitter extends EventEmitter {
     return {
       totalClients: this.clients.size,
       totalUsers: this.userClients.size,
-      clientsPerUser: Array.from(this.userClients.entries()).map(([userId, clients]) => ({
-        userId,
-        clientCount: clients.size,
-      })),
+      clientsPerUser: Array.from(this.userClients.entries()).map(
+        ([userId, clients]) => ({
+          userId,
+          clientCount: clients.size,
+        })
+      ),
     };
   }
 }
@@ -211,8 +237,15 @@ setInterval(() => {
 }, 30000);
 
 // Convenience functions for common events
-export const emitOrderUpdate = (orderId: string, orderData: Record<string, unknown>, userId?: string) => {
-  const event = { type: "order:update" as const, data: { orderId, ...orderData } };
+export const emitOrderUpdate = (
+  orderId: string,
+  orderData: Record<string, unknown>,
+  userId?: string
+) => {
+  const event = {
+    type: "order:update" as const,
+    data: { orderId, ...orderData },
+  };
   if (userId) {
     sseEmitter.sendToUser(userId, event);
   } else {
@@ -220,7 +253,11 @@ export const emitOrderUpdate = (orderId: string, orderData: Record<string, unkno
   }
 };
 
-export const emitOrderFill = (orderId: string, fillData: Record<string, unknown>, userId?: string) => {
+export const emitOrderFill = (
+  orderId: string,
+  fillData: Record<string, unknown>,
+  userId?: string
+) => {
   const event = { type: "order:fill" as const, data: { orderId, ...fillData } };
   if (userId) {
     sseEmitter.sendToUser(userId, event);
@@ -247,8 +284,14 @@ export const emitTradeNew = (tradeData: unknown, userId?: string) => {
   }
 };
 
-export const emitPriceUpdate = (symbol: string, priceData: Record<string, unknown>) => {
-  const event = { type: "price:update" as const, data: { symbol, ...priceData } };
+export const emitPriceUpdate = (
+  symbol: string,
+  priceData: Record<string, unknown>
+) => {
+  const event = {
+    type: "price:update" as const,
+    data: { symbol, ...priceData },
+  };
   sseEmitter.broadcast(event);
 };
 
@@ -266,8 +309,15 @@ export const emitAgentStatus = (statusData: unknown) => {
   sseEmitter.broadcast(event);
 };
 
-export const emitStrategyUpdate = (strategyId: string, statusData: Record<string, unknown>, userId?: string) => {
-  const event = { type: "strategy:update" as const, data: { strategyId, ...statusData } };
+export const emitStrategyUpdate = (
+  strategyId: string,
+  statusData: Record<string, unknown>,
+  userId?: string
+) => {
+  const event = {
+    type: "strategy:update" as const,
+    data: { strategyId, ...statusData },
+  };
   if (userId) {
     sseEmitter.sendToUser(userId, event);
   } else {

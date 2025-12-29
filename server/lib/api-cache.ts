@@ -33,7 +33,7 @@ export class ApiCache<T = unknown> {
     if (!entry) return null;
 
     const now = Date.now();
-    
+
     if (now - entry.timestamp < this.config.freshDuration) {
       return { data: entry.data, isFresh: true };
     }
@@ -139,10 +139,12 @@ export async function fetchWithCache<T>(
     return data;
   } catch (error) {
     const staleData = cache.getStale(cacheKey);
-    
+
     if (staleData !== null) {
       onStaleServed?.(cacheKey);
-      log.debug("ApiCache", "Serving stale data due to fetch error", { cacheKey });
+      log.debug("ApiCache", "Serving stale data due to fetch error", {
+        cacheKey,
+      });
       return staleData;
     }
 
@@ -160,9 +162,7 @@ export interface SWRFetchOptions<T> {
   onBackgroundRefresh?: (key: string, success: boolean) => void;
 }
 
-export async function fetchWithSWR<T>(
-  options: SWRFetchOptions<T>
-): Promise<T> {
+export async function fetchWithSWR<T>(options: SWRFetchOptions<T>): Promise<T> {
   const { cacheKey, cache, fetcher, onBackgroundRefresh } = options;
 
   const cached = cache.get(cacheKey);
@@ -174,7 +174,7 @@ export async function fetchWithSWR<T>(
   if (cached && !cached.isFresh) {
     if (!pendingRefreshes.has(cacheKey)) {
       pendingRefreshes.add(cacheKey);
-      
+
       setTimeout(async () => {
         try {
           const data = await fetcher();
@@ -188,8 +188,10 @@ export async function fetchWithSWR<T>(
         }
       }, 0);
     }
-    
-    log.debug("ApiCache", "Serving stale data, refreshing in background", { cacheKey });
+
+    log.debug("ApiCache", "Serving stale data, refreshing in background", {
+      cacheKey,
+    });
     return cached.data;
   }
 

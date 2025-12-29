@@ -32,13 +32,25 @@ router.get("/indicators/:id", async (req: Request, res: Response) => {
 router.get("/category/:category", async (req: Request, res: Response) => {
   try {
     const category = req.params.category as MacroCategory;
-    const validCategories = ["treasury_yields", "inflation", "employment", "volatility", "interest_rates", "money_supply", "gdp", "consumer", "housing", "manufacturing"];
+    const validCategories = [
+      "treasury_yields",
+      "inflation",
+      "employment",
+      "volatility",
+      "interest_rates",
+      "money_supply",
+      "gdp",
+      "consumer",
+      "housing",
+      "manufacturing",
+    ];
 
     if (!validCategories.includes(category)) {
       return badRequest(res, "Invalid category");
     }
 
-    const indicators = await macroIndicatorsService.getIndicatorsByCategory(category);
+    const indicators =
+      await macroIndicatorsService.getIndicatorsByCategory(category);
     res.json({ success: true, data: indicators });
   } catch (error) {
     log.error("MacroRoutes", "Failed to get indicators by category", { error });
@@ -62,7 +74,9 @@ router.post("/refresh", async (_req: Request, res: Response) => {
     res.json({ success: true, data: result });
   } catch (error) {
     log.error("MacroRoutes", "Failed to refresh indicators", { error });
-    res.status(500).json({ success: false, error: "Failed to refresh indicators" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to refresh indicators" });
   }
 });
 
@@ -72,7 +86,9 @@ router.post("/refresh/all", async (_req: Request, res: Response) => {
     res.json({ success: true, data: result });
   } catch (error) {
     log.error("MacroRoutes", "Failed to refresh all indicators", { error });
-    res.status(500).json({ success: false, error: "Failed to refresh indicators" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to refresh indicators" });
   }
 });
 
@@ -83,7 +99,9 @@ router.get("/regime", async (_req: Request, res: Response) => {
     res.json({ success: true, data: regime });
   } catch (error) {
     log.error("MacroRoutes", "Failed to get market regime", { error });
-    res.status(500).json({ success: false, error: "Failed to determine regime" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to determine regime" });
   }
 });
 
@@ -105,7 +123,7 @@ router.get("/status", async (_req: Request, res: Response) => {
   try {
     const isConfigured = macroIndicatorsService.isConfigured();
     const indicators = await macroIndicatorsService.getLatestIndicators();
-    
+
     res.json({
       success: true,
       data: {

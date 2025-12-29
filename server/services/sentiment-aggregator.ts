@@ -85,9 +85,9 @@ export interface SentimentStats {
 
 const DEFAULT_CONFIG: SentimentConfig = {
   weights: {
-    gdelt: 0.40,      // Priority 1: Free, high-volume global news
-    newsapi: 0.35,    // Priority 2: Curated sources, budget-limited
-    huggingface: 0.25 // Priority 3: ML classification, slower
+    gdelt: 0.4, // Priority 1: Free, high-volume global news
+    newsapi: 0.35, // Priority 2: Curated sources, budget-limited
+    huggingface: 0.25, // Priority 3: ML classification, slower
   },
   minSources: 2,
   conflictThreshold: 0.5, // Conflict if std dev > 0.5
@@ -147,7 +147,10 @@ class SentimentAggregatorService {
 
     if (cached?.isFresh) {
       this.stats.cacheHits++;
-      log.debug("SentimentAggregator", "Cache hit", { symbol, age: Date.now() - cached.data.timestamp.getTime() });
+      log.debug("SentimentAggregator", "Cache hit", {
+        symbol,
+        age: Date.now() - cached.data.timestamp.getTime(),
+      });
       return { ...cached.data, cacheHit: true };
     }
 
@@ -191,8 +194,12 @@ class SentimentAggregatorService {
    * Batch get sentiment for multiple symbols
    * More efficient than calling getSentiment multiple times
    */
-  async batchGetSentiment(symbols: string[]): Promise<Map<string, AggregatedSentiment>> {
-    log.info("SentimentAggregator", "Batch sentiment request", { count: symbols.length });
+  async batchGetSentiment(
+    symbols: string[]
+  ): Promise<Map<string, AggregatedSentiment>> {
+    log.info("SentimentAggregator", "Batch sentiment request", {
+      count: symbols.length,
+    });
 
     const results = new Map<string, AggregatedSentiment>();
 
@@ -201,7 +208,7 @@ class SentimentAggregatorService {
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = symbols.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.allSettled(
-        batch.map(symbol => this.getSentiment(symbol))
+        batch.map((symbol) => this.getSentiment(symbol))
       );
 
       batch.forEach((symbol, idx) => {
@@ -211,7 +218,7 @@ class SentimentAggregatorService {
         } else {
           log.warn("SentimentAggregator", "Batch item failed", {
             symbol,
-            error: String(result.reason)
+            error: String(result.reason),
           });
         }
       });
@@ -240,7 +247,9 @@ class SentimentAggregatorService {
    */
   updateConfig(config: Partial<SentimentConfig>): void {
     this.config = { ...this.config, ...config };
-    log.info("SentimentAggregator", "Configuration updated", { config: this.config });
+    log.info("SentimentAggregator", "Configuration updated", {
+      config: this.config,
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -255,12 +264,15 @@ class SentimentAggregatorService {
     }
   }
 
-  private async fetchSourcesParallel(symbol: string): Promise<SentimentSource[]> {
-    const [gdeltResult, newsapiResult, huggingfaceResult] = await Promise.allSettled([
-      this.fetchGDELTSentiment(symbol),
-      this.fetchNewsAPISentiment(symbol),
-      this.fetchHuggingFaceSentiment(symbol),
-    ]);
+  private async fetchSourcesParallel(
+    symbol: string
+  ): Promise<SentimentSource[]> {
+    const [gdeltResult, newsapiResult, huggingfaceResult] =
+      await Promise.allSettled([
+        this.fetchGDELTSentiment(symbol),
+        this.fetchNewsAPISentiment(symbol),
+        this.fetchHuggingFaceSentiment(symbol),
+      ]);
 
     const sources: SentimentSource[] = [];
 
@@ -277,7 +289,9 @@ class SentimentAggregatorService {
     return sources;
   }
 
-  private async fetchSourcesSequential(symbol: string): Promise<SentimentSource[]> {
+  private async fetchSourcesSequential(
+    symbol: string
+  ): Promise<SentimentSource[]> {
     const sources: SentimentSource[] = [];
 
     // Priority 1: GDELT (free)
@@ -287,7 +301,9 @@ class SentimentAggregatorService {
         sources.push(gdeltSource);
       }
     } catch (error) {
-      log.warn("SentimentAggregator", "GDELT fetch failed", { error: String(error) });
+      log.warn("SentimentAggregator", "GDELT fetch failed", {
+        error: String(error),
+      });
     }
 
     // Priority 2: NewsAPI (budget-limited)
@@ -297,7 +313,9 @@ class SentimentAggregatorService {
         sources.push(newsapiSource);
       }
     } catch (error) {
-      log.warn("SentimentAggregator", "NewsAPI fetch failed", { error: String(error) });
+      log.warn("SentimentAggregator", "NewsAPI fetch failed", {
+        error: String(error),
+      });
     }
 
     // Priority 3: HuggingFace (ML-based)
@@ -307,7 +325,9 @@ class SentimentAggregatorService {
         sources.push(hfSource);
       }
     } catch (error) {
-      log.warn("SentimentAggregator", "HuggingFace fetch failed", { error: String(error) });
+      log.warn("SentimentAggregator", "HuggingFace fetch failed", {
+        error: String(error),
+      });
     }
 
     return sources;
@@ -322,7 +342,10 @@ class SentimentAggregatorService {
       const latencyMs = Date.now() - startTime;
 
       // GDELT tone is typically -10 to 10, normalize to -1 to 1
-      const normalizedScore = Math.max(-1, Math.min(1, sentiment.averageTone / 10));
+      const normalizedScore = Math.max(
+        -1,
+        Math.min(1, sentiment.averageTone / 10)
+      );
 
       // Confidence based on article count (more articles = higher confidence)
       const confidence = Math.min(1, sentiment.articleCount / 20);
@@ -337,7 +360,10 @@ class SentimentAggregatorService {
       };
     } catch (error) {
       this.stats.errors.gdelt++;
-      log.error("SentimentAggregator", "GDELT error", { symbol, error: String(error) });
+      log.error("SentimentAggregator", "GDELT error", {
+        symbol,
+        error: String(error),
+      });
 
       return {
         name: "gdelt",
@@ -351,7 +377,9 @@ class SentimentAggregatorService {
     }
   }
 
-  private async fetchNewsAPISentiment(symbol: string): Promise<SentimentSource> {
+  private async fetchNewsAPISentiment(
+    symbol: string
+  ): Promise<SentimentSource> {
     const startTime = Date.now();
     this.stats.apiCalls.newsapi++;
 
@@ -386,7 +414,10 @@ class SentimentAggregatorService {
       };
     } catch (error) {
       this.stats.errors.newsapi++;
-      log.error("SentimentAggregator", "NewsAPI error", { symbol, error: String(error) });
+      log.error("SentimentAggregator", "NewsAPI error", {
+        symbol,
+        error: String(error),
+      });
 
       return {
         name: "newsapi",
@@ -400,7 +431,9 @@ class SentimentAggregatorService {
     }
   }
 
-  private async fetchHuggingFaceSentiment(symbol: string): Promise<SentimentSource> {
+  private async fetchHuggingFaceSentiment(
+    symbol: string
+  ): Promise<SentimentSource> {
     const startTime = Date.now();
     this.stats.apiCalls.huggingface++;
 
@@ -421,7 +454,7 @@ class SentimentAggregatorService {
       // Get news headlines first
       const articles = await newsapi.getStockNews(symbol, 5).catch(() => []);
       const headlines = articles
-        .map(a => a.title)
+        .map((a) => a.title)
         .filter(Boolean)
         .slice(0, 5);
 
@@ -437,7 +470,10 @@ class SentimentAggregatorService {
       }
 
       // Analyze headlines with FinBERT
-      const enrichment = await huggingface.generateEnrichmentSignal(symbol, headlines);
+      const enrichment = await huggingface.generateEnrichmentSignal(
+        symbol,
+        headlines
+      );
       const latencyMs = Date.now() - startTime;
 
       return {
@@ -450,7 +486,10 @@ class SentimentAggregatorService {
       };
     } catch (error) {
       this.stats.errors.huggingface++;
-      log.error("SentimentAggregator", "HuggingFace error", { symbol, error: String(error) });
+      log.error("SentimentAggregator", "HuggingFace error", {
+        symbol,
+        error: String(error),
+      });
 
       return {
         name: "huggingface",
@@ -473,50 +512,127 @@ class SentimentAggregatorService {
     let negativeCount = 0;
 
     const positiveKeywords = [
-      "surge", "surges", "surged", "surging",
-      "gain", "gains", "gained", "gaining",
-      "rise", "rises", "rose", "rising",
-      "rally", "rallies", "rallied", "rallying",
-      "up", "bullish", "bull",
-      "growth", "growing", "grew",
-      "profit", "profitable", "profits",
-      "beat", "beats", "beating", "outperform",
-      "strong", "strength", "strengthen",
-      "boost", "boosted", "boosting",
-      "soar", "soared", "soaring",
-      "jump", "jumped", "jumping",
-      "climb", "climbed", "climbing",
-      "advance", "advanced", "advancing",
-      "positive", "optimistic", "confident",
-      "success", "successful", "win", "winning"
+      "surge",
+      "surges",
+      "surged",
+      "surging",
+      "gain",
+      "gains",
+      "gained",
+      "gaining",
+      "rise",
+      "rises",
+      "rose",
+      "rising",
+      "rally",
+      "rallies",
+      "rallied",
+      "rallying",
+      "up",
+      "bullish",
+      "bull",
+      "growth",
+      "growing",
+      "grew",
+      "profit",
+      "profitable",
+      "profits",
+      "beat",
+      "beats",
+      "beating",
+      "outperform",
+      "strong",
+      "strength",
+      "strengthen",
+      "boost",
+      "boosted",
+      "boosting",
+      "soar",
+      "soared",
+      "soaring",
+      "jump",
+      "jumped",
+      "jumping",
+      "climb",
+      "climbed",
+      "climbing",
+      "advance",
+      "advanced",
+      "advancing",
+      "positive",
+      "optimistic",
+      "confident",
+      "success",
+      "successful",
+      "win",
+      "winning",
     ];
 
     const negativeKeywords = [
-      "fall", "falls", "fell", "falling",
-      "drop", "drops", "dropped", "dropping",
-      "decline", "declines", "declined", "declining",
-      "plunge", "plunged", "plunging",
-      "down", "bearish", "bear",
-      "loss", "losses", "losing", "lost",
-      "miss", "missed", "missing", "underperform",
-      "weak", "weakness", "weaken",
-      "crash", "crashed", "crashing",
-      "sink", "sank", "sinking",
-      "tumble", "tumbled", "tumbling",
-      "slide", "slid", "sliding",
-      "slump", "slumped", "slumping",
-      "negative", "pessimistic", "concern", "worried",
-      "fail", "failed", "failure", "risk", "risky"
+      "fall",
+      "falls",
+      "fell",
+      "falling",
+      "drop",
+      "drops",
+      "dropped",
+      "dropping",
+      "decline",
+      "declines",
+      "declined",
+      "declining",
+      "plunge",
+      "plunged",
+      "plunging",
+      "down",
+      "bearish",
+      "bear",
+      "loss",
+      "losses",
+      "losing",
+      "lost",
+      "miss",
+      "missed",
+      "missing",
+      "underperform",
+      "weak",
+      "weakness",
+      "weaken",
+      "crash",
+      "crashed",
+      "crashing",
+      "sink",
+      "sank",
+      "sinking",
+      "tumble",
+      "tumbled",
+      "tumbling",
+      "slide",
+      "slid",
+      "sliding",
+      "slump",
+      "slumped",
+      "slumping",
+      "negative",
+      "pessimistic",
+      "concern",
+      "worried",
+      "fail",
+      "failed",
+      "failure",
+      "risk",
+      "risky",
     ];
 
     articles.forEach((article) => {
-      const text = `${article.title || ""} ${article.description || ""}`.toLowerCase();
+      const text =
+        `${article.title || ""} ${article.description || ""}`.toLowerCase();
 
-      positiveKeywords.forEach(keyword => {
+      positiveKeywords.forEach((keyword) => {
         if (text.includes(keyword)) positiveCount++;
       });
 
-      negativeKeywords.forEach(keyword => {
+      negativeKeywords.forEach((keyword) => {
         if (text.includes(keyword)) negativeCount++;
       });
     });
@@ -532,9 +648,12 @@ class SentimentAggregatorService {
   // Private Methods - Aggregation
   // --------------------------------------------------------------------------
 
-  private aggregateSources(symbol: string, sources: SentimentSource[]): AggregatedSentiment {
+  private aggregateSources(
+    symbol: string,
+    sources: SentimentSource[]
+  ): AggregatedSentiment {
     // Filter out sources with errors or zero confidence
-    const validSources = sources.filter(s => !s.error && s.confidence > 0);
+    const validSources = sources.filter((s) => !s.error && s.confidence > 0);
 
     if (validSources.length === 0) {
       log.warn("SentimentAggregator", "No valid sources", { symbol });
@@ -556,7 +675,7 @@ class SentimentAggregatorService {
     let weightSum = 0;
     let confidenceSum = 0;
 
-    validSources.forEach(source => {
+    validSources.forEach((source) => {
       const weight = this.config.weights[source.name] * source.confidence;
       weightedSum += source.score * weight;
       weightSum += weight;
@@ -567,13 +686,19 @@ class SentimentAggregatorService {
 
     // Adjust confidence based on source count
     const baseConfidence = confidenceSum / validSources.length;
-    const sourceCountPenalty = validSources.length < this.config.minSources ? 0.7 : 1.0;
+    const sourceCountPenalty =
+      validSources.length < this.config.minSources ? 0.7 : 1.0;
     const overallConfidence = baseConfidence * sourceCountPenalty;
 
     // Detect conflicts (high variance between sources)
-    const { variance, stdDev } = this.calculateVariance(validSources.map(s => s.score));
+    const { variance, stdDev } = this.calculateVariance(
+      validSources.map((s) => s.score)
+    );
     const conflictDetected = stdDev > this.config.conflictThreshold;
-    const conflictSeverity = Math.min(1, stdDev / this.config.conflictThreshold);
+    const conflictSeverity = Math.min(
+      1,
+      stdDev / this.config.conflictThreshold
+    );
 
     // Generate recommendation
     const recommendation = this.generateRecommendation(
@@ -595,14 +720,18 @@ class SentimentAggregatorService {
     };
   }
 
-  private calculateVariance(values: number[]): { variance: number; stdDev: number } {
+  private calculateVariance(values: number[]): {
+    variance: number;
+    stdDev: number;
+  } {
     if (values.length < 2) {
       return { variance: 0, stdDev: 0 };
     }
 
     const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
-    const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
+    const variance =
+      squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
     const stdDev = Math.sqrt(variance);
 
     return { variance, stdDev };
@@ -633,8 +762,10 @@ class SentimentAggregatorService {
   }
 
   private updateLatencyStats(latencyMs: number): void {
-    const totalLatency = this.stats.averageLatencyMs * (this.stats.totalRequests - 1);
-    this.stats.averageLatencyMs = (totalLatency + latencyMs) / this.stats.totalRequests;
+    const totalLatency =
+      this.stats.averageLatencyMs * (this.stats.totalRequests - 1);
+    this.stats.averageLatencyMs =
+      (totalLatency + latencyMs) / this.stats.totalRequests;
   }
 }
 
@@ -669,15 +800,27 @@ export async function getSymbolRecommendation(
 /**
  * Check if sentiment is bullish with high confidence
  */
-export async function isBullish(symbol: string, minConfidence = 0.6): Promise<boolean> {
+export async function isBullish(
+  symbol: string,
+  minConfidence = 0.6
+): Promise<boolean> {
   const result = await sentimentAggregator.getSentiment(symbol);
-  return result.recommendation === "bullish" && result.overallConfidence >= minConfidence;
+  return (
+    result.recommendation === "bullish" &&
+    result.overallConfidence >= minConfidence
+  );
 }
 
 /**
  * Check if sentiment is bearish with high confidence
  */
-export async function isBearish(symbol: string, minConfidence = 0.6): Promise<boolean> {
+export async function isBearish(
+  symbol: string,
+  minConfidence = 0.6
+): Promise<boolean> {
   const result = await sentimentAggregator.getSentiment(symbol);
-  return result.recommendation === "bearish" && result.overallConfidence >= minConfidence;
+  return (
+    result.recommendation === "bearish" &&
+    result.overallConfidence >= minConfidence
+  );
 }

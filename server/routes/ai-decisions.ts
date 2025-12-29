@@ -1,7 +1,12 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import { badRequest, notFound, serverError, validationError } from "../lib/standard-errors";
+import {
+  badRequest,
+  notFound,
+  serverError,
+  validationError,
+} from "../lib/standard-errors";
 import {
   aiDecisionEngine,
   type MarketData,
@@ -119,7 +124,13 @@ router.get("/enriched", async (req: Request, res: Response) => {
           linkedTrade: Trade | null;
           linkedPosition: Position | null;
           timeline: {
-            stage: "decision" | "risk_gate" | "order" | "fill" | "position" | "exit";
+            stage:
+              | "decision"
+              | "risk_gate"
+              | "order"
+              | "fill"
+              | "position"
+              | "exit";
             status: "completed" | "pending" | "skipped" | "failed";
             timestamp: Date | null;
             details?: string;
@@ -167,7 +178,9 @@ router.get("/enriched", async (req: Request, res: Response) => {
         // Fetch linked order if decision was submitted
         if (decision.id) {
           try {
-            const linkedOrders = await storage.getOrdersByDecisionId(decision.id);
+            const linkedOrders = await storage.getOrdersByDecisionId(
+              decision.id
+            );
             if (linkedOrders.length > 0) {
               const order = linkedOrders[0];
               enriched.linkedOrder = order;
@@ -176,9 +189,11 @@ router.get("/enriched", async (req: Request, res: Response) => {
               enriched.timeline.push({
                 stage: "order",
                 status:
-                  order.status === "filled" || order.status === "partially_filled"
+                  order.status === "filled" ||
+                  order.status === "partially_filled"
                     ? "completed"
-                    : order.status === "pending_new" || order.status === "accepted"
+                    : order.status === "pending_new" ||
+                        order.status === "accepted"
                       ? "pending"
                       : "failed",
                 timestamp: order.submittedAt,
@@ -248,7 +263,9 @@ router.get("/enriched", async (req: Request, res: Response) => {
     // Filter by status if requested
     let filtered = enrichedDecisions;
     if (statusFilter) {
-      filtered = enrichedDecisions.filter((e) => e.decision.status === statusFilter);
+      filtered = enrichedDecisions.filter(
+        (e) => e.decision.status === statusFilter
+      );
     }
 
     res.json({
@@ -257,7 +274,10 @@ router.get("/enriched", async (req: Request, res: Response) => {
       hasMore: offset + limit < decisions.length,
     });
   } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get enriched AI decisions: ${error}`);
+    log.error(
+      "AiDecisionsAPI",
+      `Failed to get enriched AI decisions: ${error}`
+    );
     res.status(500).json({ error: "Failed to get enriched AI decisions" });
   }
 });
@@ -369,7 +389,10 @@ router.get("/events", async (req: Request, res: Response) => {
         description: d.reasoning,
         explanation: d.reasoning,
         symbol: d.symbol,
-        confidence: typeof d.confidence === "string" ? parseFloat(d.confidence) : d.confidence,
+        confidence:
+          typeof d.confidence === "string"
+            ? parseFloat(d.confidence)
+            : d.confidence,
         action: d.action,
         time: d.createdAt,
         createdAt: d.createdAt,
@@ -393,8 +416,13 @@ router.get("/events", async (req: Request, res: Response) => {
  */
 router.get("/sentiment", async (req: Request, res: Response) => {
   try {
-    const symbols =
-      (req.query.symbols as string)?.split(",") || ["SPY", "QQQ", "AAPL", "TSLA", "NVDA"];
+    const symbols = (req.query.symbols as string)?.split(",") || [
+      "SPY",
+      "QQQ",
+      "AAPL",
+      "TSLA",
+      "NVDA",
+    ];
 
     // Generate sentiment signals based on available data
     // In production, this would call the data fusion engine or sentiment analysis service
@@ -556,15 +584,21 @@ router.get("/agent/market-analysis", async (req: Request, res: Response) => {
  * POST /api/agent/market-analysis/refresh
  * Manually trigger market condition analysis
  */
-router.post("/agent/market-analysis/refresh", async (req: Request, res: Response) => {
-  try {
-    const analysis = await marketConditionAnalyzer.runAnalysis();
-    res.json({ success: true, analysis });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to refresh market analysis: ${error}`);
-    res.status(500).json({ error: "Failed to refresh market analysis" });
+router.post(
+  "/agent/market-analysis/refresh",
+  async (req: Request, res: Response) => {
+    try {
+      const analysis = await marketConditionAnalyzer.runAnalysis();
+      res.json({ success: true, analysis });
+    } catch (error) {
+      log.error(
+        "AiDecisionsAPI",
+        `Failed to refresh market analysis: ${error}`
+      );
+      res.status(500).json({ error: "Failed to refresh market analysis" });
+    }
   }
-});
+);
 
 /**
  * GET /api/agent/dynamic-limits
@@ -689,90 +723,112 @@ router.post("/agent/auto-start", async (req: Request, res: Response) => {
  * POST /api/autonomous/execute-trades
  * Execute trades based on AI decisions
  */
-router.post("/autonomous/execute-trades", async (req: Request, res: Response) => {
-  try {
-    const { decisionIds } = req.body;
-    if (!decisionIds || !Array.isArray(decisionIds) || decisionIds.length === 0) {
-      return badRequest(res, "Decision IDs array is required");
-    }
-
-    const results: Array<{
-      decisionId: string;
-      success: boolean;
-      error?: string;
-      order?: unknown;
-    }> = [];
-
-    for (const decisionId of decisionIds) {
-      const decisions = await storage.getAiDecisions(undefined, 100);
-      const decision = decisions.find((d) => d.id === decisionId);
-      if (!decision) {
-        results.push({ decisionId, success: false, error: "Decision not found" });
-        continue;
+router.post(
+  "/autonomous/execute-trades",
+  async (req: Request, res: Response) => {
+    try {
+      const { decisionIds } = req.body;
+      if (
+        !decisionIds ||
+        !Array.isArray(decisionIds) ||
+        decisionIds.length === 0
+      ) {
+        return badRequest(res, "Decision IDs array is required");
       }
 
-      try {
-        // Use AI's suggestedQuantity instead of hardcoded 1
-        // suggestedQuantity is a percentage (0.01-0.25), calculate actual shares
-        const metadata = decision.metadata ? JSON.parse(decision.metadata) : {};
-        const suggestedPct = metadata?.suggestedQuantity
-          ? parseFloat(String(metadata.suggestedQuantity))
-          : 0.05; // Default 5% of portfolio
+      const results: Array<{
+        decisionId: string;
+        success: boolean;
+        error?: string;
+        order?: unknown;
+      }> = [];
 
-        // Get account info to calculate quantity
-        const account = await alpaca.getAccount();
-        const buyingPower = parseFloat(account.buying_power);
-        const price = parseFloat(decision.entryPrice || "0");
-        if (!price) {
-          results.push({ decisionId, success: false, error: "No entry price available" });
-          continue;
-        }
-
-        const tradeValue = buyingPower * Math.min(Math.max(suggestedPct, 0.01), 0.1); // 1-10% cap
-        const quantity = Math.floor(tradeValue / price);
-
-        if (quantity < 1) {
+      for (const decisionId of decisionIds) {
+        const decisions = await storage.getAiDecisions(undefined, 100);
+        const decision = decisions.find((d) => d.id === decisionId);
+        if (!decision) {
           results.push({
             decisionId,
             success: false,
-            error: "Calculated quantity less than 1 share",
+            error: "Decision not found",
           });
           continue;
         }
 
-        // SECURITY: Mark as authorized since this is an admin-initiated action
-        // executing a pre-approved AI decision
-        const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
-          symbol: decision.symbol,
-          side: decision.action as "buy" | "sell",
-          quantity,
-          authorizedByOrchestrator: true,
-        });
+        try {
+          // Use AI's suggestedQuantity instead of hardcoded 1
+          // suggestedQuantity is a percentage (0.01-0.25), calculate actual shares
+          const metadata = decision.metadata
+            ? JSON.parse(decision.metadata)
+            : {};
+          const suggestedPct = metadata?.suggestedQuantity
+            ? parseFloat(String(metadata.suggestedQuantity))
+            : 0.05; // Default 5% of portfolio
 
-        if (orderResult.success) {
-          results.push({ decisionId, success: true, order: orderResult.order });
-        } else {
-          results.push({
-            decisionId,
-            success: false,
-            error: orderResult.error,
+          // Get account info to calculate quantity
+          const account = await alpaca.getAccount();
+          const buyingPower = parseFloat(account.buying_power);
+          const price = parseFloat(decision.entryPrice || "0");
+          if (!price) {
+            results.push({
+              decisionId,
+              success: false,
+              error: "No entry price available",
+            });
+            continue;
+          }
+
+          const tradeValue =
+            buyingPower * Math.min(Math.max(suggestedPct, 0.01), 0.1); // 1-10% cap
+          const quantity = Math.floor(tradeValue / price);
+
+          if (quantity < 1) {
+            results.push({
+              decisionId,
+              success: false,
+              error: "Calculated quantity less than 1 share",
+            });
+            continue;
+          }
+
+          // SECURITY: Mark as authorized since this is an admin-initiated action
+          // executing a pre-approved AI decision
+          const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
+            symbol: decision.symbol,
+            side: decision.action as "buy" | "sell",
+            quantity,
+            authorizedByOrchestrator: true,
           });
-        }
-      } catch (err) {
-        results.push({ decisionId, success: false, error: String(err) });
-      }
-    }
 
-    const successCount = results.filter((r) => r.success).length;
-    res.json({
-      success: successCount > 0,
-      message: `Executed ${successCount}/${decisionIds.length} trades`,
-      results,
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to execute trades: ${error}`);
-    res.status(500).json({ error: String(error) });
+          if (orderResult.success) {
+            results.push({
+              decisionId,
+              success: true,
+              order: orderResult.order,
+            });
+          } else {
+            results.push({
+              decisionId,
+              success: false,
+              error: orderResult.error,
+            });
+          }
+        } catch (err) {
+          results.push({ decisionId, success: false, error: String(err) });
+        }
+      }
+
+      const successCount = results.filter((r) => r.success).length;
+      res.json({
+        success: successCount > 0,
+        message: `Executed ${successCount}/${decisionIds.length} trades`,
+        results,
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to execute trades: ${error}`);
+      res.status(500).json({ error: String(error) });
+    }
   }
-});
+);
 
 export default router;

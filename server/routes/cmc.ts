@@ -40,7 +40,9 @@ router.get("/global", async (req: Request, res: Response) => {
     res.json(metrics);
   } catch (error) {
     log.error("Routes", "Failed to get CMC global metrics", { error: error });
-    res.status(500).json({ error: "Failed to get CoinMarketCap global metrics" });
+    res
+      .status(500)
+      .json({ error: "Failed to get CoinMarketCap global metrics" });
   }
 });
 

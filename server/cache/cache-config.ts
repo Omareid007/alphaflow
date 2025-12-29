@@ -24,7 +24,7 @@ export interface CacheNamespaceConfig {
 export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
   // Real-time market data (30s fresh)
   marketData: {
-    namespace: 'mkt',
+    namespace: "mkt",
     l1TTL: 30 * 1000,
     l2TTL: 60 * 1000,
     maxL1Size: 1000,
@@ -33,7 +33,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // Price quotes (30s fresh for consistent behavior with existing caches)
   quotes: {
-    namespace: 'qt',
+    namespace: "qt",
     l1TTL: 30 * 1000,
     l2TTL: 60 * 1000,
     maxL1Size: 500,
@@ -42,7 +42,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // News and sentiment data (30 min fresh)
   news: {
-    namespace: 'news',
+    namespace: "news",
     l1TTL: 30 * 60 * 1000,
     l2TTL: 60 * 60 * 1000,
     maxL1Size: 200,
@@ -51,7 +51,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // LLM responses (5 min fresh, 30 min stale)
   llmResponses: {
-    namespace: 'llm',
+    namespace: "llm",
     l1TTL: 5 * 60 * 1000,
     l2TTL: 30 * 60 * 1000,
     maxL1Size: 100,
@@ -60,7 +60,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // Technical indicators (60s fresh)
   indicators: {
-    namespace: 'ind',
+    namespace: "ind",
     l1TTL: 60 * 1000,
     l2TTL: 5 * 60 * 1000,
     maxL1Size: 500,
@@ -69,7 +69,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // Order status and execution data (10s fresh)
   orders: {
-    namespace: 'ord',
+    namespace: "ord",
     l1TTL: 10 * 1000,
     l2TTL: 60 * 1000,
     maxL1Size: 200,
@@ -78,7 +78,7 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
 
   // Fundamental data (1 hour fresh)
   fundamentals: {
-    namespace: 'fund',
+    namespace: "fund",
     l1TTL: 60 * 60 * 1000,
     l2TTL: 4 * 60 * 60 * 1000,
     maxL1Size: 100,

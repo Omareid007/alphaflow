@@ -37,9 +37,9 @@ const DEFAULT_CONFIG: ValyuBudgetConfig = {
 };
 
 const MAX_PRICE_BY_TIER: Record<ValyuSourceTier, number> = {
-  web: 6.00,
-  finance: 12.00,
-  proprietary: 15.00,
+  web: 6.0,
+  finance: 12.0,
+  proprietary: 15.0,
 };
 
 let currentConfig: ValyuBudgetConfig = { ...DEFAULT_CONFIG };
@@ -91,7 +91,10 @@ export function getMaxPriceForTier(tier: ValyuSourceTier): number {
   return MAX_PRICE_BY_TIER[tier];
 }
 
-async function getOrCreateCounter(tier: ValyuSourceTier, monthKey: string): Promise<{ id: string; retrievalCount: number }> {
+async function getOrCreateCounter(
+  tier: ValyuSourceTier,
+  monthKey: string
+): Promise<{ id: string; retrievalCount: number }> {
   try {
     const existing = await db
       .select()
@@ -119,12 +122,18 @@ async function getOrCreateCounter(tier: ValyuSourceTier, monthKey: string): Prom
 
     return { id: inserted[0].id, retrievalCount: 0 };
   } catch (error) {
-    log.error("ValyuBudget", "Failed to get/create counter", { tier, monthKey, error });
+    log.error("ValyuBudget", "Failed to get/create counter", {
+      tier,
+      monthKey,
+      error,
+    });
     return { id: "", retrievalCount: 0 };
   }
 }
 
-export async function checkValyuBudget(tier: ValyuSourceTier): Promise<ValyuBudgetCheckResult> {
+export async function checkValyuBudget(
+  tier: ValyuSourceTier
+): Promise<ValyuBudgetCheckResult> {
   const monthKey = getCurrentMonthKey();
   const limit = getLimitForTier(tier);
 
@@ -152,7 +161,10 @@ export async function checkValyuBudget(tier: ValyuSourceTier): Promise<ValyuBudg
       remaining,
     };
   } catch (error) {
-    log.warn("ValyuBudget", "Budget check failed, allowing request", { tier, error });
+    log.warn("ValyuBudget", "Budget check failed, allowing request", {
+      tier,
+      error,
+    });
     return {
       allowed: true,
       tier,
@@ -206,7 +218,11 @@ export async function recordValyuRetrievals(
       monthKey,
     });
   } catch (error) {
-    log.error("ValyuBudget", "Failed to record retrievals", { tier, retrievalCount, error });
+    log.error("ValyuBudget", "Failed to record retrievals", {
+      tier,
+      retrievalCount,
+      error,
+    });
   }
 }
 
@@ -244,15 +260,26 @@ export function getValyuBudgetConfig(): ValyuBudgetConfig {
   return { ...currentConfig };
 }
 
-export function updateValyuBudgetConfig(updates: Partial<ValyuBudgetConfig>): ValyuBudgetConfig {
+export function updateValyuBudgetConfig(
+  updates: Partial<ValyuBudgetConfig>
+): ValyuBudgetConfig {
   if (updates.webRetrievalsPerMonth !== undefined) {
-    currentConfig.webRetrievalsPerMonth = Math.max(0, updates.webRetrievalsPerMonth);
+    currentConfig.webRetrievalsPerMonth = Math.max(
+      0,
+      updates.webRetrievalsPerMonth
+    );
   }
   if (updates.financeRetrievalsPerMonth !== undefined) {
-    currentConfig.financeRetrievalsPerMonth = Math.max(0, updates.financeRetrievalsPerMonth);
+    currentConfig.financeRetrievalsPerMonth = Math.max(
+      0,
+      updates.financeRetrievalsPerMonth
+    );
   }
   if (updates.proprietaryRetrievalsPerMonth !== undefined) {
-    currentConfig.proprietaryRetrievalsPerMonth = Math.max(0, updates.proprietaryRetrievalsPerMonth);
+    currentConfig.proprietaryRetrievalsPerMonth = Math.max(
+      0,
+      updates.proprietaryRetrievalsPerMonth
+    );
   }
 
   log.info("ValyuBudget", "Config updated", currentConfig);

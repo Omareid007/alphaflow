@@ -56,21 +56,24 @@ export interface SSRFCheckResult {
 export function checkSSRF(url: string): SSRFCheckResult {
   try {
     const parsed = new URL(url);
-    
+
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return { allowed: false, reason: `Protocol not allowed: ${parsed.protocol}` };
+      return {
+        allowed: false,
+        reason: `Protocol not allowed: ${parsed.protocol}`,
+      };
     }
 
     const hostname = parsed.hostname.toLowerCase();
-    
+
     for (const pattern of BLOCKED_IP_PATTERNS) {
       if (pattern.test(hostname)) {
         return { allowed: false, reason: `Blocked IP/hostname: ${hostname}` };
       }
     }
 
-    const isAllowed = ALLOWED_DOMAINS.some(domain => 
-      hostname === domain || hostname.endsWith(`.${domain}`)
+    const isAllowed = ALLOWED_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
     );
 
     if (!isAllowed) {
@@ -79,7 +82,10 @@ export function checkSSRF(url: string): SSRFCheckResult {
 
     return { allowed: true, normalizedUrl: parsed.toString() };
   } catch (err) {
-    return { allowed: false, reason: `Invalid URL: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      allowed: false,
+      reason: `Invalid URL: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 
@@ -126,7 +132,7 @@ export function redactSecrets(obj: unknown): unknown {
   if (typeof obj === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (SECRET_PATTERNS.some(pattern => pattern.test(key))) {
+      if (SECRET_PATTERNS.some((pattern) => pattern.test(key))) {
         result[key] = "[REDACTED]";
       } else {
         result[key] = redactSecrets(value);
@@ -138,15 +144,18 @@ export function redactSecrets(obj: unknown): unknown {
   return obj;
 }
 
-export function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
+export function sanitizeHeaders(
+  headers: Record<string, string>
+): Record<string, string> {
   const sanitized: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    if (SECRET_PATTERNS.some(pattern => pattern.test(key))) {
+    if (SECRET_PATTERNS.some((pattern) => pattern.test(key))) {
       sanitized[key] = "[REDACTED]";
     } else {
-      sanitized[key] = typeof value === "string" && value.length > 100 
-        ? `${value.substring(0, 50)}...[truncated]` 
-        : value;
+      sanitized[key] =
+        typeof value === "string" && value.length > 100
+          ? `${value.substring(0, 50)}...[truncated]`
+          : value;
     }
   }
   return sanitized;
@@ -158,16 +167,22 @@ export interface RateLimitConfig {
   cooldownMs: number;
 }
 
-const toolRateLimits = new Map<string, { calls: number[]; lastReset: number }>();
+const toolRateLimits = new Map<
+  string,
+  { calls: number[]; lastReset: number }
+>();
 
-export function checkRateLimit(toolName: string, config: RateLimitConfig = { 
-  maxCallsPerMinute: 60, 
-  maxCallsPerHour: 1000,
-  cooldownMs: 100 
-}): { allowed: boolean; waitMs?: number; reason?: string } {
+export function checkRateLimit(
+  toolName: string,
+  config: RateLimitConfig = {
+    maxCallsPerMinute: 60,
+    maxCallsPerHour: 1000,
+    cooldownMs: 100,
+  }
+): { allowed: boolean; waitMs?: number; reason?: string } {
   const now = Date.now();
   let state = toolRateLimits.get(toolName);
-  
+
   if (!state) {
     state = { calls: [], lastReset: now };
     toolRateLimits.set(toolName, state);
@@ -175,33 +190,35 @@ export function checkRateLimit(toolName: string, config: RateLimitConfig = {
 
   const oneMinuteAgo = now - 60000;
   const oneHourAgo = now - 3600000;
-  state.calls = state.calls.filter(t => t > oneHourAgo);
+  state.calls = state.calls.filter((t) => t > oneHourAgo);
 
-  const callsLastMinute = state.calls.filter(t => t > oneMinuteAgo).length;
+  const callsLastMinute = state.calls.filter((t) => t > oneMinuteAgo).length;
   const callsLastHour = state.calls.length;
 
   if (callsLastMinute >= config.maxCallsPerMinute) {
-    return { 
-      allowed: false, 
-      waitMs: 60000 - (now - Math.min(...state.calls.filter(t => t > oneMinuteAgo))),
-      reason: `Rate limit exceeded: ${callsLastMinute}/${config.maxCallsPerMinute} calls/minute`
+    return {
+      allowed: false,
+      waitMs:
+        60000 -
+        (now - Math.min(...state.calls.filter((t) => t > oneMinuteAgo))),
+      reason: `Rate limit exceeded: ${callsLastMinute}/${config.maxCallsPerMinute} calls/minute`,
     };
   }
 
   if (callsLastHour >= config.maxCallsPerHour) {
-    return { 
-      allowed: false, 
+    return {
+      allowed: false,
       waitMs: 3600000 - (now - Math.min(...state.calls)),
-      reason: `Rate limit exceeded: ${callsLastHour}/${config.maxCallsPerHour} calls/hour`
+      reason: `Rate limit exceeded: ${callsLastHour}/${config.maxCallsPerHour} calls/hour`,
     };
   }
 
   const lastCall = state.calls[state.calls.length - 1];
   if (lastCall && now - lastCall < config.cooldownMs) {
-    return { 
-      allowed: false, 
+    return {
+      allowed: false,
       waitMs: config.cooldownMs - (now - lastCall),
-      reason: `Cooldown active: ${config.cooldownMs}ms between calls`
+      reason: `Cooldown active: ${config.cooldownMs}ms between calls`,
     };
   }
 
@@ -229,9 +246,9 @@ export function logToolAudit(entry: ToolAuditEntry): void {
     params: redactSecrets(entry.params),
     result: redactSecrets(entry.result),
   };
-  
+
   auditLog.unshift(sanitizedEntry);
-  
+
   if (auditLog.length > MAX_AUDIT_LOG_SIZE) {
     auditLog.pop();
   }
@@ -255,22 +272,23 @@ export function getToolTelemetry(toolName?: string): {
   avgLatencyMs: number;
   callsByRole: Record<string, number>;
 } {
-  const entries = toolName 
-    ? auditLog.filter(e => e.toolName === toolName)
+  const entries = toolName
+    ? auditLog.filter((e) => e.toolName === toolName)
     : auditLog;
-  
-  const successCount = entries.filter(e => !e.error).length;
-  const errorCount = entries.filter(e => !!e.error).length;
-  const avgLatencyMs = entries.length > 0 
-    ? entries.reduce((sum, e) => sum + e.latencyMs, 0) / entries.length 
-    : 0;
-  
+
+  const successCount = entries.filter((e) => !e.error).length;
+  const errorCount = entries.filter((e) => !!e.error).length;
+  const avgLatencyMs =
+    entries.length > 0
+      ? entries.reduce((sum, e) => sum + e.latencyMs, 0) / entries.length
+      : 0;
+
   const callsByRole: Record<string, number> = {};
   for (const entry of entries) {
     const role = entry.callerRole || "unknown";
     callsByRole[role] = (callsByRole[role] || 0) + 1;
   }
-  
+
   return {
     totalCalls: entries.length,
     successCount,

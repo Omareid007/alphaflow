@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { apiDiscoveryService } from '@/lib/admin/services';
+import { NextResponse } from "next/server";
+import { apiDiscoveryService } from "@/lib/admin/services";
 
 export async function POST(
   request: Request,
@@ -10,17 +10,20 @@ export async function POST(
 
     if (!documentUrl) {
       return NextResponse.json(
-        { error: 'Document URL is required' },
+        { error: "Document URL is required" },
         { status: 400 }
       );
     }
 
-    const result = await apiDiscoveryService.discoverApis(params.id, documentUrl);
+    const result = await apiDiscoveryService.discoverApis(
+      params.id,
+      documentUrl
+    );
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Failed to discover APIs:', error);
+    console.error("Failed to discover APIs:", error);
     return NextResponse.json(
-      { error: 'Failed to discover APIs' },
+      { error: "Failed to discover APIs" },
       { status: 500 }
     );
   }

@@ -21,10 +21,10 @@ import type { AlpacaPosition, AlpacaAccount } from "../connectors/alpaca";
 
 export interface ExposureConfig {
   // Base limits (defaults)
-  baseMaxExposurePct: number;       // Base max total exposure (default: 80%)
-  absoluteMaxExposurePct: number;   // Absolute max (can scale to 100%+)
-  baseMaxPositionPct: number;       // Base max single position (default: 10%)
-  absoluteMaxPositionPct: number;   // Absolute max per position (default: 25%)
+  baseMaxExposurePct: number; // Base max total exposure (default: 80%)
+  absoluteMaxExposurePct: number; // Absolute max (can scale to 100%+)
+  baseMaxPositionPct: number; // Base max single position (default: 10%)
+  absoluteMaxPositionPct: number; // Absolute max per position (default: 25%)
 
   // Scaling enables
   volatilityScaling: boolean;
@@ -32,21 +32,21 @@ export interface ExposureConfig {
   correlationScaling: boolean;
 
   // Take profit cycling
-  takeProfitThresholdPct: number;   // Take profit at X%
-  trailingStopPct: number;          // Trailing stop percentage
-  scaleOutThresholds: number[];     // Scale-out profit levels [2%, 4%, 6%]
+  takeProfitThresholdPct: number; // Take profit at X%
+  trailingStopPct: number; // Trailing stop percentage
+  scaleOutThresholds: number[]; // Scale-out profit levels [2%, 4%, 6%]
 
   // Reinvestment
   enableAutoReinvest: boolean;
-  reinvestCooldownMs: number;       // Wait before reinvesting
+  reinvestCooldownMs: number; // Wait before reinvesting
 }
 
 export interface PositionSizeRecommendation {
   symbol: string;
-  recommendedSize: number;          // Dollar amount
-  recommendedQty: number;           // Share quantity
-  sizeAsPctPortfolio: number;       // Size as % of portfolio
-  sizeAsPctMaxAllowed: number;      // Size as % of max allowed
+  recommendedSize: number; // Dollar amount
+  recommendedQty: number; // Share quantity
+  sizeAsPctPortfolio: number; // Size as % of portfolio
+  sizeAsPctMaxAllowed: number; // Size as % of max allowed
   reasoning: Record<string, unknown>;
   constraintsApplied: string[];
 }
@@ -100,34 +100,82 @@ const DEFAULT_CONFIG: ExposureConfig = {
 // Sector mapping for correlation
 const SECTOR_MAP: Record<string, string> = {
   // Technology
-  AAPL: "tech", MSFT: "tech", GOOGL: "tech", GOOG: "tech", META: "tech",
-  NVDA: "tech", AMD: "tech", INTC: "tech", AVGO: "tech", CRM: "tech",
-  ADBE: "tech", ORCL: "tech", CSCO: "tech", IBM: "tech", QCOM: "tech",
+  AAPL: "tech",
+  MSFT: "tech",
+  GOOGL: "tech",
+  GOOG: "tech",
+  META: "tech",
+  NVDA: "tech",
+  AMD: "tech",
+  INTC: "tech",
+  AVGO: "tech",
+  CRM: "tech",
+  ADBE: "tech",
+  ORCL: "tech",
+  CSCO: "tech",
+  IBM: "tech",
+  QCOM: "tech",
 
   // Finance
-  JPM: "finance", BAC: "finance", GS: "finance", MS: "finance", WFC: "finance",
-  C: "finance", V: "finance", MA: "finance", AXP: "finance", BLK: "finance",
+  JPM: "finance",
+  BAC: "finance",
+  GS: "finance",
+  MS: "finance",
+  WFC: "finance",
+  C: "finance",
+  V: "finance",
+  MA: "finance",
+  AXP: "finance",
+  BLK: "finance",
 
   // Healthcare
-  JNJ: "healthcare", UNH: "healthcare", PFE: "healthcare", ABBV: "healthcare",
-  MRK: "healthcare", LLY: "healthcare", TMO: "healthcare", ABT: "healthcare",
+  JNJ: "healthcare",
+  UNH: "healthcare",
+  PFE: "healthcare",
+  ABBV: "healthcare",
+  MRK: "healthcare",
+  LLY: "healthcare",
+  TMO: "healthcare",
+  ABT: "healthcare",
 
   // Energy
-  XOM: "energy", CVX: "energy", COP: "energy", SLB: "energy", EOG: "energy",
+  XOM: "energy",
+  CVX: "energy",
+  COP: "energy",
+  SLB: "energy",
+  EOG: "energy",
 
   // Consumer
-  AMZN: "consumer", TSLA: "consumer", WMT: "consumer", HD: "consumer",
-  MCD: "consumer", NKE: "consumer", SBUX: "consumer", TGT: "consumer",
+  AMZN: "consumer",
+  TSLA: "consumer",
+  WMT: "consumer",
+  HD: "consumer",
+  MCD: "consumer",
+  NKE: "consumer",
+  SBUX: "consumer",
+  TGT: "consumer",
 
   // Industrial
-  CAT: "industrial", BA: "industrial", HON: "industrial", UPS: "industrial",
-  GE: "industrial", MMM: "industrial", LMT: "industrial", RTX: "industrial",
+  CAT: "industrial",
+  BA: "industrial",
+  HON: "industrial",
+  UPS: "industrial",
+  GE: "industrial",
+  MMM: "industrial",
+  LMT: "industrial",
+  RTX: "industrial",
 
   // ETFs
-  SPY: "broad", QQQ: "tech", IWM: "small", DIA: "broad", VTI: "broad",
+  SPY: "broad",
+  QQQ: "tech",
+  IWM: "small",
+  DIA: "broad",
+  VTI: "broad",
 
   // Crypto
-  "BTC/USD": "crypto", "ETH/USD": "crypto", "SOL/USD": "crypto",
+  "BTC/USD": "crypto",
+  "ETH/USD": "crypto",
+  "SOL/USD": "crypto",
 };
 
 // ============================================================================
@@ -144,7 +192,11 @@ export class DynamicExposureController {
   private marketRegime: "normal" | "trending" | "choppy" = "normal";
 
   // Performance tracking for adaptive sizing
-  private recentTrades: Array<{ symbol: string; pnl: number; timestamp: Date }> = [];
+  private recentTrades: Array<{
+    symbol: string;
+    pnl: number;
+    timestamp: Date;
+  }> = [];
   private winRate: number = 0.5;
   private avgWinLossRatio: number = 1.0;
 
@@ -201,7 +253,8 @@ export class DynamicExposureController {
         this.positionPnl.set(pos.symbol, parseFloat(pos.unrealized_pl));
       }
 
-      const currentExposure = portfolioValue > 0 ? totalPositionValue / portfolioValue : 0;
+      const currentExposure =
+        portfolioValue > 0 ? totalPositionValue / portfolioValue : 0;
 
       return {
         portfolioValue,
@@ -214,7 +267,10 @@ export class DynamicExposureController {
         patternDayTrader: account.pattern_day_trader,
       };
     } catch (error) {
-      log.error("DynamicExposureController", `Failed to get account status: ${error}`);
+      log.error(
+        "DynamicExposureController",
+        `Failed to get account status: ${error}`
+      );
       throw error;
     }
   }
@@ -231,7 +287,10 @@ export class DynamicExposureController {
     if (this.config.volatilityScaling) {
       if (this.volatilityRegime < 0.8) {
         // Low volatility: Can increase exposure
-        maxExposure = Math.min(maxExposure * 1.2, this.config.absoluteMaxExposurePct / 100);
+        maxExposure = Math.min(
+          maxExposure * 1.2,
+          this.config.absoluteMaxExposurePct / 100
+        );
       } else if (this.volatilityRegime > 1.5) {
         // High volatility: Reduce exposure
         maxExposure *= 0.7;
@@ -241,13 +300,22 @@ export class DynamicExposureController {
     // Adjust for signal confidence
     if (this.config.confidenceScaling && signalConfidence > 0.8) {
       const confidenceBoost = (signalConfidence - 0.8) / 0.2; // 0 to 1
-      const exposureBoost = confidenceBoost * (this.config.absoluteMaxExposurePct / 100 - this.config.baseMaxExposurePct / 100);
-      maxExposure = Math.min(maxExposure + exposureBoost, this.config.absoluteMaxExposurePct / 100);
+      const exposureBoost =
+        confidenceBoost *
+        (this.config.absoluteMaxExposurePct / 100 -
+          this.config.baseMaxExposurePct / 100);
+      maxExposure = Math.min(
+        maxExposure + exposureBoost,
+        this.config.absoluteMaxExposurePct / 100
+      );
     }
 
     // Adjust for recent performance
     if (this.winRate > 0.6 && this.avgWinLossRatio > 1.5) {
-      maxExposure = Math.min(maxExposure * 1.1, this.config.absoluteMaxExposurePct / 100);
+      maxExposure = Math.min(
+        maxExposure * 1.1,
+        this.config.absoluteMaxExposurePct / 100
+      );
     } else if (this.winRate < 0.4) {
       maxExposure *= 0.8;
     }
@@ -260,15 +328,22 @@ export class DynamicExposureController {
       } else if (vix > 25) {
         maxExposure *= 0.7;
       } else if (vix < 15) {
-        maxExposure = Math.min(maxExposure * 1.1, this.config.absoluteMaxExposurePct / 100);
+        maxExposure = Math.min(
+          maxExposure * 1.1,
+          this.config.absoluteMaxExposurePct / 100
+        );
       }
     }
 
-    log.debug("DynamicExposureController", `Dynamic max exposure: ${(maxExposure * 100).toFixed(1)}%`, {
-      volatilityRegime: this.volatilityRegime,
-      signalConfidence,
-      winRate: this.winRate,
-    });
+    log.debug(
+      "DynamicExposureController",
+      `Dynamic max exposure: ${(maxExposure * 100).toFixed(1)}%`,
+      {
+        volatilityRegime: this.volatilityRegime,
+        signalConfidence,
+        winRate: this.winRate,
+      }
+    );
 
     return maxExposure;
   }
@@ -297,25 +372,33 @@ export class DynamicExposureController {
           maxPositionPct * confidenceMultiplier,
           this.config.absoluteMaxPositionPct / 100
         );
-        constraintsApplied.push(`confidence_boost_${confidenceMultiplier.toFixed(2)}x`);
+        constraintsApplied.push(
+          `confidence_boost_${confidenceMultiplier.toFixed(2)}x`
+        );
       } else {
         maxPositionPct = maxPositionPct * (signalConfidence / 0.8);
-        constraintsApplied.push(`confidence_reduction_${signalConfidence.toFixed(2)}`);
+        constraintsApplied.push(
+          `confidence_reduction_${signalConfidence.toFixed(2)}`
+        );
       }
     }
 
     // Volatility adjustment
     if (this.config.volatilityScaling && this.volatilityRegime > 1.2) {
       maxPositionPct /= this.volatilityRegime;
-      constraintsApplied.push(`volatility_reduction_${this.volatilityRegime.toFixed(2)}`);
+      constraintsApplied.push(
+        `volatility_reduction_${this.volatilityRegime.toFixed(2)}`
+      );
     }
 
     // Correlation penalty - reduce if correlated positions exist
     if (this.config.correlationScaling) {
       const correlationPenalty = this.calculateCorrelationPenalty(symbol);
       if (correlationPenalty > 0) {
-        maxPositionPct *= (1 - correlationPenalty);
-        constraintsApplied.push(`correlation_penalty_${correlationPenalty.toFixed(2)}`);
+        maxPositionPct *= 1 - correlationPenalty;
+        constraintsApplied.push(
+          `correlation_penalty_${correlationPenalty.toFixed(2)}`
+        );
       }
       reasoning.correlationPenalty = correlationPenalty;
     }
@@ -357,7 +440,8 @@ export class DynamicExposureController {
       recommendedSize: positionValue,
       recommendedQty: qty,
       sizeAsPctPortfolio: positionPct,
-      sizeAsPctMaxAllowed: positionPct / (this.config.absoluteMaxPositionPct / 100),
+      sizeAsPctMaxAllowed:
+        positionPct / (this.config.absoluteMaxPositionPct / 100),
       reasoning,
       constraintsApplied,
     };
@@ -398,7 +482,7 @@ export class DynamicExposureController {
           if (i === 0) {
             takePct = 0.33; // Take 1/3 at first threshold
           } else if (i === 1) {
-            takePct = 0.50; // Take 1/2 of remaining at second
+            takePct = 0.5; // Take 1/2 of remaining at second
           } else {
             takePct = 0.75; // Take most at third
           }
@@ -407,7 +491,9 @@ export class DynamicExposureController {
 
           // Only add if we haven't recently taken profit at this level
           const recentTake = this.takeProfitHistory.find(
-            t => t.symbol === symbol && Date.now() - t.timestamp.getTime() < 3600000
+            (t) =>
+              t.symbol === symbol &&
+              Date.now() - t.timestamp.getTime() < 3600000
           );
 
           if (!recentTake) {
@@ -445,7 +531,11 @@ export class DynamicExposureController {
       // Get current position for entry price
       const position = this.currentPositions.get(symbol);
       if (!position) {
-        return { qtySold: 0, queuedForReinvest: false, error: "Position not found" };
+        return {
+          qtySold: 0,
+          queuedForReinvest: false,
+          error: "Position not found",
+        };
       }
 
       const currentPrice = parseFloat(position.current_price);
@@ -485,14 +575,21 @@ export class DynamicExposureController {
         });
         queuedForReinvest = true;
 
-        log.info("DynamicExposureController", `Queued $${estimatedProceeds.toFixed(2)} for reinvestment from ${symbol}`);
+        log.info(
+          "DynamicExposureController",
+          `Queued $${estimatedProceeds.toFixed(2)} for reinvestment from ${symbol}`
+        );
       }
 
-      log.info("DynamicExposureController", `Take profit executed: ${symbol} x${qtyToSell}`, {
-        orderId: order.id,
-        estimatedProceeds,
-        reinvest: queuedForReinvest,
-      });
+      log.info(
+        "DynamicExposureController",
+        `Take profit executed: ${symbol} x${qtyToSell}`,
+        {
+          orderId: order.id,
+          estimatedProceeds,
+          reinvest: queuedForReinvest,
+        }
+      );
 
       return {
         qtySold: qtyToSell,
@@ -500,9 +597,11 @@ export class DynamicExposureController {
         proceeds: estimatedProceeds,
         queuedForReinvest,
       };
-
     } catch (error) {
-      log.error("DynamicExposureController", `Take profit error for ${symbol}: ${error}`);
+      log.error(
+        "DynamicExposureController",
+        `Take profit error for ${symbol}: ${error}`
+      );
       return { qtySold: 0, queuedForReinvest: false, error: String(error) };
     }
   }
@@ -512,7 +611,7 @@ export class DynamicExposureController {
   getReinvestOpportunities(): ReinvestOpportunity[] {
     const now = Date.now();
     return this.reinvestQueue.filter(
-      item => now - item.queuedAt.getTime() >= this.config.reinvestCooldownMs
+      (item) => now - item.queuedAt.getTime() >= this.config.reinvestCooldownMs
     );
   }
 
@@ -536,7 +635,8 @@ export class DynamicExposureController {
 
     for (const [symbol, pos] of status.positions) {
       const sector = SECTOR_MAP[symbol] || "other";
-      const positionPct = Math.abs(parseFloat(pos.market_value)) / status.portfolioValue;
+      const positionPct =
+        Math.abs(parseFloat(pos.market_value)) / status.portfolioValue;
 
       sectorExposure[sector] = (sectorExposure[sector] || 0) + positionPct;
 
@@ -546,15 +646,26 @@ export class DynamicExposureController {
     }
 
     // Correlation risk (simplified: more concentrated = higher risk)
-    const maxSectorConcentration = Math.max(...Object.values(sectorExposure), 0);
+    const maxSectorConcentration = Math.max(
+      ...Object.values(sectorExposure),
+      0
+    );
     const correlationRisk = maxSectorConcentration; // 0 to 1
 
     // Overall heat assessment
     let overallHeat: PortfolioHeat["overallHeat"];
 
-    if (status.currentExposure > 0.9 || maxSectorConcentration > 0.4 || largestPositionPct > 0.2) {
+    if (
+      status.currentExposure > 0.9 ||
+      maxSectorConcentration > 0.4 ||
+      largestPositionPct > 0.2
+    ) {
       overallHeat = "critical";
-    } else if (status.currentExposure > 0.75 || maxSectorConcentration > 0.3 || largestPositionPct > 0.15) {
+    } else if (
+      status.currentExposure > 0.75 ||
+      maxSectorConcentration > 0.3 ||
+      largestPositionPct > 0.15
+    ) {
       overallHeat = "high";
     } else if (status.currentExposure > 0.5 || maxSectorConcentration > 0.2) {
       overallHeat = "moderate";
@@ -586,8 +697,8 @@ export class DynamicExposureController {
     }
 
     // Update metrics
-    const wins = this.recentTrades.filter(t => t.pnl > 0);
-    const losses = this.recentTrades.filter(t => t.pnl < 0);
+    const wins = this.recentTrades.filter((t) => t.pnl > 0);
+    const losses = this.recentTrades.filter((t) => t.pnl < 0);
 
     if (this.recentTrades.length > 0) {
       this.winRate = wins.length / this.recentTrades.length;
@@ -595,7 +706,9 @@ export class DynamicExposureController {
 
     if (wins.length > 0 && losses.length > 0) {
       const avgWin = wins.reduce((sum, t) => sum + t.pnl, 0) / wins.length;
-      const avgLoss = Math.abs(losses.reduce((sum, t) => sum + t.pnl, 0) / losses.length);
+      const avgLoss = Math.abs(
+        losses.reduce((sum, t) => sum + t.pnl, 0) / losses.length
+      );
       this.avgWinLossRatio = avgLoss > 0 ? avgWin / avgLoss : 1.0;
     }
   }
@@ -649,19 +762,29 @@ export class DynamicExposureController {
     // Calculate sector concentration as percentage of positions
     const sectorConcentration: Record<string, number> = {};
     for (const [sector, count] of Object.entries(sectorCounts)) {
-      sectorConcentration[sector] = (count / Math.max(this.recentTrades.length, 1)) * 100;
+      sectorConcentration[sector] =
+        (count / Math.max(this.recentTrades.length, 1)) * 100;
     }
 
     // Calculate correlation risk (higher if concentrated in few sectors)
     const sectorCount = Object.keys(sectorConcentration).length;
-    const maxSectorConcentration = Math.max(...Object.values(sectorConcentration), 0);
-    const correlationRisk = sectorCount > 0
-      ? Math.min(1, (maxSectorConcentration / 100) * (1 / Math.max(sectorCount, 1)))
-      : 0;
+    const maxSectorConcentration = Math.max(
+      ...Object.values(sectorConcentration),
+      0
+    );
+    const correlationRisk =
+      sectorCount > 0
+        ? Math.min(
+            1,
+            (maxSectorConcentration / 100) * (1 / Math.max(sectorCount, 1))
+          )
+        : 0;
 
     // Estimate exposure levels based on config (actual exposure requires account data)
-    const estimatedExposurePct = (positionCount / 10) * this.config.baseMaxPositionPct;
-    const largestPositionPct = positionCount > 0 ? this.config.baseMaxPositionPct : 0;
+    const estimatedExposurePct =
+      (positionCount / 10) * this.config.baseMaxPositionPct;
+    const largestPositionPct =
+      positionCount > 0 ? this.config.baseMaxPositionPct : 0;
 
     // Determine overall heat level
     let overallHeat: "low" | "moderate" | "high" | "critical" = "low";

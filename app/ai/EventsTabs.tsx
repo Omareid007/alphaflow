@@ -9,7 +9,11 @@ interface EventsTabsProps {
   riskEvents: AiEvent[];
 }
 
-export function EventsTabs({ events, signalEvents, riskEvents }: EventsTabsProps) {
+export function EventsTabs({
+  events,
+  signalEvents,
+  riskEvents,
+}: EventsTabsProps) {
   return (
     <Tabs defaultValue="all">
       <div className="flex items-center justify-between">
@@ -23,7 +27,7 @@ export function EventsTabs({ events, signalEvents, riskEvents }: EventsTabsProps
       <TabsContent value="all" className="mt-4">
         <Card>
           <CardContent className="p-4">
-            {events.map(event => (
+            {events.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </CardContent>
@@ -34,9 +38,13 @@ export function EventsTabs({ events, signalEvents, riskEvents }: EventsTabsProps
         <Card>
           <CardContent className="p-4">
             {signalEvents.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">No signal events</p>
+              <p className="py-8 text-center text-muted-foreground">
+                No signal events
+              </p>
             ) : (
-              signalEvents.map(event => <EventCard key={event.id} event={event} />)
+              signalEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))
             )}
           </CardContent>
         </Card>
@@ -46,9 +54,13 @@ export function EventsTabs({ events, signalEvents, riskEvents }: EventsTabsProps
         <Card>
           <CardContent className="p-4">
             {riskEvents.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">No risk alerts</p>
+              <p className="py-8 text-center text-muted-foreground">
+                No risk alerts
+              </p>
             ) : (
-              riskEvents.map(event => <EventCard key={event.id} event={event} />)
+              riskEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))
             )}
           </CardContent>
         </Card>

@@ -1,10 +1,19 @@
-import { alpaca, type AlpacaOrder, type CreateOrderParams } from "../connectors/alpaca";
+import {
+  alpaca,
+  type AlpacaOrder,
+  type CreateOrderParams,
+} from "../connectors/alpaca";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { alpacaStream, type AlpacaTradeUpdate } from "./alpaca-stream";
 import type { InsertOrder } from "@shared/schema";
 import { tradingConfig } from "../config/trading-config";
-import { toDecimal, priceWithBuffer, calculateWholeShares, roundPrice } from "../utils/money";
+import {
+  toDecimal,
+  priceWithBuffer,
+  calculateWholeShares,
+  roundPrice,
+} from "../utils/money";
 
 // Re-export AlpacaTradeUpdate for external consumers
 export type { AlpacaTradeUpdate };
@@ -41,7 +50,10 @@ export interface FixedOrderParams {
 
 export interface RejectionHandler {
   pattern: RegExp;
-  fix: (order: AlpacaTradeUpdate, reason: string) => Promise<FixedOrderParams | null>;
+  fix: (
+    order: AlpacaTradeUpdate,
+    reason: string
+  ) => Promise<FixedOrderParams | null>;
   category: RejectionCategory;
   description: string;
 }
@@ -60,7 +72,11 @@ export interface RetryResult {
   originalOrderId: string;
   newOrderId?: string;
   attempts: RetryAttempt[];
-  finalStatus: "retried_successfully" | "max_retries_exceeded" | "permanent_failure" | "no_fix_available";
+  finalStatus:
+    | "retried_successfully"
+    | "max_retries_exceeded"
+    | "permanent_failure"
+    | "no_fix_available";
   error?: string;
 }
 
@@ -74,8 +90,10 @@ export interface CircuitBreakerState {
 // Configuration
 const MAX_RETRIES_PER_ORDER = tradingConfig.orderRetry.maxRetriesPerOrder;
 const RETRY_BACKOFF_BASE_MS = tradingConfig.orderRetry.retryBackoffBaseMs;
-const CIRCUIT_BREAKER_THRESHOLD = tradingConfig.orderRetry.circuitBreakerThreshold;
-const CIRCUIT_BREAKER_WINDOW_MS = tradingConfig.orderRetry.circuitBreakerWindowMs;
+const CIRCUIT_BREAKER_THRESHOLD =
+  tradingConfig.orderRetry.circuitBreakerThreshold;
+const CIRCUIT_BREAKER_WINDOW_MS =
+  tradingConfig.orderRetry.circuitBreakerWindowMs;
 const CIRCUIT_BREAKER_RESET_MS = tradingConfig.orderRetry.circuitBreakerResetMs;
 
 // Global retry tracking
@@ -103,7 +121,10 @@ const rejectionHandlers: RejectionHandler[] = [
 
       // Use Decimal.js for precise limit price buffer calculation (0.5%)
       const direction = order.order.side === "buy" ? 1 : -1;
-      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
+      const limitPrice = roundPrice(
+        priceWithBuffer(currentPrice, 0.005, direction as 1 | -1),
+        2
+      ).toNumber();
 
       return {
         params: {
@@ -132,7 +153,10 @@ const rejectionHandlers: RejectionHandler[] = [
 
       // Use Decimal.js for precise limit price buffer calculation (0.5%)
       const direction = order.order.side === "buy" ? 1 : -1;
-      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
+      const limitPrice = roundPrice(
+        priceWithBuffer(currentPrice, 0.005, direction as 1 | -1),
+        2
+      ).toNumber();
 
       return {
         params: {
@@ -160,7 +184,10 @@ const rejectionHandlers: RejectionHandler[] = [
 
       // Use Decimal.js for precise limit price buffer calculation (0.5%)
       const direction = order.order.side === "buy" ? 1 : -1;
-      const limitPrice = roundPrice(priceWithBuffer(currentPrice, 0.005, direction as 1 | -1), 2).toNumber();
+      const limitPrice = roundPrice(
+        priceWithBuffer(currentPrice, 0.005, direction as 1 | -1),
+        2
+      ).toNumber();
 
       return {
         params: {
@@ -188,7 +215,10 @@ const rejectionHandlers: RejectionHandler[] = [
       // Use Decimal.js for precise minimum notional quantity calculation
       // Alpaca minimum is usually $1, increase to $5 minimum
       const minNotional = 5;
-      const requiredQty = toDecimal(minNotional).dividedBy(currentPrice).ceil().toNumber();
+      const requiredQty = toDecimal(minNotional)
+        .dividedBy(currentPrice)
+        .ceil()
+        .toNumber();
 
       return {
         params: {
@@ -219,7 +249,10 @@ const rejectionHandlers: RejectionHandler[] = [
 
       // Use Decimal.js for precise affordability calculation (95% of buying power)
       const affordableValue = buyingPower.times(0.95);
-      const affordableQty = calculateWholeShares(affordableValue, currentPrice).toNumber();
+      const affordableQty = calculateWholeShares(
+        affordableValue,
+        currentPrice
+      ).toNumber();
 
       if (affordableQty < 1) {
         return null; // Cannot afford even 1 share
@@ -247,7 +280,10 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Maximum position count exceeded",
     fix: async (order, reason) => {
       // Cannot auto-fix, need manual intervention to close positions
-      log.warn("OrderRetry", `Max positions limit - manual intervention required for ${order.order.symbol}`);
+      log.warn(
+        "OrderRetry",
+        `Max positions limit - manual intervention required for ${order.order.symbol}`
+      );
       return null;
     },
   },
@@ -359,7 +395,10 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Symbol not found or invalid",
     fix: async (order, reason) => {
       // Cannot auto-fix invalid symbols
-      log.error("OrderRetry", `Invalid symbol ${order.order.symbol} - cannot retry`);
+      log.error(
+        "OrderRetry",
+        `Invalid symbol ${order.order.symbol} - cannot retry`
+      );
       return null;
     },
   },
@@ -371,7 +410,10 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Pattern day trader restriction",
     fix: async (order, reason) => {
       // Cannot bypass PDT rule
-      log.warn("OrderRetry", `PDT restriction for ${order.order.symbol} - cannot retry`);
+      log.warn(
+        "OrderRetry",
+        `PDT restriction for ${order.order.symbol} - cannot retry`
+      );
       return null;
     },
   },
@@ -393,7 +435,10 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Short selling not available",
     fix: async (order, reason) => {
       if (order.order.side === "sell") {
-        log.warn("OrderRetry", `Short selling restricted for ${order.order.symbol} - cannot retry`);
+        log.warn(
+          "OrderRetry",
+          `Short selling restricted for ${order.order.symbol} - cannot retry`
+        );
         return null;
       }
       return null;
@@ -407,8 +452,11 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Potential wash trade detected",
     fix: async (order, reason) => {
       // Cannot bypass wash trade rules - delay needed
-      log.warn("OrderRetry", `Wash trade rule for ${order.order.symbol} - delaying retry`);
-      await new Promise(resolve => setTimeout(resolve, 30000)); // 30 second delay
+      log.warn(
+        "OrderRetry",
+        `Wash trade rule for ${order.order.symbol} - delaying retry`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 30000)); // 30 second delay
 
       return {
         params: {
@@ -432,10 +480,15 @@ const rejectionHandlers: RejectionHandler[] = [
     description: "Order canceled by broker (usually session-related)",
     fix: async (order, reason) => {
       // Check current market session to determine order type
-      const { tradingSessionManager } = await import("../services/trading-session-manager");
-      const sessionInfo = tradingSessionManager.getCurrentSession("US_EQUITIES");
-      const isRegularHours = sessionInfo.session === "regular" && sessionInfo.isOpen;
-      const isExtendedHours = sessionInfo.session === "pre_market" || sessionInfo.session === "after_hours";
+      const { tradingSessionManager } =
+        await import("../services/trading-session-manager");
+      const sessionInfo =
+        tradingSessionManager.getCurrentSession("US_EQUITIES");
+      const isRegularHours =
+        sessionInfo.session === "regular" && sessionInfo.isOpen;
+      const isExtendedHours =
+        sessionInfo.session === "pre_market" ||
+        sessionInfo.session === "after_hours";
 
       // During regular hours: use MARKET orders for immediate execution
       if (isRegularHours) {
@@ -495,9 +548,14 @@ const rejectionHandlers: RejectionHandler[] = [
 
       if (order.order.notional) {
         // For notional orders during extended hours, convert to qty (fractional not allowed)
-        const estimatedQty = Math.floor(parseFloat(order.order.notional) / currentPrice);
+        const estimatedQty = Math.floor(
+          parseFloat(order.order.notional) / currentPrice
+        );
         if (estimatedQty < 1) {
-          log.warn("OrderRetry", `Notional ${order.order.notional} too small for whole shares at $${currentPrice}`);
+          log.warn(
+            "OrderRetry",
+            `Notional ${order.order.notional} too small for whole shares at $${currentPrice}`
+          );
           return null;
         }
         return {
@@ -516,7 +574,10 @@ const rejectionHandlers: RejectionHandler[] = [
       }
 
       // Fallback: no qty or notional
-      log.warn("OrderRetry", `Order ${order.order.symbol} has no qty or notional - cannot retry`);
+      log.warn(
+        "OrderRetry",
+        `Order ${order.order.symbol} has no qty or notional - cannot retry`
+      );
       return null;
     },
   },
@@ -564,9 +625,13 @@ const rejectionHandlers: RejectionHandler[] = [
       if (order.order.side === "sell") {
         try {
           const positions = await alpaca.getPositions();
-          const position = positions.find((p: any) => p.symbol === order.order.symbol);
+          const position = positions.find(
+            (p: any) => p.symbol === order.order.symbol
+          );
           if (position) {
-            const availableQty = Math.floor(parseFloat(position.qty_available || position.qty || "0"));
+            const availableQty = Math.floor(
+              parseFloat(position.qty_available || position.qty || "0")
+            );
             if (availableQty >= 1) {
               return {
                 params: {
@@ -584,7 +649,10 @@ const rejectionHandlers: RejectionHandler[] = [
             }
           }
         } catch (e) {
-          log.warn("OrderRetry", `Failed to get position for ${order.order.symbol}`);
+          log.warn(
+            "OrderRetry",
+            `Failed to get position for ${order.order.symbol}`
+          );
         }
       }
 
@@ -620,18 +688,28 @@ const rejectionHandlers: RejectionHandler[] = [
       // Get actual position from Alpaca
       try {
         const positions = await alpaca.getPositions();
-        const position = positions.find((p: any) => p.symbol === order.order.symbol);
+        const position = positions.find(
+          (p: any) => p.symbol === order.order.symbol
+        );
 
         if (!position) {
-          log.warn("OrderRetry", `No position found for ${order.order.symbol} - cannot retry sell`);
+          log.warn(
+            "OrderRetry",
+            `No position found for ${order.order.symbol} - cannot retry sell`
+          );
           return null;
         }
 
-        const availableQty = parseFloat(position.qty_available || position.qty || "0");
+        const availableQty = parseFloat(
+          position.qty_available || position.qty || "0"
+        );
         const wholeQty = Math.floor(availableQty);
 
         if (wholeQty < 1) {
-          log.warn("OrderRetry", `No whole shares available for ${order.order.symbol} (${availableQty} available)`);
+          log.warn(
+            "OrderRetry",
+            `No whole shares available for ${order.order.symbol} (${availableQty} available)`
+          );
           return null;
         }
 
@@ -649,7 +727,11 @@ const rejectionHandlers: RejectionHandler[] = [
           confidence: "high",
         };
       } catch (error) {
-        log.error("OrderRetry", `Failed to get position for ${order.order.symbol}`, { error });
+        log.error(
+          "OrderRetry",
+          `Failed to get position for ${order.order.symbol}`,
+          { error }
+        );
         return null;
       }
     },
@@ -665,7 +747,9 @@ async function getCurrentPrice(symbol: string): Promise<number | null> {
     const data = snapshot[symbol];
     if (!data) return null;
 
-    return data.latestTrade?.p || data.latestQuote?.ap || data.dailyBar?.c || null;
+    return (
+      data.latestTrade?.p || data.latestQuote?.ap || data.dailyBar?.c || null
+    );
   } catch (error) {
     log.error("OrderRetry", `Failed to get price for ${symbol}`, { error });
     return null;
@@ -754,7 +838,10 @@ function recordFailure(): void {
   if (circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
     circuitBreaker.isOpen = true;
     circuitBreaker.resetTime = new Date(Date.now() + CIRCUIT_BREAKER_RESET_MS);
-    log.error("OrderRetry", `Circuit breaker OPENED after ${circuitBreaker.failures} failures. Will reset at ${circuitBreaker.resetTime.toISOString()}`);
+    log.error(
+      "OrderRetry",
+      `Circuit breaker OPENED after ${circuitBreaker.failures} failures. Will reset at ${circuitBreaker.resetTime.toISOString()}`
+    );
   }
 }
 
@@ -778,11 +865,15 @@ export async function handleOrderRejection(
   // Extract or use provided reason
   const rejectionReason = reason || extractRejectionReason(update);
 
-  log.warn("OrderRetry", `Order ${orderId} for ${symbol} ${update.order.status}`, {
-    reason: rejectionReason,
-    orderType: update.order.type,
-    timeInForce: update.order.time_in_force,
-  });
+  log.warn(
+    "OrderRetry",
+    `Order ${orderId} for ${symbol} ${update.order.status}`,
+    {
+      reason: rejectionReason,
+      orderType: update.order.type,
+      timeInForce: update.order.time_in_force,
+    }
+  );
 
   // Initialize retry tracking
   if (!retryTracker.has(orderId)) {
@@ -792,7 +883,10 @@ export async function handleOrderRejection(
 
   // Check retry limit
   if (attempts.length >= MAX_RETRIES_PER_ORDER) {
-    log.error("OrderRetry", `Max retries (${MAX_RETRIES_PER_ORDER}) exceeded for order ${orderId}`);
+    log.error(
+      "OrderRetry",
+      `Max retries (${MAX_RETRIES_PER_ORDER}) exceeded for order ${orderId}`
+    );
     return {
       success: false,
       originalOrderId: orderId,
@@ -804,7 +898,10 @@ export async function handleOrderRejection(
 
   // Check circuit breaker
   if (checkCircuitBreaker()) {
-    log.error("OrderRetry", `Circuit breaker is OPEN - rejecting retry for ${orderId}`);
+    log.error(
+      "OrderRetry",
+      `Circuit breaker is OPEN - rejecting retry for ${orderId}`
+    );
     return {
       success: false,
       originalOrderId: orderId,
@@ -817,7 +914,10 @@ export async function handleOrderRejection(
   // Find matching handler
   const handler = findHandler(rejectionReason);
   if (!handler) {
-    log.warn("OrderRetry", `No handler found for rejection reason: ${rejectionReason}`);
+    log.warn(
+      "OrderRetry",
+      `No handler found for rejection reason: ${rejectionReason}`
+    );
     return {
       success: false,
       originalOrderId: orderId,
@@ -827,7 +927,10 @@ export async function handleOrderRejection(
     };
   }
 
-  log.info("OrderRetry", `Found handler: ${handler.description} (${handler.category})`);
+  log.info(
+    "OrderRetry",
+    `Found handler: ${handler.description} (${handler.category})`
+  );
 
   // Apply fix
   let fixedParams: FixedOrderParams | null;
@@ -835,7 +938,9 @@ export async function handleOrderRejection(
     fixedParams = await handler.fix(update, rejectionReason);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log.error("OrderRetry", `Fix function failed for ${orderId}`, { error: errorMsg });
+    log.error("OrderRetry", `Fix function failed for ${orderId}`, {
+      error: errorMsg,
+    });
     recordFailure();
 
     const attempt: RetryAttempt = {
@@ -870,23 +975,33 @@ export async function handleOrderRejection(
 
   // Apply exponential backoff
   const backoffMs = calculateBackoff(attempts.length + 1);
-  log.info("OrderRetry", `Waiting ${backoffMs}ms before retry (attempt ${attempts.length + 1}/${MAX_RETRIES_PER_ORDER})`);
-  await new Promise(resolve => setTimeout(resolve, backoffMs));
+  log.info(
+    "OrderRetry",
+    `Waiting ${backoffMs}ms before retry (attempt ${attempts.length + 1}/${MAX_RETRIES_PER_ORDER})`
+  );
+  await new Promise((resolve) => setTimeout(resolve, backoffMs));
 
   // Generate new client order ID to avoid duplicates
   const newClientOrderId = `retry-${orderId}-${attempts.length + 1}-${Date.now()}`;
   fixedParams.params.client_order_id = newClientOrderId;
 
   // Submit retry
-  log.info("OrderRetry", `Retrying order ${orderId} with fix: ${fixedParams.explanation}`);
+  log.info(
+    "OrderRetry",
+    `Retrying order ${orderId} with fix: ${fixedParams.explanation}`
+  );
 
   try {
     const newOrder = await alpaca.createOrder(fixedParams.params);
 
-    log.info("OrderRetry", `Retry successful! New order ${newOrder.id} created for ${symbol}`, {
-      status: newOrder.status,
-      fix: fixedParams.explanation,
-    });
+    log.info(
+      "OrderRetry",
+      `Retry successful! New order ${newOrder.id} created for ${symbol}`,
+      {
+        status: newOrder.status,
+        fix: fixedParams.explanation,
+      }
+    );
 
     // Record successful attempt
     const attempt: RetryAttempt = {
@@ -935,7 +1050,6 @@ export async function handleOrderRejection(
       attempts,
       finalStatus: "retried_successfully",
     };
-
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     log.error("OrderRetry", `Retry failed for ${orderId}`, { error: errorMsg });
@@ -953,7 +1067,10 @@ export async function handleOrderRejection(
 
     // If we have retries left, recursively retry
     if (attempts.length < MAX_RETRIES_PER_ORDER) {
-      log.info("OrderRetry", `Retry failed, will attempt again (${attempts.length}/${MAX_RETRIES_PER_ORDER})`);
+      log.info(
+        "OrderRetry",
+        `Retry failed, will attempt again (${attempts.length}/${MAX_RETRIES_PER_ORDER})`
+      );
       return handleOrderRejection(update, errorMsg);
     }
 
@@ -972,7 +1089,10 @@ export async function handleOrderRejection(
  */
 export function registerRejectionHandler(handler: RejectionHandler): void {
   rejectionHandlers.push(handler);
-  log.info("OrderRetry", `Registered custom handler: ${handler.description} (${handler.category})`);
+  log.info(
+    "OrderRetry",
+    `Registered custom handler: ${handler.description} (${handler.category})`
+  );
 }
 
 /**
@@ -991,8 +1111,8 @@ export function getRetryStats(): {
 
   retryTracker.forEach((attempts) => {
     totalRetries += attempts.length;
-    successfulRetries += attempts.filter(a => a.success).length;
-    failedRetries += attempts.filter(a => !a.success).length;
+    successfulRetries += attempts.filter((a) => a.success).length;
+    failedRetries += attempts.filter((a) => !a.success).length;
   });
 
   return {
@@ -1057,10 +1177,15 @@ export function hookIntoTradeUpdates(update: AlpacaTradeUpdate): void {
   // Only handle rejected and canceled orders
   if (status === "rejected" || status === "canceled") {
     // Process asynchronously to not block the stream
-    handleOrderRejection(update).catch(error => {
-      log.error("OrderRetry", "Unhandled error in rejection handler", { error });
+    handleOrderRejection(update).catch((error) => {
+      log.error("OrderRetry", "Unhandled error in rejection handler", {
+        error,
+      });
     });
   }
 }
 
-log.info("OrderRetry", `Order Retry Handler initialized with ${rejectionHandlers.length} handlers`);
+log.info(
+  "OrderRetry",
+  `Order Retry Handler initialized with ${rejectionHandlers.length} handlers`
+);

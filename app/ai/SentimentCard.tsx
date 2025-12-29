@@ -1,9 +1,5 @@
 import { SentimentSignal } from "@/lib/types";
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus
-} from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SentimentCardProps {
@@ -12,7 +8,12 @@ interface SentimentCardProps {
 
 export function SentimentCard({ signal }: SentimentCardProps) {
   const normalizedScore = ((signal.score + 1) / 2) * 100;
-  const TrendIcon = signal.trend === "up" ? TrendingUp : signal.trend === "down" ? TrendingDown : Minus;
+  const TrendIcon =
+    signal.trend === "up"
+      ? TrendingUp
+      : signal.trend === "down"
+        ? TrendingDown
+        : Minus;
 
   return (
     <div className="rounded-xl border border-border p-4">
@@ -22,17 +23,26 @@ export function SentimentCard({ signal }: SentimentCardProps) {
           <TrendIcon
             className={cn(
               "h-4 w-4",
-              signal.trend === "up" ? "text-success" : signal.trend === "down" ? "text-destructive" : "text-muted-foreground"
+              signal.trend === "up"
+                ? "text-success"
+                : signal.trend === "down"
+                  ? "text-destructive"
+                  : "text-muted-foreground"
             )}
           />
         </div>
         <span
           className={cn(
             "text-lg font-semibold",
-            signal.score > 0.2 ? "text-success" : signal.score < -0.2 ? "text-destructive" : "text-muted-foreground"
+            signal.score > 0.2
+              ? "text-success"
+              : signal.score < -0.2
+                ? "text-destructive"
+                : "text-muted-foreground"
           )}
         >
-          {signal.score > 0 ? "+" : ""}{signal.score.toFixed(2)}
+          {signal.score > 0 ? "+" : ""}
+          {signal.score.toFixed(2)}
         </span>
       </div>
       <div className="mt-3">
@@ -53,7 +63,9 @@ export function SentimentCard({ signal }: SentimentCardProps) {
         </div>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">{signal.explanation}</p>
-      <p className="mt-2 text-xs text-muted-foreground">Source: {signal.sourceName}</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Source: {signal.sourceName}
+      </p>
     </div>
   );
 }

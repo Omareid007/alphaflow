@@ -29,7 +29,7 @@ router.get("/crypto/markets", async (req: Request, res: Response) => {
 router.get("/crypto/prices", async (req: Request, res: Response) => {
   try {
     const ids = (req.query.ids as string) || "bitcoin,ethereum,solana";
-    const coinIds = ids.split(",").map(id => id.trim());
+    const coinIds = ids.split(",").map((id) => id.trim());
     const prices = await coingecko.getSimplePrice(coinIds);
     res.json(prices);
   } catch (error) {
@@ -106,8 +106,9 @@ router.get("/stock/quote/:symbol", async (req: Request, res: Response) => {
 // Get stock quotes for multiple symbols
 router.get("/stock/quotes", async (req: Request, res: Response) => {
   try {
-    const symbols = (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
-    const symbolList = symbols.split(",").map(s => s.trim().toUpperCase());
+    const symbols =
+      (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
+    const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
     const quotes = await finnhub.getMultipleQuotes(symbolList);
     const result: Record<string, unknown> = {};
     quotes.forEach((quote, symbol) => {
@@ -125,7 +126,9 @@ router.get("/stock/candles/:symbol", async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const resolution = (req.query.resolution as string) || "D";
-    const from = req.query.from ? parseInt(req.query.from as string) : undefined;
+    const from = req.query.from
+      ? parseInt(req.query.from as string)
+      : undefined;
     const to = req.query.to ? parseInt(req.query.to as string) : undefined;
     const candles = await finnhub.getCandles(symbol, resolution, from, to);
     res.json(candles);
@@ -184,11 +187,11 @@ router.get("/market/quotes", async (req: Request, res: Response) => {
     if (!symbolsParam) {
       return badRequest(res, "symbols parameter required");
     }
-    const symbols = symbolsParam.split(",").map(s => s.trim().toUpperCase());
+    const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
     const snapshots = await alpaca.getSnapshots(symbols);
 
     // Transform to a simpler format
-    const quotes = symbols.map(symbol => {
+    const quotes = symbols.map((symbol) => {
       const snap = snapshots[symbol];
       if (!snap) {
         return { symbol, price: null, change: null, changePercent: null };
@@ -196,7 +199,7 @@ router.get("/market/quotes", async (req: Request, res: Response) => {
       const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
       const prevClose = snap.prevDailyBar?.c || price;
       const change = price - prevClose;
-      const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+      const changePercent = prevClose ? (change / prevClose) * 100 : 0;
       return {
         symbol,
         price,
@@ -221,10 +224,16 @@ router.get("/market/quotes", async (req: Request, res: Response) => {
 // Get top news headlines by category and country
 router.get("/news/headlines", async (req: Request, res: Response) => {
   try {
-    const category = (req.query.category as "business" | "technology" | "general") || "business";
+    const category =
+      (req.query.category as "business" | "technology" | "general") ||
+      "business";
     const country = (req.query.country as string) || "us";
     const pageSize = parseInt(req.query.pageSize as string) || 20;
-    const headlines = await newsapi.getTopHeadlines(category, country, pageSize);
+    const headlines = await newsapi.getTopHeadlines(
+      category,
+      country,
+      pageSize
+    );
     res.json(headlines);
   } catch (error) {
     log.error("MarketDataAPI", `Failed to get news headlines: ${error}`);
@@ -239,7 +248,9 @@ router.get("/news/search", async (req: Request, res: Response) => {
     if (!query) {
       return badRequest(res, "Search query required");
     }
-    const sortBy = (req.query.sortBy as "relevancy" | "popularity" | "publishedAt") || "publishedAt";
+    const sortBy =
+      (req.query.sortBy as "relevancy" | "popularity" | "publishedAt") ||
+      "publishedAt";
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.searchNews(query, sortBy, pageSize);
     res.json(articles);

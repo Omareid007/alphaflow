@@ -73,7 +73,8 @@ export class HuggingFaceClient implements LLMClient {
   private model: string;
 
   constructor() {
-    this.apiKey = process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY || "";
+    this.apiKey =
+      process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY || "";
     this.model = process.env.HUGGINGFACE_MODEL || DEFAULT_MODEL;
 
     if (this.apiKey) {
@@ -81,7 +82,10 @@ export class HuggingFaceClient implements LLMClient {
         apiKeyConfigured: true,
       });
     } else {
-      log.warn("HuggingFaceClient", "No API key configured - HuggingFace provider will be unavailable");
+      log.warn(
+        "HuggingFaceClient",
+        "No API key configured - HuggingFace provider will be unavailable"
+      );
     }
   }
 
@@ -99,7 +103,10 @@ export class HuggingFaceClient implements LLMClient {
     });
 
     // Determine if model supports chat format or text generation
-    const isChatModel = model.includes("chat") || model.includes("instruct") || model.includes("Instruct");
+    const isChatModel =
+      model.includes("chat") ||
+      model.includes("instruct") ||
+      model.includes("Instruct");
 
     let requestBody: any;
 
@@ -114,7 +121,12 @@ export class HuggingFaceClient implements LLMClient {
       for (const msg of req.messages) {
         if (msg.role === "tool") continue; // Skip tool messages
         messages.push({
-          role: msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
+          role:
+            msg.role === "system"
+              ? "system"
+              : msg.role === "assistant"
+                ? "assistant"
+                : "user",
           content: msg.content,
         });
       }
@@ -127,8 +139,8 @@ export class HuggingFaceClient implements LLMClient {
     } else {
       // Use text generation format for base models
       const prompt = req.system
-        ? `${req.system}\n\n${req.messages.map(m => m.content).join("\n")}`
-        : req.messages.map(m => m.content).join("\n");
+        ? `${req.system}\n\n${req.messages.map((m) => m.content).join("\n")}`
+        : req.messages.map((m) => m.content).join("\n");
 
       requestBody = {
         inputs: prompt,
@@ -147,7 +159,7 @@ export class HuggingFaceClient implements LLMClient {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
@@ -171,7 +183,9 @@ export class HuggingFaceClient implements LLMClient {
         } else if (response.status === 429) {
           throw new Error("Rate limit exceeded");
         } else {
-          throw new Error(`HuggingFace API error ${response.status}: ${errorText}`);
+          throw new Error(
+            `HuggingFace API error ${response.status}: ${errorText}`
+          );
         }
       }
 
@@ -198,8 +212,8 @@ export class HuggingFaceClient implements LLMClient {
 
         // Estimate tokens (HF text gen doesn't provide counts)
         const inputText = req.system
-          ? `${req.system}\n\n${req.messages.map(m => m.content).join("\n")}`
-          : req.messages.map(m => m.content).join("\n");
+          ? `${req.system}\n\n${req.messages.map((m) => m.content).join("\n")}`
+          : req.messages.map((m) => m.content).join("\n");
         usage = {
           promptTokens: Math.ceil(inputText.length / 4),
           completionTokens: Math.ceil(content.length / 4),
@@ -275,10 +289,7 @@ export class HuggingFaceClient implements LLMClient {
         "finiteautomata/bertweet-base-sentiment-analysis",
         "ProsusAI/finbert",
       ],
-      ner: [
-        "dslim/bert-base-NER",
-        "Jean-Baptiste/camembert-ner",
-      ],
+      ner: ["dslim/bert-base-NER", "Jean-Baptiste/camembert-ner"],
       classification: [
         "facebook/bart-large-mnli",
         "cross-encoder/nli-deberta-v3-base",
@@ -289,14 +300,16 @@ export class HuggingFaceClient implements LLMClient {
   /**
    * Call specialized sentiment model
    */
-  async analyzeSentiment(text: string): Promise<{ label: string; score: number }> {
+  async analyzeSentiment(
+    text: string
+  ): Promise<{ label: string; score: number }> {
     const sentimentModel = "cardiffnlp/twitter-roberta-base-sentiment-latest";
     const url = `${HF_API_BASE}/${sentimentModel}`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ inputs: text }),
@@ -308,9 +321,8 @@ export class HuggingFaceClient implements LLMClient {
 
     const data = await response.json();
     // Returns: [{ label: "positive", score: 0.95 }, ...]
-    const topResult = Array.isArray(data) && Array.isArray(data[0])
-      ? data[0][0]
-      : data[0];
+    const topResult =
+      Array.isArray(data) && Array.isArray(data[0]) ? data[0][0] : data[0];
 
     return {
       label: topResult.label.toLowerCase(),
@@ -334,7 +346,9 @@ export class HuggingFaceClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return (response.content || response.text || "").toLowerCase().includes("ok");
+      return (response.content || response.text || "")
+        .toLowerCase()
+        .includes("ok");
     } catch (error) {
       log.error("HuggingFaceClient", "Health check failed", {
         error: (error as Error).message,

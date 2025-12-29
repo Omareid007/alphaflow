@@ -16,14 +16,11 @@ export function WizardNavigation({
   totalSteps,
   hasBacktest,
   onBack,
-  onNext
+  onNext,
 }: WizardNavigationProps) {
   return (
     <div className="flex items-center justify-between">
-      <Button
-        variant="outline"
-        onClick={onBack}
-      >
+      <Button variant="outline" onClick={onBack}>
         <ChevronLeft className="mr-2 h-4 w-4" />
         Back
       </Button>

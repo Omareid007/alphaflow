@@ -1,10 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Brain,
-  Zap,
-  Activity,
-  AlertTriangle
-} from "lucide-react";
+import { Brain, Zap, Activity, AlertTriangle } from "lucide-react";
 import { FeedSource, AiEvent, SentimentSignal } from "@/lib/types";
 
 interface StatsCardsProps {
@@ -14,11 +9,19 @@ interface StatsCardsProps {
   sentiments: SentimentSignal[];
 }
 
-export function StatsCards({ sources, signalEvents, riskEvents, sentiments }: StatsCardsProps) {
-  const activeSources = sources.filter(s => s.status === "active").length;
-  const avgSentiment = sentiments.length > 0
-    ? (sentiments.reduce((sum, s) => sum + s.score, 0) / sentiments.length).toFixed(2)
-    : "0.00";
+export function StatsCards({
+  sources,
+  signalEvents,
+  riskEvents,
+  sentiments,
+}: StatsCardsProps) {
+  const activeSources = sources.filter((s) => s.status === "active").length;
+  const avgSentiment =
+    sentiments.length > 0
+      ? (
+          sentiments.reduce((sum, s) => sum + s.score, 0) / sentiments.length
+        ).toFixed(2)
+      : "0.00";
 
   return (
     <div className="grid gap-4 md:grid-cols-4">
@@ -30,7 +33,9 @@ export function StatsCards({ sources, signalEvents, riskEvents, sentiments }: St
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Active Sources</p>
-              <p className="text-2xl font-semibold">{activeSources}/{sources.length}</p>
+              <p className="text-2xl font-semibold">
+                {activeSources}/{sources.length}
+              </p>
             </div>
           </div>
         </CardContent>

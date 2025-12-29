@@ -14,16 +14,16 @@
  * - Pattern-based invalidation
  */
 
-import { db } from '../db';
-import { externalApiCacheEntries } from '@shared/schema';
-import { eq, and, lt } from 'drizzle-orm';
-import { log } from '../utils/logger';
+import { db } from "../db";
+import { externalApiCacheEntries } from "@shared/schema";
+import { eq, and, lt } from "drizzle-orm";
+import { log } from "../utils/logger";
 import {
   CACHE_NAMESPACES,
   CacheNamespaceConfig,
   CACHE_STATS_INTERVAL,
   L1_CLEANUP_INTERVAL,
-} from './cache-config';
+} from "./cache-config";
 
 interface L1Entry<T> {
   value: T;
@@ -68,7 +68,7 @@ export class UnifiedCache {
     this.startStatsLogging();
     this.initialized = true;
 
-    log.info('UnifiedCache', 'Cache layer initialized');
+    log.info("UnifiedCache", "Cache layer initialized");
   }
 
   /**
@@ -94,7 +94,7 @@ export class UnifiedCache {
   private getFullKey(namespace: string, key: string): string {
     const config = CACHE_NAMESPACES[namespace];
     if (!config) {
-      log.warn('UnifiedCache', `Unknown namespace: ${namespace}, using as-is`);
+      log.warn("UnifiedCache", `Unknown namespace: ${namespace}, using as-is`);
       return `${namespace}:${key}`;
     }
     return `${config.namespace}:${key}`;
@@ -175,7 +175,7 @@ export class UnifiedCache {
             })
             .where(eq(externalApiCacheEntries.id, entry.id))
             .catch((err) => {
-              log.warn('UnifiedCache', `Failed to update L2 stats: ${err}`);
+              log.warn("UnifiedCache", `Failed to update L2 stats: ${err}`);
             });
 
           this.stats[namespace].l2Hits++;
@@ -186,12 +186,15 @@ export class UnifiedCache {
             .delete(externalApiCacheEntries)
             .where(eq(externalApiCacheEntries.id, entry.id))
             .catch((err) => {
-              log.warn('UnifiedCache', `Failed to delete expired L2 entry: ${err}`);
+              log.warn(
+                "UnifiedCache",
+                `Failed to delete expired L2 entry: ${err}`
+              );
             });
         }
       }
     } catch (error) {
-      log.warn('UnifiedCache', `L2 get error for ${fullKey}: ${error}`);
+      log.warn("UnifiedCache", `L2 get error for ${fullKey}: ${error}`);
     }
 
     this.stats[namespace].l2Misses++;
@@ -219,7 +222,7 @@ export class UnifiedCache {
 
     // Set L2 (async, don't block)
     this.setL2(namespace, key, value, config, ttl).catch((err) => {
-      log.warn('UnifiedCache', `L2 set error for ${namespace}:${key}: ${err}`);
+      log.warn("UnifiedCache", `L2 set error for ${namespace}:${key}: ${err}`);
       this.stats[namespace].l2WriteErrors++;
     });
   }
@@ -315,7 +318,7 @@ export class UnifiedCache {
 
       this.stats[namespace].l2Writes++;
     } catch (error) {
-      log.warn('UnifiedCache', `Failed to write to L2: ${error}`);
+      log.warn("UnifiedCache", `Failed to write to L2: ${error}`);
       this.stats[namespace].l2WriteErrors++;
       throw error;
     }
@@ -365,7 +368,7 @@ export class UnifiedCache {
           )
         )
         .catch((err) => {
-          log.warn('UnifiedCache', `Failed to invalidate L2 entry: ${err}`);
+          log.warn("UnifiedCache", `Failed to invalidate L2 entry: ${err}`);
         });
     } else {
       // Clear entire namespace
@@ -384,7 +387,7 @@ export class UnifiedCache {
         .delete(externalApiCacheEntries)
         .where(eq(externalApiCacheEntries.provider, namespace))
         .catch((err) => {
-          log.warn('UnifiedCache', `Failed to clear L2 namespace: ${err}`);
+          log.warn("UnifiedCache", `Failed to clear L2 namespace: ${err}`);
         });
 
       this.updateL1Size(namespace);
@@ -427,7 +430,7 @@ export class UnifiedCache {
       }
 
       if (cleaned > 0) {
-        log.debug('UnifiedCache', `Cleaned ${cleaned} expired L1 entries`);
+        log.debug("UnifiedCache", `Cleaned ${cleaned} expired L1 entries`);
         // Update all namespace sizes
         Object.keys(CACHE_NAMESPACES).forEach((ns) => this.updateL1Size(ns));
       }
@@ -445,19 +448,19 @@ export class UnifiedCache {
           namespace: ns,
           l1HitRate:
             s.l1Hits + s.l1Misses > 0
-              ? ((s.l1Hits / (s.l1Hits + s.l1Misses)) * 100).toFixed(1) + '%'
-              : 'N/A',
+              ? ((s.l1Hits / (s.l1Hits + s.l1Misses)) * 100).toFixed(1) + "%"
+              : "N/A",
           l2HitRate:
             s.l2Hits + s.l2Misses > 0
-              ? ((s.l2Hits / (s.l2Hits + s.l2Misses)) * 100).toFixed(1) + '%'
-              : 'N/A',
+              ? ((s.l2Hits / (s.l2Hits + s.l2Misses)) * 100).toFixed(1) + "%"
+              : "N/A",
           l1Size: s.l1Size,
           l2Writes: s.l2Writes,
           l2Errors: s.l2WriteErrors,
         }));
 
       if (summary.length > 0) {
-        log.info('UnifiedCache', `Stats: ${JSON.stringify(summary)}`);
+        log.info("UnifiedCache", `Stats: ${JSON.stringify(summary)}`);
       }
     }, CACHE_STATS_INTERVAL);
   }
@@ -476,7 +479,7 @@ export class UnifiedCache {
     }
     this.l1Cache.clear();
     this.initialized = false;
-    log.info('UnifiedCache', 'Cache layer shut down');
+    log.info("UnifiedCache", "Cache layer shut down");
   }
 
   /**
@@ -489,10 +492,10 @@ export class UnifiedCache {
         .delete(externalApiCacheEntries)
         .where(lt(externalApiCacheEntries.staleUntilAt, now));
 
-      log.info('UnifiedCache', `Purged expired L2 entries`);
+      log.info("UnifiedCache", `Purged expired L2 entries`);
       return 0; // Drizzle doesn't return affected count in this version
     } catch (error) {
-      log.warn('UnifiedCache', `Failed to purge expired L2 entries: ${error}`);
+      log.warn("UnifiedCache", `Failed to purge expired L2 entries: ${error}`);
       return 0;
     }
   }

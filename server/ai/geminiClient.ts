@@ -69,16 +69,21 @@ export class GeminiClient implements LLMClient {
   private model: string;
 
   constructor() {
-    this.apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
+    this.apiKey =
+      process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
     this.model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
     if (this.apiKey) {
       log.info("GeminiClient", `Initialized with model: ${this.model}`, {
         apiKeyConfigured: true,
-        freeModel: this.model.includes("flash-lite") || this.model.includes("flash"),
+        freeModel:
+          this.model.includes("flash-lite") || this.model.includes("flash"),
       });
     } else {
-      log.warn("GeminiClient", "No API key configured - Gemini provider will be unavailable");
+      log.warn(
+        "GeminiClient",
+        "No API key configured - Gemini provider will be unavailable"
+      );
     }
   }
 
@@ -91,7 +96,7 @@ export class GeminiClient implements LLMClient {
     const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${this.apiKey}`;
 
     // Extract user message content from messages array
-    const userContent = req.messages.map(m => m.content).join("\n");
+    const userContent = req.messages.map((m) => m.content).join("\n");
 
     log.debug("GeminiClient", "Preparing request", {
       model,
@@ -127,8 +132,14 @@ export class GeminiClient implements LLMClient {
       safetySettings: [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE",
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE",
+        },
       ],
     };
 
@@ -161,21 +172,29 @@ export class GeminiClient implements LLMClient {
 
       // Handle blocked content
       if (!data.candidates || data.candidates.length === 0) {
-        log.warn("GeminiClient", "No candidates in response (possibly blocked)", {
-          latency,
-        });
+        log.warn(
+          "GeminiClient",
+          "No candidates in response (possibly blocked)",
+          {
+            latency,
+          }
+        );
         throw new Error("Gemini response blocked by safety filters");
       }
 
       const candidate = data.candidates[0];
-      const content = candidate.content.parts.map(p => p.text).join("");
+      const content = candidate.content.parts.map((p) => p.text).join("");
 
       // Check finish reason
       if (candidate.finishReason && candidate.finishReason !== "STOP") {
-        log.warn("GeminiClient", `Response finished with reason: ${candidate.finishReason}`, {
-          finishReason: candidate.finishReason,
-          contentLength: content.length,
-        });
+        log.warn(
+          "GeminiClient",
+          `Response finished with reason: ${candidate.finishReason}`,
+          {
+            finishReason: candidate.finishReason,
+            contentLength: content.length,
+          }
+        );
       }
 
       const usage = data.usageMetadata || {
@@ -236,10 +255,10 @@ export class GeminiClient implements LLMClient {
    */
   getAvailableModels(): string[] {
     return [
-      "gemini-2.5-flash-lite",  // Free tier optimized
-      "gemini-2.5-flash",        // Balanced
-      "gemini-2.5-pro",          // Highest quality
-      "gemini-3-flash-preview",  // Latest preview
+      "gemini-2.5-flash-lite", // Free tier optimized
+      "gemini-2.5-flash", // Balanced
+      "gemini-2.5-pro", // Highest quality
+      "gemini-3-flash-preview", // Latest preview
     ];
   }
 
@@ -259,7 +278,9 @@ export class GeminiClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return (response.content || response.text || "").toLowerCase().includes("ok");
+      return (response.content || response.text || "")
+        .toLowerCase()
+        .includes("ok");
     } catch (error) {
       log.error("GeminiClient", "Health check failed", {
         error: (error as Error).message,

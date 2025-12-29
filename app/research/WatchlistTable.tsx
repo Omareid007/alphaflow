@@ -7,14 +7,14 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
 import {
   X,
   TrendingUp,
   TrendingDown,
   CheckCircle,
-  XCircle
+  XCircle,
 } from "lucide-react";
 
 interface WatchlistTableProps {
@@ -37,11 +37,13 @@ export function WatchlistTable({ items, onRemoveSymbol }: WatchlistTableProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {items.map(item => (
+        {items.map((item) => (
           <TableRow key={item.symbol}>
             <TableCell className="font-semibold">{item.symbol}</TableCell>
             <TableCell className="text-muted-foreground">{item.name}</TableCell>
-            <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+            <TableCell className="text-right">
+              ${item.price.toFixed(2)}
+            </TableCell>
             <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1">
                 {item.change >= 0 ? (
@@ -49,14 +51,19 @@ export function WatchlistTable({ items, onRemoveSymbol }: WatchlistTableProps) {
                 ) : (
                   <TrendingDown className="h-4 w-4 text-destructive" />
                 )}
-                <span className={item.change >= 0 ? "text-success" : "text-destructive"}>
-                  {item.change >= 0 ? "+" : ""}${item.change.toFixed(2)} ({item.changePercent.toFixed(2)}%)
+                <span
+                  className={
+                    item.change >= 0 ? "text-success" : "text-destructive"
+                  }
+                >
+                  {item.change >= 0 ? "+" : ""}${item.change.toFixed(2)} (
+                  {item.changePercent.toFixed(2)}%)
                 </span>
               </div>
             </TableCell>
             <TableCell>
               <div className="flex gap-1">
-                {item.tags.map(tag => (
+                {item.tags.map((tag) => (
                   <Badge key={tag} variant="outline" className="text-xs">
                     {tag}
                   </Badge>

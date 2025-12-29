@@ -14,9 +14,16 @@
  */
 
 import { log } from "../utils/logger";
-import { alpaca, AlpacaPosition, CreateOrderParams } from "../connectors/alpaca";
+import {
+  alpaca,
+  AlpacaPosition,
+  CreateOrderParams,
+} from "../connectors/alpaca";
 import { dynamicExposureController } from "../services/dynamic-exposure-controller";
-import { newsEnhancedDecisionEngine, DecisionType } from "../ai/news-enhanced-decision-engine";
+import {
+  newsEnhancedDecisionEngine,
+  DecisionType,
+} from "../ai/news-enhanced-decision-engine";
 import { storage } from "../storage";
 import { tradingConfig } from "../config/trading-config";
 import { candidatesService } from "../universe/candidatesService";
@@ -32,17 +39,17 @@ export interface ProfitCyclingConfig {
 
   // Profit chase settings
   enableProfitChasing: boolean;
-  profitChaseThresholdPct: number;   // Chase after X% gain (default: 3%)
-  profitChaseMinConfidence: number;  // Min confidence for chase (default: 0.7)
-  profitChaseMaxScaleIn: number;     // Max scale-in attempts per position (default: 2)
+  profitChaseThresholdPct: number; // Chase after X% gain (default: 3%)
+  profitChaseMinConfidence: number; // Min confidence for chase (default: 0.7)
+  profitChaseMaxScaleIn: number; // Max scale-in attempts per position (default: 2)
 
   // Timing
-  cycleIntervalMs: number;           // How often to check (default: 30s)
-  reinvestCooldownMs: number;        // Wait before reinvesting (default: 5 min)
+  cycleIntervalMs: number; // How often to check (default: 30s)
+  reinvestCooldownMs: number; // Wait before reinvesting (default: 5 min)
 
   // Limits
-  maxActiveReinvests: number;        // Max concurrent reinvestment orders (default: 3)
-  minReinvestAmount: number;         // Minimum dollar amount to reinvest (default: 100)
+  maxActiveReinvests: number; // Max concurrent reinvestment orders (default: 3)
+  minReinvestAmount: number; // Minimum dollar amount to reinvest (default: 100)
 }
 
 export interface ProfitCycleState {
@@ -143,13 +150,13 @@ export class ProfitCyclingEngine {
 
     // Start the main cycle
     this.cycleInterval = setInterval(() => {
-      this.runCycle().catch(err => {
+      this.runCycle().catch((err) => {
         log.error("ProfitCyclingEngine", `Cycle error: ${err}`);
       });
     }, this.config.cycleIntervalMs);
 
     // Run immediately
-    this.runCycle().catch(err => {
+    this.runCycle().catch((err) => {
       log.error("ProfitCyclingEngine", `Initial cycle error: ${err}`);
     });
   }
@@ -189,7 +196,6 @@ export class ProfitCyclingEngine {
       if (this.config.enableProfitChasing) {
         await this.runProfitChaseCycle();
       }
-
     } catch (error) {
       log.error("ProfitCyclingEngine", `Cycle error: ${error}`);
     }
@@ -205,11 +211,15 @@ export class ProfitCyclingEngine {
       for (const candidate of candidates) {
         if (!this.state.isRunning) break;
 
-        log.info("ProfitCyclingEngine", `Take profit candidate: ${candidate.symbol}`, {
-          unrealizedPct: `${candidate.unrealizedPct.toFixed(2)}%`,
-          thresholdHit: `${candidate.thresholdHit}%`,
-          takeQty: candidate.takeQty,
-        });
+        log.info(
+          "ProfitCyclingEngine",
+          `Take profit candidate: ${candidate.symbol}`,
+          {
+            unrealizedPct: `${candidate.unrealizedPct.toFixed(2)}%`,
+            thresholdHit: `${candidate.thresholdHit}%`,
+            takeQty: candidate.takeQty,
+          }
+        );
 
         // Execute take profit
         const result = await dynamicExposureController.executeTakeProfitCycle(
@@ -223,7 +233,11 @@ export class ProfitCyclingEngine {
           this.state.totalProfitTaken += result.proceeds || 0;
 
           // Queue for reinvestment if not already handled
-          if (this.config.autoReinvest && result.proceeds && result.proceeds >= this.config.minReinvestAmount) {
+          if (
+            this.config.autoReinvest &&
+            result.proceeds &&
+            result.proceeds >= this.config.minReinvestAmount
+          ) {
             await this.queueReinvestment({
               symbol: candidate.symbol,
               amount: result.proceeds,
@@ -231,14 +245,17 @@ export class ProfitCyclingEngine {
             });
           }
 
-          log.info("ProfitCyclingEngine", `Take profit executed: ${candidate.symbol}`, {
-            qtySold: result.qtySold,
-            proceeds: result.proceeds,
-            queuedForReinvest: result.queuedForReinvest,
-          });
+          log.info(
+            "ProfitCyclingEngine",
+            `Take profit executed: ${candidate.symbol}`,
+            {
+              qtySold: result.qtySold,
+              proceeds: result.proceeds,
+              queuedForReinvest: result.queuedForReinvest,
+            }
+          );
         }
       }
-
     } catch (error) {
       log.error("ProfitCyclingEngine", `Take profit cycle error: ${error}`);
     }
@@ -277,16 +294,21 @@ export class ProfitCyclingEngine {
     // Find items ready for reinvestment
     for (const item of this.reinvestQueue.values()) {
       if (item.status !== "pending") continue;
-      if (now - item.queuedAt.getTime() < this.config.reinvestCooldownMs) continue;
+      if (now - item.queuedAt.getTime() < this.config.reinvestCooldownMs)
+        continue;
 
       readyItems.push(item);
     }
 
     // Limit concurrent reinvestments
-    const activeCount = Array.from(this.reinvestQueue.values())
-      .filter(i => i.status === "executing").length;
+    const activeCount = Array.from(this.reinvestQueue.values()).filter(
+      (i) => i.status === "executing"
+    ).length;
 
-    const toProcess = readyItems.slice(0, this.config.maxActiveReinvests - activeCount);
+    const toProcess = readyItems.slice(
+      0,
+      this.config.maxActiveReinvests - activeCount
+    );
 
     for (const item of toProcess) {
       if (!this.state.isRunning) break;
@@ -297,7 +319,8 @@ export class ProfitCyclingEngine {
     // Clean up old completed/failed items
     for (const [id, item] of this.reinvestQueue) {
       if (item.status === "completed" || item.status === "failed") {
-        if (now - item.queuedAt.getTime() > 3600000) { // 1 hour
+        if (now - item.queuedAt.getTime() > 3600000) {
+          // 1 hour
           this.reinvestQueue.delete(id);
         }
       }
@@ -312,7 +335,10 @@ export class ProfitCyclingEngine {
       const targetSymbol = await this.findBestReinvestTarget(item.amount);
 
       if (!targetSymbol) {
-        log.info("ProfitCyclingEngine", `No suitable reinvestment target for ${item.id}`);
+        log.info(
+          "ProfitCyclingEngine",
+          `No suitable reinvestment target for ${item.id}`
+        );
         item.status = "pending"; // Try again later
         return;
       }
@@ -333,7 +359,10 @@ export class ProfitCyclingEngine {
       const qty = Math.floor(item.amount / currentPrice);
 
       if (qty < 1) {
-        log.info("ProfitCyclingEngine", `Amount too small for ${targetSymbol}: $${item.amount}`);
+        log.info(
+          "ProfitCyclingEngine",
+          `Amount too small for ${targetSymbol}: $${item.amount}`
+        );
         item.status = "failed";
         item.error = "Amount too small";
         return;
@@ -361,9 +390,11 @@ export class ProfitCyclingEngine {
         amount: qty * currentPrice,
         orderId: order.id,
       });
-
     } catch (error) {
-      log.error("ProfitCyclingEngine", `Reinvestment error for ${item.id}: ${error}`);
+      log.error(
+        "ProfitCyclingEngine",
+        `Reinvestment error for ${item.id}: ${error}`
+      );
       item.status = "failed";
       item.error = String(error);
     }
@@ -379,7 +410,8 @@ export class ProfitCyclingEngine {
     // Consider symbols from current positions (reinforce winners)
     for (const [symbol, pos] of accountStatus.positions) {
       const unrealizedPct = parseFloat(pos.unrealized_plpc) * 100;
-      if (unrealizedPct > 0) { // Only consider profitable positions
+      if (unrealizedPct > 0) {
+        // Only consider profitable positions
         candidates.add(symbol);
       }
     }
@@ -387,7 +419,8 @@ export class ProfitCyclingEngine {
     // Add symbols from database watchlist (approved/watchlist status)
     try {
       const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
-      for (const symbol of dynamicWatchlist.stocks.slice(0, 20)) { // Limit to top 20 for performance
+      for (const symbol of dynamicWatchlist.stocks.slice(0, 20)) {
+        // Limit to top 20 for performance
         candidates.add(symbol);
       }
     } catch (error) {
@@ -396,7 +429,11 @@ export class ProfitCyclingEngine {
       for (const symbol of fallbackSymbols) {
         candidates.add(symbol);
       }
-      log.warn("ProfitCyclingEngine", "Failed to load watchlist from database, using fallback", { error: String(error) });
+      log.warn(
+        "ProfitCyclingEngine",
+        "Failed to load watchlist from database, using fallback",
+        { error: String(error) }
+      );
     }
 
     // Score each candidate
@@ -415,17 +452,20 @@ export class ProfitCyclingEngine {
         if (amount < price) continue; // Can't afford even one share
 
         const position = accountStatus.positions.get(symbol);
-        const posData = position ? {
-          qty: parseInt(position.qty),
-          avgEntryPrice: parseFloat(position.avg_entry_price),
-        } : undefined;
+        const posData = position
+          ? {
+              qty: parseInt(position.qty),
+              avgEntryPrice: parseFloat(position.avg_entry_price),
+            }
+          : undefined;
 
-        const { enhanced } = await newsEnhancedDecisionEngine.makeEnhancedDecision(
-          symbol,
-          price,
-          {},
-          posData
-        );
+        const { enhanced } =
+          await newsEnhancedDecisionEngine.makeEnhancedDecision(
+            symbol,
+            price,
+            {},
+            posData
+          );
 
         // Score based on decision
         let score = enhanced.reasoning.combinedScore * enhanced.confidence;
@@ -440,11 +480,14 @@ export class ProfitCyclingEngine {
           score += enhanced.reasoning.sentimentMomentum * 0.5;
         }
 
-        if (score > bestScore && enhanced.isActionable && enhanced.decisionType !== DecisionType.HOLD) {
+        if (
+          score > bestScore &&
+          enhanced.isActionable &&
+          enhanced.decisionType !== DecisionType.HOLD
+        ) {
           bestScore = score;
           bestSymbol = symbol;
         }
-
       } catch (error) {
         log.debug("ProfitCyclingEngine", `Error scoring ${symbol}: ${error}`);
       }
@@ -492,22 +535,25 @@ export class ProfitCyclingEngine {
 
         // Don't chase too frequently
         if (tracker.lastScaleInTime) {
-          const timeSinceLastScale = Date.now() - tracker.lastScaleInTime.getTime();
+          const timeSinceLastScale =
+            Date.now() - tracker.lastScaleInTime.getTime();
           if (timeSinceLastScale < 300000) continue; // 5 min minimum between scale-ins
         }
 
         // Get decision from news-enhanced engine
         const posData = { qty, avgEntryPrice: entryPrice };
-        const { enhanced } = await newsEnhancedDecisionEngine.makeEnhancedDecision(
-          symbol,
-          currentPrice,
-          {},
-          posData
-        );
+        const { enhanced } =
+          await newsEnhancedDecisionEngine.makeEnhancedDecision(
+            symbol,
+            currentPrice,
+            {},
+            posData
+          );
 
         // Only chase if signal remains strong
         if (enhanced.decisionType !== DecisionType.SCALE_IN) continue;
-        if (enhanced.confidence < this.config.profitChaseMinConfidence) continue;
+        if (enhanced.confidence < this.config.profitChaseMinConfidence)
+          continue;
 
         // Calculate chase size
         const sizeRec = dynamicExposureController.calculateDynamicPositionSize(
@@ -543,9 +589,11 @@ export class ProfitCyclingEngine {
             scaleInCount: tracker.scaleInCount,
             orderId: order.id,
           });
-
         } catch (error) {
-          log.error("ProfitCyclingEngine", `Profit chase order error for ${symbol}: ${error}`);
+          log.error(
+            "ProfitCyclingEngine",
+            `Profit chase order error for ${symbol}: ${error}`
+          );
         }
       }
 
@@ -555,7 +603,6 @@ export class ProfitCyclingEngine {
           this.profitChaseTrackers.delete(symbol);
         }
       }
-
     } catch (error) {
       log.error("ProfitCyclingEngine", `Profit chase cycle error: ${error}`);
     }
@@ -611,7 +658,10 @@ export class ProfitCyclingEngine {
 
   // ==================== MANUAL OPERATIONS ====================
 
-  async manualTakeProfit(symbol: string, qtyToSell: number): Promise<{
+  async manualTakeProfit(
+    symbol: string,
+    qtyToSell: number
+  ): Promise<{
     success: boolean;
     orderId?: string;
     error?: string;
@@ -637,7 +687,6 @@ export class ProfitCyclingEngine {
         success: false,
         error: result.error || "No shares sold",
       };
-
     } catch (error) {
       return {
         success: false,
@@ -646,13 +695,17 @@ export class ProfitCyclingEngine {
     }
   }
 
-  async manualReinvest(amount: number, targetSymbol?: string): Promise<{
+  async manualReinvest(
+    amount: number,
+    targetSymbol?: string
+  ): Promise<{
     success: boolean;
     orderId?: string;
     error?: string;
   }> {
     try {
-      const symbol = targetSymbol || await this.findBestReinvestTarget(amount);
+      const symbol =
+        targetSymbol || (await this.findBestReinvestTarget(amount));
 
       if (!symbol) {
         return { success: false, error: "No suitable target found" };
@@ -687,7 +740,6 @@ export class ProfitCyclingEngine {
         success: true,
         orderId: order.id,
       };
-
     } catch (error) {
       return {
         success: false,

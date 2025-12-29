@@ -1,20 +1,43 @@
 import { Router, Request, Response } from "express";
-import { arenaCoordinator, type ArenaConfig, type EscalationPolicy } from "../ai/arenaCoordinator";
+import {
+  arenaCoordinator,
+  type ArenaConfig,
+  type EscalationPolicy,
+} from "../ai/arenaCoordinator";
 import { db } from "../db";
-import { aiAgentProfiles, aiArenaRuns, aiArenaAgentDecisions, aiOutcomeLinks } from "@shared/schema";
+import {
+  aiAgentProfiles,
+  aiArenaRuns,
+  aiArenaAgentDecisions,
+  aiOutcomeLinks,
+} from "@shared/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { badRequest, notFound, serverError } from "../lib/standard-errors";
-import type { InsertAiAgentProfile, AiAgentProfile, AgentProvider, DebateRole } from "@shared/schema";
+import type {
+  InsertAiAgentProfile,
+  AiAgentProfile,
+  AgentProvider,
+  DebateRole,
+} from "@shared/schema";
 
 const router = Router();
 
 router.post("/run", async (req: Request, res: Response) => {
   try {
-    const { symbols, mode = "debate", agentProfileIds, triggeredBy, strategyVersionId } = req.body;
+    const {
+      symbols,
+      mode = "debate",
+      agentProfileIds,
+      triggeredBy,
+      strategyVersionId,
+    } = req.body;
 
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
-      return badRequest(res, "symbols is required and must be a non-empty array");
+      return badRequest(
+        res,
+        "symbols is required and must be a non-empty array"
+      );
     }
 
     const config: ArenaConfig = {
@@ -58,13 +81,18 @@ router.get("/runs", async (req: Request, res: Response) => {
     const costToday = await db
       .select({ total: sql<string>`COALESCE(SUM(total_cost_usd::numeric), 0)` })
       .from(aiArenaRuns)
-      .where(gte(aiArenaRuns.createdAt, new Date(new Date().setHours(0, 0, 0, 0))));
+      .where(
+        gte(aiArenaRuns.createdAt, new Date(new Date().setHours(0, 0, 0, 0)))
+      );
 
     res.json({
       runs,
       count: runs.length,
       costToday: parseFloat(costToday[0]?.total || "0"),
-      nextCursor: runs.length === limit ? runs[runs.length - 1]?.createdAt?.toISOString() : null,
+      nextCursor:
+        runs.length === limit
+          ? runs[runs.length - 1]?.createdAt?.toISOString()
+          : null,
     });
   } catch (error) {
     log.error("ArenaAPI", `Failed to list arena runs: ${error}`);
@@ -87,11 +115,11 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
       orderBy: [desc(aiArenaAgentDecisions.createdAt)],
     });
 
-    const agentIds = [...new Set(decisions.map(d => d.agentProfileId))];
+    const agentIds = [...new Set(decisions.map((d) => d.agentProfileId))];
     const agents = await db.query.aiAgentProfiles.findMany();
-    const agentMap = new Map(agents.map(a => [a.id, a]));
+    const agentMap = new Map(agents.map((a) => [a.id, a]));
 
-    const decisionsWithAgents = decisions.map(d => ({
+    const decisionsWithAgents = decisions.map((d) => ({
       ...d,
       agent: d.agentProfileId ? agentMap.get(d.agentProfileId) : null,
     }));
@@ -106,7 +134,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
       outcomeLinks,
       costBreakdown: {
         total: parseFloat(run.totalCostUsd || "0"),
-        byAgent: decisionsWithAgents.map(d => ({
+        byAgent: decisionsWithAgents.map((d) => ({
           agent: d.agent?.name || "Unknown",
           cost: parseFloat(d.costUsd || "0"),
           tokens: d.tokensUsed || 0,
@@ -122,7 +150,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
 
 router.get("/leaderboard", async (req: Request, res: Response) => {
   try {
-    const window = req.query.window as string || "30d";
+    const window = (req.query.window as string) || "30d";
     const days = parseInt(window.replace("d", "")) || 30;
 
     const leaderboard = await arenaCoordinator.getLeaderboard(days);
@@ -168,38 +196,55 @@ router.post("/profiles", async (req: Request, res: Response) => {
     } = req.body;
 
     if (!name || !provider || !model || !role) {
-      return res.status(400).json({ error: "name, provider, model, and role are required" });
+      return res
+        .status(400)
+        .json({ error: "name, provider, model, and role are required" });
     }
 
     const validProviders = ["openai", "openrouter", "groq", "together"];
     if (!validProviders.includes(provider)) {
-      return res.status(400).json({ error: `Invalid provider. Must be one of: ${validProviders.join(", ")}` });
+      return res
+        .status(400)
+        .json({
+          error: `Invalid provider. Must be one of: ${validProviders.join(", ")}`,
+        });
     }
 
     const validModes = ["cheap_first", "escalation_only", "always"];
     if (!validModes.includes(mode)) {
-      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(", ")}` });
+      return res
+        .status(400)
+        .json({
+          error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
+        });
     }
 
-    const [profile] = await db.insert(aiAgentProfiles).values({
-      name: name as string,
-      description: description as string | null,
-      provider: provider as AgentProvider,
-      model: model as string,
-      role: role as DebateRole,
-      mode: mode as "cheap_first" | "escalation_only" | "always",
-      temperature: String(temperature),
-      maxTokens: maxTokens as number,
-      budgetLimitPerDay: budgetLimitPerDay ? String(budgetLimitPerDay) : null,
-      budgetLimitPerRun: budgetLimitPerRun ? String(budgetLimitPerRun) : null,
-      priority: priority as number,
-      status: "active" as const,
-    }).returning();
+    const [profile] = await db
+      .insert(aiAgentProfiles)
+      .values({
+        name: name as string,
+        description: description as string | null,
+        provider: provider as AgentProvider,
+        model: model as string,
+        role: role as DebateRole,
+        mode: mode as "cheap_first" | "escalation_only" | "always",
+        temperature: String(temperature),
+        maxTokens: maxTokens as number,
+        budgetLimitPerDay: budgetLimitPerDay ? String(budgetLimitPerDay) : null,
+        budgetLimitPerRun: budgetLimitPerRun ? String(budgetLimitPerRun) : null,
+        priority: priority as number,
+        status: "active" as const,
+      })
+      .returning();
 
     res.json(profile);
   } catch (error) {
     log.error("ArenaAPI", `Failed to create agent profile: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to create agent profile" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to create agent profile",
+      });
   }
 });
 
@@ -222,7 +267,16 @@ router.get("/profiles/:id", async (req: Request, res: Response) => {
 
 router.patch("/profiles/:id", async (req: Request, res: Response) => {
   try {
-    const { status, description, model, mode, temperature, maxTokens, budgetLimitPerDay, priority } = req.body;
+    const {
+      status,
+      description,
+      model,
+      mode,
+      temperature,
+      maxTokens,
+      budgetLimitPerDay,
+      priority,
+    } = req.body;
 
     const updates: Partial<AiAgentProfile> = { updatedAt: new Date() };
     if (status !== undefined) updates.status = status;
@@ -231,7 +285,8 @@ router.patch("/profiles/:id", async (req: Request, res: Response) => {
     if (mode !== undefined) updates.mode = mode;
     if (temperature !== undefined) updates.temperature = String(temperature);
     if (maxTokens !== undefined) updates.maxTokens = maxTokens;
-    if (budgetLimitPerDay !== undefined) updates.budgetLimitPerDay = String(budgetLimitPerDay);
+    if (budgetLimitPerDay !== undefined)
+      updates.budgetLimitPerDay = String(budgetLimitPerDay);
     if (priority !== undefined) updates.priority = priority;
 
     const [updated] = await db
@@ -247,7 +302,11 @@ router.patch("/profiles/:id", async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error) {
     log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to update agent profile" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to update agent profile",
+      });
   }
 });
 
@@ -293,7 +352,12 @@ router.get("/stats", async (req: Request, res: Response) => {
     const [escalationsToday] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(aiArenaRuns)
-      .where(and(gte(aiArenaRuns.createdAt, today), eq(aiArenaRuns.escalationTriggered, true)));
+      .where(
+        and(
+          gte(aiArenaRuns.createdAt, today),
+          eq(aiArenaRuns.escalationTriggered, true)
+        )
+      );
 
     const [activeProfiles] = await db
       .select({ count: sql<number>`COUNT(*)` })

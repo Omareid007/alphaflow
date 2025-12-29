@@ -1,6 +1,6 @@
 /**
  * LLM Rate Limiter Service
- * 
+ *
  * Provides rate limiting and usage tracking for LLM providers.
  * Integrates with the existing apiPolicy/apiBudget infrastructure.
  */
@@ -23,7 +23,7 @@ const llmCallCounts = new Map<string, { count: number; windowStart: number }>();
 export class LLMRateLimiter {
   async checkLimit(provider: string): Promise<LLMRateLimitResult> {
     const policy = getProviderPolicy(provider);
-    
+
     if (!policy.enabled) {
       return {
         allowed: false,
@@ -53,17 +53,23 @@ export class LLMRateLimiter {
 
     if (elapsed < minInterval) {
       const waitTime = minInterval - elapsed;
-      log.debug("LLMRateLimiter", `Waiting ${waitTime}ms before next ${provider} call`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      log.debug(
+        "LLMRateLimiter",
+        `Waiting ${waitTime}ms before next ${provider} call`
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
     lastLLMCallTimes.set(provider, Date.now());
   }
 
-  async recordCall(provider: string, options: {
-    tokensUsed?: number;
-    isError?: boolean;
-    isRateLimited?: boolean;
-  } = {}): Promise<void> {
+  async recordCall(
+    provider: string,
+    options: {
+      tokensUsed?: number;
+      isError?: boolean;
+      isRateLimited?: boolean;
+    } = {}
+  ): Promise<void> {
     await recordUsage(provider, {
       tokens: options.tokensUsed,
       isError: options.isError,
@@ -74,7 +80,7 @@ export class LLMRateLimiter {
     const windowStart = Math.floor(now / 60000) * 60000;
     const key = provider;
     const current = llmCallCounts.get(key);
-    
+
     if (current && current.windowStart === windowStart) {
       current.count++;
     } else {
@@ -92,7 +98,7 @@ export class LLMRateLimiter {
     const now = Date.now();
     const windowStart = Math.floor(now / 60000) * 60000;
     const current = llmCallCounts.get(provider);
-    
+
     return {
       recentCallCount: current?.windowStart === windowStart ? current.count : 0,
       lastCallTime: lastCall ? new Date(lastCall) : null,
@@ -107,7 +113,9 @@ export class LLMRateLimiter {
   ): Promise<T> {
     const limitCheck = await this.checkLimit(provider);
     if (!limitCheck.allowed) {
-      throw new Error(`Rate limit exceeded for ${provider}: ${limitCheck.reason}`);
+      throw new Error(
+        `Rate limit exceeded for ${provider}: ${limitCheck.reason}`
+      );
     }
 
     await this.enforceMinInterval(provider);

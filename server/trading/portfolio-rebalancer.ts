@@ -127,12 +127,20 @@ export class PortfolioRebalancer {
       cashBalance: number;
     }>
   ): Promise<RebalancePreview> {
-    const { allocations: currentAllocations, portfolioValue, cashBalance } =
-      await getCurrentAllocationsCallback();
+    const {
+      allocations: currentAllocations,
+      portfolioValue,
+      cashBalance,
+    } = await getCurrentAllocationsCallback();
 
-    const totalTargetPercent = targetAllocations.reduce((sum, t) => sum + t.targetPercent, 0);
+    const totalTargetPercent = targetAllocations.reduce(
+      (sum, t) => sum + t.targetPercent,
+      0
+    );
     if (totalTargetPercent > 100) {
-      throw new Error(`Target allocations sum to ${totalTargetPercent}%, must be <= 100%`);
+      throw new Error(
+        `Target allocations sum to ${totalTargetPercent}%, must be <= 100%`
+      );
     }
 
     const proposedTrades: RebalanceTrade[] = [];
@@ -140,8 +148,8 @@ export class PortfolioRebalancer {
 
     const currentMap = new Map(
       currentAllocations
-        .filter(a => a.symbol !== "CASH")
-        .map(a => [a.symbol, a])
+        .filter((a) => a.symbol !== "CASH")
+        .map((a) => [a.symbol, a])
     );
 
     for (const target of targetAllocations) {
@@ -149,7 +157,9 @@ export class PortfolioRebalancer {
 
       const symbol = target.symbol.toUpperCase();
       // Use Decimal.js for precise portfolio allocation calculations
-      const targetValue = toDecimal(target.targetPercent).dividedBy(100).times(portfolioValue);
+      const targetValue = toDecimal(target.targetPercent)
+        .dividedBy(100)
+        .times(portfolioValue);
       const current = currentMap.get(symbol);
       const currentValue = current?.currentValue || 0;
       const currentPercent = current?.currentPercent || 0;
@@ -160,9 +170,15 @@ export class PortfolioRebalancer {
       if (valueDiff.abs().lessThan(10)) continue;
 
       if (valueDiff.isPositive() && currentPrice > 0) {
-        const buyQuantity = calculateWholeShares(valueDiff, currentPrice).toNumber();
+        const buyQuantity = calculateWholeShares(
+          valueDiff,
+          currentPrice
+        ).toNumber();
         if (buyQuantity >= 1) {
-          const estimatedValue = positionValue(buyQuantity, currentPrice).toNumber();
+          const estimatedValue = positionValue(
+            buyQuantity,
+            currentPrice
+          ).toNumber();
           proposedTrades.push({
             symbol,
             side: "buy",
@@ -175,10 +191,16 @@ export class PortfolioRebalancer {
           estimatedCashChange -= estimatedValue;
         }
       } else if (valueDiff.isNegative() && currentPrice > 0 && current) {
-        const maxSellQty = calculateWholeShares(valueDiff.abs(), currentPrice).toNumber();
+        const maxSellQty = calculateWholeShares(
+          valueDiff.abs(),
+          currentPrice
+        ).toNumber();
         const sellQuantity = Math.min(maxSellQty, current.quantity);
         if (sellQuantity >= 1) {
-          const estimatedValue = positionValue(sellQuantity, currentPrice).toNumber();
+          const estimatedValue = positionValue(
+            sellQuantity,
+            currentPrice
+          ).toNumber();
           proposedTrades.push({
             symbol,
             side: "sell",
@@ -195,7 +217,7 @@ export class PortfolioRebalancer {
 
     for (const [symbol, current] of currentMap) {
       const hasTarget = targetAllocations.some(
-        t => t.symbol.toUpperCase() === symbol
+        (t) => t.symbol.toUpperCase() === symbol
       );
       if (!hasTarget && current.quantity > 0) {
         proposedTrades.push({
@@ -310,13 +332,16 @@ export class PortfolioRebalancer {
       error?: string;
     }>
   ): Promise<RebalanceResult> {
-    const preview = await this.previewRebalance(targetAllocations, getCurrentAllocationsCallback);
+    const preview = await this.previewRebalance(
+      targetAllocations,
+      getCurrentAllocationsCallback
+    );
     const portfolioValueBefore = safeParseFloat(preview.portfolioValue);
 
     if (dryRun) {
       return {
         success: true,
-        tradesExecuted: preview.proposedTrades.map(t => ({
+        tradesExecuted: preview.proposedTrades.map((t) => ({
           symbol: t.symbol,
           side: t.side,
           quantity: Math.floor(safeParseFloat(t.quantity)),
@@ -331,7 +356,7 @@ export class PortfolioRebalancer {
     const tradesExecuted: RebalanceResult["tradesExecuted"] = [];
     const errors: string[] = [];
 
-    const sellTrades = preview.proposedTrades.filter(t => t.side === "sell");
+    const sellTrades = preview.proposedTrades.filter((t) => t.side === "sell");
 
     for (const trade of sellTrades) {
       try {
@@ -371,16 +396,19 @@ export class PortfolioRebalancer {
     }
 
     if (sellTrades.length > 0) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    const { allocations: refreshedAllocations, portfolioValue: refreshedPortfolioValue, cashBalance: availableCash } =
-      await getCurrentAllocationsCallback();
+    const {
+      allocations: refreshedAllocations,
+      portfolioValue: refreshedPortfolioValue,
+      cashBalance: availableCash,
+    } = await getCurrentAllocationsCallback();
 
     const refreshedPositionMap = new Map(
       refreshedAllocations
-        .filter(a => a.symbol !== "CASH")
-        .map(a => [a.symbol, a])
+        .filter((a) => a.symbol !== "CASH")
+        .map((a) => [a.symbol, a])
     );
 
     for (const target of targetAllocations) {
@@ -388,7 +416,9 @@ export class PortfolioRebalancer {
 
       const symbol = target.symbol.toUpperCase();
       // Use Decimal.js for precise rebalance calculations
-      const targetValue = toDecimal(safeParseFloat(target.targetPercent)).dividedBy(100).times(refreshedPortfolioValue);
+      const targetValue = toDecimal(safeParseFloat(target.targetPercent))
+        .dividedBy(100)
+        .times(refreshedPortfolioValue);
       const current = refreshedPositionMap.get(symbol);
       const currentValue = current ? safeParseFloat(current.currentValue) : 0;
       const currentPrice = current ? safeParseFloat(current.price) : 0;
@@ -399,7 +429,10 @@ export class PortfolioRebalancer {
 
       const maxBuyValue = toDecimal(availableCash).times(0.95).toNumber();
       const maxBuyValueCapped = Math.min(valueDiff.toNumber(), maxBuyValue);
-      const buyQuantity = calculateWholeShares(maxBuyValueCapped, currentPrice).toNumber();
+      const buyQuantity = calculateWholeShares(
+        maxBuyValueCapped,
+        currentPrice
+      ).toNumber();
 
       if (buyQuantity < 1) continue;
 
@@ -437,29 +470,37 @@ export class PortfolioRebalancer {
     }
 
     // Wait for positions to settle before getting final values
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const finalAccount = await alpaca.getAccount();
     const finalPositions = await alpaca.getPositions();
     const cashAfter = safeParseFloat(finalAccount.cash);
     const positionsValueAfter = finalPositions.reduce(
-      (sum, p) => sum + safeParseFloat(p.market_value), 0
+      (sum, p) => sum + safeParseFloat(p.market_value),
+      0
     );
     const portfolioValueAfter = cashAfter + positionsValueAfter;
 
-    logger.trade(`Rebalance complete: ${tradesExecuted.length} trades, ${errors.length} errors`, {
-      tradesExecuted: tradesExecuted.length,
-      errors: errors.length,
-      portfolioValueBefore,
-      portfolioValueAfter,
-    });
+    logger.trade(
+      `Rebalance complete: ${tradesExecuted.length} trades, ${errors.length} errors`,
+      {
+        tradesExecuted: tradesExecuted.length,
+        errors: errors.length,
+        portfolioValueBefore,
+        portfolioValueAfter,
+      }
+    );
 
-    eventBus.emit("portfolio:rebalanced", {
-      tradesExecuted: tradesExecuted.length,
-      errors: errors.length,
-      portfolioValueBefore,
-      portfolioValueAfter,
-    }, "portfolio-rebalancer");
+    eventBus.emit(
+      "portfolio:rebalanced",
+      {
+        tradesExecuted: tradesExecuted.length,
+        errors: errors.length,
+        portfolioValueBefore,
+        portfolioValueAfter,
+      },
+      "portfolio-rebalancer"
+    );
 
     return {
       success: errors.length === 0,
@@ -531,7 +572,9 @@ export class PortfolioRebalancer {
     const { allocations: currentAllocations, portfolioValue } =
       await getCurrentAllocationsCallback();
 
-    const nonCashAllocations = currentAllocations.filter(a => a.symbol !== "CASH");
+    const nonCashAllocations = currentAllocations.filter(
+      (a) => a.symbol !== "CASH"
+    );
 
     if (nonCashAllocations.length === 0) {
       const defaultWatchlist = getDefaultWatchlist();
@@ -541,21 +584,27 @@ export class PortfolioRebalancer {
           symbol,
           targetPercent: 15,
         })),
-        reasoning: "No current positions. Suggesting equal-weight allocation across top 5 watchlist stocks (15% each, 25% cash reserve).",
+        reasoning:
+          "No current positions. Suggesting equal-weight allocation across top 5 watchlist stocks (15% each, 25% cash reserve).",
       };
     }
 
     const symbolCount = nonCashAllocations.length;
     const equalWeight = Math.floor(80 / symbolCount);
 
-    const suggestedAllocations: TargetAllocation[] = nonCashAllocations.map(a => ({
-      symbol: a.symbol,
-      targetPercent: equalWeight,
-    }));
+    const suggestedAllocations: TargetAllocation[] = nonCashAllocations.map(
+      (a) => ({
+        symbol: a.symbol,
+        targetPercent: equalWeight,
+      })
+    );
 
-    const allocatedPercent = suggestedAllocations.reduce((sum, a) => sum + a.targetPercent, 0);
+    const allocatedPercent = suggestedAllocations.reduce(
+      (sum, a) => sum + a.targetPercent,
+      0
+    );
     if (allocatedPercent < 80 && suggestedAllocations.length > 0) {
-      suggestedAllocations[0].targetPercent += (80 - allocatedPercent);
+      suggestedAllocations[0].targetPercent += 80 - allocatedPercent;
     }
 
     return {

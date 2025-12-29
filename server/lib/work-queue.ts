@@ -4,8 +4,19 @@ import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
 import { tradingEnforcementService } from "../universe";
 import { tradingSessionManager } from "../services/trading-session-manager";
-import { transformOrderForExecution, createPriceData, type TransformedOrder } from "../trading/smart-order-router";
-import type { WorkItem, InsertWorkItem, WorkItemType, WorkItemStatus, InsertOrder, InsertFill } from "@shared/schema";
+import {
+  transformOrderForExecution,
+  createPriceData,
+  type TransformedOrder,
+} from "../trading/smart-order-router";
+import type {
+  WorkItem,
+  InsertWorkItem,
+  WorkItemType,
+  WorkItemStatus,
+  InsertOrder,
+  InsertFill,
+} from "@shared/schema";
 import crypto from "crypto";
 
 // Cached admin user ID for database operations
@@ -62,18 +73,25 @@ export function generateIdempotencyKey(params: {
   signalHash?: string;
   timeframeBucket?: string;
 }): string {
-  const bucket = params.timeframeBucket || Math.floor(Date.now() / 60000).toString();
+  const bucket =
+    params.timeframeBucket || Math.floor(Date.now() / 60000).toString();
   const data = `${params.strategyId}:${params.symbol}:${params.side}:${params.signalHash || ""}:${bucket}`;
-  return crypto.createHash("sha256").update(data).digest("hex").substring(0, 32);
+  return crypto
+    .createHash("sha256")
+    .update(data)
+    .digest("hex")
+    .substring(0, 32);
 }
 
-export function classifyError(error: unknown): "transient" | "permanent" | "unknown" {
+export function classifyError(
+  error: unknown
+): "transient" | "permanent" | "unknown" {
   const errorStr = error instanceof Error ? error.message : String(error);
-  
-  if (PERMANENT_ERROR_PATTERNS.some(p => p.test(errorStr))) {
+
+  if (PERMANENT_ERROR_PATTERNS.some((p) => p.test(errorStr))) {
     return "permanent";
   }
-  if (TRANSIENT_ERROR_PATTERNS.some(p => p.test(errorStr))) {
+  if (TRANSIENT_ERROR_PATTERNS.some((p) => p.test(errorStr))) {
     return "transient";
   }
   return "unknown";
@@ -116,7 +134,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
     if (item.idempotencyKey) {
       const existing = await this.getByIdempotencyKey(item.idempotencyKey);
       if (existing) {
-        log.info("work-queue", `Duplicate work item detected: ${item.idempotencyKey}`);
+        log.info(
+          "work-queue",
+          `Duplicate work item detected: ${item.idempotencyKey}`
+        );
         return existing;
       }
     }
@@ -150,7 +171,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
         updatedAt: new Date(),
       });
     } else {
-      const nextRunAt = calculateNextRunAt(item.type as WorkItemType, newAttempts);
+      const nextRunAt = calculateNextRunAt(
+        item.type as WorkItemType,
+        newAttempts
+      );
       await storage.updateWorkItem(id, {
         status: "PENDING",
         lastError: error,
@@ -207,7 +231,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
     return storage.getWorkItemCount("PENDING", type);
   }
 
-  async getRecentItems(limit = 50, status?: WorkItemStatus): Promise<WorkItem[]> {
+  async getRecentItems(
+    limit = 50,
+    status?: WorkItemStatus
+  ): Promise<WorkItem[]> {
     return storage.getWorkItems(limit, status);
   }
 
@@ -252,25 +279,35 @@ class WorkQueueServiceImpl implements WorkQueueService {
     // This ensures emergency halt stops ALL order execution paths
     const agentStatus = await storage.getAgentStatus();
     if (agentStatus?.killSwitchActive) {
-      log.warn("work-queue", `ORDER_BLOCKED: Kill switch is active - rejecting order for ${symbol}`, {
-        traceId,
-        workItemId: item.id,
-        symbol,
-        side,
-        reason: "KILL_SWITCH_ACTIVE",
-      });
-      await this.markFailed(item.id, "Kill switch is active - all trading halted", false);
+      log.warn(
+        "work-queue",
+        `ORDER_BLOCKED: Kill switch is active - rejecting order for ${symbol}`,
+        {
+          traceId,
+          workItemId: item.id,
+          symbol,
+          side,
+          reason: "KILL_SWITCH_ACTIVE",
+        }
+      );
+      await this.markFailed(
+        item.id,
+        "Kill switch is active - all trading halted",
+        false
+      );
       return;
     }
 
     // Support both flat fields and nested objects for bracket order params
     // Orchestrator sends: take_profit: { limit_price: "123.45" }
     // Some callers may send flat: take_profit_limit_price: "123.45"
-    const effectiveTakeProfitLimitPrice = take_profit_limit_price || take_profit?.limit_price;
-    const effectiveStopLossStopPrice = stop_loss_stop_price || stop_loss?.stop_price;
+    const effectiveTakeProfitLimitPrice =
+      take_profit_limit_price || take_profit?.limit_price;
+    const effectiveStopLossStopPrice =
+      stop_loss_stop_price || stop_loss?.stop_price;
 
-    log.info("work-queue", `Processing ORDER_SUBMIT for ${symbol} ${side}`, { 
-      traceId, 
+    log.info("work-queue", `Processing ORDER_SUBMIT for ${symbol} ${side}`, {
+      traceId,
       workItemId: item.id,
       symbol,
       side,
@@ -279,22 +316,30 @@ class WorkQueueServiceImpl implements WorkQueueService {
     // For SELL orders, skip enforcement check - we must be able to close existing positions
     // even if the symbol is no longer in the approved candidates list
     if (side !== "sell") {
-      const enforcementCheck = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
+      const enforcementCheck = await tradingEnforcementService.canTradeSymbol(
+        symbol,
+        traceId
+      );
       if (!enforcementCheck.eligible) {
         // ENHANCED ORDER FAILURE LOGGING
-        log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Trading enforcement rejected`, {
-          traceId,
-          workItemId: item.id,
-          symbol,
-          side,
-          qty,
-          notional,
-          orderType: type,
-          reason: "TRADING_ENFORCEMENT_BLOCKED",
-          enforcementReason: enforcementCheck.reason,
-          blockCategory: "SYMBOL_NOT_APPROVED",
-          suggestion: "Add symbol to approved candidates list or ensure it passes universe eligibility"
-        });
+        log.warn(
+          "work-queue",
+          `ORDER_BLOCKED: ${symbol} - Trading enforcement rejected`,
+          {
+            traceId,
+            workItemId: item.id,
+            symbol,
+            side,
+            qty,
+            notional,
+            orderType: type,
+            reason: "TRADING_ENFORCEMENT_BLOCKED",
+            enforcementReason: enforcementCheck.reason,
+            blockCategory: "SYMBOL_NOT_APPROVED",
+            suggestion:
+              "Add symbol to approved candidates list or ensure it passes universe eligibility",
+          }
+        );
         await this.markFailed(
           item.id,
           `Symbol ${symbol} blocked by trading enforcement: ${enforcementCheck.reason}`,
@@ -303,10 +348,15 @@ class WorkQueueServiceImpl implements WorkQueueService {
         return;
       }
     } else {
-      log.info("work-queue", `Bypassing enforcement check for SELL order on ${symbol}`, { traceId });
+      log.info(
+        "work-queue",
+        `Bypassing enforcement check for SELL order on ${symbol}`,
+        { traceId }
+      );
     }
 
-    const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+    const tradabilityCheck =
+      await tradabilityService.validateSymbolTradable(symbol);
     if (!tradabilityCheck.tradable) {
       // ENHANCED ORDER FAILURE LOGGING
       log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Symbol not tradable`, {
@@ -320,11 +370,12 @@ class WorkQueueServiceImpl implements WorkQueueService {
         reason: "SYMBOL_NOT_TRADABLE",
         tradabilityReason: tradabilityCheck.reason,
         blockCategory: "BROKER_UNIVERSE",
-        suggestion: "Symbol may not be in Alpaca universe or may be a penny stock (<$5)"
+        suggestion:
+          "Symbol may not be in Alpaca universe or may be a penny stock (<$5)",
       });
       await this.markFailed(
         item.id,
-        `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || 'Not found in broker universe'}`,
+        `Symbol ${symbol} is not tradable: ${tradabilityCheck.reason || "Not found in broker universe"}`,
         false
       );
       return;
@@ -332,10 +383,19 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     // SMART ORDER ROUTING: Transform orders to ensure they are NEVER rejected
     // Instead of blocking orders, we transform them to the correct type/price/TIF
-    const isCrypto = symbol.includes("/") || ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX"].some(c => symbol.toUpperCase().startsWith(c));
+    const isCrypto =
+      symbol.includes("/") ||
+      ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX"].some((c) =>
+        symbol.toUpperCase().startsWith(c)
+      );
 
     // Fetch current price for limit price calculation
-    let currentPriceData: { bid: number; ask: number; last: number; spread?: number } = { bid: 0, ask: 0, last: 0, spread: 0 };
+    let currentPriceData: {
+      bid: number;
+      ask: number;
+      last: number;
+      spread?: number;
+    } = { bid: 0, ask: 0, last: 0, spread: 0 };
     try {
       if (!isCrypto) {
         const snapshots = await alpaca.getSnapshots([symbol]);
@@ -344,7 +404,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
           const lastPrice = snapshot.latestTrade.p;
           const bidPrice = snapshot.latestQuote?.bp || lastPrice * 0.999;
           const askPrice = snapshot.latestQuote?.ap || lastPrice * 1.001;
-          currentPriceData = createPriceData({ bid: bidPrice, ask: askPrice, last: lastPrice });
+          currentPriceData = createPriceData({
+            bid: bidPrice,
+            ask: askPrice,
+            last: lastPrice,
+          });
         }
       } else {
         // For crypto, use crypto snapshots
@@ -352,11 +416,19 @@ class WorkQueueServiceImpl implements WorkQueueService {
         const snapshot = cryptoSnapshots[symbol];
         if (snapshot?.latestTrade?.p) {
           const lastPrice = snapshot.latestTrade.p;
-          currentPriceData = createPriceData({ bid: lastPrice * 0.999, ask: lastPrice * 1.001, last: lastPrice });
+          currentPriceData = createPriceData({
+            bid: lastPrice * 0.999,
+            ask: lastPrice * 1.001,
+            last: lastPrice,
+          });
         }
       }
     } catch (priceError) {
-      log.warn("work-queue", `Failed to fetch price for ${symbol}, using market order if possible`, { traceId, error: String(priceError) });
+      log.warn(
+        "work-queue",
+        `Failed to fetch price for ${symbol}, using market order if possible`,
+        { traceId, error: String(priceError) }
+      );
     }
 
     // Build order input for smart router
@@ -376,34 +448,45 @@ class WorkQueueServiceImpl implements WorkQueueService {
     };
 
     // Transform order using smart router
-    const transformedOrder = transformOrderForExecution(orderInput, currentPriceData);
+    const transformedOrder = transformOrderForExecution(
+      orderInput,
+      currentPriceData
+    );
 
     // Log any transformations made
     if (transformedOrder.transformations.length > 0) {
-      log.info("work-queue", `ORDER_TRANSFORMED: ${symbol} - ${transformedOrder.transformations.length} changes applied`, {
-        traceId,
-        workItemId: item.id,
-        symbol,
-        side,
-        originalType: type || "market",
-        newType: transformedOrder.type,
-        originalTIF: time_in_force || "day",
-        newTIF: transformedOrder.timeInForce,
-        limitPrice: transformedOrder.limitPrice,
-        extendedHours: transformedOrder.extendedHours,
-        session: transformedOrder.session,
-        transformations: transformedOrder.transformations,
-      });
+      log.info(
+        "work-queue",
+        `ORDER_TRANSFORMED: ${symbol} - ${transformedOrder.transformations.length} changes applied`,
+        {
+          traceId,
+          workItemId: item.id,
+          symbol,
+          side,
+          originalType: type || "market",
+          newType: transformedOrder.type,
+          originalTIF: time_in_force || "day",
+          newTIF: transformedOrder.timeInForce,
+          limitPrice: transformedOrder.limitPrice,
+          extendedHours: transformedOrder.extendedHours,
+          session: transformedOrder.session,
+          transformations: transformedOrder.transformations,
+        }
+      );
     }
 
     // Log any warnings
     if (transformedOrder.warnings.length > 0) {
-      log.warn("work-queue", `ORDER_WARNINGS: ${symbol} - ${transformedOrder.warnings.length} warnings`, {
-        traceId,
-        workItemId: item.id,
-        symbol,
-        warnings: transformedOrder.warnings,
-      });
+      log.warn(
+        "work-queue",
+        `ORDER_WARNINGS: ${symbol} - ${transformedOrder.warnings.length} warnings`,
+        {
+          traceId,
+          workItemId: item.id,
+          symbol,
+          warnings: transformedOrder.warnings,
+        }
+      );
     }
 
     // CRITICAL: Generate consistent client order ID for idempotency
@@ -412,26 +495,38 @@ class WorkQueueServiceImpl implements WorkQueueService {
     const baseClientOrderId = item.idempotencyKey || item.id;
     // First attempt (attempts=0): use base ID for true idempotency
     // Retry attempts: append -r1, -r2, etc. to distinguish genuine retry orders
-    const clientOrderId = item.attempts > 0
-      ? `${baseClientOrderId.substring(0, 24)}-r${item.attempts}`
-      : baseClientOrderId.substring(0, 32);
+    const clientOrderId =
+      item.attempts > 0
+        ? `${baseClientOrderId.substring(0, 24)}-r${item.attempts}`
+        : baseClientOrderId.substring(0, 32);
 
     // Check BOTH open AND recent closed orders to catch filled/cancelled orders
     // that may have succeeded server-side but timed out locally
     const existingOrders = await alpaca.getOrders("all", 200);
-    const existingOrder = existingOrders.find(o =>
-      o.client_order_id === clientOrderId ||
-      o.client_order_id === baseClientOrderId ||
-      o.client_order_id?.startsWith(baseClientOrderId.substring(0, 20))
+    const existingOrder = existingOrders.find(
+      (o) =>
+        o.client_order_id === clientOrderId ||
+        o.client_order_id === baseClientOrderId ||
+        o.client_order_id?.startsWith(baseClientOrderId.substring(0, 20))
     );
 
     if (existingOrder) {
-      log.info("work-queue", `Order already exists for client_order_id ${clientOrderId}: ${existingOrder.id}`, { traceId });
+      log.info(
+        "work-queue",
+        `Order already exists for client_order_id ${clientOrderId}: ${existingOrder.id}`,
+        { traceId }
+      );
       await storage.updateWorkItem(item.id, {
         brokerOrderId: existingOrder.id,
-        result: JSON.stringify({ orderId: existingOrder.id, status: existingOrder.status }),
+        result: JSON.stringify({
+          orderId: existingOrder.id,
+          status: existingOrder.status,
+        }),
       });
-      await this.markSucceeded(item.id, JSON.stringify({ orderId: existingOrder.id, deduplicated: true }));
+      await this.markSucceeded(
+        item.id,
+        JSON.stringify({ orderId: existingOrder.id, deduplicated: true })
+      );
       return;
     }
 
@@ -450,16 +545,26 @@ class WorkQueueServiceImpl implements WorkQueueService {
         const position = positions.find((p: any) => p.symbol === symbol);
 
         if (!position) {
-          log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - No position found to sell`, {
-            traceId,
-            workItemId: item.id,
-            requestedQty: validatedQty,
-          });
-          await this.markFailed(item.id, `No position found for ${symbol} - cannot sell`, false);
+          log.warn(
+            "work-queue",
+            `ORDER_BLOCKED: ${symbol} - No position found to sell`,
+            {
+              traceId,
+              workItemId: item.id,
+              requestedQty: validatedQty,
+            }
+          );
+          await this.markFailed(
+            item.id,
+            `No position found for ${symbol} - cannot sell`,
+            false
+          );
           return;
         }
 
-        const availableQty = parseFloat(position.qty_available || position.qty || "0");
+        const availableQty = parseFloat(
+          position.qty_available || position.qty || "0"
+        );
         const requestedQty = parseFloat(validatedQty);
 
         const heldForOrders = parseFloat(position.qty) - availableQty;
@@ -473,24 +578,36 @@ class WorkQueueServiceImpl implements WorkQueueService {
         });
 
         if (availableQty <= 0) {
-          log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - No available shares (all held for other orders)`, {
-            traceId,
-            workItemId: item.id,
-            availableQty,
-            heldForOrders: heldForOrders.toString(),
-          });
-          await this.markFailed(item.id, `No available shares for ${symbol} (${availableQty} available, rest held for orders)`, false);
+          log.warn(
+            "work-queue",
+            `ORDER_BLOCKED: ${symbol} - No available shares (all held for other orders)`,
+            {
+              traceId,
+              workItemId: item.id,
+              availableQty,
+              heldForOrders: heldForOrders.toString(),
+            }
+          );
+          await this.markFailed(
+            item.id,
+            `No available shares for ${symbol} (${availableQty} available, rest held for orders)`,
+            false
+          );
           return;
         }
 
         // CLAMP requested qty to available qty
         if (requestedQty > availableQty) {
-          log.warn("work-queue", `ORDER_QTY_ADJUSTED: ${symbol} - Clamping qty from ${requestedQty} to ${availableQty}`, {
-            traceId,
-            workItemId: item.id,
-            originalQty: requestedQty,
-            clampedQty: availableQty,
-          });
+          log.warn(
+            "work-queue",
+            `ORDER_QTY_ADJUSTED: ${symbol} - Clamping qty from ${requestedQty} to ${availableQty}`,
+            {
+              traceId,
+              workItemId: item.id,
+              originalQty: requestedQty,
+              clampedQty: availableQty,
+            }
+          );
         }
 
         let finalQty = Math.min(requestedQty, availableQty);
@@ -499,27 +616,43 @@ class WorkQueueServiceImpl implements WorkQueueService {
         if (transformedOrder.extendedHours) {
           const wholeQty = Math.floor(finalQty);
           if (wholeQty <= 0) {
-            log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Fractional shares cannot trade in extended hours`, {
-              traceId,
-              workItemId: item.id,
-              availableQty: finalQty,
-              session: transformedOrder.session,
-            });
-            await this.markFailed(item.id, `Cannot sell fractional shares (${finalQty}) during extended hours`, false);
+            log.warn(
+              "work-queue",
+              `ORDER_BLOCKED: ${symbol} - Fractional shares cannot trade in extended hours`,
+              {
+                traceId,
+                workItemId: item.id,
+                availableQty: finalQty,
+                session: transformedOrder.session,
+              }
+            );
+            await this.markFailed(
+              item.id,
+              `Cannot sell fractional shares (${finalQty}) during extended hours`,
+              false
+            );
             return;
           }
           if (wholeQty < finalQty) {
-            log.info("work-queue", `ORDER_QTY_ROUNDED: ${symbol} - Rounding down from ${finalQty} to ${wholeQty} for extended hours`, {
-              traceId,
-              workItemId: item.id,
-            });
+            log.info(
+              "work-queue",
+              `ORDER_QTY_ROUNDED: ${symbol} - Rounding down from ${finalQty} to ${wholeQty} for extended hours`,
+              {
+                traceId,
+                workItemId: item.id,
+              }
+            );
           }
           finalQty = wholeQty;
         }
 
         validatedQty = finalQty.toString();
       } catch (posError: any) {
-        log.error("work-queue", `Position validation failed for ${symbol}: ${posError.message}`, { traceId });
+        log.error(
+          "work-queue",
+          `Position validation failed for ${symbol}: ${posError.message}`,
+          { traceId }
+        );
         // Continue with original qty - let Alpaca reject if invalid
       }
     }
@@ -527,23 +660,40 @@ class WorkQueueServiceImpl implements WorkQueueService {
     // For BUY orders in extended hours, ensure notional results in at least 1 whole share
     // NOTE: We do NOT block for insufficient buying power - let Alpaca handle margin validation
     // This allows buy-the-dip to work with margin accounts (negative cash but positive buying power)
-    if (side === "buy" && validatedNotional && transformedOrder.extendedHours && currentPriceData.last > 0) {
+    if (
+      side === "buy" &&
+      validatedNotional &&
+      transformedOrder.extendedHours &&
+      currentPriceData.last > 0
+    ) {
       try {
         const requestedNotional = parseFloat(validatedNotional);
         const estimatedShares = requestedNotional / currentPriceData.last;
         if (estimatedShares < 1) {
-          log.warn("work-queue", `ORDER_BLOCKED: ${symbol} - Notional too small for whole share in extended hours`, {
-            traceId,
-            workItemId: item.id,
-            notional: requestedNotional,
-            estimatedShares,
-            price: currentPriceData.last,
-          });
-          await this.markFailed(item.id, `Notional $${requestedNotional} too small for 1 share at $${currentPriceData.last}`, false);
+          log.warn(
+            "work-queue",
+            `ORDER_BLOCKED: ${symbol} - Notional too small for whole share in extended hours`,
+            {
+              traceId,
+              workItemId: item.id,
+              notional: requestedNotional,
+              estimatedShares,
+              price: currentPriceData.last,
+            }
+          );
+          await this.markFailed(
+            item.id,
+            `Notional $${requestedNotional} too small for 1 share at $${currentPriceData.last}`,
+            false
+          );
           return;
         }
       } catch (validationError: any) {
-        log.warn("work-queue", `Extended hours validation failed: ${validationError.message}`, { traceId });
+        log.warn(
+          "work-queue",
+          `Extended hours validation failed: ${validationError.message}`,
+          { traceId }
+        );
         // Continue - let Alpaca handle it
       }
     }
@@ -563,13 +713,15 @@ class WorkQueueServiceImpl implements WorkQueueService {
     if (validatedNotional) orderParams.notional = validatedNotional;
 
     // Use transformed limit price (auto-calculated if needed)
-    if (transformedOrder.limitPrice) orderParams.limit_price = transformedOrder.limitPrice;
+    if (transformedOrder.limitPrice)
+      orderParams.limit_price = transformedOrder.limitPrice;
 
     // Use original stop price (smart router doesn't modify this)
     if (stop_price) orderParams.stop_price = stop_price;
 
     // Use transformed extended_hours flag
-    if (transformedOrder.extendedHours) orderParams.extended_hours = transformedOrder.extendedHours;
+    if (transformedOrder.extendedHours)
+      orderParams.extended_hours = transformedOrder.extendedHours;
 
     // Handle bracket orders (smart router ensures TIF is "day")
     if (transformedOrder.orderClass) {
@@ -577,10 +729,14 @@ class WorkQueueServiceImpl implements WorkQueueService {
       // Only add take_profit/stop_loss for bracket orders
       if (transformedOrder.orderClass === "bracket") {
         if (transformedOrder.takeProfitLimitPrice) {
-          orderParams.take_profit = { limit_price: transformedOrder.takeProfitLimitPrice };
+          orderParams.take_profit = {
+            limit_price: transformedOrder.takeProfitLimitPrice,
+          };
         }
         if (transformedOrder.stopLossStopPrice) {
-          orderParams.stop_loss = { stop_price: transformedOrder.stopLossStopPrice };
+          orderParams.stop_loss = {
+            stop_price: transformedOrder.stopLossStopPrice,
+          };
         }
       }
     }
@@ -598,8 +754,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     const order = await alpaca.createOrder(orderParams);
 
-    log.info("work-queue", `ORDER_SUBMIT succeeded: ${order.id}`, { 
-      traceId, 
+    log.info("work-queue", `ORDER_SUBMIT succeeded: ${order.id}`, {
+      traceId,
       workItemId: item.id,
       orderId: order.id,
       status: order.status,
@@ -622,7 +778,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
       stopPrice: stop_price?.toString(),
       status: order.status,
       // Capture extended_hours and order_class from Alpaca response
-      extendedHours: order.extended_hours || transformedOrder.extendedHours || false,
+      extendedHours:
+        order.extended_hours || transformedOrder.extendedHours || false,
       orderClass: order.order_class || transformedOrder.orderClass || "simple",
       submittedAt: new Date(order.submitted_at || Date.now()),
       updatedAt: new Date(),
@@ -640,7 +797,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
     await storage.upsertOrderByBrokerOrderId(order.id, orderData);
 
     await storage.updateWorkItem(item.id, { brokerOrderId: order.id });
-    await this.markSucceeded(item.id, JSON.stringify({ orderId: order.id, status: order.status }));
+    await this.markSucceeded(
+      item.id,
+      JSON.stringify({ orderId: order.id, status: order.status })
+    );
   }
 
   async processOrderCancel(item: WorkItem): Promise<void> {
@@ -653,14 +813,20 @@ class WorkQueueServiceImpl implements WorkQueueService {
     }
 
     await alpaca.cancelOrder(orderId);
-    await this.markSucceeded(item.id, JSON.stringify({ canceledOrderId: orderId }));
+    await this.markSucceeded(
+      item.id,
+      JSON.stringify({ canceledOrderId: orderId })
+    );
   }
 
   async processOrderSync(item: WorkItem): Promise<void> {
     const payload = JSON.parse(item.payload || "{}");
     const traceId = payload.traceId || `sync-${Date.now()}`;
-    
-    log.info("work-queue", "Starting order sync", { traceId, workItemId: item.id });
+
+    log.info("work-queue", "Starting order sync", {
+      traceId,
+      workItemId: item.id,
+    });
 
     const [openOrders, recentOrders] = await Promise.all([
       alpaca.getOrders("open", 100),
@@ -676,7 +842,9 @@ class WorkQueueServiceImpl implements WorkQueueService {
         // Get workItemId if linked to a work item
         let workItemId: string | undefined;
         if (alpacaOrder.client_order_id) {
-          const workItem = await storage.getWorkItemByIdempotencyKey(alpacaOrder.client_order_id);
+          const workItem = await storage.getWorkItemByIdempotencyKey(
+            alpacaOrder.client_order_id
+          );
           if (workItem) {
             workItemId = workItem.id;
           }
@@ -700,10 +868,18 @@ class WorkQueueServiceImpl implements WorkQueueService {
           orderClass: alpacaOrder.order_class || "simple",
           submittedAt: new Date(alpacaOrder.submitted_at),
           updatedAt: new Date(alpacaOrder.updated_at || Date.now()),
-          filledAt: alpacaOrder.filled_at ? new Date(alpacaOrder.filled_at) : undefined,
-          expiredAt: alpacaOrder.expired_at ? new Date(alpacaOrder.expired_at) : undefined,
-          canceledAt: alpacaOrder.canceled_at ? new Date(alpacaOrder.canceled_at) : undefined,
-          failedAt: alpacaOrder.failed_at ? new Date(alpacaOrder.failed_at) : undefined,
+          filledAt: alpacaOrder.filled_at
+            ? new Date(alpacaOrder.filled_at)
+            : undefined,
+          expiredAt: alpacaOrder.expired_at
+            ? new Date(alpacaOrder.expired_at)
+            : undefined,
+          canceledAt: alpacaOrder.canceled_at
+            ? new Date(alpacaOrder.canceled_at)
+            : undefined,
+          failedAt: alpacaOrder.failed_at
+            ? new Date(alpacaOrder.failed_at)
+            : undefined,
           filledQty: alpacaOrder.filled_qty,
           filledAvgPrice: alpacaOrder.filled_avg_price || undefined,
           traceId,
@@ -715,10 +891,14 @@ class WorkQueueServiceImpl implements WorkQueueService {
         ordersUpserted++;
 
         if (alpacaOrder.filled_at && parseFloat(alpacaOrder.filled_qty) > 0) {
-          const existingFills = await storage.getFillsByBrokerOrderId(alpacaOrder.id);
+          const existingFills = await storage.getFillsByBrokerOrderId(
+            alpacaOrder.id
+          );
           if (existingFills.length === 0) {
-            const dbOrder = await storage.getOrderByBrokerOrderId(alpacaOrder.id);
-            
+            const dbOrder = await storage.getOrderByBrokerOrderId(
+              alpacaOrder.id
+            );
+
             const fillData = {
               broker: "alpaca" as const,
               brokerOrderId: alpacaOrder.id,
@@ -740,25 +920,32 @@ class WorkQueueServiceImpl implements WorkQueueService {
           }
         }
       } catch (error) {
-        log.warn("work-queue", `Failed to sync order ${alpacaOrder.id}: ${error}`, { traceId });
+        log.warn(
+          "work-queue",
+          `Failed to sync order ${alpacaOrder.id}: ${error}`,
+          { traceId }
+        );
       }
     }
 
-    log.info("work-queue", `Order sync completed`, { 
-      traceId, 
-      ordersUpserted, 
+    log.info("work-queue", `Order sync completed`, {
+      traceId,
+      ordersUpserted,
       fillsCreated,
       openOrders: openOrders.length,
       recentOrders: recentOrders.length,
     });
 
-    await this.markSucceeded(item.id, JSON.stringify({
-      ordersUpserted,
-      fillsCreated,
-      openOrders: openOrders.length,
-      recentOrders: recentOrders.length,
-      syncedAt: new Date().toISOString(),
-    }));
+    await this.markSucceeded(
+      item.id,
+      JSON.stringify({
+        ordersUpserted,
+        fillsCreated,
+        openOrders: openOrders.length,
+        recentOrders: recentOrders.length,
+        syncedAt: new Date().toISOString(),
+      })
+    );
   }
 
   async processKillSwitch(item: WorkItem): Promise<void> {
@@ -771,7 +958,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
         try {
           await alpaca.closePosition(pos.symbol);
         } catch (e) {
-          log.warn("work-queue", `Failed to close position ${pos.symbol}: ${e}`);
+          log.warn(
+            "work-queue",
+            `Failed to close position ${pos.symbol}: ${e}`
+          );
         }
       }
     }
@@ -781,38 +971,44 @@ class WorkQueueServiceImpl implements WorkQueueService {
       updatedAt: new Date(),
     });
 
-    await this.markSucceeded(item.id, JSON.stringify({
-      canceledOrders: true,
-      closedPositions: payload.closePositions || false,
-      executedAt: new Date().toISOString(),
-    }));
+    await this.markSucceeded(
+      item.id,
+      JSON.stringify({
+        canceledOrders: true,
+        closedPositions: payload.closePositions || false,
+        executedAt: new Date().toISOString(),
+      })
+    );
   }
 
   async processAssetUniverseSync(item: WorkItem): Promise<void> {
     const payload = JSON.parse(item.payload || "{}");
     const assetClass = payload.assetClass || "us_equity";
-    
+
     log.info("work-queue", `Starting asset universe sync for ${assetClass}`);
-    
+
     const result = await tradabilityService.syncAssetUniverse(assetClass);
-    
+
     if (result.errors.length > 0) {
       throw new Error(result.errors.join("; "));
     }
-    
+
     tradabilityService.clearMemoryCache();
-    
-    await this.markSucceeded(item.id, JSON.stringify({
-      assetClass,
-      synced: result.synced,
-      tradable: result.tradable,
-      syncedAt: new Date().toISOString(),
-    }));
+
+    await this.markSucceeded(
+      item.id,
+      JSON.stringify({
+        assetClass,
+        synced: result.synced,
+        tradable: result.tradable,
+        syncedAt: new Date().toISOString(),
+      })
+    );
   }
 
   async processItem(item: WorkItem): Promise<void> {
     const startTime = Date.now();
-    
+
     await storage.createWorkItemRun({
       workItemId: item.id,
       attemptNumber: item.attempts + 1,
@@ -843,9 +1039,12 @@ class WorkQueueServiceImpl implements WorkQueueService {
     } catch (error) {
       const errorClass = classifyError(error);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      
-      log.error("work-queue", `Work item ${item.id} failed (${errorClass}): ${errorMsg}`);
-      
+
+      log.error(
+        "work-queue",
+        `Work item ${item.id} failed (${errorClass}): ${errorMsg}`
+      );
+
       await this.markFailed(item.id, errorMsg, errorClass === "transient");
     }
   }
@@ -868,8 +1067,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
   startWorker(intervalMs = 5000): void {
     if (this.workerInterval) return;
-    
-    log.info("work-queue", `Starting work queue worker with ${intervalMs}ms interval`);
+
+    log.info(
+      "work-queue",
+      `Starting work queue worker with ${intervalMs}ms interval`
+    );
     this.workerInterval = setInterval(() => this.runWorkerCycle(), intervalMs);
   }
 
@@ -890,7 +1092,7 @@ class WorkQueueServiceImpl implements WorkQueueService {
     const startTime = Date.now();
 
     while (this.processing && Date.now() - startTime < maxWaitMs) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     if (this.processing) {

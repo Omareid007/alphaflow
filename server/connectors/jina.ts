@@ -9,7 +9,12 @@ const JINA_RERANK_URL = "https://api.jina.ai/v1/rerank";
 export interface JinaEmbeddingRequest {
   input: string | string[];
   model?: "jina-embeddings-v3" | "jina-embeddings-v2-base-en";
-  task?: "retrieval.query" | "retrieval.passage" | "separation" | "classification" | "text-matching";
+  task?:
+    | "retrieval.query"
+    | "retrieval.passage"
+    | "separation"
+    | "classification"
+    | "text-matching";
   dimensions?: number;
   late_chunking?: boolean;
   normalized?: boolean;
@@ -99,7 +104,11 @@ export async function generateEmbeddings(
     dimensions?: number;
   } = {}
 ): Promise<JinaEmbeddingResponse> {
-  const { model = "jina-embeddings-v3", task = "retrieval.passage", dimensions } = options;
+  const {
+    model = "jina-embeddings-v3",
+    task = "retrieval.passage",
+    dimensions,
+  } = options;
 
   const cacheKey = buildCacheKey(
     "jina",
@@ -119,17 +128,23 @@ export async function generateEmbeddings(
   if (dimensions) body.dimensions = dimensions;
 
   try {
-    const result = await connectorFetch<JinaEmbeddingResponse>(JINA_EMBEDDINGS_URL, {
-      provider: "jina",
-      endpoint: "embeddings",
-      cacheKey,
-      headers: getAuthHeaders(),
-      method: "POST",
-      body,
-      customTTLMs: 86400000,
-    });
+    const result = await connectorFetch<JinaEmbeddingResponse>(
+      JINA_EMBEDDINGS_URL,
+      {
+        provider: "jina",
+        endpoint: "embeddings",
+        cacheKey,
+        headers: getAuthHeaders(),
+        method: "POST",
+        body,
+        customTTLMs: 86400000,
+      }
+    );
 
-    log.info("Jina", `Generated ${result.data.data.length} embeddings (${result.data.usage.total_tokens} tokens)`);
+    log.info(
+      "Jina",
+      `Generated ${result.data.data.length} embeddings (${result.data.usage.total_tokens} tokens)`
+    );
     return result.data;
   } catch (error) {
     log.error("Jina", `Embeddings error: ${error}`);
@@ -155,7 +170,10 @@ export async function readUrl(url: string): Promise<JinaReaderResponse> {
       customTTLMs: 3600000,
     });
 
-    log.info("Jina", `Read URL: ${url} (${result.data.content?.length || 0} chars)`);
+    log.info(
+      "Jina",
+      `Read URL: ${url} (${result.data.content?.length || 0} chars)`
+    );
     return result.data;
   } catch (error) {
     log.error("Jina", `Reader error for ${url}: ${error}`);
@@ -163,7 +181,10 @@ export async function readUrl(url: string): Promise<JinaReaderResponse> {
   }
 }
 
-export async function search(query: string, options: { limit?: number } = {}): Promise<JinaSearchResponse> {
+export async function search(
+  query: string,
+  options: { limit?: number } = {}
+): Promise<JinaSearchResponse> {
   const { limit = 5 } = options;
   const cacheKey = buildCacheKey("jina", "search", query, limit.toString());
   const searchUrl = `${JINA_SEARCH_URL}/${encodeURIComponent(query)}`;
@@ -182,7 +203,10 @@ export async function search(query: string, options: { limit?: number } = {}): P
       customTTLMs: 1800000,
     });
 
-    log.info("Jina", `Search: "${query}" returned ${result.data.results?.length || 0} results`);
+    log.info(
+      "Jina",
+      `Search: "${query}" returned ${result.data.results?.length || 0} results`
+    );
     return result.data;
   } catch (error) {
     log.error("Jina", `Search error for "${query}": ${error}`);
@@ -197,7 +221,12 @@ export async function rerank(
 ): Promise<JinaRerankResponse> {
   const { model = "jina-reranker-v2-base-multilingual", top_n = 10 } = options;
 
-  const cacheKey = buildCacheKey("jina", "rerank", query.slice(0, 50), documents.length.toString());
+  const cacheKey = buildCacheKey(
+    "jina",
+    "rerank",
+    query.slice(0, 50),
+    documents.length.toString()
+  );
 
   const body: JinaRerankRequest = {
     model,
@@ -218,7 +247,10 @@ export async function rerank(
       customTTLMs: 86400000,
     });
 
-    log.info("Jina", `Reranked ${documents.length} docs, top score: ${result.data.results[0]?.relevance_score?.toFixed(3)}`);
+    log.info(
+      "Jina",
+      `Reranked ${documents.length} docs, top score: ${result.data.results[0]?.relevance_score?.toFixed(3)}`
+    );
     return result.data;
   } catch (error) {
     log.error("Jina", `Rerank error: ${error}`);
@@ -233,17 +265,22 @@ export async function semanticSearch(
 ): Promise<{ id: string; text: string; score: number }[]> {
   const { topK = 5 } = options;
 
-  const queryEmbedding = await generateEmbeddings(query, { task: "retrieval.query" });
+  const queryEmbedding = await generateEmbeddings(query, {
+    task: "retrieval.query",
+  });
   const queryVector = queryEmbedding.data[0].embedding;
 
   const corpusTexts = corpus.map((c) => c.text);
-  const corpusEmbeddings = await generateEmbeddings(corpusTexts, { task: "retrieval.passage" });
-
-  const similarities: { id: string; text: string; score: number }[] = corpus.map((doc, i) => {
-    const docVector = corpusEmbeddings.data[i].embedding;
-    const score = cosineSimilarity(queryVector, docVector);
-    return { id: doc.id, text: doc.text, score };
+  const corpusEmbeddings = await generateEmbeddings(corpusTexts, {
+    task: "retrieval.passage",
   });
+
+  const similarities: { id: string; text: string; score: number }[] =
+    corpus.map((doc, i) => {
+      const docVector = corpusEmbeddings.data[i].embedding;
+      const score = cosineSimilarity(queryVector, docVector);
+      return { id: doc.id, text: doc.text, score };
+    });
 
   similarities.sort((a, b) => b.score - a.score);
   return similarities.slice(0, topK);

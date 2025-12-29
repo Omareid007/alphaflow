@@ -13,7 +13,7 @@ interface BacktestPromptProps {
 export function BacktestPrompt({
   strategyName,
   onStrategyNameChange,
-  onRunBacktest
+  onRunBacktest,
 }: BacktestPromptProps) {
   return (
     <Card>
@@ -24,14 +24,14 @@ export function BacktestPrompt({
           </div>
           <h3 className="mt-4 text-xl font-semibold">Ready to Backtest</h3>
           <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-            Your strategy is configured. Run a backtest to see historical performance
-            and get AI-powered insights.
+            Your strategy is configured. Run a backtest to see historical
+            performance and get AI-powered insights.
           </p>
           <div className="mt-2 mb-6">
             <input
               type="text"
               value={strategyName}
-              onChange={e => onStrategyNameChange(e.target.value)}
+              onChange={(e) => onStrategyNameChange(e.target.value)}
               className="mx-auto block w-full max-w-xs rounded-lg border border-border bg-background px-4 py-2 text-center"
               placeholder="Strategy Name"
             />

@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Flag, Check, X, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useCandidates, useApproveCandidate, useRejectCandidate, useTriggerCandidateRun } from "@/lib/api/hooks";
+import {
+  useCandidates,
+  useApproveCandidate,
+  useRejectCandidate,
+  useTriggerCandidateRun,
+} from "@/lib/api/hooks";
 
 export default function CandidatesPage() {
   const { toast } = useToast();
@@ -45,10 +50,10 @@ export default function CandidatesPage() {
   // Map backend status to display format
   const getStatusDisplay = (status: string) => {
     const map: Record<string, string> = {
-      'NEW': 'pending',
-      'WATCHLIST': 'watchlist',
-      'APPROVED': 'approved',
-      'REJECTED': 'rejected'
+      NEW: "pending",
+      WATCHLIST: "watchlist",
+      APPROVED: "approved",
+      REJECTED: "rejected",
     };
     return map[status] || status.toLowerCase();
   };
@@ -66,7 +71,9 @@ export default function CandidatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Candidates</h1>
-          <p className="mt-1 text-muted-foreground">Review and approve trading candidates ({candidates.length} total)</p>
+          <p className="mt-1 text-muted-foreground">
+            Review and approve trading candidates ({candidates.length} total)
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => refetch()}>
@@ -74,7 +81,7 @@ export default function CandidatesPage() {
             Refresh
           </Button>
           <Button onClick={handleTriggerRun} disabled={triggerRun.isPending}>
-            {triggerRun.isPending ? 'Running...' : 'Trigger Candidate Run'}
+            {triggerRun.isPending ? "Running..." : "Trigger Candidate Run"}
           </Button>
         </div>
       </div>
@@ -89,30 +96,46 @@ export default function CandidatesPage() {
         <CardContent>
           {candidates.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-muted-foreground">No candidates found. Click "Trigger Candidate Run" to generate new candidates.</p>
+              <p className="text-muted-foreground">
+                No candidates found. Click &quot;Trigger Candidate Run&quot; to
+                generate new candidates.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {candidates.map(cand => {
+              {candidates.map((cand) => {
                 const displayStatus = getStatusDisplay(cand.status);
                 return (
-                  <div key={cand.id} className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div
+                    key={cand.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-4"
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <p className="text-lg font-semibold">{cand.symbol}</p>
-                        <Badge variant="secondary">Score: {(cand.score * 100).toFixed(0)}%</Badge>
-                        <Badge variant="outline" className={
-                          displayStatus === 'approved' ? 'bg-success/10 text-success' :
-                          displayStatus === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                          displayStatus === 'watchlist' ? 'bg-blue-500/10 text-blue-500' :
-                          'bg-warning/10 text-warning'
-                        }>
+                        <Badge variant="secondary">
+                          Score: {(cand.score * 100).toFixed(0)}%
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            displayStatus === "approved"
+                              ? "bg-success/10 text-success"
+                              : displayStatus === "rejected"
+                                ? "bg-destructive/10 text-destructive"
+                                : displayStatus === "watchlist"
+                                  ? "bg-blue-500/10 text-blue-500"
+                                  : "bg-warning/10 text-warning"
+                          }
+                        >
                           {displayStatus}
                         </Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{cand.rationale}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {cand.rationale}
+                      </p>
                     </div>
-                    {(cand.status === 'NEW' || cand.status === 'WATCHLIST') && (
+                    {(cand.status === "NEW" || cand.status === "WATCHLIST") && (
                       <div className="flex gap-2">
                         <Button
                           variant="outline"

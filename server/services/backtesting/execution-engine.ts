@@ -7,7 +7,15 @@ import type {
   BacktestEquityPoint,
   BacktestResultsSummary,
 } from "../../../shared/types/backtesting";
-import { mean, variance, sharpeRatio as calcSharpeRatio, calculateSlippage as moneyCalcSlippage, calculateFeePercent, positionValue, toDecimal } from "../../utils/money";
+import {
+  mean,
+  variance,
+  sharpeRatio as calcSharpeRatio,
+  calculateSlippage as moneyCalcSlippage,
+  calculateFeePercent,
+  positionValue,
+  toDecimal,
+} from "../../utils/money";
 
 export interface StrategySignal {
   symbol: string;
@@ -17,7 +25,11 @@ export interface StrategySignal {
 }
 
 export interface StrategySignalGenerator {
-  onBar(bar: HistoricalBar, barIndex: number, allBarsUpToNow: HistoricalBar[]): StrategySignal[];
+  onBar(
+    bar: HistoricalBar,
+    barIndex: number,
+    allBarsUpToNow: HistoricalBar[]
+  ): StrategySignal[];
 }
 
 export interface SimulationResult {
@@ -48,7 +60,11 @@ interface PendingSignalsPerSymbol {
   [symbol: string]: PendingSignal[];
 }
 
-function calculateSlippage(price: number, model: SlippageModel, side: "buy" | "sell"): number {
+function calculateSlippage(
+  price: number,
+  model: SlippageModel,
+  side: "buy" | "sell"
+): number {
   if (model.type === "bps") {
     return moneyCalcSlippage(price, model.value, side).toNumber();
   } else if (model.type === "spread_proxy") {
@@ -104,8 +120,15 @@ function calculateExposure(
   return totalValue.toNumber();
 }
 
-function mergeAndSortBars(bars: Record<string, HistoricalBar[]>): { symbol: string; bar: HistoricalBar; symbolBarIndex: number }[] {
-  const allEntries: { symbol: string; bar: HistoricalBar; symbolBarIndex: number; time: number }[] = [];
+function mergeAndSortBars(
+  bars: Record<string, HistoricalBar[]>
+): { symbol: string; bar: HistoricalBar; symbolBarIndex: number }[] {
+  const allEntries: {
+    symbol: string;
+    bar: HistoricalBar;
+    symbolBarIndex: number;
+    time: number;
+  }[] = [];
 
   for (const [symbol, symbolBars] of Object.entries(bars)) {
     symbolBars.forEach((bar, index) => {
@@ -120,7 +143,11 @@ function mergeAndSortBars(bars: Record<string, HistoricalBar[]>): { symbol: stri
 
   allEntries.sort((a, b) => a.time - b.time);
 
-  return allEntries.map(({ symbol, bar, symbolBarIndex }) => ({ symbol, bar, symbolBarIndex }));
+  return allEntries.map(({ symbol, bar, symbolBarIndex }) => ({
+    symbol,
+    bar,
+    symbolBarIndex,
+  }));
 }
 
 export function runSimulation(
@@ -128,7 +155,8 @@ export function runSimulation(
   signalGenerator: StrategySignalGenerator,
   config: SimulationConfig
 ): SimulationResult {
-  const { runId, initialCash, feesModel, slippageModel, executionPriceRule } = config;
+  const { runId, initialCash, feesModel, slippageModel, executionPriceRule } =
+    config;
 
   const positions: Record<string, Position> = {};
   let cash = initialCash;
@@ -167,7 +195,12 @@ export function runSimulation(
     pendingSignals[symbol] = signalsToKeep;
 
     for (const { signal } of signalsToExecute) {
-      const executionPrice = getExecutionPrice(bar, executionPriceRule, slippageModel, signal.side);
+      const executionPrice = getExecutionPrice(
+        bar,
+        executionPriceRule,
+        slippageModel,
+        signal.side
+      );
       const slippageAmount = calculateSlippage(
         executionPriceRule === "NEXT_OPEN" ? bar.open : bar.close,
         slippageModel,
@@ -188,7 +221,9 @@ export function runSimulation(
           const newQty = currentPosition.qty + signal.qty;
           const newAvgPrice =
             currentPosition.qty > 0
-              ? (currentPosition.avgPrice * currentPosition.qty + executionPrice * signal.qty) / newQty
+              ? (currentPosition.avgPrice * currentPosition.qty +
+                  executionPrice * signal.qty) /
+                newQty
               : executionPrice;
           positions[symbol] = { qty: newQty, avgPrice: newAvgPrice };
         } else {
@@ -198,13 +233,17 @@ export function runSimulation(
         executedQty = Math.min(signal.qty, currentPosition.qty);
         if (executedQty > 0) {
           const proceeds = executedQty * executionPrice - fees;
-          pnl = (executionPrice - currentPosition.avgPrice) * executedQty - fees;
+          pnl =
+            (executionPrice - currentPosition.avgPrice) * executedQty - fees;
           cash += proceeds;
           tradePnLs.push(pnl);
 
           const remainingQty = currentPosition.qty - executedQty;
           if (remainingQty > 0) {
-            positions[symbol] = { qty: remainingQty, avgPrice: currentPosition.avgPrice };
+            positions[symbol] = {
+              qty: remainingQty,
+              avgPrice: currentPosition.avgPrice,
+            };
           } else {
             delete positions[symbol];
           }
@@ -234,13 +273,18 @@ export function runSimulation(
     processedBarsBySymbol[symbol].push(bar);
     lastProcessedBarIndex[symbol] = symbolBarIndex;
 
-    const newSignals = signalGenerator.onBar(bar, symbolBarIndex, [...processedBarsBySymbol[symbol]]);
+    const newSignals = signalGenerator.onBar(bar, symbolBarIndex, [
+      ...processedBarsBySymbol[symbol],
+    ]);
 
     for (const signal of newSignals) {
       const targetSymbol = signal.symbol;
       if (targetSymbol === symbol) {
         pendingSignals[targetSymbol] = pendingSignals[targetSymbol] || [];
-        pendingSignals[targetSymbol].push({ signal, signalBarIndex: symbolBarIndex });
+        pendingSignals[targetSymbol].push({
+          signal,
+          signalBarIndex: symbolBarIndex,
+        });
       }
     }
 
@@ -257,7 +301,13 @@ export function runSimulation(
     });
   }
 
-  const metrics = calculateMetrics(initialCash, equityHistory, tradePnLs, trades, equityCurve);
+  const metrics = calculateMetrics(
+    initialCash,
+    equityHistory,
+    tradePnLs,
+    trades,
+    equityCurve
+  );
 
   return { trades, equityCurve, metrics };
 }
@@ -372,7 +422,8 @@ function calculateMetrics(
   const winningTrades = tradePnLs.filter((pnl) => pnl > 0);
   const losingTrades = tradePnLs.filter((pnl) => pnl < 0);
 
-  const winRatePct = totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0;
+  const winRatePct =
+    totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0;
 
   const grossProfit = winningTrades.reduce((sum, pnl) => sum + pnl, 0);
   const grossLoss = Math.abs(losingTrades.reduce((sum, pnl) => sum + pnl, 0));
@@ -423,7 +474,7 @@ function calculateMetrics(
   if (totalTrades > 0) {
     const winRate = winRatePct / 100;
     const lossRate = 1 - winRate;
-    expectancy = (winRate * avgWinPct) - (lossRate * avgLossPct);
+    expectancy = winRate * avgWinPct - lossRate * avgLossPct;
     if (!Number.isFinite(expectancy)) {
       expectancy = null;
     }
@@ -451,12 +502,12 @@ function calculateMetrics(
 
     for (const trade of trades) {
       const tradeTs = new Date(trade.ts).getTime();
-      if (trade.side === 'buy') {
+      if (trade.side === "buy") {
         if (!positionEntries[trade.symbol]) {
           positionEntries[trade.symbol] = [];
         }
         positionEntries[trade.symbol].push({ ts: tradeTs, qty: trade.qty });
-      } else if (trade.side === 'sell') {
+      } else if (trade.side === "sell") {
         const entries = positionEntries[trade.symbol] || [];
         let remainingToSell = trade.qty;
 
@@ -482,9 +533,15 @@ function calculateMetrics(
 
     if (holdingPeriods.length > 0) {
       const totalQty = holdingPeriods.reduce((sum, hp) => sum + hp.qty, 0);
-      const weightedDays = holdingPeriods.reduce((sum, hp) => sum + hp.days * hp.qty, 0);
+      const weightedDays = holdingPeriods.reduce(
+        (sum, hp) => sum + hp.days * hp.qty,
+        0
+      );
       avgHoldingPeriodDays = totalQty > 0 ? weightedDays / totalQty : null;
-      if (avgHoldingPeriodDays !== null && !Number.isFinite(avgHoldingPeriodDays)) {
+      if (
+        avgHoldingPeriodDays !== null &&
+        !Number.isFinite(avgHoldingPeriodDays)
+      ) {
         avgHoldingPeriodDays = null;
       }
     }

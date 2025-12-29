@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../client";
 
 // ============================================================================
 // ALLOCATION POLICIES
@@ -19,9 +19,11 @@ export interface AllocationPolicy {
 
 export function useAllocationPolicies() {
   return useQuery({
-    queryKey: ['allocation-policies'],
+    queryKey: ["allocation-policies"],
     queryFn: () =>
-      api.get<{ policies: AllocationPolicy[]; count: number }>('/api/allocation-policies'),
+      api.get<{ policies: AllocationPolicy[]; count: number }>(
+        "/api/allocation-policies"
+      ),
     select: (data) => data.policies,
   });
 }
@@ -30,9 +32,9 @@ export function useCreateAllocationPolicy() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (policy: Partial<AllocationPolicy>) =>
-      api.post<AllocationPolicy>('/api/allocation-policies', policy),
+      api.post<AllocationPolicy>("/api/allocation-policies", policy),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allocation-policies'] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-policies"] });
     },
   });
 }
@@ -40,10 +42,13 @@ export function useCreateAllocationPolicy() {
 export function useUpdateAllocationPolicy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: string } & Partial<AllocationPolicy>) =>
+    mutationFn: ({
+      id,
+      ...updates
+    }: { id: string } & Partial<AllocationPolicy>) =>
       api.patch<AllocationPolicy>(`/api/allocation-policies/${id}`, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allocation-policies'] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-policies"] });
     },
   });
 }
@@ -51,10 +56,9 @@ export function useUpdateAllocationPolicy() {
 export function useDeleteAllocationPolicy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`/api/allocation-policies/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/allocation-policies/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allocation-policies'] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-policies"] });
     },
   });
 }
@@ -79,9 +83,9 @@ export interface RebalanceRun {
 
 export function useRebalanceRuns(limit?: number) {
   return useQuery({
-    queryKey: ['rebalance-runs', limit],
+    queryKey: ["rebalance-runs", limit],
     queryFn: () =>
-      api.get<{ runs: RebalanceRun[]; count: number }>('/api/rebalance/runs', {
+      api.get<{ runs: RebalanceRun[]; count: number }>("/api/rebalance/runs", {
         params: limit ? { limit } : undefined,
       }),
     select: (data) => data.runs,
@@ -92,9 +96,12 @@ export function useTriggerRebalance() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (params: { policyId?: string; triggerType?: string }) =>
-      api.post<{ success: boolean; run: RebalanceRun }>('/api/rebalance/trigger', params),
+      api.post<{ success: boolean; run: RebalanceRun }>(
+        "/api/rebalance/trigger",
+        params
+      ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rebalance-runs'] });
+      queryClient.invalidateQueries({ queryKey: ["rebalance-runs"] });
     },
   });
 }
@@ -120,9 +127,11 @@ export interface EnforcementRule {
 
 export function useEnforcementRules() {
   return useQuery({
-    queryKey: ['enforcement-rules'],
+    queryKey: ["enforcement-rules"],
     queryFn: () =>
-      api.get<{ rules: EnforcementRule[]; count: number }>('/api/enforcement/rules'),
+      api.get<{ rules: EnforcementRule[]; count: number }>(
+        "/api/enforcement/rules"
+      ),
     select: (data) => data.rules,
   });
 }
@@ -131,9 +140,9 @@ export function useCreateEnforcementRule() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (rule: Partial<EnforcementRule>) =>
-      api.post<EnforcementRule>('/api/enforcement/rules', rule),
+      api.post<EnforcementRule>("/api/enforcement/rules", rule),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enforcement-rules'] });
+      queryClient.invalidateQueries({ queryKey: ["enforcement-rules"] });
     },
   });
 }
@@ -141,10 +150,13 @@ export function useCreateEnforcementRule() {
 export function useUpdateEnforcementRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: string } & Partial<EnforcementRule>) =>
+    mutationFn: ({
+      id,
+      ...updates
+    }: { id: string } & Partial<EnforcementRule>) =>
       api.patch<EnforcementRule>(`/api/enforcement/rules/${id}`, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enforcement-rules'] });
+      queryClient.invalidateQueries({ queryKey: ["enforcement-rules"] });
     },
   });
 }
@@ -152,10 +164,9 @@ export function useUpdateEnforcementRule() {
 export function useDeleteEnforcementRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`/api/enforcement/rules/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/enforcement/rules/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enforcement-rules'] });
+      queryClient.invalidateQueries({ queryKey: ["enforcement-rules"] });
     },
   });
 }
@@ -175,11 +186,14 @@ export interface FundamentalFactor {
 
 export function useFundamentalFactors(symbol?: string) {
   return useQuery({
-    queryKey: ['fundamentals', symbol],
+    queryKey: ["fundamentals", symbol],
     queryFn: () =>
-      api.get<{ factors: FundamentalFactor[]; rawData: any[]; count: number }>('/api/fundamentals/factors', {
-        params: symbol ? { symbol } : undefined,
-      }),
+      api.get<{ factors: FundamentalFactor[]; rawData: any[]; count: number }>(
+        "/api/fundamentals/factors",
+        {
+          params: symbol ? { symbol } : undefined,
+        }
+      ),
     select: (data) => data.factors,
   });
 }
@@ -188,9 +202,11 @@ export function useRefreshFundamentals() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      api.post<{ success: boolean; message: string }>('/api/fundamentals/refresh'),
+      api.post<{ success: boolean; message: string }>(
+        "/api/fundamentals/refresh"
+      ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fundamentals'] });
+      queryClient.invalidateQueries({ queryKey: ["fundamentals"] });
     },
   });
 }
@@ -216,30 +232,39 @@ export interface UniverseAsset {
 
 export function useUniverseStats() {
   return useQuery({
-    queryKey: ['universe', 'stats'],
-    queryFn: () =>
-      api.get<UniverseStats>('/api/universe/stats'),
+    queryKey: ["universe", "stats"],
+    queryFn: () => api.get<UniverseStats>("/api/universe/stats"),
   });
 }
 
-export function useUniverseSymbols(options?: { assetClass?: string; tradableOnly?: boolean; limit?: number }) {
+export function useUniverseSymbols(options?: {
+  assetClass?: string;
+  tradableOnly?: boolean;
+  limit?: number;
+}) {
   return useQuery({
-    queryKey: ['universe', 'symbols', options],
+    queryKey: ["universe", "symbols", options],
     queryFn: () =>
-      api.get<{ assets: UniverseAsset[]; count: number }>('/api/universe/symbols', {
-        params: options,
-      }),
+      api.get<{ assets: UniverseAsset[]; count: number }>(
+        "/api/universe/symbols",
+        {
+          params: options,
+        }
+      ),
     select: (data) => data.assets,
   });
 }
 
 export function useUniverseSearch(query: string) {
   return useQuery({
-    queryKey: ['universe', 'search', query],
+    queryKey: ["universe", "search", query],
     queryFn: () =>
-      api.get<{ assets: UniverseAsset[]; count: number }>('/api/universe/search', {
-        params: { q: query },
-      }),
+      api.get<{ assets: UniverseAsset[]; count: number }>(
+        "/api/universe/search",
+        {
+          params: { q: query },
+        }
+      ),
     select: (data) => data.assets,
     enabled: query.length >= 1,
   });
@@ -248,10 +273,9 @@ export function useUniverseSearch(query: string) {
 export function useSyncUniverse() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      api.post<{ success: boolean }>('/api/universe/sync-now'),
+    mutationFn: () => api.post<{ success: boolean }>("/api/universe/sync-now"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['universe'] });
+      queryClient.invalidateQueries({ queryKey: ["universe"] });
     },
   });
 }
@@ -302,28 +326,35 @@ export interface AgentProfile {
 
 export function useArenaStats() {
   return useQuery({
-    queryKey: ['arena', 'stats'],
-    queryFn: () =>
-      api.get<ArenaStats>('/api/arena/stats'),
+    queryKey: ["arena", "stats"],
+    queryFn: () => api.get<ArenaStats>("/api/arena/stats"),
   });
 }
 
 export function useArenaRuns(limit?: number) {
   return useQuery({
-    queryKey: ['arena', 'runs', limit],
+    queryKey: ["arena", "runs", limit],
     queryFn: () =>
-      api.get<{ runs: ArenaRun[]; count: number; costToday: number }>('/api/arena/runs', {
-        params: limit ? { limit } : undefined,
-      }),
+      api.get<{ runs: ArenaRun[]; count: number; costToday: number }>(
+        "/api/arena/runs",
+        {
+          params: limit ? { limit } : undefined,
+        }
+      ),
     select: (data) => data.runs,
   });
 }
 
 export function useArenaRun(id: string) {
   return useQuery({
-    queryKey: ['arena', 'run', id],
+    queryKey: ["arena", "run", id],
     queryFn: () =>
-      api.get<{ run: ArenaRun; decisions: any[]; outcomeLinks: any[]; costBreakdown: any }>(`/api/arena/runs/${id}`),
+      api.get<{
+        run: ArenaRun;
+        decisions: any[];
+        outcomeLinks: any[];
+        costBreakdown: any;
+      }>(`/api/arena/runs/${id}`),
     enabled: !!id,
   });
 }
@@ -331,19 +362,31 @@ export function useArenaRun(id: string) {
 export function useRunArena() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { symbols: string[]; mode?: string; agentProfileIds?: string[]; triggeredBy?: string }) =>
-      api.post<{ success: boolean; run: ArenaRun; consensus: any; decisionsCount: number }>('/api/arena/run', params),
+    mutationFn: (params: {
+      symbols: string[];
+      mode?: string;
+      agentProfileIds?: string[];
+      triggeredBy?: string;
+    }) =>
+      api.post<{
+        success: boolean;
+        run: ArenaRun;
+        consensus: any;
+        decisionsCount: number;
+      }>("/api/arena/run", params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['arena'] });
+      queryClient.invalidateQueries({ queryKey: ["arena"] });
     },
   });
 }
 
 export function useAgentProfiles() {
   return useQuery({
-    queryKey: ['arena', 'profiles'],
+    queryKey: ["arena", "profiles"],
     queryFn: () =>
-      api.get<{ profiles: AgentProfile[]; count: number }>('/api/arena/profiles'),
+      api.get<{ profiles: AgentProfile[]; count: number }>(
+        "/api/arena/profiles"
+      ),
     select: (data) => data.profiles,
   });
 }
@@ -352,9 +395,9 @@ export function useCreateAgentProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (profile: Partial<AgentProfile>) =>
-      api.post<AgentProfile>('/api/arena/profiles', profile),
+      api.post<AgentProfile>("/api/arena/profiles", profile),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['arena', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ["arena", "profiles"] });
     },
   });
 }
@@ -365,18 +408,21 @@ export function useUpdateAgentProfile() {
     mutationFn: ({ id, ...updates }: { id: string } & Partial<AgentProfile>) =>
       api.patch<AgentProfile>(`/api/arena/profiles/${id}`, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['arena', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ["arena", "profiles"] });
     },
   });
 }
 
 export function useArenaLeaderboard(window?: string) {
   return useQuery({
-    queryKey: ['arena', 'leaderboard', window],
+    queryKey: ["arena", "leaderboard", window],
     queryFn: () =>
-      api.get<{ window: string; leaderboard: any[]; generatedAt: string }>('/api/arena/leaderboard', {
-        params: window ? { window } : undefined,
-      }),
+      api.get<{ window: string; leaderboard: any[]; generatedAt: string }>(
+        "/api/arena/leaderboard",
+        {
+          params: window ? { window } : undefined,
+        }
+      ),
   });
 }
 
@@ -393,9 +439,9 @@ export interface AdminUser {
 
 export function useAdminUsers(enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'users'],
+    queryKey: ["admin", "users"],
     queryFn: () =>
-      api.get<{ users: AdminUser[]; count: number }>('/api/admin/users'),
+      api.get<{ users: AdminUser[]; count: number }>("/api/admin/users"),
     select: (data) => data.users,
     enabled,
   });
@@ -404,10 +450,13 @@ export function useAdminUsers(enabled = true) {
 export function useCreateAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (user: { username: string; password: string; isAdmin?: boolean }) =>
-      api.post<AdminUser>('/api/admin/users', user),
+    mutationFn: (user: {
+      username: string;
+      password: string;
+      isAdmin?: boolean;
+    }) => api.post<AdminUser>("/api/admin/users", user),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }
@@ -415,10 +464,17 @@ export function useCreateAdminUser() {
 export function useUpdateAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: string; username?: string; password?: string; isAdmin?: boolean }) =>
-      api.patch<AdminUser>(`/api/admin/users/${id}`, updates),
+    mutationFn: ({
+      id,
+      ...updates
+    }: {
+      id: string;
+      username?: string;
+      password?: string;
+      isAdmin?: boolean;
+    }) => api.patch<AdminUser>(`/api/admin/users/${id}`, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }
@@ -426,10 +482,9 @@ export function useUpdateAdminUser() {
 export function useDeleteAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`/api/admin/users/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }
@@ -486,13 +541,13 @@ export interface ObservabilityHealth {
 // Transformed health data for simpler display
 export interface ServiceHealth {
   name: string;
-  status: 'healthy' | 'unhealthy' | 'degraded';
+  status: "healthy" | "unhealthy" | "degraded";
   message: string;
 }
 
 export interface HealthStatus {
   services: ServiceHealth[];
-  overall: 'healthy' | 'degraded' | 'unhealthy';
+  overall: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
 }
 
@@ -508,9 +563,8 @@ export interface AuditLog {
 
 export function useSystemMetrics(enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'observability', 'metrics'],
-    queryFn: () =>
-      api.get<SystemMetrics>('/api/admin/observability/metrics'),
+    queryKey: ["admin", "observability", "metrics"],
+    queryFn: () => api.get<SystemMetrics>("/api/admin/observability/metrics"),
     refetchInterval: 30000, // Refresh every 30 seconds
     enabled,
   });
@@ -519,9 +573,9 @@ export function useSystemMetrics(enabled = true) {
 // Fetches raw observability health data
 export function useObservabilityHealth() {
   return useQuery({
-    queryKey: ['admin', 'observability', 'health', 'raw'],
+    queryKey: ["admin", "observability", "health", "raw"],
     queryFn: () =>
-      api.get<ObservabilityHealth>('/api/admin/observability/health'),
+      api.get<ObservabilityHealth>("/api/admin/observability/health"),
     refetchInterval: 30000,
   });
 }
@@ -529,48 +583,59 @@ export function useObservabilityHealth() {
 // Transforms observability health data into service status format
 export function useSystemHealth(enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'observability', 'health'],
+    queryKey: ["admin", "observability", "health"],
     enabled,
     queryFn: async () => {
-      const health = await api.get<ObservabilityHealth>('/api/admin/observability/health');
+      const health = await api.get<ObservabilityHealth>(
+        "/api/admin/observability/health"
+      );
 
       // Transform to service health format
       const services: ServiceHealth[] = [
         {
-          name: 'Database',
-          status: 'healthy' as const,
-          message: 'Connected',
+          name: "Database",
+          status: "healthy" as const,
+          message: "Connected",
         },
         {
-          name: 'Work Queue',
-          status: health.queue.failed > 10 ? 'degraded' : 'healthy',
+          name: "Work Queue",
+          status: health.queue.failed > 10 ? "degraded" : "healthy",
           message: `${health.queue.running} running, ${health.queue.pending} pending`,
         },
         {
-          name: 'Orchestrator',
-          status: health.orchestrator.isRunning ? 'healthy' : 'unhealthy',
+          name: "Orchestrator",
+          status: health.orchestrator.isRunning ? "healthy" : "unhealthy",
           message: health.orchestrator.isRunning
-            ? (health.orchestrator.killSwitchActive ? 'Running (Kill Switch ON)' : 'Running')
-            : 'Stopped',
+            ? health.orchestrator.killSwitchActive
+              ? "Running (Kill Switch ON)"
+              : "Running"
+            : "Stopped",
         },
         {
-          name: 'LLM Providers',
-          status: parseFloat(health.llm.lastHour.errorRate) > 20 ? 'degraded' : 'healthy',
+          name: "LLM Providers",
+          status:
+            parseFloat(health.llm.lastHour.errorRate) > 20
+              ? "degraded"
+              : "healthy",
           message: `${health.llm.lastHour.calls} calls, ${health.llm.lastHour.errorRate} errors`,
         },
         {
-          name: 'Alpaca Trading',
-          status: 'healthy' as const,
-          message: health.orchestrator.marketCondition || 'Active',
+          name: "Alpaca Trading",
+          status: "healthy" as const,
+          message: health.orchestrator.marketCondition || "Active",
         },
       ];
 
-      const hasUnhealthy = services.some(s => s.status === 'unhealthy');
-      const hasDegraded = services.some(s => s.status === 'degraded');
+      const hasUnhealthy = services.some((s) => s.status === "unhealthy");
+      const hasDegraded = services.some((s) => s.status === "degraded");
 
       return {
         services,
-        overall: hasUnhealthy ? 'unhealthy' : hasDegraded ? 'degraded' : 'healthy',
+        overall: hasUnhealthy
+          ? "unhealthy"
+          : hasDegraded
+            ? "degraded"
+            : "healthy",
         timestamp: health.fetchedAt,
       } as HealthStatus;
     },
@@ -580,11 +645,14 @@ export function useSystemHealth(enabled = true) {
 
 export function useSystemLogs(limit?: number, offset?: number, enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'observability', 'logs', limit, offset],
+    queryKey: ["admin", "observability", "logs", limit, offset],
     queryFn: () =>
-      api.get<{ logs: AuditLog[]; count: number; offset: number }>('/api/admin/observability/logs', {
-        params: { limit: limit || 50, offset: offset || 0 },
-      }),
+      api.get<{ logs: AuditLog[]; count: number; offset: number }>(
+        "/api/admin/observability/logs",
+        {
+          params: { limit: limit || 50, offset: offset || 0 },
+        }
+      ),
     select: (data) => data.logs,
     enabled,
   });
@@ -603,9 +671,8 @@ export interface DashboardStats {
 
 export function useAdminDashboard(enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'dashboard'],
-    queryFn: () =>
-      api.get<DashboardStats>('/api/admin/dashboard'),
+    queryKey: ["admin", "dashboard"],
+    queryFn: () => api.get<DashboardStats>("/api/admin/dashboard"),
     refetchInterval: 30000,
     enabled,
   });

@@ -9,7 +9,12 @@
  */
 
 import { log } from "../utils/logger";
-import { LLMClient, LLMRequest, LLMResponse, createLLMError } from "./llmClient";
+import {
+  LLMClient,
+  LLMRequest,
+  LLMResponse,
+  createLLMError,
+} from "./llmClient";
 
 export interface BaseLLMClientConfig {
   providerName: string;
@@ -31,8 +36,10 @@ export abstract class BaseLLMClient implements LLMClient {
   constructor(config: BaseLLMClientConfig) {
     this.config = config;
     this.apiKey = this.resolveApiKey(config.apiKeyEnvVars);
-    this.baseUrl = process.env[config.baseUrlEnvVar || ''] || config.defaultBaseUrl;
-    this.defaultModel = process.env[config.modelEnvVar || ''] || config.defaultModel;
+    this.baseUrl =
+      process.env[config.baseUrlEnvVar || ""] || config.defaultBaseUrl;
+    this.defaultModel =
+      process.env[config.modelEnvVar || ""] || config.defaultModel;
   }
 
   private resolveApiKey(envVars: string[]): string {
@@ -53,7 +60,9 @@ export abstract class BaseLLMClient implements LLMClient {
 
   abstract call(req: LLMRequest): Promise<LLMResponse>;
 
-  protected async measureLatency<T>(fn: () => Promise<T>): Promise<{ result: T; latencyMs: number }> {
+  protected async measureLatency<T>(
+    fn: () => Promise<T>
+  ): Promise<{ result: T; latencyMs: number }> {
     const startTime = Date.now();
     const result = await fn();
     return { result, latencyMs: Date.now() - startTime };
@@ -61,7 +70,8 @@ export abstract class BaseLLMClient implements LLMClient {
 
   protected handleHttpError(response: Response, errorText: string): never {
     const statusCode = response.status;
-    const isRateLimit = statusCode === 429 ||
+    const isRateLimit =
+      statusCode === 429 ||
       errorText.toLowerCase().includes("rate") ||
       errorText.toLowerCase().includes("quota");
     const isAuthError = statusCode === 401 || statusCode === 403;

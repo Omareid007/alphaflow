@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../client';
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../client";
 
 export interface Order {
   id: string;
@@ -45,9 +45,9 @@ export interface OrdersResponse {
 
 export function useOrders(options?: { limit?: number; status?: string }) {
   return useQuery({
-    queryKey: ['orders', options],
+    queryKey: ["orders", options],
     queryFn: async () => {
-      const response = await api.get<OrdersResponse>('/api/orders', {
+      const response = await api.get<OrdersResponse>("/api/orders", {
         params: options,
       });
       return response.orders || [];
@@ -58,7 +58,7 @@ export function useOrders(options?: { limit?: number; status?: string }) {
 
 export function useOrder(id: string) {
   return useQuery({
-    queryKey: ['orders', id],
+    queryKey: ["orders", id],
     queryFn: () => api.get<Order>(`/api/orders/${id}`),
     enabled: !!id,
   });
@@ -66,9 +66,9 @@ export function useOrder(id: string) {
 
 export function useRecentOrders(limit: number = 50) {
   return useQuery({
-    queryKey: ['orders', 'recent', limit],
+    queryKey: ["orders", "recent", limit],
     queryFn: async () => {
-      const response = await api.get<OrdersResponse>('/api/orders/recent', {
+      const response = await api.get<OrdersResponse>("/api/orders/recent", {
         params: { limit },
       });
       return response.orders || [];

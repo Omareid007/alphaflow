@@ -24,19 +24,33 @@ router.get("/allocation-policies", async (req: Request, res: Response) => {
 
 router.post("/allocation-policies", async (req: Request, res: Response) => {
   try {
-    const { name, description, maxPositionWeightPct, maxSectorWeightPct, rebalanceFrequency, isActive } = req.body;
+    const {
+      name,
+      description,
+      maxPositionWeightPct,
+      maxSectorWeightPct,
+      rebalanceFrequency,
+      isActive,
+    } = req.body;
     if (!name) {
       return res.status(400).json({ error: "name is required" });
     }
-    const [policy] = await db.insert(allocationPolicies).values({
-      name,
-      description: description || null,
-      maxPositionWeightPct: maxPositionWeightPct ? String(maxPositionWeightPct) : "8",
-      maxSectorWeightPct: maxSectorWeightPct ? String(maxSectorWeightPct) : "25",
-      rebalanceFrequency: rebalanceFrequency || "daily",
-      isActive: isActive !== undefined ? isActive : false,
-      createdBy: (req as any).user?.id || null,
-    }).returning();
+    const [policy] = await db
+      .insert(allocationPolicies)
+      .values({
+        name,
+        description: description || null,
+        maxPositionWeightPct: maxPositionWeightPct
+          ? String(maxPositionWeightPct)
+          : "8",
+        maxSectorWeightPct: maxSectorWeightPct
+          ? String(maxSectorWeightPct)
+          : "25",
+        rebalanceFrequency: rebalanceFrequency || "daily",
+        isActive: isActive !== undefined ? isActive : false,
+        createdBy: (req as any).user?.id || null,
+      })
+      .returning();
     res.json(policy);
   } catch (error) {
     log.error("Routes", "Failed to create allocation policy", { error: error });
@@ -44,47 +58,69 @@ router.post("/allocation-policies", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/allocation-policies/:id", async (req: Request, res: Response) => {
-  try {
-    const { name, description, maxPositionWeightPct, maxSectorWeightPct, rebalanceFrequency, isActive } = req.body;
-    const updates: Record<string, any> = { updatedAt: new Date() };
-    if (name !== undefined) updates.name = name;
-    if (description !== undefined) updates.description = description;
-    if (maxPositionWeightPct !== undefined) updates.maxPositionWeightPct = String(maxPositionWeightPct);
-    if (maxSectorWeightPct !== undefined) updates.maxSectorWeightPct = String(maxSectorWeightPct);
-    if (rebalanceFrequency !== undefined) updates.rebalanceFrequency = rebalanceFrequency;
-    if (isActive !== undefined) updates.isActive = isActive;
+router.patch(
+  "/allocation-policies/:id",
+  async (req: Request, res: Response) => {
+    try {
+      const {
+        name,
+        description,
+        maxPositionWeightPct,
+        maxSectorWeightPct,
+        rebalanceFrequency,
+        isActive,
+      } = req.body;
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (maxPositionWeightPct !== undefined)
+        updates.maxPositionWeightPct = String(maxPositionWeightPct);
+      if (maxSectorWeightPct !== undefined)
+        updates.maxSectorWeightPct = String(maxSectorWeightPct);
+      if (rebalanceFrequency !== undefined)
+        updates.rebalanceFrequency = rebalanceFrequency;
+      if (isActive !== undefined) updates.isActive = isActive;
 
-    const [updated] = await db.update(allocationPolicies)
-      .set(updates)
-      .where(eq(allocationPolicies.id, req.params.id))
-      .returning();
+      const [updated] = await db
+        .update(allocationPolicies)
+        .set(updates)
+        .where(eq(allocationPolicies.id, req.params.id))
+        .returning();
 
-    if (!updated) {
-      return res.status(404).json({ error: "Policy not found" });
+      if (!updated) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      log.error("Routes", "Failed to update allocation policy", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to update allocation policy" });
     }
-    res.json(updated);
-  } catch (error) {
-    log.error("Routes", "Failed to update allocation policy", { error: error });
-    res.status(500).json({ error: "Failed to update allocation policy" });
   }
-});
+);
 
-router.delete("/allocation-policies/:id", async (req: Request, res: Response) => {
-  try {
-    const [deleted] = await db.delete(allocationPolicies)
-      .where(eq(allocationPolicies.id, req.params.id))
-      .returning();
+router.delete(
+  "/allocation-policies/:id",
+  async (req: Request, res: Response) => {
+    try {
+      const [deleted] = await db
+        .delete(allocationPolicies)
+        .where(eq(allocationPolicies.id, req.params.id))
+        .returning();
 
-    if (!deleted) {
-      return res.status(404).json({ error: "Policy not found" });
+      if (!deleted) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json({ success: true, message: "Policy deleted" });
+    } catch (error) {
+      log.error("Routes", "Failed to delete allocation policy", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to delete allocation policy" });
     }
-    res.json({ success: true, message: "Policy deleted" });
-  } catch (error) {
-    log.error("Routes", "Failed to delete allocation policy", { error: error });
-    res.status(500).json({ error: "Failed to delete allocation policy" });
   }
-});
+);
 
 // ============================================================================
 // REBALANCE RUNS ENDPOINTS
@@ -115,18 +151,22 @@ router.post("/rebalance/trigger", async (req: Request, res: Response) => {
 
     // Create a new rebalance run
     const traceId = `rebalance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const [run] = await db.insert(rebalanceRuns).values({
-      policyId: policyId || null,
-      traceId,
-      status: "running",
-      triggerType,
-      inputSnapshot: {},
-    }).returning();
+    const [run] = await db
+      .insert(rebalanceRuns)
+      .values({
+        policyId: policyId || null,
+        traceId,
+        status: "running",
+        triggerType,
+        inputSnapshot: {},
+      })
+      .returning();
 
     // In a real implementation, this would trigger the rebalance process
     // For now, we simulate completion
     setTimeout(async () => {
-      await db.update(rebalanceRuns)
+      await db
+        .update(rebalanceRuns)
         .set({ status: "completed", completedAt: new Date() })
         .where(eq(rebalanceRuns.id, run.id));
     }, 2000);

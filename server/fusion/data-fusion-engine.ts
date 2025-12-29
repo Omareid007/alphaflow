@@ -1,5 +1,13 @@
-import { coingecko, type CoinPrice, type GlobalMarketData } from "../connectors/coingecko";
-import { finnhub, type StockQuote, type MarketNews } from "../connectors/finnhub";
+import {
+  coingecko,
+  type CoinPrice,
+  type GlobalMarketData,
+} from "../connectors/coingecko";
+import {
+  finnhub,
+  type StockQuote,
+  type MarketNews,
+} from "../connectors/finnhub";
 import { log } from "../utils/logger";
 
 export interface MarketIntelligenceScore {
@@ -87,26 +95,45 @@ class DataFusionEngine {
     let hasGlobalData = false;
 
     try {
-      const cryptoMarkets = await coingecko.getMarkets("usd", 20, 1, "market_cap_desc");
+      const cryptoMarkets = await coingecko.getMarkets(
+        "usd",
+        20,
+        1,
+        "market_cap_desc"
+      );
       if (cryptoMarkets && cryptoMarkets.length > 0) {
         hasCryptoData = true;
         activeSources++;
 
-        const avgChange = cryptoMarkets.reduce((sum, c) => sum + (c.price_change_percentage_24h || 0), 0) / cryptoMarkets.length;
-        const positiveCoins = cryptoMarkets.filter(c => (c.price_change_percentage_24h || 0) > 0).length;
+        const avgChange =
+          cryptoMarkets.reduce(
+            (sum, c) => sum + (c.price_change_percentage_24h || 0),
+            0
+          ) / cryptoMarkets.length;
+        const positiveCoins = cryptoMarkets.filter(
+          (c) => (c.price_change_percentage_24h || 0) > 0
+        ).length;
         const marketBreadth = positiveCoins / cryptoMarkets.length;
 
         cryptoMomentum = this.normalizeScore((avgChange + 10) / 20);
         cryptoSentiment = marketBreadth;
 
-        const volatility = cryptoMarkets.reduce((sum, c) => {
-          const range = c.high_24h && c.low_24h ? (c.high_24h - c.low_24h) / c.low_24h : 0;
-          return sum + range;
-        }, 0) / cryptoMarkets.length;
+        const volatility =
+          cryptoMarkets.reduce((sum, c) => {
+            const range =
+              c.high_24h && c.low_24h
+                ? (c.high_24h - c.low_24h) / c.low_24h
+                : 0;
+            return sum + range;
+          }, 0) / cryptoMarkets.length;
         cryptoVolatility = this.normalizeScore(1 - volatility * 5);
 
-        const avgVolume = cryptoMarkets.reduce((sum, c) => sum + (c.total_volume || 0), 0) / cryptoMarkets.length;
-        const avgMarketCap = cryptoMarkets.reduce((sum, c) => sum + (c.market_cap || 0), 0) / cryptoMarkets.length;
+        const avgVolume =
+          cryptoMarkets.reduce((sum, c) => sum + (c.total_volume || 0), 0) /
+          cryptoMarkets.length;
+        const avgMarketCap =
+          cryptoMarkets.reduce((sum, c) => sum + (c.market_cap || 0), 0) /
+          cryptoMarkets.length;
         const volumeRatio = avgVolume / avgMarketCap;
         cryptoVolume = this.normalizeScore(volumeRatio * 10);
 
@@ -147,7 +174,9 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch crypto data for fusion", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch crypto data for fusion", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
@@ -176,7 +205,9 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch global data for fusion", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch global data for fusion", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
@@ -194,9 +225,10 @@ class DataFusionEngine {
           hasStockData = true;
           activeSources++;
 
-          const avgChange = changes.reduce((sum, c) => sum + c, 0) / changes.length;
+          const avgChange =
+            changes.reduce((sum, c) => sum + c, 0) / changes.length;
           if (!isNaN(avgChange)) {
-            const positiveStocks = changes.filter(c => c > 0).length;
+            const positiveStocks = changes.filter((c) => c > 0).length;
             const stockBreadth = positiveStocks / changes.length;
 
             stockMomentum = this.normalizeScore((avgChange + 5) / 10);
@@ -223,7 +255,9 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch stock data for fusion", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch stock data for fusion", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
@@ -234,8 +268,30 @@ class DataFusionEngine {
 
         const recentNews = news.slice(0, 10);
         const sentimentKeywords = {
-          bullish: ["surge", "rally", "gains", "bullish", "record", "soar", "jump", "breakthrough", "growth", "strong"],
-          bearish: ["crash", "plunge", "bearish", "decline", "fall", "drop", "slump", "weak", "fear", "concern"],
+          bullish: [
+            "surge",
+            "rally",
+            "gains",
+            "bullish",
+            "record",
+            "soar",
+            "jump",
+            "breakthrough",
+            "growth",
+            "strong",
+          ],
+          bearish: [
+            "crash",
+            "plunge",
+            "bearish",
+            "decline",
+            "fall",
+            "drop",
+            "slump",
+            "weak",
+            "fear",
+            "concern",
+          ],
         };
 
         let bullishCount = 0;
@@ -270,22 +326,39 @@ class DataFusionEngine {
         }
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch news for fusion", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch news for fusion", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
-    const momentumScore = hasCryptoData && hasStockData
-      ? (cryptoMomentum * 0.5 + stockMomentum * 0.5)
-      : hasCryptoData ? cryptoMomentum : hasStockData ? stockMomentum : 0.5;
+    const momentumScore =
+      hasCryptoData && hasStockData
+        ? cryptoMomentum * 0.5 + stockMomentum * 0.5
+        : hasCryptoData
+          ? cryptoMomentum
+          : hasStockData
+            ? stockMomentum
+            : 0.5;
 
     const volatilityScore = hasCryptoData ? cryptoVolatility : 0.5;
     const volumeScore = hasCryptoData ? cryptoVolume : 0.5;
 
-    const sentimentScore = hasCryptoData && hasStockData
-      ? (cryptoSentiment * 0.5 + stockSentiment * 0.5)
-      : hasCryptoData ? cryptoSentiment : hasStockData ? stockSentiment : 0.5;
+    const sentimentScore =
+      hasCryptoData && hasStockData
+        ? cryptoSentiment * 0.5 + stockSentiment * 0.5
+        : hasCryptoData
+          ? cryptoSentiment
+          : hasStockData
+            ? stockSentiment
+            : 0.5;
 
-    const weights = { momentum: 0.35, volatility: 0.15, sentiment: 0.35, volume: 0.15 };
-    const overall = 
+    const weights = {
+      momentum: 0.35,
+      volatility: 0.15,
+      sentiment: 0.35,
+      volume: 0.15,
+    };
+    const overall =
       momentumScore * weights.momentum +
       volatilityScore * weights.volatility +
       sentimentScore * weights.sentiment +
@@ -331,19 +404,24 @@ class DataFusionEngine {
     try {
       topCoins = await coingecko.getMarkets("usd", 10, 1, "market_cap_desc");
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch top coins", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch top coins", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
       const global = await coingecko.getGlobalData();
       if (global?.data) {
         globalData = global.data;
-        marketCapChange24h = global.data.market_cap_change_percentage_24h_usd || 0;
+        marketCapChange24h =
+          global.data.market_cap_change_percentage_24h_usd || 0;
         dominanceBTC = global.data.market_cap_percentage?.btc || 0;
         totalMarketCap = global.data.total_market_cap?.usd || 0;
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch global data", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch global data", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     let stockQuotes: Record<string, StockQuote> = {};
@@ -352,7 +430,13 @@ class DataFusionEngine {
     let stockMarketSentiment: "bullish" | "bearish" | "neutral" = "neutral";
 
     try {
-      const quotesMap = await finnhub.getMultipleQuotes(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"]);
+      const quotesMap = await finnhub.getMultipleQuotes([
+        "AAPL",
+        "GOOGL",
+        "MSFT",
+        "AMZN",
+        "TSLA",
+      ]);
       const changes: number[] = [];
       quotesMap.forEach((quote, symbol) => {
         stockQuotes[symbol] = quote;
@@ -361,18 +445,28 @@ class DataFusionEngine {
         }
       });
       if (changes.length > 0) {
-        const avgChange = changes.reduce((sum, c) => sum + c, 0) / changes.length;
+        const avgChange =
+          changes.reduce((sum, c) => sum + c, 0) / changes.length;
         stockAvgChange = isNaN(avgChange) ? 0 : avgChange;
-        stockMarketSentiment = stockAvgChange > 1 ? "bullish" : stockAvgChange < -1 ? "bearish" : "neutral";
+        stockMarketSentiment =
+          stockAvgChange > 1
+            ? "bullish"
+            : stockAvgChange < -1
+              ? "bearish"
+              : "neutral";
       }
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch stock quotes", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch stock quotes", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
       stockNews = await finnhub.getMarketNews("general");
     } catch (error) {
-      log.error("DataFusion", "Failed to fetch stock news", { error: error instanceof Error ? error.message : String(error) });
+      log.error("DataFusion", "Failed to fetch stock news", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     const intelligence = await this.getMarketIntelligence();
@@ -402,7 +496,11 @@ class DataFusionEngine {
     return Math.max(0, Math.min(1, value));
   }
 
-  getStatus(): { available: boolean; lastFusionTime: number; cacheSize: number } {
+  getStatus(): {
+    available: boolean;
+    lastFusionTime: number;
+    cacheSize: number;
+  } {
     return {
       available: true,
       lastFusionTime: this.lastFusionTime,

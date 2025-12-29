@@ -1,9 +1,17 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import { badRequest, notFound, serverError, validationError } from "../lib/standard-errors";
+import {
+  badRequest,
+  notFound,
+  serverError,
+  validationError,
+} from "../lib/standard-errors";
 import { sanitizeInput, sanitizeStrategyInput } from "../lib/sanitization";
-import { insertStrategySchema, type InsertStrategyVersion } from "@shared/schema";
+import {
+  insertStrategySchema,
+  type InsertStrategyVersion,
+} from "@shared/schema";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 
 const router = Router();
@@ -81,7 +89,10 @@ router.post("/:id/toggle", async (req: Request, res: Response) => {
     if (!currentStrategy) {
       return notFound(res, "Strategy not found");
     }
-    const strategy = await storage.toggleStrategy(req.params.id, !currentStrategy.isActive);
+    const strategy = await storage.toggleStrategy(
+      req.params.id,
+      !currentStrategy.isActive
+    );
     res.json(strategy);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to toggle strategy", { error });
@@ -152,7 +163,8 @@ router.get("/:id/status", async (req: Request, res: Response) => {
 
 router.get("/moving-average/schema", async (req: Request, res: Response) => {
   try {
-    const { STRATEGY_SCHEMA } = await import("../strategies/moving-average-crossover");
+    const { STRATEGY_SCHEMA } =
+      await import("../strategies/moving-average-crossover");
     res.json(STRATEGY_SCHEMA);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to get MA strategy schema", { error });
@@ -162,10 +174,13 @@ router.get("/moving-average/schema", async (req: Request, res: Response) => {
 
 router.get("/mean-reversion/schema", async (req: Request, res: Response) => {
   try {
-    const { STRATEGY_SCHEMA } = await import("../strategies/mean-reversion-scalper");
+    const { STRATEGY_SCHEMA } =
+      await import("../strategies/mean-reversion-scalper");
     res.json(STRATEGY_SCHEMA);
   } catch (error) {
-    log.error("StrategiesAPI", "Failed to get mean reversion strategy schema", { error });
+    log.error("StrategiesAPI", "Failed to get mean reversion strategy schema", {
+      error,
+    });
     return serverError(res, "Failed to get strategy schema");
   }
 });
@@ -175,7 +190,9 @@ router.get("/momentum/schema", async (req: Request, res: Response) => {
     const { STRATEGY_SCHEMA } = await import("../strategies/momentum-strategy");
     res.json(STRATEGY_SCHEMA);
   } catch (error) {
-    log.error("StrategiesAPI", "Failed to get momentum strategy schema", { error });
+    log.error("StrategiesAPI", "Failed to get momentum strategy schema", {
+      error,
+    });
     return serverError(res, "Failed to get strategy schema");
   }
 });
@@ -196,88 +213,130 @@ router.get("/all-schemas", async (req: Request, res: Response) => {
 
 router.post("/moving-average/backtest", async (req: Request, res: Response) => {
   try {
-    const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } = await import("../strategies/moving-average-crossover");
+    const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } =
+      await import("../strategies/moving-average-crossover");
     const config = normalizeMovingAverageConfig(req.body);
     const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
     const result = await backtestMovingAverageStrategy(config, lookbackDays);
     res.json(result);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to run MA backtest", { error });
-    return serverError(res, (error as Error).message || "Failed to run backtest");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to run backtest"
+    );
   }
 });
 
-router.post("/moving-average/ai-validate", async (req: Request, res: Response) => {
-  try {
-    const { normalizeMovingAverageConfig } = await import("../strategies/moving-average-crossover");
-    const { validateMovingAverageConfig, getValidatorStatus } = await import("../ai/ai-strategy-validator");
+router.post(
+  "/moving-average/ai-validate",
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMovingAverageConfig } =
+        await import("../strategies/moving-average-crossover");
+      const { validateMovingAverageConfig, getValidatorStatus } =
+        await import("../ai/ai-strategy-validator");
 
-    const status = getValidatorStatus();
-    if (!status.available) {
-      return res.status(503).json({ error: "AI validation service is not available" });
+      const status = getValidatorStatus();
+      if (!status.available) {
+        return res
+          .status(503)
+          .json({ error: "AI validation service is not available" });
+      }
+
+      const config = normalizeMovingAverageConfig(req.body.config || req.body);
+      const marketIntelligence = req.body.marketIntelligence;
+      const result = await validateMovingAverageConfig(
+        config,
+        marketIntelligence
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to AI validate strategy", { error });
+      return serverError(
+        res,
+        (error as Error).message || "Failed to validate strategy"
+      );
     }
-
-    const config = normalizeMovingAverageConfig(req.body.config || req.body);
-    const marketIntelligence = req.body.marketIntelligence;
-    const result = await validateMovingAverageConfig(config, marketIntelligence);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to AI validate strategy", { error });
-    return serverError(res, (error as Error).message || "Failed to validate strategy");
   }
-});
+);
 
 router.post("/mean-reversion/backtest", async (req: Request, res: Response) => {
   try {
-    const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("../strategies/mean-reversion-scalper");
+    const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } =
+      await import("../strategies/mean-reversion-scalper");
     const config = normalizeMeanReversionConfig(req.body);
     const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
     const result = await backtestMeanReversionStrategy(config, lookbackDays);
     res.json(result);
   } catch (error) {
-    log.error("StrategiesAPI", "Failed to run mean reversion backtest", { error });
-    return serverError(res, (error as Error).message || "Failed to run backtest");
+    log.error("StrategiesAPI", "Failed to run mean reversion backtest", {
+      error,
+    });
+    return serverError(
+      res,
+      (error as Error).message || "Failed to run backtest"
+    );
   }
 });
 
 router.post("/mean-reversion/signal", async (req: Request, res: Response) => {
   try {
-    const { normalizeMeanReversionConfig, generateMeanReversionSignal } = await import("../strategies/mean-reversion-scalper");
+    const { normalizeMeanReversionConfig, generateMeanReversionSignal } =
+      await import("../strategies/mean-reversion-scalper");
     const config = normalizeMeanReversionConfig(req.body.config || req.body);
     const prices = req.body.prices as number[];
 
-    if (!prices || !Array.isArray(prices) || prices.length < config.lookbackPeriod) {
-      return badRequest(res, `Need at least ${config.lookbackPeriod} price points`);
+    if (
+      !prices ||
+      !Array.isArray(prices) ||
+      prices.length < config.lookbackPeriod
+    ) {
+      return badRequest(
+        res,
+        `Need at least ${config.lookbackPeriod} price points`
+      );
     }
 
     const signal = generateMeanReversionSignal(prices, config);
     res.json(signal);
   } catch (error) {
-    log.error("StrategiesAPI", "Failed to generate mean reversion signal", { error });
-    return serverError(res, (error as Error).message || "Failed to generate signal");
+    log.error("StrategiesAPI", "Failed to generate mean reversion signal", {
+      error,
+    });
+    return serverError(
+      res,
+      (error as Error).message || "Failed to generate signal"
+    );
   }
 });
 
 router.post("/momentum/backtest", async (req: Request, res: Response) => {
   try {
-    const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("../strategies/momentum-strategy");
+    const { normalizeMomentumConfig, backtestMomentumStrategy } =
+      await import("../strategies/momentum-strategy");
     const config = normalizeMomentumConfig(req.body);
     const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
     const result = await backtestMomentumStrategy(config, lookbackDays);
     res.json(result);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to run momentum backtest", { error });
-    return serverError(res, (error as Error).message || "Failed to run backtest");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to run backtest"
+    );
   }
 });
 
 router.post("/momentum/signal", async (req: Request, res: Response) => {
   try {
-    const { normalizeMomentumConfig, generateMomentumSignal } = await import("../strategies/momentum-strategy");
+    const { normalizeMomentumConfig, generateMomentumSignal } =
+      await import("../strategies/momentum-strategy");
     const config = normalizeMomentumConfig(req.body.config || req.body);
     const prices = req.body.prices as number[];
 
-    const requiredLength = Math.max(config.lookbackPeriod, config.rsiPeriod) + 1;
+    const requiredLength =
+      Math.max(config.lookbackPeriod, config.rsiPeriod) + 1;
     if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
       return badRequest(res, `Need at least ${requiredLength} price points`);
     }
@@ -286,7 +345,10 @@ router.post("/momentum/signal", async (req: Request, res: Response) => {
     res.json(signal);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to generate momentum signal", { error });
-    return serverError(res, (error as Error).message || "Failed to generate signal");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to generate signal"
+    );
   }
 });
 
@@ -307,40 +369,48 @@ router.post("/backtest", async (req: Request, res: Response) => {
     switch (strategyType) {
       case "moving-average-crossover":
       case "moving-average": {
-        const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } = await import("../strategies/moving-average-crossover");
+        const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } =
+          await import("../strategies/moving-average-crossover");
         const config = normalizeMovingAverageConfig({ symbol, ...parameters });
         result = await backtestMovingAverageStrategy(config, lookbackDays);
         break;
       }
       case "mean-reversion":
       case "mean-reversion-scalper": {
-        const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("../strategies/mean-reversion-scalper");
+        const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } =
+          await import("../strategies/mean-reversion-scalper");
         const config = normalizeMeanReversionConfig({ symbol, ...parameters });
         result = await backtestMeanReversionStrategy(config, lookbackDays);
         break;
       }
       case "momentum":
       case "momentum-breakout": {
-        const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("../strategies/momentum-strategy");
+        const { normalizeMomentumConfig, backtestMomentumStrategy } =
+          await import("../strategies/momentum-strategy");
         const config = normalizeMomentumConfig({ symbol, ...parameters });
         result = await backtestMomentumStrategy(config, lookbackDays);
         break;
       }
       case "range-trading":
       case "breakout": {
-        const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } = await import("../strategies/mean-reversion-scalper");
+        const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } =
+          await import("../strategies/mean-reversion-scalper");
         const defaultParams = {
           lookbackPeriod: parameters?.lookbackPeriod ?? 20,
           deviationThreshold: parameters?.deviationThreshold ?? 2.0,
           maxHoldingPeriod: parameters?.maxHoldingPeriod ?? 10,
           ...parameters,
         };
-        const config = normalizeMeanReversionConfig({ symbol, ...defaultParams });
+        const config = normalizeMeanReversionConfig({
+          symbol,
+          ...defaultParams,
+        });
         result = await backtestMeanReversionStrategy(config, lookbackDays);
         break;
       }
       default: {
-        const { normalizeMomentumConfig, backtestMomentumStrategy } = await import("../strategies/momentum-strategy");
+        const { normalizeMomentumConfig, backtestMomentumStrategy } =
+          await import("../strategies/momentum-strategy");
         const config = normalizeMomentumConfig({ symbol, ...parameters });
         result = await backtestMomentumStrategy(config, lookbackDays);
         break;
@@ -350,18 +420,27 @@ router.post("/backtest", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     log.error("StrategiesAPI", "Failed to run generic backtest", { error });
-    return serverError(res, (error as Error).message || "Failed to run backtest");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to run backtest"
+    );
   }
 });
 
 router.post("/config", async (req: Request, res: Response) => {
   try {
-    const { normalizeMovingAverageConfig } = await import("../strategies/moving-average-crossover");
+    const { normalizeMovingAverageConfig } =
+      await import("../strategies/moving-average-crossover");
     const config = normalizeMovingAverageConfig(req.body);
     res.json(config);
   } catch (error) {
-    log.error("StrategiesAPI", "Failed to normalize strategy config", { error });
-    return serverError(res, (error as Error).message || "Failed to normalize config");
+    log.error("StrategiesAPI", "Failed to normalize strategy config", {
+      error,
+    });
+    return serverError(
+      res,
+      (error as Error).message || "Failed to normalize config"
+    );
   }
 });
 
@@ -387,7 +466,10 @@ router.post("/validate", async (req: Request, res: Response) => {
     res.json({ valid: true, name, type, parameters });
   } catch (error) {
     log.error("StrategiesAPI", "Failed to validate strategy", { error });
-    return serverError(res, (error as Error).message || "Failed to validate strategy");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to validate strategy"
+    );
   }
 });
 
@@ -424,7 +506,7 @@ router.post("/versions", async (req: Request, res: Response) => {
       riskConfig,
       executionConfig,
       backtestResultId,
-      description
+      description,
     } = req.body;
 
     if (!strategyId || !name || !spec) {
@@ -433,7 +515,9 @@ router.post("/versions", async (req: Request, res: Response) => {
 
     // SECURITY: Sanitize strategy input to prevent XSS attacks
     const sanitizedName = sanitizeInput(name);
-    const sanitizedDescription = description ? sanitizeInput(description) : undefined;
+    const sanitizedDescription = description
+      ? sanitizeInput(description)
+      : undefined;
 
     const version = await storage.getNextVersionNumber(strategyId);
 
@@ -455,7 +539,10 @@ router.post("/versions", async (req: Request, res: Response) => {
     res.json(strategyVersion);
   } catch (error) {
     log.error("StrategiesAPI", `Failed to create strategy version: ${error}`);
-    return serverError(res, (error as Error).message || "Failed to create strategy version");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to create strategy version"
+    );
   }
 });
 
@@ -477,14 +564,20 @@ router.patch("/versions/:id", async (req: Request, res: Response) => {
     // SECURITY: Sanitize strategy input to prevent XSS attacks
     const sanitizedBody = sanitizeStrategyInput(req.body);
 
-    const version = await storage.updateStrategyVersion(req.params.id, sanitizedBody);
+    const version = await storage.updateStrategyVersion(
+      req.params.id,
+      sanitizedBody
+    );
     if (!version) {
       return notFound(res, "Strategy version not found");
     }
     res.json(version);
   } catch (error) {
     log.error("StrategiesAPI", `Failed to update strategy version: ${error}`);
-    return serverError(res, (error as Error).message || "Failed to update strategy version");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to update strategy version"
+    );
   }
 });
 
@@ -516,22 +609,29 @@ router.post("/versions/:id/activate", async (req: Request, res: Response) => {
         .limit(1);
 
       if (successfulBacktests.length === 0) {
-        log.warn("StrategiesAPI", `Activation blocked for strategy version ${req.params.id}: No successful backtest found`);
+        log.warn(
+          "StrategiesAPI",
+          `Activation blocked for strategy version ${req.params.id}: No successful backtest found`
+        );
         return validationError(
           res,
           "Strategy must have at least one successful backtest before activation. Please run a backtest and verify results before activating this strategy.",
           {
             strategyId: version.strategyId,
-            strategyVersionId: req.params.id
+            strategyVersionId: req.params.id,
           }
         );
       }
 
-      log.info("StrategiesAPI", `Backtest validation passed for strategy version ${req.params.id}`, {
-        strategyId: version.strategyId,
-        backtestId: successfulBacktests[0].id,
-        backtestDate: successfulBacktests[0].createdAt
-      });
+      log.info(
+        "StrategiesAPI",
+        `Backtest validation passed for strategy version ${req.params.id}`,
+        {
+          strategyId: version.strategyId,
+          backtestId: successfulBacktests[0].id,
+          backtestDate: successfulBacktests[0].createdAt,
+        }
+      );
     }
 
     // 3. Activate the strategy version
@@ -547,7 +647,10 @@ router.post("/versions/:id/activate", async (req: Request, res: Response) => {
     res.json(updatedVersion);
   } catch (error) {
     log.error("StrategiesAPI", `Failed to activate strategy version: ${error}`);
-    return serverError(res, (error as Error).message || "Failed to activate strategy version");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to activate strategy version"
+    );
   }
 });
 
@@ -564,22 +667,36 @@ router.post("/versions/:id/archive", async (req: Request, res: Response) => {
     res.json(version);
   } catch (error) {
     log.error("StrategiesAPI", `Failed to archive strategy version: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to archive strategy version" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to archive strategy version",
+      });
   }
 });
 
-router.get("/versions/:strategyId/latest", async (req: Request, res: Response) => {
-  try {
-    const version = await storage.getLatestStrategyVersion(req.params.strategyId);
-    if (!version) {
-      return res.status(404).json({ error: "No versions found for this strategy" });
+router.get(
+  "/versions/:strategyId/latest",
+  async (req: Request, res: Response) => {
+    try {
+      const version = await storage.getLatestStrategyVersion(
+        req.params.strategyId
+      );
+      if (!version) {
+        return res
+          .status(404)
+          .json({ error: "No versions found for this strategy" });
+      }
+      res.json(version);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to get latest strategy version: ${error}`
+      );
+      res.status(500).json({ error: "Failed to get latest strategy version" });
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to get latest strategy version: ${error}`);
-    res.status(500).json({ error: "Failed to get latest strategy version" });
   }
-});
+);
 
 // STRATEGY PERFORMANCE MONITORING DASHBOARD API
 router.delete("/:id", async (req: Request, res: Response) => {
@@ -606,7 +723,8 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
     }
 
     // 2. Get real-time state from alpacaTradingEngine
-    const { alpacaTradingEngine } = await import("../trading/alpaca-trading-engine");
+    const { alpacaTradingEngine } =
+      await import("../trading/alpaca-trading-engine");
     const strategyState = alpacaTradingEngine.getStrategyState(strategyId);
 
     // 3. Get all trades for this strategy from database
@@ -625,13 +743,20 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
     const totalTrades = allTrades.length;
 
     // Separate opening and closing trades
-    const closingTrades = allTrades.filter(t => t.pnl !== null && t.pnl !== "0");
-    const winningTrades = closingTrades.filter(t => parseFloat(t.pnl || "0") > 0);
-    const losingTrades = closingTrades.filter(t => parseFloat(t.pnl || "0") < 0);
+    const closingTrades = allTrades.filter(
+      (t) => t.pnl !== null && t.pnl !== "0"
+    );
+    const winningTrades = closingTrades.filter(
+      (t) => parseFloat(t.pnl || "0") > 0
+    );
+    const losingTrades = closingTrades.filter(
+      (t) => parseFloat(t.pnl || "0") < 0
+    );
 
-    const winRate = closingTrades.length > 0
-      ? (winningTrades.length / closingTrades.length) * 100
-      : 0;
+    const winRate =
+      closingTrades.length > 0
+        ? (winningTrades.length / closingTrades.length) * 100
+        : 0;
 
     // Calculate total P&L from all closing trades
     const totalPnl = closingTrades.reduce((sum, t) => {
@@ -639,13 +764,17 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
     }, 0);
 
     // Calculate average win and loss
-    const avgWin = winningTrades.length > 0
-      ? winningTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) / winningTrades.length
-      : 0;
+    const avgWin =
+      winningTrades.length > 0
+        ? winningTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) /
+          winningTrades.length
+        : 0;
 
-    const avgLoss = losingTrades.length > 0
-      ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) / losingTrades.length
-      : 0;
+    const avgLoss =
+      losingTrades.length > 0
+        ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) /
+          losingTrades.length
+        : 0;
 
     // 5. Get current positions for this strategy
     const { positions } = await import("@shared/schema");
@@ -686,18 +815,22 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
         // Average trade metrics
         avgWin: parseFloat(avgWin.toFixed(2)),
         avgLoss: parseFloat(avgLoss.toFixed(2)),
-        avgTrade: closingTrades.length > 0
-          ? parseFloat((totalPnl / closingTrades.length).toFixed(2))
-          : 0,
+        avgTrade:
+          closingTrades.length > 0
+            ? parseFloat((totalPnl / closingTrades.length).toFixed(2))
+            : 0,
 
         // Profit factor (avg win / abs(avg loss))
-        profitFactor: avgLoss !== 0
-          ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2))
-          : avgWin > 0 ? Infinity : 0,
+        profitFactor:
+          avgLoss !== 0
+            ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2))
+            : avgWin > 0
+              ? Infinity
+              : 0,
       },
 
       // Current positions
-      positions: currentPositions.map(p => ({
+      positions: currentPositions.map((p) => ({
         id: p.id,
         symbol: p.symbol,
         side: p.side,
@@ -709,7 +842,7 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
       })),
 
       // Recent trades (last 10)
-      recentTrades: allTrades.slice(0, 10).map(t => ({
+      recentTrades: allTrades.slice(0, 10).map((t) => ({
         id: t.id,
         symbol: t.symbol,
         side: t.side,
@@ -722,18 +855,24 @@ router.get("/:id/performance", async (req: Request, res: Response) => {
       })),
 
       // Last decision info (if available)
-      lastDecision: strategyState?.lastDecision ? {
-        action: strategyState.lastDecision.action,
-        confidence: strategyState.lastDecision.confidence,
-        reasoning: strategyState.lastDecision.reasoning,
-        riskLevel: strategyState.lastDecision.riskLevel,
-      } : null,
+      lastDecision: strategyState?.lastDecision
+        ? {
+            action: strategyState.lastDecision.action,
+            confidence: strategyState.lastDecision.confidence,
+            reasoning: strategyState.lastDecision.reasoning,
+            riskLevel: strategyState.lastDecision.riskLevel,
+          }
+        : null,
     };
 
     res.json(performance);
   } catch (error) {
     log.error("StrategiesAPI", `Failed to get strategy performance: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to get strategy performance" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to get strategy performance",
+      });
   }
 });
 

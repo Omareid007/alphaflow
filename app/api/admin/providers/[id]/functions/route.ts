@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { apiDiscoveryService } from '@/lib/admin/services';
+import { NextResponse } from "next/server";
+import { apiDiscoveryService } from "@/lib/admin/services";
 
 export async function GET(
   request: Request,
@@ -9,9 +9,9 @@ export async function GET(
     const functions = await apiDiscoveryService.listApiFunctions(params.id);
     return NextResponse.json(functions);
   } catch (error) {
-    console.error('Failed to list API functions:', error);
+    console.error("Failed to list API functions:", error);
     return NextResponse.json(
-      { error: 'Failed to list API functions' },
+      { error: "Failed to list API functions" },
       { status: 500 }
     );
   }

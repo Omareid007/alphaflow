@@ -7,7 +7,7 @@ const { Pool } = pg;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL must be set. Did you forget to provision a database?"
   );
 }
 
@@ -22,12 +22,14 @@ const poolConfig: pg.PoolConfig = {
 
 export const pool = new Pool(poolConfig);
 
-pool.on('error', (err) => {
-  log.error('DB Pool', 'Unexpected error on idle client', { error: err.message });
+pool.on("error", (err) => {
+  log.error("DB Pool", "Unexpected error on idle client", {
+    error: err.message,
+  });
 });
 
-pool.on('connect', () => {
-  log.debug('DB Pool', 'New client connected');
+pool.on("connect", () => {
+  log.debug("DB Pool", "New client connected");
 });
 
 export function getPoolStats() {

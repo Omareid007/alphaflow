@@ -28,7 +28,11 @@ import { useAuth } from "@/components/providers/auth-provider";
 
 export default function UsersPage() {
   const { isAuthenticated } = useAuth();
-  const { data: users = [], isLoading, refetch } = useAdminUsers(isAuthenticated);
+  const {
+    data: users = [],
+    isLoading,
+    refetch,
+  } = useAdminUsers(isAuthenticated);
   const createUser = useCreateAdminUser();
   const updateUser = useUpdateAdminUser();
   const deleteUser = useDeleteAdminUser();
@@ -105,8 +109,12 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Users & Roles</h1>
-          <p className="mt-1 text-muted-foreground">Manage admin users and permissions</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Users & Roles
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Manage admin users and permissions
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -133,7 +141,9 @@ export default function UsersPage() {
                   <Input
                     id="username"
                     value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, username: e.target.value })
+                    }
                     placeholder="Enter username"
                   />
                 </div>
@@ -143,7 +153,9 @@ export default function UsersPage() {
                     id="password"
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     placeholder="Enter password"
                   />
                 </div>
@@ -151,13 +163,18 @@ export default function UsersPage() {
                   <Switch
                     id="isAdmin"
                     checked={formData.isAdmin}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isAdmin: checked })}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, isAdmin: checked })
+                    }
                   />
                   <Label htmlFor="isAdmin">Admin privileges</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setCreateDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button onClick={handleCreate} disabled={createUser.isPending}>
@@ -197,11 +214,18 @@ export default function UsersPage() {
                   <div className="flex items-center gap-3">
                     <Badge
                       variant="outline"
-                      className={user.isAdmin ? "bg-primary/10 text-primary" : "bg-secondary"}
+                      className={
+                        user.isAdmin
+                          ? "bg-primary/10 text-primary"
+                          : "bg-secondary"
+                      }
                     >
                       {user.isAdmin ? "Admin" : "User"}
                     </Badge>
-                    <Badge variant="outline" className="bg-success/10 text-success">
+                    <Badge
+                      variant="outline"
+                      className="bg-success/10 text-success"
+                    >
                       Active
                     </Badge>
                     <div className="flex gap-1">
@@ -230,7 +254,10 @@ export default function UsersPage() {
       </Card>
 
       {/* Edit User Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+      <Dialog
+        open={!!editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
@@ -244,7 +271,9 @@ export default function UsersPage() {
               <Input
                 id="edit-username"
                 value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
                 placeholder="Enter username"
               />
             </div>
@@ -254,7 +283,9 @@ export default function UsersPage() {
                 id="edit-password"
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 placeholder="Leave empty to keep current password"
               />
             </div>
@@ -262,7 +293,9 @@ export default function UsersPage() {
               <Switch
                 id="edit-isAdmin"
                 checked={formData.isAdmin}
-                onCheckedChange={(checked) => setFormData({ ...formData, isAdmin: checked })}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, isAdmin: checked })
+                }
               />
               <Label htmlFor="edit-isAdmin">Admin privileges</Label>
             </div>

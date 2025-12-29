@@ -1,19 +1,19 @@
 /**
  * GDELT Connector - Real-time Global News Events
- * 
+ *
  * FREE API providing:
  * - Global news monitoring in 100+ languages
  * - Updates every 15 minutes
  * - Sentiment/tone analysis
  * - Article volume tracking (breaking news detection)
  * - Geographic event tracking
- * 
+ *
  * Use cases for trading:
  * - Breaking news detection via volume spikes
  * - Sentiment tracking for stocks/crypto
  * - Geopolitical risk monitoring
  * - Supply chain disruption alerts
- * 
+ *
  * @see https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
  */
 
@@ -82,12 +82,21 @@ export interface GdeltBreakingNewsAlert {
   relevantArticles: GdeltArticle[];
 }
 
-type GdeltTimespan = "15min" | "30min" | "1hour" | "3hours" | "6hours" | "12hours" | "24hours" | "3days" | "7days";
+type GdeltTimespan =
+  | "15min"
+  | "30min"
+  | "1hour"
+  | "3hours"
+  | "6hours"
+  | "12hours"
+  | "24hours"
+  | "3days"
+  | "7days";
 type GdeltMode = "ArtList" | "TimelineVol" | "TimelineTone" | "TimelineVolRaw";
-type GdeltTheme = 
-  | "ECON_INFLATION" 
-  | "ECON_RECESSION" 
-  | "ECON_INTEREST_RATE" 
+type GdeltTheme =
+  | "ECON_INFLATION"
+  | "ECON_RECESSION"
+  | "ECON_INTEREST_RATE"
   | "ECON_UNEMPLOYMENT"
   | "EPU_ECONOMY"
   | "CRISISLEX_C03_WELLBEING_HEALTH"
@@ -194,7 +203,12 @@ class GdeltConnector {
     }
 
     const url = this.buildUrl(query, { ...options, mode: "ArtList" });
-    const cacheKey = buildCacheKey("gdelt", "articles", query, options.timespan || "24hours");
+    const cacheKey = buildCacheKey(
+      "gdelt",
+      "articles",
+      query,
+      options.timespan || "24hours"
+    );
 
     try {
       const response = await connectorFetch<GdeltRawArticlesResponse>(url, {
@@ -219,10 +233,16 @@ class GdeltConnector {
       };
 
       this.articleCache.set(l1CacheKey, result);
-      log.info("GDELT", "Articles fetched", { query, count: result.totalResults });
+      log.info("GDELT", "Articles fetched", {
+        query,
+        count: result.totalResults,
+      });
       return result;
     } catch (error) {
-      log.error("GDELT", "Failed to fetch articles", { query, error: String(error) });
+      log.error("GDELT", "Failed to fetch articles", {
+        query,
+        error: String(error),
+      });
       const stale = this.articleCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { articles: [], totalResults: 0 };
@@ -260,10 +280,16 @@ class GdeltConnector {
       };
 
       this.volumeCache.set(l1CacheKey, result);
-      log.info("GDELT", "Volume timeline fetched", { query, points: result.timeline.length });
+      log.info("GDELT", "Volume timeline fetched", {
+        query,
+        points: result.timeline.length,
+      });
       return result;
     } catch (error) {
-      log.error("GDELT", "Failed to fetch volume", { query, error: String(error) });
+      log.error("GDELT", "Failed to fetch volume", {
+        query,
+        error: String(error),
+      });
       const stale = this.volumeCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { timeline: [], query };
@@ -299,9 +325,10 @@ class GdeltConnector {
         negativeScore: parseFloat(String(t.negtonescore || 0)),
       }));
 
-      const avgTone = timeline.length > 0
-        ? timeline.reduce((sum, t) => sum + t.tone, 0) / timeline.length
-        : 0;
+      const avgTone =
+        timeline.length > 0
+          ? timeline.reduce((sum, t) => sum + t.tone, 0) / timeline.length
+          : 0;
 
       const result: GdeltToneResponse = {
         timeline,
@@ -310,10 +337,16 @@ class GdeltConnector {
       };
 
       this.toneCache.set(l1CacheKey, result);
-      log.info("GDELT", "Tone timeline fetched", { query, avgTone: avgTone.toFixed(2) });
+      log.info("GDELT", "Tone timeline fetched", {
+        query,
+        avgTone: avgTone.toFixed(2),
+      });
       return result;
     } catch (error) {
-      log.error("GDELT", "Failed to fetch tone", { query, error: String(error) });
+      log.error("GDELT", "Failed to fetch tone", {
+        query,
+        error: String(error),
+      });
       const stale = this.toneCache.getStale(l1CacheKey);
       if (stale) return stale;
       return { timeline: [], query, averageTone: 0 };
@@ -324,7 +357,7 @@ class GdeltConnector {
     symbol: string,
     companyName?: string
   ): Promise<GdeltSentimentAnalysis> {
-    const query = companyName 
+    const query = companyName
       ? `${symbol} OR "${companyName}" stock`
       : `${symbol} stock`;
 
@@ -341,13 +374,16 @@ class GdeltConnector {
       this.getToneTimeline(query, "24hours"),
     ]);
 
-    const recentVolume = volume3h.timeline.length > 0
-      ? volume3h.timeline.slice(-3).reduce((sum, t) => sum + t.value, 0) / 3
-      : 0;
+    const recentVolume =
+      volume3h.timeline.length > 0
+        ? volume3h.timeline.slice(-3).reduce((sum, t) => sum + t.value, 0) / 3
+        : 0;
 
-    const baselineVolume = volume24h.timeline.length > 0
-      ? volume24h.timeline.reduce((sum, t) => sum + t.value, 0) / volume24h.timeline.length
-      : 0;
+    const baselineVolume =
+      volume24h.timeline.length > 0
+        ? volume24h.timeline.reduce((sum, t) => sum + t.value, 0) /
+          volume24h.timeline.length
+        : 0;
 
     const volumeSpike = baselineVolume > 0 && recentVolume > baselineVolume * 2;
 
@@ -395,15 +431,21 @@ class GdeltConnector {
         this.searchArticles(keyword, { timespan: "3hours", maxRecords: 10 }),
       ]);
 
-      const recentVolume = volume3h.timeline.length > 0
-        ? volume3h.timeline.slice(-2).reduce((sum, t) => sum + t.value, 0) / 2
-        : 0;
+      const recentVolume =
+        volume3h.timeline.length > 0
+          ? volume3h.timeline.slice(-2).reduce((sum, t) => sum + t.value, 0) / 2
+          : 0;
 
-      const baselineVolume = volume24h.timeline.length > 6
-        ? volume24h.timeline.slice(0, -6).reduce((sum, t) => sum + t.value, 0) / (volume24h.timeline.length - 6)
-        : 0;
+      const baselineVolume =
+        volume24h.timeline.length > 6
+          ? volume24h.timeline
+              .slice(0, -6)
+              .reduce((sum, t) => sum + t.value, 0) /
+            (volume24h.timeline.length - 6)
+          : 0;
 
-      const volumeIncrease = baselineVolume > 0 ? recentVolume / baselineVolume : 0;
+      const volumeIncrease =
+        baselineVolume > 0 ? recentVolume / baselineVolume : 0;
       const isBreaking = volumeIncrease >= threshold;
 
       alerts.push({
@@ -437,7 +479,11 @@ class GdeltConnector {
       this.getToneTimeline("Federal Reserve interest rate", "24hours"),
     ]);
 
-    const avgTone = (inflation.averageTone + recession.averageTone + interestRates.averageTone) / 3;
+    const avgTone =
+      (inflation.averageTone +
+        recession.averageTone +
+        interestRates.averageTone) /
+      3;
 
     let overall: "bullish" | "bearish" | "neutral" = "neutral";
     if (avgTone > 2) {
@@ -449,10 +495,12 @@ class GdeltConnector {
     return { inflation, recession, interestRates, overall };
   }
 
-  async getCryptoSentiment(cryptoName: string): Promise<GdeltSentimentAnalysis> {
+  async getCryptoSentiment(
+    cryptoName: string
+  ): Promise<GdeltSentimentAnalysis> {
     const cryptoNameMap: Record<string, string> = {
       BTC: "Bitcoin",
-      ETH: "Ethereum", 
+      ETH: "Ethereum",
       SOL: "Solana",
       XRP: "Ripple",
       DOGE: "Dogecoin",
@@ -464,10 +512,10 @@ class GdeltConnector {
       LTC: "Litecoin",
       SHIB: "Shiba",
     };
-    
+
     const fullName = cryptoNameMap[cryptoName.toUpperCase()] || cryptoName;
     const query = `${fullName} cryptocurrency`;
-    
+
     const l1CacheKey = `crypto_sentiment_${cryptoName}`;
     const cached = this.sentimentCache.get(l1CacheKey);
     if (cached?.isFresh) {
@@ -480,13 +528,16 @@ class GdeltConnector {
       this.getToneTimeline(query, "24hours"),
     ]);
 
-    const recentVolume = volume.timeline.length > 0
-      ? volume.timeline.slice(-3).reduce((sum, t) => sum + t.value, 0) / 3
-      : 0;
+    const recentVolume =
+      volume.timeline.length > 0
+        ? volume.timeline.slice(-3).reduce((sum, t) => sum + t.value, 0) / 3
+        : 0;
 
-    const baselineVolume = volume.timeline.length > 0
-      ? volume.timeline.reduce((sum, t) => sum + t.value, 0) / volume.timeline.length
-      : 0;
+    const baselineVolume =
+      volume.timeline.length > 0
+        ? volume.timeline.reduce((sum, t) => sum + t.value, 0) /
+          volume.timeline.length
+        : 0;
 
     let sentiment: "bullish" | "bearish" | "neutral" = "neutral";
     if (tone.averageTone > 2) {
@@ -512,7 +563,11 @@ class GdeltConnector {
     return result;
   }
 
-  getConnectionStatus(): { connected: boolean; cacheSize: number; lastRequest: Date | null } {
+  getConnectionStatus(): {
+    connected: boolean;
+    cacheSize: number;
+    lastRequest: Date | null;
+  } {
     return {
       connected: true,
       cacheSize:

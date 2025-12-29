@@ -27,7 +27,7 @@ router.get("/markets", async (req: Request, res: Response) => {
 router.get("/prices", async (req: Request, res: Response) => {
   try {
     const ids = (req.query.ids as string) || "bitcoin,ethereum,solana";
-    const coinIds = ids.split(",").map(id => id.trim());
+    const coinIds = ids.split(",").map((id) => id.trim());
     const prices = await coingecko.getSimplePrice(coinIds);
     res.json(prices);
   } catch (error) {

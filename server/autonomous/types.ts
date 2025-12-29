@@ -20,37 +20,43 @@ import type { AIDecision } from "../ai/decision-engine";
  * Default hard stop loss percentage for risk management.
  * Loaded from tradingConfig.riskManagement.defaultHardStopLossPercent
  */
-export const DEFAULT_HARD_STOP_LOSS_PERCENT = tradingConfig.riskManagement.defaultHardStopLossPercent;
+export const DEFAULT_HARD_STOP_LOSS_PERCENT =
+  tradingConfig.riskManagement.defaultHardStopLossPercent;
 
 /**
  * Default take profit percentage for risk management.
  * Loaded from tradingConfig.riskManagement.defaultTakeProfitPercent
  */
-export const DEFAULT_TAKE_PROFIT_PERCENT = tradingConfig.riskManagement.defaultTakeProfitPercent;
+export const DEFAULT_TAKE_PROFIT_PERCENT =
+  tradingConfig.riskManagement.defaultTakeProfitPercent;
 
 /**
  * Maximum number of stock symbols to analyze per trading cycle.
  * Limits computational load and API rate usage.
  */
-export const MAX_STOCK_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxStockSymbolsPerCycle;
+export const MAX_STOCK_SYMBOLS_PER_CYCLE =
+  tradingConfig.universe.maxStockSymbolsPerCycle;
 
 /**
  * Maximum number of crypto symbols to analyze per trading cycle.
  * Limits computational load and API rate usage.
  */
-export const MAX_CRYPTO_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxCryptoSymbolsPerCycle;
+export const MAX_CRYPTO_SYMBOLS_PER_CYCLE =
+  tradingConfig.universe.maxCryptoSymbolsPerCycle;
 
 /**
  * Number of symbols to request in each Alpaca snapshot API call.
  * Used for batching symbol requests to avoid rate limits.
  */
-export const ALPACA_SNAPSHOT_CHUNK_SIZE = tradingConfig.universe.alpacaSnapshotChunkSize;
+export const ALPACA_SNAPSHOT_CHUNK_SIZE =
+  tradingConfig.universe.alpacaSnapshotChunkSize;
 
 /**
  * Minimum AI confidence score (0-1) required for a symbol to be included in the trading universe.
  * Higher values increase selectivity but may reduce opportunities.
  */
-export const MIN_CONFIDENCE_FOR_UNIVERSE = tradingConfig.universe.minConfidenceForUniverse;
+export const MIN_CONFIDENCE_FOR_UNIVERSE =
+  tradingConfig.universe.minConfidenceForUniverse;
 
 // ============================================================================
 // INTERFACES
@@ -315,10 +321,12 @@ export const DEFAULT_CONFIG: OrchestratorConfig = {
  * @type {RiskLimits}
  */
 export const DEFAULT_RISK_LIMITS: RiskLimits = {
-  maxPositionSizePercent: tradingConfig.riskManagement.defaultMaxPositionSizePercent,
-  maxTotalExposurePercent: tradingConfig.riskManagement.defaultMaxExposurePercent,
-  maxPositionsCount: 100,              // AGGRESSIVE: Increased from 10 to enterprise-level 100 positions
-  dailyLossLimitPercent: 5,            // Keep same for safety
+  maxPositionSizePercent:
+    tradingConfig.riskManagement.defaultMaxPositionSizePercent,
+  maxTotalExposurePercent:
+    tradingConfig.riskManagement.defaultMaxExposurePercent,
+  maxPositionsCount: 100, // AGGRESSIVE: Increased from 10 to enterprise-level 100 positions
+  dailyLossLimitPercent: 5, // Keep same for safety
   killSwitchActive: false,
 };
 

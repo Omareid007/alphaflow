@@ -19,7 +19,10 @@ export default function FundamentalsPage() {
       await refetch();
       toast({ title: "All factors refreshed successfully" });
     } catch (error) {
-      toast({ title: "Failed to refresh fundamentals", variant: "destructive" });
+      toast({
+        title: "Failed to refresh fundamentals",
+        variant: "destructive",
+      });
     }
   };
 
@@ -44,11 +47,20 @@ export default function FundamentalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Fundamentals</h1>
-          <p className="mt-1 text-muted-foreground">Factor catalog and data health ({factors.length} factors)</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Fundamentals
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Factor catalog and data health ({factors.length} factors)
+          </p>
         </div>
-        <Button onClick={handleRefreshAll} disabled={refreshFundamentals.isPending}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${refreshFundamentals.isPending ? 'animate-spin' : ''}`} />
+        <Button
+          onClick={handleRefreshAll}
+          disabled={refreshFundamentals.isPending}
+        >
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${refreshFundamentals.isPending ? "animate-spin" : ""}`}
+          />
           Refresh All
         </Button>
       </div>
@@ -63,23 +75,40 @@ export default function FundamentalsPage() {
         <CardContent>
           {factors.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-muted-foreground">No fundamental factors found.</p>
+              <p className="text-muted-foreground">
+                No fundamental factors found.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {factors.map(factor => (
-                <div key={factor.id} className="flex items-center justify-between rounded-lg border border-border p-4">
+              {factors.map((factor) => (
+                <div
+                  key={factor.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-4"
+                >
                   <div className="flex-1">
                     <p className="font-medium">{factor.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {factor.source} • {factor.cadence} • Updated {new Date(factor.lastUpdated).toLocaleString()}
+                      {factor.source} • {factor.cadence} • Updated{" "}
+                      {new Date(factor.lastUpdated).toLocaleString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={factor.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>
+                    <Badge
+                      variant="outline"
+                      className={
+                        factor.status === "healthy"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
+                      }
+                    >
                       {factor.status}
                     </Badge>
-                    <Button variant="outline" size="sm" onClick={() => handleRefreshFactor(factor.id)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRefreshFactor(factor.id)}
+                    >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
                   </div>

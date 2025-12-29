@@ -62,7 +62,12 @@ import { candidatesService } from "../universe/candidatesService";
 import { isCryptoSymbol, normalizeCryptoSymbol } from "./crypto-utils";
 import { safeParseFloat } from "../utils/numeric";
 import { toDecimal } from "../utils/money";
-import type { OrchestratorState, RiskLimits, PositionWithRules, ExecutionResult } from "./types";
+import type {
+  OrchestratorState,
+  RiskLimits,
+  PositionWithRules,
+  ExecutionResult,
+} from "./types";
 import type { AIDecision } from "../ai/decision-engine";
 
 // ============================================================================
@@ -92,7 +97,7 @@ export interface OrchestratorReference {
 const ORDER_COOLDOWN_MS = 300000; // 5 minutes
 
 // Drift rebalancing thresholds
-const REBALANCE_THRESHOLD_PERCENT = 2;  // +-2% drift triggers rebalancing
+const REBALANCE_THRESHOLD_PERCENT = 2; // +-2% drift triggers rebalancing
 const BUY_THE_DIP_THRESHOLD_PERCENT = 3; // -3% drift triggers buy-the-dip
 const MIN_CASH_RESERVE_PERCENT = 10;
 
@@ -101,7 +106,7 @@ const MIN_BUY_VALUE = 50;
 const MAX_BUY_PERCENT_OF_PORTFOLIO = 0.02; // 2% max per trade
 
 // Pyramid-up thresholds
-const PYRAMID_MIN_PROFIT_PERCENT = 5;  // Start pyramiding at 5% profit
+const PYRAMID_MIN_PROFIT_PERCENT = 5; // Start pyramiding at 5% profit
 const PYRAMID_MAX_PROFIT_PERCENT = 20; // Stop pyramiding above 20% (take profit instead)
 const PYRAMID_POSITION_MULTIPLIER = 0.5; // 50% of original position
 const PYRAMID_MAX_PORTFOLIO_PERCENT = 0.05; // Max 5% of portfolio per pyramid
@@ -200,16 +205,22 @@ export class RebalancingManager {
       const availableCash = safeParseFloat(account.cash);
 
       if (portfolioValue <= 0) {
-        log.warn("RebalancingManager", "Cannot rebalance: invalid portfolio value");
+        log.warn(
+          "RebalancingManager",
+          "Cannot rebalance: invalid portfolio value"
+        );
         return;
       }
 
       const targetAllocationPercent = this.riskLimits.maxPositionSizePercent;
 
-      log.debug("RebalancingManager", `Account status: cash=${availableCash.toFixed(2)}, buyingPower=${buyingPower.toFixed(2)}, portfolioValue=${portfolioValue.toFixed(2)}`);
+      log.debug(
+        "RebalancingManager",
+        `Account status: cash=${availableCash.toFixed(2)}, buyingPower=${buyingPower.toFixed(2)}, portfolioValue=${portfolioValue.toFixed(2)}`
+      );
 
       const approvedSymbols = await candidatesService.getApprovedSymbols();
-      const approvedSet = new Set(approvedSymbols.map(s => s.toUpperCase()));
+      const approvedSet = new Set(approvedSymbols.map((s) => s.toUpperCase()));
 
       // Execute drift rebalancing and buy-the-dip
       await this.executeDriftRebalancing(
@@ -221,14 +232,11 @@ export class RebalancingManager {
       );
 
       // Execute pyramid-up strategy for winning positions
-      await this.executePyramidUp(
-        portfolioValue,
-        availableCash,
-        approvedSet
-      );
-
+      await this.executePyramidUp(portfolioValue, availableCash, approvedSet);
     } catch (error) {
-      log.error("RebalancingManager", "Rebalancing error", { error: String(error) });
+      log.error("RebalancingManager", "Rebalancing error", {
+        error: String(error),
+      });
       this.orchestrator.state.errors.push(`Rebalancing failed: ${error}`);
     }
   }
@@ -253,13 +261,19 @@ export class RebalancingManager {
       const drift = currentAllocationPercent - targetAllocationPercent;
 
       if (Math.abs(drift) > REBALANCE_THRESHOLD_PERCENT) {
-        log.info("RebalancingManager", `Position ${symbol} drifted by ${drift.toFixed(2)}%`);
+        log.info(
+          "RebalancingManager",
+          `Position ${symbol} drifted by ${drift.toFixed(2)}%`
+        );
 
         // Check for cooldown to prevent infinite retry loops
         const cooldownUntil = this.orderCooldowns.get(symbol);
         if (cooldownUntil && Date.now() < cooldownUntil) {
           const remainingMs = cooldownUntil - Date.now();
-          log.info("RebalancingManager", `Skipping ${symbol}: on cooldown for ${Math.round(remainingMs / 1000)}s after failed order`);
+          log.info(
+            "RebalancingManager",
+            `Skipping ${symbol}: on cooldown for ${Math.round(remainingMs / 1000)}s after failed order`
+          );
           continue;
         }
 
@@ -298,22 +312,32 @@ export class RebalancingManager {
     drift: number
   ): Promise<void> {
     const positionValue = position.currentPrice * position.quantity;
-    const excessValue = positionValue - (portfolioValue * targetAllocationPercent / 100);
+    const excessValue =
+      positionValue - (portfolioValue * targetAllocationPercent) / 100;
     let sharesToSell = Math.floor(excessValue / position.currentPrice);
 
     const availableShares = Math.floor(position.availableQuantity);
     if (availableShares <= 0) {
-      log.warn("RebalancingManager", `Skipping rebalance for ${symbol}: no available shares (${position.availableQuantity} available, ${position.quantity - position.availableQuantity} held for orders)`);
+      log.warn(
+        "RebalancingManager",
+        `Skipping rebalance for ${symbol}: no available shares (${position.availableQuantity} available, ${position.quantity - position.availableQuantity} held for orders)`
+      );
       return;
     }
 
     if (sharesToSell > availableShares) {
-      log.info("RebalancingManager", `Limiting rebalance for ${symbol}: requested ${sharesToSell} but only ${availableShares} available`);
+      log.info(
+        "RebalancingManager",
+        `Limiting rebalance for ${symbol}: requested ${sharesToSell} but only ${availableShares} available`
+      );
       sharesToSell = availableShares;
     }
 
     if (sharesToSell > 0 && sharesToSell < position.quantity) {
-      log.info("RebalancingManager", `Rebalancing: Selling ${sharesToSell} shares of ${symbol} (${availableShares} available)`);
+      log.info(
+        "RebalancingManager",
+        `Rebalancing: Selling ${sharesToSell} shares of ${symbol} (${availableShares} available)`
+      );
       try {
         const result = await this.orchestrator.closePosition(
           symbol,
@@ -329,14 +353,20 @@ export class RebalancingManager {
 
         // Set cooldown on failure to prevent infinite retry loops
         if (!result.success) {
-          log.warn("RebalancingManager", `Setting ${ORDER_COOLDOWN_MS / 1000}s cooldown for ${symbol} after failed order: ${result.reason}`);
+          log.warn(
+            "RebalancingManager",
+            `Setting ${ORDER_COOLDOWN_MS / 1000}s cooldown for ${symbol} after failed order: ${result.reason}`
+          );
           this.orderCooldowns.set(symbol, Date.now() + ORDER_COOLDOWN_MS);
         } else {
           // Clear cooldown on success
           this.orderCooldowns.delete(symbol);
         }
       } catch (error: any) {
-        log.error("RebalancingManager", `Rebalance sell failed for ${symbol}: ${error.message}`);
+        log.error(
+          "RebalancingManager",
+          `Rebalance sell failed for ${symbol}: ${error.message}`
+        );
         this.orderCooldowns.set(symbol, Date.now() + ORDER_COOLDOWN_MS);
       }
     }
@@ -360,7 +390,10 @@ export class RebalancingManager {
     approvedSet: Set<string>
   ): Promise<void> {
     if (!approvedSet.has(symbol.toUpperCase())) {
-      log.info("RebalancingManager", `Skipping buy-the-dip for ${symbol}: not in approved candidates`);
+      log.info(
+        "RebalancingManager",
+        `Skipping buy-the-dip for ${symbol}: not in approved candidates`
+      );
       return;
     }
 
@@ -370,12 +403,16 @@ export class RebalancingManager {
     const availableForBuying = Math.max(0, buyingPower - buyingPowerReserve);
 
     if (availableForBuying <= 0 && buyingPower <= 0) {
-      log.info("RebalancingManager", `Skipping buy-the-dip for ${symbol}: no buying power (${buyingPower.toFixed(2)} available)`);
+      log.info(
+        "RebalancingManager",
+        `Skipping buy-the-dip for ${symbol}: no buying power (${buyingPower.toFixed(2)} available)`
+      );
       return;
     }
 
     const positionValue = position.currentPrice * position.quantity;
-    const deficitValue = (portfolioValue * targetAllocationPercent / 100) - positionValue;
+    const deficitValue =
+      (portfolioValue * targetAllocationPercent) / 100 - positionValue;
     // Use buyingPower for margin accounts, cap at 2% of portfolio per trade
     const buyValue = Math.min(
       deficitValue,
@@ -384,7 +421,10 @@ export class RebalancingManager {
     );
 
     if (buyValue >= MIN_BUY_VALUE && position.unrealizedPnlPercent <= 0) {
-      log.info("RebalancingManager", `Buy-the-dip: Adding $${buyValue.toFixed(2)} to underweight ${symbol} (at ${position.unrealizedPnlPercent.toFixed(1)}% loss)`);
+      log.info(
+        "RebalancingManager",
+        `Buy-the-dip: Adding $${buyValue.toFixed(2)} to underweight ${symbol} (at ${position.unrealizedPnlPercent.toFixed(1)}% loss)`
+      );
 
       const isCrypto = isCryptoSymbol(symbol);
       const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
@@ -392,7 +432,10 @@ export class RebalancingManager {
       try {
         const preCheck = await preTradeGuard(symbol, "buy", buyValue, isCrypto);
         if (!preCheck.canTrade) {
-          log.warn("RebalancingManager", `Buy-the-dip blocked for ${symbol}: ${preCheck.reason}`);
+          log.warn(
+            "RebalancingManager",
+            `Buy-the-dip blocked for ${symbol}: ${preCheck.reason}`
+          );
           return;
         }
 
@@ -404,16 +447,23 @@ export class RebalancingManager {
             notional: buyValue.toFixed(2),
             time_in_force: "day",
             extended_hours: preCheck.useExtendedHours,
-            ...(preCheck.limitPrice && { limit_price: preCheck.limitPrice.toString() }),
+            ...(preCheck.limitPrice && {
+              limit_price: preCheck.limitPrice.toString(),
+            }),
           },
           traceId: this.currentTraceId,
           symbol,
           side: "buy",
         });
 
-        log.trade(`Buy-the-dip: ${symbol} $${buyValue.toFixed(2)}`, { symbol, value: buyValue });
+        log.trade(`Buy-the-dip: ${symbol} $${buyValue.toFixed(2)}`, {
+          symbol,
+          value: buyValue,
+        });
       } catch (error) {
-        log.error("RebalancingManager", `Buy-the-dip failed for ${symbol}`, { error: String(error) });
+        log.error("RebalancingManager", `Buy-the-dip failed for ${symbol}`, {
+          error: String(error),
+        });
       }
     }
   }
@@ -436,14 +486,18 @@ export class RebalancingManager {
 
     for (const [symbol, position] of this.activePositions.entries()) {
       // Skip if already pyramided this cycle or not in approved list
-      if (pyramidedThisCycle.has(symbol) || !approvedSet.has(symbol.toUpperCase())) {
+      if (
+        pyramidedThisCycle.has(symbol) ||
+        !approvedSet.has(symbol.toUpperCase())
+      ) {
         continue;
       }
 
       // Check if position is in the profitable sweet spot for pyramid-up
-      if (position.unrealizedPnlPercent >= PYRAMID_MIN_PROFIT_PERCENT &&
-          position.unrealizedPnlPercent <= PYRAMID_MAX_PROFIT_PERCENT) {
-
+      if (
+        position.unrealizedPnlPercent >= PYRAMID_MIN_PROFIT_PERCENT &&
+        position.unrealizedPnlPercent <= PYRAMID_MAX_PROFIT_PERCENT
+      ) {
         const cashReserve = portfolioValue * (MIN_CASH_RESERVE_PERCENT / 100);
         const availableForBuying = Math.max(0, availableCash - cashReserve);
 
@@ -452,23 +506,38 @@ export class RebalancingManager {
         }
 
         // Calculate 50% of original position value as pyramid amount
-        const originalPositionValue = toDecimal(position.quantity).times(position.entryPrice).toNumber();
+        const originalPositionValue = toDecimal(position.quantity)
+          .times(position.entryPrice)
+          .toNumber();
         const pyramidValue = Math.min(
-          originalPositionValue * PYRAMID_POSITION_MULTIPLIER,  // 50% of original position
+          originalPositionValue * PYRAMID_POSITION_MULTIPLIER, // 50% of original position
           availableForBuying,
-          portfolioValue * PYRAMID_MAX_PORTFOLIO_PERCENT  // Max 5% of portfolio per pyramid
+          portfolioValue * PYRAMID_MAX_PORTFOLIO_PERCENT // Max 5% of portfolio per pyramid
         );
 
         if (pyramidValue >= MIN_BUY_VALUE) {
-          log.info("RebalancingManager", `Pyramid-up: Adding $${pyramidValue.toFixed(2)} (50% of original) to winning ${symbol} (at +${position.unrealizedPnlPercent.toFixed(1)}%)`);
+          log.info(
+            "RebalancingManager",
+            `Pyramid-up: Adding $${pyramidValue.toFixed(2)} (50% of original) to winning ${symbol} (at +${position.unrealizedPnlPercent.toFixed(1)}%)`
+          );
 
           const isCrypto = isCryptoSymbol(symbol);
-          const brokerSymbol = isCrypto ? normalizeCryptoSymbol(symbol) : symbol;
+          const brokerSymbol = isCrypto
+            ? normalizeCryptoSymbol(symbol)
+            : symbol;
 
           try {
-            const preCheck = await preTradeGuard(symbol, "buy", pyramidValue, isCrypto);
+            const preCheck = await preTradeGuard(
+              symbol,
+              "buy",
+              pyramidValue,
+              isCrypto
+            );
             if (!preCheck.canTrade) {
-              log.warn("RebalancingManager", `Pyramid-up blocked for ${symbol}: ${preCheck.reason}`);
+              log.warn(
+                "RebalancingManager",
+                `Pyramid-up blocked for ${symbol}: ${preCheck.reason}`
+              );
               continue;
             }
 
@@ -480,7 +549,9 @@ export class RebalancingManager {
                 notional: pyramidValue.toFixed(2),
                 time_in_force: "day",
                 extended_hours: preCheck.useExtendedHours,
-                ...(preCheck.limitPrice && { limit_price: preCheck.limitPrice.toString() }),
+                ...(preCheck.limitPrice && {
+                  limit_price: preCheck.limitPrice.toString(),
+                }),
               },
               traceId: this.currentTraceId,
               symbol,
@@ -488,13 +559,18 @@ export class RebalancingManager {
             });
 
             pyramidedThisCycle.add(symbol);
-            log.trade(`Pyramid-up: ${symbol} $${pyramidValue.toFixed(2)} (+${position.unrealizedPnlPercent.toFixed(1)}%)`, {
-              symbol,
-              value: pyramidValue,
-              profitPercent: position.unrealizedPnlPercent,
-            });
+            log.trade(
+              `Pyramid-up: ${symbol} $${pyramidValue.toFixed(2)} (+${position.unrealizedPnlPercent.toFixed(1)}%)`,
+              {
+                symbol,
+                value: pyramidValue,
+                profitPercent: position.unrealizedPnlPercent,
+              }
+            );
           } catch (error) {
-            log.error("RebalancingManager", `Pyramid-up failed for ${symbol}`, { error: String(error) });
+            log.error("RebalancingManager", `Pyramid-up failed for ${symbol}`, {
+              error: String(error),
+            });
           }
         }
       }

@@ -2,7 +2,12 @@ import { db } from "../db";
 import { externalApiUsageCounters } from "@shared/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { log } from "../utils/logger";
-import { getProviderPolicy, getWindowBoundaries, getLimitForWindow, WindowType } from "./apiPolicy";
+import {
+  getProviderPolicy,
+  getWindowBoundaries,
+  getLimitForWindow,
+  WindowType,
+} from "./apiPolicy";
 
 export interface BudgetCheckResult {
   allowed: boolean;
@@ -27,16 +32,19 @@ export interface UsageStats {
   avgLatencyMs: number | null;
 }
 
-const inMemoryCounters: Map<string, { count: number; windowStart: number }> = new Map();
+const inMemoryCounters: Map<string, { count: number; windowStart: number }> =
+  new Map();
 
 function getCounterKey(provider: string, windowType: WindowType): string {
   const { start } = getWindowBoundaries(windowType);
   return `${provider}:${windowType}:${start.getTime()}`;
 }
 
-export async function checkBudget(provider: string): Promise<BudgetCheckResult> {
+export async function checkBudget(
+  provider: string
+): Promise<BudgetCheckResult> {
   const policy = getProviderPolicy(provider);
-  
+
   if (!policy.enabled) {
     return {
       allowed: false,
@@ -48,14 +56,14 @@ export async function checkBudget(provider: string): Promise<BudgetCheckResult> 
   }
 
   const windowTypes: WindowType[] = ["minute", "hour", "day", "week"];
-  
+
   for (const windowType of windowTypes) {
     const limit = getLimitForWindow(policy, windowType);
     if (limit === undefined) continue;
 
     const { start, end } = getWindowBoundaries(windowType);
     const counterKey = getCounterKey(provider, windowType);
-    
+
     let currentCount = 0;
     const cached = inMemoryCounters.get(counterKey);
     if (cached && cached.windowStart === start.getTime()) {
@@ -74,13 +82,19 @@ export async function checkBudget(provider: string): Promise<BudgetCheckResult> 
             )
           )
           .limit(1);
-        
+
         if (result.length > 0) {
           currentCount = result[0].requestCount;
-          inMemoryCounters.set(counterKey, { count: currentCount, windowStart: start.getTime() });
+          inMemoryCounters.set(counterKey, {
+            count: currentCount,
+            windowStart: start.getTime(),
+          });
         }
       } catch (error) {
-        log.warn("ApiBudget", `Failed to check DB budget for ${provider}, using in-memory only`);
+        log.warn(
+          "ApiBudget",
+          `Failed to check DB budget for ${provider}, using in-memory only`
+        );
       }
     }
 
@@ -117,9 +131,9 @@ export async function recordUsage(
 ): Promise<void> {
   const windowTypes: WindowType[] = ["minute", "hour", "day", "week"];
   const policy = getProviderPolicy(provider);
-  
+
   const isCacheHit = options.isCacheHit === true;
-  
+
   for (const windowType of windowTypes) {
     const limit = getLimitForWindow(policy, windowType);
     if (limit === undefined) continue;
@@ -132,7 +146,10 @@ export async function recordUsage(
       if (cached && cached.windowStart === start.getTime()) {
         cached.count++;
       } else {
-        inMemoryCounters.set(counterKey, { count: 1, windowStart: start.getTime() });
+        inMemoryCounters.set(counterKey, {
+          count: 1,
+          windowStart: start.getTime(),
+        });
       }
     }
 
@@ -152,19 +169,25 @@ export async function recordUsage(
 
       if (existing.length > 0) {
         const record = existing[0];
-        const newRequestCount = isCacheHit ? record.requestCount : record.requestCount + 1;
+        const newRequestCount = isCacheHit
+          ? record.requestCount
+          : record.requestCount + 1;
         const newTokenCount = (record.tokenCount || 0) + (options.tokens || 0);
         const newErrorCount = record.errorCount + (options.isError ? 1 : 0);
-        const newRateLimitHits = record.rateLimitHits + (options.isRateLimited ? 1 : 0);
+        const newRateLimitHits =
+          record.rateLimitHits + (options.isRateLimited ? 1 : 0);
         const newCacheHits = record.cacheHits + (isCacheHit ? 1 : 0);
-        const newCacheMisses = record.cacheMisses + (options.isCacheHit === false ? 1 : 0);
-        
+        const newCacheMisses =
+          record.cacheMisses + (options.isCacheHit === false ? 1 : 0);
+
         let newAvgLatency = record.avgLatencyMs;
         if (options.latencyMs !== undefined && !isCacheHit) {
           const prevAvg = parseFloat(record.avgLatencyMs || "0");
           const prevCount = record.requestCount - record.cacheHits;
           const newCount = prevCount + 1;
-          newAvgLatency = String(((prevAvg * prevCount) + options.latencyMs) / newCount);
+          newAvgLatency = String(
+            (prevAvg * prevCount + options.latencyMs) / newCount
+          );
         }
 
         await db
@@ -192,11 +215,17 @@ export async function recordUsage(
           rateLimitHits: options.isRateLimited ? 1 : 0,
           cacheHits: isCacheHit ? 1 : 0,
           cacheMisses: options.isCacheHit === false ? 1 : 0,
-          avgLatencyMs: (options.latencyMs !== undefined && !isCacheHit) ? String(options.latencyMs) : null,
+          avgLatencyMs:
+            options.latencyMs !== undefined && !isCacheHit
+              ? String(options.latencyMs)
+              : null,
         });
       }
     } catch (error) {
-      log.warn("ApiBudget", `Failed to record usage to DB for ${provider}: ${error}`);
+      log.warn(
+        "ApiBudget",
+        `Failed to record usage to DB for ${provider}: ${error}`
+      );
     }
   }
 }
@@ -204,10 +233,10 @@ export async function recordUsage(
 export async function getUsageStats(provider: string): Promise<UsageStats[]> {
   const windowTypes: WindowType[] = ["minute", "hour", "day", "week"];
   const stats: UsageStats[] = [];
-  
+
   for (const windowType of windowTypes) {
     const { start, end } = getWindowBoundaries(windowType);
-    
+
     try {
       const result = await db
         .select()
@@ -253,25 +282,40 @@ export async function getUsageStats(provider: string): Promise<UsageStats[]> {
         });
       }
     } catch (error) {
-      log.warn("ApiBudget", `Failed to get usage stats for ${provider}: ${error}`);
+      log.warn(
+        "ApiBudget",
+        `Failed to get usage stats for ${provider}: ${error}`
+      );
     }
   }
-  
+
   return stats;
 }
 
-export async function getAllUsageStats(): Promise<Record<string, UsageStats[]>> {
+export async function getAllUsageStats(): Promise<
+  Record<string, UsageStats[]>
+> {
   const providers = [
-    "alpaca", "finnhub", "coingecko", "coinmarketcap", "newsapi",
-    "polygon", "twelvedata", "valyu", "huggingface", "gdelt",
-    "openai", "groq", "together"
+    "alpaca",
+    "finnhub",
+    "coingecko",
+    "coinmarketcap",
+    "newsapi",
+    "polygon",
+    "twelvedata",
+    "valyu",
+    "huggingface",
+    "gdelt",
+    "openai",
+    "groq",
+    "together",
   ];
-  
+
   const allStats: Record<string, UsageStats[]> = {};
-  
+
   for (const provider of providers) {
     allStats[provider] = await getUsageStats(provider);
   }
-  
+
   return allStats;
 }

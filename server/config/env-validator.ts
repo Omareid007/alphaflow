@@ -9,19 +9,19 @@
 import { log } from "../utils/logger";
 
 const REQUIRED_ENV_VARS = [
-  'DATABASE_URL',
-  'ALPACA_API_KEY',
-  'ALPACA_SECRET_KEY',
+  "DATABASE_URL",
+  "ALPACA_API_KEY",
+  "ALPACA_SECRET_KEY",
 ] as const;
 
 const OPTIONAL_ENV_VARS = [
-  { key: 'FINNHUB_API_KEY', feature: 'Finnhub market data' },
-  { key: 'OPENAI_API_KEY', feature: 'OpenAI AI decisions' },
-  { key: 'NEWS_API_KEY', feature: 'News sentiment' },
-  { key: 'COINMARKETCAP_API_KEY', feature: 'CoinMarketCap data' },
-  { key: 'VALYU_API_KEY', feature: 'Fundamental data' },
-  { key: 'FRED_API_KEY', feature: 'Macro indicators' },
-  { key: 'HUGGINGFACE_API_KEY', feature: 'HuggingFace sentiment' },
+  { key: "FINNHUB_API_KEY", feature: "Finnhub market data" },
+  { key: "OPENAI_API_KEY", feature: "OpenAI AI decisions" },
+  { key: "NEWS_API_KEY", feature: "News sentiment" },
+  { key: "COINMARKETCAP_API_KEY", feature: "CoinMarketCap data" },
+  { key: "VALYU_API_KEY", feature: "Fundamental data" },
+  { key: "FRED_API_KEY", feature: "Macro indicators" },
+  { key: "HUGGINGFACE_API_KEY", feature: "HuggingFace sentiment" },
 ] as const;
 
 interface ValidationResult {
@@ -37,8 +37,8 @@ interface ValidationResult {
  * Supports various formats including cloud providers (Neon, Supabase, etc.)
  */
 function validateDatabaseUrl(url: string): string | null {
-  if (!url.startsWith('postgres://') && !url.startsWith('postgresql://')) {
-    return 'DATABASE_URL must start with postgres:// or postgresql://';
+  if (!url.startsWith("postgres://") && !url.startsWith("postgresql://")) {
+    return "DATABASE_URL must start with postgres:// or postgresql://";
   }
 
   // More flexible pattern that accepts:
@@ -48,7 +48,7 @@ function validateDatabaseUrl(url: string): string | null {
   // Format: postgres://[user]:[password]@[host]/[database][?params]
   const pattern = /^postgres(ql)?:\/\/[^:]+:[^@]+@[^\/]+\/.+$/;
   if (!pattern.test(url)) {
-    return 'DATABASE_URL appears to be malformed. Expected format: postgres://user:password@host/database';
+    return "DATABASE_URL appears to be malformed. Expected format: postgres://user:password@host/database";
   }
 
   return null;
@@ -58,7 +58,11 @@ function validateDatabaseUrl(url: string): string | null {
  * Validates API key minimum length
  * Most API keys are at least 16 characters
  */
-function validateApiKeyLength(key: string, name: string, minLength = 16): string | null {
+function validateApiKeyLength(
+  key: string,
+  name: string,
+  minLength = 16
+): string | null {
   if (key.length < minLength) {
     return `${name} appears too short (minimum ${minLength} characters expected)`;
   }
@@ -70,7 +74,7 @@ function validateApiKeyLength(key: string, name: string, minLength = 16): string
  * Must be either 'paper' or 'live'
  */
 function validateTradingMode(mode: string): string | null {
-  if (mode !== 'paper' && mode !== 'live') {
+  if (mode !== "paper" && mode !== "live") {
     return "ALPACA_TRADING_MODE must be either 'paper' or 'live'";
   }
   return null;
@@ -95,14 +99,14 @@ export function validateEnvironment(): ValidationResult {
     }
 
     // Format validation for specific variables
-    if (varName === 'DATABASE_URL') {
+    if (varName === "DATABASE_URL") {
       const error = validateDatabaseUrl(value);
       if (error) {
         errors.push(error);
       }
     }
 
-    if (varName === 'ALPACA_API_KEY' || varName === 'ALPACA_SECRET_KEY') {
+    if (varName === "ALPACA_API_KEY" || varName === "ALPACA_SECRET_KEY") {
       const error = validateApiKeyLength(value, varName);
       if (error) {
         warnings.push(error);
@@ -116,7 +120,9 @@ export function validateEnvironment(): ValidationResult {
 
     if (!value) {
       features.push({ name: feature, enabled: false });
-      warnings.push(`Optional environment variable ${key} is not set - ${feature} will be disabled`);
+      warnings.push(
+        `Optional environment variable ${key} is not set - ${feature} will be disabled`
+      );
     } else {
       features.push({ name: feature, enabled: true });
 
@@ -144,7 +150,9 @@ export function validateEnvironment(): ValidationResult {
   if (port) {
     const portNum = parseInt(port, 10);
     if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      errors.push(`PORT must be a valid number between 1 and 65535 (got: ${port})`);
+      errors.push(
+        `PORT must be a valid number between 1 and 65535 (got: ${port})`
+      );
     }
   }
 
@@ -167,35 +175,47 @@ export function validateAndReportEnvironment(): void {
   const result = validateEnvironment();
 
   // Report enabled/disabled features
-  const enabledFeatures = result.features.filter(f => f.enabled);
-  const disabledFeatures = result.features.filter(f => !f.enabled);
+  const enabledFeatures = result.features.filter((f) => f.enabled);
+  const disabledFeatures = result.features.filter((f) => !f.enabled);
 
   log.info("EnvValidator", "Feature status", {
     enabledCount: enabledFeatures.length,
     disabledCount: disabledFeatures.length,
-    enabled: enabledFeatures.map(f => f.name),
-    disabled: disabledFeatures.map(f => f.name),
+    enabled: enabledFeatures.map((f) => f.name),
+    disabled: disabledFeatures.map((f) => f.name),
   });
 
   // Report warnings
   if (result.warnings.length > 0) {
-    result.warnings.forEach(warning => {
+    result.warnings.forEach((warning) => {
       log.warn("EnvValidator", warning);
     });
   }
 
   // Report errors and fail if any
   if (result.errors.length > 0) {
-    log.error("EnvValidator", "Validation failed - missing or invalid required environment variables", {
-      errors: result.errors,
-    });
-    result.errors.forEach(error => {
+    log.error(
+      "EnvValidator",
+      "Validation failed - missing or invalid required environment variables",
+      {
+        errors: result.errors,
+      }
+    );
+    result.errors.forEach((error) => {
       log.error("EnvValidator", error);
     });
-    log.error("EnvValidator", "Please set all required environment variables and restart the server. Server startup aborted.");
+    log.error(
+      "EnvValidator",
+      "Please set all required environment variables and restart the server. Server startup aborted."
+    );
 
-    throw new Error('Environment validation failed - missing or invalid required variables');
+    throw new Error(
+      "Environment validation failed - missing or invalid required variables"
+    );
   }
 
-  log.info("EnvValidator", "Environment validation passed - all required variables are set and valid");
+  log.info(
+    "EnvValidator",
+    "Environment validation passed - all required variables are set and valid"
+  );
 }

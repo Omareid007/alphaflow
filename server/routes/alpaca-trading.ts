@@ -17,7 +17,9 @@ router.get("/status", async (req: Request, res: Response) => {
     const connected = await alpacaTradingEngine.isAlpacaConnected();
     res.json({ ...status, alpacaConnected: connected });
   } catch (error) {
-    log.error("AlpacaTradingAPI", "Failed to get Alpaca trading status", { error });
+    log.error("AlpacaTradingAPI", "Failed to get Alpaca trading status", {
+      error,
+    });
     res.status(500).json({ error: "Failed to get Alpaca trading status" });
   }
 });
@@ -25,10 +27,13 @@ router.get("/status", async (req: Request, res: Response) => {
 // POST /api/alpaca-trading/execute - Execute a trade via Alpaca trading engine
 router.post("/execute", async (req: Request, res: Response) => {
   try {
-    const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } = req.body;
+    const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } =
+      req.body;
 
     if (!symbol || !side || !quantity) {
-      return res.status(400).json({ error: "Symbol, side, and quantity are required" });
+      return res
+        .status(400)
+        .json({ error: "Symbol, side, and quantity are required" });
     }
 
     if (!["buy", "sell"].includes(side)) {
@@ -65,9 +70,13 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
     const { strategyId } = req.body;
 
     // SECURITY: Mark as authorized since this is an admin-initiated action
-    const result = await alpacaTradingEngine.closeAlpacaPosition(symbol, strategyId, {
-      authorizedByOrchestrator: true,
-    });
+    const result = await alpacaTradingEngine.closeAlpacaPosition(
+      symbol,
+      strategyId,
+      {
+        authorizedByOrchestrator: true,
+      }
+    );
 
     if (!result.success) {
       return res.status(400).json({ error: result.error });
@@ -106,7 +115,10 @@ router.post("/analyze-execute", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Symbol is required" });
     }
 
-    const result = await alpacaTradingEngine.analyzeAndExecute(symbol, strategyId);
+    const result = await alpacaTradingEngine.analyzeAndExecute(
+      symbol,
+      strategyId
+    );
     res.json(result);
   } catch (error) {
     log.error("AlpacaTradingAPI", "Analyze and execute error", { error });

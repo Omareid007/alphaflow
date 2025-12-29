@@ -1,5 +1,5 @@
-import CircuitBreaker from 'opossum';
-import { log } from '../utils/logger';
+import CircuitBreaker from "opossum";
+import { log } from "../utils/logger";
 
 interface BreakerOptions {
   timeout?: number;
@@ -17,7 +17,7 @@ const DEFAULT_OPTIONS: BreakerOptions = {
 
 const breakers: Map<string, CircuitBreaker<any[], any>> = new Map();
 
-export type BreakerState = 'open' | 'closed' | 'halfOpen';
+export type BreakerState = "open" | "closed" | "halfOpen";
 
 export interface BreakerStats {
   name: string;
@@ -40,7 +40,7 @@ export function getBreaker<T extends any[], R>(
   fallback?: (...args: T) => R | Promise<R>
 ): CircuitBreaker<T, R> {
   const key = name;
-  
+
   if (breakers.has(key)) {
     return breakers.get(key)! as CircuitBreaker<T, R>;
   }
@@ -55,24 +55,24 @@ export function getBreaker<T extends any[], R>(
     breaker.fallback(fallback);
   }
 
-  breaker.on('open', () => {
-    log.warn('CircuitBreaker', `[${name}] OPEN - failing fast`);
+  breaker.on("open", () => {
+    log.warn("CircuitBreaker", `[${name}] OPEN - failing fast`);
   });
 
-  breaker.on('halfOpen', () => {
-    log.info('CircuitBreaker', `[${name}] HALF-OPEN - testing`);
+  breaker.on("halfOpen", () => {
+    log.info("CircuitBreaker", `[${name}] HALF-OPEN - testing`);
   });
 
-  breaker.on('close', () => {
-    log.info('CircuitBreaker', `[${name}] CLOSED - recovered`);
+  breaker.on("close", () => {
+    log.info("CircuitBreaker", `[${name}] CLOSED - recovered`);
   });
 
-  breaker.on('fallback', () => {
-    log.debug('CircuitBreaker', `[${name}] Using fallback`);
+  breaker.on("fallback", () => {
+    log.debug("CircuitBreaker", `[${name}] Using fallback`);
   });
 
-  breaker.on('timeout', () => {
-    log.warn('CircuitBreaker', `[${name}] Request timed out`);
+  breaker.on("timeout", () => {
+    log.warn("CircuitBreaker", `[${name}] Request timed out`);
   });
 
   breakers.set(key, breaker);
@@ -82,16 +82,16 @@ export function getBreaker<T extends any[], R>(
 export function getBreakerStats(name: string): BreakerStats | null {
   const breaker = breakers.get(name);
   if (!breaker) return null;
-  
+
   const stats = breaker.stats;
-  
-  let state: BreakerState = 'closed';
+
+  let state: BreakerState = "closed";
   if (breaker.opened) {
-    state = 'open';
+    state = "open";
   } else if (breaker.halfOpen) {
-    state = 'halfOpen';
+    state = "halfOpen";
   }
-  
+
   return {
     name,
     state,

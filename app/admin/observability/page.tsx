@@ -24,9 +24,21 @@ import { useAuth } from "@/components/providers/auth-provider";
 
 export default function ObservabilityPage() {
   const { isAuthenticated } = useAuth();
-  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useSystemMetrics(isAuthenticated);
-  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useSystemHealth(isAuthenticated);
-  const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useSystemLogs(20, 0, isAuthenticated);
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    refetch: refetchMetrics,
+  } = useSystemMetrics(isAuthenticated);
+  const {
+    data: health,
+    isLoading: healthLoading,
+    refetch: refetchHealth,
+  } = useSystemHealth(isAuthenticated);
+  const {
+    data: logs = [],
+    isLoading: logsLoading,
+    refetch: refetchLogs,
+  } = useSystemLogs(20, 0, isAuthenticated);
 
   const isLoading = metricsLoading || healthLoading || logsLoading;
 
@@ -52,11 +64,26 @@ export default function ObservabilityPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "healthy":
-        return <Badge variant="outline" className="bg-success/10 text-success">Healthy</Badge>;
+        return (
+          <Badge variant="outline" className="bg-success/10 text-success">
+            Healthy
+          </Badge>
+        );
       case "degraded":
-        return <Badge variant="outline" className="bg-warning/10 text-warning">Degraded</Badge>;
+        return (
+          <Badge variant="outline" className="bg-warning/10 text-warning">
+            Degraded
+          </Badge>
+        );
       case "unhealthy":
-        return <Badge variant="outline" className="bg-destructive/10 text-destructive">Unhealthy</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="bg-destructive/10 text-destructive"
+          >
+            Unhealthy
+          </Badge>
+        );
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -74,8 +101,12 @@ export default function ObservabilityPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Observability</h1>
-          <p className="mt-1 text-muted-foreground">System logs, metrics, and alerts</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Observability
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            System logs, metrics, and alerts
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -182,7 +213,9 @@ export default function ObservabilityPage() {
                   <span className="text-sm font-medium">{service.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{service.message}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {service.message}
+                  </span>
                   {getStatusBadge(service.status)}
                 </div>
               </div>
@@ -251,11 +284,15 @@ export default function ObservabilityPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg bg-secondary/50 p-4">
               <p className="text-sm text-muted-foreground">Logs (Last 24h)</p>
-              <p className="text-2xl font-semibold">{metrics?.activity.logsLast24h || 0}</p>
+              <p className="text-2xl font-semibold">
+                {metrics?.activity.logsLast24h || 0}
+              </p>
             </div>
             <div className="rounded-lg bg-secondary/50 p-4">
               <p className="text-sm text-muted-foreground">Total Recent Logs</p>
-              <p className="text-2xl font-semibold">{metrics?.activity.totalRecentLogs || 0}</p>
+              <p className="text-2xl font-semibold">
+                {metrics?.activity.totalRecentLogs || 0}
+              </p>
             </div>
             <div className="rounded-lg bg-secondary/50 p-4">
               <p className="text-sm text-muted-foreground">Last Updated</p>

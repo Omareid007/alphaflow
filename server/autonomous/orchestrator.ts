@@ -21,7 +21,10 @@ import { toDecimal } from "../utils/money";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { log } from "../utils/logger";
 import { cancelExpiredOrders } from "../trading/order-execution-flow";
-import { recordDecisionFeatures, runCalibrationAnalysis } from "../ai/learning-service";
+import {
+  recordDecisionFeatures,
+  runCalibrationAnalysis,
+} from "../ai/learning-service";
 import { candidatesService } from "../universe/candidatesService";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { tradingSessionManager } from "../services/trading-session-manager";
@@ -46,7 +49,10 @@ import { syncPositionsFromBroker } from "./position-sync";
 // Managers from extracted modules
 import { LifecycleManager, OrchestratorInterface } from "./lifecycle-manager";
 import { PositionManager } from "./position-manager";
-import { RebalancingManager, OrchestratorReference } from "./rebalancing-manager";
+import {
+  RebalancingManager,
+  OrchestratorReference,
+} from "./rebalancing-manager";
 
 // Re-export types for backward compatibility
 export type {
@@ -102,7 +108,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
     // Initialize managers with references to this orchestrator
     this.lifecycleManager = new LifecycleManager(this);
-    this.positionManager = new PositionManager(this.state, this.riskLimits, this.userId);
+    this.positionManager = new PositionManager(
+      this.state,
+      this.riskLimits,
+      this.userId
+    );
 
     // Create orchestrator reference for rebalancing manager
     const orchestratorRef: OrchestratorReference = {
@@ -110,9 +120,17 @@ class AutonomousOrchestrator implements OrchestratorInterface {
       currentTraceId: this.currentTraceId,
       syncPositionsFromBroker: () => this.syncPositionsFromBroker(),
       closePosition: (symbol, decision, position, partialPercent) =>
-        this.positionManager.closePosition(symbol, decision, position, partialPercent),
+        this.positionManager.closePosition(
+          symbol,
+          decision,
+          position,
+          partialPercent
+        ),
     };
-    this.rebalancingManager = new RebalancingManager(orchestratorRef, this.riskLimits);
+    this.rebalancingManager = new RebalancingManager(
+      orchestratorRef,
+      this.riskLimits
+    );
   }
 
   // ============================================================================
@@ -169,10 +187,18 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
     // Bootstrap universe candidates if empty
     const watchlist = await getWatchlist();
-    const allSymbols = [...watchlist.stocks, ...watchlist.crypto.map(c => `${c}/USD`)];
-    await candidatesService.ensureWatchlistApproved(allSymbols, "orchestrator-init");
+    const allSymbols = [
+      ...watchlist.stocks,
+      ...watchlist.crypto.map((c) => `${c}/USD`),
+    ];
+    await candidatesService.ensureWatchlistApproved(
+      allSymbols,
+      "orchestrator-init"
+    );
 
-    log.info("Orchestrator", "Initialized with risk limits", { ...this.riskLimits });
+    log.info("Orchestrator", "Initialized with risk limits", {
+      ...this.riskLimits,
+    });
   }
 
   private async loadRiskLimitsFromDB(): Promise<void> {
@@ -182,9 +208,15 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
       if (agentStatus) {
         this.riskLimits = {
-          maxPositionSizePercent: Number(agentStatus.maxPositionSizePercent) || 10,
-          maxTotalExposurePercent: Number(agentStatus.maxTotalExposurePercent) || 50,
-          maxPositionsCount: Number(agentStatus.maxPositionsCount) || agentStatus.dynamicOrderLimit || dynamicLimit || 10,
+          maxPositionSizePercent:
+            Number(agentStatus.maxPositionSizePercent) || 10,
+          maxTotalExposurePercent:
+            Number(agentStatus.maxTotalExposurePercent) || 50,
+          maxPositionsCount:
+            Number(agentStatus.maxPositionsCount) ||
+            agentStatus.dynamicOrderLimit ||
+            dynamicLimit ||
+            10,
           dailyLossLimitPercent: Number(agentStatus.dailyLossLimitPercent) || 5,
           killSwitchActive: agentStatus.killSwitchActive || false,
         };
@@ -198,7 +230,9 @@ class AutonomousOrchestrator implements OrchestratorInterface {
         });
       }
     } catch (error) {
-      log.error("Orchestrator", "Failed to load risk limits", { error: String(error) });
+      log.error("Orchestrator", "Failed to load risk limits", {
+        error: String(error),
+      });
     }
   }
 
@@ -224,11 +258,16 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
     if (this.riskLimits.killSwitchActive) {
       log.warn("Orchestrator", "Kill switch is active - cannot start");
-      throw new Error("Kill switch is active. Disable it to start autonomous trading.");
+      throw new Error(
+        "Kill switch is active. Disable it to start autonomous trading."
+      );
     }
 
     alpacaTradingEngine.enableOrchestratorControl();
-    log.info("Orchestrator", "Enabled orchestrator control over AlpacaTradingEngine");
+    log.info(
+      "Orchestrator",
+      "Enabled orchestrator control over AlpacaTradingEngine"
+    );
 
     this.state.isRunning = true;
     this.state.mode = "autonomous";
@@ -238,14 +277,18 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
     this.analysisTimer = setInterval(() => {
       this.runAnalysisCycle().catch((err) => {
-        log.error("Orchestrator", "Analysis cycle error", { error: String(err) });
+        log.error("Orchestrator", "Analysis cycle error", {
+          error: String(err),
+        });
         this.state.errors.push(`Analysis error: ${err.message}`);
       });
     }, this.config.analysisIntervalMs) as unknown as NodeJS.Timeout;
 
     this.positionTimer = setInterval(() => {
       this.runPositionManagementCycle().catch((err) => {
-        log.error("Orchestrator", "Position management error", { error: String(err) });
+        log.error("Orchestrator", "Position management error", {
+          error: String(err),
+        });
         this.state.errors.push(`Position mgmt error: ${err.message}`);
       });
     }, this.config.positionCheckIntervalMs) as unknown as NodeJS.Timeout;
@@ -279,7 +322,10 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     marketConditionAnalyzer.stop();
 
     alpacaTradingEngine.disableOrchestratorControl();
-    log.info("Orchestrator", "Disabled orchestrator control - AlpacaTradingEngine can now trade autonomously");
+    log.info(
+      "Orchestrator",
+      "Disabled orchestrator control - AlpacaTradingEngine can now trade autonomously"
+    );
 
     await storage.updateAgentStatus({ isRunning: false });
 
@@ -330,7 +376,7 @@ class AutonomousOrchestrator implements OrchestratorInterface {
           crypto: allSessions.CRYPTO.session,
           usEquitiesOpen: allSessions.US_EQUITIES.isOpen,
           nextOpen: allSessions.US_EQUITIES.nextOpen?.toISOString(),
-        }
+        },
       });
       this.state.lastAnalysisTime = new Date();
 
@@ -343,14 +389,17 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
       const canceledOrderCount = await cancelExpiredOrders();
       if (canceledOrderCount > 0) {
-        log.info("Orchestrator", `Analysis cycle: cleaned up ${canceledOrderCount} stale pending orders`);
+        log.info(
+          "Orchestrator",
+          `Analysis cycle: cleaned up ${canceledOrderCount} stale pending orders`
+        );
       }
 
       // Daily calibration check
       const today = new Date().toISOString().split("T")[0];
       if (this.lastCalibrationDate !== today) {
         this.lastCalibrationDate = today;
-        runCalibrationAnalysis(30).catch(err =>
+        runCalibrationAnalysis(30).catch((err) =>
           log.error("Orchestrator", `Calibration failed: ${err}`)
         );
         log.info("Orchestrator", "Daily AI calibration triggered");
@@ -366,12 +415,14 @@ class AutonomousOrchestrator implements OrchestratorInterface {
       const marketData = await fetchMarketData(universe);
 
       const allStrategies = await storage.getStrategies();
-      const activeStrategies = allStrategies.filter((s: Strategy) => s.isActive);
+      const activeStrategies = allStrategies.filter(
+        (s: Strategy) => s.isActive
+      );
 
       for (const [symbol, data] of marketData.entries()) {
-        const strategy = activeStrategies.find((s: Strategy) =>
-          s.assets?.includes(symbol)
-        ) || activeStrategies[0];
+        const strategy =
+          activeStrategies.find((s: Strategy) => s.assets?.includes(symbol)) ||
+          activeStrategies[0];
 
         try {
           const decision = await aiDecisionEngine.analyzeOpportunity(
@@ -383,13 +434,19 @@ class AutonomousOrchestrator implements OrchestratorInterface {
                   id: strategy.id,
                   name: strategy.name,
                   type: strategy.type,
-                  parameters: strategy.parameters ? JSON.parse(strategy.parameters) : undefined,
+                  parameters: strategy.parameters
+                    ? JSON.parse(strategy.parameters)
+                    : undefined,
                 }
               : undefined,
             { traceId: this.currentTraceId || undefined }
           );
 
-          if (decision.confidence >= 0.7 && decision.action !== "hold" && this.userId) {
+          if (
+            decision.confidence >= 0.7 &&
+            decision.action !== "hold" &&
+            this.userId
+          ) {
             const aiDecision = await storage.createAiDecision({
               userId: this.userId,
               strategyId: strategy?.id || null,
@@ -403,22 +460,34 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             });
 
             recordDecisionFeatures(aiDecision.id, symbol, {
-              volatility: data.priceChangePercent24h ? Math.abs(data.priceChangePercent24h) / 10 : undefined,
+              volatility: data.priceChangePercent24h
+                ? Math.abs(data.priceChangePercent24h) / 10
+                : undefined,
               priceChangePercent: data.priceChangePercent24h,
               marketCondition: this.state.mode,
-            }).catch(err => log.error("Orchestrator", `Failed to record features: ${err}`));
+            }).catch((err) =>
+              log.error("Orchestrator", `Failed to record features: ${err}`)
+            );
 
             // AUTO-APPROVE: Dynamically approve symbols with high-confidence buy signals
             if (decision.action === "buy" && decision.confidence >= 0.7) {
-              this.autoApproveSymbol(symbol).catch(err =>
-                log.warn("Orchestrator", `Auto-approve failed for ${symbol}: ${err}`)
+              this.autoApproveSymbol(symbol).catch((err) =>
+                log.warn(
+                  "Orchestrator",
+                  `Auto-approve failed for ${symbol}: ${err}`
+                )
               );
             }
 
-            this.state.pendingSignals.set(symbol, { ...decision, aiDecisionId: aiDecision.id });
+            this.state.pendingSignals.set(symbol, {
+              ...decision,
+              aiDecisionId: aiDecision.id,
+            });
           }
         } catch (error) {
-          log.error("Orchestrator", `Analysis failed for ${symbol}`, { error: String(error) });
+          log.error("Orchestrator", `Analysis failed for ${symbol}`, {
+            error: String(error),
+          });
         }
       }
 
@@ -431,22 +500,40 @@ class AutonomousOrchestrator implements OrchestratorInterface {
   private async autoApproveSymbol(symbol: string): Promise<void> {
     try {
       const upperSymbol = symbol.toUpperCase();
-      const existing = await candidatesService.getCandidateBySymbol(upperSymbol);
+      const existing =
+        await candidatesService.getCandidateBySymbol(upperSymbol);
 
       if (existing?.status === "APPROVED") {
         return;
       }
 
       if (existing) {
-        await candidatesService.approveCandidate(upperSymbol, "ai-auto-approve");
-        log.info("Orchestrator", `AUTO-APPROVED: ${upperSymbol} (was ${existing.status})`);
+        await candidatesService.approveCandidate(
+          upperSymbol,
+          "ai-auto-approve"
+        );
+        log.info(
+          "Orchestrator",
+          `AUTO-APPROVED: ${upperSymbol} (was ${existing.status})`
+        );
       } else {
-        await candidatesService.ensureWatchlistApproved([upperSymbol], "ai-signal");
-        await candidatesService.approveCandidate(upperSymbol, "ai-auto-approve");
-        log.info("Orchestrator", `AUTO-APPROVED: ${upperSymbol} (new candidate)`);
+        await candidatesService.ensureWatchlistApproved(
+          [upperSymbol],
+          "ai-signal"
+        );
+        await candidatesService.approveCandidate(
+          upperSymbol,
+          "ai-auto-approve"
+        );
+        log.info(
+          "Orchestrator",
+          `AUTO-APPROVED: ${upperSymbol} (new candidate)`
+        );
       }
     } catch (error) {
-      log.warn("Orchestrator", `Failed to auto-approve ${symbol}`, { error: String(error) });
+      log.warn("Orchestrator", `Failed to auto-approve ${symbol}`, {
+        error: String(error),
+      });
     }
   }
 
@@ -466,14 +553,20 @@ class AutonomousOrchestrator implements OrchestratorInterface {
           reason: `Execution error: ${String(error)}`,
           symbol,
         };
-        log.error("Orchestrator", `Error executing signal for ${symbol}`, { error: String(error) });
+        log.error("Orchestrator", `Error executing signal for ${symbol}`, {
+          error: String(error),
+        });
       }
 
       this.state.executionHistory.push(result);
 
       if (decision.aiDecisionId) {
         try {
-          if (result.success && result.action !== "hold" && result.action !== "skip") {
+          if (
+            result.success &&
+            result.action !== "hold" &&
+            result.action !== "skip"
+          ) {
             await storage.updateAiDecision(decision.aiDecisionId, {
               status: "executed",
               filledPrice: result.price?.toString(),
@@ -491,7 +584,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             });
           }
         } catch (e) {
-          log.error("Orchestrator", `Failed to update AI decision status for ${decision.aiDecisionId}`, { error: String(e) });
+          log.error(
+            "Orchestrator",
+            `Failed to update AI decision status for ${decision.aiDecisionId}`,
+            { error: String(e) }
+          );
         }
       }
 
@@ -524,9 +621,16 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
     if (decision.action === "buy" && existingPosition) {
       // Reinforcement threshold: 50% confidence
-      if (decision.confidence >= 0.50) {
-        log.info("Orchestrator", `Reinforcing position: ${symbol} (confidence: ${(decision.confidence * 100).toFixed(1)}%)`);
-        return await this.positionManager.reinforcePosition(symbol, decision, existingPosition);
+      if (decision.confidence >= 0.5) {
+        log.info(
+          "Orchestrator",
+          `Reinforcing position: ${symbol} (confidence: ${(decision.confidence * 100).toFixed(1)}%)`
+        );
+        return await this.positionManager.reinforcePosition(
+          symbol,
+          decision,
+          existingPosition
+        );
       }
       return {
         success: false,
@@ -550,7 +654,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     }
 
     if (decision.action === "sell" && existingPosition) {
-      return await this.positionManager.closePosition(symbol, decision, existingPosition);
+      return await this.positionManager.closePosition(
+        symbol,
+        decision,
+        existingPosition
+      );
     }
 
     return {
@@ -581,7 +689,9 @@ class AutonomousOrchestrator implements OrchestratorInterface {
       // Delegate rebalancing to RebalancingManager
       await this.rebalancingManager.rebalancePositions();
     } catch (error) {
-      log.error("Orchestrator", "Position management cycle error", { error: String(error) });
+      log.error("Orchestrator", "Position management cycle error", {
+        error: String(error),
+      });
     }
   }
 
@@ -592,7 +702,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
   private checkDailyLossLimit(): boolean {
     const portfolioValue = this.state.portfolioValue || 100000;
     const dailyLoss = Math.min(0, this.state.dailyPnl);
-    const lossPercent = toDecimal(dailyLoss).abs().dividedBy(toDecimal(portfolioValue)).times(100).toNumber();
+    const lossPercent = toDecimal(dailyLoss)
+      .abs()
+      .dividedBy(toDecimal(portfolioValue))
+      .times(100)
+      .toNumber();
     return lossPercent >= this.riskLimits.dailyLossLimitPercent;
   }
 
@@ -667,7 +781,9 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     );
   }
 
-  async applyTrailingStopToAllPositions(trailPercent: number = 5): Promise<void> {
+  async applyTrailingStopToAllPositions(
+    trailPercent: number = 5
+  ): Promise<void> {
     return this.positionManager.applyTrailingStopToAllPositions(trailPercent);
   }
 

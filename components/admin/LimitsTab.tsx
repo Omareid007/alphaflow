@@ -22,11 +22,15 @@ export function LimitsTab({ formData, updateField }: LimitsTabProps) {
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label>Rate Limiting</Label>
-            <p className="text-sm text-muted-foreground">Control request rate to prevent overload</p>
+            <p className="text-sm text-muted-foreground">
+              Control request rate to prevent overload
+            </p>
           </div>
           <Switch
             checked={formData.rateLimitRequests > 0}
-            onCheckedChange={(checked) => updateField('rateLimitRequests', checked ? 100 : 0)}
+            onCheckedChange={(checked) =>
+              updateField("rateLimitRequests", checked ? 100 : 0)
+            }
           />
         </div>
 
@@ -38,24 +42,35 @@ export function LimitsTab({ formData, updateField }: LimitsTabProps) {
                 id="rateLimitRequests"
                 type="number"
                 value={formData.rateLimitRequests}
-                onChange={(e) => updateField('rateLimitRequests', parseInt(e.target.value))}
+                onChange={(e) =>
+                  updateField("rateLimitRequests", parseInt(e.target.value))
+                }
                 min="1"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rateLimitWindowSeconds">Time Window (seconds)</Label>
+              <Label htmlFor="rateLimitWindowSeconds">
+                Time Window (seconds)
+              </Label>
               <Input
                 id="rateLimitWindowSeconds"
                 type="number"
                 value={formData.rateLimitWindowSeconds}
-                onChange={(e) => updateField('rateLimitWindowSeconds', parseInt(e.target.value))}
+                onChange={(e) =>
+                  updateField(
+                    "rateLimitWindowSeconds",
+                    parseInt(e.target.value)
+                  )
+                }
                 min="1"
               />
             </div>
             <div className="flex items-center space-x-2 md:col-span-2">
               <Switch
                 checked={formData.rateLimitPerKey}
-                onCheckedChange={(checked) => updateField('rateLimitPerKey', checked)}
+                onCheckedChange={(checked) =>
+                  updateField("rateLimitPerKey", checked)
+                }
               />
               <Label>Apply rate limit per API key</Label>
             </div>
@@ -72,11 +87,15 @@ export function LimitsTab({ formData, updateField }: LimitsTabProps) {
               id="connectionPoolSize"
               type="number"
               value={formData.connectionPoolSize}
-              onChange={(e) => updateField('connectionPoolSize', parseInt(e.target.value))}
+              onChange={(e) =>
+                updateField("connectionPoolSize", parseInt(e.target.value))
+              }
               min="1"
               max="1000"
             />
-            <p className="text-xs text-muted-foreground">Max concurrent connections</p>
+            <p className="text-xs text-muted-foreground">
+              Max concurrent connections
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="connectionPoolTimeoutMs">Pool Timeout (ms)</Label>
@@ -84,7 +103,9 @@ export function LimitsTab({ formData, updateField }: LimitsTabProps) {
               id="connectionPoolTimeoutMs"
               type="number"
               value={formData.connectionPoolTimeoutMs}
-              onChange={(e) => updateField('connectionPoolTimeoutMs', parseInt(e.target.value))}
+              onChange={(e) =>
+                updateField("connectionPoolTimeoutMs", parseInt(e.target.value))
+              }
               min="1000"
             />
           </div>

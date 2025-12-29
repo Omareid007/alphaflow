@@ -3,7 +3,12 @@ import bcrypt from "bcryptjs";
 import { createSession, getSession, deleteSession } from "../lib/session";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import { badRequest, unauthorized, serverError, validationError } from "../lib/standard-errors";
+import {
+  badRequest,
+  unauthorized,
+  serverError,
+  validationError,
+} from "../lib/standard-errors";
 import { sanitizeInput } from "../lib/sanitization";
 import { insertUserSchema } from "@shared/schema";
 
@@ -25,7 +30,11 @@ router.post("/signup", async (req: Request, res: Response) => {
   try {
     const parsed = insertUserSchema.safeParse(req.body);
     if (!parsed.success) {
-      return validationError(res, "Invalid input: username and password required", parsed.error);
+      return validationError(
+        res,
+        "Invalid input: username and password required",
+        parsed.error
+      );
     }
 
     const { username, password } = parsed.data;
@@ -47,7 +56,10 @@ router.post("/signup", async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await storage.createUser({ username: sanitizedUsername, password: hashedPassword });
+    const user = await storage.createUser({
+      username: sanitizedUsername,
+      password: hashedPassword,
+    });
 
     const sessionId = await createSession(user.id);
 
@@ -55,7 +67,9 @@ router.post("/signup", async (req: Request, res: Response) => {
 
     log.info("AuthAPI", `User registered: ${sanitizedUsername}`);
 
-    res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res
+      .status(201)
+      .json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Signup error: ${error}`);
     return serverError(res, "Failed to create account");

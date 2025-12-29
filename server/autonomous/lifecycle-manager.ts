@@ -176,7 +176,10 @@ export class LifecycleManager {
         this.orchestrator.setUserId(adminUser.id);
         log.info("LifecycleManager", `Resolved admin user: ${adminUser.id}`);
       } else {
-        log.warn("LifecycleManager", "No admin user found - database operations may fail");
+        log.warn(
+          "LifecycleManager",
+          "No admin user found - database operations may fail"
+        );
       }
 
       const agentStatus = await storage.getAgentStatus();
@@ -189,7 +192,10 @@ export class LifecycleManager {
       }
 
       if (agentStatus?.killSwitchActive) {
-        log.warn("LifecycleManager", "Auto-start blocked: Kill switch is active");
+        log.warn(
+          "LifecycleManager",
+          "Auto-start blocked: Kill switch is active"
+        );
         this.isAutoStarting = false;
         return;
       }
@@ -200,16 +206,23 @@ export class LifecycleManager {
 
       this.startHeartbeat();
 
-      log.info("LifecycleManager", "Auto-start complete - Agent is now running persistently");
+      log.info(
+        "LifecycleManager",
+        "Auto-start complete - Agent is now running persistently"
+      );
     } catch (error) {
-      log.error("LifecycleManager", "Auto-start failed", { error: String(error) });
+      log.error("LifecycleManager", "Auto-start failed", {
+        error: String(error),
+      });
       const state = this.orchestrator.getState();
       state.errors.push(`Auto-start failed: ${error}`);
 
       setTimeout(() => {
         this.isAutoStarting = false;
-        this.autoStart().catch(err => {
-          log.error("LifecycleManager", "Auto-restart retry failed", { error: String(err) });
+        this.autoStart().catch((err) => {
+          log.error("LifecycleManager", "Auto-restart retry failed", {
+            error: String(err),
+          });
         });
       }, AUTO_RESTART_DELAY_MS);
     } finally {
@@ -312,11 +325,16 @@ export class LifecycleManager {
         this.consecutiveErrors = Math.max(0, this.consecutiveErrors - 1);
       }
     } catch (error) {
-      log.error("LifecycleManager", "Heartbeat error", { error: String(error) });
+      log.error("LifecycleManager", "Heartbeat error", {
+        error: String(error),
+      });
       this.consecutiveErrors++;
 
       if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-        log.warn("LifecycleManager", "Too many consecutive errors, triggering self-healing");
+        log.warn(
+          "LifecycleManager",
+          "Too many consecutive errors, triggering self-healing"
+        );
         await this.selfHeal();
       }
     }
@@ -351,7 +369,10 @@ export class LifecycleManager {
     const timeSinceAnalysis = now - lastAnalysis;
 
     if (timeSinceAnalysis > STALE_HEARTBEAT_THRESHOLD_MS && lastAnalysis > 0) {
-      log.warn("LifecycleManager", `Stale state detected (${Math.round(timeSinceAnalysis / 1000)}s since last analysis)`);
+      log.warn(
+        "LifecycleManager",
+        `Stale state detected (${Math.round(timeSinceAnalysis / 1000)}s since last analysis)`
+      );
       await this.selfHeal();
     }
   }
@@ -394,7 +415,9 @@ export class LifecycleManager {
     try {
       await this.orchestrator.stop(true);
 
-      await new Promise(resolve => setTimeout(resolve, AUTO_RESTART_DELAY_MS));
+      await new Promise((resolve) =>
+        setTimeout(resolve, AUTO_RESTART_DELAY_MS)
+      );
 
       this.consecutiveErrors = 0;
       this.orchestrator.setState({ errors: [] });
@@ -405,7 +428,9 @@ export class LifecycleManager {
         log.info("LifecycleManager", "Self-healing complete - Agent restarted");
       }
     } catch (error) {
-      log.error("LifecycleManager", "Self-healing failed", { error: String(error) });
+      log.error("LifecycleManager", "Self-healing failed", {
+        error: String(error),
+      });
       const state = this.orchestrator.getState();
       state.errors.push(`Self-healing failed: ${error}`);
     }
@@ -433,7 +458,10 @@ export class LifecycleManager {
   async setAutoStartEnabled(enabled: boolean): Promise<void> {
     this.autoStartEnabled = enabled;
     await storage.updateAgentStatus({ autoStartEnabled: enabled });
-    log.info("LifecycleManager", `Auto-start ${enabled ? "enabled" : "disabled"}`);
+    log.info(
+      "LifecycleManager",
+      `Auto-start ${enabled ? "enabled" : "disabled"}`
+    );
   }
 
   /**
@@ -480,7 +508,8 @@ export class LifecycleManager {
     const analyzerStatus = marketConditionAnalyzer.getStatus();
     const state = this.orchestrator.getState();
     return {
-      isHealthy: this.consecutiveErrors < MAX_CONSECUTIVE_ERRORS && state.isRunning,
+      isHealthy:
+        this.consecutiveErrors < MAX_CONSECUTIVE_ERRORS && state.isRunning,
       lastHeartbeat: this.lastHeartbeat,
       consecutiveErrors: this.consecutiveErrors,
       autoStartEnabled: this.autoStartEnabled,

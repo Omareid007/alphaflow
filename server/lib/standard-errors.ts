@@ -145,15 +145,11 @@ export function serviceUnavailable(
  */
 export function fromZodError(res: Response, zodError: any): Response {
   const details = zodError.errors?.map((err: any) => ({
-    field: err.path.join('.'),
+    field: err.path.join("."),
     message: err.message,
   }));
 
-  return validationError(
-    res,
-    "Request validation failed",
-    { fields: details }
-  );
+  return validationError(res, "Request validation failed", { fields: details });
 }
 
 /**
@@ -164,20 +160,28 @@ export function asyncHandler(
 ) {
   return (req: any, res: any, next: any) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
-      log.error("AsyncHandler", "Error caught in async handler", { error: error.message, stack: error.stack });
+      log.error("AsyncHandler", "Error caught in async handler", {
+        error: error.message,
+        stack: error.stack,
+      });
 
       // Handle specific error types
-      if (error.name === 'ZodError') {
+      if (error.name === "ZodError") {
         return fromZodError(res, error);
       }
 
       if (error.statusCode) {
-        return sendError(res, error.statusCode, error.name || "Error", error.message);
+        return sendError(
+          res,
+          error.statusCode,
+          error.name || "Error",
+          error.message
+        );
       }
 
       // Default to server error
       return serverError(res, error.message || "An unexpected error occurred", {
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
       });
     });
   };
@@ -193,7 +197,7 @@ export class AppError extends Error {
     public details?: any
   ) {
     super(message);
-    this.name = 'AppError';
+    this.name = "AppError";
     Error.captureStackTrace(this, this.constructor);
   }
 }

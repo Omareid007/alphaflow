@@ -1,13 +1,29 @@
-export type StrategyStatus = 'Draft' | 'Backtested' | 'Deployed' | 'Paused' | 'Stopped';
-export type DeploymentMode = 'paper' | 'live';
-export type DeploymentStatus = 'active' | 'paused' | 'stopped';
-export type OrderSide = 'buy' | 'sell';
-export type OrderStatus = 'filled' | 'partial' | 'pending' | 'cancelled';
-export type AiEventType = 'signal' | 'sentiment' | 'news' | 'risk' | 'suggestion';
-export type FeedCategory = 'news' | 'social' | 'market' | 'fundamental';
-export type FeedStatus = 'active' | 'delayed' | 'offline';
-export type PresetName = 'Conservative' | 'Balanced' | 'Aggressive' | 'Custom';
-export type FieldType = 'number' | 'text' | 'select' | 'range' | 'toggle' | 'multi-select';
+export type StrategyStatus =
+  | "Draft"
+  | "Backtested"
+  | "Deployed"
+  | "Paused"
+  | "Stopped";
+export type DeploymentMode = "paper" | "live";
+export type DeploymentStatus = "active" | "paused" | "stopped";
+export type OrderSide = "buy" | "sell";
+export type OrderStatus = "filled" | "partial" | "pending" | "cancelled";
+export type AiEventType =
+  | "signal"
+  | "sentiment"
+  | "news"
+  | "risk"
+  | "suggestion";
+export type FeedCategory = "news" | "social" | "market" | "fundamental";
+export type FeedStatus = "active" | "delayed" | "offline";
+export type PresetName = "Conservative" | "Balanced" | "Aggressive" | "Custom";
+export type FieldType =
+  | "number"
+  | "text"
+  | "select"
+  | "range"
+  | "toggle"
+  | "multi-select";
 
 export interface FieldConstraints {
   min?: number;
@@ -48,7 +64,7 @@ export interface AlgorithmTemplate {
   id: string;
   name: string;
   description: string;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
   icon: string;
   stepSchema: StepSchema;
   presets: Preset[];
@@ -65,7 +81,7 @@ export interface PerformanceSummary {
 }
 
 export interface RiskSummary {
-  riskLevel: 'Low' | 'Medium' | 'High';
+  riskLevel: "Low" | "Medium" | "High";
   volatility: number;
   exposure: number;
   var95: number;
@@ -207,7 +223,7 @@ export interface SentimentSignal {
   sourceName: string;
   symbol: string;
   score: number;
-  trend: 'up' | 'down' | 'neutral';
+  trend: "up" | "down" | "neutral";
   explanation: string;
   timestamp: string;
 }
@@ -230,7 +246,7 @@ export interface Watchlist {
 }
 
 export interface UserSettings {
-  theme: 'dark' | 'light';
+  theme: "dark" | "light";
   notifications: {
     trades: boolean;
     aiAlerts: boolean;

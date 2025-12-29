@@ -16,7 +16,10 @@ export interface TechnicalIndicators {
   adx14: number | null;
 }
 
-export function calculateSMA(prices: number[], period: number): (number | null)[] {
+export function calculateSMA(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
     if (i < period - 1) {
@@ -30,7 +33,10 @@ export function calculateSMA(prices: number[], period: number): (number | null)[
   return result;
 }
 
-export function calculateEMA(prices: number[], period: number): (number | null)[] {
+export function calculateEMA(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const result: (number | null)[] = [];
   const multiplier = 2 / (period + 1);
 
@@ -53,9 +59,12 @@ export function calculateEMA(prices: number[], period: number): (number | null)[
   return result;
 }
 
-export function calculateRSI(prices: number[], period: number = 14): (number | null)[] {
+export function calculateRSI(
+  prices: number[],
+  period: number = 14
+): (number | null)[] {
   const result: (number | null)[] = [];
-  
+
   if (prices.length < period + 1) {
     return prices.map(() => null);
   }
@@ -107,7 +116,11 @@ export function calculateMACD(
   fastPeriod: number = 12,
   slowPeriod: number = 26,
   signalPeriod: number = 9
-): { macd: (number | null)[]; signal: (number | null)[]; histogram: (number | null)[] } {
+): {
+  macd: (number | null)[];
+  signal: (number | null)[];
+  histogram: (number | null)[];
+} {
   const emaFast = calculateEMA(prices, fastPeriod);
   const emaSlow = calculateEMA(prices, slowPeriod);
 
@@ -146,7 +159,11 @@ export function calculateBollingerBands(
   prices: number[],
   period: number = 20,
   stdDevMultiplier: number = 2
-): { upper: (number | null)[]; middle: (number | null)[]; lower: (number | null)[] } {
+): {
+  upper: (number | null)[];
+  middle: (number | null)[];
+  lower: (number | null)[];
+} {
   const middle = calculateSMA(prices, period);
   const upper: (number | null)[] = [];
   const lower: (number | null)[] = [];
@@ -192,7 +209,8 @@ export function calculateATR(
     if (i < period - 1) {
       result.push(null);
     } else if (i === period - 1) {
-      const atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      const atr =
+        trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
       result.push(atr);
     } else {
       const prevAtr = result[i - 1];
@@ -208,7 +226,10 @@ export function calculateATR(
   return result;
 }
 
-export function calculateStdDev(prices: number[], period: number): (number | null)[] {
+export function calculateStdDev(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
     if (i < period - 1) {
@@ -221,7 +242,10 @@ export function calculateStdDev(prices: number[], period: number): (number | nul
   return result;
 }
 
-export function calculateROC(prices: number[], period: number): (number | null)[] {
+export function calculateROC(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
     if (i < period) {
@@ -242,7 +266,9 @@ export interface OHLCBar {
   volume?: number;
 }
 
-export function computeAllIndicators(bars: OHLCBar[]): TechnicalIndicators | null {
+export function computeAllIndicators(
+  bars: OHLCBar[]
+): TechnicalIndicators | null {
   if (bars.length < 200) {
     return null;
   }

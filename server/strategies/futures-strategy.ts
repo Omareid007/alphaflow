@@ -16,7 +16,14 @@
  * @see /server/connectors/futures-broker-interface.ts for broker integration
  */
 
-import { calculateRSI, calculateROC, calculateATR, calculateSMA, calculateEMA, calculateBollingerBands } from "../lib/technical-indicators";
+import {
+  calculateRSI,
+  calculateROC,
+  calculateATR,
+  calculateSMA,
+  calculateEMA,
+  calculateBollingerBands,
+} from "../lib/technical-indicators";
 import type { FuturesBroker } from "../connectors/futures-broker-interface";
 
 // ============================================================================
@@ -148,9 +155,14 @@ export const MES_CONFIG: FuturesInstrument = {
     MYM: 0.96,
     M2K: 0.82,
     GC: 0.15,
-    DXY: -0.50,
+    DXY: -0.5,
   },
-  recommendedStrategies: ["momentum", "mean_reversion", "vwap_reversion", "opening_range_breakout"],
+  recommendedStrategies: [
+    "momentum",
+    "mean_reversion",
+    "vwap_reversion",
+    "opening_range_breakout",
+  ],
   strategyParams: {
     momentumLookback: 14,
     momentumThreshold: 0.02,
@@ -160,12 +172,12 @@ export const MES_CONFIG: FuturesInstrument = {
     atrPeriod: 14,
     atrStopMultiplier: 2.0,
     atrTargetMultiplier: 3.0,
-    maxPositionPct: 0.10,
+    maxPositionPct: 0.1,
     riskPerTradePct: 0.02,
     preferredTimeframes: ["5m", "15m"],
     avoidLowLiquidityPeriods: true,
     volatilityAdjustment: 1.0,
-    correlationThreshold: 0.80,
+    correlationThreshold: 0.8,
   },
 };
 
@@ -175,7 +187,7 @@ export const MNQ_CONFIG: FuturesInstrument = {
   exchange: "CME",
   assetClass: "equity_index",
   tickSize: 0.25,
-  tickValue: 0.50, // $0.50 per tick
+  tickValue: 0.5, // $0.50 per tick
   contractSize: 2, // $2 x Nasdaq-100 Index
   currency: "USD",
   tradingHours: {
@@ -203,9 +215,14 @@ export const MNQ_CONFIG: FuturesInstrument = {
     MYM: 0.82,
     M2K: 0.75,
     GC: -0.05,
-    DXY: -0.40,
+    DXY: -0.4,
   },
-  recommendedStrategies: ["momentum", "trend_following", "breakout", "scalping"],
+  recommendedStrategies: [
+    "momentum",
+    "trend_following",
+    "breakout",
+    "scalping",
+  ],
   strategyParams: {
     momentumLookback: 10, // Shorter lookback for volatile instrument
     momentumThreshold: 0.025,
@@ -230,7 +247,7 @@ export const MYM_CONFIG: FuturesInstrument = {
   exchange: "CME",
   assetClass: "equity_index",
   tickSize: 1.0,
-  tickValue: 0.50, // $0.50 per tick
+  tickValue: 0.5, // $0.50 per tick
   contractSize: 0.5, // $0.50 x DJIA Index
   currency: "USD",
   tradingHours: {
@@ -256,11 +273,15 @@ export const MYM_CONFIG: FuturesInstrument = {
   correlations: {
     MES: 0.96,
     MNQ: 0.82,
-    M2K: 0.80,
+    M2K: 0.8,
     GC: 0.12,
     DXY: -0.45,
   },
-  recommendedStrategies: ["mean_reversion", "range_trading", "opening_range_breakout"],
+  recommendedStrategies: [
+    "mean_reversion",
+    "range_trading",
+    "opening_range_breakout",
+  ],
   strategyParams: {
     momentumLookback: 14,
     momentumThreshold: 0.018,
@@ -275,7 +296,7 @@ export const MYM_CONFIG: FuturesInstrument = {
     preferredTimeframes: ["15m", "1h"],
     avoidLowLiquidityPeriods: true,
     volatilityAdjustment: 1.0,
-    correlationThreshold: 0.80,
+    correlationThreshold: 0.8,
   },
 };
 
@@ -285,7 +306,7 @@ export const ES_CONFIG: FuturesInstrument = {
   exchange: "CME",
   assetClass: "equity_index",
   tickSize: 0.25,
-  tickValue: 12.50, // $12.50 per tick
+  tickValue: 12.5, // $12.50 per tick
   contractSize: 50, // $50 x S&P 500 Index
   currency: "USD",
   tradingHours: {
@@ -315,7 +336,12 @@ export const ES_CONFIG: FuturesInstrument = {
     M2K: 0.82,
     GC: 0.15,
   },
-  recommendedStrategies: ["momentum", "mean_reversion", "vwap_reversion", "scalping"],
+  recommendedStrategies: [
+    "momentum",
+    "mean_reversion",
+    "vwap_reversion",
+    "scalping",
+  ],
   strategyParams: {
     momentumLookback: 14,
     momentumThreshold: 0.015,
@@ -339,8 +365,8 @@ export const M2K_CONFIG: FuturesInstrument = {
   name: "Micro E-mini Russell 2000",
   exchange: "CME",
   assetClass: "equity_index",
-  tickSize: 0.10,
-  tickValue: 0.50, // $0.50 per tick
+  tickSize: 0.1,
+  tickValue: 0.5, // $0.50 per tick
   contractSize: 5, // $5 x Russell 2000 Index
   currency: "USD",
   tradingHours: {
@@ -366,7 +392,7 @@ export const M2K_CONFIG: FuturesInstrument = {
   correlations: {
     MES: 0.82,
     MNQ: 0.75,
-    MYM: 0.80,
+    MYM: 0.8,
     HYG: 0.68, // High yield bonds
     GC: 0.08,
   },
@@ -385,7 +411,7 @@ export const M2K_CONFIG: FuturesInstrument = {
     preferredTimeframes: ["15m", "30m"],
     avoidLowLiquidityPeriods: true,
     volatilityAdjustment: 1.3,
-    correlationThreshold: 0.70,
+    correlationThreshold: 0.7,
   },
 };
 
@@ -398,8 +424,8 @@ export const GC_CONFIG: FuturesInstrument = {
   name: "Gold Futures",
   exchange: "CME",
   assetClass: "precious_metal",
-  tickSize: 0.10,
-  tickValue: 10.00, // $10 per tick
+  tickSize: 0.1,
+  tickValue: 10.0, // $10 per tick
   contractSize: 100, // 100 troy ounces
   currency: "USD",
   tradingHours: {
@@ -418,18 +444,23 @@ export const GC_CONFIG: FuturesInstrument = {
   volatilityProfile: {
     averageDailyRange: 25, // in dollars
     averageATR14: 18,
-    typicalSlippage: 0.20,
+    typicalSlippage: 0.2,
     spreadTicks: 1,
     volatilityLevel: "moderate",
   },
   correlations: {
     MGC: 1.0,
     SI: 0.78,
-    DXY: -0.70,
+    DXY: -0.7,
     MES: 0.15,
-    TIP: -0.80, // Real yields inverse
+    TIP: -0.8, // Real yields inverse
   },
-  recommendedStrategies: ["trend_following", "range_trading", "safe_haven_flow", "breakout"],
+  recommendedStrategies: [
+    "trend_following",
+    "range_trading",
+    "safe_haven_flow",
+    "breakout",
+  ],
   strategyParams: {
     momentumLookback: 20, // Longer for trending instrument
     momentumThreshold: 0.012,
@@ -444,7 +475,7 @@ export const GC_CONFIG: FuturesInstrument = {
     preferredTimeframes: ["1h", "4h", "1D"],
     avoidLowLiquidityPeriods: true,
     volatilityAdjustment: 0.8, // Less volatile than equities
-    correlationThreshold: 0.60,
+    correlationThreshold: 0.6,
   },
 };
 
@@ -453,8 +484,8 @@ export const MGC_CONFIG: FuturesInstrument = {
   name: "Micro Gold Futures",
   exchange: "CME",
   assetClass: "precious_metal",
-  tickSize: 0.10,
-  tickValue: 1.00, // $1 per tick
+  tickSize: 0.1,
+  tickValue: 1.0, // $1 per tick
   contractSize: 10, // 10 troy ounces
   currency: "USD",
   tradingHours: {
@@ -473,17 +504,21 @@ export const MGC_CONFIG: FuturesInstrument = {
   volatilityProfile: {
     averageDailyRange: 25,
     averageATR14: 18,
-    typicalSlippage: 0.30,
+    typicalSlippage: 0.3,
     spreadTicks: 2,
     volatilityLevel: "moderate",
   },
   correlations: {
     GC: 1.0,
     SI: 0.78,
-    DXY: -0.70,
+    DXY: -0.7,
     MES: 0.15,
   },
-  recommendedStrategies: ["trend_following", "range_trading", "safe_haven_flow"],
+  recommendedStrategies: [
+    "trend_following",
+    "range_trading",
+    "safe_haven_flow",
+  ],
   strategyParams: {
     ...GC_CONFIG.strategyParams,
     atrStopMultiplier: 2.2, // Slightly wider for micro
@@ -497,7 +532,7 @@ export const SI_CONFIG: FuturesInstrument = {
   exchange: "CME",
   assetClass: "precious_metal",
   tickSize: 0.005,
-  tickValue: 25.00, // $25 per tick
+  tickValue: 25.0, // $25 per tick
   contractSize: 5000, // 5,000 troy ounces
   currency: "USD",
   tradingHours: {
@@ -514,7 +549,7 @@ export const SI_CONFIG: FuturesInstrument = {
     dayTrading: 6000,
   },
   volatilityProfile: {
-    averageDailyRange: 0.60, // in dollars
+    averageDailyRange: 0.6, // in dollars
     averageATR14: 0.45,
     typicalSlippage: 0.01,
     spreadTicks: 2,
@@ -522,9 +557,9 @@ export const SI_CONFIG: FuturesInstrument = {
   },
   correlations: {
     GC: 0.78,
-    DXY: -0.60,
+    DXY: -0.6,
     HG: 0.55, // Copper (industrial demand)
-    MES: 0.20,
+    MES: 0.2,
   },
   recommendedStrategies: ["momentum", "breakout", "correlation_trading"],
   strategyParams: {
@@ -555,7 +590,7 @@ export const DAX_CONFIG: FuturesInstrument = {
   exchange: "EUREX",
   assetClass: "equity_index",
   tickSize: 0.5,
-  tickValue: 12.50, // EUR 12.50 per tick
+  tickValue: 12.5, // EUR 12.50 per tick
   contractSize: 25, // EUR 25 x DAX Index
   currency: "EUR",
   tradingHours: {
@@ -578,11 +613,15 @@ export const DAX_CONFIG: FuturesInstrument = {
   },
   correlations: {
     MES: 0.78,
-    EURUSD: 0.50,
+    EURUSD: 0.5,
     MNQ: 0.72,
     STOXX50: 0.92,
   },
-  recommendedStrategies: ["momentum", "opening_range_breakout", "trend_following"],
+  recommendedStrategies: [
+    "momentum",
+    "opening_range_breakout",
+    "trend_following",
+  ],
   strategyParams: {
     momentumLookback: 10,
     momentumThreshold: 0.02,
@@ -597,7 +636,7 @@ export const DAX_CONFIG: FuturesInstrument = {
     preferredTimeframes: ["5m", "15m"],
     avoidLowLiquidityPeriods: true,
     volatilityAdjustment: 1.8,
-    correlationThreshold: 0.70,
+    correlationThreshold: 0.7,
   },
 };
 
@@ -660,7 +699,8 @@ export const EQUITY_INDEX_PRESETS: FuturesPreset[] = [
   {
     id: "index_scalper",
     name: "Index Scalper",
-    description: "Fast-paced scalping on liquid index futures. 1-5 minute holds.",
+    description:
+      "Fast-paced scalping on liquid index futures. 1-5 minute holds.",
     params: {
       momentumLookback: 8,
       momentumThreshold: 0.01,
@@ -686,7 +726,7 @@ export const EQUITY_INDEX_PRESETS: FuturesPreset[] = [
       rsiOversold: 30,
       atrStopMultiplier: 2.0,
       atrTargetMultiplier: 3.0,
-      maxPositionPct: 0.10,
+      maxPositionPct: 0.1,
       riskPerTradePct: 0.015,
       preferredTimeframes: ["15m", "30m"],
     },
@@ -694,7 +734,8 @@ export const EQUITY_INDEX_PRESETS: FuturesPreset[] = [
   {
     id: "index_swing",
     name: "Index Swing Trader",
-    description: "Swing trading on index futures. Multi-hour to multi-day holds.",
+    description:
+      "Swing trading on index futures. Multi-hour to multi-day holds.",
     params: {
       momentumLookback: 20,
       momentumThreshold: 0.025,
@@ -714,7 +755,8 @@ export const PRECIOUS_METAL_PRESETS: FuturesPreset[] = [
   {
     id: "gold_trend",
     name: "Gold Trend Follower",
-    description: "Trend-following strategy for gold futures. Medium-term holds.",
+    description:
+      "Trend-following strategy for gold futures. Medium-term holds.",
     params: {
       momentumLookback: 20,
       momentumThreshold: 0.015,
@@ -740,7 +782,7 @@ export const PRECIOUS_METAL_PRESETS: FuturesPreset[] = [
       rsiOversold: 25,
       atrStopMultiplier: 1.5,
       atrTargetMultiplier: 2.5,
-      maxPositionPct: 0.10,
+      maxPositionPct: 0.1,
       riskPerTradePct: 0.012,
       preferredTimeframes: ["15m", "1h"],
     },
@@ -832,7 +874,9 @@ export const FUTURES_INSTRUMENTS: Record<string, FuturesInstrument> = {
 /**
  * Get configuration for a futures instrument
  */
-export function getFuturesConfig(symbol: string): FuturesInstrument | undefined {
+export function getFuturesConfig(
+  symbol: string
+): FuturesInstrument | undefined {
   return FUTURES_INSTRUMENTS[symbol.toUpperCase()];
 }
 
@@ -840,30 +884,38 @@ export function getFuturesConfig(symbol: string): FuturesInstrument | undefined 
  * Get all supported futures symbols
  */
 export function getSupportedFuturesSymbols(): string[] {
-  return Object.keys(FUTURES_INSTRUMENTS).filter(s => !["DAX", "NIKKEI"].includes(s)); // Exclude aliases
+  return Object.keys(FUTURES_INSTRUMENTS).filter(
+    (s) => !["DAX", "NIKKEI"].includes(s)
+  ); // Exclude aliases
 }
 
 /**
  * Get instruments by asset class
  */
-export function getInstrumentsByClass(assetClass: FuturesInstrument["assetClass"]): FuturesInstrument[] {
-  return Object.values(FUTURES_INSTRUMENTS).filter(i => i.assetClass === assetClass);
+export function getInstrumentsByClass(
+  assetClass: FuturesInstrument["assetClass"]
+): FuturesInstrument[] {
+  return Object.values(FUTURES_INSTRUMENTS).filter(
+    (i) => i.assetClass === assetClass
+  );
 }
 
 /**
  * Get recommended preset for an instrument
  */
-export function getRecommendedPreset(symbol: string): FuturesPreset | undefined {
+export function getRecommendedPreset(
+  symbol: string
+): FuturesPreset | undefined {
   const config = getFuturesConfig(symbol);
   if (!config) return undefined;
 
   switch (config.assetClass) {
     case "equity_index":
-      return EQUITY_INDEX_PRESETS.find(p => p.id === "index_momentum");
+      return EQUITY_INDEX_PRESETS.find((p) => p.id === "index_momentum");
     case "precious_metal":
-      return symbol.includes("G") ?
-        PRECIOUS_METAL_PRESETS.find(p => p.id === "gold_trend") :
-        PRECIOUS_METAL_PRESETS.find(p => p.id === "silver_momentum");
+      return symbol.includes("G")
+        ? PRECIOUS_METAL_PRESETS.find((p) => p.id === "gold_trend")
+        : PRECIOUS_METAL_PRESETS.find((p) => p.id === "silver_momentum");
     default:
       return EQUITY_INDEX_PRESETS[1];
   }
@@ -872,7 +924,10 @@ export function getRecommendedPreset(symbol: string): FuturesPreset | undefined 
 /**
  * Check if market is in active trading hours
  */
-export function isActiveTradingSession(symbol: string, currentTimeET: Date): boolean {
+export function isActiveTradingSession(
+  symbol: string,
+  currentTimeET: Date
+): boolean {
   const config = getFuturesConfig(symbol);
   if (!config) return false;
 
@@ -905,15 +960,24 @@ export function calculateFuturesPositionSize(
   }
 
   // Use ATR-based position sizing
-  const atrInDollars = config.volatilityProfile.averageATR14 * config.tickValue / config.tickSize;
+  const atrInDollars =
+    (config.volatilityProfile.averageATR14 * config.tickValue) /
+    config.tickSize;
   const stopDistance = atrInDollars * config.strategyParams.atrStopMultiplier;
 
   // Calculate contracts based on risk
   const contracts = Math.floor(riskAmount / stopDistance);
-  const notionalValue = contracts * config.contractSize * config.volatilityProfile.averageATR14 * 10; // Approximate
+  const notionalValue =
+    contracts *
+    config.contractSize *
+    config.volatilityProfile.averageATR14 *
+    10; // Approximate
 
   // Apply max position constraint
-  const maxContracts = Math.floor((accountEquity * config.strategyParams.maxPositionPct) / config.marginRequirement.initial);
+  const maxContracts = Math.floor(
+    (accountEquity * config.strategyParams.maxPositionPct) /
+      config.marginRequirement.initial
+  );
 
   return {
     contracts: Math.min(contracts, maxContracts),
@@ -924,7 +988,9 @@ export function calculateFuturesPositionSize(
 /**
  * Get correlation matrix for a set of symbols
  */
-export function getCorrelationMatrix(symbols: string[]): Record<string, Record<string, number>> {
+export function getCorrelationMatrix(
+  symbols: string[]
+): Record<string, Record<string, number>> {
   const matrix: Record<string, Record<string, number>> = {};
 
   for (const sym1 of symbols) {
@@ -954,7 +1020,8 @@ export function getCorrelationMatrix(symbols: string[]): Record<string, Record<s
 export const FUTURES_STRATEGY_SCHEMA = {
   id: "futures_strategy",
   name: "Futures Trading Strategy",
-  description: "Multi-instrument futures trading strategy supporting US index futures, precious metals, and international indices. Includes instrument-specific parameters and volatility-adjusted position sizing.",
+  description:
+    "Multi-instrument futures trading strategy supporting US index futures, precious metals, and international indices. Includes instrument-specific parameters and volatility-adjusted position sizing.",
   instruments: getSupportedFuturesSymbols(),
   presets: {
     equity_index: EQUITY_INDEX_PRESETS,
@@ -970,7 +1037,7 @@ export const FUTURES_STRATEGY_SCHEMA = {
     atrPeriod: { min: 7, max: 21, default: 14 },
     atrStopMultiplier: { min: 1.0, max: 4.0, default: 2.0 },
     atrTargetMultiplier: { min: 1.5, max: 5.0, default: 3.0 },
-    maxPositionPct: { min: 0.02, max: 0.20, default: 0.08 },
+    maxPositionPct: { min: 0.02, max: 0.2, default: 0.08 },
     riskPerTradePct: { min: 0.005, max: 0.03, default: 0.015 },
   },
 };

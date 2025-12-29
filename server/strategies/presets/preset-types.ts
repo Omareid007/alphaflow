@@ -15,20 +15,17 @@
  * Standard preset levels used across all strategies
  */
 export type PresetName =
-  | "conservative"  // Low risk, fewer trades, longer holds
-  | "moderate"      // Balanced approach, standard parameters
-  | "aggressive"    // Higher risk, more trades, faster signals
-  | "scalper"       // High frequency, small profits, quick exits
-  | "swing"         // Multi-day holds, trend-based
-  | "daytrader";    // Intraday only, no overnight positions
+  | "conservative" // Low risk, fewer trades, longer holds
+  | "moderate" // Balanced approach, standard parameters
+  | "aggressive" // Higher risk, more trades, faster signals
+  | "scalper" // High frequency, small profits, quick exits
+  | "swing" // Multi-day holds, trend-based
+  | "daytrader"; // Intraday only, no overnight positions
 
 /**
  * Strategy types that support the preset framework
  */
-export type StrategyType =
-  | "momentum"
-  | "maCrossover"
-  | "meanReversion";
+export type StrategyType = "momentum" | "maCrossover" | "meanReversion";
 
 /**
  * Risk level classification (1=lowest, 5=highest)
@@ -65,13 +62,13 @@ export interface StrategyPreset extends BasePreset {
  */
 export interface RiskParameters {
   // Position sizing
-  maxPositionSizePct: number;     // Max % of portfolio per position
-  maxTotalExposurePct: number;    // Max % of portfolio in all positions
+  maxPositionSizePct: number; // Max % of portfolio per position
+  maxTotalExposurePct: number; // Max % of portfolio in all positions
 
   // Risk management
-  stopLossPct: number;            // Stop loss as % of entry price
-  takeProfitPct: number;          // Take profit as % of entry price
-  maxDailyLossPct: number;        // Max % loss allowed per day
+  stopLossPct: number; // Stop loss as % of entry price
+  takeProfitPct: number; // Take profit as % of entry price
+  maxDailyLossPct: number; // Max % loss allowed per day
 }
 
 /**
@@ -101,8 +98,8 @@ export interface IndicatorParameters {
  */
 export interface TimeFilters {
   // Trading hours (in ET timezone)
-  tradingStartHour?: number;      // 0-23
-  tradingEndHour?: number;        // 0-23
+  tradingStartHour?: number; // 0-23
+  tradingEndHour?: number; // 0-23
 
   // Day restrictions
   tradingDays?: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday")[];
@@ -119,19 +116,20 @@ export interface TimeFilters {
  * Position management settings
  */
 export interface PositionLimits {
-  maxOpenPositions: number;       // Max concurrent positions
-  maxPositionsPerSymbol: number;  // Max positions in same symbol
-  minPositionValue: number;       // Min $ value per position
-  maxPositionValue: number;       // Max $ value per position
+  maxOpenPositions: number; // Max concurrent positions
+  maxPositionsPerSymbol: number; // Max positions in same symbol
+  minPositionValue: number; // Min $ value per position
+  maxPositionValue: number; // Max $ value per position
 }
 
 /**
  * Combined preset parameters
  */
-export interface PresetParameters extends RiskParameters, IndicatorParameters, TimeFilters, PositionLimits {
+export interface PresetParameters
+  extends RiskParameters, IndicatorParameters, TimeFilters, PositionLimits {
   // Strategy-specific allocation
-  allocationPct: number;          // % of portfolio allocated to this strategy
-  riskLimitPct: number;           // Max risk per trade as % of portfolio
+  allocationPct: number; // % of portfolio allocated to this strategy
+  riskLimitPct: number; // Max risk per trade as % of portfolio
 }
 
 // ============================================================================
@@ -161,13 +159,13 @@ export interface PresetConfig {
  */
 export interface PresetMetadata {
   // Performance characteristics
-  expectedWinRate?: number;       // Expected win rate (0-1)
-  expectedSharpe?: number;        // Expected Sharpe ratio
-  expectedMaxDrawdown?: number;   // Expected max drawdown %
+  expectedWinRate?: number; // Expected win rate (0-1)
+  expectedSharpe?: number; // Expected Sharpe ratio
+  expectedMaxDrawdown?: number; // Expected max drawdown %
 
   // Trade characteristics
-  avgTradesPerDay?: number;       // Average trades per day
-  avgHoldingPeriod?: number;      // Average holding period in hours
+  avgTradesPerDay?: number; // Average trades per day
+  avgHoldingPeriod?: number; // Average holding period in hours
 
   // Market suitability
   bestMarkets?: ("trending" | "ranging" | "volatile" | "calm")[];
@@ -195,7 +193,7 @@ export interface ParameterBounds {
   min: number;
   max: number;
   default: number;
-  step?: number;  // Optional step for UI sliders
+  step?: number; // Optional step for UI sliders
 }
 
 /**

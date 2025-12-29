@@ -11,7 +11,7 @@ import { randomBytes } from "crypto";
  * Generate a unique correlation ID for request tracking
  */
 function generateCorrelationId(): string {
-  return `req_${Date.now()}_${randomBytes(8).toString('hex')}`;
+  return `req_${Date.now()}_${randomBytes(8).toString("hex")}`;
 }
 
 /**
@@ -19,13 +19,14 @@ function generateCorrelationId(): string {
  */
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const startTime = Date.now();
-  const correlationId = req.headers['x-correlation-id'] as string || generateCorrelationId();
+  const correlationId =
+    (req.headers["x-correlation-id"] as string) || generateCorrelationId();
 
   // Attach correlation ID to request for use in other middleware/routes
   (req as any).correlationId = correlationId;
 
   // Add correlation ID to response headers
-  res.setHeader('X-Correlation-ID', correlationId);
+  res.setHeader("X-Correlation-ID", correlationId);
 
   // Log incoming request
   log.info("Request", `${req.method} ${req.path}`, {
@@ -35,7 +36,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     query: Object.keys(req.query).length > 0 ? req.query : undefined,
     userId: (req as any).userId,
     ip: req.ip || req.socket.remoteAddress,
-    userAgent: req.headers['user-agent'],
+    userAgent: req.headers["user-agent"],
   });
 
   // Capture response
@@ -66,20 +67,24 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 export function performanceLogger(thresholdMs: number = 1000) {
   return (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
-    const correlationId = (req as any).correlationId || 'unknown';
+    const correlationId = (req as any).correlationId || "unknown";
 
-    res.on('finish', () => {
+    res.on("finish", () => {
       const duration = Date.now() - startTime;
 
       if (duration > thresholdMs) {
-        log.warn("Performance", `Slow request detected: ${req.method} ${req.path}`, {
-          correlationId,
-          method: req.method,
-          path: req.path,
-          durationMs: duration,
-          threshold: thresholdMs,
-          statusCode: res.statusCode,
-        });
+        log.warn(
+          "Performance",
+          `Slow request detected: ${req.method} ${req.path}`,
+          {
+            correlationId,
+            method: req.method,
+            path: req.path,
+            durationMs: duration,
+            threshold: thresholdMs,
+            statusCode: res.statusCode,
+          }
+        );
       }
     });
 

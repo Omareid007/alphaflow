@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { apiDiscoveryService } from '@/lib/admin/services';
+import { NextResponse } from "next/server";
+import { apiDiscoveryService } from "@/lib/admin/services";
 
 export async function POST(
   request: Request,
@@ -9,9 +9,9 @@ export async function POST(
     const result = await apiDiscoveryService.testApiFunction(params.funcId);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Failed to test API function:', error);
+    console.error("Failed to test API function:", error);
     return NextResponse.json(
-      { error: 'Failed to test API function' },
+      { error: "Failed to test API function" },
       { status: 500 }
     );
   }

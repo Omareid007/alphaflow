@@ -1,4 +1,8 @@
-import { callExternal, CallExternalResult, CallExternalOptions } from "./callExternal";
+import {
+  callExternal,
+  CallExternalResult,
+  CallExternalOptions,
+} from "./callExternal";
 import { log } from "../utils/logger";
 
 export interface ConnectorResponse<T> {
@@ -63,7 +67,9 @@ export async function connectorFetch<T>(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
-      throw new Error(`${provider} API error ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(
+        `${provider} API error ${response.status}: ${errorText.substring(0, 200)}`
+      );
     }
 
     return response.json() as Promise<T>;
@@ -83,7 +89,10 @@ export async function connectorFetch<T>(
     },
   };
 
-  const result: CallExternalResult<T> = await callExternal(fetcher, callExternalOptions);
+  const result: CallExternalResult<T> = await callExternal(
+    fetcher,
+    callExternalOptions
+  );
 
   log.debug("ConnectorClient", `${provider}:${endpoint}`, {
     cacheStatus: result.provenance.cacheStatus,
@@ -104,7 +113,10 @@ export async function connectorFetch<T>(
   };
 }
 
-export function buildCacheKey(provider: string, ...parts: (string | number | undefined)[]): string {
+export function buildCacheKey(
+  provider: string,
+  ...parts: (string | number | undefined)[]
+): string {
   const filteredParts = parts.filter((p) => p !== undefined && p !== null);
   return `${provider}:${filteredParts.join(":")}`;
 }
@@ -113,7 +125,7 @@ export function hashEndpoint(endpoint: string): string {
   let hash = 0;
   for (let i = 0; i < endpoint.length; i++) {
     const char = endpoint.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);

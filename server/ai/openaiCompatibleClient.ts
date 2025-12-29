@@ -6,7 +6,12 @@
  */
 
 import { log } from "../utils/logger";
-import { LLMRequest, LLMResponse, LLMToolCall, createLLMError } from "./llmClient";
+import {
+  LLMRequest,
+  LLMResponse,
+  LLMToolCall,
+  createLLMError,
+} from "./llmClient";
 import { BaseLLMClient, BaseLLMClientConfig } from "./baseLLMClient";
 
 interface OpenAICompatibleMessage {
@@ -77,14 +82,18 @@ export class OpenAICompatibleClient extends BaseLLMClient {
         this.handleHttpError(response, errorText);
       }
 
-      const data = await response.json() as OpenAICompatibleResponse;
+      const data = (await response.json()) as OpenAICompatibleResponse;
       return this.parseResponse(data, latencyMs, model);
     } catch (error) {
-      if ((error as { provider?: string }).provider === this.config.providerName) {
+      if (
+        (error as { provider?: string }).provider === this.config.providerName
+      ) {
         throw error;
       }
 
-      log.error(this.config.providerName, "Request failed", { error: String(error) });
+      log.error(this.config.providerName, "Request failed", {
+        error: String(error),
+      });
       throw createLLMError(
         `${this.config.providerName} request failed: ${String(error)}`,
         this.config.providerName
@@ -185,10 +194,14 @@ export class OpenAICompatibleClient extends BaseLLMClient {
           arguments: args,
         });
       } catch (parseError) {
-        log.warn(this.config.providerName, "Failed to parse tool call arguments", {
-          toolName: tc.function.name,
-          error: String(parseError),
-        });
+        log.warn(
+          this.config.providerName,
+          "Failed to parse tool call arguments",
+          {
+            toolName: tc.function.name,
+            error: String(parseError),
+          }
+        );
       }
     }
     return parsed;

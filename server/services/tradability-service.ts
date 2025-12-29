@@ -1,7 +1,12 @@
 import { storage } from "../storage";
 import { alpaca, AlpacaAsset } from "../connectors/alpaca";
 import { log } from "../utils/logger";
-import type { TradabilityCheck, BrokerAsset, InsertBrokerAsset, AssetClass } from "@shared/schema";
+import type {
+  TradabilityCheck,
+  BrokerAsset,
+  InsertBrokerAsset,
+  AssetClass,
+} from "@shared/schema";
 
 const SYNC_STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -47,23 +52,23 @@ function brokerAssetToTradabilityCheck(asset: BrokerAsset): TradabilityCheck {
 export class TradabilityService {
   async validateSymbolTradable(symbol: string): Promise<TradabilityCheck> {
     const normalizedSymbol = symbol.toUpperCase();
-    
+
     const cached = memoryCache.get(normalizedSymbol);
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
       return cached.check;
     }
-    
+
     const dbAsset = await storage.getBrokerAsset(normalizedSymbol);
-    
+
     if (dbAsset) {
       const check = brokerAssetToTradabilityCheck(dbAsset);
       memoryCache.set(normalizedSymbol, { check, cachedAt: Date.now() });
       return check;
     }
-    
+
     try {
       const alpacaAsset = await alpaca.getAsset(normalizedSymbol);
-      
+
       if (alpacaAsset) {
         const insertAsset = mapAlpacaAssetToInsert(alpacaAsset);
         const savedAsset = await storage.upsertBrokerAsset(insertAsset);
@@ -72,30 +77,41 @@ export class TradabilityService {
         return check;
       }
     } catch (error: any) {
-      log.warn("tradability", `Failed to fetch asset ${normalizedSymbol} from Alpaca`, { error: error.message });
+      log.warn(
+        "tradability",
+        `Failed to fetch asset ${normalizedSymbol} from Alpaca`,
+        { error: error.message }
+      );
     }
-    
+
     const notFoundCheck: TradabilityCheck = {
       symbol: normalizedSymbol,
       tradable: false,
       reason: "Symbol not found in broker asset universe",
     };
-    memoryCache.set(normalizedSymbol, { check: notFoundCheck, cachedAt: Date.now() });
+    memoryCache.set(normalizedSymbol, {
+      check: notFoundCheck,
+      cachedAt: Date.now(),
+    });
     return notFoundCheck;
   }
 
-  async validateSymbolsTradable(symbols: string[]): Promise<Map<string, TradabilityCheck>> {
+  async validateSymbolsTradable(
+    symbols: string[]
+  ): Promise<Map<string, TradabilityCheck>> {
     const results = new Map<string, TradabilityCheck>();
-    
+
     for (const symbol of symbols) {
       const check = await this.validateSymbolTradable(symbol);
       results.set(symbol.toUpperCase(), check);
     }
-    
+
     return results;
   }
 
-  async syncAssetUniverse(assetClass: "us_equity" | "crypto" = "us_equity"): Promise<{
+  async syncAssetUniverse(
+    assetClass: "us_equity" | "crypto" = "us_equity"
+  ): Promise<{
     synced: number;
     tradable: number;
     errors: string[];
@@ -103,23 +119,29 @@ export class TradabilityService {
     const errors: string[] = [];
     let synced = 0;
     let tradable = 0;
-    
+
     try {
       log.info("tradability", `Starting universe sync for ${assetClass}`);
-      
+
       const assets = await alpaca.getAssets("active", assetClass);
-      log.info("tradability", `Fetched ${assets.length} ${assetClass} assets from Alpaca`);
-      
+      log.info(
+        "tradability",
+        `Fetched ${assets.length} ${assetClass} assets from Alpaca`
+      );
+
       const insertAssets = assets.map(mapAlpacaAssetToInsert);
       synced = await storage.bulkUpsertBrokerAssets(insertAssets);
       tradable = assets.filter((a: AlpacaAsset) => a.tradable).length;
-      
-      log.info("tradability", `Universe sync complete: ${synced} synced, ${tradable} tradable`);
+
+      log.info(
+        "tradability",
+        `Universe sync complete: ${synced} synced, ${tradable} tradable`
+      );
     } catch (error: any) {
       errors.push(`Sync failed for ${assetClass}: ${error.message}`);
       log.error("tradability", `Universe sync error: ${error.message}`);
     }
-    
+
     return { synced, tradable, errors };
   }
 
@@ -133,12 +155,16 @@ export class TradabilityService {
     const equityCount = await storage.getBrokerAssetCount("us_equity");
     const cryptoCount = await storage.getBrokerAssetCount("crypto");
     const lastSyncedAt = await storage.getLastAssetSyncTime();
-    
-    const tradableEquities = (await storage.getBrokerAssets("us_equity", true)).length;
-    const tradableCrypto = (await storage.getBrokerAssets("crypto", true)).length;
-    
-    const isStale = !lastSyncedAt || Date.now() - lastSyncedAt.getTime() > SYNC_STALE_THRESHOLD_MS;
-    
+
+    const tradableEquities = (await storage.getBrokerAssets("us_equity", true))
+      .length;
+    const tradableCrypto = (await storage.getBrokerAssets("crypto", true))
+      .length;
+
+    const isStale =
+      !lastSyncedAt ||
+      Date.now() - lastSyncedAt.getTime() > SYNC_STALE_THRESHOLD_MS;
+
     return {
       totalAssets: equityCount + cryptoCount,
       tradableEquities,
@@ -148,7 +174,10 @@ export class TradabilityService {
     };
   }
 
-  async searchSymbols(query: string, limit: number = 20): Promise<BrokerAsset[]> {
+  async searchSymbols(
+    query: string,
+    limit: number = 20
+  ): Promise<BrokerAsset[]> {
     return storage.searchBrokerAssets(query, limit);
   }
 

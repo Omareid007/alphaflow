@@ -1,5 +1,9 @@
 import { db } from "../db";
-import { adminSettings, type AdminSetting, type InsertAdminSetting } from "@shared/schema";
+import {
+  adminSettings,
+  type AdminSetting,
+  type InsertAdminSetting,
+} from "@shared/schema";
 import { eq, and, like } from "drizzle-orm";
 
 export interface SettingsService {
@@ -8,7 +12,12 @@ export interface SettingsService {
     namespace: string,
     key: string,
     value: T,
-    options?: { description?: string; isSecret?: boolean; isReadOnly?: boolean; userId?: string }
+    options?: {
+      description?: string;
+      isSecret?: boolean;
+      isReadOnly?: boolean;
+      userId?: string;
+    }
   ) => Promise<AdminSetting>;
   delete: (namespace: string, key: string) => Promise<boolean>;
   list: (namespace?: string) => Promise<AdminSetting[]>;
@@ -22,7 +31,9 @@ export async function getSetting<T = unknown>(
   const [result] = await db
     .select()
     .from(adminSettings)
-    .where(and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key)))
+    .where(
+      and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key))
+    )
     .limit(1);
 
   if (!result) return undefined;
@@ -36,7 +47,9 @@ export async function getSettingFull(
   const [result] = await db
     .select()
     .from(adminSettings)
-    .where(and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key)))
+    .where(
+      and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key))
+    )
     .limit(1);
 
   return result || undefined;
@@ -56,7 +69,9 @@ export async function setSetting<T = unknown>(
   const existing = await db
     .select()
     .from(adminSettings)
-    .where(and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key)))
+    .where(
+      and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key))
+    )
     .limit(1);
 
   if (existing.length > 0) {
@@ -94,11 +109,16 @@ export async function setSetting<T = unknown>(
   return created;
 }
 
-export async function deleteSetting(namespace: string, key: string): Promise<boolean> {
+export async function deleteSetting(
+  namespace: string,
+  key: string
+): Promise<boolean> {
   const existing = await db
     .select()
     .from(adminSettings)
-    .where(and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key)))
+    .where(
+      and(eq(adminSettings.namespace, namespace), eq(adminSettings.key, key))
+    )
     .limit(1);
 
   if (existing.length === 0) return false;
@@ -106,14 +126,14 @@ export async function deleteSetting(namespace: string, key: string): Promise<boo
     throw new Error(`Setting ${namespace}:${key} is read-only`);
   }
 
-  await db
-    .delete(adminSettings)
-    .where(eq(adminSettings.id, existing[0].id));
+  await db.delete(adminSettings).where(eq(adminSettings.id, existing[0].id));
 
   return true;
 }
 
-export async function listSettings(namespace?: string): Promise<AdminSetting[]> {
+export async function listSettings(
+  namespace?: string
+): Promise<AdminSetting[]> {
   if (namespace) {
     return db
       .select()
@@ -123,7 +143,9 @@ export async function listSettings(namespace?: string): Promise<AdminSetting[]> 
   return db.select().from(adminSettings);
 }
 
-export async function getAllSettings(namespace: string): Promise<Record<string, unknown>> {
+export async function getAllSettings(
+  namespace: string
+): Promise<Record<string, unknown>> {
   const settings = await db
     .select()
     .from(adminSettings)
@@ -138,9 +160,14 @@ export async function getAllSettings(namespace: string): Promise<Record<string, 
   return result;
 }
 
-export function sanitizeSettingForResponse(setting: AdminSetting): AdminSetting {
+export function sanitizeSettingForResponse(
+  setting: AdminSetting
+): AdminSetting {
   if (setting.isSecret) {
-    return { ...setting, value: "[REDACTED]" as unknown as Record<string, unknown> };
+    return {
+      ...setting,
+      value: "[REDACTED]" as unknown as Record<string, unknown>,
+    };
   }
   return setting;
 }

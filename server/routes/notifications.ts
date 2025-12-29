@@ -28,9 +28,13 @@ const redactChannelConfig = (channel: any) => {
   const redacted = { ...channel };
   if (redacted.config) {
     const config = { ...redacted.config };
-    if ('botToken' in config) config.botToken = '***REDACTED***';
-    if ('webhookUrl' in config) config.webhookUrl = config.webhookUrl.replace(/\/[^/]+$/, '/***REDACTED***');
-    if ('password' in config) config.password = '***REDACTED***';
+    if ("botToken" in config) config.botToken = "***REDACTED***";
+    if ("webhookUrl" in config)
+      config.webhookUrl = config.webhookUrl.replace(
+        /\/[^/]+$/,
+        "/***REDACTED***"
+      );
+    if ("password" in config) config.password = "***REDACTED***";
     redacted.config = config;
   }
   return redacted;
@@ -56,13 +60,17 @@ router.post("/channels", (req: Request, res: Response) => {
   try {
     const { type, name, config, enabled } = req.body;
     if (!type || !name || !config) {
-      return res.status(400).json({ error: "type, name, and config are required" });
+      return res
+        .status(400)
+        .json({ error: "type, name, and config are required" });
     }
-    if (!['telegram', 'slack', 'discord', 'email'].includes(type)) {
+    if (!["telegram", "slack", "discord", "email"].includes(type)) {
       return res.status(400).json({ error: "Invalid channel type" });
     }
-    if (type === 'email') {
-      return res.status(400).json({ error: "Email notifications not yet supported" });
+    if (type === "email") {
+      return res
+        .status(400)
+        .json({ error: "Email notifications not yet supported" });
     }
     const id = `ch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const channel: NotificationChannel = {
@@ -102,7 +110,7 @@ router.post("/channels/:id/test", async (req: Request, res: Response) => {
     const { message } = req.body;
     const result = await sendDirectNotification(
       req.params.id,
-      message || 'Test notification from AI Active Trader'
+      message || "Test notification from AI Active Trader"
     );
     if (!result) {
       return res.status(404).json({ error: "Channel not found" });
@@ -126,7 +134,9 @@ router.post("/templates", (req: Request, res: Response) => {
   try {
     const { name, eventType, channels, messageTemplate, enabled } = req.body;
     if (!name || !eventType || !messageTemplate) {
-      return res.status(400).json({ error: "name, eventType, and messageTemplate are required" });
+      return res
+        .status(400)
+        .json({ error: "name, eventType, and messageTemplate are required" });
     }
     const id = `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const template: NotificationTemplate = {

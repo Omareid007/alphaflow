@@ -1,5 +1,13 @@
 import { db } from "../db";
-import { universeCandidates, universeFundamentals, universeLiquidityMetrics, universeAssets, type InsertUniverseCandidate, type UniverseCandidate, type LiquidityTier } from "@shared/schema";
+import {
+  universeCandidates,
+  universeFundamentals,
+  universeLiquidityMetrics,
+  universeAssets,
+  type InsertUniverseCandidate,
+  type UniverseCandidate,
+  type LiquidityTier,
+} from "@shared/schema";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
 import { fundamentalsService } from "./fundamentalsService";
 import { liquidityService } from "./liquidityService";
@@ -23,12 +31,14 @@ export interface CandidateApprovalResult {
 }
 
 export class CandidatesService {
-  async generateCandidates(options: {
-    minLiquidityTier?: LiquidityTier;
-    minScore?: number;
-    limit?: number;
-    traceId?: string;
-  } = {}): Promise<CandidateGenerationResult> {
+  async generateCandidates(
+    options: {
+      minLiquidityTier?: LiquidityTier;
+      minScore?: number;
+      limit?: number;
+      traceId?: string;
+    } = {}
+  ): Promise<CandidateGenerationResult> {
     const startTime = Date.now();
     const {
       minLiquidityTier = "B",
@@ -37,7 +47,11 @@ export class CandidatesService {
       traceId,
     } = options;
 
-    log.info("CandidatesService", "Generating candidates", { minLiquidityTier, minScore, traceId });
+    log.info("CandidatesService", "Generating candidates", {
+      minLiquidityTier,
+      minScore,
+      traceId,
+    });
 
     const eligibleSymbols = await db
       .select({
@@ -46,18 +60,23 @@ export class CandidatesService {
       })
       .from(universeLiquidityMetrics)
       .where(
-        inArray(universeLiquidityMetrics.liquidityTier, 
-          minLiquidityTier === "A" ? ["A"] : ["A", "B"])
+        inArray(
+          universeLiquidityMetrics.liquidityTier,
+          minLiquidityTier === "A" ? ["A"] : ["A", "B"]
+        )
       )
       .limit(limit * 2);
 
-    log.info("CandidatesService", "Found symbols meeting liquidity criteria", { count: eligibleSymbols.length });
+    log.info("CandidatesService", "Found symbols meeting liquidity criteria", {
+      count: eligibleSymbols.length,
+    });
 
     let generated = 0;
     let updated = 0;
 
     for (const { symbol, tier } of eligibleSymbols) {
-      const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
+      const fundamentals =
+        await fundamentalsService.getFundamentalsBySymbol(symbol);
       const liquidity = await liquidityService.getMetricsBySymbol(symbol);
 
       let qualityScore = 0.5;
@@ -66,7 +85,8 @@ export class CandidatesService {
       let rationale = "Insufficient data for scoring";
 
       if (fundamentals) {
-        const scores = fundamentalsService.calculateQualityGrowthScore(fundamentals);
+        const scores =
+          fundamentalsService.calculateQualityGrowthScore(fundamentals);
         qualityScore = scores.qualityScore;
         growthScore = scores.growthScore;
         finalScore = scores.finalScore;
@@ -91,13 +111,19 @@ export class CandidatesService {
       };
 
       const existing = await db
-        .select({ id: universeCandidates.id, status: universeCandidates.status })
+        .select({
+          id: universeCandidates.id,
+          status: universeCandidates.status,
+        })
         .from(universeCandidates)
         .where(eq(universeCandidates.symbol, symbol))
         .limit(1);
 
       if (existing.length > 0) {
-        if (existing[0].status === "NEW" || existing[0].status === "WATCHLIST") {
+        if (
+          existing[0].status === "NEW" ||
+          existing[0].status === "WATCHLIST"
+        ) {
           await db
             .update(universeCandidates)
             .set({
@@ -119,7 +145,11 @@ export class CandidatesService {
     }
 
     const duration = Date.now() - startTime;
-    log.info("CandidatesService", "Generation complete", { generated, updated, duration });
+    log.info("CandidatesService", "Generation complete", {
+      generated,
+      updated,
+      duration,
+    });
 
     return {
       success: true,
@@ -130,7 +160,10 @@ export class CandidatesService {
     };
   }
 
-  async approveCandidate(symbol: string, userId: string): Promise<CandidateApprovalResult> {
+  async approveCandidate(
+    symbol: string,
+    userId: string
+  ): Promise<CandidateApprovalResult> {
     return this.updateCandidateStatus(symbol, "APPROVED", userId);
   }
 
@@ -169,7 +202,11 @@ export class CandidatesService {
       })
       .where(eq(universeCandidates.symbol, symbol.toUpperCase()));
 
-    log.info("CandidatesService", "Status updated", { symbol, previousStatus, newStatus });
+    log.info("CandidatesService", "Status updated", {
+      symbol,
+      previousStatus,
+      newStatus,
+    });
 
     return {
       success: true,
@@ -179,7 +216,9 @@ export class CandidatesService {
     };
   }
 
-  async getCandidateBySymbol(symbol: string): Promise<UniverseCandidate | null> {
+  async getCandidateBySymbol(
+    symbol: string
+  ): Promise<UniverseCandidate | null> {
     const result = await db
       .select()
       .from(universeCandidates)
@@ -188,7 +227,10 @@ export class CandidatesService {
     return result[0] || null;
   }
 
-  async getCandidatesByStatus(status: CandidateStatus, limit = 100): Promise<UniverseCandidate[]> {
+  async getCandidatesByStatus(
+    status: CandidateStatus,
+    limit = 100
+  ): Promise<UniverseCandidate[]> {
     return db
       .select()
       .from(universeCandidates)
@@ -216,7 +258,21 @@ export class CandidatesService {
 
     for (const { symbol } of symbols) {
       // Crypto symbols typically end with /USD or are known crypto tickers
-      if (symbol.includes("/USD") || ["BTC", "ETH", "SOL", "DOGE", "SHIB", "AVAX", "ADA", "XRP", "DOT", "MATIC"].includes(symbol.toUpperCase())) {
+      if (
+        symbol.includes("/USD") ||
+        [
+          "BTC",
+          "ETH",
+          "SOL",
+          "DOGE",
+          "SHIB",
+          "AVAX",
+          "ADA",
+          "XRP",
+          "DOT",
+          "MATIC",
+        ].includes(symbol.toUpperCase())
+      ) {
         crypto.push(symbol.replace("/USD", "").toUpperCase());
       } else {
         stocks.push(symbol.toUpperCase());
@@ -263,7 +319,8 @@ export class CandidatesService {
       watchlist: watchlistCount,
       approved: approvedCount,
       rejected: rejectedCount,
-      avgScore: all.length > 0 ? Math.round((totalScore / all.length) * 100) / 100 : 0,
+      avgScore:
+        all.length > 0 ? Math.round((totalScore / all.length) * 100) / 100 : 0,
     };
   }
 
@@ -271,18 +328,26 @@ export class CandidatesService {
     return db
       .select()
       .from(universeCandidates)
-      .where(inArray(universeCandidates.status, ["NEW", "WATCHLIST", "APPROVED"]))
+      .where(
+        inArray(universeCandidates.status, ["NEW", "WATCHLIST", "APPROVED"])
+      )
       .orderBy(desc(universeCandidates.finalScore))
       .limit(limit);
   }
 
-  async bootstrapFromWatchlist(watchlist: string[], traceId?: string): Promise<{
+  async bootstrapFromWatchlist(
+    watchlist: string[],
+    traceId?: string
+  ): Promise<{
     added: number;
     existing: number;
     errors: number;
   }> {
-    log.info("CandidatesService", "Bootstrapping symbols from watchlist", { count: watchlist.length, traceId });
-    
+    log.info("CandidatesService", "Bootstrapping symbols from watchlist", {
+      count: watchlist.length,
+      traceId,
+    });
+
     let added = 0;
     let existing = 0;
     let errors = 0;
@@ -316,38 +381,60 @@ export class CandidatesService {
         });
         added++;
       } catch (error) {
-        log.error("CandidatesService", "Error bootstrapping symbol", { symbol, error: error instanceof Error ? error.message : String(error) });
+        log.error("CandidatesService", "Error bootstrapping symbol", {
+          symbol,
+          error: error instanceof Error ? error.message : String(error),
+        });
         errors++;
       }
     }
 
-    log.info("CandidatesService", "Bootstrap complete", { added, existing, errors });
+    log.info("CandidatesService", "Bootstrap complete", {
+      added,
+      existing,
+      errors,
+    });
     return { added, existing, errors };
   }
 
-  async ensureWatchlistApproved(watchlist: string[], traceId?: string): Promise<void> {
+  async ensureWatchlistApproved(
+    watchlist: string[],
+    traceId?: string
+  ): Promise<void> {
     // Get all existing symbols
     const existingSymbols = new Set(
-      (await db.select({ symbol: universeCandidates.symbol }).from(universeCandidates))
-        .map(r => r.symbol.toUpperCase())
+      (
+        await db
+          .select({ symbol: universeCandidates.symbol })
+          .from(universeCandidates)
+      ).map((r) => r.symbol.toUpperCase())
     );
-    
+
     // Find missing symbols from watchlist
     const missingSymbols = watchlist
-      .map(s => s.toUpperCase())
-      .filter(s => !existingSymbols.has(s));
-    
+      .map((s) => s.toUpperCase())
+      .filter((s) => !existingSymbols.has(s));
+
     if (missingSymbols.length === 0) {
-      log.info("CandidatesService", "All watchlist symbols already in universe_candidates", { count: watchlist.length });
+      log.info(
+        "CandidatesService",
+        "All watchlist symbols already in universe_candidates",
+        { count: watchlist.length }
+      );
       return;
     }
-    
-    log.info("CandidatesService", "Found missing symbols, bootstrapping", { count: missingSymbols.length });
+
+    log.info("CandidatesService", "Found missing symbols, bootstrapping", {
+      count: missingSymbols.length,
+    });
     const result = await this.bootstrapFromWatchlist(missingSymbols, traceId);
-    
+
     // Log warning if there were errors but continue - partial population is better than none
     if (result.errors > 0) {
-      log.warn("CandidatesService", "Bootstrap completed with errors", { errors: result.errors, totalSymbols: missingSymbols.length });
+      log.warn("CandidatesService", "Bootstrap completed with errors", {
+        errors: result.errors,
+        totalSymbols: missingSymbols.length,
+      });
     }
   }
 }

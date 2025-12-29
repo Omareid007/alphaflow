@@ -61,10 +61,13 @@ import { getWatchlist } from "./watchlist-cache";
 import { tradingConfig } from "../config/trading-config";
 
 // Universe expansion constants - values loaded from tradingConfig
-const MAX_STOCK_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxStockSymbolsPerCycle;
-const MAX_CRYPTO_SYMBOLS_PER_CYCLE = tradingConfig.universe.maxCryptoSymbolsPerCycle;
+const MAX_STOCK_SYMBOLS_PER_CYCLE =
+  tradingConfig.universe.maxStockSymbolsPerCycle;
+const MAX_CRYPTO_SYMBOLS_PER_CYCLE =
+  tradingConfig.universe.maxCryptoSymbolsPerCycle;
 const RECENT_DECISIONS_LOOKBACK = 500;
-const MIN_CONFIDENCE_FOR_UNIVERSE = tradingConfig.universe.minConfidenceForUniverse;
+const MIN_CONFIDENCE_FOR_UNIVERSE =
+  tradingConfig.universe.minConfidenceForUniverse;
 
 export interface UniverseSymbols {
   stocks: string[];
@@ -125,12 +128,21 @@ const universeRotationState: UniverseRotationState = {
  * ```
  */
 export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
-  const sources = { watchlist: 0, candidates: 0, recentDecisions: 0, executedTrades: 0 };
+  const sources = {
+    watchlist: 0,
+    candidates: 0,
+    recentDecisions: 0,
+    executedTrades: 0,
+  };
 
   // Start with dynamically loaded watchlist from database
   const watchlist = await getWatchlist();
-  const stockSet = new Set<string>(watchlist.stocks.map(s => s.toUpperCase()));
-  const cryptoSet = new Set<string>(watchlist.crypto.map(c => c.toUpperCase()));
+  const stockSet = new Set<string>(
+    watchlist.stocks.map((s) => s.toUpperCase())
+  );
+  const cryptoSet = new Set<string>(
+    watchlist.crypto.map((c) => c.toUpperCase())
+  );
   sources.watchlist = stockSet.size + cryptoSet.size;
 
   try {
@@ -139,20 +151,25 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
     for (const symbol of approvedSymbols) {
       const upper = symbol.toUpperCase();
       if (isCryptoSymbol(upper)) {
-        cryptoSet.add(upper.replace('/USD', ''));
+        cryptoSet.add(upper.replace("/USD", ""));
       } else {
         stockSet.add(upper);
       }
     }
     sources.candidates = approvedSymbols.length;
   } catch (error) {
-    log.warn("UniverseBuilder", "Failed to get approved candidates", { error: String(error) });
+    log.warn("UniverseBuilder", "Failed to get approved candidates", {
+      error: String(error),
+    });
   }
 
   try {
     // Add symbols from recent high-confidence AI decisions (action != hold)
-    const recentDecisions = await storage.getAiDecisions(undefined, RECENT_DECISIONS_LOOKBACK);
-    const highConfDecisions = recentDecisions.filter(d => {
+    const recentDecisions = await storage.getAiDecisions(
+      undefined,
+      RECENT_DECISIONS_LOOKBACK
+    );
+    const highConfDecisions = recentDecisions.filter((d) => {
       const confidence = parseFloat(d.confidence || "0");
       return confidence >= MIN_CONFIDENCE_FOR_UNIVERSE && d.action !== "hold";
     });
@@ -160,7 +177,7 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
     for (const decision of highConfDecisions) {
       const upper = decision.symbol.toUpperCase();
       if (isCryptoSymbol(upper)) {
-        cryptoSet.add(upper.replace('/USD', ''));
+        cryptoSet.add(upper.replace("/USD", ""));
       } else {
         stockSet.add(upper);
       }
@@ -172,7 +189,11 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
     }
     sources.recentDecisions = highConfDecisions.length;
   } catch (error) {
-    log.warn("UniverseBuilder", "Failed to get recent AI decisions for universe", { error: String(error) });
+    log.warn(
+      "UniverseBuilder",
+      "Failed to get recent AI decisions for universe",
+      { error: String(error) }
+    );
   }
 
   // Apply rotation if universe exceeds caps
@@ -182,9 +203,14 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
   if (stocks.length > MAX_STOCK_SYMBOLS_PER_CYCLE) {
     // Rotate through the full universe over time
     const now = Date.now();
-    const hoursSinceLastRotation = (now - universeRotationState.lastRotationTime.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLastRotation =
+      (now - universeRotationState.lastRotationTime.getTime()) /
+      (1000 * 60 * 60);
     if (hoursSinceLastRotation >= 1) {
-      universeRotationState.stockRotationOffset = (universeRotationState.stockRotationOffset + MAX_STOCK_SYMBOLS_PER_CYCLE / 2) % stocks.length;
+      universeRotationState.stockRotationOffset =
+        (universeRotationState.stockRotationOffset +
+          MAX_STOCK_SYMBOLS_PER_CYCLE / 2) %
+        stocks.length;
       universeRotationState.lastRotationTime = new Date();
     }
 
@@ -200,11 +226,15 @@ export async function getAnalysisUniverseSymbols(): Promise<UniverseSymbols> {
     crypto = rotated.slice(0, MAX_CRYPTO_SYMBOLS_PER_CYCLE);
   }
 
-  log.info("UniverseBuilder", `Universe built: ${stocks.length} stocks, ${crypto.length} crypto`, {
-    sources,
-    totalStockPool: stockSet.size,
-    totalCryptoPool: cryptoSet.size,
-  });
+  log.info(
+    "UniverseBuilder",
+    `Universe built: ${stocks.length} stocks, ${crypto.length} crypto`,
+    {
+      sources,
+      totalStockPool: stockSet.size,
+      totalCryptoPool: cryptoSet.size,
+    }
+  );
 
   return { stocks, crypto, sources };
 }

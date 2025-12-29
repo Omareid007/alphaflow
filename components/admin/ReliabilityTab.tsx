@@ -24,11 +24,13 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label>Retry Policy</Label>
-            <p className="text-sm text-muted-foreground">Automatically retry failed requests</p>
+            <p className="text-sm text-muted-foreground">
+              Automatically retry failed requests
+            </p>
           </div>
           <Switch
             checked={formData.retryEnabled}
-            onCheckedChange={(checked) => updateField('retryEnabled', checked)}
+            onCheckedChange={(checked) => updateField("retryEnabled", checked)}
           />
         </div>
 
@@ -40,7 +42,9 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
                 id="retryMaxAttempts"
                 type="number"
                 value={formData.retryMaxAttempts}
-                onChange={(e) => updateField('retryMaxAttempts', parseInt(e.target.value))}
+                onChange={(e) =>
+                  updateField("retryMaxAttempts", parseInt(e.target.value))
+                }
                 min="1"
                 max="10"
               />
@@ -51,7 +55,9 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
                 id="retryBackoffMs"
                 type="number"
                 value={formData.retryBackoffMs}
-                onChange={(e) => updateField('retryBackoffMs', parseInt(e.target.value))}
+                onChange={(e) =>
+                  updateField("retryBackoffMs", parseInt(e.target.value))
+                }
                 min="100"
               />
             </div>
@@ -62,11 +68,18 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
                 type="number"
                 step="0.1"
                 value={formData.retryBackoffMultiplier}
-                onChange={(e) => updateField('retryBackoffMultiplier', parseFloat(e.target.value))}
+                onChange={(e) =>
+                  updateField(
+                    "retryBackoffMultiplier",
+                    parseFloat(e.target.value)
+                  )
+                }
                 min="1"
                 max="10"
               />
-              <p className="text-xs text-muted-foreground">Exponential backoff factor (e.g., 2.0 doubles wait time)</p>
+              <p className="text-xs text-muted-foreground">
+                Exponential backoff factor (e.g., 2.0 doubles wait time)
+              </p>
             </div>
           </div>
         )}
@@ -81,7 +94,9 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
               id="timeoutConnectMs"
               type="number"
               value={formData.timeoutConnectMs}
-              onChange={(e) => updateField('timeoutConnectMs', parseInt(e.target.value))}
+              onChange={(e) =>
+                updateField("timeoutConnectMs", parseInt(e.target.value))
+              }
               min="1000"
             />
           </div>
@@ -91,7 +106,9 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
               id="timeoutRequestMs"
               type="number"
               value={formData.timeoutRequestMs}
-              onChange={(e) => updateField('timeoutRequestMs', parseInt(e.target.value))}
+              onChange={(e) =>
+                updateField("timeoutRequestMs", parseInt(e.target.value))
+              }
               min="1000"
             />
           </div>
@@ -101,7 +118,9 @@ export function ReliabilityTab({ formData, updateField }: ReliabilityTabProps) {
               id="timeoutTotalMs"
               type="number"
               value={formData.timeoutTotalMs}
-              onChange={(e) => updateField('timeoutTotalMs', parseInt(e.target.value))}
+              onChange={(e) =>
+                updateField("timeoutTotalMs", parseInt(e.target.value))
+              }
               min="1000"
             />
           </div>

@@ -34,7 +34,9 @@ export async function createSession(userId: string): Promise<string> {
  * @param sessionId - The session ID to retrieve
  * @returns Session data or null if not found or expired
  */
-export async function getSession(sessionId: string): Promise<SessionData | null> {
+export async function getSession(
+  sessionId: string
+): Promise<SessionData | null> {
   const [session] = await db
     .select()
     .from(sessions)
@@ -69,7 +71,9 @@ export async function deleteSession(sessionId: string): Promise<void> {
  * This should be run periodically
  */
 export async function cleanupExpiredSessions(): Promise<void> {
-  const result = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
+  const result = await db
+    .delete(sessions)
+    .where(lt(sessions.expiresAt, new Date()));
   log.info("SessionCleanup", "Cleaned up expired sessions");
 }
 
@@ -92,7 +96,5 @@ export async function getUserSessions(userId: string): Promise<string[]> {
     .from(sessions)
     .where(eq(sessions.userId, userId));
 
-  return userSessions
-    .filter(s => s.expiresAt >= new Date())
-    .map(s => s.id);
+  return userSessions.filter((s) => s.expiresAt >= new Date()).map((s) => s.id);
 }

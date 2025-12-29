@@ -1,18 +1,27 @@
 /**
  * LLMClient - Minimal, provider-agnostic LLM abstraction
- * 
+ *
  * This module defines a simple interface for LLM interactions that:
  * - Works with OpenAI as primary provider
  * - Supports OpenRouter as optional secondary provider
  * - Uses NO external LLM frameworks (no langchain, llamaindex, etc.)
  * - Is restricted to SAFE, READ-ONLY helper tasks
- * 
+ *
  * @see docs/AI_MODELS_AND_PROVIDERS.md for usage guidelines
  * @see docs/AGENT_EXECUTION_GUIDE.md Section 14 for governance
  */
 
 // Note: Claude models are accessed via OpenRouter provider, not a separate claude provider
-export type LLMProvider = "openai" | "openrouter" | "groq" | "together" | "aimlapi" | "claude" | "gemini" | "cloudflare" | "huggingface";
+export type LLMProvider =
+  | "openai"
+  | "openrouter"
+  | "groq"
+  | "together"
+  | "aimlapi"
+  | "claude"
+  | "gemini"
+  | "cloudflare"
+  | "huggingface";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -28,11 +37,14 @@ export interface LLMTool {
     description: string;
     parameters: {
       type: "object";
-      properties: Record<string, {
-        type: string;
-        description?: string;
-        enum?: string[];
-      }>;
+      properties: Record<
+        string,
+        {
+          type: string;
+          description?: string;
+          enum?: string[];
+        }
+      >;
       required?: string[];
     };
   };
@@ -75,11 +87,13 @@ export interface LLMResponse {
   toolCalls?: LLMToolCall[];
   raw: unknown;
   model?: string;
-  tokensUsed?: {
-    prompt?: number;
-    completion?: number;
-    total?: number;
-  } | number;
+  tokensUsed?:
+    | {
+        prompt?: number;
+        completion?: number;
+        total?: number;
+      }
+    | number;
 }
 
 export interface LLMClient {
@@ -99,7 +113,12 @@ export interface LLMClientError extends Error {
 export function createLLMError(
   message: string,
   provider: string,
-  opts: { isRateLimit?: boolean; isAuthError?: boolean; isBudgetExhausted?: boolean; statusCode?: number } = {}
+  opts: {
+    isRateLimit?: boolean;
+    isAuthError?: boolean;
+    isBudgetExhausted?: boolean;
+    statusCode?: number;
+  } = {}
 ): LLMClientError {
   const error = new Error(message) as LLMClientError;
   error.provider = provider;

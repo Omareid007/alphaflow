@@ -4,7 +4,8 @@ import { log } from "../utils/logger";
 // Dubai Pulse API Configuration
 const DUBAI_PULSE_API_KEY = process.env.UAE_MARKETS_API_KEY || "";
 const DUBAI_PULSE_BASE_URL = "https://api.dubaipulse.gov.ae";
-const USE_DEMO_DATA = !DUBAI_PULSE_API_KEY || process.env.UAE_MARKETS_USE_DEMO === "true";
+const USE_DEMO_DATA =
+  !DUBAI_PULSE_API_KEY || process.env.UAE_MARKETS_USE_DEMO === "true";
 
 export interface UAEStock {
   symbol: string;
@@ -101,7 +102,7 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     sector: "Energy",
     basePrice: 4.28,
     baseChange: 0.08,
-    baseChangePercent: 1.90,
+    baseChangePercent: 1.9,
     baseVolume: 12500000,
     marketCap: 53500000000,
     currency: "AED",
@@ -111,8 +112,8 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     name: "Emirates Telecommunications (Etisalat)",
     exchange: "ADX",
     sector: "Telecommunications",
-    basePrice: 25.50,
-    baseChange: -0.20,
+    basePrice: 25.5,
+    baseChange: -0.2,
     baseChangePercent: -0.78,
     baseVolume: 3200000,
     marketCap: 221000000000,
@@ -123,9 +124,9 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     name: "First Abu Dhabi Bank",
     exchange: "ADX",
     sector: "Financials",
-    basePrice: 13.80,
+    basePrice: 13.8,
     baseChange: 0.15,
-    baseChangePercent: 1.10,
+    baseChangePercent: 1.1,
     baseVolume: 8500000,
     marketCap: 152000000000,
     currency: "AED",
@@ -171,9 +172,9 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     name: "Dubai Islamic Bank",
     exchange: "DFM",
     sector: "Financials",
-    basePrice: 6.20,
+    basePrice: 6.2,
     baseChange: -0.05,
-    baseChangePercent: -0.80,
+    baseChangePercent: -0.8,
     baseVolume: 9800000,
     marketCap: 45000000000,
     currency: "AED",
@@ -183,8 +184,8 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     name: "Emirates NBD",
     exchange: "DFM",
     sector: "Financials",
-    basePrice: 18.90,
-    baseChange: 0.30,
+    basePrice: 18.9,
+    baseChange: 0.3,
     baseChangePercent: 1.61,
     baseVolume: 4500000,
     marketCap: 118000000000,
@@ -196,8 +197,8 @@ const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
     exchange: "DFM",
     sector: "Telecommunications",
     basePrice: 6.75,
-    baseChange: 0.10,
-    baseChangePercent: 1.50,
+    baseChange: 0.1,
+    baseChangePercent: 1.5,
     baseVolume: 3200000,
     marketCap: 30000000000,
     currency: "AED",
@@ -302,12 +303,13 @@ const UAE_MARKET_INFO: UAEMarketInfo = {
     },
   ],
   regulatoryAuthority: "UAE Securities and Commodities Authority (SCA)",
-  notes: "UAE markets operate Sunday-Thursday. First exchange globally to operate under Islamic Sharia principles (DFM).",
+  notes:
+    "UAE markets operate Sunday-Thursday. First exchange globally to operate under Islamic Sharia principles (DFM).",
 };
 
 function generateDemoStocks(): UAEStock[] {
   const now = new Date().toISOString();
-  return UAE_STOCK_TEMPLATES.map(template => ({
+  return UAE_STOCK_TEMPLATES.map((template) => ({
     symbol: template.symbol,
     name: template.name,
     exchange: template.exchange,
@@ -324,7 +326,7 @@ function generateDemoStocks(): UAEStock[] {
 
 function generateDemoSummaries(): UAEMarketSummary[] {
   const now = new Date().toISOString();
-  return UAE_SUMMARY_TEMPLATES.map(template => ({
+  return UAE_SUMMARY_TEMPLATES.map((template) => ({
     exchange: template.exchange,
     indexName: template.indexName,
     indexValue: template.baseIndexValue,
@@ -385,8 +387,8 @@ class UAEMarketsConnector {
       const url = `${DUBAI_PULSE_BASE_URL}/data/dfm-general/dfm-indices`;
       const response = await fetch(url, {
         headers: {
-          "Authorization": `Bearer ${DUBAI_PULSE_API_KEY}`,
-          "Accept": "application/json",
+          Authorization: `Bearer ${DUBAI_PULSE_API_KEY}`,
+          Accept: "application/json",
         },
         signal: AbortSignal.timeout(10000), // 10s timeout
       });
@@ -450,14 +452,17 @@ class UAEMarketsConnector {
     if (exchange === "DFM" && !USE_DEMO_DATA) {
       // Note: Dubai Pulse doesn't provide individual stock data in the free tier
       // Would need DFM Native API or premium provider for stock-level data
-      log.info("UAEMarkets", "Live stock data requires DFM Native API or premium provider");
+      log.info(
+        "UAEMarkets",
+        "Live stock data requires DFM Native API or premium provider"
+      );
     }
 
     // Fallback to demo data
     let stocks = generateDemoStocks();
 
     if (exchange) {
-      stocks = stocks.filter(s => s.exchange === exchange);
+      stocks = stocks.filter((s) => s.exchange === exchange);
     }
 
     this.stocksCache.set(cacheKey, stocks);
@@ -467,7 +472,9 @@ class UAEMarketsConnector {
   /**
    * Fetch market summary with live API integration
    */
-  async getMarketSummary(exchange?: "ADX" | "DFM"): Promise<UAEMarketSummary[]> {
+  async getMarketSummary(
+    exchange?: "ADX" | "DFM"
+  ): Promise<UAEMarketSummary[]> {
     const cacheKey = `summary_${exchange || "all"}`;
     const cached = this.summaryCache.get(cacheKey);
 
@@ -494,7 +501,7 @@ class UAEMarketsConnector {
       summaries = demoSummaries;
     } else if (!exchange) {
       // Live DFM data but need ADX demo data
-      const adxDemo = demoSummaries.find(s => s.exchange === "ADX");
+      const adxDemo = demoSummaries.find((s) => s.exchange === "ADX");
       if (adxDemo) {
         summaries.push(adxDemo);
       }
@@ -502,7 +509,7 @@ class UAEMarketsConnector {
 
     // Filter by exchange if specified
     if (exchange) {
-      summaries = summaries.filter(s => s.exchange === exchange);
+      summaries = summaries.filter((s) => s.exchange === exchange);
     }
 
     this.summaryCache.set(cacheKey, summaries);

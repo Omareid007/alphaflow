@@ -1,18 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Play,
-  Rocket,
-  RefreshCw
-} from "lucide-react";
+import { Play, Rocket, RefreshCw } from "lucide-react";
 
 interface BacktestActionsProps {
   onRunAgain: () => void;
   onDeploy: (mode: "paper" | "live") => void;
 }
 
-export function BacktestActions({ onRunAgain, onDeploy }: BacktestActionsProps) {
+export function BacktestActions({
+  onRunAgain,
+  onDeploy,
+}: BacktestActionsProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex gap-3">

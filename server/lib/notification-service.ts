@@ -1,9 +1,9 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 import { log } from "../utils/logger";
 
 export interface NotificationChannel {
   id: string;
-  type: 'telegram' | 'slack' | 'discord' | 'email';
+  type: "telegram" | "slack" | "discord" | "email";
   name: string;
   enabled: boolean;
   config: TelegramConfig | SlackConfig | DiscordConfig | EmailConfig;
@@ -67,7 +67,10 @@ export function getChannels(): NotificationChannel[] {
   return Array.from(channels.values());
 }
 
-export function updateChannel(id: string, updates: Partial<NotificationChannel>): NotificationChannel | null {
+export function updateChannel(
+  id: string,
+  updates: Partial<NotificationChannel>
+): NotificationChannel | null {
   const channel = channels.get(id);
   if (!channel) return null;
   const updated = { ...channel, ...updates, id: channel.id };
@@ -87,7 +90,10 @@ export function getTemplates(): NotificationTemplate[] {
   return Array.from(templates.values());
 }
 
-export function updateTemplate(id: string, updates: Partial<NotificationTemplate>): NotificationTemplate | null {
+export function updateTemplate(
+  id: string,
+  updates: Partial<NotificationTemplate>
+): NotificationTemplate | null {
   const template = templates.get(id);
   if (!template) return null;
   const updated = { ...template, ...updates, id: template.id };
@@ -99,25 +105,31 @@ export function deleteTemplate(id: string): boolean {
   return templates.delete(id);
 }
 
-function formatMessage(template: string, data: Record<string, unknown>): string {
+function formatMessage(
+  template: string,
+  data: Record<string, unknown>
+): string {
   let message = template;
   for (const [key, value] of Object.entries(data)) {
-    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-    message = message.replace(regex, String(value ?? ''));
+    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g");
+    message = message.replace(regex, String(value ?? ""));
   }
-  message = message.replace(/\{\{[^}]+\}\}/g, '');
+  message = message.replace(/\{\{[^}]+\}\}/g, "");
   return message;
 }
 
-async function sendTelegram(config: TelegramConfig, message: string): Promise<void> {
+async function sendTelegram(
+  config: TelegramConfig,
+  message: string
+): Promise<void> {
   const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
   const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: config.chatId,
       text: message,
-      parse_mode: 'HTML',
+      parse_mode: "HTML",
     }),
   });
   if (!response.ok) {
@@ -128,8 +140,8 @@ async function sendTelegram(config: TelegramConfig, message: string): Promise<vo
 
 async function sendSlack(config: SlackConfig, message: string): Promise<void> {
   const response = await fetch(config.webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text: message,
       channel: config.channel,
@@ -140,10 +152,13 @@ async function sendSlack(config: SlackConfig, message: string): Promise<void> {
   }
 }
 
-async function sendDiscord(config: DiscordConfig, message: string): Promise<void> {
+async function sendDiscord(
+  config: DiscordConfig,
+  message: string
+): Promise<void> {
   const response = await fetch(config.webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: message }),
   });
   if (!response.ok) {
@@ -151,7 +166,10 @@ async function sendDiscord(config: DiscordConfig, message: string): Promise<void
   }
 }
 
-async function sendToChannel(channel: NotificationChannel, message: string): Promise<NotificationResult> {
+async function sendToChannel(
+  channel: NotificationChannel,
+  message: string
+): Promise<NotificationResult> {
   const result: NotificationResult = {
     channelId: channel.id,
     channelType: channel.type,
@@ -161,21 +179,23 @@ async function sendToChannel(channel: NotificationChannel, message: string): Pro
 
   try {
     switch (channel.type) {
-      case 'telegram':
+      case "telegram":
         await sendTelegram(channel.config as TelegramConfig, message);
         result.success = true;
         break;
-      case 'slack':
+      case "slack":
         await sendSlack(channel.config as SlackConfig, message);
         result.success = true;
         break;
-      case 'discord':
+      case "discord":
         await sendDiscord(channel.config as DiscordConfig, message);
         result.success = true;
         break;
-      case 'email':
-        result.error = 'Email notifications not yet implemented - skipping';
-        log.warn("Notification", "Email channel skipped - not implemented", { channelId: channel.id });
+      case "email":
+        result.error = "Email notifications not yet implemented - skipping";
+        log.warn("Notification", "Email channel skipped - not implemented", {
+          channelId: channel.id,
+        });
         break;
       default:
         result.error = `Unsupported channel type: ${channel.type}`;
@@ -200,9 +220,13 @@ export async function sendNotification(
 
   for (const template of templates.values()) {
     if (!template.enabled) continue;
-    if (template.eventType !== eventType && template.eventType !== '*') continue;
+    if (template.eventType !== eventType && template.eventType !== "*")
+      continue;
 
-    const message = formatMessage(template.messageTemplate, { ...data, eventType });
+    const message = formatMessage(template.messageTemplate, {
+      ...data,
+      eventType,
+    });
 
     for (const channelId of template.channels) {
       const channel = channels.get(channelId);
@@ -225,16 +249,19 @@ export async function sendDirectNotification(
   return sendToChannel(channel, message);
 }
 
-export function getNotificationHistory(limit: number = 50): NotificationResult[] {
+export function getNotificationHistory(
+  limit: number = 50
+): NotificationResult[] {
   return notificationHistory.slice(0, limit);
 }
 
 export function getNotificationStats() {
   const total = notificationHistory.length;
-  const successful = notificationHistory.filter(n => n.success).length;
+  const successful = notificationHistory.filter((n) => n.success).length;
   return {
     totalChannels: channels.size,
-    enabledChannels: Array.from(channels.values()).filter(c => c.enabled).length,
+    enabledChannels: Array.from(channels.values()).filter((c) => c.enabled)
+      .length,
     totalTemplates: templates.size,
     recentNotifications: total,
     successRate: total > 0 ? successful / total : 1,
@@ -244,51 +271,57 @@ export function getNotificationStats() {
 export function createDefaultTemplates(): void {
   const defaultTemplates: NotificationTemplate[] = [
     {
-      id: 'trade-order-submitted',
-      name: 'Trade Order Submitted',
-      eventType: 'trade.order.submitted',
+      id: "trade-order-submitted",
+      name: "Trade Order Submitted",
+      eventType: "trade.order.submitted",
       channels: [],
-      messageTemplate: '📊 <b>Order Submitted</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}',
+      messageTemplate:
+        "📊 <b>Order Submitted</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
       enabled: true,
     },
     {
-      id: 'trade-order-filled',
-      name: 'Trade Order Filled',
-      eventType: 'trade.order.filled',
+      id: "trade-order-filled",
+      name: "Trade Order Filled",
+      eventType: "trade.order.filled",
       channels: [],
-      messageTemplate: '✅ <b>Order Filled</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}',
+      messageTemplate:
+        "✅ <b>Order Filled</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
       enabled: true,
     },
     {
-      id: 'trade-order-rejected',
-      name: 'Trade Order Rejected',
-      eventType: 'trade.order.rejected',
+      id: "trade-order-rejected",
+      name: "Trade Order Rejected",
+      eventType: "trade.order.rejected",
       channels: [],
-      messageTemplate: '❌ <b>Order Rejected</b>\n{{side}} {{qty}} {{symbol}}\nReason: {{reason}}',
+      messageTemplate:
+        "❌ <b>Order Rejected</b>\n{{side}} {{qty}} {{symbol}}\nReason: {{reason}}",
       enabled: true,
     },
     {
-      id: 'ai-decision',
-      name: 'AI Decision Generated',
-      eventType: 'ai.decision.generated',
+      id: "ai-decision",
+      name: "AI Decision Generated",
+      eventType: "ai.decision.generated",
       channels: [],
-      messageTemplate: '🤖 <b>AI Decision</b>\nSymbol: {{symbol}}\nAction: {{action}}\nConfidence: {{confidence}}%\nReason: {{reasoning}}',
+      messageTemplate:
+        "🤖 <b>AI Decision</b>\nSymbol: {{symbol}}\nAction: {{action}}\nConfidence: {{confidence}}%\nReason: {{reasoning}}",
       enabled: true,
     },
     {
-      id: 'position-opened',
-      name: 'Position Opened',
-      eventType: 'trade.position.opened',
+      id: "position-opened",
+      name: "Position Opened",
+      eventType: "trade.position.opened",
       channels: [],
-      messageTemplate: '📈 <b>Position Opened</b>\n{{side}} {{qty}} {{symbol}} @ ${{entryPrice}}',
+      messageTemplate:
+        "📈 <b>Position Opened</b>\n{{side}} {{qty}} {{symbol}} @ ${{entryPrice}}",
       enabled: true,
     },
     {
-      id: 'position-closed',
-      name: 'Position Closed',
-      eventType: 'trade.position.closed',
+      id: "position-closed",
+      name: "Position Closed",
+      eventType: "trade.position.closed",
       channels: [],
-      messageTemplate: '📉 <b>Position Closed</b>\n{{symbol}} closed\nP/L: ${{pnl}} ({{pnlPercent}}%)',
+      messageTemplate:
+        "📉 <b>Position Closed</b>\n{{symbol}} closed\nP/L: ${{pnl}} ({{pnlPercent}}%)",
       enabled: true,
     },
   ];

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { orchestratorService } from '@/lib/admin/services';
+import { NextResponse } from "next/server";
+import { orchestratorService } from "@/lib/admin/services";
 
 export async function POST(request: Request) {
   try {
@@ -7,6 +7,9 @@ export async function POST(request: Request) {
     await orchestratorService.toggleKillSwitch(enabled);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to toggle kill switch' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to toggle kill switch" },
+      { status: 500 }
+    );
   }
 }

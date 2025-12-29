@@ -3,19 +3,14 @@
 import { AlgorithmTemplate } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  TrendingUp,
-  Activity,
-  GitCompare,
-  Brain
-} from "lucide-react";
+import { TrendingUp, Activity, GitCompare, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const templateIcons: Record<string, React.ElementType> = {
   TrendingUp,
   Activity,
   GitCompare,
-  Brain
+  Brain,
 };
 
 interface TemplateSelectorProps {
@@ -23,7 +18,10 @@ interface TemplateSelectorProps {
   onTemplateSelect: (template: AlgorithmTemplate) => void;
 }
 
-export function TemplateSelector({ templates, onTemplateSelect }: TemplateSelectorProps) {
+export function TemplateSelector({
+  templates,
+  onTemplateSelect,
+}: TemplateSelectorProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -34,7 +32,7 @@ export function TemplateSelector({ templates, onTemplateSelect }: TemplateSelect
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {templates.map(template => {
+        {templates.map((template) => {
           const Icon = templateIcons[template.icon] || TrendingUp;
           return (
             <Card

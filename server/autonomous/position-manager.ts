@@ -74,7 +74,10 @@ import { safeParseFloat } from "../utils/numeric";
 import { toDecimal, calculatePnL, partialQuantity } from "../utils/money";
 import type { AIDecision } from "../ai/decision-engine";
 import { waitForAlpacaOrderFill } from "../trading/order-execution-flow";
-import { recordTradeOutcome, updateTradeOutcomeOnClose } from "../ai/learning-service";
+import {
+  recordTradeOutcome,
+  updateTradeOutcomeOnClose,
+} from "../ai/learning-service";
 import { advancedRebalancingService } from "../services/advanced-rebalancing-service";
 import { sectorExposureService } from "../services/sector-exposure-service";
 import { tradabilityService } from "../services/tradability-service";
@@ -274,15 +277,21 @@ export class PositionManager {
         portfolioValue
       );
       if (!sectorCheck.canTrade) {
-        log.warn("PositionManager", `Sector exposure check failed for ${symbol}`, {
-          sector: sectorCheck.sector,
-          currentExposure: sectorCheck.currentExposure.toFixed(1),
-          maxExposure: sectorCheck.maxExposure,
-        });
+        log.warn(
+          "PositionManager",
+          `Sector exposure check failed for ${symbol}`,
+          {
+            sector: sectorCheck.sector,
+            currentExposure: sectorCheck.currentExposure.toFixed(1),
+            maxExposure: sectorCheck.maxExposure,
+          }
+        );
         return {
           success: false,
           action: "skip",
-          reason: sectorCheck.reason || `Sector exposure limit exceeded for ${sectorCheck.sector}`,
+          reason:
+            sectorCheck.reason ||
+            `Sector exposure limit exceeded for ${sectorCheck.sector}`,
           symbol,
         };
       }
@@ -292,7 +301,10 @@ export class PositionManager {
 
       const tradableCheck = await isSymbolTradable(symbol, isCrypto);
       if (!tradableCheck.tradable) {
-        log.warn("PositionManager", `Symbol ${symbol} not tradable: ${tradableCheck.reason}`);
+        log.warn(
+          "PositionManager",
+          `Symbol ${symbol} not tradable: ${tradableCheck.reason}`
+        );
         return {
           success: false,
           action: "skip",
@@ -301,9 +313,17 @@ export class PositionManager {
         };
       }
 
-      const preCheck = await preTradeGuard(symbol, "buy", positionValue, isCrypto);
+      const preCheck = await preTradeGuard(
+        symbol,
+        "buy",
+        positionValue,
+        isCrypto
+      );
       if (!preCheck.canTrade) {
-        log.warn("PositionManager", `Pre-trade check failed for ${symbol}: ${preCheck.reason}`);
+        log.warn(
+          "PositionManager",
+          `Pre-trade check failed for ${symbol}: ${preCheck.reason}`
+        );
         return {
           success: false,
           action: "skip",
@@ -312,13 +332,17 @@ export class PositionManager {
         };
       }
 
-      const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+      const tradabilityCheck =
+        await tradabilityService.validateSymbolTradable(symbol);
       if (!tradabilityCheck.tradable) {
-        log.warn("PositionManager", `Symbol ${symbol} not tradable: ${tradabilityCheck.reason}`);
+        log.warn(
+          "PositionManager",
+          `Symbol ${symbol} not tradable: ${tradabilityCheck.reason}`
+        );
         return {
           success: false,
           action: "skip",
-          reason: `Symbol not tradable: ${tradabilityCheck.reason || 'Not in broker universe'}`,
+          reason: `Symbol not tradable: ${tradabilityCheck.reason || "Not in broker universe"}`,
           symbol,
         };
       }
@@ -328,8 +352,15 @@ export class PositionManager {
       // Use simple market orders until tsx server restart or format fix deployed
       const hasBracketParams = false; // Was: decision.targetPrice && decision.stopLoss && !isCrypto;
 
-      if (preCheck.useExtendedHours && preCheck.useLimitOrder && preCheck.limitPrice) {
-        log.info("PositionManager", `Extended hours limit order for ${symbol} @ $${preCheck.limitPrice}`);
+      if (
+        preCheck.useExtendedHours &&
+        preCheck.useLimitOrder &&
+        preCheck.limitPrice
+      ) {
+        log.info(
+          "PositionManager",
+          `Extended hours limit order for ${symbol} @ $${preCheck.limitPrice}`
+        );
         const estimatedQty = Math.floor(positionValue / preCheck.limitPrice);
         if (estimatedQty < 1) {
           return {
@@ -355,8 +386,15 @@ export class PositionManager {
           side: "buy",
           decisionId: decision.aiDecisionId,
         });
-      } else if (hasBracketParams && decision.targetPrice && decision.stopLoss) {
-        log.info("PositionManager", `Bracket order for ${symbol}: TP=$${decision.targetPrice.toFixed(2)}, SL=$${decision.stopLoss.toFixed(2)}`);
+      } else if (
+        hasBracketParams &&
+        decision.targetPrice &&
+        decision.stopLoss
+      ) {
+        log.info(
+          "PositionManager",
+          `Bracket order for ${symbol}: TP=$${decision.targetPrice.toFixed(2)}, SL=$${decision.stopLoss.toFixed(2)}`
+        );
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
           const estimatedQty = (positionValue / currentPrice).toFixed(6);
@@ -381,7 +419,10 @@ export class PositionManager {
             decisionId: decision.aiDecisionId,
           });
         } else {
-          log.warn("PositionManager", `Bracket order fallback - invalid price/value for ${symbol}`);
+          log.warn(
+            "PositionManager",
+            `Bracket order fallback - invalid price/value for ${symbol}`
+          );
           const orderParams: CreateOrderParams = {
             symbol: brokerSymbol,
             notional: positionValue.toFixed(2),
@@ -418,7 +459,10 @@ export class PositionManager {
       const fillResult = await waitForAlpacaOrderFill(queuedResult.orderId);
 
       if (!fillResult.order) {
-        log.error("PositionManager", `Order ${queuedResult.orderId} - no order data received`);
+        log.error(
+          "PositionManager",
+          `Order ${queuedResult.orderId} - no order data received`
+        );
         return {
           success: false,
           action: "buy",
@@ -429,7 +473,10 @@ export class PositionManager {
       }
 
       if (!fillResult.hasFillData) {
-        log.error("PositionManager", `Order ${queuedResult.orderId} has no fill data`);
+        log.error(
+          "PositionManager",
+          `Order ${queuedResult.orderId} has no fill data`
+        );
         return {
           success: false,
           action: "buy",
@@ -442,7 +489,10 @@ export class PositionManager {
       }
 
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        log.warn("PositionManager", `Order ${queuedResult.orderId} timed out with partial fill, using available data`);
+        log.warn(
+          "PositionManager",
+          `Order ${queuedResult.orderId} timed out with partial fill, using available data`
+        );
       }
 
       const order = fillResult.order;
@@ -453,7 +503,10 @@ export class PositionManager {
       if (filledPrice === 0) {
         filledPrice = await this.fetchCurrentPrice(symbol);
         if (filledPrice > 0) {
-          log.info("PositionManager", `Using market price ${filledPrice} for ${symbol}`);
+          log.info(
+            "PositionManager",
+            `Using market price ${filledPrice} for ${symbol}`
+          );
         }
       }
 
@@ -483,7 +536,9 @@ export class PositionManager {
           quantity: filledQty,
           marketSessionAtEntry: marketStatus.session,
           strategyId: undefined,
-        }).catch(err => log.error("PositionManager", `Failed to record trade outcome: ${err}`));
+        }).catch((err) =>
+          log.error("PositionManager", `Failed to record trade outcome: ${err}`)
+        );
       }
 
       this.state.dailyTradeCount++;
@@ -506,9 +561,15 @@ export class PositionManager {
 
       // Register with advanced rebalancing service for graduated take-profits and trailing stops
       advancedRebalancingService.registerPosition(symbol, filledPrice);
-      log.info("PositionManager", `Registered ${symbol} with advanced rebalancing (4-tier take-profits, trailing stops)`);
+      log.info(
+        "PositionManager",
+        `Registered ${symbol} with advanced rebalancing (4-tier take-profits, trailing stops)`
+      );
 
-      log.trade(`Opened position: ${symbol} $${positionValue.toFixed(2)}`, { symbol, value: positionValue });
+      log.trade(`Opened position: ${symbol} $${positionValue.toFixed(2)}`, {
+        symbol,
+        value: positionValue,
+      });
 
       return {
         success: true,
@@ -520,7 +581,9 @@ export class PositionManager {
         price: positionWithRules.entryPrice,
       };
     } catch (error) {
-      log.error("PositionManager", `Failed to open position ${symbol}`, { error: String(error) });
+      log.error("PositionManager", `Failed to open position ${symbol}`, {
+        error: String(error),
+      });
       return {
         success: false,
         action: "buy",
@@ -599,16 +662,25 @@ export class PositionManager {
 
       // LOSS PROTECTION: Don't close positions at a loss unless stop-loss or emergency stop triggered
       const isAtLoss = position.currentPrice < position.entryPrice;
-      const isProtectedClose = options.isStopLossTriggered || options.isEmergencyStop;
+      const isProtectedClose =
+        options.isStopLossTriggered || options.isEmergencyStop;
 
       if (isAtLoss && !isProtectedClose) {
-        const lossPercent = ((position.entryPrice - position.currentPrice) / position.entryPrice * 100).toFixed(2);
-        log.info("PositionManager", `Blocking close of ${symbol} at ${lossPercent}% loss - stop loss not triggered`, {
-          symbol,
-          entryPrice: position.entryPrice,
-          currentPrice: position.currentPrice,
-          lossPercent,
-        });
+        const lossPercent = (
+          ((position.entryPrice - position.currentPrice) /
+            position.entryPrice) *
+          100
+        ).toFixed(2);
+        log.info(
+          "PositionManager",
+          `Blocking close of ${symbol} at ${lossPercent}% loss - stop loss not triggered`,
+          {
+            symbol,
+            entryPrice: position.entryPrice,
+            currentPrice: position.currentPrice,
+            lossPercent,
+          }
+        );
         return {
           success: false,
           action: "hold",
@@ -620,7 +692,9 @@ export class PositionManager {
       // Cancel any pending orders for this symbol
       try {
         const openOrders = await alpaca.getOrders("open");
-        const symbolOrders = openOrders.filter(o => o.symbol === brokerSymbol);
+        const symbolOrders = openOrders.filter(
+          (o) => o.symbol === brokerSymbol
+        );
         for (const order of symbolOrders) {
           try {
             await queueOrderCancellation({
@@ -628,16 +702,22 @@ export class PositionManager {
               traceId: this.currentTraceId,
               symbol,
             });
-            log.info("PositionManager", `Queued cancellation for pending order ${order.id} for ${symbol} before closing`);
+            log.info(
+              "PositionManager",
+              `Queued cancellation for pending order ${order.id} for ${symbol} before closing`
+            );
           } catch {
             // Ignore cancellation errors
           }
         }
         if (symbolOrders.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       } catch (err) {
-        log.warn("PositionManager", `Failed to cancel orders for ${symbol}: ${err}`);
+        log.warn(
+          "PositionManager",
+          `Failed to cancel orders for ${symbol}: ${err}`
+        );
       }
 
       let orderId: string;
@@ -645,17 +725,24 @@ export class PositionManager {
         const initialOrder = await alpaca.closePosition(brokerSymbol);
         orderId = initialOrder.id;
       } else {
-        const tradabilityCheck = await tradabilityService.validateSymbolTradable(symbol);
+        const tradabilityCheck =
+          await tradabilityService.validateSymbolTradable(symbol);
         if (!tradabilityCheck.tradable) {
-          log.warn("PositionManager", `Cannot partial close ${symbol}: not tradable`);
+          log.warn(
+            "PositionManager",
+            `Cannot partial close ${symbol}: not tradable`
+          );
           return {
             success: false,
             action: "sell",
-            reason: `Symbol not tradable: ${tradabilityCheck.reason || 'Not in broker universe'}`,
+            reason: `Symbol not tradable: ${tradabilityCheck.reason || "Not in broker universe"}`,
             symbol,
           };
         }
-        const closeQty = partialQuantity(position.quantity, partialPercent).toNumber();
+        const closeQty = partialQuantity(
+          position.quantity,
+          partialPercent
+        ).toNumber();
         // CRITICAL FIX: Market orders CANNOT use GTC
         const orderParams: CreateOrderParams = {
           symbol: brokerSymbol,
@@ -677,7 +764,10 @@ export class PositionManager {
       const fillResult = await waitForAlpacaOrderFill(orderId);
 
       if (!fillResult.order) {
-        log.error("PositionManager", `Close order ${orderId} - no order data received`);
+        log.error(
+          "PositionManager",
+          `Close order ${orderId} - no order data received`
+        );
         return {
           success: false,
           action: "sell",
@@ -701,7 +791,10 @@ export class PositionManager {
       }
 
       if (fillResult.timedOut && !fillResult.isFullyFilled) {
-        log.warn("PositionManager", `Close order ${orderId} timed out with partial fill, using available data`);
+        log.warn(
+          "PositionManager",
+          `Close order ${orderId} timed out with partial fill, using available data`
+        );
       }
 
       const order = fillResult.order;
@@ -712,12 +805,21 @@ export class PositionManager {
       if (filledPrice === 0) {
         filledPrice = await this.fetchCurrentPrice(symbol);
         if (filledPrice > 0) {
-          log.info("PositionManager", `Using market price ${filledPrice} for ${symbol}`);
+          log.info(
+            "PositionManager",
+            `Using market price ${filledPrice} for ${symbol}`
+          );
         }
       }
 
-      const pnl = calculatePnL(position.entryPrice, filledPrice, filledQty, "long").toNumber();
-      const exitReason = decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
+      const pnl = calculatePnL(
+        position.entryPrice,
+        filledPrice,
+        filledQty,
+        "long"
+      ).toNumber();
+      const exitReason =
+        decision.reasoning || (pnl > 0 ? "take_profit" : "stop_loss");
 
       if (!this.userId) {
         throw new Error("Cannot create trade: userId not initialized");
@@ -741,7 +843,9 @@ export class PositionManager {
           filledPrice,
           exitReason,
           marketStatus.session
-        ).catch(err => log.error("PositionManager", `Failed to update trade outcome: ${err}`));
+        ).catch((err) =>
+          log.error("PositionManager", `Failed to update trade outcome: ${err}`)
+        );
       }
 
       this.state.dailyPnl += pnl;
@@ -752,12 +856,17 @@ export class PositionManager {
         // Clean up advanced rebalancing rules when position fully closed
         advancedRebalancingService.removePositionRules(symbol);
       } else {
-        const remaining = toDecimal(position.quantity).minus(partialQuantity(position.quantity, partialPercent)).toNumber();
+        const remaining = toDecimal(position.quantity)
+          .minus(partialQuantity(position.quantity, partialPercent))
+          .toNumber();
         position.quantity = remaining;
         this.state.activePositions.set(symbol, position);
       }
 
-      log.trade(`Closed ${partialPercent}% of ${symbol}, P&L: $${pnl.toFixed(2)}`, { symbol, pnl, partialPercent });
+      log.trade(
+        `Closed ${partialPercent}% of ${symbol}, P&L: $${pnl.toFixed(2)}`,
+        { symbol, pnl, partialPercent }
+      );
 
       return {
         success: true,
@@ -769,7 +878,9 @@ export class PositionManager {
         price: filledPrice,
       };
     } catch (error) {
-      log.error("PositionManager", `Failed to close position ${symbol}`, { error: String(error) });
+      log.error("PositionManager", `Failed to close position ${symbol}`, {
+        error: String(error),
+      });
       return {
         success: false,
         action: "sell",
@@ -891,7 +1002,10 @@ export class PositionManager {
     position: PositionWithRules
   ): Promise<void> {
     // 1. Check stop-loss first (highest priority)
-    if (position.stopLossPrice && position.currentPrice <= position.stopLossPrice) {
+    if (
+      position.stopLossPrice &&
+      position.currentPrice <= position.stopLossPrice
+    ) {
       log.warn("PositionManager", `Stop-loss triggered for ${symbol}`);
       advancedRebalancingService.removePositionRules(symbol);
       await this.closePosition(
@@ -911,7 +1025,10 @@ export class PositionManager {
 
     // 2. Check emergency stop (high loss protection)
     if (position.unrealizedPnlPercent <= -8) {
-      log.warn("PositionManager", `Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`);
+      log.warn(
+        "PositionManager",
+        `Emergency stop for ${symbol} at ${position.unrealizedPnlPercent.toFixed(1)}% loss`
+      );
       advancedRebalancingService.removePositionRules(symbol);
       await this.closePosition(
         symbol,
@@ -929,9 +1046,13 @@ export class PositionManager {
     }
 
     // 3. Check graduated take-profits (4-tier system: 10%, 20%, 35%, 50% - each closes 25%)
-    const partialTakeProfit = advancedRebalancingService.checkPartialTakeProfits(position);
+    const partialTakeProfit =
+      advancedRebalancingService.checkPartialTakeProfits(position);
     if (partialTakeProfit && partialTakeProfit.shouldClose) {
-      log.info("PositionManager", `Graduated take-profit for ${symbol}: ${partialTakeProfit.reason}`);
+      log.info(
+        "PositionManager",
+        `Graduated take-profit for ${symbol}: ${partialTakeProfit.reason}`
+      );
       await this.closePosition(
         symbol,
         {
@@ -947,17 +1068,25 @@ export class PositionManager {
     }
 
     // 4. Update trailing stop if applicable
-    const trailingUpdate = advancedRebalancingService.updateTrailingStop(position);
+    const trailingUpdate =
+      advancedRebalancingService.updateTrailingStop(position);
     if (trailingUpdate) {
-      log.info("PositionManager", `Trailing stop update for ${symbol}: ${trailingUpdate.reason}`);
+      log.info(
+        "PositionManager",
+        `Trailing stop update for ${symbol}: ${trailingUpdate.reason}`
+      );
       position.stopLossPrice = trailingUpdate.newStopLoss;
       this.state.activePositions.set(symbol, position);
     }
 
     // 5. Check max holding period
-    const holdingCheck = advancedRebalancingService.checkHoldingPeriod(position);
+    const holdingCheck =
+      advancedRebalancingService.checkHoldingPeriod(position);
     if (holdingCheck && holdingCheck.exceeded) {
-      log.warn("PositionManager", `Max holding period exceeded for ${symbol}: ${holdingCheck.holdingHours.toFixed(1)}h > ${holdingCheck.maxHours}h`);
+      log.warn(
+        "PositionManager",
+        `Max holding period exceeded for ${symbol}: ${holdingCheck.holdingHours.toFixed(1)}h > ${holdingCheck.maxHours}h`
+      );
       advancedRebalancingService.removePositionRules(symbol);
       await this.closePosition(
         symbol,
@@ -974,7 +1103,10 @@ export class PositionManager {
     }
 
     // 6. Fallback: Legacy take-profit check (if no advanced rules registered)
-    if (position.takeProfitPrice && position.currentPrice >= position.takeProfitPrice) {
+    if (
+      position.takeProfitPrice &&
+      position.currentPrice >= position.takeProfitPrice
+    ) {
       log.info("PositionManager", `Legacy take-profit triggered for ${symbol}`);
       const pnlPercent = position.unrealizedPnlPercent;
       if (pnlPercent > 15) {
@@ -1026,13 +1158,19 @@ export class PositionManager {
   ): Promise<boolean> {
     const position = this.state.activePositions.get(symbol);
     if (!position) {
-      log.warn("PositionManager", `Cannot adjust SL/TP: Position ${symbol} not found`);
+      log.warn(
+        "PositionManager",
+        `Cannot adjust SL/TP: Position ${symbol} not found`
+      );
       return false;
     }
 
     if (newStopLoss !== undefined) {
       if (newStopLoss >= position.currentPrice) {
-        log.warn("PositionManager", `Invalid stop loss: $${newStopLoss} >= current price $${position.currentPrice}`);
+        log.warn(
+          "PositionManager",
+          `Invalid stop loss: $${newStopLoss} >= current price $${position.currentPrice}`
+        );
         return false;
       }
       position.stopLossPrice = newStopLoss;
@@ -1040,7 +1178,10 @@ export class PositionManager {
 
     if (newTakeProfit !== undefined) {
       if (newTakeProfit <= position.currentPrice) {
-        log.warn("PositionManager", `Invalid take profit: $${newTakeProfit} <= current price $${position.currentPrice}`);
+        log.warn(
+          "PositionManager",
+          `Invalid take profit: $${newTakeProfit} <= current price $${position.currentPrice}`
+        );
         return false;
       }
       position.takeProfitPrice = newTakeProfit;
@@ -1048,14 +1189,20 @@ export class PositionManager {
 
     if (trailingStopPercent !== undefined) {
       if (trailingStopPercent <= 0 || trailingStopPercent >= 100) {
-        log.warn("PositionManager", `Invalid trailing stop percent: ${trailingStopPercent}`);
+        log.warn(
+          "PositionManager",
+          `Invalid trailing stop percent: ${trailingStopPercent}`
+        );
         return false;
       }
       position.trailingStopPercent = trailingStopPercent;
     }
 
     this.state.activePositions.set(symbol, position);
-    log.info("PositionManager", `Updated ${symbol} - SL: $${position.stopLossPrice?.toFixed(2)}, TP: $${position.takeProfitPrice?.toFixed(2)}, Trail: ${position.trailingStopPercent || 'N/A'}%`);
+    log.info(
+      "PositionManager",
+      `Updated ${symbol} - SL: $${position.stopLossPrice?.toFixed(2)}, TP: $${position.takeProfitPrice?.toFixed(2)}, Trail: ${position.trailingStopPercent || "N/A"}%`
+    );
     return true;
   }
 
@@ -1064,12 +1211,17 @@ export class PositionManager {
    *
    * @param trailPercent - Trailing stop percentage (default: 5%)
    */
-  async applyTrailingStopToAllPositions(trailPercent: number = 5): Promise<void> {
+  async applyTrailingStopToAllPositions(
+    trailPercent: number = 5
+  ): Promise<void> {
     for (const [symbol, position] of this.state.activePositions.entries()) {
       if (position.unrealizedPnlPercent > 0) {
         position.trailingStopPercent = trailPercent;
         this.state.activePositions.set(symbol, position);
-        log.info("PositionManager", `Applied ${trailPercent}% trailing stop to ${symbol}`);
+        log.info(
+          "PositionManager",
+          `Applied ${trailPercent}% trailing stop to ${symbol}`
+        );
       }
     }
   }
@@ -1106,7 +1258,11 @@ export class PositionManager {
         return snapshot?.latestTrade?.p || 0;
       }
     } catch (error) {
-      log.warn("PositionManager", `Failed to fetch current price for ${symbol}`, { error: String(error) });
+      log.warn(
+        "PositionManager",
+        `Failed to fetch current price for ${symbol}`,
+        { error: String(error) }
+      );
       return 0;
     }
   }

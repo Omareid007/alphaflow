@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 export default function GlobalError({
   error,
@@ -11,33 +11,37 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Log the error for debugging
-    console.error('Global application error:', error);
+    console.error("Global application error:", error);
   }, [error]);
 
   return (
     <html>
       <body>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          padding: '20px',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          backgroundColor: '#0a0a0a',
-          color: '#fafafa',
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            marginBottom: '24px',
-          }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            padding: "20px",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            backgroundColor: "#0a0a0a",
+            color: "#fafafa",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "64px",
+              height: "64px",
+              borderRadius: "50%",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              marginBottom: "24px",
+            }}
+          >
             <svg
               width="32"
               height="32"
@@ -53,31 +57,46 @@ export default function GlobalError({
               <path d="M12 17h.01" />
             </svg>
           </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '8px' }}>
+          <h2
+            style={{ fontSize: "24px", fontWeight: 600, marginBottom: "8px" }}
+          >
             Application Error
           </h2>
-          <p style={{ color: '#a1a1aa', marginBottom: '24px', textAlign: 'center' }}>
-            {error.message || 'A critical error occurred. Please refresh the page.'}
+          <p
+            style={{
+              color: "#a1a1aa",
+              marginBottom: "24px",
+              textAlign: "center",
+            }}
+          >
+            {error.message ||
+              "A critical error occurred. Please refresh the page."}
           </p>
           {error.digest && (
-            <p style={{ fontSize: '12px', color: '#71717a', marginBottom: '16px' }}>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#71717a",
+                marginBottom: "16px",
+              }}
+            >
               Error ID: {error.digest}
             </p>
           )}
           <button
             onClick={() => reset()}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: '#fafafa',
-              color: '#0a0a0a',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 20px",
+              backgroundColor: "#fafafa",
+              color: "#0a0a0a",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "14px",
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: "pointer",
             }}
           >
             <svg

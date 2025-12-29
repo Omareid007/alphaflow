@@ -10,12 +10,17 @@ export interface TemporalContext {
 
 let currentContext: TemporalContext | null = null;
 
-export function setTemporalContext(context: Omit<TemporalContext, "allowedDataCutoff">): void {
+export function setTemporalContext(
+  context: Omit<TemporalContext, "allowedDataCutoff">
+): void {
   currentContext = {
     ...context,
     allowedDataCutoff: new Date(context.asOf.getTime() - 1000),
   };
-  log.info("TemporalContext", `Set temporal context: asOf=${context.asOf.toISOString()}, isReplay=${context.isReplay}`);
+  log.info(
+    "TemporalContext",
+    `Set temporal context: asOf=${context.asOf.toISOString()}, isReplay=${context.isReplay}`
+  );
 }
 
 export function getTemporalContext(): TemporalContext | null {
@@ -42,10 +47,13 @@ export interface TimestampedData {
   date?: Date | string | null;
 }
 
-export function filterByAsOf<T extends TimestampedData>(items: T[], asOf?: Date): T[] {
+export function filterByAsOf<T extends TimestampedData>(
+  items: T[],
+  asOf?: Date
+): T[] {
   const cutoff = asOf || getCurrentAsOf();
-  
-  return items.filter(item => {
+
+  return items.filter((item) => {
     const itemDate = getItemTimestamp(item);
     if (!itemDate) {
       return currentContext?.strictMode ? false : true;
@@ -57,9 +65,9 @@ export function filterByAsOf<T extends TimestampedData>(items: T[], asOf?: Date)
 function getItemTimestamp(item: TimestampedData): Date | null {
   const raw = item.publishedAt || item.createdAt || item.timestamp || item.date;
   if (!raw) return null;
-  
+
   if (raw instanceof Date) return raw;
-  
+
   const parsed = new Date(raw);
   return isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -73,16 +81,20 @@ export interface FutureInfoFilterOptions {
 export function createFutureInfoFilter<T extends TimestampedData>(
   options: FutureInfoFilterOptions = {}
 ): (items: T[], asOf?: Date) => T[] {
-  const { strictMode = false, allowUnknownDates = true, logFiltered = false } = options;
-  
+  const {
+    strictMode = false,
+    allowUnknownDates = true,
+    logFiltered = false,
+  } = options;
+
   return (items: T[], asOf?: Date): T[] => {
     const cutoff = asOf || getCurrentAsOf();
     const result: T[] = [];
     let filteredCount = 0;
-    
+
     for (const item of items) {
       const itemDate = getItemTimestamp(item);
-      
+
       if (!itemDate) {
         if (allowUnknownDates && !strictMode) {
           result.push(item);
@@ -91,18 +103,21 @@ export function createFutureInfoFilter<T extends TimestampedData>(
         }
         continue;
       }
-      
+
       if (itemDate <= cutoff) {
         result.push(item);
       } else {
         filteredCount++;
       }
     }
-    
+
     if (logFiltered && filteredCount > 0) {
-      log.warn("FutureInfoFilter", `Filtered ${filteredCount} items with future timestamps (cutoff: ${cutoff.toISOString()})`);
+      log.warn(
+        "FutureInfoFilter",
+        `Filtered ${filteredCount} items with future timestamps (cutoff: ${cutoff.toISOString()})`
+      );
     }
-    
+
     return result;
   };
 }
@@ -163,46 +178,52 @@ export function startReplaySession(params: {
     isPaused: false,
     strategyVersionId: params.strategyVersionId,
   };
-  
+
   activeReplaySession = session;
-  
+
   setTemporalContext({
     asOf: session.currentAsOf,
     isReplay: true,
     replayId: session.id,
     strictMode: true,
   });
-  
-  log.info("ReplaySession", `Started replay session ${session.id}: ${params.startDate.toISOString()} - ${params.endDate.toISOString()}`);
-  
+
+  log.info(
+    "ReplaySession",
+    `Started replay session ${session.id}: ${params.startDate.toISOString()} - ${params.endDate.toISOString()}`
+  );
+
   return session;
 }
 
 export function advanceReplayTime(stepMs: number): Date | null {
   if (!activeReplaySession) return null;
-  
+
   const newTime = new Date(activeReplaySession.currentAsOf.getTime() + stepMs);
-  
+
   if (newTime > activeReplaySession.endDate) {
     stopReplaySession();
     return null;
   }
-  
+
   activeReplaySession.currentAsOf = newTime;
-  
+
   setTemporalContext({
     asOf: newTime,
     isReplay: true,
     replayId: activeReplaySession.id,
     strictMode: true,
   });
-  
+
   return newTime;
 }
 
 export function stopReplaySession(): void {
   if (activeReplaySession) {
-    log.info("ReplaySession", `Stopped replay session ${activeReplaySession.id}`);
+    log.info(
+      "ReplaySession",
+      `Stopped replay session ${activeReplaySession.id}`
+    );
     activeReplaySession = null;
   }
   clearTemporalContext();
@@ -218,14 +239,16 @@ export function validateTemporalIntegrity(
   asOf: Date
 ): { valid: boolean; violations: string[] } {
   const violations: string[] = [];
-  
+
   for (let i = 0; i < items.length; i++) {
     const itemDate = getItemTimestamp(items[i]);
     if (itemDate && itemDate > asOf) {
-      violations.push(`${dataSource}[${i}]: timestamp ${itemDate.toISOString()} > asOf ${asOf.toISOString()}`);
+      violations.push(
+        `${dataSource}[${i}]: timestamp ${itemDate.toISOString()} > asOf ${asOf.toISOString()}`
+      );
     }
   }
-  
+
   return {
     valid: violations.length === 0,
     violations,

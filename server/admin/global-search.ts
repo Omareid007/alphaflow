@@ -1,5 +1,12 @@
 import { db } from "../db";
-import { aiDecisions, trades, orders, fills, workItems, llmCalls } from "@shared/schema";
+import {
+  aiDecisions,
+  trades,
+  orders,
+  fills,
+  workItems,
+  llmCalls,
+} from "@shared/schema";
 import { like, or, eq, desc } from "drizzle-orm";
 
 export interface SearchResult {
@@ -18,7 +25,10 @@ export interface GlobalSearchResponse {
   byType: Record<string, number>;
 }
 
-export async function globalSearch(query: string, limit: number = 50): Promise<GlobalSearchResponse> {
+export async function globalSearch(
+  query: string,
+  limit: number = 50
+): Promise<GlobalSearchResponse> {
   if (!query || query.length < 2) {
     return { query, totalResults: 0, results: [], byType: {} };
   }
@@ -153,10 +163,7 @@ export async function globalSearch(query: string, limit: number = 50): Promise<G
     .select()
     .from(llmCalls)
     .where(
-      or(
-        like(llmCalls.traceId, likePattern),
-        like(llmCalls.id, likePattern)
-      )
+      or(like(llmCalls.traceId, likePattern), like(llmCalls.id, likePattern))
     )
     .orderBy(desc(llmCalls.createdAt))
     .limit(limit);
@@ -195,7 +202,13 @@ export async function getRelatedEntities(traceId: string): Promise<{
   fills: any[];
   llmCalls: any[];
 }> {
-  const [aiDecisionResults, tradeResults, orderResults, fillResults, llmCallResults] = await Promise.all([
+  const [
+    aiDecisionResults,
+    tradeResults,
+    orderResults,
+    fillResults,
+    llmCallResults,
+  ] = await Promise.all([
     db.select().from(aiDecisions).where(eq(aiDecisions.traceId, traceId)),
     db.select().from(trades).where(eq(trades.traceId, traceId)),
     db.select().from(orders).where(eq(orders.traceId, traceId)),

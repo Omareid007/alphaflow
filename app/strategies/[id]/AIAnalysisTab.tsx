@@ -27,7 +27,9 @@ export function AIAnalysisTab({ backtest }: AIAnalysisTabProps) {
       </CardHeader>
       <CardContent>
         <div className="prose prose-sm max-w-none dark:prose-invert">
-          <p className="text-muted-foreground whitespace-pre-wrap">{backtest.interpretation}</p>
+          <p className="text-muted-foreground whitespace-pre-wrap">
+            {backtest.interpretation}
+          </p>
         </div>
       </CardContent>
     </Card>

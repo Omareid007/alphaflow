@@ -5,9 +5,27 @@
 
 import { Router, Request, Response } from "express";
 import { storage } from "../../storage";
-import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "../../admin/registry";
-import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo } from "../../admin/rbac";
-import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "../../admin/settings";
+import {
+  initializeDefaultModules,
+  getModules,
+  getModule,
+  getAdminOverview,
+} from "../../admin/registry";
+import {
+  createRBACContext,
+  hasCapability,
+  filterModulesByCapability,
+  getAllRoles,
+  getRoleInfo,
+} from "../../admin/rbac";
+import {
+  getSetting,
+  getSettingFull,
+  setSetting,
+  deleteSetting,
+  listSettings,
+  sanitizeSettingForResponse,
+} from "../../admin/settings";
 import { globalSearch, getRelatedEntities } from "../../admin/global-search";
 import { orchestrator } from "../../autonomous/orchestrator";
 import { getAllUsageStats } from "../../lib/apiBudget";
@@ -40,7 +58,10 @@ router.get("/modules/accessible", async (req: Request, res: Response) => {
     }
     const rbacContext = createRBACContext(user);
     const allModules = getModules();
-    const accessibleModules = filterModulesByCapability(allModules, rbacContext);
+    const accessibleModules = filterModulesByCapability(
+      allModules,
+      rbacContext
+    );
     res.json({
       modules: accessibleModules,
       count: accessibleModules.length,
@@ -209,19 +230,22 @@ router.put("/settings/:namespace/:key", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/settings/:namespace/:key - Delete setting (requires admin:danger)
-router.delete("/settings/:namespace/:key", async (req: Request, res: Response) => {
-  try {
-    const { namespace, key } = req.params;
-    const deleted = await deleteSetting(namespace, key);
-    if (!deleted) {
-      return res.status(404).json({ error: "Setting not found" });
+router.delete(
+  "/settings/:namespace/:key",
+  async (req: Request, res: Response) => {
+    try {
+      const { namespace, key } = req.params;
+      const deleted = await deleteSetting(namespace, key);
+      if (!deleted) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json({ success: true, message: "Setting deleted" });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to delete setting", { error });
+      res.status(500).json({ error: "Failed to delete setting" });
     }
-    res.json({ success: true, message: "Setting deleted" });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to delete setting", { error });
-    res.status(500).json({ error: "Failed to delete setting" });
   }
-});
+);
 
 // GET /api/admin/orchestrator/status - Get orchestrator status (requires admin:read)
 router.get("/orchestrator/status", async (req: Request, res: Response) => {
@@ -287,15 +311,22 @@ router.put("/orchestrator/config", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/orchestrator/reset-stats - Reset orchestrator stats (requires admin:write)
-router.post("/orchestrator/reset-stats", async (req: Request, res: Response) => {
-  try {
-    // Stats are tracked in orchestrator state - return current state
-    res.json({ success: true, message: "Stats tracking is handled automatically", state: orchestrator.getState() });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to reset orchestrator stats", { error });
-    res.status(500).json({ error: "Failed to reset orchestrator stats" });
+router.post(
+  "/orchestrator/reset-stats",
+  async (req: Request, res: Response) => {
+    try {
+      // Stats are tracked in orchestrator state - return current state
+      res.json({
+        success: true,
+        message: "Stats tracking is handled automatically",
+        state: orchestrator.getState(),
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to reset orchestrator stats", { error });
+      res.status(500).json({ error: "Failed to reset orchestrator stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/jobs/status - Get jobs status
 router.get("/jobs/status", async (req: Request, res: Response) => {
@@ -344,7 +375,10 @@ router.get("/search", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Search query required" });
     }
 
-    const searchResults = await globalSearch(q, limit ? parseInt(limit as string) : 20);
+    const searchResults = await globalSearch(
+      q,
+      limit ? parseInt(limit as string) : 20
+    );
 
     res.json({ ...searchResults, count: searchResults.totalResults });
   } catch (error) {

@@ -57,7 +57,13 @@ export interface ConsensusOutput {
   dissent: Array<{ role: DebateRole; reason: string }>;
 }
 
-const DEFAULT_ROLES: DebateRole[] = ["bull", "bear", "risk_manager", "technical_analyst", "fundamental_analyst"];
+const DEFAULT_ROLES: DebateRole[] = [
+  "bull",
+  "bear",
+  "risk_manager",
+  "technical_analyst",
+  "fundamental_analyst",
+];
 
 const ROLE_PROMPTS: Record<DebateRole, string> = {
   bull: `You are the BULL analyst. Your job is to find reasons WHY this trade could succeed.
@@ -89,12 +95,18 @@ If there's strong dissent, explain why you overruled it.`,
 const ROLE_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
-    stance: { type: "string", enum: ["bullish", "bearish", "neutral", "abstain"] },
+    stance: {
+      type: "string",
+      enum: ["bullish", "bearish", "neutral", "abstain"],
+    },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     keySignals: { type: "array", items: { type: "string" } },
     risks: { type: "array", items: { type: "string" } },
     invalidationPoints: { type: "array", items: { type: "string" } },
-    proposedAction: { type: "string", enum: ["buy", "sell", "hold", "scale_in", "scale_out"] },
+    proposedAction: {
+      type: "string",
+      enum: ["buy", "sell", "hold", "scale_in", "scale_out"],
+    },
     proposedOrder: {
       type: "object",
       properties: {
@@ -108,10 +120,20 @@ const ROLE_OUTPUT_SCHEMA = {
     evidenceRefs: { type: "array", items: { type: "string" } },
     rationale: { type: "string" },
   },
-  required: ["stance", "confidence", "keySignals", "risks", "proposedAction", "rationale"],
+  required: [
+    "stance",
+    "confidence",
+    "keySignals",
+    "risks",
+    "proposedAction",
+    "rationale",
+  ],
 };
 
-async function gatherMarketContext(symbols: string[], traceId: string): Promise<Record<string, unknown>> {
+async function gatherMarketContext(
+  symbols: string[],
+  traceId: string
+): Promise<Record<string, unknown>> {
   const context: Record<string, unknown> = {};
 
   for (const symbol of symbols) {
@@ -121,12 +143,18 @@ async function gatherMarketContext(symbols: string[], traceId: string): Promise<
         context[`${symbol}_quote`] = quoteResult.result;
       }
 
-      const barsResult = await invokeTool("getBars", { symbol, timeframe: "1Day", limit: 10 }, { traceId });
+      const barsResult = await invokeTool(
+        "getBars",
+        { symbol, timeframe: "1Day", limit: 10 },
+        { traceId }
+      );
       if (barsResult.success) {
         context[`${symbol}_bars`] = barsResult.result;
       }
     } catch (e) {
-      log.warn("DebateArena", `Failed to gather data for ${symbol}`, { error: (e as Error).message });
+      log.warn("DebateArena", `Failed to gather data for ${symbol}`, {
+        error: (e as Error).message,
+      });
     }
   }
 
@@ -146,7 +174,9 @@ async function gatherMarketContext(symbols: string[], traceId: string): Promise<
       context.marketClock = clockResult.result;
     }
   } catch (e) {
-    log.warn("DebateArena", `Failed to gather account data`, { error: (e as Error).message });
+    log.warn("DebateArena", `Failed to gather account data`, {
+      error: (e as Error).message,
+    });
   }
 
   return context;
@@ -160,9 +190,12 @@ async function runRole(
   session: DebateSession,
   config: DebateConfig
 ): Promise<DebateMessage> {
-  const priorContext = priorMessages.map(m => 
-    `[${m.role.toUpperCase()}] Stance: ${m.stance}, Confidence: ${m.confidence}, Action: ${m.proposedAction}\nRationale: ${m.rawOutput?.slice(0, 500) || "N/A"}`
-  ).join("\n\n");
+  const priorContext = priorMessages
+    .map(
+      (m) =>
+        `[${m.role.toUpperCase()}] Stance: ${m.stance}, Confidence: ${m.confidence}, Action: ${m.proposedAction}\nRationale: ${m.rawOutput?.slice(0, 500) || "N/A"}`
+    )
+    .join("\n\n");
 
   const systemPrompt = `${ROLE_PROMPTS[role]}
 
@@ -185,7 +218,12 @@ ${priorMessages.length > 0 ? `\nPrior Analyst Opinions:\n${priorContext}` : ""}`
       traceId: session.traceId,
       purpose: `debate_${role}`,
       system: systemPrompt,
-      messages: [{ role: "user", content: `Analyze ${symbols.join(", ")} and provide your ${role} perspective.` }],
+      messages: [
+        {
+          role: "user",
+          content: `Analyze ${symbols.join(", ")} and provide your ${role} perspective.`,
+        },
+      ],
       responseFormat: { type: "json_object" },
       maxTokens: config.tokenBudgetPerRole || 1500,
     });
@@ -240,14 +278,18 @@ async function runJudge(
   roleMessages: DebateMessage[],
   session: DebateSession
 ): Promise<ConsensusOutput> {
-  const analysisContext = roleMessages.map(m => `
+  const analysisContext = roleMessages
+    .map(
+      (m) => `
 [${m.role.toUpperCase()}]
 Stance: ${m.stance} (Confidence: ${m.confidence})
-Key Signals: ${(m.keySignals as string[] || []).join(", ")}
-Risks: ${(m.risks as string[] || []).join(", ")}
+Key Signals: ${((m.keySignals as string[]) || []).join(", ")}
+Risks: ${((m.risks as string[]) || []).join(", ")}
 Proposed Action: ${m.proposedAction}
 Rationale: ${m.rawOutput || "N/A"}
-`).join("\n---\n");
+`
+    )
+    .join("\n---\n");
 
   const systemPrompt = `You are the JUDGE synthesizing analyst opinions for ${symbols.join(", ")}.
 
@@ -276,7 +318,12 @@ Be decisive. If the risk manager has serious concerns, address them.`;
     traceId: session.traceId,
     purpose: "debate_judge",
     system: systemPrompt,
-    messages: [{ role: "user", content: "Synthesize all analyst opinions and make a final decision." }],
+    messages: [
+      {
+        role: "user",
+        content: "Synthesize all analyst opinions and make a final decision.",
+      },
+    ],
     responseFormat: { type: "json_object" },
     maxTokens: 2000,
   });
@@ -321,7 +368,14 @@ export async function startDebate(
     await storage.updateDebateSession(session.id, { marketContext });
 
     for (const role of enabledRoles) {
-      const message = await runRole(role, symbols, marketContext, roleMessages, session, config);
+      const message = await runRole(
+        role,
+        symbols,
+        marketContext,
+        roleMessages,
+        session,
+        config
+      );
       roleMessages.push(message);
       totalCost += parseFloat(message.estimatedCost || "0");
     }

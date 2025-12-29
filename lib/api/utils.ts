@@ -11,7 +11,16 @@
  */
 export function unwrapArrayResponse<T>(
   response: unknown,
-  possibleKeys: string[] = ['data', 'items', 'results', 'runs', 'trades', 'orders', 'positions', 'decisions']
+  possibleKeys: string[] = [
+    "data",
+    "items",
+    "results",
+    "runs",
+    "trades",
+    "orders",
+    "positions",
+    "decisions",
+  ]
 ): T[] {
   // Already an array
   if (Array.isArray(response)) {
@@ -19,7 +28,7 @@ export function unwrapArrayResponse<T>(
   }
 
   // Object with array property
-  if (response && typeof response === 'object') {
+  if (response && typeof response === "object") {
     for (const key of possibleKeys) {
       const value = (response as Record<string, unknown>)[key];
       if (Array.isArray(value)) {
@@ -29,7 +38,7 @@ export function unwrapArrayResponse<T>(
   }
 
   // Fallback: warn and return empty array
-  console.warn('[unwrapArrayResponse] Could not unwrap response:', response);
+  console.warn("[unwrapArrayResponse] Could not unwrap response:", response);
   return [];
 }
 
@@ -42,7 +51,7 @@ export function hasArrayProperty<T, K extends string>(
 ): response is Record<K, T[]> {
   return (
     response !== null &&
-    typeof response === 'object' &&
+    typeof response === "object" &&
     key in response &&
     Array.isArray((response as Record<K, unknown>)[key])
   );
@@ -59,24 +68,24 @@ export interface PaginationMeta {
 }
 
 export function extractPagination(response: unknown): PaginationMeta | null {
-  if (!response || typeof response !== 'object') {
+  if (!response || typeof response !== "object") {
     return null;
   }
 
   const r = response as Record<string, unknown>;
 
   // Check for pagination object
-  if (r.pagination && typeof r.pagination === 'object') {
+  if (r.pagination && typeof r.pagination === "object") {
     return r.pagination as PaginationMeta;
   }
 
   // Check for inline pagination fields
-  if ('limit' in r || 'offset' in r || 'total' in r) {
+  if ("limit" in r || "offset" in r || "total" in r) {
     return {
-      total: typeof r.total === 'number' ? r.total : undefined,
-      limit: typeof r.limit === 'number' ? r.limit : undefined,
-      offset: typeof r.offset === 'number' ? r.offset : undefined,
-      hasMore: typeof r.hasMore === 'boolean' ? r.hasMore : undefined,
+      total: typeof r.total === "number" ? r.total : undefined,
+      limit: typeof r.limit === "number" ? r.limit : undefined,
+      offset: typeof r.offset === "number" ? r.offset : undefined,
+      hasMore: typeof r.hasMore === "boolean" ? r.hasMore : undefined,
     };
   }
 

@@ -1,5 +1,11 @@
 import { db } from "../db";
-import { universeLiquidityMetrics, universeAssets, type InsertUniverseLiquidity, type UniverseLiquidity, type LiquidityTier } from "@shared/schema";
+import {
+  universeLiquidityMetrics,
+  universeAssets,
+  type InsertUniverseLiquidity,
+  type UniverseLiquidity,
+  type LiquidityTier,
+} from "@shared/schema";
 import { alpaca } from "../connectors/alpaca";
 import { eq, sql, and, gte, lte, isNull, desc } from "drizzle-orm";
 import { getSetting } from "../admin/settings";
@@ -46,12 +52,14 @@ export interface LiquidityComputeResult {
 export class LiquidityService {
   private async getThresholds(): Promise<LiquidityTierThresholds> {
     try {
-      const setting = await getSetting<LiquidityTierThresholds>("universe", "liquidity_thresholds");
+      const setting = await getSetting<LiquidityTierThresholds>(
+        "universe",
+        "liquidity_thresholds"
+      );
       if (setting) {
         return setting;
       }
-    } catch {
-    }
+    } catch {}
     return DEFAULT_THRESHOLDS;
   }
 
@@ -84,11 +92,13 @@ export class LiquidityService {
     return "C";
   }
 
-  async computeLiquidityMetrics(options: {
-    symbols?: string[];
-    batchSize?: number;
-    traceId?: string;
-  } = {}): Promise<LiquidityComputeResult> {
+  async computeLiquidityMetrics(
+    options: {
+      symbols?: string[];
+      batchSize?: number;
+      traceId?: string;
+    } = {}
+  ): Promise<LiquidityComputeResult> {
     const startTime = Date.now();
     const { symbols, batchSize = 50, traceId } = options;
 
@@ -103,14 +113,18 @@ export class LiquidityService {
       const assets = await db
         .select({ symbol: universeAssets.symbol })
         .from(universeAssets)
-        .where(and(
-          eq(universeAssets.tradable, true),
-          eq(universeAssets.excluded, false)
-        ));
+        .where(
+          and(
+            eq(universeAssets.tradable, true),
+            eq(universeAssets.excluded, false)
+          )
+        );
       targetSymbols = assets.map((a) => a.symbol);
     }
 
-    log.info("LiquidityService", "Computing metrics for symbols", { count: targetSymbols.length });
+    log.info("LiquidityService", "Computing metrics for symbols", {
+      count: targetSymbols.length,
+    });
 
     let computed = 0;
     let tierACount = 0;
@@ -124,7 +138,7 @@ export class LiquidityService {
 
     for (let i = 0; i < targetSymbols.length; i += batchSize) {
       const batch = targetSymbols.slice(i, i + batchSize);
-      
+
       try {
         const barsResponse = await alpaca.getBars(
           batch,
@@ -136,7 +150,7 @@ export class LiquidityService {
 
         for (const symbol of batch) {
           const bars = barsResponse.bars?.[symbol] || [];
-          
+
           if (bars.length === 0) {
             const metrics: InsertUniverseLiquidity = {
               symbol,
@@ -188,8 +202,9 @@ export class LiquidityService {
           };
 
           await this.upsertLiquidityMetrics(metrics);
-          
-          const isPennyStock = latestPrice < PENNY_STOCK_THRESHOLD && latestPrice > 0;
+
+          const isPennyStock =
+            latestPrice < PENNY_STOCK_THRESHOLD && latestPrice > 0;
           await this.updatePennyStockFlag(symbol, isPennyStock, latestPrice);
 
           if (tier === "A") tierACount++;
@@ -199,7 +214,10 @@ export class LiquidityService {
           computed++;
         }
       } catch (error) {
-        log.error("LiquidityService", "Failed to process batch", { batchStartIndex: i, error: error instanceof Error ? error.message : String(error) });
+        log.error("LiquidityService", "Failed to process batch", {
+          batchStartIndex: i,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
 
       if (i + batchSize < targetSymbols.length) {
@@ -208,7 +226,13 @@ export class LiquidityService {
     }
 
     const duration = Date.now() - startTime;
-    log.info("LiquidityService", "Computation complete", { computed, tierA: tierACount, tierB: tierBCount, tierC: tierCCount, duration });
+    log.info("LiquidityService", "Computation complete", {
+      computed,
+      tierA: tierACount,
+      tierB: tierBCount,
+      tierC: tierCCount,
+      duration,
+    });
 
     return {
       success: true,
@@ -221,7 +245,9 @@ export class LiquidityService {
     };
   }
 
-  private async upsertLiquidityMetrics(metrics: InsertUniverseLiquidity): Promise<void> {
+  private async upsertLiquidityMetrics(
+    metrics: InsertUniverseLiquidity
+  ): Promise<void> {
     const existing = await db
       .select({ id: universeLiquidityMetrics.id })
       .from(universeLiquidityMetrics)
@@ -250,7 +276,10 @@ export class LiquidityService {
     return result[0] || null;
   }
 
-  async getMetricsByTier(tier: LiquidityTier, limit = 100): Promise<UniverseLiquidity[]> {
+  async getMetricsByTier(
+    tier: LiquidityTier,
+    limit = 100
+  ): Promise<UniverseLiquidity[]> {
     return db
       .select()
       .from(universeLiquidityMetrics)
@@ -259,11 +288,20 @@ export class LiquidityService {
       .limit(limit);
   }
 
-  async getTierStats(): Promise<{ tierA: number; tierB: number; tierC: number; stale: number; total: number }> {
+  async getTierStats(): Promise<{
+    tierA: number;
+    tierB: number;
+    tierC: number;
+    stale: number;
+    total: number;
+  }> {
     const all = await db.select().from(universeLiquidityMetrics);
-    
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    let tierA = 0, tierB = 0, tierC = 0, stale = 0;
+    let tierA = 0,
+      tierB = 0,
+      tierC = 0,
+      stale = 0;
 
     for (const m of all) {
       if (m.liquidityTier === "A") tierA++;
@@ -288,18 +326,27 @@ export class LiquidityService {
     return this.getThresholds();
   }
 
-  private async updatePennyStockFlag(symbol: string, isPennyStock: boolean, latestPrice: number): Promise<void> {
+  private async updatePennyStockFlag(
+    symbol: string,
+    isPennyStock: boolean,
+    latestPrice: number
+  ): Promise<void> {
     try {
       await db
         .update(universeAssets)
         .set({
           isPennyStock,
           excluded: isPennyStock ? true : undefined,
-          excludeReason: isPennyStock ? `Penny stock (price $${latestPrice.toFixed(2)} < $${PENNY_STOCK_THRESHOLD})` : undefined,
+          excludeReason: isPennyStock
+            ? `Penny stock (price $${latestPrice.toFixed(2)} < $${PENNY_STOCK_THRESHOLD})`
+            : undefined,
         })
         .where(eq(universeAssets.symbol, symbol));
     } catch (error) {
-      log.error("LiquidityService", "Failed to update penny stock flag", { symbol, error: error instanceof Error ? error.message : String(error) });
+      log.error("LiquidityService", "Failed to update penny stock flag", {
+        symbol,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

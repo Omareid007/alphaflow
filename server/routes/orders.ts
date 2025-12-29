@@ -36,7 +36,9 @@ router.get("/unreal", async (req: Request, res: Response) => {
       orders: unrealOrders,
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to identify unreal orders", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to identify unreal orders", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -55,7 +57,9 @@ router.post("/cleanup", async (req: Request, res: Response) => {
       errors: result.errors,
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to cleanup unreal orders", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to cleanup unreal orders", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -76,7 +80,9 @@ router.post("/reconcile", async (req: Request, res: Response) => {
       synced: result.synced,
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to reconcile order book", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to reconcile order book", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -88,22 +94,26 @@ router.post("/reconcile", async (req: Request, res: Response) => {
 router.get("/execution-engine/status", async (req: Request, res: Response) => {
   try {
     const activeExecutions = orderExecutionEngine.getActiveExecutions();
-    const executions = Array.from(activeExecutions.entries()).map(([id, state]) => ({
-      clientOrderId: id,
-      orderId: state.orderId,
-      symbol: state.symbol,
-      side: state.side,
-      status: state.status,
-      attempts: state.attempts,
-      createdAt: state.createdAt.toISOString(),
-      updatedAt: state.updatedAt.toISOString(),
-    }));
+    const executions = Array.from(activeExecutions.entries()).map(
+      ([id, state]) => ({
+        clientOrderId: id,
+        orderId: state.orderId,
+        symbol: state.symbol,
+        side: state.side,
+        status: state.status,
+        attempts: state.attempts,
+        createdAt: state.createdAt.toISOString(),
+        updatedAt: state.updatedAt.toISOString(),
+      })
+    );
     res.json({
       activeCount: executions.length,
       executions,
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to get execution engine status", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to get execution engine status", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -140,7 +150,9 @@ router.get("/", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch orders", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to fetch orders", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -167,7 +179,9 @@ router.post("/sync", async (req: Request, res: Response) => {
       traceId,
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to enqueue order sync", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to enqueue order sync", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -195,11 +209,14 @@ router.get("/recent", async (req: Request, res: Response) => {
       _source: createLiveSourceMetadata(),
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch recent orders", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to fetch recent orders", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(503).json({
       error: "Failed to fetch recent orders",
       _source: createUnavailableSourceMetadata(),
-      message: "Could not connect to Alpaca Paper Trading. Please try again shortly.",
+      message:
+        "Could not connect to Alpaca Paper Trading. Please try again shortly.",
     });
   }
 });
@@ -230,7 +247,8 @@ router.get("/fills", async (req: Request, res: Response) => {
 
     // Sort by occurredAt descending and limit
     allFills.sort(
-      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+      (a, b) =>
+        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
     );
     allFills = allFills.slice(0, limit);
 
@@ -243,7 +261,9 @@ router.get("/fills", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch fills", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to fetch fills", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -273,7 +293,9 @@ router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch fills for order", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to fetch fills for order", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });
@@ -317,7 +339,9 @@ router.get("/:id", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch order", { error: error instanceof Error ? error.message : String(error) });
+    log.error("OrdersRoutes", "Failed to fetch order", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({ error: String(error) });
   }
 });

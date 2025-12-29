@@ -11,7 +11,12 @@ import type {
   LLMRole,
 } from "@shared/schema";
 import { db } from "../db";
-import { aiAgentProfiles, aiArenaRuns, aiArenaAgentDecisions, aiOutcomeLinks } from "@shared/schema";
+import {
+  aiAgentProfiles,
+  aiArenaRuns,
+  aiArenaAgentDecisions,
+  aiOutcomeLinks,
+} from "@shared/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -40,14 +45,16 @@ const AgentDecisionOutputSchema = z.object({
   rationale: z.string(),
   keySignals: z.array(z.string()).optional().default([]),
   risks: z.array(z.string()).optional().default([]),
-  proposedOrder: z.object({
-    symbol: z.string(),
-    side: z.enum(["buy", "sell"]),
-    qty: z.number().optional(),
-    notional: z.number().optional(),
-    type: z.enum(["market", "limit"]),
-    limitPrice: z.number().optional(),
-  }).optional(),
+  proposedOrder: z
+    .object({
+      symbol: z.string(),
+      side: z.enum(["buy", "sell"]),
+      qty: z.number().optional(),
+      notional: z.number().optional(),
+      type: z.enum(["market", "limit"]),
+      limitPrice: z.number().optional(),
+    })
+    .optional(),
 });
 
 export type AgentDecisionOutput = z.infer<typeof AgentDecisionOutputSchema>;
@@ -120,9 +127,15 @@ export class ArenaCoordinator {
     const traceId = `arena-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const startTime = Date.now();
 
-    log.info("ArenaCoordinator", `Starting arena run`, { traceId, mode: config.mode, symbols: config.symbols });
+    log.info("ArenaCoordinator", `Starting arena run`, {
+      traceId,
+      mode: config.mode,
+      symbols: config.symbols,
+    });
 
-    const agentProfiles = await this.getActiveAgentProfiles(config.agentProfileIds);
+    const agentProfiles = await this.getActiveAgentProfiles(
+      config.agentProfileIds
+    );
     if (agentProfiles.length === 0) {
       throw new Error("No active agent profiles found for arena run");
     }
@@ -131,23 +144,41 @@ export class ArenaCoordinator {
       traceId,
       mode: config.mode,
       symbols: config.symbols,
-      agentProfileIds: agentProfiles.map(p => p.id),
+      agentProfileIds: agentProfiles.map((p) => p.id),
       strategyVersionId: config.strategyVersionId,
       triggeredBy: config.triggeredBy,
       status: "running",
       startedAt: new Date(),
     });
 
-    const marketContext = await this.gatherMarketContext(config.symbols, traceId);
-    const cheapAgents = agentProfiles.filter(p => p.mode === "cheap_first" || p.mode === "always");
-    const powerAgents = agentProfiles.filter(p => p.mode === "escalation_only");
+    const marketContext = await this.gatherMarketContext(
+      config.symbols,
+      traceId
+    );
+    const cheapAgents = agentProfiles.filter(
+      (p) => p.mode === "cheap_first" || p.mode === "always"
+    );
+    const powerAgents = agentProfiles.filter(
+      (p) => p.mode === "escalation_only"
+    );
     const allDecisions: InsertAiArenaAgentDecision[] = [];
     let escalationTriggered = false;
     let escalationReason: string | undefined;
 
-    log.info("ArenaCoordinator", `Running ${cheapAgents.length} cheap agents`, { traceId });
+    log.info("ArenaCoordinator", `Running ${cheapAgents.length} cheap agents`, {
+      traceId,
+    });
     const cheapDecisions = await Promise.all(
-      cheapAgents.map(agent => this.runAgent(agent, config.symbols, marketContext, run.id, traceId, false))
+      cheapAgents.map((agent) =>
+        this.runAgent(
+          agent,
+          config.symbols,
+          marketContext,
+          run.id,
+          traceId,
+          false
+        )
+      )
     );
     allDecisions.push(...cheapDecisions);
 
@@ -157,28 +188,69 @@ export class ArenaCoordinator {
 
     if (this.shouldEscalate(disagreementRate, avgConfidence, riskVeto)) {
       escalationTriggered = true;
-      escalationReason = this.getEscalationReason(disagreementRate, avgConfidence, riskVeto);
-      log.info("ArenaCoordinator", `Escalation triggered: ${escalationReason}`, { traceId });
+      escalationReason = this.getEscalationReason(
+        disagreementRate,
+        avgConfidence,
+        riskVeto
+      );
+      log.info(
+        "ArenaCoordinator",
+        `Escalation triggered: ${escalationReason}`,
+        { traceId }
+      );
 
-      if (powerAgents.length > 0 && this.powerCallsToday < this.escalationPolicy.maxPowerCallsPerDay) {
-        log.info("ArenaCoordinator", `Running ${powerAgents.length} power agents`, { traceId });
+      if (
+        powerAgents.length > 0 &&
+        this.powerCallsToday < this.escalationPolicy.maxPowerCallsPerDay
+      ) {
+        log.info(
+          "ArenaCoordinator",
+          `Running ${powerAgents.length} power agents`,
+          { traceId }
+        );
         const powerDecisions = await Promise.all(
-          powerAgents.map(agent => this.runAgent(agent, config.symbols, marketContext, run.id, traceId, true))
+          powerAgents.map((agent) =>
+            this.runAgent(
+              agent,
+              config.symbols,
+              marketContext,
+              run.id,
+              traceId,
+              true
+            )
+          )
         );
         allDecisions.push(...powerDecisions);
         this.powerCallsToday += powerAgents.length;
 
         disagreementRate = this.calculateDisagreementRate(allDecisions);
         avgConfidence = this.calculateAvgConfidence(allDecisions);
-      } else if (this.powerCallsToday >= this.escalationPolicy.maxPowerCallsPerDay) {
-        log.warn("ArenaCoordinator", `Power call limit reached (${this.powerCallsToday}/${this.escalationPolicy.maxPowerCallsPerDay}), using cheap decisions only`, { traceId });
+      } else if (
+        this.powerCallsToday >= this.escalationPolicy.maxPowerCallsPerDay
+      ) {
+        log.warn(
+          "ArenaCoordinator",
+          `Power call limit reached (${this.powerCallsToday}/${this.escalationPolicy.maxPowerCallsPerDay}), using cheap decisions only`,
+          { traceId }
+        );
       }
     }
 
-    const consensus = this.computeConsensus(allDecisions, disagreementRate, escalationTriggered, escalationReason);
+    const consensus = this.computeConsensus(
+      allDecisions,
+      disagreementRate,
+      escalationTriggered,
+      escalationReason
+    );
     const durationMs = Date.now() - startTime;
-    const totalCost = allDecisions.reduce((sum, d) => sum + parseFloat(d.costUsd || "0"), 0);
-    const totalTokens = allDecisions.reduce((sum, d) => sum + (d.tokensUsed || 0), 0);
+    const totalCost = allDecisions.reduce(
+      (sum, d) => sum + parseFloat(d.costUsd || "0"),
+      0
+    );
+    const totalTokens = allDecisions.reduce(
+      (sum, d) => sum + (d.tokensUsed || 0),
+      0
+    );
 
     await this.updateArenaRun(run.id, {
       status: "completed",
@@ -194,9 +266,20 @@ export class ArenaCoordinator {
       avgConfidence: String(avgConfidence),
     });
 
-    if (consensus.decision !== "no_trade" && consensus.decision !== "hold" && consensus.orderIntent) {
-      const outcomeLink = await this.createOutcomeLink(run.id, consensus, totalCost, traceId);
-      log.info("ArenaCoordinator", `Created outcome link: ${outcomeLink.id}`, { traceId });
+    if (
+      consensus.decision !== "no_trade" &&
+      consensus.decision !== "hold" &&
+      consensus.orderIntent
+    ) {
+      const outcomeLink = await this.createOutcomeLink(
+        run.id,
+        consensus,
+        totalCost,
+        traceId
+      );
+      log.info("ArenaCoordinator", `Created outcome link: ${outcomeLink.id}`, {
+        traceId,
+      });
     }
 
     log.info("ArenaCoordinator", `Arena run completed`, {
@@ -209,7 +292,9 @@ export class ArenaCoordinator {
       agentsRun: allDecisions.length,
     });
 
-    const updatedRun = await db.query.aiArenaRuns.findFirst({ where: eq(aiArenaRuns.id, run.id) });
+    const updatedRun = await db.query.aiArenaRuns.findFirst({
+      where: eq(aiArenaRuns.id, run.id),
+    });
 
     return {
       run: updatedRun!,
@@ -218,27 +303,38 @@ export class ArenaCoordinator {
     };
   }
 
-  private async getActiveAgentProfiles(ids?: string[]): Promise<AiAgentProfile[]> {
+  private async getActiveAgentProfiles(
+    ids?: string[]
+  ): Promise<AiAgentProfile[]> {
     const allProfiles = await db.query.aiAgentProfiles.findMany({
       where: eq(aiAgentProfiles.status, "active"),
     });
-    
+
     if (ids && ids.length > 0) {
-      return allProfiles.filter(p => ids.includes(p.id));
+      return allProfiles.filter((p) => ids.includes(p.id));
     }
     return allProfiles;
   }
 
   private async createArenaRun(data: InsertAiArenaRun): Promise<AiArenaRun> {
-    const [run] = await db.insert(aiArenaRuns).values([data as typeof aiArenaRuns.$inferInsert]).returning();
+    const [run] = await db
+      .insert(aiArenaRuns)
+      .values([data as typeof aiArenaRuns.$inferInsert])
+      .returning();
     return run;
   }
 
-  private async updateArenaRun(id: string, data: Partial<AiArenaRun>): Promise<void> {
+  private async updateArenaRun(
+    id: string,
+    data: Partial<AiArenaRun>
+  ): Promise<void> {
     await db.update(aiArenaRuns).set(data).where(eq(aiArenaRuns.id, id));
   }
 
-  private async gatherMarketContext(symbols: string[], traceId: string): Promise<MarketContext> {
+  private async gatherMarketContext(
+    symbols: string[],
+    traceId: string
+  ): Promise<MarketContext> {
     const context: MarketContext = {
       quotes: {},
       bars: {},
@@ -251,18 +347,28 @@ export class ArenaCoordinator {
           context.quotes[symbol] = result.result;
         }
       } catch (e) {
-        log.warn("ArenaCoordinator", `Failed to get quote for ${symbol}`, { error: (e as Error).message, traceId });
+        log.warn("ArenaCoordinator", `Failed to get quote for ${symbol}`, {
+          error: (e as Error).message,
+          traceId,
+        });
       }
     });
 
     const barsPromises = symbols.map(async (symbol) => {
       try {
-        const result = await invokeTool("getBars", { symbol, timeframe: "1Day", limit: 10 }, { traceId });
+        const result = await invokeTool(
+          "getBars",
+          { symbol, timeframe: "1Day", limit: 10 },
+          { traceId }
+        );
         if (result.success) {
           context.bars[symbol] = result.result;
         }
       } catch (e) {
-        log.warn("ArenaCoordinator", `Failed to get bars for ${symbol}`, { error: (e as Error).message, traceId });
+        log.warn("ArenaCoordinator", `Failed to get bars for ${symbol}`, {
+          error: (e as Error).message,
+          traceId,
+        });
       }
     });
 
@@ -271,7 +377,10 @@ export class ArenaCoordinator {
         const result = await invokeTool("getAccount", {}, { traceId });
         if (result.success) context.account = result.result;
       } catch (e) {
-        log.warn("ArenaCoordinator", `Failed to get account`, { error: (e as Error).message, traceId });
+        log.warn("ArenaCoordinator", `Failed to get account`, {
+          error: (e as Error).message,
+          traceId,
+        });
       }
     })();
 
@@ -280,7 +389,10 @@ export class ArenaCoordinator {
         const result = await invokeTool("listPositions", {}, { traceId });
         if (result.success) context.positions = result.result as unknown[];
       } catch (e) {
-        log.warn("ArenaCoordinator", `Failed to get positions`, { error: (e as Error).message, traceId });
+        log.warn("ArenaCoordinator", `Failed to get positions`, {
+          error: (e as Error).message,
+          traceId,
+        });
       }
     })();
 
@@ -289,13 +401,22 @@ export class ArenaCoordinator {
         const result = await invokeTool("getMarketClock", {}, { traceId });
         if (result.success) context.marketClock = result.result;
       } catch (e) {
-        log.warn("ArenaCoordinator", `Failed to get market clock`, { error: (e as Error).message, traceId });
+        log.warn("ArenaCoordinator", `Failed to get market clock`, {
+          error: (e as Error).message,
+          traceId,
+        });
       }
     })();
 
-    await Promise.all([...quotePromises, ...barsPromises, accountPromise, positionsPromise, clockPromise]);
+    await Promise.all([
+      ...quotePromises,
+      ...barsPromises,
+      accountPromise,
+      positionsPromise,
+      clockPromise,
+    ]);
 
-    log.info("ArenaCoordinator", `Gathered market context`, { 
+    log.info("ArenaCoordinator", `Gathered market context`, {
       traceId,
       quotesCount: Object.keys(context.quotes).length,
       barsCount: Object.keys(context.bars).length,
@@ -345,8 +466,8 @@ ${contextSummary}`;
         messages: [
           {
             role: "user",
-            content: `Analyze ${symbols.join(", ")} and provide your ${role} perspective. Be specific and data-driven. Return valid JSON only. Do not include any text outside the JSON object.`
-          }
+            content: `Analyze ${symbols.join(", ")} and provide your ${role} perspective. Be specific and data-driven. Return valid JSON only. Do not include any text outside the JSON object.`,
+          },
         ],
         maxTokens: agent.maxTokens || 2000,
         temperature: parseFloat(agent.temperature || "0.7"),
@@ -358,7 +479,7 @@ ${contextSummary}`;
 
       let output: AgentDecisionOutput | null = null;
       let parseError: string | null = null;
-      
+
       try {
         const rawJson = JSON.parse(llmResult.text || "{}");
         const parsed = AgentDecisionOutputSchema.safeParse(rawJson);
@@ -366,16 +487,36 @@ ${contextSummary}`;
           output = parsed.data;
         } else {
           parseError = parsed.error.message;
-          log.warn("ArenaCoordinator", `Agent output validation failed (attempt ${retryCount + 1})`, { traceId, agentId: agent.id, error: parseError });
+          log.warn(
+            "ArenaCoordinator",
+            `Agent output validation failed (attempt ${retryCount + 1})`,
+            { traceId, agentId: agent.id, error: parseError }
+          );
         }
       } catch (e) {
         parseError = (e as Error).message;
-        log.warn("ArenaCoordinator", `Failed to parse agent output JSON (attempt ${retryCount + 1})`, { traceId, agentId: agent.id, error: parseError });
+        log.warn(
+          "ArenaCoordinator",
+          `Failed to parse agent output JSON (attempt ${retryCount + 1})`,
+          { traceId, agentId: agent.id, error: parseError }
+        );
       }
 
       if (!output && retryCount < MAX_RETRIES) {
-        log.info("ArenaCoordinator", `Retrying agent ${agent.name} due to parse failure`, { traceId, retryCount: retryCount + 1 });
-        return this.runAgent(agent, symbols, marketContext, arenaRunId, traceId, isEscalation, retryCount + 1);
+        log.info(
+          "ArenaCoordinator",
+          `Retrying agent ${agent.name} due to parse failure`,
+          { traceId, retryCount: retryCount + 1 }
+        );
+        return this.runAgent(
+          agent,
+          symbols,
+          marketContext,
+          arenaRunId,
+          traceId,
+          isEscalation,
+          retryCount + 1
+        );
       }
 
       if (!output) {
@@ -399,24 +540,40 @@ ${contextSummary}`;
         confidence: String(output.confidence),
         stance: output.stance,
         rationale: output.rationale,
-        keySignals: Array.isArray(output.keySignals) ? JSON.stringify(output.keySignals) : output.keySignals,
-        risks: Array.isArray(output.risks) ? JSON.stringify(output.risks) : output.risks,
-        proposedOrder: typeof output.proposedOrder === 'object' ? JSON.stringify(output.proposedOrder) : output.proposedOrder,
+        keySignals: Array.isArray(output.keySignals)
+          ? JSON.stringify(output.keySignals)
+          : output.keySignals,
+        risks: Array.isArray(output.risks)
+          ? JSON.stringify(output.risks)
+          : output.risks,
+        proposedOrder:
+          typeof output.proposedOrder === "object"
+            ? JSON.stringify(output.proposedOrder)
+            : output.proposedOrder,
         tokensUsed: llmResult.tokensUsed,
         costUsd: String(llmResult.estimatedCost || 0),
         latencyMs,
         modelUsed: llmResult.model,
         wasEscalation: isEscalation,
         rawOutput: (llmResult.text || "").slice(0, 5000),
-        errorMessage: parseError && retryCount >= MAX_RETRIES ? `Parse failed: ${parseError}` : undefined,
+        errorMessage:
+          parseError && retryCount >= MAX_RETRIES
+            ? `Parse failed: ${parseError}`
+            : undefined,
       };
 
-      await db.insert(aiArenaAgentDecisions).values([decision as typeof aiArenaAgentDecisions.$inferInsert]);
-      await this.updateAgentStats(agent.id, llmResult.tokensUsed || 0, llmResult.estimatedCost || 0);
+      await db
+        .insert(aiArenaAgentDecisions)
+        .values([decision as typeof aiArenaAgentDecisions.$inferInsert]);
+      await this.updateAgentStats(
+        agent.id,
+        llmResult.tokensUsed || 0,
+        llmResult.estimatedCost || 0
+      );
 
-      log.info("ArenaCoordinator", `Agent ${agent.name} completed`, { 
-        traceId, 
-        action: output.action, 
+      log.info("ArenaCoordinator", `Agent ${agent.name} completed`, {
+        traceId,
+        action: output.action,
         confidence: output.confidence,
         isEscalation,
         latencyMs,
@@ -426,13 +583,33 @@ ${contextSummary}`;
       return decision;
     } catch (error) {
       if (retryCount < MAX_RETRIES) {
-        log.info("ArenaCoordinator", `Retrying agent ${agent.name} due to error`, { traceId, retryCount: retryCount + 1, error: (error as Error).message });
-        return this.runAgent(agent, symbols, marketContext, arenaRunId, traceId, isEscalation, retryCount + 1);
+        log.info(
+          "ArenaCoordinator",
+          `Retrying agent ${agent.name} due to error`,
+          {
+            traceId,
+            retryCount: retryCount + 1,
+            error: (error as Error).message,
+          }
+        );
+        return this.runAgent(
+          agent,
+          symbols,
+          marketContext,
+          arenaRunId,
+          traceId,
+          isEscalation,
+          retryCount + 1
+        );
       }
 
       const latencyMs = Date.now() - startTime;
-      log.error("ArenaCoordinator", `Agent ${agent.name} failed after ${MAX_RETRIES + 1} attempts: ${(error as Error).message}`, { traceId });
-      
+      log.error(
+        "ArenaCoordinator",
+        `Agent ${agent.name} failed after ${MAX_RETRIES + 1} attempts: ${(error as Error).message}`,
+        { traceId }
+      );
+
       const decision: InsertAiArenaAgentDecision = {
         arenaRunId,
         agentProfileId: agent.id,
@@ -449,12 +626,17 @@ ${contextSummary}`;
         errorMessage: (error as Error).message,
       };
 
-      await db.insert(aiArenaAgentDecisions).values([decision as typeof aiArenaAgentDecisions.$inferInsert]);
+      await db
+        .insert(aiArenaAgentDecisions)
+        .values([decision as typeof aiArenaAgentDecisions.$inferInsert]);
       return decision;
     }
   }
 
-  private formatMarketContext(symbols: string[], context: MarketContext): string {
+  private formatMarketContext(
+    symbols: string[],
+    context: MarketContext
+  ): string {
     let summary = "=== MARKET CONTEXT ===\n\n";
 
     if (context.marketClock) {
@@ -494,11 +676,18 @@ ${contextSummary}`;
     return summary.slice(0, 6000);
   }
 
-  private async updateAgentStats(agentId: string, tokens: number, cost: number): Promise<void> {
-    const agent = await db.query.aiAgentProfiles.findFirst({ where: eq(aiAgentProfiles.id, agentId) });
+  private async updateAgentStats(
+    agentId: string,
+    tokens: number,
+    cost: number
+  ): Promise<void> {
+    const agent = await db.query.aiAgentProfiles.findFirst({
+      where: eq(aiAgentProfiles.id, agentId),
+    });
     if (!agent) return;
 
-    await db.update(aiAgentProfiles)
+    await db
+      .update(aiAgentProfiles)
       .set({
         totalCalls: agent.totalCalls + 1,
         totalTokens: agent.totalTokens + tokens,
@@ -508,39 +697,57 @@ ${contextSummary}`;
       .where(eq(aiAgentProfiles.id, agentId));
   }
 
-  private calculateDisagreementRate(decisions: InsertAiArenaAgentDecision[]): number {
+  private calculateDisagreementRate(
+    decisions: InsertAiArenaAgentDecision[]
+  ): number {
     if (decisions.length < 2) return 0;
-    
-    const validDecisions = decisions.filter(d => !d.errorMessage);
+
+    const validDecisions = decisions.filter((d) => !d.errorMessage);
     if (validDecisions.length < 2) return 0;
 
-    const actions = validDecisions.map(d => d.action);
+    const actions = validDecisions.map((d) => d.action);
     const unique = new Set(actions);
     return (unique.size - 1) / Math.max(1, validDecisions.length - 1);
   }
 
-  private calculateAvgConfidence(decisions: InsertAiArenaAgentDecision[]): number {
-    const validDecisions = decisions.filter(d => !d.errorMessage);
+  private calculateAvgConfidence(
+    decisions: InsertAiArenaAgentDecision[]
+  ): number {
+    const validDecisions = decisions.filter((d) => !d.errorMessage);
     if (validDecisions.length === 0) return 0;
-    const sum = validDecisions.reduce((acc, d) => acc + parseFloat(d.confidence || "0"), 0);
+    const sum = validDecisions.reduce(
+      (acc, d) => acc + parseFloat(d.confidence || "0"),
+      0
+    );
     return sum / validDecisions.length;
   }
 
   private checkRiskVeto(decisions: InsertAiArenaAgentDecision[]): boolean {
-    const riskManager = decisions.find(d => d.role === "risk_manager" && !d.errorMessage);
+    const riskManager = decisions.find(
+      (d) => d.role === "risk_manager" && !d.errorMessage
+    );
     if (!riskManager) return false;
     const confidence = parseFloat(riskManager.confidence || "0");
     return riskManager.action === "hold" && confidence > 0.8;
   }
 
-  private shouldEscalate(disagreement: number, avgConfidence: number, riskVeto: boolean): boolean {
+  private shouldEscalate(
+    disagreement: number,
+    avgConfidence: number,
+    riskVeto: boolean
+  ): boolean {
     if (riskVeto) return true;
     if (disagreement > this.escalationPolicy.disagreementThreshold) return true;
-    if (avgConfidence < this.escalationPolicy.minConfidenceThreshold) return true;
+    if (avgConfidence < this.escalationPolicy.minConfidenceThreshold)
+      return true;
     return false;
   }
 
-  private getEscalationReason(disagreement: number, avgConfidence: number, riskVeto: boolean): string {
+  private getEscalationReason(
+    disagreement: number,
+    avgConfidence: number,
+    riskVeto: boolean
+  ): string {
     if (riskVeto) return "Risk manager veto with high confidence";
     if (disagreement > this.escalationPolicy.disagreementThreshold)
       return `Disagreement rate ${(disagreement * 100).toFixed(1)}% > ${this.escalationPolicy.disagreementThreshold * 100}%`;
@@ -555,8 +762,8 @@ ${contextSummary}`;
     escalationTriggered: boolean,
     escalationReason?: string
   ): ConsensusResult {
-    const validDecisions = decisions.filter(d => !d.errorMessage);
-    
+    const validDecisions = decisions.filter((d) => !d.errorMessage);
+
     if (validDecisions.length === 0) {
       return {
         decision: "no_trade",
@@ -568,18 +775,24 @@ ${contextSummary}`;
       };
     }
 
-    const powerDecisions = validDecisions.filter(d => d.wasEscalation);
+    const powerDecisions = validDecisions.filter((d) => d.wasEscalation);
     const hasPowerAgents = powerDecisions.length > 0;
 
-    const powerRiskManager = powerDecisions.find(d => d.role === "risk_manager");
-    const cheapRiskManager = validDecisions.find(d => d.role === "risk_manager" && !d.wasEscalation);
+    const powerRiskManager = powerDecisions.find(
+      (d) => d.role === "risk_manager"
+    );
+    const cheapRiskManager = validDecisions.find(
+      (d) => d.role === "risk_manager" && !d.wasEscalation
+    );
 
-    const powerRiskVeto = powerRiskManager && 
-      powerRiskManager.action === "hold" && 
+    const powerRiskVeto =
+      powerRiskManager &&
+      powerRiskManager.action === "hold" &&
       parseFloat(powerRiskManager.confidence || "0") > 0.8;
 
-    const cheapRiskVeto = cheapRiskManager && 
-      cheapRiskManager.action === "hold" && 
+    const cheapRiskVeto =
+      cheapRiskManager &&
+      cheapRiskManager.action === "hold" &&
       parseFloat(cheapRiskManager.confidence || "0") > 0.8;
 
     if (powerRiskVeto) {
@@ -590,7 +803,8 @@ ${contextSummary}`;
         escalationTriggered,
         escalationReason,
         riskVeto: true,
-        riskVetoReason: powerRiskManager!.rationale || "Power risk manager vetoed the trade",
+        riskVetoReason:
+          powerRiskManager!.rationale || "Power risk manager vetoed the trade",
       };
     }
 
@@ -602,7 +816,8 @@ ${contextSummary}`;
         escalationTriggered,
         escalationReason,
         riskVeto: true,
-        riskVetoReason: cheapRiskManager!.rationale || "Risk manager vetoed the trade",
+        riskVetoReason:
+          cheapRiskManager!.rationale || "Risk manager vetoed the trade",
       };
     }
 
@@ -612,13 +827,19 @@ ${contextSummary}`;
         confidence: 0.3,
         disagreementRate,
         escalationTriggered,
-        escalationReason: (escalationReason || "") + " (power agents unavailable, deferring decision)",
+        escalationReason:
+          (escalationReason || "") +
+          " (power agents unavailable, deferring decision)",
         riskVeto: false,
-        riskVetoReason: "Escalation triggered but power agents unavailable - decision deferred",
+        riskVetoReason:
+          "Escalation triggered but power agents unavailable - decision deferred",
       };
     }
 
-    const weightedVotes: Record<string, { score: number; confidenceSum: number; count: number }> = {};
+    const weightedVotes: Record<
+      string,
+      { score: number; confidenceSum: number; count: number }
+    > = {};
     const powerWeight = 1.5;
     const riskManagerDiscount = cheapRiskVeto && hasPowerAgents ? 0.3 : 1.0;
 
@@ -626,8 +847,13 @@ ${contextSummary}`;
       const action = d.action;
       const confidence = parseFloat(d.confidence || "0");
       let weight = d.wasEscalation ? powerWeight : 1.0;
-      
-      if (d.role === "risk_manager" && !d.wasEscalation && cheapRiskVeto && hasPowerAgents) {
+
+      if (
+        d.role === "risk_manager" &&
+        !d.wasEscalation &&
+        cheapRiskVeto &&
+        hasPowerAgents
+      ) {
         weight *= riskManagerDiscount;
       }
 
@@ -663,9 +889,10 @@ ${contextSummary}`;
     }
 
     const orderDecision = validDecisions.find(
-      d => (d.action === bestAction) && d.proposedOrder
+      (d) => d.action === bestAction && d.proposedOrder
     );
-    const orderIntent = orderDecision?.proposedOrder as ConsensusResult["orderIntent"];
+    const orderIntent =
+      orderDecision?.proposedOrder as ConsensusResult["orderIntent"];
 
     return {
       decision: bestAction as ConsensusResult["decision"],
@@ -692,32 +919,42 @@ ${contextSummary}`;
     const link: InsertAiOutcomeLink = {
       symbol: consensus.orderIntent.symbol,
       side: consensus.orderIntent.side,
-      intendedQty: consensus.orderIntent.qty ? String(consensus.orderIntent.qty) : undefined,
-      intendedNotional: consensus.orderIntent.notional ? String(consensus.orderIntent.notional) : undefined,
+      intendedQty: consensus.orderIntent.qty
+        ? String(consensus.orderIntent.qty)
+        : undefined,
+      intendedNotional: consensus.orderIntent.notional
+        ? String(consensus.orderIntent.notional)
+        : undefined,
       status: "pending",
       llmCostUsd: String(llmCost),
       traceId,
     };
 
-    const [inserted] = await db.insert(aiOutcomeLinks).values([link as typeof aiOutcomeLinks.$inferInsert]).returning();
+    const [inserted] = await db
+      .insert(aiOutcomeLinks)
+      .values([link as typeof aiOutcomeLinks.$inferInsert])
+      .returning();
 
-    await db.update(aiArenaRuns)
+    await db
+      .update(aiArenaRuns)
       .set({ outcomeLinked: true })
       .where(eq(aiArenaRuns.id, arenaRunId));
 
     return { id: inserted.id };
   }
 
-  async getLeaderboard(windowDays = 30): Promise<Array<{
-    agentId: string;
-    agentName: string;
-    role: string;
-    totalRuns: number;
-    avgConfidence: number;
-    totalCost: number;
-    avgLatency: number;
-    successRate: number;
-  }>> {
+  async getLeaderboard(windowDays = 30): Promise<
+    Array<{
+      agentId: string;
+      agentName: string;
+      role: string;
+      totalRuns: number;
+      avgConfidence: number;
+      totalCost: number;
+      avgLatency: number;
+      successRate: number;
+    }>
+  > {
     const agents = await db.query.aiAgentProfiles.findMany({
       where: eq(aiAgentProfiles.status, "active"),
     });
@@ -734,15 +971,21 @@ ${contextSummary}`;
           ),
         });
 
-        const avgConfidence = decisions.length > 0
-          ? decisions.reduce((sum, d) => sum + parseFloat(d.confidence || "0"), 0) / decisions.length
-          : 0;
+        const avgConfidence =
+          decisions.length > 0
+            ? decisions.reduce(
+                (sum, d) => sum + parseFloat(d.confidence || "0"),
+                0
+              ) / decisions.length
+            : 0;
 
-        const avgLatency = decisions.length > 0
-          ? decisions.reduce((sum, d) => sum + (d.latencyMs || 0), 0) / decisions.length
-          : 0;
+        const avgLatency =
+          decisions.length > 0
+            ? decisions.reduce((sum, d) => sum + (d.latencyMs || 0), 0) /
+              decisions.length
+            : 0;
 
-        const successfulDecisions = decisions.filter(d => !d.errorMessage);
+        const successfulDecisions = decisions.filter((d) => !d.errorMessage);
 
         return {
           agentId: agent.id,
@@ -752,7 +995,10 @@ ${contextSummary}`;
           avgConfidence,
           totalCost: parseFloat(agent.totalCostUsd),
           avgLatency,
-          successRate: decisions.length > 0 ? successfulDecisions.length / decisions.length : 1,
+          successRate:
+            decisions.length > 0
+              ? successfulDecisions.length / decisions.length
+              : 1,
         };
       })
     );

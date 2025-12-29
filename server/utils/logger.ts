@@ -90,15 +90,15 @@ class Logger {
     const time = formatTimestamp();
     const levelStr = level.toUpperCase().padEnd(5);
     const ids: string[] = [];
-    
+
     const requestId = meta?.requestId || this.currentRequestId;
     const cycleId = meta?.cycleId || this.currentCycleId;
-    
+
     if (requestId) ids.push(requestId);
     if (cycleId) ids.push(cycleId);
-    
+
     const idStr = ids.length > 0 ? ` [${ids.join("|")}]` : "";
-    
+
     return `[${time}] [${levelStr}] [${context}]${idStr} ${message}`;
   }
 
@@ -180,24 +180,28 @@ export function createRequestLogger() {
   ) => {
     const requestId = log.generateRequestId();
     (req as { requestId?: string }).requestId = requestId;
-    
+
     const start = Date.now();
-    
+
     res.on("finish", () => {
       if (!req.path.startsWith("/api")) return;
-      
+
       const duration = Date.now() - start;
       const level = res.statusCode >= 400 ? "warn" : "info";
-      
-      log[level]("API", `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`, {
-        requestId,
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        duration,
-      });
+
+      log[level](
+        "API",
+        `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`,
+        {
+          requestId,
+          method: req.method,
+          path: req.path,
+          status: res.statusCode,
+          duration,
+        }
+      );
     });
-    
+
     next();
   };
 }

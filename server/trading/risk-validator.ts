@@ -27,7 +27,11 @@
 
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import { toDecimal, percentChange, formatPrice as formatMoneyPrice } from "../utils/money";
+import {
+  toDecimal,
+  percentChange,
+  formatPrice as formatMoneyPrice,
+} from "../utils/money";
 import { alpaca } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
 
@@ -87,33 +91,51 @@ export async function checkRiskLimits(
       const maxPositions = status?.maxPositionsCount ?? 10;
 
       if (positions.length >= maxPositions) {
-        return { allowed: false, reason: `Maximum positions limit reached (${maxPositions})` };
+        return {
+          allowed: false,
+          reason: `Maximum positions limit reached (${maxPositions})`,
+        };
       }
 
       const riskSymbol = normalizeSymbolForAlpaca(symbol);
       const snapshot = await alpaca.getSnapshots([riskSymbol]);
       const snapshotData = snapshot[riskSymbol];
-      const price = snapshotData?.latestTrade?.p || snapshotData?.dailyBar?.c || snapshotData?.prevDailyBar?.c || 0;
+      const price =
+        snapshotData?.latestTrade?.p ||
+        snapshotData?.dailyBar?.c ||
+        snapshotData?.prevDailyBar?.c ||
+        0;
 
       if (!price || price <= 0 || !Number.isFinite(price)) {
-        log.warn("RiskValidator", "Risk check: invalid price", { symbol, price });
-        return { allowed: false, reason: `Cannot verify trade value - no valid price data for ${symbol}` };
+        log.warn("RiskValidator", "Risk check: invalid price", {
+          symbol,
+          price,
+        });
+        return {
+          allowed: false,
+          reason: `Cannot verify trade value - no valid price data for ${symbol}`,
+        };
       }
 
       // If tradeValue is provided as actual dollar value, use it directly
       // Otherwise calculate from quantity (legacy behavior)
-      const effectiveTradeValue = tradeValue > 0 && tradeValue < 1000000
-        ? tradeValue
-        : tradeValue * price;
+      const effectiveTradeValue =
+        tradeValue > 0 && tradeValue < 1000000
+          ? tradeValue
+          : tradeValue * price;
 
       if (!Number.isFinite(effectiveTradeValue)) {
-        return { allowed: false, reason: `Invalid trade value calculation for ${symbol}` };
+        return {
+          allowed: false,
+          reason: `Invalid trade value calculation for ${symbol}`,
+        };
       }
 
       const buyingPower = safeParseFloat(account.buying_power);
       const rawPercent = status?.maxPositionSizePercent;
       const parsedPercent = rawPercent ? safeParseFloat(rawPercent) : NaN;
-      const maxPositionSizePercent = (isNaN(parsedPercent) || parsedPercent <= 0) ? 10 : parsedPercent;
+      const maxPositionSizePercent =
+        isNaN(parsedPercent) || parsedPercent <= 0 ? 10 : parsedPercent;
       const maxPositionSizeDecimal = maxPositionSizePercent / 100;
       const maxTradeValue = buyingPower * maxPositionSizeDecimal;
 
@@ -124,7 +146,9 @@ export async function checkRiskLimits(
         };
       }
     } catch (error) {
-      log.error("RiskValidator", "Risk check error", { error: (error as Error).message });
+      log.error("RiskValidator", "Risk check error", {
+        error: (error as Error).message,
+      });
       return { allowed: false, reason: "Could not verify risk limits" };
     }
   }
@@ -181,11 +205,12 @@ export function checkLossProtection(
   }
 
   // Allow if notes indicate stop-loss or emergency
-  const isStopLossOrEmergency = notes?.toLowerCase().includes('stop-loss') ||
-                                 notes?.toLowerCase().includes('emergency') ||
-                                 notes?.toLowerCase().includes('stop loss') ||
-                                 isStopLossTriggered ||
-                                 isEmergencyStop;
+  const isStopLossOrEmergency =
+    notes?.toLowerCase().includes("stop-loss") ||
+    notes?.toLowerCase().includes("emergency") ||
+    notes?.toLowerCase().includes("stop loss") ||
+    isStopLossTriggered ||
+    isEmergencyStop;
 
   // If it's a protected close (stop-loss or emergency), allow it
   if (isStopLossOrEmergency) {
@@ -258,7 +283,7 @@ export async function calculateLossPercentage(
   } catch (error) {
     log.debug("RiskValidator", "Could not calculate loss percentage", {
       symbol,
-      error: (error as Error).message
+      error: (error as Error).message,
     });
     return null;
   }
@@ -333,29 +358,34 @@ export async function checkSellLossProtection(
     const isAtLoss = currentPrice < entryPrice;
 
     // Allow if notes indicate stop-loss or emergency
-    const isStopLossOrEmergency = notes?.toLowerCase().includes('stop-loss') ||
-                                   notes?.toLowerCase().includes('emergency') ||
-                                   notes?.toLowerCase().includes('stop loss') ||
-                                   isStopLossTriggered ||
-                                   isEmergencyStop;
+    const isStopLossOrEmergency =
+      notes?.toLowerCase().includes("stop-loss") ||
+      notes?.toLowerCase().includes("emergency") ||
+      notes?.toLowerCase().includes("stop loss") ||
+      isStopLossTriggered ||
+      isEmergencyStop;
 
     if (isAtLoss && !isStopLossOrEmergency) {
       // Use Decimal.js for precise percentage calculation
       const lossPercentDecimal = percentChange(currentPrice, entryPrice).abs();
       const lossPercent = formatMoneyPrice(lossPercentDecimal, 2);
 
-      log.warn("RiskValidator", `LOSS_PROTECTION: ${symbol} - Position at loss`, {
-        symbol,
-        reason: "LOSS_PROTECTION_ACTIVE",
-        entryPrice,
-        currentPrice,
-        lossPercent: lossPercentDecimal.toNumber(),
-        isStopLossOrEmergency
-      });
+      log.warn(
+        "RiskValidator",
+        `LOSS_PROTECTION: ${symbol} - Position at loss`,
+        {
+          symbol,
+          reason: "LOSS_PROTECTION_ACTIVE",
+          entryPrice,
+          currentPrice,
+          lossPercent: lossPercentDecimal.toNumber(),
+          isStopLossOrEmergency,
+        }
+      );
 
       return {
         allowed: false,
-        reason: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`
+        reason: `Position at ${lossPercent}% loss - holding until stop-loss triggers or price recovers`,
       };
     }
 

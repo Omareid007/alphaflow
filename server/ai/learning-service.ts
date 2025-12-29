@@ -1,5 +1,11 @@
 import { db } from "../db";
-import { aiDecisionFeatures, aiTradeOutcomes, aiCalibrationLog, aiDecisions, trades } from "@shared/schema";
+import {
+  aiDecisionFeatures,
+  aiTradeOutcomes,
+  aiCalibrationLog,
+  aiDecisions,
+  trades,
+} from "@shared/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { calculatePnL, percentChange } from "../utils/money";
@@ -51,7 +57,7 @@ export async function recordDecisionFeatures(
 ): Promise<void> {
   try {
     const featureVectorJson = JSON.stringify(features);
-    
+
     await db.insert(aiDecisionFeatures).values({
       decisionId,
       symbol,
@@ -70,14 +76,16 @@ export async function recordDecisionFeatures(
       activeSources: features.activeSources,
       featureVector: featureVectorJson,
     });
-    
+
     log.debug("AILearning", `Recorded features for decision ${decisionId}`);
   } catch (error) {
     log.error("AILearning", `Failed to record features: ${error}`);
   }
 }
 
-export async function recordTradeOutcome(input: TradeOutcomeInput): Promise<void> {
+export async function recordTradeOutcome(
+  input: TradeOutcomeInput
+): Promise<void> {
   try {
     await db.insert(aiTradeOutcomes).values({
       decisionId: input.decisionId,
@@ -103,8 +111,11 @@ export async function recordTradeOutcome(input: TradeOutcomeInput): Promise<void
       exitReason: input.exitReason,
       closedAt: input.exitPrice ? new Date() : null,
     });
-    
-    log.debug("AILearning", `Recorded outcome for decision ${input.decisionId}`);
+
+    log.debug(
+      "AILearning",
+      `Recorded outcome for decision ${input.decisionId}`
+    );
   } catch (error) {
     log.error("AILearning", `Failed to record outcome: ${error}`);
   }
@@ -117,26 +128,39 @@ export async function updateTradeOutcomeOnClose(
   marketSession?: string
 ): Promise<void> {
   try {
-    const existingOutcome = await db.select()
+    const existingOutcome = await db
+      .select()
       .from(aiTradeOutcomes)
       .where(eq(aiTradeOutcomes.decisionId, decisionId))
       .limit(1);
-    
+
     if (existingOutcome.length === 0) {
-      log.warn("AILearning", `No outcome record found for decision ${decisionId}`);
+      log.warn(
+        "AILearning",
+        `No outcome record found for decision ${decisionId}`
+      );
       return;
     }
-    
+
     const outcome = existingOutcome[0];
     const entryPrice = parseFloat(outcome.entryPrice || "0");
     const quantity = parseFloat(outcome.quantity || "0");
 
-    const realizedPnl = calculatePnL(entryPrice, exitPrice, quantity, "long").toNumber();
-    const realizedPnlPercent = entryPrice > 0 ? percentChange(exitPrice, entryPrice).toNumber() : 0;
+    const realizedPnl = calculatePnL(
+      entryPrice,
+      exitPrice,
+      quantity,
+      "long"
+    ).toNumber();
+    const realizedPnlPercent =
+      entryPrice > 0 ? percentChange(exitPrice, entryPrice).toNumber() : 0;
     const isWin = realizedPnl > 0;
-    const holdingTimeMs = outcome.createdAt ? Date.now() - outcome.createdAt.getTime() : 0;
-    
-    await db.update(aiTradeOutcomes)
+    const holdingTimeMs = outcome.createdAt
+      ? Date.now() - outcome.createdAt.getTime()
+      : 0;
+
+    await db
+      .update(aiTradeOutcomes)
       .set({
         exitPrice: exitPrice.toString(),
         realizedPnl: realizedPnl.toString(),
@@ -148,50 +172,74 @@ export async function updateTradeOutcomeOnClose(
         closedAt: new Date(),
       })
       .where(eq(aiTradeOutcomes.decisionId, decisionId));
-    
-    log.info("AILearning", `Updated outcome for ${decisionId}: PnL=$${realizedPnl.toFixed(2)} (${isWin ? "WIN" : "LOSS"})`);
+
+    log.info(
+      "AILearning",
+      `Updated outcome for ${decisionId}: PnL=$${realizedPnl.toFixed(2)} (${isWin ? "WIN" : "LOSS"})`
+    );
   } catch (error) {
     log.error("AILearning", `Failed to update outcome: ${error}`);
   }
 }
 
-export async function runCalibrationAnalysis(windowDays: number = 30): Promise<void> {
+export async function runCalibrationAnalysis(
+  windowDays: number = 30
+): Promise<void> {
   try {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - windowDays);
-    
-    const outcomes = await db.select()
+
+    const outcomes = await db
+      .select()
       .from(aiTradeOutcomes)
-      .where(and(
-        gte(aiTradeOutcomes.createdAt, startDate),
-        sql`${aiTradeOutcomes.isWin} IS NOT NULL`
-      ));
-    
+      .where(
+        and(
+          gte(aiTradeOutcomes.createdAt, startDate),
+          sql`${aiTradeOutcomes.isWin} IS NOT NULL`
+        )
+      );
+
     if (outcomes.length === 0) {
       log.info("AILearning", "No closed trades in window for calibration");
       return;
     }
-    
-    const wins = outcomes.filter(o => o.isWin === true);
-    const losses = outcomes.filter(o => o.isWin === false);
-    
-    const avgConfidenceWins = wins.length > 0 
-      ? wins.reduce((sum, o) => sum + parseFloat(o.predictionConfidence || "0"), 0) / wins.length 
-      : 0;
-    const avgConfidenceLosses = losses.length > 0 
-      ? losses.reduce((sum, o) => sum + parseFloat(o.predictionConfidence || "0"), 0) / losses.length 
-      : 0;
-    
-    const avgHoldingTimeWins = wins.length > 0 
-      ? Math.round(wins.reduce((sum, o) => sum + (o.holdingTimeMs || 0), 0) / wins.length)
-      : 0;
-    const avgHoldingTimeLosses = losses.length > 0 
-      ? Math.round(losses.reduce((sum, o) => sum + (o.holdingTimeMs || 0), 0) / losses.length)
-      : 0;
-    
+
+    const wins = outcomes.filter((o) => o.isWin === true);
+    const losses = outcomes.filter((o) => o.isWin === false);
+
+    const avgConfidenceWins =
+      wins.length > 0
+        ? wins.reduce(
+            (sum, o) => sum + parseFloat(o.predictionConfidence || "0"),
+            0
+          ) / wins.length
+        : 0;
+    const avgConfidenceLosses =
+      losses.length > 0
+        ? losses.reduce(
+            (sum, o) => sum + parseFloat(o.predictionConfidence || "0"),
+            0
+          ) / losses.length
+        : 0;
+
+    const avgHoldingTimeWins =
+      wins.length > 0
+        ? Math.round(
+            wins.reduce((sum, o) => sum + (o.holdingTimeMs || 0), 0) /
+              wins.length
+          )
+        : 0;
+    const avgHoldingTimeLosses =
+      losses.length > 0
+        ? Math.round(
+            losses.reduce((sum, o) => sum + (o.holdingTimeMs || 0), 0) /
+              losses.length
+          )
+        : 0;
+
     const symbolWins: Record<string, number> = {};
     const symbolLosses: Record<string, number> = {};
-    
+
     for (const o of outcomes) {
       if (o.isWin) {
         symbolWins[o.symbol] = (symbolWins[o.symbol] || 0) + 1;
@@ -199,31 +247,35 @@ export async function runCalibrationAnalysis(windowDays: number = 30): Promise<v
         symbolLosses[o.symbol] = (symbolLosses[o.symbol] || 0) + 1;
       }
     }
-    
+
     const topWinningSymbols = Object.entries(symbolWins)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([s, c]) => `${s}:${c}`)
       .join(",");
-    
+
     const topLosingSymbols = Object.entries(symbolLosses)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([s, c]) => `${s}:${c}`)
       .join(",");
-    
+
     const adjustments: string[] = [];
-    
+
     if (avgConfidenceLosses > 0.6) {
-      adjustments.push("High confidence losses detected - consider raising confidence threshold");
+      adjustments.push(
+        "High confidence losses detected - consider raising confidence threshold"
+      );
     }
     if (avgHoldingTimeLosses < avgHoldingTimeWins / 2) {
       adjustments.push("Losses happen quickly - consider tighter stop losses");
     }
     if (losses.length > wins.length * 2) {
-      adjustments.push("Low win rate - consider more conservative position sizing");
+      adjustments.push(
+        "Low win rate - consider more conservative position sizing"
+      );
     }
-    
+
     await db.insert(aiCalibrationLog).values({
       calibrationType: "periodic",
       dataWindowDays: windowDays,
@@ -239,8 +291,11 @@ export async function runCalibrationAnalysis(windowDays: number = 30): Promise<v
       recommendedAdjustments: adjustments.join("; "),
       modelVersion: "v1.0",
     });
-    
-    log.info("AILearning", `Calibration complete: ${wins.length} wins, ${losses.length} losses, win rate ${((wins.length / outcomes.length) * 100).toFixed(1)}%`);
+
+    log.info(
+      "AILearning",
+      `Calibration complete: ${wins.length} wins, ${losses.length} losses, win rate ${((wins.length / outcomes.length) * 100).toFixed(1)}%`
+    );
   } catch (error) {
     log.error("AILearning", `Calibration analysis failed: ${error}`);
   }
@@ -253,22 +308,25 @@ export async function getLatestCalibration(): Promise<{
   adjustments: string[];
 } | null> {
   try {
-    const latest = await db.select()
+    const latest = await db
+      .select()
       .from(aiCalibrationLog)
       .orderBy(desc(aiCalibrationLog.createdAt))
       .limit(1);
-    
+
     if (latest.length === 0) return null;
-    
+
     const cal = latest[0];
     const totalDecisions = cal.totalDecisions || 0;
     const winCount = cal.winCount || 0;
-    
+
     return {
       winRate: totalDecisions > 0 ? (winCount / totalDecisions) * 100 : 0,
       avgConfidenceThreshold: parseFloat(cal.avgConfidenceOnWins || "0.5"),
       topSymbols: (cal.topWinningSymbols || "").split(",").filter(Boolean),
-      adjustments: (cal.recommendedAdjustments || "").split(";").filter(Boolean),
+      adjustments: (cal.recommendedAdjustments || "")
+        .split(";")
+        .filter(Boolean),
     };
   } catch (error) {
     log.error("AILearning", `Failed to get calibration: ${error}`);

@@ -1,5 +1,9 @@
 import { db } from "../db";
-import { universeCandidates, universeAssets, universeLiquidityMetrics } from "@shared/schema";
+import {
+  universeCandidates,
+  universeAssets,
+  universeLiquidityMetrics,
+} from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { log } from "../utils/logger";
 
@@ -26,7 +30,10 @@ class TradingEnforcementService {
   private rejectedAttempts = 0;
   private lastCheckedAt: Date | null = null;
 
-  async canTradeSymbol(symbol: string, traceId?: string): Promise<TradingEligibilityResult> {
+  async canTradeSymbol(
+    symbol: string,
+    traceId?: string
+  ): Promise<TradingEligibilityResult> {
     this.lastCheckedAt = new Date();
     const upperSymbol = symbol.toUpperCase();
 
@@ -37,7 +44,11 @@ class TradingEnforcementService {
 
       if (!candidate) {
         this.rejectedAttempts++;
-        log.info("TradingEnforcement", "Symbol NOT in candidates - trade BLOCKED", { traceId, symbol: upperSymbol });
+        log.info(
+          "TradingEnforcement",
+          "Symbol NOT in candidates - trade BLOCKED",
+          { traceId, symbol: upperSymbol }
+        );
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -48,7 +59,11 @@ class TradingEnforcementService {
 
       if (candidate.status !== "APPROVED") {
         this.rejectedAttempts++;
-        log.info("TradingEnforcement", "Symbol status not APPROVED - trade BLOCKED", { traceId, symbol: upperSymbol, status: candidate.status });
+        log.info(
+          "TradingEnforcement",
+          "Symbol status not APPROVED - trade BLOCKED",
+          { traceId, symbol: upperSymbol, status: candidate.status }
+        );
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -68,7 +83,11 @@ class TradingEnforcementService {
 
       if (asset && !asset.tradable) {
         this.rejectedAttempts++;
-        log.info("TradingEnforcement", "Symbol marked non-tradable by Alpaca - trade BLOCKED", { traceId, symbol: upperSymbol });
+        log.info(
+          "TradingEnforcement",
+          "Symbol marked non-tradable by Alpaca - trade BLOCKED",
+          { traceId, symbol: upperSymbol }
+        );
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -81,10 +100,15 @@ class TradingEnforcementService {
         where: eq(universeLiquidityMetrics.symbol, upperSymbol),
       });
 
-      const isPennyStock = liquidity?.latestPrice && parseFloat(liquidity.latestPrice) < 5;
+      const isPennyStock =
+        liquidity?.latestPrice && parseFloat(liquidity.latestPrice) < 5;
       if (isPennyStock) {
         this.rejectedAttempts++;
-        log.info("TradingEnforcement", "Symbol is a penny stock - trade BLOCKED", { traceId, symbol: upperSymbol, price: liquidity?.latestPrice });
+        log.info(
+          "TradingEnforcement",
+          "Symbol is a penny stock - trade BLOCKED",
+          { traceId, symbol: upperSymbol, price: liquidity?.latestPrice }
+        );
         return {
           symbol: upperSymbol,
           eligible: false,
@@ -97,7 +121,10 @@ class TradingEnforcementService {
         };
       }
 
-      log.info("TradingEnforcement", "Symbol APPROVED - trade ALLOWED", { traceId, symbol: upperSymbol });
+      log.info("TradingEnforcement", "Symbol APPROVED - trade ALLOWED", {
+        traceId,
+        symbol: upperSymbol,
+      });
       return {
         symbol: upperSymbol,
         eligible: true,
@@ -110,7 +137,11 @@ class TradingEnforcementService {
         },
       };
     } catch (error) {
-      log.error("TradingEnforcement", "Error checking symbol", { traceId, symbol: upperSymbol, error: error instanceof Error ? error.message : String(error) });
+      log.error("TradingEnforcement", "Error checking symbol", {
+        traceId,
+        symbol: upperSymbol,
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.rejectedAttempts++;
       return {
         symbol: upperSymbol,
@@ -120,14 +151,17 @@ class TradingEnforcementService {
     }
   }
 
-  async canTradeMultiple(symbols: string[], traceId?: string): Promise<Map<string, TradingEligibilityResult>> {
+  async canTradeMultiple(
+    symbols: string[],
+    traceId?: string
+  ): Promise<Map<string, TradingEligibilityResult>> {
     const results = new Map<string, TradingEligibilityResult>();
-    
+
     for (const symbol of symbols) {
       const result = await this.canTradeSymbol(symbol, traceId);
       results.set(symbol.toUpperCase(), result);
     }
-    
+
     return results;
   }
 
@@ -137,18 +171,27 @@ class TradingEnforcementService {
         where: eq(universeCandidates.status, "APPROVED"),
         columns: { symbol: true },
       });
-      
-      log.info("TradingEnforcement", "Retrieved approved symbols", { traceId, count: approved.length });
-      return new Set(approved.map(c => c.symbol));
+
+      log.info("TradingEnforcement", "Retrieved approved symbols", {
+        traceId,
+        count: approved.length,
+      });
+      return new Set(approved.map((c) => c.symbol));
     } catch (error) {
-      log.error("TradingEnforcement", "Error getting approved symbols", { traceId, error: error instanceof Error ? error.message : String(error) });
+      log.error("TradingEnforcement", "Error getting approved symbols", {
+        traceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return new Set();
     }
   }
 
-  async filterToApproved(symbols: string[], traceId?: string): Promise<string[]> {
+  async filterToApproved(
+    symbols: string[],
+    traceId?: string
+  ): Promise<string[]> {
     const approvedSet = await this.getApprovedSymbolsSet(traceId);
-    return symbols.filter(s => approvedSet.has(s.toUpperCase()));
+    return symbols.filter((s) => approvedSet.has(s.toUpperCase()));
   }
 
   async getStats(): Promise<EnforcementStats> {

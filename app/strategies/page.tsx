@@ -11,7 +11,7 @@ import {
   useStopStrategy,
   useCreateStrategy,
   useDeleteStrategy,
-  type Strategy
+  type Strategy,
 } from "@/lib/api/hooks/useStrategies";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
   Plus,
@@ -45,7 +45,7 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -56,10 +56,13 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   paper: { color: "bg-blue-500/10 text-blue-500", label: "Paper Trading" },
   live: { color: "bg-success/10 text-success", label: "Live" },
   paused: { color: "bg-warning/10 text-warning", label: "Paused" },
-  stopped: { color: "bg-destructive/10 text-destructive", label: "Stopped" }
+  stopped: { color: "bg-destructive/10 text-destructive", label: "Stopped" },
 };
 
-const DEFAULT_STATUS = { color: "bg-muted text-muted-foreground", label: "Unknown" };
+const DEFAULT_STATUS = {
+  color: "bg-muted text-muted-foreground",
+  label: "Unknown",
+};
 
 export default function StrategiesPage() {
   const router = useRouter();
@@ -105,7 +108,7 @@ export default function StrategiesPage() {
 
   const handleClone = async (id: string) => {
     try {
-      const strategy = strategies.find(s => s.id === id);
+      const strategy = strategies.find((s) => s.id === id);
       if (!strategy) {
         toast.error("Strategy not found");
         return;
@@ -114,8 +117,8 @@ export default function StrategiesPage() {
       await createMutation.mutateAsync({
         name: `${strategy.name} (Copy)`,
         templateId: strategy.templateId,
-        status: 'draft',
-        config: { ...strategy.config }
+        status: "draft",
+        config: { ...strategy.config },
       });
       toast.success("Strategy cloned");
     } catch (error) {
@@ -141,7 +144,9 @@ export default function StrategiesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Strategies</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Strategies
+            </h1>
             <p className="mt-1 text-muted-foreground">
               Manage your trading strategies
             </p>
@@ -150,7 +155,9 @@ export default function StrategiesPage() {
         <div className="flex h-96 items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Loading strategies...</p>
+            <p className="text-sm text-muted-foreground">
+              Loading strategies...
+            </p>
           </div>
         </div>
       </div>
@@ -162,7 +169,9 @@ export default function StrategiesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Strategies</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Strategies
+            </h1>
             <p className="mt-1 text-muted-foreground">
               Manage your trading strategies
             </p>
@@ -179,11 +188,19 @@ export default function StrategiesPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Unable to load strategies</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+              Unable to load strategies
+            </h3>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "An error occurred while loading strategies. Please check your connection and try again."}
+              {error instanceof Error
+                ? error.message
+                : "An error occurred while loading strategies. Please check your connection and try again."}
             </p>
-            <Button onClick={() => refetch()} variant="outline" className="mt-6">
+            <Button
+              onClick={() => refetch()}
+              variant="outline"
+              className="mt-6"
+            >
               Try Again
             </Button>
           </CardContent>
@@ -220,7 +237,7 @@ export default function StrategiesPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {strategies.map(strategy => (
+          {strategies.map((strategy) => (
             <Card
               key={strategy.id}
               className="group transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
@@ -229,13 +246,28 @@ export default function StrategiesPage() {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className={(statusConfig[strategy.status] || DEFAULT_STATUS).color}>
-                        {(statusConfig[strategy.status] || DEFAULT_STATUS).label}
+                      <Badge
+                        variant="secondary"
+                        className={
+                          (statusConfig[strategy.status] || DEFAULT_STATUS)
+                            .color
+                        }
+                      >
+                        {
+                          (statusConfig[strategy.status] || DEFAULT_STATUS)
+                            .label
+                        }
                       </Badge>
                     </div>
-                    <h3 className="mt-3 truncate text-lg font-semibold">{strategy.name}</h3>
+                    <h3 className="mt-3 truncate text-lg font-semibold">
+                      {strategy.name}
+                    </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {algorithmTemplates.find(t => t.id === strategy.templateId)?.name}
+                      {
+                        algorithmTemplates.find(
+                          (t) => t.id === strategy.templateId
+                        )?.name
+                      }
                     </p>
                   </div>
                   <DropdownMenu>
@@ -245,29 +277,44 @@ export default function StrategiesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => router.push(`/strategies/${strategy.id}/edit`)}>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          router.push(`/strategies/${strategy.id}/edit`)
+                        }
+                      >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleClone(strategy.id)}>
+                      <DropdownMenuItem
+                        onClick={() => handleClone(strategy.id)}
+                      >
                         <Copy className="mr-2 h-4 w-4" />
                         Clone
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {(strategy.status === "live" || strategy.status === "paper") && (
-                        <DropdownMenuItem onClick={() => handlePause(strategy.id)}>
+                      {(strategy.status === "live" ||
+                        strategy.status === "paper") && (
+                        <DropdownMenuItem
+                          onClick={() => handlePause(strategy.id)}
+                        >
                           <Pause className="mr-2 h-4 w-4" />
                           Pause
                         </DropdownMenuItem>
                       )}
                       {strategy.status === "paused" && (
-                        <DropdownMenuItem onClick={() => handleResume(strategy.id)}>
+                        <DropdownMenuItem
+                          onClick={() => handleResume(strategy.id)}
+                        >
                           <Play className="mr-2 h-4 w-4" />
                           Resume
                         </DropdownMenuItem>
                       )}
-                      {(strategy.status === "live" || strategy.status === "paper" || strategy.status === "paused") && (
-                        <DropdownMenuItem onClick={() => handleStop(strategy.id)}>
+                      {(strategy.status === "live" ||
+                        strategy.status === "paper" ||
+                        strategy.status === "paused") && (
+                        <DropdownMenuItem
+                          onClick={() => handleStop(strategy.id)}
+                        >
                           <Square className="mr-2 h-4 w-4" />
                           Stop
                         </DropdownMenuItem>
@@ -296,14 +343,21 @@ export default function StrategiesPage() {
                             : "text-destructive"
                         )}
                       >
-                        {(strategy.performanceSummary.totalReturn ?? 0) >= 0 ? "+" : ""}
-                        {(strategy.performanceSummary.totalReturn ?? 0).toFixed(1)}%
+                        {(strategy.performanceSummary.totalReturn ?? 0) >= 0
+                          ? "+"
+                          : ""}
+                        {(strategy.performanceSummary.totalReturn ?? 0).toFixed(
+                          1
+                        )}
+                        %
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Sharpe</p>
                       <p className="text-lg font-semibold">
-                        {(strategy.performanceSummary.sharpeRatio ?? 0).toFixed(2)}
+                        {(strategy.performanceSummary.sharpeRatio ?? 0).toFixed(
+                          2
+                        )}
                       </p>
                     </div>
                   </div>
@@ -331,13 +385,16 @@ export default function StrategiesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Strategy</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the strategy
-              and all associated backtests.
+              This action cannot be undone. This will permanently delete the
+              strategy and all associated backtests.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

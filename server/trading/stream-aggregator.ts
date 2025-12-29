@@ -179,10 +179,10 @@ export class StreamAggregator extends EventEmitter {
 
     // Add symbols to tracking sets
     for (const symbol of subscription.symbols) {
-      if (subscription.streamTypes.some(t => t.startsWith("stock_"))) {
+      if (subscription.streamTypes.some((t) => t.startsWith("stock_"))) {
         this.stockSymbols.add(symbol);
       }
-      if (subscription.streamTypes.some(t => t.startsWith("crypto_"))) {
+      if (subscription.streamTypes.some((t) => t.startsWith("crypto_"))) {
         this.cryptoSymbols.add(symbol);
       }
       if (subscription.streamTypes.includes(StreamType.NEWS)) {
@@ -205,7 +205,7 @@ export class StreamAggregator extends EventEmitter {
   }
 
   unsubscribe(subscriptionId: string): boolean {
-    const index = this.subscriptions.findIndex(s => s.id === subscriptionId);
+    const index = this.subscriptions.findIndex((s) => s.id === subscriptionId);
     if (index === -1) return false;
 
     this.subscriptions.splice(index, 1);
@@ -219,12 +219,18 @@ export class StreamAggregator extends EventEmitter {
     this.eventCounts[event.streamType]++;
 
     // Update price cache
-    if (event.streamType === StreamType.STOCK_TRADE || event.streamType === StreamType.CRYPTO_TRADE) {
+    if (
+      event.streamType === StreamType.STOCK_TRADE ||
+      event.streamType === StreamType.CRYPTO_TRADE
+    ) {
       const tradeData = event.data as StockTradeData;
       this.latestPrices.set(event.symbol, tradeData.price);
     }
 
-    if (event.streamType === StreamType.STOCK_QUOTE || event.streamType === StreamType.CRYPTO_QUOTE) {
+    if (
+      event.streamType === StreamType.STOCK_QUOTE ||
+      event.streamType === StreamType.CRYPTO_QUOTE
+    ) {
       const quoteData = event.data as StockQuoteData;
       this.latestQuotes.set(event.symbol, quoteData);
       // Update price to mid-price
@@ -239,7 +245,8 @@ export class StreamAggregator extends EventEmitter {
     // Dispatch to subscriptions (sorted by priority)
     for (const sub of this.subscriptions) {
       if (!sub.streamTypes.includes(event.streamType)) continue;
-      if (!sub.symbols.includes(event.symbol) && !sub.symbols.includes("*")) continue;
+      if (!sub.symbols.includes(event.symbol) && !sub.symbols.includes("*"))
+        continue;
 
       try {
         const result = sub.callback(event);
@@ -247,7 +254,11 @@ export class StreamAggregator extends EventEmitter {
           await result;
         }
       } catch (error) {
-        log.error("StreamAggregator", `Callback error for subscription ${sub.id}`, { error });
+        log.error(
+          "StreamAggregator",
+          `Callback error for subscription ${sub.id}`,
+          { error }
+        );
       }
     }
   }
@@ -280,9 +291,9 @@ export class StreamAggregator extends EventEmitter {
     this.isRunning = true;
 
     // Add provided symbols
-    stockSymbols.forEach(s => this.stockSymbols.add(s));
-    cryptoSymbols.forEach(s => this.cryptoSymbols.add(s));
-    newsSymbols.forEach(s => this.newsSymbols.add(s));
+    stockSymbols.forEach((s) => this.stockSymbols.add(s));
+    cryptoSymbols.forEach((s) => this.cryptoSymbols.add(s));
+    newsSymbols.forEach((s) => this.newsSymbols.add(s));
 
     // Start all enabled streams
     const connectionPromises: Promise<void>[] = [];
@@ -313,7 +324,9 @@ export class StreamAggregator extends EventEmitter {
     const closePromises: Promise<void>[] = [];
 
     if (this.tradeUpdateWs) {
-      closePromises.push(this.closeWebSocket(this.tradeUpdateWs, "trade_updates"));
+      closePromises.push(
+        this.closeWebSocket(this.tradeUpdateWs, "trade_updates")
+      );
     }
     if (this.stockDataWs) {
       closePromises.push(this.closeWebSocket(this.stockDataWs, "stock_data"));
@@ -355,10 +368,14 @@ export class StreamAggregator extends EventEmitter {
 
   // ==================== TRADE UPDATES STREAM ====================
 
-  private async connectTradeUpdates(credentials: { apiKey: string; secretKey: string }): Promise<void> {
-    const url = tradingConfig.alpaca.tradingMode === "live"
-      ? "wss://api.alpaca.markets/stream"
-      : "wss://paper-api.alpaca.markets/stream";
+  private async connectTradeUpdates(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): Promise<void> {
+    const url =
+      tradingConfig.alpaca.tradingMode === "live"
+        ? "wss://api.alpaca.markets/stream"
+        : "wss://paper-api.alpaca.markets/stream";
 
     return new Promise((resolve, reject) => {
       try {
@@ -374,14 +391,21 @@ export class StreamAggregator extends EventEmitter {
         });
 
         this.tradeUpdateWs.on("close", (code, reason) => {
-          log.warn("StreamAggregator", `Trade updates closed: ${code}`, { reason: reason.toString() });
+          log.warn("StreamAggregator", `Trade updates closed: ${code}`, {
+            reason: reason.toString(),
+          });
           if (this.isRunning) {
-            this.scheduleReconnect("trade_updates", () => this.connectTradeUpdates(credentials));
+            this.scheduleReconnect("trade_updates", () =>
+              this.connectTradeUpdates(credentials)
+            );
           }
         });
 
         this.tradeUpdateWs.on("error", (error) => {
-          log.error("StreamAggregator", `Trade updates error: ${error.message}`);
+          log.error(
+            "StreamAggregator",
+            `Trade updates error: ${error.message}`
+          );
         });
 
         // Resolve after auth success or timeout
@@ -390,21 +414,26 @@ export class StreamAggregator extends EventEmitter {
           clearTimeout(timeout);
           resolve();
         });
-
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  private authenticateTradeUpdates(credentials: { apiKey: string; secretKey: string }): void {
-    if (!this.tradeUpdateWs || this.tradeUpdateWs.readyState !== WebSocket.OPEN) return;
+  private authenticateTradeUpdates(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): void {
+    if (!this.tradeUpdateWs || this.tradeUpdateWs.readyState !== WebSocket.OPEN)
+      return;
 
-    this.tradeUpdateWs.send(JSON.stringify({
-      action: "auth",
-      key: credentials.apiKey,
-      secret: credentials.secretKey,
-    }));
+    this.tradeUpdateWs.send(
+      JSON.stringify({
+        action: "auth",
+        key: credentials.apiKey,
+        secret: credentials.secretKey,
+      })
+    );
   }
 
   private handleTradeUpdateMessage(data: WebSocket.Data): void {
@@ -417,10 +446,12 @@ export class StreamAggregator extends EventEmitter {
           this.reconnectAttempts["trade_updates"] = 0;
 
           // Subscribe to trade_updates
-          this.tradeUpdateWs?.send(JSON.stringify({
-            action: "listen",
-            data: { streams: ["trade_updates"] },
-          }));
+          this.tradeUpdateWs?.send(
+            JSON.stringify({
+              action: "listen",
+              data: { streams: ["trade_updates"] },
+            })
+          );
 
           this.emit("trade_updates_authenticated");
         }
@@ -450,7 +481,6 @@ export class StreamAggregator extends EventEmitter {
 
         this.dispatchEvent(event);
       }
-
     } catch (error) {
       log.error("StreamAggregator", `Trade update parse error: ${error}`);
     }
@@ -458,7 +488,10 @@ export class StreamAggregator extends EventEmitter {
 
   // ==================== STOCK DATA STREAM ====================
 
-  private async connectStockData(credentials: { apiKey: string; secretKey: string }): Promise<void> {
+  private async connectStockData(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): Promise<void> {
     const feed = this.config.dataFeed;
     const url = `wss://stream.data.alpaca.markets/v2/${feed}`;
 
@@ -467,7 +500,10 @@ export class StreamAggregator extends EventEmitter {
         this.stockDataWs = new WebSocket(url);
 
         this.stockDataWs.on("open", () => {
-          log.info("StreamAggregator", `Stock data WebSocket connected (${feed})`);
+          log.info(
+            "StreamAggregator",
+            `Stock data WebSocket connected (${feed})`
+          );
           this.authenticateStockData(credentials);
         });
 
@@ -478,7 +514,9 @@ export class StreamAggregator extends EventEmitter {
         this.stockDataWs.on("close", (code, reason) => {
           log.warn("StreamAggregator", `Stock data closed: ${code}`);
           if (this.isRunning) {
-            this.scheduleReconnect("stock_data", () => this.connectStockData(credentials));
+            this.scheduleReconnect("stock_data", () =>
+              this.connectStockData(credentials)
+            );
           }
         });
 
@@ -491,37 +529,48 @@ export class StreamAggregator extends EventEmitter {
           clearTimeout(timeout);
           resolve();
         });
-
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  private authenticateStockData(credentials: { apiKey: string; secretKey: string }): void {
-    if (!this.stockDataWs || this.stockDataWs.readyState !== WebSocket.OPEN) return;
+  private authenticateStockData(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): void {
+    if (!this.stockDataWs || this.stockDataWs.readyState !== WebSocket.OPEN)
+      return;
 
-    this.stockDataWs.send(JSON.stringify({
-      action: "auth",
-      key: credentials.apiKey,
-      secret: credentials.secretKey,
-    }));
+    this.stockDataWs.send(
+      JSON.stringify({
+        action: "auth",
+        key: credentials.apiKey,
+        secret: credentials.secretKey,
+      })
+    );
   }
 
   private subscribeStockSymbols(): void {
-    if (!this.stockDataWs || this.stockDataWs.readyState !== WebSocket.OPEN) return;
+    if (!this.stockDataWs || this.stockDataWs.readyState !== WebSocket.OPEN)
+      return;
 
     const symbols = Array.from(this.stockSymbols);
     if (symbols.length === 0) return;
 
-    this.stockDataWs.send(JSON.stringify({
-      action: "subscribe",
-      trades: symbols,
-      quotes: symbols,
-      bars: symbols,
-    }));
+    this.stockDataWs.send(
+      JSON.stringify({
+        action: "subscribe",
+        trades: symbols,
+        quotes: symbols,
+        bars: symbols,
+      })
+    );
 
-    log.info("StreamAggregator", `Subscribed to ${symbols.length} stock symbols`);
+    log.info(
+      "StreamAggregator",
+      `Subscribed to ${symbols.length} stock symbols`
+    );
   }
 
   private handleStockDataMessage(data: WebSocket.Data): void {
@@ -602,7 +651,6 @@ export class StreamAggregator extends EventEmitter {
           this.dispatchEvent(event);
         }
       }
-
     } catch (error) {
       log.error("StreamAggregator", `Stock data parse error: ${error}`);
     }
@@ -610,7 +658,10 @@ export class StreamAggregator extends EventEmitter {
 
   // ==================== CRYPTO DATA STREAM ====================
 
-  private async connectCryptoData(credentials: { apiKey: string; secretKey: string }): Promise<void> {
+  private async connectCryptoData(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): Promise<void> {
     const url = "wss://stream.data.alpaca.markets/v1beta3/crypto/us";
 
     return new Promise((resolve, reject) => {
@@ -629,7 +680,9 @@ export class StreamAggregator extends EventEmitter {
         this.cryptoDataWs.on("close", (code, reason) => {
           log.warn("StreamAggregator", `Crypto data closed: ${code}`);
           if (this.isRunning) {
-            this.scheduleReconnect("crypto_data", () => this.connectCryptoData(credentials));
+            this.scheduleReconnect("crypto_data", () =>
+              this.connectCryptoData(credentials)
+            );
           }
         });
 
@@ -642,37 +695,48 @@ export class StreamAggregator extends EventEmitter {
           clearTimeout(timeout);
           resolve();
         });
-
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  private authenticateCryptoData(credentials: { apiKey: string; secretKey: string }): void {
-    if (!this.cryptoDataWs || this.cryptoDataWs.readyState !== WebSocket.OPEN) return;
+  private authenticateCryptoData(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): void {
+    if (!this.cryptoDataWs || this.cryptoDataWs.readyState !== WebSocket.OPEN)
+      return;
 
-    this.cryptoDataWs.send(JSON.stringify({
-      action: "auth",
-      key: credentials.apiKey,
-      secret: credentials.secretKey,
-    }));
+    this.cryptoDataWs.send(
+      JSON.stringify({
+        action: "auth",
+        key: credentials.apiKey,
+        secret: credentials.secretKey,
+      })
+    );
   }
 
   private subscribeCryptoSymbols(): void {
-    if (!this.cryptoDataWs || this.cryptoDataWs.readyState !== WebSocket.OPEN) return;
+    if (!this.cryptoDataWs || this.cryptoDataWs.readyState !== WebSocket.OPEN)
+      return;
 
     const symbols = Array.from(this.cryptoSymbols);
     if (symbols.length === 0) return;
 
-    this.cryptoDataWs.send(JSON.stringify({
-      action: "subscribe",
-      trades: symbols,
-      quotes: symbols,
-      bars: symbols,
-    }));
+    this.cryptoDataWs.send(
+      JSON.stringify({
+        action: "subscribe",
+        trades: symbols,
+        quotes: symbols,
+        bars: symbols,
+      })
+    );
 
-    log.info("StreamAggregator", `Subscribed to ${symbols.length} crypto symbols`);
+    log.info(
+      "StreamAggregator",
+      `Subscribed to ${symbols.length} crypto symbols`
+    );
   }
 
   private handleCryptoDataMessage(data: WebSocket.Data): void {
@@ -746,7 +810,6 @@ export class StreamAggregator extends EventEmitter {
           this.dispatchEvent(event);
         }
       }
-
     } catch (error) {
       log.error("StreamAggregator", `Crypto data parse error: ${error}`);
     }
@@ -754,7 +817,10 @@ export class StreamAggregator extends EventEmitter {
 
   // ==================== NEWS STREAM ====================
 
-  private async connectNews(credentials: { apiKey: string; secretKey: string }): Promise<void> {
+  private async connectNews(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): Promise<void> {
     const url = "wss://stream.data.alpaca.markets/v1beta1/news";
 
     return new Promise((resolve, reject) => {
@@ -786,21 +852,25 @@ export class StreamAggregator extends EventEmitter {
           clearTimeout(timeout);
           resolve();
         });
-
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  private authenticateNews(credentials: { apiKey: string; secretKey: string }): void {
+  private authenticateNews(credentials: {
+    apiKey: string;
+    secretKey: string;
+  }): void {
     if (!this.newsWs || this.newsWs.readyState !== WebSocket.OPEN) return;
 
-    this.newsWs.send(JSON.stringify({
-      action: "auth",
-      key: credentials.apiKey,
-      secret: credentials.secretKey,
-    }));
+    this.newsWs.send(
+      JSON.stringify({
+        action: "auth",
+        key: credentials.apiKey,
+        secret: credentials.secretKey,
+      })
+    );
   }
 
   private subscribeNewsSymbols(): void {
@@ -812,12 +882,17 @@ export class StreamAggregator extends EventEmitter {
       symbols.push("*");
     }
 
-    this.newsWs.send(JSON.stringify({
-      action: "subscribe",
-      news: symbols,
-    }));
+    this.newsWs.send(
+      JSON.stringify({
+        action: "subscribe",
+        news: symbols,
+      })
+    );
 
-    log.info("StreamAggregator", `Subscribed to news for ${symbols.length} symbols`);
+    log.info(
+      "StreamAggregator",
+      `Subscribed to news for ${symbols.length} symbols`
+    );
   }
 
   private handleNewsMessage(data: WebSocket.Data): void {
@@ -866,7 +941,6 @@ export class StreamAggregator extends EventEmitter {
           }
         }
       }
-
     } catch (error) {
       log.error("StreamAggregator", `News parse error: ${error}`);
     }
@@ -874,11 +948,17 @@ export class StreamAggregator extends EventEmitter {
 
   // ==================== RECONNECTION ====================
 
-  private scheduleReconnect(streamName: string, reconnectFn: () => Promise<void>): void {
+  private scheduleReconnect(
+    streamName: string,
+    reconnectFn: () => Promise<void>
+  ): void {
     const attempts = this.reconnectAttempts[streamName] || 0;
 
     if (attempts >= this.config.reconnectMaxAttempts) {
-      log.error("StreamAggregator", `Max reconnect attempts reached for ${streamName}`);
+      log.error(
+        "StreamAggregator",
+        `Max reconnect attempts reached for ${streamName}`
+      );
       return;
     }
 
@@ -889,12 +969,18 @@ export class StreamAggregator extends EventEmitter {
 
     this.reconnectAttempts[streamName] = attempts + 1;
 
-    log.info("StreamAggregator", `Scheduling ${streamName} reconnect in ${delay}ms (attempt ${attempts + 1})`);
+    log.info(
+      "StreamAggregator",
+      `Scheduling ${streamName} reconnect in ${delay}ms (attempt ${attempts + 1})`
+    );
 
     setTimeout(() => {
       if (this.isRunning) {
-        reconnectFn().catch(err => {
-          log.error("StreamAggregator", `Reconnect failed for ${streamName}: ${err}`);
+        reconnectFn().catch((err) => {
+          log.error(
+            "StreamAggregator",
+            `Reconnect failed for ${streamName}: ${err}`
+          );
         });
       }
     }, delay);
@@ -952,10 +1038,14 @@ export class StreamAggregator extends EventEmitter {
     };
   }
 
-  addSymbols(stockSymbols: string[] = [], cryptoSymbols: string[] = [], newsSymbols: string[] = []): void {
-    stockSymbols.forEach(s => this.stockSymbols.add(s));
-    cryptoSymbols.forEach(s => this.cryptoSymbols.add(s));
-    newsSymbols.forEach(s => this.newsSymbols.add(s));
+  addSymbols(
+    stockSymbols: string[] = [],
+    cryptoSymbols: string[] = [],
+    newsSymbols: string[] = []
+  ): void {
+    stockSymbols.forEach((s) => this.stockSymbols.add(s));
+    cryptoSymbols.forEach((s) => this.cryptoSymbols.add(s));
+    newsSymbols.forEach((s) => this.newsSymbols.add(s));
 
     if (this.isRunning) {
       this.updateLiveSubscriptions();

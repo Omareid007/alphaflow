@@ -108,7 +108,8 @@ router.get("/status", async (req: Request, res: Response) => {
           id: "valyu",
           name: "Valyu.ai",
           category: "enrichment",
-          description: "9 financial datasets: earnings, ratios, balance sheets, income, cash flow, dividends, insider trades, SEC filings, market movers",
+          description:
+            "9 financial datasets: earnings, ratios, balance sheets, income, cash flow, dividends, insider trades, SEC filings, market movers",
           connected: valyuStatus.connected,
           hasApiKey: valyuStatus.hasApiKey,
           cacheSize: valyuStatus.cacheSize,
@@ -149,7 +150,8 @@ router.get("/status", async (req: Request, res: Response) => {
           id: "gdelt",
           name: "GDELT",
           category: "news",
-          description: "Real-time global news (100+ languages), sentiment tracking, breaking news detection (FREE, updates every 15min)",
+          description:
+            "Real-time global news (100+ languages), sentiment tracking, breaking news detection (FREE, updates every 15min)",
           connected: gdeltStatus.connected,
           hasApiKey: true,
           cacheSize: gdeltStatus.cacheSize,
@@ -158,7 +160,9 @@ router.get("/status", async (req: Request, res: Response) => {
       ],
     });
   } catch (error) {
-    log.error("ConnectorsRoutes", "Failed to get connector status", { error: error });
+    log.error("ConnectorsRoutes", "Failed to get connector status", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get connector status" });
   }
 });

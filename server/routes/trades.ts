@@ -16,7 +16,9 @@ router.get("/", async (req: Request, res: Response) => {
     const trades = await storage.getTrades(req.userId!, limit);
     res.json(trades);
   } catch (error) {
-    log.error("TradesAPI", "Failed to get trades", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to get trades", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to get trades");
   }
 });
@@ -29,15 +31,22 @@ router.get("/enriched", async (req: Request, res: Response) => {
       offset: parseInt(req.query.offset as string) || 0,
       symbol: req.query.symbol as string | undefined,
       strategyId: req.query.strategyId as string | undefined,
-      pnlDirection: (req.query.pnlDirection as 'profit' | 'loss' | 'all') || 'all',
-      startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-      endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+      pnlDirection:
+        (req.query.pnlDirection as "profit" | "loss" | "all") || "all",
+      startDate: req.query.startDate
+        ? new Date(req.query.startDate as string)
+        : undefined,
+      endDate: req.query.endDate
+        ? new Date(req.query.endDate as string)
+        : undefined,
     };
 
     const result = await storage.getTradesFiltered(req.userId!, filters);
     res.json(result);
   } catch (error) {
-    log.error("TradesAPI", "Failed to get enriched trades", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to get enriched trades", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to get enriched trades");
   }
 });
@@ -48,7 +57,9 @@ router.get("/symbols", async (req: Request, res: Response) => {
     const symbols = await storage.getDistinctSymbols();
     res.json(symbols);
   } catch (error) {
-    log.error("TradesAPI", "Failed to get symbols", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to get symbols", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to get symbols");
   }
 });
@@ -62,7 +73,9 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     res.json(trade);
   } catch (error) {
-    log.error("TradesAPI", "Failed to get trade", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to get trade", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to get trade");
   }
 });
@@ -76,7 +89,9 @@ router.get("/:id/enriched", async (req: Request, res: Response) => {
     }
     res.json(trade);
   } catch (error) {
-    log.error("TradesAPI", "Failed to get enriched trade", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to get enriched trade", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to get enriched trade");
   }
 });
@@ -91,7 +106,9 @@ router.post("/", async (req: Request, res: Response) => {
     const trade = await storage.createTrade(parsed.data);
     res.status(201).json(trade);
   } catch (error) {
-    log.error("TradesAPI", "Failed to create trade", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Failed to create trade", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to create trade");
   }
 });
@@ -100,7 +117,7 @@ router.post("/", async (req: Request, res: Response) => {
 router.post("/backfill-prices", async (req: Request, res: Response) => {
   try {
     const trades = await storage.getTrades(undefined, 500);
-    const zeroTrades = trades.filter(t => safeParseFloat(t.price, 0) === 0);
+    const zeroTrades = trades.filter((t) => safeParseFloat(t.price, 0) === 0);
 
     if (zeroTrades.length === 0) {
       return res.json({ message: "No trades need backfilling", updated: 0 });
@@ -110,18 +127,24 @@ router.post("/backfill-prices", async (req: Request, res: Response) => {
     try {
       orders = await alpaca.getOrders("all", 500);
     } catch (e) {
-      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", { error: e instanceof Error ? e.message : String(e) });
+      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", {
+        error: e instanceof Error ? e.message : String(e),
+      });
       return serverError(res, "Failed to fetch order history from broker");
     }
 
     let updated = 0;
     for (const trade of zeroTrades) {
-      const matchingOrder = orders.find(o =>
-        o.symbol === trade.symbol &&
-        o.side === trade.side &&
-        o.status === "filled" &&
-        safeParseFloat(o.filled_avg_price, 0) > 0 &&
-        Math.abs(new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()) < 60000
+      const matchingOrder = orders.find(
+        (o) =>
+          o.symbol === trade.symbol &&
+          o.side === trade.side &&
+          o.status === "filled" &&
+          safeParseFloat(o.filled_avg_price, 0) > 0 &&
+          Math.abs(
+            new Date(o.filled_at).getTime() -
+              new Date(trade.executedAt).getTime()
+          ) < 60000
       );
 
       if (matchingOrder) {
@@ -140,10 +163,12 @@ router.post("/backfill-prices", async (req: Request, res: Response) => {
     res.json({
       message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
       updated,
-      remaining: zeroTrades.length - updated
+      remaining: zeroTrades.length - updated,
     });
   } catch (error) {
-    log.error("TradesAPI", "Trade backfill error", { error: error instanceof Error ? error.message : String(error) });
+    log.error("TradesAPI", "Trade backfill error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return serverError(res, "Failed to backfill trade prices");
   }
 });

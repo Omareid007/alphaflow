@@ -1,6 +1,18 @@
 import { db } from "../db";
-import { allocationPolicies, rebalanceRuns, universeCandidates, universeAssets, universeLiquidityMetrics, universeFundamentals } from "@shared/schema";
-import type { AllocationPolicy, InsertAllocationPolicy, InsertRebalanceRun, RebalanceRun } from "@shared/schema";
+import {
+  allocationPolicies,
+  rebalanceRuns,
+  universeCandidates,
+  universeAssets,
+  universeLiquidityMetrics,
+  universeFundamentals,
+} from "@shared/schema";
+import type {
+  AllocationPolicy,
+  InsertAllocationPolicy,
+  InsertRebalanceRun,
+  RebalanceRun,
+} from "@shared/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
@@ -28,7 +40,10 @@ export interface RebalanceAnalysis {
   policy: AllocationPolicy;
   portfolioValue: number;
   approvedSymbols: string[];
-  currentPositions: Map<string, { qty: number; marketValue: number; weightPct: number }>;
+  currentPositions: Map<
+    string,
+    { qty: number; marketValue: number; weightPct: number }
+  >;
   targetPositions: TargetPosition[];
   intents: RebalanceIntent[];
   profitTakingCandidates: string[];
@@ -58,28 +73,37 @@ class AllocationService {
 
   async createPolicy(data: InsertAllocationPolicy): Promise<AllocationPolicy> {
     if (data.isActive) {
-      await db.update(allocationPolicies)
+      await db
+        .update(allocationPolicies)
         .set({ isActive: false, updatedAt: new Date() })
         .where(eq(allocationPolicies.isActive, true));
     }
 
-    const [policy] = await db.insert(allocationPolicies)
+    const [policy] = await db
+      .insert(allocationPolicies)
       .values(data)
       .returning();
     return policy;
   }
 
-  async updatePolicy(id: string, data: Partial<InsertAllocationPolicy>): Promise<AllocationPolicy | null> {
+  async updatePolicy(
+    id: string,
+    data: Partial<InsertAllocationPolicy>
+  ): Promise<AllocationPolicy | null> {
     if (data.isActive === true) {
-      await db.update(allocationPolicies)
+      await db
+        .update(allocationPolicies)
         .set({ isActive: false, updatedAt: new Date() })
-        .where(and(
-          eq(allocationPolicies.isActive, true),
-          sql`${allocationPolicies.id} != ${id}`
-        ));
+        .where(
+          and(
+            eq(allocationPolicies.isActive, true),
+            sql`${allocationPolicies.id} != ${id}`
+          )
+        );
     }
 
-    const [updated] = await db.update(allocationPolicies)
+    const [updated] = await db
+      .update(allocationPolicies)
       .set({ ...data, updatedAt: new Date() })
       .returning()
       .where(eq(allocationPolicies.id, id));
@@ -107,9 +131,15 @@ class AllocationService {
     ]);
 
     const portfolioValue = parseFloat(account.equity);
-    log.info("Allocation", "Portfolio value calculated", { traceId, portfolioValue: portfolioValue.toFixed(2) });
+    log.info("Allocation", "Portfolio value calculated", {
+      traceId,
+      portfolioValue: portfolioValue.toFixed(2),
+    });
 
-    const currentPositions = new Map<string, { qty: number; marketValue: number; weightPct: number }>();
+    const currentPositions = new Map<
+      string,
+      { qty: number; marketValue: number; weightPct: number }
+    >();
     for (const pos of positions) {
       const marketValue = parseFloat(pos.market_value);
       currentPositions.set(pos.symbol, {
@@ -122,7 +152,7 @@ class AllocationService {
     const approved = await db.query.universeCandidates.findMany({
       where: eq(universeCandidates.status, "APPROVED"),
     });
-    const approvedSymbols = approved.map(c => c.symbol);
+    const approvedSymbols = approved.map((c) => c.symbol);
 
     const minTier = policy.minLiquidityTier || "B";
     const tierOrder = ["A", "B", "C"];
@@ -139,8 +169,10 @@ class AllocationService {
 
     const maxWeight = parseFloat(policy.maxPositionWeightPct || "8");
     const rotationTopN = policy.rotationTopN || 10;
-    const profitThreshold = parseFloat(policy.profitTakingThresholdPct || "20") / 100;
-    const overweightThreshold = parseFloat(policy.overweightThresholdPct || "50") / 100;
+    const profitThreshold =
+      parseFloat(policy.profitTakingThresholdPct || "20") / 100;
+    const overweightThreshold =
+      parseFloat(policy.overweightThresholdPct || "50") / 100;
 
     const profitTakingCandidates: string[] = [];
     const overweightPositions: string[] = [];
@@ -153,7 +185,8 @@ class AllocationService {
 
     const targetPositions: TargetPosition[] = [];
     const numPositions = Math.min(eligibleSymbols.length, rotationTopN);
-    const equalWeight = numPositions > 0 ? Math.min(100 / numPositions, maxWeight) : 0;
+    const equalWeight =
+      numPositions > 0 ? Math.min(100 / numPositions, maxWeight) : 0;
 
     for (const symbol of eligibleSymbols.slice(0, rotationTopN)) {
       const current = currentPositions.get(symbol);
@@ -170,7 +203,7 @@ class AllocationService {
     for (const target of targetPositions) {
       const delta = target.targetWeightPct - target.currentWeightPct;
       const notionalDelta = (delta / 100) * portfolioValue;
-      
+
       if (Math.abs(delta) < 0.5) {
         intents.push({
           symbol: target.symbol,
@@ -214,7 +247,10 @@ class AllocationService {
       }
     }
 
-    log.info("Allocation", "Analysis complete", { traceId, intentsCount: intents.length });
+    log.info("Allocation", "Analysis complete", {
+      traceId,
+      intentsCount: intents.length,
+    });
 
     return {
       policy,
@@ -229,9 +265,7 @@ class AllocationService {
   }
 
   async createRebalanceRun(data: InsertRebalanceRun): Promise<RebalanceRun> {
-    const [run] = await db.insert(rebalanceRuns)
-      .values(data)
-      .returning();
+    const [run] = await db.insert(rebalanceRuns).values(data).returning();
     return run;
   }
 
@@ -249,8 +283,12 @@ class AllocationService {
     return run ?? null;
   }
 
-  async updateRebalanceRun(id: string, data: Partial<RebalanceRun>): Promise<RebalanceRun | null> {
-    const [updated] = await db.update(rebalanceRuns)
+  async updateRebalanceRun(
+    id: string,
+    data: Partial<RebalanceRun>
+  ): Promise<RebalanceRun | null> {
+    const [updated] = await db
+      .update(rebalanceRuns)
       .set(data)
       .returning()
       .where(eq(rebalanceRuns.id, id));

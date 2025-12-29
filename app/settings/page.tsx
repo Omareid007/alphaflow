@@ -12,11 +12,14 @@ export default function SettingsPage() {
   const { data: settings, isLoading: loading } = useSettings();
   const updateSettings = useUpdateSettings();
 
-  const handleNotificationChange = async (key: keyof UserSettings["notifications"], value: boolean) => {
+  const handleNotificationChange = async (
+    key: keyof UserSettings["notifications"],
+    value: boolean
+  ) => {
     if (!settings) return;
     const updated = {
       ...settings,
-      notifications: { ...settings.notifications, [key]: value }
+      notifications: { ...settings.notifications, [key]: value },
     };
     try {
       await updateSettings.mutateAsync(updated);
@@ -26,11 +29,14 @@ export default function SettingsPage() {
     }
   };
 
-  const handleGuardrailChange = async (key: keyof UserSettings["riskGuardrails"], value: number | boolean) => {
+  const handleGuardrailChange = async (
+    key: keyof UserSettings["riskGuardrails"],
+    value: number | boolean
+  ) => {
     if (!settings) return;
     const updated = {
       ...settings,
-      riskGuardrails: { ...settings.riskGuardrails, [key]: value }
+      riskGuardrails: { ...settings.riskGuardrails, [key]: value },
     };
     try {
       await updateSettings.mutateAsync(updated);

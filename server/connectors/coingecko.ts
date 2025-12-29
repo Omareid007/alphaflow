@@ -79,7 +79,15 @@ export interface OHLCData {
 }
 
 type CoinListItem = { id: string; symbol: string; name: string };
-type SearchResult = { coins: { id: string; name: string; symbol: string; market_cap_rank: number; thumb: string }[] };
+type SearchResult = {
+  coins: {
+    id: string;
+    name: string;
+    symbol: string;
+    market_cap_rank: number;
+    thumb: string;
+  }[];
+};
 type TrendingResult = { coins: TrendingCoin[] };
 
 type OHLCRaw = [number, number, number, number, number][];
@@ -141,7 +149,10 @@ class CoinGeckoConnector {
         this.pendingRefreshes.add(cacheKey);
         this.backgroundRefresh(url, endpoint, cacheKey, cache);
       }
-      log.debug("CoinGecko", `Serving stale L1 data for ${cacheKey}, refreshing in background`);
+      log.debug(
+        "CoinGecko",
+        `Serving stale L1 data for ${cacheKey}, refreshing in background`
+      );
       return cached.data;
     }
 
@@ -190,7 +201,10 @@ class CoinGeckoConnector {
     } catch (error) {
       const stale = cache.getStale(cacheKey);
       if (stale) {
-        log.debug("CoinGecko", `Error fetching, serving stale L1 data for ${cacheKey}`);
+        log.debug(
+          "CoinGecko",
+          `Error fetching, serving stale L1 data for ${cacheKey}`
+        );
         return stale;
       }
       throw error;
@@ -203,9 +217,21 @@ class CoinGeckoConnector {
     page = 1,
     order = "market_cap_desc"
   ): Promise<CoinPrice[]> {
-    const cacheKey = buildCacheKey("coingecko", "markets", vsCurrency, perPage, page, order);
+    const cacheKey = buildCacheKey(
+      "coingecko",
+      "markets",
+      vsCurrency,
+      perPage,
+      page,
+      order
+    );
     const url = `${COINGECKO_BASE_URL}/coins/markets?vs_currency=${vsCurrency}&order=${order}&per_page=${perPage}&page=${page}&sparkline=false`;
-    return this.fetchWithL1Cache<CoinPrice[]>(url, "/coins/markets", cacheKey, this.marketsCache);
+    return this.fetchWithL1Cache<CoinPrice[]>(
+      url,
+      "/coins/markets",
+      cacheKey,
+      this.marketsCache
+    );
   }
 
   async getSimplePrice(
@@ -218,7 +244,12 @@ class CoinGeckoConnector {
     const ids = coinIds.join(",");
     const cacheKey = buildCacheKey("coingecko", "simple", ids, vsCurrencies);
     const url = `${COINGECKO_BASE_URL}/simple/price?ids=${ids}&vs_currencies=${vsCurrencies}&include_market_cap=${includeMarketCap}&include_24hr_vol=${include24hVol}&include_24hr_change=${include24hChange}&include_last_updated_at=true`;
-    return this.fetchWithL1Cache<SimplePriceData>(url, "/simple/price", cacheKey, this.priceCache);
+    return this.fetchWithL1Cache<SimplePriceData>(
+      url,
+      "/simple/price",
+      cacheKey,
+      this.priceCache
+    );
   }
 
   async getMarketChart(
@@ -226,33 +257,64 @@ class CoinGeckoConnector {
     vsCurrency = "usd",
     days: number | string = 7
   ): Promise<MarketChartData> {
-    const cacheKey = buildCacheKey("coingecko", "chart", coinId, vsCurrency, days);
+    const cacheKey = buildCacheKey(
+      "coingecko",
+      "chart",
+      coinId,
+      vsCurrency,
+      days
+    );
     const url = `${COINGECKO_BASE_URL}/coins/${coinId}/market_chart?vs_currency=${vsCurrency}&days=${days}`;
-    return this.fetchWithL1Cache<MarketChartData>(url, `/coins/${coinId}/market_chart`, cacheKey, this.chartCache);
+    return this.fetchWithL1Cache<MarketChartData>(
+      url,
+      `/coins/${coinId}/market_chart`,
+      cacheKey,
+      this.chartCache
+    );
   }
 
   async getTrending(): Promise<TrendingResult> {
     const cacheKey = buildCacheKey("coingecko", "trending");
     const url = `${COINGECKO_BASE_URL}/search/trending`;
-    return this.fetchWithL1Cache<TrendingResult>(url, "/search/trending", cacheKey, this.trendingCache);
+    return this.fetchWithL1Cache<TrendingResult>(
+      url,
+      "/search/trending",
+      cacheKey,
+      this.trendingCache
+    );
   }
 
   async getGlobalData(): Promise<GlobalMarketData> {
     const cacheKey = buildCacheKey("coingecko", "global");
     const url = `${COINGECKO_BASE_URL}/global`;
-    return this.fetchWithL1Cache<GlobalMarketData>(url, "/global", cacheKey, this.globalCache);
+    return this.fetchWithL1Cache<GlobalMarketData>(
+      url,
+      "/global",
+      cacheKey,
+      this.globalCache
+    );
   }
 
   async getCoinList(): Promise<CoinListItem[]> {
     const cacheKey = buildCacheKey("coingecko", "coinlist");
     const url = `${COINGECKO_BASE_URL}/coins/list`;
-    return this.fetchWithL1Cache<CoinListItem[]>(url, "/coins/list", cacheKey, this.coinListCache);
+    return this.fetchWithL1Cache<CoinListItem[]>(
+      url,
+      "/coins/list",
+      cacheKey,
+      this.coinListCache
+    );
   }
 
   async searchCoins(query: string): Promise<SearchResult> {
     const cacheKey = buildCacheKey("coingecko", "search", query);
     const url = `${COINGECKO_BASE_URL}/search?query=${encodeURIComponent(query)}`;
-    return this.fetchWithL1Cache<SearchResult>(url, "/search", cacheKey, this.searchCache);
+    return this.fetchWithL1Cache<SearchResult>(
+      url,
+      "/search",
+      cacheKey,
+      this.searchCache
+    );
   }
 
   async getOHLC(
@@ -260,9 +322,20 @@ class CoinGeckoConnector {
     vsCurrency = "usd",
     days: 1 | 7 | 14 | 30 | 90 | 180 | 365 | "max" = 7
   ): Promise<OHLCData[]> {
-    const cacheKey = buildCacheKey("coingecko", "ohlc", coinId, vsCurrency, days);
+    const cacheKey = buildCacheKey(
+      "coingecko",
+      "ohlc",
+      coinId,
+      vsCurrency,
+      days
+    );
     const url = `${COINGECKO_BASE_URL}/coins/${coinId}/ohlc?vs_currency=${vsCurrency}&days=${days}`;
-    const rawData = await this.fetchWithL1Cache<OHLCRaw>(url, `/coins/${coinId}/ohlc`, cacheKey, this.ohlcCache);
+    const rawData = await this.fetchWithL1Cache<OHLCRaw>(
+      url,
+      `/coins/${coinId}/ohlc`,
+      cacheKey,
+      this.ohlcCache
+    );
     return rawData.map(([timestamp, open, high, low, close]) => ({
       timestamp,
       open,
@@ -300,14 +373,17 @@ class CoinGeckoConnector {
     const latestCandle = ohlc[ohlc.length - 1];
     const latestPrice = latestCandle.close;
     const firstCandle = ohlc[0];
-    const priceChange24h = ((latestPrice - firstCandle.close) / firstCandle.close) * 100;
+    const priceChange24h =
+      ((latestPrice - firstCandle.close) / firstCandle.close) * 100;
 
     const highs = ohlc.map((c) => c.high);
     const lows = ohlc.map((c) => c.low);
     const closes = ohlc.map((c) => c.close);
 
     const avgClose = closes.reduce((a, b) => a + b, 0) / closes.length;
-    const variance = closes.reduce((sum, c) => sum + Math.pow(c - avgClose, 2), 0) / closes.length;
+    const variance =
+      closes.reduce((sum, c) => sum + Math.pow(c - avgClose, 2), 0) /
+      closes.length;
     const volatility = (Math.sqrt(variance) / avgClose) * 100;
 
     const resistance = Math.max(...highs);
@@ -315,7 +391,8 @@ class CoinGeckoConnector {
 
     const recentCandles = ohlc.slice(-5);
     const bullishCount = recentCandles.filter((c) => c.close > c.open).length;
-    const trend = bullishCount >= 4 ? "bullish" : bullishCount <= 1 ? "bearish" : "neutral";
+    const trend =
+      bullishCount >= 4 ? "bullish" : bullishCount <= 1 ? "bearish" : "neutral";
 
     return {
       candles: ohlc,
@@ -328,17 +405,21 @@ class CoinGeckoConnector {
     };
   }
 
-  getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
-    const totalCacheSize = 
-      this.marketsCache.size() + 
-      this.priceCache.size() + 
-      this.chartCache.size() + 
-      this.trendingCache.size() + 
-      this.globalCache.size() + 
-      this.coinListCache.size() + 
+  getConnectionStatus(): {
+    connected: boolean;
+    hasApiKey: boolean;
+    cacheSize: number;
+  } {
+    const totalCacheSize =
+      this.marketsCache.size() +
+      this.priceCache.size() +
+      this.chartCache.size() +
+      this.trendingCache.size() +
+      this.globalCache.size() +
+      this.coinListCache.size() +
       this.searchCache.size() +
       this.ohlcCache.size();
-    
+
     return {
       connected: true,
       hasApiKey: !!this.getApiKey(),

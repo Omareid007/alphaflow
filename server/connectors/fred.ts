@@ -61,7 +61,7 @@ export interface MacroIndicatorData {
   rawJson: FREDObservationsResponse;
 }
 
-export type MacroCategory = 
+export type MacroCategory =
   | "treasury_yields"
   | "inflation"
   | "employment"
@@ -73,33 +73,72 @@ export type MacroCategory =
   | "housing"
   | "manufacturing";
 
-export const FRED_SERIES: Record<string, { name: string; category: MacroCategory }> = {
-  "DGS10": { name: "10-Year Treasury Constant Maturity Rate", category: "treasury_yields" },
-  "DGS2": { name: "2-Year Treasury Constant Maturity Rate", category: "treasury_yields" },
-  "DGS30": { name: "30-Year Treasury Constant Maturity Rate", category: "treasury_yields" },
-  "T10Y2Y": { name: "10-Year Treasury Minus 2-Year Treasury (Yield Curve)", category: "treasury_yields" },
-  "T10Y3M": { name: "10-Year Treasury Minus 3-Month Treasury", category: "treasury_yields" },
-  "CPIAUCSL": { name: "Consumer Price Index for All Urban Consumers", category: "inflation" },
-  "CPILFESL": { name: "Core CPI (Less Food and Energy)", category: "inflation" },
-  "PCEPI": { name: "Personal Consumption Expenditures Price Index", category: "inflation" },
-  "UNRATE": { name: "Unemployment Rate", category: "employment" },
-  "PAYEMS": { name: "Total Nonfarm Payrolls", category: "employment" },
-  "ICSA": { name: "Initial Jobless Claims", category: "employment" },
-  "VIXCLS": { name: "CBOE Volatility Index (VIX)", category: "volatility" },
-  "FEDFUNDS": { name: "Federal Funds Effective Rate", category: "interest_rates" },
-  "DFEDTARU": { name: "Federal Funds Target Rate - Upper Bound", category: "interest_rates" },
-  "M2SL": { name: "M2 Money Stock", category: "money_supply" },
-  "GDP": { name: "Gross Domestic Product", category: "gdp" },
-  "GDPC1": { name: "Real Gross Domestic Product", category: "gdp" },
-  "UMCSENT": { name: "University of Michigan Consumer Sentiment", category: "consumer" },
-  "HOUST": { name: "Housing Starts", category: "housing" },
-  "INDPRO": { name: "Industrial Production Index", category: "manufacturing" },
-  "NAPM": { name: "ISM Manufacturing PMI", category: "manufacturing" },
+export const FRED_SERIES: Record<
+  string,
+  { name: string; category: MacroCategory }
+> = {
+  DGS10: {
+    name: "10-Year Treasury Constant Maturity Rate",
+    category: "treasury_yields",
+  },
+  DGS2: {
+    name: "2-Year Treasury Constant Maturity Rate",
+    category: "treasury_yields",
+  },
+  DGS30: {
+    name: "30-Year Treasury Constant Maturity Rate",
+    category: "treasury_yields",
+  },
+  T10Y2Y: {
+    name: "10-Year Treasury Minus 2-Year Treasury (Yield Curve)",
+    category: "treasury_yields",
+  },
+  T10Y3M: {
+    name: "10-Year Treasury Minus 3-Month Treasury",
+    category: "treasury_yields",
+  },
+  CPIAUCSL: {
+    name: "Consumer Price Index for All Urban Consumers",
+    category: "inflation",
+  },
+  CPILFESL: { name: "Core CPI (Less Food and Energy)", category: "inflation" },
+  PCEPI: {
+    name: "Personal Consumption Expenditures Price Index",
+    category: "inflation",
+  },
+  UNRATE: { name: "Unemployment Rate", category: "employment" },
+  PAYEMS: { name: "Total Nonfarm Payrolls", category: "employment" },
+  ICSA: { name: "Initial Jobless Claims", category: "employment" },
+  VIXCLS: { name: "CBOE Volatility Index (VIX)", category: "volatility" },
+  FEDFUNDS: {
+    name: "Federal Funds Effective Rate",
+    category: "interest_rates",
+  },
+  DFEDTARU: {
+    name: "Federal Funds Target Rate - Upper Bound",
+    category: "interest_rates",
+  },
+  M2SL: { name: "M2 Money Stock", category: "money_supply" },
+  GDP: { name: "Gross Domestic Product", category: "gdp" },
+  GDPC1: { name: "Real Gross Domestic Product", category: "gdp" },
+  UMCSENT: {
+    name: "University of Michigan Consumer Sentiment",
+    category: "consumer",
+  },
+  HOUST: { name: "Housing Starts", category: "housing" },
+  INDPRO: { name: "Industrial Production Index", category: "manufacturing" },
+  NAPM: { name: "ISM Manufacturing PMI", category: "manufacturing" },
 };
 
 const CRITICAL_INDICATORS = [
-  "DGS10", "DGS2", "T10Y2Y", "VIXCLS", "FEDFUNDS", 
-  "UNRATE", "CPIAUCSL", "UMCSENT"
+  "DGS10",
+  "DGS2",
+  "T10Y2Y",
+  "VIXCLS",
+  "FEDFUNDS",
+  "UNRATE",
+  "CPIAUCSL",
+  "UMCSENT",
 ];
 
 class FREDConnector {
@@ -112,7 +151,10 @@ class FREDConnector {
   private getApiKey(): string {
     const apiKey = process.env.FRED_API_KEY;
     if (!apiKey) {
-      log.warn("FRED", "No API key configured, using unauthenticated access (limited)");
+      log.warn(
+        "FRED",
+        "No API key configured, using unauthenticated access (limited)"
+      );
       return "";
     }
     return apiKey;
@@ -152,14 +194,22 @@ class FREDConnector {
       const response = await connectorFetch<FREDObservationsResponse>(url, {
         provider: "FRED",
         endpoint: "observations",
-        cacheKey: buildCacheKey("FRED", "observations", seriesId, limit.toString()),
+        cacheKey: buildCacheKey(
+          "FRED",
+          "observations",
+          seriesId,
+          limit.toString()
+        ),
         customTTLMs: this.CACHE_TTL_MS,
       });
 
       return response.data.observations || [];
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      log.error("FRED", `Failed to get observations for ${seriesId}: ${errorMsg}`);
+      log.error(
+        "FRED",
+        `Failed to get observations for ${seriesId}: ${errorMsg}`
+      );
       return [];
     }
   }
@@ -178,12 +228,23 @@ class FREDConnector {
         return null;
       }
 
-      const latestValue = observations[0]?.value === "." ? null : parseFloat(observations[0]?.value || "");
-      const previousValue = observations[1]?.value === "." ? null : parseFloat(observations[1]?.value || "");
+      const latestValue =
+        observations[0]?.value === "."
+          ? null
+          : parseFloat(observations[0]?.value || "");
+      const previousValue =
+        observations[1]?.value === "."
+          ? null
+          : parseFloat(observations[1]?.value || "");
 
       let changePercent: number | null = null;
-      if (latestValue !== null && previousValue !== null && previousValue !== 0) {
-        changePercent = ((latestValue - previousValue) / Math.abs(previousValue)) * 100;
+      if (
+        latestValue !== null &&
+        previousValue !== null &&
+        previousValue !== 0
+      ) {
+        changePercent =
+          ((latestValue - previousValue) / Math.abs(previousValue)) * 100;
       }
 
       return {
@@ -192,7 +253,8 @@ class FREDConnector {
         category: seriesConfig.category,
         latestValue: isNaN(latestValue!) ? null : latestValue,
         previousValue: isNaN(previousValue!) ? null : previousValue,
-        changePercent: changePercent !== null && isNaN(changePercent) ? null : changePercent,
+        changePercent:
+          changePercent !== null && isNaN(changePercent) ? null : changePercent,
         frequency: "variable",
         lastUpdatedAt: new Date(),
         source: "FRED",
@@ -213,7 +275,9 @@ class FREDConnector {
         },
       };
     } catch (error) {
-      log.error("FRED", `Failed to get indicator data for ${seriesId}`, { error });
+      log.error("FRED", `Failed to get indicator data for ${seriesId}`, {
+        error,
+      });
       return null;
     }
   }
@@ -228,7 +292,10 @@ class FREDConnector {
       }
     }
 
-    log.info("FRED", `Fetched ${results.length}/${CRITICAL_INDICATORS.length} critical indicators`);
+    log.info(
+      "FRED",
+      `Fetched ${results.length}/${CRITICAL_INDICATORS.length} critical indicators`
+    );
     return results;
   }
 
@@ -242,11 +309,16 @@ class FREDConnector {
       }
     }
 
-    log.info("FRED", `Fetched ${results.length}/${Object.keys(FRED_SERIES).length} indicators`);
+    log.info(
+      "FRED",
+      `Fetched ${results.length}/${Object.keys(FRED_SERIES).length} indicators`
+    );
     return results;
   }
 
-  async getIndicatorsByCategory(category: MacroCategory): Promise<MacroIndicatorData[]> {
+  async getIndicatorsByCategory(
+    category: MacroCategory
+  ): Promise<MacroIndicatorData[]> {
     const seriesIds = Object.entries(FRED_SERIES)
       .filter(([_, config]) => config.category === category)
       .map(([id]) => id);
@@ -291,7 +363,9 @@ class FREDConnector {
     return Object.keys(FRED_SERIES);
   }
 
-  getSeriesMetadata(seriesId: string): { name: string; category: MacroCategory } | null {
+  getSeriesMetadata(
+    seriesId: string
+  ): { name: string; category: MacroCategory } | null {
     return FRED_SERIES[seriesId] || null;
   }
 }

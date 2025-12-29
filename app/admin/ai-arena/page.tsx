@@ -5,30 +5,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Play, RefreshCw, Users, DollarSign, TrendingUp } from "lucide-react";
+import {
+  Zap,
+  Play,
+  RefreshCw,
+  Users,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   useArenaStats,
   useArenaRuns,
   useRunArena,
   useAgentProfiles,
-  useArenaLeaderboard
+  useArenaLeaderboard,
 } from "@/lib/api/hooks";
 
 export default function AiArenaPage() {
   const { toast } = useToast();
-  const [symbols, setSymbols] = useState('AAPL, MSFT, NVDA');
+  const [symbols, setSymbols] = useState("AAPL, MSFT, NVDA");
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useArenaStats();
-  const { data: runs = [], isLoading: runsLoading, refetch: refetchRuns } = useArenaRuns(10);
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+  } = useArenaStats();
+  const {
+    data: runs = [],
+    isLoading: runsLoading,
+    refetch: refetchRuns,
+  } = useArenaRuns(10);
   const { data: profiles = [] } = useAgentProfiles();
-  const { data: leaderboard } = useArenaLeaderboard('7d');
+  const { data: leaderboard } = useArenaLeaderboard("7d");
   const runArena = useRunArena();
 
   const handleRunTest = async () => {
-    const symbolList = symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const symbolList = symbols
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
     if (symbolList.length === 0) {
-      toast({ title: "Please enter at least one symbol", variant: "destructive" });
+      toast({
+        title: "Please enter at least one symbol",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -36,12 +57,14 @@ export default function AiArenaPage() {
       toast({ title: "Running AI Arena analysis..." });
       const result = await runArena.mutateAsync({
         symbols: symbolList,
-        mode: 'debate',
-        triggeredBy: 'admin_manual',
+        mode: "debate",
+        triggeredBy: "admin_manual",
       });
       await refetchStats();
       await refetchRuns();
-      toast({ title: `Arena completed with ${result.decisionsCount} decisions` });
+      toast({
+        title: `Arena completed with ${result.decisionsCount} decisions`,
+      });
     } catch (error) {
       toast({ title: "Failed to run arena", variant: "destructive" });
     }
@@ -60,9 +83,17 @@ export default function AiArenaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">AI Arena</h1>
-          <p className="mt-1 text-muted-foreground">Test prompts and simulate strategy cycles</p>
+          <p className="mt-1 text-muted-foreground">
+            Test prompts and simulate strategy cycles
+          </p>
         </div>
-        <Button variant="outline" onClick={() => { refetchStats(); refetchRuns(); }}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            refetchStats();
+            refetchRuns();
+          }}
+        >
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
@@ -89,7 +120,9 @@ export default function AiArenaPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">${(stats?.costToday || 0).toFixed(4)}</p>
+            <p className="text-2xl font-bold">
+              ${(stats?.costToday || 0).toFixed(4)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -126,7 +159,9 @@ export default function AiArenaPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Symbols (comma-separated)</label>
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">
+              Symbols (comma-separated)
+            </label>
             <Textarea
               placeholder="AAPL, MSFT, NVDA, GOOGL..."
               rows={2}
@@ -136,7 +171,7 @@ export default function AiArenaPage() {
           </div>
           <Button onClick={handleRunTest} disabled={runArena.isPending}>
             <Play className="mr-2 h-4 w-4" />
-            {runArena.isPending ? 'Running Analysis...' : 'Run Arena Analysis'}
+            {runArena.isPending ? "Running Analysis..." : "Run Arena Analysis"}
           </Button>
         </CardContent>
       </Card>
@@ -150,33 +185,48 @@ export default function AiArenaPage() {
           <CardContent>
             <div className="space-y-4">
               {runs.map((run) => (
-                <div key={run.id} className="rounded-lg border border-border p-4 space-y-3">
+                <div
+                  key={run.id}
+                  className="rounded-lg border border-border p-4 space-y-3"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{new Date(run.createdAt).toLocaleString()}</Badge>
+                      <Badge variant="outline">
+                        {new Date(run.createdAt).toLocaleString()}
+                      </Badge>
                       <Badge variant="secondary">{run.mode}</Badge>
                       {run.escalationTriggered && (
                         <Badge variant="destructive">Escalated</Badge>
                       )}
                     </div>
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-500">
-                      ${parseFloat(run.totalCostUsd || '0').toFixed(4)}
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-500/10 text-blue-500"
+                    >
+                      ${parseFloat(run.totalCostUsd || "0").toFixed(4)}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Symbols:</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Symbols:
+                    </p>
                     <div className="flex gap-1 flex-wrap">
-                      {run.symbols?.map(s => (
-                        <Badge key={s} variant="secondary">{s}</Badge>
+                      {run.symbols?.map((s) => (
+                        <Badge key={s} variant="secondary">
+                          {s}
+                        </Badge>
                       ))}
                     </div>
                   </div>
                   {run.consensusDecision && (
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Consensus:</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Consensus:
+                      </p>
                       <p className="text-sm">
                         {run.consensusDecision}
-                        {run.consensusConfidence && ` (${(run.consensusConfidence * 100).toFixed(0)}% confidence)`}
+                        {run.consensusConfidence &&
+                          ` (${(run.consensusConfidence * 100).toFixed(0)}% confidence)`}
                       </p>
                     </div>
                   )}
@@ -196,10 +246,20 @@ export default function AiArenaPage() {
           <CardContent>
             <div className="grid gap-3 md:grid-cols-2">
               {profiles.map((profile) => (
-                <div key={profile.id} className="rounded-lg border border-border p-3">
+                <div
+                  key={profile.id}
+                  className="rounded-lg border border-border p-3"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium">{profile.name}</p>
-                    <Badge variant="outline" className={profile.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>
+                    <Badge
+                      variant="outline"
+                      className={
+                        profile.status === "active"
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }
+                    >
                       {profile.status}
                     </Badge>
                   </div>

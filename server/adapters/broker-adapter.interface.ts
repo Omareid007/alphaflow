@@ -64,7 +64,7 @@ export interface BrokerPosition {
   unrealizedPnlPercent: number;
 
   /** Position side */
-  side: 'long' | 'short';
+  side: "long" | "short";
 }
 
 /**
@@ -81,13 +81,21 @@ export interface BrokerOrder {
   symbol: string;
 
   /** Order side */
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
 
   /** Order type */
-  type: 'market' | 'limit' | 'stop' | 'stop_limit' | 'trailing_stop';
+  type: "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
 
   /** Current order status */
-  status: 'new' | 'accepted' | 'pending_new' | 'filled' | 'partially_filled' | 'canceled' | 'rejected' | 'expired';
+  status:
+    | "new"
+    | "accepted"
+    | "pending_new"
+    | "filled"
+    | "partially_filled"
+    | "canceled"
+    | "rejected"
+    | "expired";
 
   /** Total quantity to be filled */
   quantity: number;
@@ -125,10 +133,10 @@ export interface OrderParams {
   symbol: string;
 
   /** Order side */
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
 
   /** Order type */
-  type: 'market' | 'limit' | 'stop' | 'stop_limit' | 'trailing_stop';
+  type: "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
 
   /** Number of shares to trade (mutually exclusive with notional) */
   quantity?: number;
@@ -228,7 +236,7 @@ export interface BrokerConnectionStatus {
   connected: boolean;
 
   /** Trading mode */
-  mode: 'paper' | 'live';
+  mode: "paper" | "live";
 }
 
 /**
@@ -323,7 +331,10 @@ export interface IBrokerAdapter {
    * @returns Promise resolving to an array of orders
    * @throws Error if orders cannot be retrieved
    */
-  getOrders(status?: 'open' | 'closed' | 'all', limit?: number): Promise<BrokerOrder[]>;
+  getOrders(
+    status?: "open" | "closed" | "all",
+    limit?: number
+  ): Promise<BrokerOrder[]>;
 
   /**
    * Retrieves a specific order by ID.

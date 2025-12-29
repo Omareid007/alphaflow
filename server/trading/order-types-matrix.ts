@@ -1,6 +1,6 @@
 /**
  * EXHAUSTIVE ORDER TYPE MATRIX FOR ALPACA TRADING
- * 
+ *
  * This file documents all valid order type combinations supported by Alpaca API
  * and provides validation schemas and execution handlers for each.
  */
@@ -16,15 +16,15 @@ import { z } from "zod";
  * - market: Execute at current market price
  * - limit: Execute at specified price or better
  * - stop: Trigger market order when stop price is reached
- * - stop_limit: Trigger limit order when stop price is reached  
+ * - stop_limit: Trigger limit order when stop price is reached
  * - trailing_stop: Dynamic stop that follows price movement
  */
 export const OrderTypeEnum = z.enum([
   "market",
-  "limit", 
+  "limit",
   "stop",
   "stop_limit",
-  "trailing_stop"
+  "trailing_stop",
 ]);
 
 /**
@@ -34,12 +34,7 @@ export const OrderTypeEnum = z.enum([
  * - oco: One-cancels-other (2 legs)
  * - oto: One-triggers-other (2 legs)
  */
-export const OrderClassEnum = z.enum([
-  "simple",
-  "bracket",
-  "oco",
-  "oto"
-]);
+export const OrderClassEnum = z.enum(["simple", "bracket", "oco", "oto"]);
 
 /**
  * Time in Force options:
@@ -57,7 +52,7 @@ export const TimeInForceEnum = z.enum([
   "opg",
   "cls",
   "ioc",
-  "fok"
+  "fok",
 ]);
 
 /**
@@ -71,7 +66,7 @@ export const OrderSideEnum = z.enum(["buy", "sell"]);
 
 /**
  * VALID ORDER TYPE + TIME IN FORCE COMBINATIONS
- * 
+ *
  * Order Type      | day | gtc | opg | cls | ioc | fok | Extended Hours
  * ----------------|-----|-----|-----|-----|-----|-----|----------------
  * market          |  ✓  |  ✗  |  ✓  |  ✓  |  ✓  |  ✓  |      ✗
@@ -79,7 +74,7 @@ export const OrderSideEnum = z.enum(["buy", "sell"]);
  * stop            |  ✓  |  ✓  |  ✗  |  ✗  |  ✗  |  ✗  |      ✗
  * stop_limit      |  ✓  |  ✓  |  ✗  |  ✗  |  ✗  |  ✗  |      ✓
  * trailing_stop   |  ✓  |  ✓  |  ✗  |  ✗  |  ✗  |  ✗  |      ✗
- * 
+ *
  * Notes:
  * - Market orders cannot be GTC (must specify day, ioc, fok, opg, or cls)
  * - Extended hours only works with limit and stop_limit orders
@@ -104,7 +99,7 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
     supportsExtendedHours: false,
     requiredFields: ["symbol", "side", "qty|notional"],
     optionalFields: ["client_order_id"],
-    description: "Execute immediately at best available price"
+    description: "Execute immediately at best available price",
   },
   {
     orderType: "limit",
@@ -112,7 +107,7 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
     supportsExtendedHours: true,
     requiredFields: ["symbol", "side", "qty|notional", "limit_price"],
     optionalFields: ["client_order_id", "extended_hours"],
-    description: "Execute at specified price or better"
+    description: "Execute at specified price or better",
   },
   {
     orderType: "stop",
@@ -120,7 +115,7 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
     supportsExtendedHours: false,
     requiredFields: ["symbol", "side", "qty", "stop_price"],
     optionalFields: ["client_order_id"],
-    description: "Trigger market order when stop price is reached"
+    description: "Trigger market order when stop price is reached",
   },
   {
     orderType: "stop_limit",
@@ -128,7 +123,7 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
     supportsExtendedHours: true,
     requiredFields: ["symbol", "side", "qty", "stop_price", "limit_price"],
     optionalFields: ["client_order_id", "extended_hours"],
-    description: "Trigger limit order when stop price is reached"
+    description: "Trigger limit order when stop price is reached",
   },
   {
     orderType: "trailing_stop",
@@ -136,8 +131,8 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
     supportsExtendedHours: false,
     requiredFields: ["symbol", "side", "qty", "trail_percent|trail_price"],
     optionalFields: ["client_order_id"],
-    description: "Dynamic stop that follows price movement"
-  }
+    description: "Dynamic stop that follows price movement",
+  },
 ];
 
 // ============================================================================
@@ -146,16 +141,16 @@ export const ORDER_TYPE_MATRIX: OrderTypeCombination[] = [
 
 /**
  * BRACKET ORDERS (order_class: "bracket")
- * 
+ *
  * A bracket order is a set of 3 orders:
  * 1. Entry order (market or limit)
  * 2. Take-profit (limit order)
  * 3. Stop-loss (stop or stop-limit order)
- * 
+ *
  * When the entry fills:
  * - Both exit orders become active
  * - When one exit fills, the other is canceled
- * 
+ *
  * Valid combinations:
  * - Entry: market/limit + take_profit (limit_price) + stop_loss (stop_price + optional limit_price)
  */
@@ -169,13 +164,13 @@ export interface BracketOrderConfig {
 
 /**
  * OCO ORDERS (order_class: "oco")
- * 
+ *
  * One-Cancels-Other: Two orders where filling one cancels the other
- * 
+ *
  * Must have exactly 2 legs:
  * - One limit order
  * - One stop or stop-limit order
- * 
+ *
  * Used for: Setting both take-profit and stop-loss on existing position
  */
 export interface OCOOrderConfig {
@@ -186,9 +181,9 @@ export interface OCOOrderConfig {
 
 /**
  * OTO ORDERS (order_class: "oto")
- * 
+ *
  * One-Triggers-Other: When first order fills, second order activates
- * 
+ *
  * Used for: Entering position then immediately setting protective stop
  */
 export interface OTOOrderConfig {
@@ -209,15 +204,21 @@ export interface OTOOrderConfig {
 const BaseOrderSchema = z.object({
   symbol: z.string().min(1).max(10).toUpperCase(),
   side: OrderSideEnum,
-  client_order_id: z.string().uuid().optional()
+  client_order_id: z.string().uuid().optional(),
 });
 
 /**
  * Quantity specification (either qty OR notional, not both)
  */
 const QuantitySchema = z.union([
-  z.object({ qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number") }),
-  z.object({ notional: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount") })
+  z.object({
+    qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+  }),
+  z.object({
+    notional: z
+      .string()
+      .regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount"),
+  }),
 ]);
 
 /**
@@ -226,7 +227,7 @@ const QuantitySchema = z.union([
 export const MarketOrderSchema = BaseOrderSchema.extend({
   type: z.literal("market"),
   time_in_force: z.enum(["day", "opg", "cls", "ioc", "fok"]),
-  extended_hours: z.literal(false).optional()
+  extended_hours: z.literal(false).optional(),
 }).and(QuantitySchema);
 
 /**
@@ -236,7 +237,7 @@ export const LimitOrderSchema = BaseOrderSchema.extend({
   type: z.literal("limit"),
   time_in_force: TimeInForceEnum,
   limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-  extended_hours: z.boolean().optional()
+  extended_hours: z.boolean().optional(),
 }).and(QuantitySchema);
 
 /**
@@ -247,7 +248,7 @@ export const StopOrderSchema = BaseOrderSchema.extend({
   time_in_force: z.enum(["day", "gtc"]),
   stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z.literal(false).optional()
+  extended_hours: z.literal(false).optional(),
 });
 
 /**
@@ -259,7 +260,7 @@ export const StopLimitOrderSchema = BaseOrderSchema.extend({
   stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
   limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z.boolean().optional()
+  extended_hours: z.boolean().optional(),
 });
 
 /**
@@ -269,11 +270,19 @@ export const TrailingStopOrderSchema = BaseOrderSchema.extend({
   type: z.literal("trailing_stop"),
   time_in_force: z.enum(["day", "gtc"]),
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z.literal(false).optional()
+  extended_hours: z.literal(false).optional(),
 }).and(
   z.union([
-    z.object({ trail_percent: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive percent") }),
-    z.object({ trail_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount") })
+    z.object({
+      trail_percent: z
+        .string()
+        .regex(/^\d+(\.\d+)?$/, "Must be a positive percent"),
+    }),
+    z.object({
+      trail_price: z
+        .string()
+        .regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount"),
+    }),
   ])
 );
 
@@ -285,16 +294,22 @@ export const TrailingStopOrderSchema = BaseOrderSchema.extend({
 export const BracketOrderSchema = BaseOrderSchema.extend({
   order_class: z.literal("bracket"),
   type: z.enum(["market", "limit"]),
-  time_in_force: z.literal("day"),  // FIXED: Must be "day" only - "gtc" causes 422 rejection
+  time_in_force: z.literal("day"), // FIXED: Must be "day" only - "gtc" causes 422 rejection
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  limit_price: z.string().regex(/^\d+(\.\d+)?$/).optional(),
+  limit_price: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/)
+    .optional(),
   take_profit: z.object({
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
+    limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
   }),
   stop_loss: z.object({
     stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/).optional()
-  })
+    limit_price: z
+      .string()
+      .regex(/^\d+(\.\d+)?$/)
+      .optional(),
+  }),
 });
 
 /**
@@ -305,30 +320,45 @@ export const OCOOrderSchema = BaseOrderSchema.extend({
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
   time_in_force: z.enum(["day", "gtc"]),
   take_profit: z.object({
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
+    limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
   }),
   stop_loss: z.object({
     stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/).optional()
-  })
+    limit_price: z
+      .string()
+      .regex(/^\d+(\.\d+)?$/)
+      .optional(),
+  }),
 });
 
 /**
- * OTO Order Schema  
+ * OTO Order Schema
  */
 export const OTOOrderSchema = BaseOrderSchema.extend({
   order_class: z.literal("oto"),
   type: z.enum(["market", "limit"]),
   time_in_force: z.enum(["day", "gtc"]),
   qty: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  limit_price: z.string().regex(/^\d+(\.\d+)?$/).optional(),
-  stop_loss: z.object({
-    stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/).optional()
-  }).optional(),
-  take_profit: z.object({
-    limit_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
-  }).optional()
+  limit_price: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/)
+    .optional(),
+  stop_loss: z
+    .object({
+      stop_price: z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+      limit_price: z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .optional(),
+    })
+    .optional(),
+  take_profit: z
+    .object({
+      limit_price: z
+        .string()
+        .regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+    })
+    .optional(),
 });
 
 /**
@@ -340,18 +370,18 @@ export const SimpleOrderSchema = z.union([
   LimitOrderSchema,
   StopOrderSchema,
   StopLimitOrderSchema,
-  TrailingStopOrderSchema
+  TrailingStopOrderSchema,
 ]);
 
 export const ComplexOrderSchema = z.union([
   BracketOrderSchema,
   OCOOrderSchema,
-  OTOOrderSchema
+  OTOOrderSchema,
 ]);
 
 export const CreateOrderSchema = z.union([
   SimpleOrderSchema,
-  ComplexOrderSchema
+  ComplexOrderSchema,
 ]);
 
 // ============================================================================
@@ -360,7 +390,7 @@ export const CreateOrderSchema = z.union([
 
 /**
  * Order Status Lifecycle:
- * 
+ *
  * new -> pending_new -> accepted -> (partially_filled) -> filled
  *                    -> rejected
  *                    -> pending_cancel -> canceled
@@ -372,21 +402,21 @@ export const CreateOrderSchema = z.union([
  *                    -> done_for_day
  */
 export const OrderStatusEnum = z.enum([
-  "new",              // Order has been received but not yet accepted
-  "pending_new",      // Order is being processed
-  "accepted",         // Order is accepted and live in the market
+  "new", // Order has been received but not yet accepted
+  "pending_new", // Order is being processed
+  "accepted", // Order is accepted and live in the market
   "partially_filled", // Order has been partially filled
-  "filled",           // Order has been completely filled
-  "done_for_day",     // Order is done for the day
-  "canceled",         // Order has been canceled
-  "expired",          // Order has expired
-  "replaced",         // Order has been replaced
-  "pending_cancel",   // Order cancel request is pending
-  "pending_replace",  // Order replace request is pending
-  "stopped",          // Order has been stopped
-  "rejected",         // Order has been rejected
-  "suspended",        // Order has been suspended
-  "calculated"        // Order is being calculated
+  "filled", // Order has been completely filled
+  "done_for_day", // Order is done for the day
+  "canceled", // Order has been canceled
+  "expired", // Order has expired
+  "replaced", // Order has been replaced
+  "pending_cancel", // Order cancel request is pending
+  "pending_replace", // Order replace request is pending
+  "stopped", // Order has been stopped
+  "rejected", // Order has been rejected
+  "suspended", // Order has been suspended
+  "calculated", // Order is being calculated
 ]);
 
 /**
@@ -397,7 +427,7 @@ export const TERMINAL_STATUSES = [
   "canceled",
   "expired",
   "replaced",
-  "rejected"
+  "rejected",
 ] as const;
 
 /**
@@ -409,17 +439,13 @@ export const ACTIVE_STATUSES = [
   "accepted",
   "partially_filled",
   "pending_cancel",
-  "pending_replace"
+  "pending_replace",
 ] as const;
 
 /**
  * Statuses that indicate failed/unexecuted orders
  */
-export const FAILED_STATUSES = [
-  "canceled",
-  "expired",
-  "rejected"
-] as const;
+export const FAILED_STATUSES = ["canceled", "expired", "rejected"] as const;
 
 // ============================================================================
 // VALIDATION HELPER FUNCTIONS
@@ -440,30 +466,30 @@ export function validateOrderTypeCombination(
   extendedHours: boolean = false
 ): ValidationResult {
   const result: ValidationResult = { valid: true, errors: [], warnings: [] };
-  
-  const typeConfig = ORDER_TYPE_MATRIX.find(t => t.orderType === orderType);
+
+  const typeConfig = ORDER_TYPE_MATRIX.find((t) => t.orderType === orderType);
   if (!typeConfig) {
     result.valid = false;
     result.errors.push(`Invalid order type: ${orderType}`);
     return result;
   }
-  
+
   if (!typeConfig.validTimeInForce.includes(timeInForce as any)) {
     result.valid = false;
     result.errors.push(
       `Invalid time_in_force '${timeInForce}' for ${orderType} order. ` +
-      `Valid options: ${typeConfig.validTimeInForce.join(", ")}`
+        `Valid options: ${typeConfig.validTimeInForce.join(", ")}`
     );
   }
-  
+
   if (extendedHours && !typeConfig.supportsExtendedHours) {
     result.valid = false;
     result.errors.push(
       `Extended hours trading not supported for ${orderType} orders. ` +
-      `Use limit or stop_limit orders for extended hours.`
+        `Use limit or stop_limit orders for extended hours.`
     );
   }
-  
+
   return result;
 }
 
@@ -476,21 +502,21 @@ export function validateStopPrice(
   stopPrice: number
 ): ValidationResult {
   const result: ValidationResult = { valid: true, errors: [], warnings: [] };
-  
+
   if (side === "buy" && stopPrice <= currentPrice) {
     result.warnings.push(
       `Buy stop at $${stopPrice} is below current price $${currentPrice}. ` +
-      `This order will trigger immediately as a market order.`
+        `This order will trigger immediately as a market order.`
     );
   }
-  
+
   if (side === "sell" && stopPrice >= currentPrice) {
     result.warnings.push(
       `Sell stop at $${stopPrice} is above current price $${currentPrice}. ` +
-      `This order will trigger immediately as a market order.`
+        `This order will trigger immediately as a market order.`
     );
   }
-  
+
   return result;
 }
 
@@ -503,21 +529,21 @@ export function validateLimitPrice(
   limitPrice: number
 ): ValidationResult {
   const result: ValidationResult = { valid: true, errors: [], warnings: [] };
-  
+
   if (side === "buy" && limitPrice > currentPrice * 1.1) {
     result.warnings.push(
       `Buy limit at $${limitPrice} is significantly above current price $${currentPrice}. ` +
-      `This order will likely fill immediately at a worse price.`
+        `This order will likely fill immediately at a worse price.`
     );
   }
-  
+
   if (side === "sell" && limitPrice < currentPrice * 0.9) {
     result.warnings.push(
       `Sell limit at $${limitPrice} is significantly below current price $${currentPrice}. ` +
-      `This order will likely fill immediately at a worse price.`
+        `This order will likely fill immediately at a worse price.`
     );
   }
-  
+
   return result;
 }
 
@@ -531,7 +557,7 @@ export function validateBracketOrder(
   stopLossPrice: number
 ): ValidationResult {
   const result: ValidationResult = { valid: true, errors: [], warnings: [] };
-  
+
   if (side === "buy") {
     if (takeProfitPrice <= entryPrice) {
       result.valid = false;
@@ -559,7 +585,7 @@ export function validateBracketOrder(
       );
     }
   }
-  
+
   return result;
 }
 
@@ -571,35 +597,45 @@ export function validateTrailingStop(
   trailPrice?: number
 ): ValidationResult {
   const result: ValidationResult = { valid: true, errors: [], warnings: [] };
-  
+
   if (trailPercent !== undefined && trailPrice !== undefined) {
     result.valid = false;
-    result.errors.push("Cannot specify both trail_percent and trail_price. Choose one.");
+    result.errors.push(
+      "Cannot specify both trail_percent and trail_price. Choose one."
+    );
   }
-  
+
   if (trailPercent === undefined && trailPrice === undefined) {
     result.valid = false;
-    result.errors.push("Must specify either trail_percent or trail_price for trailing stop orders.");
+    result.errors.push(
+      "Must specify either trail_percent or trail_price for trailing stop orders."
+    );
   }
-  
+
   if (trailPercent !== undefined) {
     if (trailPercent <= 0 || trailPercent > 100) {
       result.valid = false;
-      result.errors.push(`Trail percent must be between 0 and 100, got ${trailPercent}`);
+      result.errors.push(
+        `Trail percent must be between 0 and 100, got ${trailPercent}`
+      );
     }
     if (trailPercent < 0.5) {
-      result.warnings.push("Trail percent below 0.5% may trigger too frequently");
+      result.warnings.push(
+        "Trail percent below 0.5% may trigger too frequently"
+      );
     }
     if (trailPercent > 10) {
-      result.warnings.push("Trail percent above 10% may not provide adequate protection");
+      result.warnings.push(
+        "Trail percent above 10% may not provide adequate protection"
+      );
     }
   }
-  
+
   if (trailPrice !== undefined && trailPrice <= 0) {
     result.valid = false;
     result.errors.push(`Trail price must be positive, got ${trailPrice}`);
   }
-  
+
   return result;
 }
 
@@ -621,7 +657,9 @@ export type MarketSession = "pre_market" | "regular" | "after_hours" | "closed";
  */
 export function getMarketSession(date: Date = new Date()): MarketSession {
   // Convert to Eastern Time
-  const etTime = new Date(date.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const etTime = new Date(
+    date.toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
   const day = etTime.getDay();
   const hours = etTime.getHours();
   const minutes = etTime.getMinutes();
@@ -645,13 +683,16 @@ export function getMarketSession(date: Date = new Date()): MarketSession {
 /**
  * Order types allowed during each session
  */
-export const SESSION_ORDER_RULES: Record<MarketSession, {
-  allowedOrderTypes: string[];
-  allowedTIF: string[];
-  fractionalAllowed: boolean;
-  cryptoAllowed: boolean;
-  notes: string[];
-}> = {
+export const SESSION_ORDER_RULES: Record<
+  MarketSession,
+  {
+    allowedOrderTypes: string[];
+    allowedTIF: string[];
+    fractionalAllowed: boolean;
+    cryptoAllowed: boolean;
+    notes: string[];
+  }
+> = {
   pre_market: {
     allowedOrderTypes: ["limit", "stop_limit"],
     allowedTIF: ["day"],
@@ -660,19 +701,25 @@ export const SESSION_ORDER_RULES: Record<MarketSession, {
     notes: [
       "Only limit and stop_limit orders during pre-market",
       "Must use time_in_force: 'day' with extended_hours: true",
-      "No fractional shares during extended hours"
-    ]
+      "No fractional shares during extended hours",
+    ],
   },
   regular: {
-    allowedOrderTypes: ["market", "limit", "stop", "stop_limit", "trailing_stop"],
+    allowedOrderTypes: [
+      "market",
+      "limit",
+      "stop",
+      "stop_limit",
+      "trailing_stop",
+    ],
     allowedTIF: ["day", "gtc", "ioc", "fok", "opg", "cls"],
     fractionalAllowed: true,
     cryptoAllowed: true,
     notes: [
       "All order types available during regular market hours",
       "Market orders cannot use GTC time_in_force",
-      "Bracket orders must use time_in_force: 'day'"
-    ]
+      "Bracket orders must use time_in_force: 'day'",
+    ],
   },
   after_hours: {
     allowedOrderTypes: ["limit", "stop_limit"],
@@ -682,8 +729,8 @@ export const SESSION_ORDER_RULES: Record<MarketSession, {
     notes: [
       "Only limit and stop_limit orders during after-hours",
       "Must use time_in_force: 'day' with extended_hours: true",
-      "No fractional shares during extended hours"
-    ]
+      "No fractional shares during extended hours",
+    ],
   },
   closed: {
     allowedOrderTypes: [],
@@ -692,9 +739,9 @@ export const SESSION_ORDER_RULES: Record<MarketSession, {
     cryptoAllowed: true, // Crypto trades 24/7
     notes: [
       "Market is closed - equity orders will queue for next open",
-      "Crypto can still trade 24/7"
-    ]
-  }
+      "Crypto can still trade 24/7",
+    ],
+  },
 };
 
 /**
@@ -718,20 +765,28 @@ export function validateOrderForMarketHours(params: {
     // Market orders for crypto cannot use GTC
     if (params.orderType === "market" && params.timeInForce === "gtc") {
       result.valid = false;
-      result.errors.push("Market orders cannot use GTC time_in_force. Use 'day' instead.");
+      result.errors.push(
+        "Market orders cannot use GTC time_in_force. Use 'day' instead."
+      );
     }
     // No fractional crypto during low liquidity periods
     if (session === "closed" && params.isFractional) {
-      result.warnings.push("Fractional crypto orders may have lower liquidity outside market hours");
+      result.warnings.push(
+        "Fractional crypto orders may have lower liquidity outside market hours"
+      );
     }
     return result;
   }
 
   // Market closed - queue for next open
   if (session === "closed") {
-    result.warnings.push("Market is closed. Order will queue for next market open.");
+    result.warnings.push(
+      "Market is closed. Order will queue for next market open."
+    );
     if (params.orderType === "market") {
-      result.warnings.push("Market orders placed while closed will execute at next day's open price.");
+      result.warnings.push(
+        "Market orders placed while closed will execute at next day's open price."
+      );
     }
     return result;
   }
@@ -742,11 +797,14 @@ export function validateOrderForMarketHours(params: {
       result.valid = false;
       result.errors.push(
         `${params.orderType} orders not allowed during ${session.replace("_", " ")}. ` +
-        `Use: ${rules.allowedOrderTypes.join(", ")}`
+          `Use: ${rules.allowedOrderTypes.join(", ")}`
       );
     }
 
-    if (!params.extendedHours && (params.orderType === "limit" || params.orderType === "stop_limit")) {
+    if (
+      !params.extendedHours &&
+      (params.orderType === "limit" || params.orderType === "stop_limit")
+    ) {
       result.warnings.push(
         "Set extended_hours: true to execute during extended hours, otherwise order waits for regular hours"
       );
@@ -754,7 +812,9 @@ export function validateOrderForMarketHours(params: {
 
     if (params.isFractional) {
       result.valid = false;
-      result.errors.push("Fractional shares not allowed during extended hours. Use whole share quantities.");
+      result.errors.push(
+        "Fractional shares not allowed during extended hours. Use whole share quantities."
+      );
     }
   }
 
@@ -762,11 +822,15 @@ export function validateOrderForMarketHours(params: {
   if (params.isBracketOrder) {
     if (params.timeInForce !== "day") {
       result.valid = false;
-      result.errors.push("Bracket orders MUST use time_in_force: 'day'. GTC is not supported by Alpaca.");
+      result.errors.push(
+        "Bracket orders MUST use time_in_force: 'day'. GTC is not supported by Alpaca."
+      );
     }
     if (session !== "regular") {
       result.valid = false;
-      result.errors.push("Bracket orders only allowed during regular market hours (9:30 AM - 4:00 PM ET)");
+      result.errors.push(
+        "Bracket orders only allowed during regular market hours (9:30 AM - 4:00 PM ET)"
+      );
     }
   }
 
@@ -777,18 +841,23 @@ export function validateOrderForMarketHours(params: {
       result.valid = false;
       result.errors.push(
         `Market orders cannot use ${params.timeInForce} time_in_force. ` +
-        `Valid options: ${validMarketTIF.join(", ")}`
+          `Valid options: ${validMarketTIF.join(", ")}`
       );
     }
   }
 
   // General TIF validation
-  const typeConfig = ORDER_TYPE_MATRIX.find(t => t.orderType === params.orderType);
-  if (typeConfig && !typeConfig.validTimeInForce.includes(params.timeInForce as any)) {
+  const typeConfig = ORDER_TYPE_MATRIX.find(
+    (t) => t.orderType === params.orderType
+  );
+  if (
+    typeConfig &&
+    !typeConfig.validTimeInForce.includes(params.timeInForce as any)
+  ) {
     result.valid = false;
     result.errors.push(
       `Invalid time_in_force '${params.timeInForce}' for ${params.orderType} order. ` +
-      `Valid options: ${typeConfig.validTimeInForce.join(", ")}`
+        `Valid options: ${typeConfig.validTimeInForce.join(", ")}`
     );
   }
 
@@ -815,19 +884,28 @@ export function normalizeOrderParams(params: {
   // Fix market order GTC -> day
   if (corrected.orderType === "market" && corrected.timeInForce === "gtc") {
     corrected.timeInForce = "day";
-    corrections.push("Changed market order TIF from 'gtc' to 'day' (market orders cannot use GTC)");
+    corrections.push(
+      "Changed market order TIF from 'gtc' to 'day' (market orders cannot use GTC)"
+    );
   }
 
   // Fix bracket order GTC -> day
   if (corrected.isBracketOrder && corrected.timeInForce === "gtc") {
     corrected.timeInForce = "day";
-    corrections.push("Changed bracket order TIF from 'gtc' to 'day' (bracket orders require 'day')");
+    corrections.push(
+      "Changed bracket order TIF from 'gtc' to 'day' (bracket orders require 'day')"
+    );
   }
 
   // Disable extended hours for non-limit orders
-  if (corrected.extendedHours && !["limit", "stop_limit"].includes(corrected.orderType)) {
+  if (
+    corrected.extendedHours &&
+    !["limit", "stop_limit"].includes(corrected.orderType)
+  ) {
     corrected.extendedHours = false;
-    corrections.push(`Disabled extended_hours for ${corrected.orderType} order (only limit/stop_limit supported)`);
+    corrections.push(
+      `Disabled extended_hours for ${corrected.orderType} order (only limit/stop_limit supported)`
+    );
   }
 
   return { corrected, corrections };

@@ -99,7 +99,9 @@ router.post("/sync", async (req: Request, res: Response) => {
 router.post("/sync-now", async (req: Request, res: Response) => {
   try {
     const { assetClass } = req.body;
-    const result = await tradabilityService.syncAssetUniverse(assetClass || "us_equity");
+    const result = await tradabilityService.syncAssetUniverse(
+      assetClass || "us_equity"
+    );
     tradabilityService.clearMemoryCache();
     res.json(result);
   } catch (error) {
@@ -114,7 +116,10 @@ router.get("/candidates", async (req: Request, res: Response) => {
     const { status, limit } = req.query;
 
     let candidates;
-    if (status && ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)) {
+    if (
+      status &&
+      ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)
+    ) {
       candidates = await candidatesService.getCandidatesByStatus(
         status as "NEW" | "WATCHLIST" | "APPROVED" | "REJECTED",
         limit ? parseInt(limit as string) : 50
@@ -135,15 +140,18 @@ router.get("/candidates", async (req: Request, res: Response) => {
 // GET /api/watchlist - Get watchlist candidates
 router.get("/watchlist", async (req: Request, res: Response) => {
   try {
-    const candidates = await candidatesService.getCandidatesByStatus("WATCHLIST", 100);
+    const candidates = await candidatesService.getCandidatesByStatus(
+      "WATCHLIST",
+      100
+    );
     res.json({
-      watchlist: candidates.map(c => ({
+      watchlist: candidates.map((c) => ({
         symbol: c.symbol,
         tier: c.tier,
         score: c.finalScore,
         addedAt: c.createdAt,
       })),
-      count: candidates.length
+      count: candidates.length,
     });
   } catch (error) {
     log.error("UniverseAPI", "Failed to get watchlist", { error });

@@ -2,11 +2,11 @@ import { AdminSidebar } from "@/components/layout/admin-sidebar";
 
 export const metadata = {
   title: "Admin Hub - AlphaFlow",
-  description: "Admin control plane for AlphaFlow trading platform"
+  description: "Admin control plane for AlphaFlow trading platform",
 };
 
 export default function AdminLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {

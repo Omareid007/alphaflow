@@ -1,22 +1,28 @@
-import { adminSupabase } from '../supabase';
-import { encrypt, decrypt } from '../encryption';
+import { adminSupabase } from "../supabase";
+import { encrypt, decrypt } from "../encryption";
 import {
   Provider,
   Credential,
   Budget,
   ConnectionTestResult,
-  UsageMetrics
-} from '../types';
+  UsageMetrics,
+} from "../types";
 
 export interface IProviderService {
   listProviders(): Promise<Provider[]>;
   getProvider(id: string): Promise<Provider | null>;
-  createProvider(data: Omit<Provider, 'id' | 'createdAt' | 'updated At'>): Promise<Provider>;
+  createProvider(
+    data: Omit<Provider, "id" | "createdAt" | "updated At">
+  ): Promise<Provider>;
   updateProvider(id: string, data: Partial<Provider>): Promise<Provider>;
   deleteProvider(id: string): Promise<void>;
   testConnection(id: string): Promise<ConnectionTestResult>;
   listCredentials(providerId: string): Promise<Credential[]>;
-  addCredential(providerId: string, kind: string, value: string): Promise<Credential>;
+  addCredential(
+    providerId: string,
+    kind: string,
+    value: string
+  ): Promise<Credential>;
   rotateCredential(id: string, newValue: string): Promise<Credential>;
   revokeCredential(id: string): Promise<void>;
   getBudget(providerId: string): Promise<Budget | null>;
@@ -28,9 +34,9 @@ class ProviderService implements IProviderService {
   async listProviders(): Promise<Provider[]> {
     if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
-      .from('providers')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("providers")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
     return (data || []).map(this.mapProvider);
@@ -39,38 +45,44 @@ class ProviderService implements IProviderService {
   async getProvider(id: string): Promise<Provider | null> {
     if (!adminSupabase) return null;
     const { data, error } = await adminSupabase
-      .from('providers')
-      .select('*')
-      .eq('id', id)
+      .from("providers")
+      .select("*")
+      .eq("id", id)
       .maybeSingle();
 
     if (error) throw error;
     return data ? this.mapProvider(data) : null;
   }
 
-  async createProvider(input: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async createProvider(
+    input: Omit<Provider, "id" | "createdAt" | "updatedAt">
+  ): Promise<Provider> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const { data, error } = await adminSupabase
-      .from('providers')
+      .from("providers")
       .insert({
         type: input.type,
         name: input.name,
         base_url: input.baseUrl,
         api_version: input.apiVersion,
         auth_method: input.authMethod,
-        status: input.status || 'active',
+        status: input.status || "active",
         rate_limit_requests: input.rateLimitRequests || 100,
         rate_limit_window_seconds: input.rateLimitWindowSeconds || 60,
         rate_limit_per_key: input.rateLimitPerKey || false,
-        retry_enabled: input.retryEnabled !== undefined ? input.retryEnabled : true,
+        retry_enabled:
+          input.retryEnabled !== undefined ? input.retryEnabled : true,
         retry_max_attempts: input.retryMaxAttempts || 3,
         retry_backoff_ms: input.retryBackoffMs || 1000,
         retry_backoff_multiplier: input.retryBackoffMultiplier || 2.0,
         timeout_connect_ms: input.timeoutConnectMs || 5000,
         timeout_request_ms: input.timeoutRequestMs || 30000,
         timeout_total_ms: input.timeoutTotalMs || 60000,
-        health_check_enabled: input.healthCheckEnabled !== undefined ? input.healthCheckEnabled : true,
-        health_check_endpoint: input.healthCheckEndpoint || '/health',
+        health_check_enabled:
+          input.healthCheckEnabled !== undefined
+            ? input.healthCheckEnabled
+            : true,
+        health_check_endpoint: input.healthCheckEndpoint || "/health",
         health_check_interval_seconds: input.healthCheckIntervalSeconds || 300,
         health_check_timeout_ms: input.healthCheckTimeoutMs || 5000,
         connection_pool_size: input.connectionPoolSize || 10,
@@ -78,11 +90,11 @@ class ProviderService implements IProviderService {
         webhook_url: input.webhookUrl,
         webhook_secret: input.webhookSecret,
         webhook_events: input.webhookEvents || [],
-        request_format: input.requestFormat || 'json',
-        response_format: input.responseFormat || 'json',
+        request_format: input.requestFormat || "json",
+        response_format: input.responseFormat || "json",
         custom_headers: input.customHeaders || {},
         tags: input.tags || [],
-        metadata: input.metadata || {}
+        metadata: input.metadata || {},
       })
       .select()
       .single();
@@ -91,33 +103,56 @@ class ProviderService implements IProviderService {
     return this.mapProvider(data);
   }
 
-  async updateProvider(id: string, input: Partial<Provider>): Promise<Provider> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async updateProvider(
+    id: string,
+    input: Partial<Provider>
+  ): Promise<Provider> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const updateData: any = { updated_at: new Date().toISOString() };
 
     if (input.name) updateData.name = input.name;
     if (input.baseUrl !== undefined) updateData.base_url = input.baseUrl;
-    if (input.apiVersion !== undefined) updateData.api_version = input.apiVersion;
+    if (input.apiVersion !== undefined)
+      updateData.api_version = input.apiVersion;
     if (input.authMethod) updateData.auth_method = input.authMethod;
     if (input.status) updateData.status = input.status;
-    if (input.rateLimitRequests !== undefined) updateData.rate_limit_requests = input.rateLimitRequests;
-    if (input.rateLimitWindowSeconds !== undefined) updateData.rate_limit_window_seconds = input.rateLimitWindowSeconds;
-    if (input.rateLimitPerKey !== undefined) updateData.rate_limit_per_key = input.rateLimitPerKey;
-    if (input.retryEnabled !== undefined) updateData.retry_enabled = input.retryEnabled;
-    if (input.retryMaxAttempts !== undefined) updateData.retry_max_attempts = input.retryMaxAttempts;
-    if (input.retryBackoffMs !== undefined) updateData.retry_backoff_ms = input.retryBackoffMs;
-    if (input.retryBackoffMultiplier !== undefined) updateData.retry_backoff_multiplier = input.retryBackoffMultiplier;
-    if (input.timeoutConnectMs !== undefined) updateData.timeout_connect_ms = input.timeoutConnectMs;
-    if (input.timeoutRequestMs !== undefined) updateData.timeout_request_ms = input.timeoutRequestMs;
-    if (input.timeoutTotalMs !== undefined) updateData.timeout_total_ms = input.timeoutTotalMs;
-    if (input.healthCheckEnabled !== undefined) updateData.health_check_enabled = input.healthCheckEnabled;
-    if (input.healthCheckEndpoint !== undefined) updateData.health_check_endpoint = input.healthCheckEndpoint;
-    if (input.healthCheckIntervalSeconds !== undefined) updateData.health_check_interval_seconds = input.healthCheckIntervalSeconds;
-    if (input.healthCheckTimeoutMs !== undefined) updateData.health_check_timeout_ms = input.healthCheckTimeoutMs;
-    if (input.connectionPoolSize !== undefined) updateData.connection_pool_size = input.connectionPoolSize;
-    if (input.connectionPoolTimeoutMs !== undefined) updateData.connection_pool_timeout_ms = input.connectionPoolTimeoutMs;
-    if (input.webhookUrl !== undefined) updateData.webhook_url = input.webhookUrl;
-    if (input.webhookSecret !== undefined) updateData.webhook_secret = input.webhookSecret;
+    if (input.rateLimitRequests !== undefined)
+      updateData.rate_limit_requests = input.rateLimitRequests;
+    if (input.rateLimitWindowSeconds !== undefined)
+      updateData.rate_limit_window_seconds = input.rateLimitWindowSeconds;
+    if (input.rateLimitPerKey !== undefined)
+      updateData.rate_limit_per_key = input.rateLimitPerKey;
+    if (input.retryEnabled !== undefined)
+      updateData.retry_enabled = input.retryEnabled;
+    if (input.retryMaxAttempts !== undefined)
+      updateData.retry_max_attempts = input.retryMaxAttempts;
+    if (input.retryBackoffMs !== undefined)
+      updateData.retry_backoff_ms = input.retryBackoffMs;
+    if (input.retryBackoffMultiplier !== undefined)
+      updateData.retry_backoff_multiplier = input.retryBackoffMultiplier;
+    if (input.timeoutConnectMs !== undefined)
+      updateData.timeout_connect_ms = input.timeoutConnectMs;
+    if (input.timeoutRequestMs !== undefined)
+      updateData.timeout_request_ms = input.timeoutRequestMs;
+    if (input.timeoutTotalMs !== undefined)
+      updateData.timeout_total_ms = input.timeoutTotalMs;
+    if (input.healthCheckEnabled !== undefined)
+      updateData.health_check_enabled = input.healthCheckEnabled;
+    if (input.healthCheckEndpoint !== undefined)
+      updateData.health_check_endpoint = input.healthCheckEndpoint;
+    if (input.healthCheckIntervalSeconds !== undefined)
+      updateData.health_check_interval_seconds =
+        input.healthCheckIntervalSeconds;
+    if (input.healthCheckTimeoutMs !== undefined)
+      updateData.health_check_timeout_ms = input.healthCheckTimeoutMs;
+    if (input.connectionPoolSize !== undefined)
+      updateData.connection_pool_size = input.connectionPoolSize;
+    if (input.connectionPoolTimeoutMs !== undefined)
+      updateData.connection_pool_timeout_ms = input.connectionPoolTimeoutMs;
+    if (input.webhookUrl !== undefined)
+      updateData.webhook_url = input.webhookUrl;
+    if (input.webhookSecret !== undefined)
+      updateData.webhook_secret = input.webhookSecret;
     if (input.webhookEvents) updateData.webhook_events = input.webhookEvents;
     if (input.requestFormat) updateData.request_format = input.requestFormat;
     if (input.responseFormat) updateData.response_format = input.responseFormat;
@@ -126,9 +161,9 @@ class ProviderService implements IProviderService {
     if (input.metadata) updateData.metadata = input.metadata;
 
     const { data, error } = await adminSupabase
-      .from('providers')
+      .from("providers")
       .update(updateData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -137,56 +172,68 @@ class ProviderService implements IProviderService {
   }
 
   async deleteProvider(id: string): Promise<void> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const { error } = await adminSupabase
-      .from('providers')
+      .from("providers")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
 
   async testConnection(id: string): Promise<ConnectionTestResult> {
-    if (!adminSupabase) return { success: false, latency: 0, error: 'Database not configured', timestamp: new Date().toISOString() };
+    if (!adminSupabase)
+      return {
+        success: false,
+        latency: 0,
+        error: "Database not configured",
+        timestamp: new Date().toISOString(),
+      };
     const provider = await this.getProvider(id);
-    if (!provider) throw new Error('Provider not found');
+    if (!provider) throw new Error("Provider not found");
 
     const start = Date.now();
     const latency = Math.random() * 200 + 50;
     const success = Math.random() > 0.1;
 
-    await new Promise(r => setTimeout(r, latency));
+    await new Promise((r) => setTimeout(r, latency));
 
     return {
       success,
       latency: Math.round(latency),
-      error: success ? undefined : 'Connection timeout or authentication failed',
-      timestamp: new Date().toISOString()
+      error: success
+        ? undefined
+        : "Connection timeout or authentication failed",
+      timestamp: new Date().toISOString(),
     };
   }
 
   async listCredentials(providerId: string): Promise<Credential[]> {
     if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
-      .from('provider_credentials')
-      .select('*')
-      .eq('provider_id', providerId);
+      .from("provider_credentials")
+      .select("*")
+      .eq("provider_id", providerId);
 
     if (error) throw error;
     return (data || []).map(this.mapCredential);
   }
 
-  async addCredential(providerId: string, kind: string, value: string): Promise<Credential> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async addCredential(
+    providerId: string,
+    kind: string,
+    value: string
+  ): Promise<Credential> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const encrypted = encrypt(value);
 
     const { data, error } = await adminSupabase
-      .from('provider_credentials')
+      .from("provider_credentials")
       .insert({
         provider_id: providerId,
         kind,
         encrypted_value: encrypted,
-        last_rotated_at: new Date().toISOString()
+        last_rotated_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -196,16 +243,16 @@ class ProviderService implements IProviderService {
   }
 
   async rotateCredential(id: string, newValue: string): Promise<Credential> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const encrypted = encrypt(newValue);
 
     const { data, error } = await adminSupabase
-      .from('provider_credentials')
+      .from("provider_credentials")
       .update({
         encrypted_value: encrypted,
-        last_rotated_at: new Date().toISOString()
+        last_rotated_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -214,11 +261,11 @@ class ProviderService implements IProviderService {
   }
 
   async revokeCredential(id: string): Promise<void> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const { error } = await adminSupabase
-      .from('provider_credentials')
+      .from("provider_credentials")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
@@ -226,30 +273,37 @@ class ProviderService implements IProviderService {
   async getBudget(providerId: string): Promise<Budget | null> {
     if (!adminSupabase) return null;
     const { data, error } = await adminSupabase
-      .from('provider_budgets')
-      .select('*')
-      .eq('provider_id', providerId)
+      .from("provider_budgets")
+      .select("*")
+      .eq("provider_id", providerId)
       .maybeSingle();
 
     if (error) throw error;
     return data ? this.mapBudget(data) : null;
   }
 
-  async updateBudget(providerId: string, input: Partial<Budget>): Promise<Budget> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async updateBudget(
+    providerId: string,
+    input: Partial<Budget>
+  ): Promise<Budget> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const existing = await this.getBudget(providerId);
 
     if (existing) {
       const { data, error } = await adminSupabase
-        .from('provider_budgets')
+        .from("provider_budgets")
         .update({
-          ...(input.dailyLimit !== undefined && { daily_limit: input.dailyLimit }),
-          ...(input.monthlyLimit !== undefined && { monthly_limit: input.monthlyLimit }),
+          ...(input.dailyLimit !== undefined && {
+            daily_limit: input.dailyLimit,
+          }),
+          ...(input.monthlyLimit !== undefined && {
+            monthly_limit: input.monthlyLimit,
+          }),
           ...(input.softLimit !== undefined && { soft_limit: input.softLimit }),
           ...(input.hardLimit !== undefined && { hard_limit: input.hardLimit }),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('provider_id', providerId)
+        .eq("provider_id", providerId)
         .select()
         .single();
 
@@ -257,13 +311,13 @@ class ProviderService implements IProviderService {
       return this.mapBudget(data);
     } else {
       const { data, error } = await adminSupabase
-        .from('provider_budgets')
+        .from("provider_budgets")
         .insert({
           provider_id: providerId,
           daily_limit: input.dailyLimit || 0,
           monthly_limit: input.monthlyLimit || 0,
           soft_limit: input.softLimit || 0,
-          hard_limit: input.hardLimit || 0
+          hard_limit: input.hardLimit || 0,
         })
         .select()
         .single();
@@ -273,7 +327,10 @@ class ProviderService implements IProviderService {
     }
   }
 
-  async getUsageMetrics(providerId: string, days: number): Promise<UsageMetrics[]> {
+  async getUsageMetrics(
+    providerId: string,
+    days: number
+  ): Promise<UsageMetrics[]> {
     if (!adminSupabase) return [];
     const metrics: UsageMetrics[] = [];
     const budget = await this.getBudget(providerId);
@@ -281,12 +338,13 @@ class ProviderService implements IProviderService {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dailyUsage = i === 0 ? (budget?.usageToday || 0) : Math.random() * 1000;
+      const dailyUsage =
+        i === 0 ? budget?.usageToday || 0 : Math.random() * 1000;
 
       metrics.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toISOString().split("T")[0],
         amount: Math.round(dailyUsage * 100) / 100,
-        requests: Math.floor(Math.random() * 500) + 100
+        requests: Math.floor(Math.random() * 500) + 100,
       });
     }
 
@@ -328,7 +386,7 @@ class ProviderService implements IProviderService {
       metadata: row.metadata || {},
       lastHealthCheck: row.last_health_check,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
@@ -339,7 +397,7 @@ class ProviderService implements IProviderService {
       kind: row.kind,
       encryptedValue: row.encrypted_value,
       lastRotatedAt: row.last_rotated_at,
-      createdAt: row.created_at
+      createdAt: row.created_at,
     };
   }
 
@@ -354,7 +412,7 @@ class ProviderService implements IProviderService {
       usageToday: Number(row.usage_today),
       usageMonth: Number(row.usage_month),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 }

@@ -44,12 +44,12 @@ function updateMetric(metric: LatencyMetric, durationMs: number): void {
   metric.totalMs += durationMs;
   metric.minMs = Math.min(metric.minMs, durationMs);
   metric.maxMs = Math.max(metric.maxMs, durationMs);
-  
+
   metric.samples.push(durationMs);
   if (metric.samples.length > MAX_SAMPLES) {
     metric.samples.shift();
   }
-  
+
   metric.p50Ms = calculatePercentile(metric.samples, 50);
   metric.p95Ms = calculatePercentile(metric.samples, 95);
   metric.p99Ms = calculatePercentile(metric.samples, 99);
@@ -63,7 +63,7 @@ class PerformanceTracker {
     databaseQuery: createEmptyMetric(),
     apiCall: createEmptyMetric(),
   };
-  
+
   private startTimes: Map<string, number> = new Map();
 
   startTimer(operationId: string): void {
@@ -73,15 +73,18 @@ class PerformanceTracker {
   endTimer(operationId: string, metricType: keyof PerformanceMetrics): number {
     const startTime = this.startTimes.get(operationId);
     if (!startTime) return 0;
-    
+
     const durationMs = Date.now() - startTime;
     this.startTimes.delete(operationId);
-    
+
     updateMetric(this.metrics[metricType], durationMs);
     return durationMs;
   }
 
-  recordLatency(metricType: keyof PerformanceMetrics, durationMs: number): void {
+  recordLatency(
+    metricType: keyof PerformanceMetrics,
+    durationMs: number
+  ): void {
     updateMetric(this.metrics[metricType], durationMs);
   }
 

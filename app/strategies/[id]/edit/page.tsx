@@ -42,7 +42,10 @@ export default function EditStrategyPage() {
           Modify configuration and run new backtests
         </p>
       </div>
-      <StrategyWizard existingStrategy={strategy as any} existingBacktest={backtest as any} />
+      <StrategyWizard
+        existingStrategy={strategy as any}
+        existingBacktest={backtest as any}
+      />
     </div>
   );
 }

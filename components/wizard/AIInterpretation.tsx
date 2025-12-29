@@ -2,11 +2,7 @@
 
 import { Interpretation } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import {
-  AlertTriangle,
-  CheckCircle,
-  Lightbulb
-} from "lucide-react";
+import { AlertTriangle, CheckCircle, Lightbulb } from "lucide-react";
 
 interface AIInterpretationProps {
   interpretation: Interpretation | string | undefined;
@@ -14,7 +10,9 @@ interface AIInterpretationProps {
 }
 
 // Normalize interpretation to expected format
-function normalizeInterpretation(input: Interpretation | string | undefined): Interpretation {
+function normalizeInterpretation(
+  input: Interpretation | string | undefined
+): Interpretation {
   if (!input) {
     return {
       summary: "Backtest completed. No AI interpretation available.",
@@ -24,7 +22,7 @@ function normalizeInterpretation(input: Interpretation | string | undefined): In
     };
   }
 
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     return {
       summary: input,
       strengths: [],
@@ -41,7 +39,10 @@ function normalizeInterpretation(input: Interpretation | string | undefined): In
   };
 }
 
-export function AIInterpretation({ interpretation: rawInterpretation, onApplySuggestions }: AIInterpretationProps) {
+export function AIInterpretation({
+  interpretation: rawInterpretation,
+  onApplySuggestions,
+}: AIInterpretationProps) {
   const interpretation = normalizeInterpretation(rawInterpretation);
 
   return (
@@ -94,16 +95,27 @@ export function AIInterpretation({ interpretation: rawInterpretation, onApplySug
                 </div>
                 <div>
                   <p className="text-muted-foreground">
-                    Change <span className="font-medium text-foreground">{edit.fieldKey}</span>{" "}
+                    Change{" "}
+                    <span className="font-medium text-foreground">
+                      {edit.fieldKey}
+                    </span>{" "}
                     from {String(edit.currentValue)} to{" "}
-                    <span className="font-medium text-primary">{String(edit.suggestedValue)}</span>
+                    <span className="font-medium text-primary">
+                      {String(edit.suggestedValue)}
+                    </span>
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{edit.rationale}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {edit.rationale}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
-          <Button className="mt-4" variant="outline" onClick={onApplySuggestions}>
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={onApplySuggestions}
+          >
             Apply Suggestions
           </Button>
         </div>

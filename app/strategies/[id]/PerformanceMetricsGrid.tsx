@@ -6,7 +6,9 @@ interface PerformanceMetricsGridProps {
   performanceSummary: Strategy["performanceSummary"];
 }
 
-export function PerformanceMetricsGrid({ performanceSummary }: PerformanceMetricsGridProps) {
+export function PerformanceMetricsGrid({
+  performanceSummary,
+}: PerformanceMetricsGridProps) {
   if (!performanceSummary) return null;
 
   const totalReturn = performanceSummary.totalReturn ?? 0;
@@ -49,9 +51,7 @@ export function PerformanceMetricsGrid({ performanceSummary }: PerformanceMetric
       <Card>
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">Win Rate</p>
-          <p className="mt-1 text-2xl font-semibold">
-            {winRate.toFixed(0)}%
-          </p>
+          <p className="mt-1 text-2xl font-semibold">{winRate.toFixed(0)}%</p>
         </CardContent>
       </Card>
     </div>

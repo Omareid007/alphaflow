@@ -39,106 +39,106 @@ const DEFAULT_MAX_SECTOR_WEIGHT_PCT = 25;
 // Sector mapping for symbols without fundamentals data
 const KNOWN_SECTOR_MAP: Record<string, string> = {
   // ETFs
-  "SPY": "ETF",
-  "QQQM": "ETF",
-  "QQQ": "ETF",
-  "IWM": "ETF",
-  "DIA": "ETF",
+  SPY: "ETF",
+  QQQM: "ETF",
+  QQQ: "ETF",
+  IWM: "ETF",
+  DIA: "ETF",
 
   // Technology
-  "AAPL": "Technology",
-  "MSFT": "Technology",
-  "GOOGL": "Technology",
-  "GOOG": "Technology",
-  "AMZN": "Technology",
-  "NVDA": "Technology",
-  "META": "Technology",
-  "TSLA": "Technology",
-  "AVGO": "Technology",
-  "ORCL": "Technology",
-  "CRM": "Technology",
-  "AMD": "Technology",
-  "INTC": "Technology",
-  "IBM": "Technology",
-  "CSCO": "Technology",
-  "ADBE": "Technology",
-  "NFLX": "Technology",
-  "PYPL": "Technology",
-  "NOW": "Technology",
-  "UBER": "Technology",
+  AAPL: "Technology",
+  MSFT: "Technology",
+  GOOGL: "Technology",
+  GOOG: "Technology",
+  AMZN: "Technology",
+  NVDA: "Technology",
+  META: "Technology",
+  TSLA: "Technology",
+  AVGO: "Technology",
+  ORCL: "Technology",
+  CRM: "Technology",
+  AMD: "Technology",
+  INTC: "Technology",
+  IBM: "Technology",
+  CSCO: "Technology",
+  ADBE: "Technology",
+  NFLX: "Technology",
+  PYPL: "Technology",
+  NOW: "Technology",
+  UBER: "Technology",
 
   // Financials
-  "JPM": "Financials",
-  "V": "Financials",
-  "MA": "Financials",
-  "BAC": "Financials",
-  "WFC": "Financials",
-  "GS": "Financials",
-  "MS": "Financials",
-  "BLK": "Financials",
-  "SCHW": "Financials",
-  "AXP": "Financials",
+  JPM: "Financials",
+  V: "Financials",
+  MA: "Financials",
+  BAC: "Financials",
+  WFC: "Financials",
+  GS: "Financials",
+  MS: "Financials",
+  BLK: "Financials",
+  SCHW: "Financials",
+  AXP: "Financials",
 
   // Healthcare
-  "UNH": "Healthcare",
-  "JNJ": "Healthcare",
-  "LLY": "Healthcare",
-  "PFE": "Healthcare",
-  "ABBV": "Healthcare",
-  "MRK": "Healthcare",
-  "TMO": "Healthcare",
-  "ABT": "Healthcare",
+  UNH: "Healthcare",
+  JNJ: "Healthcare",
+  LLY: "Healthcare",
+  PFE: "Healthcare",
+  ABBV: "Healthcare",
+  MRK: "Healthcare",
+  TMO: "Healthcare",
+  ABT: "Healthcare",
 
   // Consumer Discretionary
-  "HD": "Consumer Discretionary",
-  "NKE": "Consumer Discretionary",
-  "MCD": "Consumer Discretionary",
-  "SBUX": "Consumer Discretionary",
-  "LOW": "Consumer Discretionary",
+  HD: "Consumer Discretionary",
+  NKE: "Consumer Discretionary",
+  MCD: "Consumer Discretionary",
+  SBUX: "Consumer Discretionary",
+  LOW: "Consumer Discretionary",
 
   // Consumer Staples
-  "WMT": "Consumer Staples",
-  "PG": "Consumer Staples",
-  "KO": "Consumer Staples",
-  "PEP": "Consumer Staples",
-  "COST": "Consumer Staples",
+  WMT: "Consumer Staples",
+  PG: "Consumer Staples",
+  KO: "Consumer Staples",
+  PEP: "Consumer Staples",
+  COST: "Consumer Staples",
 
   // Energy
-  "CVX": "Energy",
-  "XOM": "Energy",
-  "COP": "Energy",
-  "SLB": "Energy",
+  CVX: "Energy",
+  XOM: "Energy",
+  COP: "Energy",
+  SLB: "Energy",
 
   // Industrials
-  "UPS": "Industrials",
-  "RTX": "Industrials",
-  "HON": "Industrials",
-  "BA": "Industrials",
-  "CAT": "Industrials",
-  "GE": "Industrials",
-  "DE": "Industrials",
+  UPS: "Industrials",
+  RTX: "Industrials",
+  HON: "Industrials",
+  BA: "Industrials",
+  CAT: "Industrials",
+  GE: "Industrials",
+  DE: "Industrials",
 
   // Materials
-  "LIN": "Materials",
-  "APD": "Materials",
-  "SHW": "Materials",
+  LIN: "Materials",
+  APD: "Materials",
+  SHW: "Materials",
 
   // Utilities
-  "NEE": "Utilities",
-  "DUK": "Utilities",
-  "SO": "Utilities",
+  NEE: "Utilities",
+  DUK: "Utilities",
+  SO: "Utilities",
 
   // Real Estate
-  "AMT": "Real Estate",
-  "PLD": "Real Estate",
-  "CCI": "Real Estate",
+  AMT: "Real Estate",
+  PLD: "Real Estate",
+  CCI: "Real Estate",
 
   // Communication Services
-  "DIS": "Communication Services",
-  "CMCSA": "Communication Services",
-  "VZ": "Communication Services",
-  "T": "Communication Services",
-  "TMUS": "Communication Services",
+  DIS: "Communication Services",
+  CMCSA: "Communication Services",
+  VZ: "Communication Services",
+  T: "Communication Services",
+  TMUS: "Communication Services",
 
   // Crypto
   "BTC/USD": "Crypto",
@@ -176,7 +176,9 @@ class SectorExposureService {
         return fundamentals.sector;
       }
     } catch (error) {
-      log.warn("SectorExposure", `Failed to fetch sector for ${symbol}`, { error: String(error) });
+      log.warn("SectorExposure", `Failed to fetch sector for ${symbol}`, {
+        error: String(error),
+      });
     }
 
     // Fall back to known mapping or "Unknown"
@@ -192,7 +194,8 @@ class SectorExposureService {
     const now = new Date();
     if (
       this.lastConfigRefresh &&
-      now.getTime() - this.lastConfigRefresh.getTime() < this.configRefreshIntervalMs
+      now.getTime() - this.lastConfigRefresh.getTime() <
+        this.configRefreshIntervalMs
     ) {
       return; // Config is still fresh
     }
@@ -207,14 +210,20 @@ class SectorExposureService {
     }
     this.lastConfigRefresh = now;
 
-    log.debug("SectorExposure", `Max sector weight: ${this.maxSectorWeightPct}%`);
+    log.debug(
+      "SectorExposure",
+      `Max sector weight: ${this.maxSectorWeightPct}%`
+    );
   }
 
   /**
    * Calculate current sector exposure from active positions
    */
   async calculateExposure(
-    positions: Map<string, { symbol: string; currentPrice: number; quantity: number }>,
+    positions: Map<
+      string,
+      { symbol: string; currentPrice: number; quantity: number }
+    >,
     portfolioValue: number
   ): Promise<SectorExposureSummary> {
     await this.refreshConfig();
@@ -247,9 +256,8 @@ class SectorExposureService {
     let maxConcentration = 0;
 
     for (const [sector, exposure] of sectorMap.entries()) {
-      exposure.percentOfPortfolio = portfolioValue > 0
-        ? (exposure.totalValue / portfolioValue) * 100
-        : 0;
+      exposure.percentOfPortfolio =
+        portfolioValue > 0 ? (exposure.totalValue / portfolioValue) * 100 : 0;
 
       if (exposure.percentOfPortfolio > maxConcentration) {
         maxConcentration = exposure.percentOfPortfolio;
@@ -263,8 +271,9 @@ class SectorExposureService {
       }
     }
 
-    const exposureBySector = Array.from(sectorMap.values())
-      .sort((a, b) => b.percentOfPortfolio - a.percentOfPortfolio);
+    const exposureBySector = Array.from(sectorMap.values()).sort(
+      (a, b) => b.percentOfPortfolio - a.percentOfPortfolio
+    );
 
     return {
       exposureBySector,
@@ -282,7 +291,10 @@ class SectorExposureService {
   async checkExposure(
     symbol: string,
     proposedValue: number,
-    positions: Map<string, { symbol: string; currentPrice: number; quantity: number }>,
+    positions: Map<
+      string,
+      { symbol: string; currentPrice: number; quantity: number }
+    >,
     portfolioValue: number
   ): Promise<SectorExposureCheck> {
     await this.refreshConfig();
@@ -298,22 +310,26 @@ class SectorExposureService {
       }
     }
 
-    const currentExposure = portfolioValue > 0
-      ? (currentSectorValue / portfolioValue) * 100
-      : 0;
+    const currentExposure =
+      portfolioValue > 0 ? (currentSectorValue / portfolioValue) * 100 : 0;
 
-    const newExposure = portfolioValue > 0
-      ? ((currentSectorValue + proposedValue) / portfolioValue) * 100
-      : 0;
+    const newExposure =
+      portfolioValue > 0
+        ? ((currentSectorValue + proposedValue) / portfolioValue) * 100
+        : 0;
 
     if (newExposure > this.maxSectorWeightPct) {
-      log.warn("SectorExposure", `Trade blocked: ${symbol} would exceed ${sector} limit`, {
-        symbol,
-        sector,
-        currentExposure: currentExposure.toFixed(1),
-        newExposure: newExposure.toFixed(1),
-        maxAllowed: this.maxSectorWeightPct,
-      });
+      log.warn(
+        "SectorExposure",
+        `Trade blocked: ${symbol} would exceed ${sector} limit`,
+        {
+          symbol,
+          sector,
+          currentExposure: currentExposure.toFixed(1),
+          newExposure: newExposure.toFixed(1),
+          maxAllowed: this.maxSectorWeightPct,
+        }
+      );
 
       return {
         canTrade: false,

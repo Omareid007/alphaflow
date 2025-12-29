@@ -8,7 +8,9 @@ export default function CompetitionPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Competition</h1>
-        <p className="mt-1 text-muted-foreground">Strategy leaderboard and comparisons</p>
+        <p className="mt-1 text-muted-foreground">
+          Strategy leaderboard and comparisons
+        </p>
       </div>
 
       <Card>
@@ -19,7 +21,9 @@ export default function CompetitionPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Compare strategy performance metrics here.</p>
+          <p className="text-muted-foreground">
+            Compare strategy performance metrics here.
+          </p>
         </CardContent>
       </Card>
     </div>

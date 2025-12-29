@@ -1,5 +1,9 @@
 import { workQueue, generateIdempotencyKey } from "../lib/work-queue";
-import { alpaca, type CreateOrderParams, type AlpacaOrder } from "../connectors/alpaca";
+import {
+  alpaca,
+  type CreateOrderParams,
+  type AlpacaOrder,
+} from "../connectors/alpaca";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
@@ -44,7 +48,10 @@ class UnifiedOrderExecutor {
 
   setQueueEnabled(enabled: boolean): void {
     this.useQueueByDefault = enabled;
-    log.info("UnifiedOrderExecutor", `Queue mode: ${enabled ? "ENABLED" : "DISABLED"}`);
+    log.info(
+      "UnifiedOrderExecutor",
+      `Queue mode: ${enabled ? "ENABLED" : "DISABLED"}`
+    );
   }
 
   isQueueEnabled(): boolean {
@@ -84,7 +91,10 @@ class UnifiedOrderExecutor {
     });
 
     if (side === "buy") {
-      const enforcement = await tradingEnforcementService.canTradeSymbol(symbol, traceId);
+      const enforcement = await tradingEnforcementService.canTradeSymbol(
+        symbol,
+        traceId
+      );
       if (!enforcement.eligible) {
         return {
           success: false,
@@ -217,7 +227,9 @@ class UnifiedOrderExecutor {
 
     const startTime = Date.now();
     while (Date.now() - startTime < QUEUE_POLL_TIMEOUT_MS) {
-      await new Promise((resolve) => setTimeout(resolve, QUEUE_POLL_INTERVAL_MS));
+      await new Promise((resolve) =>
+        setTimeout(resolve, QUEUE_POLL_INTERVAL_MS)
+      );
 
       const updatedItem = await workQueue.getById(workItem.id);
       if (!updatedItem) {
@@ -292,10 +304,14 @@ class UnifiedOrderExecutor {
       );
 
       if (existingOrder) {
-        log.info("UnifiedOrderExecutor", `Duplicate order detected: ${clientOrderId}`, {
-          traceId,
-          existingOrderId: existingOrder.id,
-        });
+        log.info(
+          "UnifiedOrderExecutor",
+          `Duplicate order detected: ${clientOrderId}`,
+          {
+            traceId,
+            existingOrderId: existingOrder.id,
+          }
+        );
         return {
           success: true,
           orderId: existingOrder.id,
@@ -319,8 +335,10 @@ class UnifiedOrderExecutor {
       if (stopPrice) orderParams.stop_price = stopPrice;
       if (extendedHours) orderParams.extended_hours = extendedHours;
       if (orderClass) orderParams.order_class = orderClass as any;
-      if (takeProfitLimitPrice) orderParams.take_profit = { limit_price: takeProfitLimitPrice };
-      if (stopLossStopPrice) orderParams.stop_loss = { stop_price: stopLossStopPrice };
+      if (takeProfitLimitPrice)
+        orderParams.take_profit = { limit_price: takeProfitLimitPrice };
+      if (stopLossStopPrice)
+        orderParams.stop_loss = { stop_price: stopLossStopPrice };
 
       const order = await alpaca.createOrder(orderParams);
 
@@ -365,12 +383,17 @@ class UnifiedOrderExecutor {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      log.error("UnifiedOrderExecutor", `Order failed: ${errorMsg}`, { traceId });
+      log.error("UnifiedOrderExecutor", `Order failed: ${errorMsg}`, {
+        traceId,
+      });
       return { success: false, error: errorMsg };
     }
   }
 
-  async cancelOrder(orderId: string, traceId?: string): Promise<{ success: boolean; error?: string }> {
+  async cancelOrder(
+    orderId: string,
+    traceId?: string
+  ): Promise<{ success: boolean; error?: string }> {
     const clientOrderId = generateIdempotencyKey({
       strategyId: "cancel",
       symbol: orderId,
@@ -393,7 +416,9 @@ class UnifiedOrderExecutor {
 
       const startTime = Date.now();
       while (Date.now() - startTime < QUEUE_POLL_TIMEOUT_MS) {
-        await new Promise((resolve) => setTimeout(resolve, QUEUE_POLL_INTERVAL_MS));
+        await new Promise((resolve) =>
+          setTimeout(resolve, QUEUE_POLL_INTERVAL_MS)
+        );
 
         const updatedItem = await workQueue.getById(workItem.id);
         if (!updatedItem) continue;
@@ -404,10 +429,16 @@ class UnifiedOrderExecutor {
 
         if (updatedItem.status === "DEAD_LETTER") {
           const errorLower = (updatedItem.lastError || "").toLowerCase();
-          if (errorLower.includes("already") || errorLower.includes("not found")) {
+          if (
+            errorLower.includes("already") ||
+            errorLower.includes("not found")
+          ) {
             return { success: true };
           }
-          return { success: false, error: updatedItem.lastError || "Cancel failed" };
+          return {
+            success: false,
+            error: updatedItem.lastError || "Cancel failed",
+          };
         }
       }
 
@@ -419,7 +450,10 @@ class UnifiedOrderExecutor {
       return { success: true };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.toLowerCase().includes("already") || errorMsg.toLowerCase().includes("not found")) {
+      if (
+        errorMsg.toLowerCase().includes("already") ||
+        errorMsg.toLowerCase().includes("not found")
+      ) {
         return { success: true };
       }
       return { success: false, error: errorMsg };

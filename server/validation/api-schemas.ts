@@ -29,23 +29,27 @@ export const executeTradesSchema = z.object({
   decisionIds: z.array(z.string()).min(1, "At least one decision ID required"),
 });
 
-export const executeTradeSchema = z.object({
-  symbol: z.string().min(1, "Symbol is required"),
-  side: z.enum(["buy", "sell"]),
-  quantity: z.number().positive().optional(),
-  notional: z.number().positive().optional(),
-  orderType: z.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
-  limitPrice: z.number().positive().optional(),
-  stopPrice: z.number().positive().optional(),
-  timeInForce: z.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
-  extendedHours: z.boolean().optional(),
-  takeProfitPrice: z.number().positive().optional(),
-  stopLossPrice: z.number().positive().optional(),
-  trailPercent: z.number().positive().optional(),
-}).refine(
-  (data) => data.quantity !== undefined || data.notional !== undefined,
-  { message: "Either quantity or notional amount is required" }
-);
+export const executeTradeSchema = z
+  .object({
+    symbol: z.string().min(1, "Symbol is required"),
+    side: z.enum(["buy", "sell"]),
+    quantity: z.number().positive().optional(),
+    notional: z.number().positive().optional(),
+    orderType: z
+      .enum(["market", "limit", "stop", "stop_limit", "trailing_stop"])
+      .optional(),
+    limitPrice: z.number().positive().optional(),
+    stopPrice: z.number().positive().optional(),
+    timeInForce: z.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
+    extendedHours: z.boolean().optional(),
+    takeProfitPrice: z.number().positive().optional(),
+    stopLossPrice: z.number().positive().optional(),
+    trailPercent: z.number().positive().optional(),
+  })
+  .refine(
+    (data) => data.quantity !== undefined || data.notional !== undefined,
+    { message: "Either quantity or notional amount is required" }
+  );
 
 export const quickTradeSchema = z.object({
   symbol: z.string().min(1, "Symbol is required"),
@@ -61,17 +65,21 @@ export const alpacaOrderSchema = z.object({
   side: z.enum(["buy", "sell"]),
   qty: z.string().optional(),
   notional: z.string().optional(),
-  type: z.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
+  type: z
+    .enum(["market", "limit", "stop", "stop_limit", "trailing_stop"])
+    .optional(),
   time_in_force: z.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
   limit_price: z.string().optional(),
   stop_price: z.string().optional(),
   extended_hours: z.boolean().optional(),
   order_class: z.enum(["simple", "bracket", "oco", "oto"]).optional(),
   take_profit: z.object({ limit_price: z.string() }).optional(),
-  stop_loss: z.object({ 
-    stop_price: z.string(), 
-    limit_price: z.string().optional() 
-  }).optional(),
+  stop_loss: z
+    .object({
+      stop_price: z.string(),
+      limit_price: z.string().optional(),
+    })
+    .optional(),
   trail_percent: z.string().optional(),
   trail_price: z.string().optional(),
 });
@@ -112,31 +120,41 @@ export const searchAssetsSchema = z.object({
 
 export const analyzeOpportunitySchema = z.object({
   symbol: z.string().min(1, "Symbol is required"),
-  marketData: z.object({
-    symbol: z.string(),
-    currentPrice: z.number().positive(),
-    priceChange24h: z.number().optional(),
-    priceChangePercent24h: z.number().optional(),
-    high24h: z.number().optional(),
-    low24h: z.number().optional(),
-    volume: z.number().optional(),
-    marketCap: z.number().optional(),
-  }).optional(),
-  newsContext: z.object({
-    headlines: z.array(z.object({
-      title: z.string(),
-      source: z.string().optional(),
-      publishedAt: z.string().optional(),
-      sentiment: z.number().optional(),
-    })).optional(),
-    overallSentiment: z.number().optional(),
-  }).optional(),
-  strategyContext: z.object({
-    id: z.string().optional(),
-    name: z.string().optional(),
-    type: z.string().optional(),
-    parameters: z.record(z.unknown()).optional(),
-  }).optional(),
+  marketData: z
+    .object({
+      symbol: z.string(),
+      currentPrice: z.number().positive(),
+      priceChange24h: z.number().optional(),
+      priceChangePercent24h: z.number().optional(),
+      high24h: z.number().optional(),
+      low24h: z.number().optional(),
+      volume: z.number().optional(),
+      marketCap: z.number().optional(),
+    })
+    .optional(),
+  newsContext: z
+    .object({
+      headlines: z
+        .array(
+          z.object({
+            title: z.string(),
+            source: z.string().optional(),
+            publishedAt: z.string().optional(),
+            sentiment: z.number().optional(),
+          })
+        )
+        .optional(),
+      overallSentiment: z.number().optional(),
+    })
+    .optional(),
+  strategyContext: z
+    .object({
+      id: z.string().optional(),
+      name: z.string().optional(),
+      type: z.string().optional(),
+      parameters: z.record(z.unknown()).optional(),
+    })
+    .optional(),
 });
 
 export const barsQuerySchema = z.object({
@@ -147,13 +165,25 @@ export const barsQuerySchema = z.object({
 });
 
 export const paginationSchema = z.object({
-  limit: z.string().optional().transform((val) => val ? parseInt(val, 10) : undefined),
-  offset: z.string().optional().transform((val) => val ? parseInt(val, 10) : undefined),
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : undefined)),
+  offset: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : undefined)),
 });
 
 export const tradesFilterSchema = z.object({
-  limit: z.string().optional().transform((val) => val ? parseInt(val, 10) : 20),
-  offset: z.string().optional().transform((val) => val ? parseInt(val, 10) : 0),
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 20)),
+  offset: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 0)),
   symbol: z.string().optional(),
   strategyId: z.string().optional(),
   pnlDirection: z.enum(["profit", "loss", "all"]).optional(),
@@ -180,7 +210,9 @@ export function validateRequest<T>(
   return { success: false, error: errorMessage };
 }
 
-export function safeParseNumber(value: string | number | undefined | null): number | null {
+export function safeParseNumber(
+  value: string | number | undefined | null
+): number | null {
   if (value === undefined || value === null || value === "") return null;
   const num = typeof value === "number" ? value : parseFloat(value);
   return isNaN(num) ? null : num;

@@ -13,8 +13,14 @@
  */
 
 import { log } from "../utils/logger";
-import { tradingSessionManager, type SessionType } from "../services/trading-session-manager";
-import { getMarketSession, type MarketSession as MarketSessionEnum } from "./order-types-matrix";
+import {
+  tradingSessionManager,
+  type SessionType,
+} from "../services/trading-session-manager";
+import {
+  getMarketSession,
+  type MarketSession as MarketSessionEnum,
+} from "./order-types-matrix";
 
 // ============================================================================
 // TYPES
@@ -56,7 +62,7 @@ export interface TransformedOrder extends OrderInput {
 
 export interface SmartOrderConfig {
   // Price buffer for extended hours limit orders (percentage)
-  buyBufferPercent?: number;  // Default: 0.3% above ask
+  buyBufferPercent?: number; // Default: 0.3% above ask
   sellBufferPercent?: number; // Default: 0.3% below bid
 
   // Aggressive limit order offset (for immediate execution)
@@ -166,7 +172,11 @@ export class SmartOrderRouter {
     // Step 6: Validate and warn on prices
     if (this.config.enablePriceValidation && transformedOrder.limitPrice) {
       this.validateLimitPrice(
-        { ...transformedOrder, type: orderType, limitPrice: transformedOrder.limitPrice },
+        {
+          ...transformedOrder,
+          type: orderType,
+          limitPrice: transformedOrder.limitPrice,
+        },
         currentPrice,
         warnings
       );
@@ -176,7 +186,9 @@ export class SmartOrderRouter {
     if (transformedOrder.orderClass === "bracket") {
       if (transformedOrder.timeInForce !== "day") {
         transformedOrder.timeInForce = "day";
-        transformations.push("Forced bracket order TIF to 'day' (Alpaca requirement)");
+        transformations.push(
+          "Forced bracket order TIF to 'day' (Alpaca requirement)"
+        );
       }
       if (session !== "regular" && !isCrypto) {
         warnings.push("Bracket orders only recommended during regular hours");
@@ -211,12 +223,26 @@ export class SmartOrderRouter {
 
     // Common crypto patterns
     const cryptoPatterns = [
-      /BTC/, /ETH/, /DOGE/, /SOL/, /ADA/, /MATIC/, /AVAX/,
-      /LTC/, /BCH/, /XRP/, /DOT/, /LINK/, /UNI/, /AAVE/,
-      /\/USD$/, /\/USDT$/, /\/USDC$/, // Trading pairs
+      /BTC/,
+      /ETH/,
+      /DOGE/,
+      /SOL/,
+      /ADA/,
+      /MATIC/,
+      /AVAX/,
+      /LTC/,
+      /BCH/,
+      /XRP/,
+      /DOT/,
+      /LINK/,
+      /UNI/,
+      /AAVE/,
+      /\/USD$/,
+      /\/USDT$/,
+      /\/USDC$/, // Trading pairs
     ];
 
-    return cryptoPatterns.some(pattern => pattern.test(upperSymbol));
+    return cryptoPatterns.some((pattern) => pattern.test(upperSymbol));
   }
 
   /**
@@ -276,7 +302,9 @@ export class SmartOrderRouter {
       }
 
       if (requestedType === "trailing_stop") {
-        transformations.push(`Changed trailing_stop to limit (not supported in ${session})`);
+        transformations.push(
+          `Changed trailing_stop to limit (not supported in ${session})`
+        );
         return "limit";
       }
 
@@ -349,7 +377,7 @@ export class SmartOrderRouter {
 
       transformations.push(
         `Auto-calculated buy limit: $${calculatedPrice.toFixed(2)} ` +
-        `(${priceSource} + ${bufferPercent}% buffer)`
+          `(${priceSource} + ${bufferPercent}% buffer)`
       );
     } else {
       // SELL orders: use bid price - buffer
@@ -363,7 +391,7 @@ export class SmartOrderRouter {
 
       transformations.push(
         `Auto-calculated sell limit: $${calculatedPrice.toFixed(2)} ` +
-        `(${priceSource} - ${bufferPercent}% buffer)`
+          `(${priceSource} - ${bufferPercent}% buffer)`
       );
     }
 
@@ -371,7 +399,7 @@ export class SmartOrderRouter {
     if (currentPrice.spread && currentPrice.spread > 0.02) {
       warnings.push(
         `Wide spread detected (${(currentPrice.spread * 100).toFixed(2)}%) - ` +
-        `limit price may result in poor fill`
+          `limit price may result in poor fill`
       );
     }
 
@@ -395,28 +423,36 @@ export class SmartOrderRouter {
 
     // Rule 1: Market orders CANNOT use GTC
     if (orderType === "market" && requestedTIF === "gtc") {
-      transformations.push("Changed market order TIF from 'gtc' to 'day' (not allowed)");
+      transformations.push(
+        "Changed market order TIF from 'gtc' to 'day' (not allowed)"
+      );
       return "day";
     }
 
     // Rule 2: Extended hours MUST use 'day' TIF
     if (needsExtendedHours && this.config.forceExtendedHoursDayTIF) {
       if (requestedTIF !== "day") {
-        transformations.push(`Forced TIF to 'day' for extended hours (${session})`);
+        transformations.push(
+          `Forced TIF to 'day' for extended hours (${session})`
+        );
       }
       return "day";
     }
 
     // Rule 3: Bracket orders MUST use 'day'
     if (order.orderClass === "bracket" && requestedTIF !== "day") {
-      transformations.push("Forced bracket order TIF to 'day' (Alpaca requirement)");
+      transformations.push(
+        "Forced bracket order TIF to 'day' (Alpaca requirement)"
+      );
       return "day";
     }
 
     // Rule 4: Market closed - prefer 'day' to execute at next open
     if (session === "closed" && !isCrypto) {
       if (requestedTIF === "ioc" || requestedTIF === "fok") {
-        transformations.push("Changed TIF from 'ioc'/'fok' to 'day' (market closed)");
+        transformations.push(
+          "Changed TIF from 'ioc'/'fok' to 'day' (market closed)"
+        );
         return "day";
       }
     }
@@ -424,16 +460,22 @@ export class SmartOrderRouter {
     // Rule 5: Crypto market orders should use 'day' or 'ioc', not 'gtc'
     if (isCrypto && orderType === "market") {
       if (requestedTIF === "gtc") {
-        transformations.push("Changed crypto market order TIF from 'gtc' to 'ioc'");
+        transformations.push(
+          "Changed crypto market order TIF from 'gtc' to 'ioc'"
+        );
         return "ioc";
       }
       // Already handled by Rule 1 above for non-crypto
     }
 
     // Rule 6: Stop and trailing_stop can use 'day' or 'gtc'
-    if ((orderType === "stop" || orderType === "trailing_stop") &&
-        !["day", "gtc"].includes(requestedTIF)) {
-      transformations.push(`Changed ${orderType} TIF to 'day' (only day/gtc allowed)`);
+    if (
+      (orderType === "stop" || orderType === "trailing_stop") &&
+      !["day", "gtc"].includes(requestedTIF)
+    ) {
+      transformations.push(
+        `Changed ${orderType} TIF to 'day' (only day/gtc allowed)`
+      );
       return "day";
     }
 
@@ -456,7 +498,7 @@ export class SmartOrderRouter {
     if (currentPrice.spread && currentPrice.spread > 0.02) {
       warnings.push(
         `Wide spread detected (${(currentPrice.spread * 100).toFixed(2)}%) - ` +
-        `limit price may result in poor fill`
+          `limit price may result in poor fill`
       );
     }
 
@@ -466,7 +508,7 @@ export class SmartOrderRouter {
         if (limitPrice > marketPrice * 1.05) {
           warnings.push(
             `Buy limit $${limitPrice.toFixed(2)} is ${((limitPrice / marketPrice - 1) * 100).toFixed(1)}% ` +
-            `above market $${marketPrice.toFixed(2)} - may fill at worse price`
+              `above market $${marketPrice.toFixed(2)} - may fill at worse price`
           );
         }
 
@@ -474,7 +516,7 @@ export class SmartOrderRouter {
         if (limitPrice < marketPrice * 0.95) {
           warnings.push(
             `Buy limit $${limitPrice.toFixed(2)} is ${((1 - limitPrice / marketPrice) * 100).toFixed(1)}% ` +
-            `below market $${marketPrice.toFixed(2)} - may not fill`
+              `below market $${marketPrice.toFixed(2)} - may not fill`
           );
         }
       } else {
@@ -482,7 +524,7 @@ export class SmartOrderRouter {
         if (limitPrice < marketPrice * 0.95) {
           warnings.push(
             `Sell limit $${limitPrice.toFixed(2)} is ${((1 - limitPrice / marketPrice) * 100).toFixed(1)}% ` +
-            `below market $${marketPrice.toFixed(2)} - may fill at worse price`
+              `below market $${marketPrice.toFixed(2)} - may fill at worse price`
           );
         }
 
@@ -490,7 +532,7 @@ export class SmartOrderRouter {
         if (limitPrice > marketPrice * 1.05) {
           warnings.push(
             `Sell limit $${limitPrice.toFixed(2)} is ${((limitPrice / marketPrice - 1) * 100).toFixed(1)}% ` +
-            `above market $${marketPrice.toFixed(2)} - may not fill`
+              `above market $${marketPrice.toFixed(2)} - may not fill`
           );
         }
       }
@@ -524,11 +566,12 @@ export class SmartOrderRouter {
     }
 
     // Check for stop orders in extended hours
-    if ((order.type === "stop" || order.type === "trailing_stop") &&
-        session !== "regular" && !isCrypto) {
-      warnings.push(
-        `${order.type} orders may not trigger in extended hours`
-      );
+    if (
+      (order.type === "stop" || order.type === "trailing_stop") &&
+      session !== "regular" &&
+      !isCrypto
+    ) {
+      warnings.push(`${order.type} orders may not trigger in extended hours`);
     }
   }
 
@@ -562,7 +605,11 @@ export function transformOrderForExecution(
   currentPrice: CurrentPriceData,
   sessionOverride?: SessionType
 ): TransformedOrder {
-  return smartOrderRouter.transformOrderForExecution(order, currentPrice, sessionOverride);
+  return smartOrderRouter.transformOrderForExecution(
+    order,
+    currentPrice,
+    sessionOverride
+  );
 }
 
 /**
@@ -575,7 +622,7 @@ export function createPriceData(quote: {
 }): CurrentPriceData {
   const bid = quote.bid || quote.last || 0;
   const ask = quote.ask || quote.last || 0;
-  const last = quote.last || ((bid + ask) / 2);
+  const last = quote.last || (bid + ask) / 2;
 
   const spread = ask && bid ? (ask - bid) / last : 0;
 

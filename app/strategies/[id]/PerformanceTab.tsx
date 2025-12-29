@@ -9,7 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 
 interface PerformanceTabProps {
@@ -37,9 +37,7 @@ export function PerformanceTab({ backtest, strategyId }: PerformanceTabProps) {
       <Card>
         <CardContent className="py-12 text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            Backtest {backtest.status}...
-          </p>
+          <p className="text-muted-foreground">Backtest {backtest.status}...</p>
         </CardContent>
       </Card>
     );
@@ -52,7 +50,9 @@ export function PerformanceTab({ backtest, strategyId }: PerformanceTabProps) {
         <CardContent className="py-12 text-center">
           <p className="text-destructive">Backtest failed</p>
           <Link href={`/strategies/${strategyId}/edit`}>
-            <Button className="mt-4" variant="outline">Try Again</Button>
+            <Button className="mt-4" variant="outline">
+              Try Again
+            </Button>
           </Link>
         </CardContent>
       </Card>
@@ -64,7 +64,9 @@ export function PerformanceTab({ backtest, strategyId }: PerformanceTabProps) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No equity curve data available</p>
+          <p className="text-muted-foreground">
+            No equity curve data available
+          </p>
         </CardContent>
       </Card>
     );
@@ -81,16 +83,26 @@ export function PerformanceTab({ backtest, strategyId }: PerformanceTabProps) {
             <AreaChart data={backtest.results.equityCurve}>
               <defs>
                 <linearGradient id="eqGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <stop
+                    offset="5%"
+                    stopColor="hsl(var(--primary))"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="hsl(var(--primary))"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short" })}
+                tickFormatter={(d) =>
+                  new Date(d).toLocaleDateString("en-US", { month: "short" })
+                }
               />
-              <YAxis tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;

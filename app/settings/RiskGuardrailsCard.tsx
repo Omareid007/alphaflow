@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -10,16 +16,22 @@ import {
   AlertTriangle,
   Wallet,
   TrendingDown,
-  Check
+  Check,
 } from "lucide-react";
 import { UserSettings } from "@/lib/types";
 
 interface RiskGuardrailsCardProps {
   settings: UserSettings;
-  onGuardrailChange: (key: keyof UserSettings["riskGuardrails"], value: number | boolean) => void;
+  onGuardrailChange: (
+    key: keyof UserSettings["riskGuardrails"],
+    value: number | boolean
+  ) => void;
 }
 
-export function RiskGuardrailsCard({ settings, onGuardrailChange }: RiskGuardrailsCardProps) {
+export function RiskGuardrailsCard({
+  settings,
+  onGuardrailChange,
+}: RiskGuardrailsCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -27,7 +39,9 @@ export function RiskGuardrailsCard({ settings, onGuardrailChange }: RiskGuardrai
           <Shield className="h-5 w-5 text-muted-foreground" />
           <div>
             <CardTitle className="text-lg">Risk Guardrails</CardTitle>
-            <CardDescription>Set safety limits for your strategies</CardDescription>
+            <CardDescription>
+              Set safety limits for your strategies
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -116,7 +130,7 @@ export function RiskGuardrailsCard({ settings, onGuardrailChange }: RiskGuardrai
           </div>
           <Switch
             checked={settings.riskGuardrails.requireConfirmation}
-            onCheckedChange={v => onGuardrailChange("requireConfirmation", v)}
+            onCheckedChange={(v) => onGuardrailChange("requireConfirmation", v)}
           />
         </div>
       </CardContent>

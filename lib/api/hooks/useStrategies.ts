@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../client";
 
 export interface Strategy {
   id: string;
@@ -7,8 +7,8 @@ export interface Strategy {
   description?: string;
   type: string;
   templateId: string;
-  status: 'draft' | 'backtesting' | 'paper' | 'live' | 'paused' | 'stopped';
-  mode?: 'paper' | 'live';
+  status: "draft" | "backtesting" | "paper" | "live" | "paused" | "stopped";
+  mode?: "paper" | "live";
   config: Record<string, unknown>;
   performanceSummary?: {
     totalReturn?: number;
@@ -24,14 +24,14 @@ export interface Strategy {
 
 export function useStrategies() {
   return useQuery({
-    queryKey: ['strategies'],
-    queryFn: () => api.get<Strategy[]>('/api/strategies'),
+    queryKey: ["strategies"],
+    queryFn: () => api.get<Strategy[]>("/api/strategies"),
   });
 }
 
 export function useStrategy(id: string) {
   return useQuery({
-    queryKey: ['strategies', id],
+    queryKey: ["strategies", id],
     queryFn: () => api.get<Strategy>(`/api/strategies/${id}`),
     enabled: !!id,
   });
@@ -42,9 +42,9 @@ export function useCreateStrategy() {
 
   return useMutation({
     mutationFn: (data: Partial<Strategy>) =>
-      api.post<Strategy>('/api/strategies', data),
+      api.post<Strategy>("/api/strategies", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
     },
   });
 }
@@ -56,8 +56,8 @@ export function useUpdateStrategy() {
     mutationFn: ({ id, ...data }: Partial<Strategy> & { id: string }) =>
       api.put<Strategy>(`/api/strategies/${id}`, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
-      queryClient.invalidateQueries({ queryKey: ['strategies', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["strategies", variables.id] });
     },
   });
 }
@@ -68,7 +68,7 @@ export function useDeleteStrategy() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/strategies/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
     },
   });
 }
@@ -77,11 +77,11 @@ export function useDeployStrategy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, mode }: { id: string; mode: 'paper' | 'live' }) =>
+    mutationFn: ({ id, mode }: { id: string; mode: "paper" | "live" }) =>
       api.post<Strategy>(`/api/strategies/${id}/deploy`, { mode }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
-      queryClient.invalidateQueries({ queryKey: ['strategies', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["strategies", variables.id] });
     },
   });
 }
@@ -90,10 +90,11 @@ export function usePauseStrategy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.post<Strategy>(`/api/strategies/${id}/pause`),
+    mutationFn: (id: string) =>
+      api.post<Strategy>(`/api/strategies/${id}/pause`),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
-      queryClient.invalidateQueries({ queryKey: ['strategies', id] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
     },
   });
 }
@@ -102,10 +103,11 @@ export function useResumeStrategy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.post<Strategy>(`/api/strategies/${id}/resume`),
+    mutationFn: (id: string) =>
+      api.post<Strategy>(`/api/strategies/${id}/resume`),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
-      queryClient.invalidateQueries({ queryKey: ['strategies', id] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
     },
   });
 }
@@ -114,10 +116,11 @@ export function useStopStrategy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.post<Strategy>(`/api/strategies/${id}/stop`),
+    mutationFn: (id: string) =>
+      api.post<Strategy>(`/api/strategies/${id}/stop`),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['strategies'] });
-      queryClient.invalidateQueries({ queryKey: ['strategies', id] });
+      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
     },
   });
 }

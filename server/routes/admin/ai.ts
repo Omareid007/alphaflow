@@ -5,7 +5,14 @@
 
 import { Router, Request, Response } from "express";
 import { storage } from "../../storage";
-import { roleBasedRouter, getAllRoleConfigs, updateRoleConfig, getRecentCalls, getCallStats, type RoleConfig } from "../../ai/roleBasedRouter";
+import {
+  roleBasedRouter,
+  getAllRoleConfigs,
+  updateRoleConfig,
+  getRecentCalls,
+  getCallStats,
+  type RoleConfig,
+} from "../../ai/roleBasedRouter";
 import { log } from "../../utils/logger";
 
 const router = Router();
@@ -28,9 +35,12 @@ router.get("/ai-config", async (req: Request, res: Response) => {
 router.put("/ai-config", async (req: Request, res: Response) => {
   try {
     const { autoExecuteTrades, conservativeMode } = req.body;
-    const updates: { autoExecuteTrades?: boolean; conservativeMode?: boolean } = {};
-    if (typeof autoExecuteTrades === "boolean") updates.autoExecuteTrades = autoExecuteTrades;
-    if (typeof conservativeMode === "boolean") updates.conservativeMode = conservativeMode;
+    const updates: { autoExecuteTrades?: boolean; conservativeMode?: boolean } =
+      {};
+    if (typeof autoExecuteTrades === "boolean")
+      updates.autoExecuteTrades = autoExecuteTrades;
+    if (typeof conservativeMode === "boolean")
+      updates.conservativeMode = conservativeMode;
 
     await storage.updateAgentStatus(updates);
     const status = await storage.getAgentStatus();
@@ -57,30 +67,43 @@ router.get("/model-router/configs", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/model-router/configs/:role - Update role configuration
-router.put("/model-router/configs/:role", async (req: Request, res: Response) => {
-  try {
-    const { role } = req.params;
-    const validRoles = ["market_news_summarizer", "technical_analyst", "risk_manager", "execution_planner", "post_trade_reporter"];
+router.put(
+  "/model-router/configs/:role",
+  async (req: Request, res: Response) => {
+    try {
+      const { role } = req.params;
+      const validRoles = [
+        "market_news_summarizer",
+        "technical_analyst",
+        "risk_manager",
+        "execution_planner",
+        "post_trade_reporter",
+      ];
 
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(", ")}` });
+      if (!validRoles.includes(role)) {
+        return res
+          .status(400)
+          .json({
+            error: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+          });
+      }
+
+      const updates = req.body as Partial<RoleConfig>;
+      const updated = await updateRoleConfig(role as any, updates);
+      res.json({ success: true, config: updated });
+    } catch (error) {
+      log.error("AdminAI", "Failed to update role config", { error });
+      res.status(500).json({ error: "Failed to update role configuration" });
     }
-
-    const updates = req.body as Partial<RoleConfig>;
-    const updated = await updateRoleConfig(role as any, updates);
-    res.json({ success: true, config: updated });
-  } catch (error) {
-    log.error("AdminAI", "Failed to update role config", { error });
-    res.status(500).json({ error: "Failed to update role configuration" });
   }
-});
+);
 
 // GET /api/admin/model-router/calls - Get recent LLM calls
 router.get("/model-router/calls", async (req: Request, res: Response) => {
   try {
     const { role, limit } = req.query;
     const limitNum = parseInt(limit as string) || 20;
-    const roleFilter = typeof role === "string" ? role as any : undefined;
+    const roleFilter = typeof role === "string" ? (role as any) : undefined;
 
     const calls = await getRecentCalls(limitNum, roleFilter);
     res.json({ calls, count: calls.length });
@@ -108,9 +131,7 @@ router.get("/work-items", async (req: Request, res: Response) => {
     const limitNum = parseInt(limit as string) || 50;
     const items = await storage.getWorkItems(limitNum, status as any);
 
-    const filteredItems = type
-      ? items.filter(i => i.type === type)
-      : items;
+    const filteredItems = type ? items.filter((i) => i.type === type) : items;
 
     const counts = {
       PENDING: await storage.getWorkItemCount("PENDING"),
@@ -145,7 +166,9 @@ router.post("/work-items/retry", async (req: Request, res: Response) => {
     }
 
     if (item.status !== "DEAD_LETTER" && item.status !== "FAILED") {
-      return res.status(400).json({ error: "Can only retry DEAD_LETTER or FAILED items" });
+      return res
+        .status(400)
+        .json({ error: "Can only retry DEAD_LETTER or FAILED items" });
     }
 
     await storage.updateWorkItem(id, {
@@ -206,7 +229,7 @@ router.get("/orchestrator-health", async (req: Request, res: Response) => {
       lastHeartbeat: agentStatusData?.lastHeartbeat || null,
       queueDepth: counts,
       totalPending: counts.PENDING + counts.RUNNING,
-      recentErrors: recentErrors.map(e => ({
+      recentErrors: recentErrors.map((e) => ({
         id: e.id,
         type: e.type,
         symbol: e.symbol,

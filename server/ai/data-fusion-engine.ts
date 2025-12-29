@@ -129,7 +129,7 @@ export interface MacroDataPoint {
 export interface FusedMarketIntelligence {
   symbol: string;
   assetType: "stock" | "crypto" | "unknown";
-  
+
   price: {
     current: number;
     change: number;
@@ -206,7 +206,7 @@ export interface FusedMarketIntelligence {
   trendStrength: number;
   volatilityIndicator: number;
   signalAgreement: number;
-  
+
   dataQuality: {
     completeness: number;
     freshness: number;
@@ -231,27 +231,27 @@ export interface FusionInput {
 const SOURCE_RELIABILITY: Record<string, number> = {
   // Primary market data sources
   alpaca: 0.95,
-  finnhub: 0.90,
+  finnhub: 0.9,
   coingecko: 0.85,
   coinmarketcap: 0.85,
   twelvedata: 0.85,
 
   // Fundamental data sources
-  valyu: 0.90,
+  valyu: 0.9,
   "sec-edgar": 0.95, // Official SEC filings - highest reliability
   secedgar: 0.95,
 
   // Short interest data
-  finra: 0.90, // Official FINRA RegSHO data
+  finra: 0.9, // Official FINRA RegSHO data
 
   // Forex data
-  frankfurter: 0.90, // ECB-backed exchange rates
+  frankfurter: 0.9, // ECB-backed exchange rates
 
   // Sentiment sources
   newsapi: 0.75,
-  huggingface: 0.80,
-  finbert: 0.80,
-  gdelt: 0.80,
+  huggingface: 0.8,
+  finbert: 0.8,
+  gdelt: 0.8,
 
   // Macro data
   fred: 0.95, // Federal Reserve Economic Data
@@ -279,11 +279,28 @@ export function fuseMarketData(input: FusionInput): FusedMarketIntelligence {
   const fusedShortInterest = fuseShortInterestData(shortInterestData, warnings);
   const fusedMacro = fuseMacroData(macroData, warnings);
 
-  const trendStrength = calculateTrendStrength(fusedPrice, fusedSentiment, fusedTechnicals);
-  const volatilityIndicator = calculateVolatilityWithTechnicals(marketData, technicalData);
-  const signalAgreement = calculateSignalAgreementWithTechnicals(fusedPrice, fusedSentiment, fusedFundamentals, fusedTechnicals);
+  const trendStrength = calculateTrendStrength(
+    fusedPrice,
+    fusedSentiment,
+    fusedTechnicals
+  );
+  const volatilityIndicator = calculateVolatilityWithTechnicals(
+    marketData,
+    technicalData
+  );
+  const signalAgreement = calculateSignalAgreementWithTechnicals(
+    fusedPrice,
+    fusedSentiment,
+    fusedFundamentals,
+    fusedTechnicals
+  );
 
-  const dataQuality = assessDataQuality(marketData, sentimentData, fundamentalData, now);
+  const dataQuality = assessDataQuality(
+    marketData,
+    sentimentData,
+    fundamentalData,
+    now
+  );
 
   log.debug("DataFusion", `Fused data for ${symbol}`, {
     priceSources: fusedPrice.sources.length,
@@ -329,7 +346,11 @@ function fusePriceData(
     };
   }
 
-  data.sort((a, b) => (SOURCE_RELIABILITY[a.source] || 0.5) - (SOURCE_RELIABILITY[b.source] || 0.5));
+  data.sort(
+    (a, b) =>
+      (SOURCE_RELIABILITY[a.source] || 0.5) -
+      (SOURCE_RELIABILITY[b.source] || 0.5)
+  );
   data.reverse();
 
   let totalWeight = 0;
@@ -341,12 +362,13 @@ function fusePriceData(
   for (const point of data) {
     if (point.price === undefined) continue;
 
-    const weight = point.reliability * (SOURCE_RELIABILITY[point.source] || 0.5);
+    const weight =
+      point.reliability * (SOURCE_RELIABILITY[point.source] || 0.5);
     weightedPrice += toDecimal(point.price).times(weight).toNumber();
     weightedChange += (point.priceChange || 0) * weight;
     weightedChangePercent += (point.priceChangePercent || 0) * weight;
     totalWeight += weight;
-    
+
     if (!sources.includes(point.source)) {
       sources.push(point.source);
     }
@@ -363,14 +385,17 @@ function fusePriceData(
     };
   }
 
-  const prices = data.filter(d => d.price !== undefined).map(d => d.price!);
+  const prices = data.filter((d) => d.price !== undefined).map((d) => d.price!);
   const avgPrice = mean(prices).toNumber();
   const priceVarianceValue = variance(prices).toNumber();
   const priceStdDev = stdDev(prices).toNumber();
-  const priceConsistency = avgPrice > 0 ? Math.max(0, 1 - (priceStdDev / avgPrice)) : 0;
+  const priceConsistency =
+    avgPrice > 0 ? Math.max(0, 1 - priceStdDev / avgPrice) : 0;
 
   if (priceConsistency < 0.95) {
-    warnings.push(`Price sources show ${((1 - priceConsistency) * 100).toFixed(1)}% variance`);
+    warnings.push(
+      `Price sources show ${((1 - priceConsistency) * 100).toFixed(1)}% variance`
+    );
   }
 
   return {
@@ -405,7 +430,7 @@ function fuseSentimentData(
 
   for (const point of data) {
     const weight = point.confidence * (SOURCE_RELIABILITY[point.source] || 0.5);
-    
+
     let normalizedScore = point.score;
     if (point.sentiment === "positive") {
       normalizedScore = Math.abs(normalizedScore);
@@ -480,27 +505,39 @@ function fuseFundamentalData(
 
   for (const point of data) {
     if (point.eps !== undefined && eps === undefined) eps = point.eps;
-    if (point.peRatio !== undefined && peRatio === undefined) peRatio = point.peRatio;
-    if (point.pbRatio !== undefined && pbRatio === undefined) pbRatio = point.pbRatio;
+    if (point.peRatio !== undefined && peRatio === undefined)
+      peRatio = point.peRatio;
+    if (point.pbRatio !== undefined && pbRatio === undefined)
+      pbRatio = point.pbRatio;
     if (point.roe !== undefined && roe === undefined) roe = point.roe;
     if (point.roa !== undefined && roa === undefined) roa = point.roa;
-    if (point.revenueGrowth !== undefined && revenueGrowth === undefined) revenueGrowth = point.revenueGrowth;
-    if (point.freeCashFlow !== undefined && freeCashFlow === undefined) freeCashFlow = point.freeCashFlow;
-    if (point.dividendYield !== undefined && dividendYield === undefined) dividendYield = point.dividendYield;
-    if (point.debtToEquity !== undefined && debtToEquity === undefined) debtToEquity = point.debtToEquity;
-    if (point.currentRatio !== undefined && currentRatio === undefined) currentRatio = point.currentRatio;
-    if (point.grossMargin !== undefined && grossMargin === undefined) grossMargin = point.grossMargin;
-    if (point.netProfitMargin !== undefined && netProfitMargin === undefined) netProfitMargin = point.netProfitMargin;
+    if (point.revenueGrowth !== undefined && revenueGrowth === undefined)
+      revenueGrowth = point.revenueGrowth;
+    if (point.freeCashFlow !== undefined && freeCashFlow === undefined)
+      freeCashFlow = point.freeCashFlow;
+    if (point.dividendYield !== undefined && dividendYield === undefined)
+      dividendYield = point.dividendYield;
+    if (point.debtToEquity !== undefined && debtToEquity === undefined)
+      debtToEquity = point.debtToEquity;
+    if (point.currentRatio !== undefined && currentRatio === undefined)
+      currentRatio = point.currentRatio;
+    if (point.grossMargin !== undefined && grossMargin === undefined)
+      grossMargin = point.grossMargin;
+    if (point.netProfitMargin !== undefined && netProfitMargin === undefined)
+      netProfitMargin = point.netProfitMargin;
     if (point.beta !== undefined && beta === undefined) beta = point.beta;
-    if (point.epsGrowth !== undefined && epsGrowth === undefined) epsGrowth = point.epsGrowth;
-    if (point.weekHigh52 !== undefined && weekHigh52 === undefined) weekHigh52 = point.weekHigh52;
-    if (point.weekLow52 !== undefined && weekLow52 === undefined) weekLow52 = point.weekLow52;
-    
+    if (point.epsGrowth !== undefined && epsGrowth === undefined)
+      epsGrowth = point.epsGrowth;
+    if (point.weekHigh52 !== undefined && weekHigh52 === undefined)
+      weekHigh52 = point.weekHigh52;
+    if (point.weekLow52 !== undefined && weekLow52 === undefined)
+      weekLow52 = point.weekLow52;
+
     if (point.insiderSentiment) {
       if (point.insiderSentiment === "bullish") insiderBullishCount++;
       else if (point.insiderSentiment === "bearish") insiderBearishCount++;
     }
-    
+
     if (!sources.includes(point.source)) {
       sources.push(point.source);
     }
@@ -514,17 +551,36 @@ function fuseFundamentalData(
     insiderSentiment = "neutral";
   }
 
-  const coreFields = [eps, peRatio, revenueGrowth].filter(f => f !== undefined).length;
-  const valuationFields = [pbRatio, roe, roa].filter(f => f !== undefined).length;
-  const marginFields = [grossMargin, netProfitMargin].filter(f => f !== undefined).length;
-  const rangeFields = [weekHigh52, weekLow52].filter(f => f !== undefined).length;
-  const extendedFields = [freeCashFlow, dividendYield, debtToEquity, currentRatio, beta, epsGrowth, insiderSentiment].filter(f => f !== undefined).length;
-  const totalFields = coreFields + valuationFields + marginFields + rangeFields + extendedFields;
+  const coreFields = [eps, peRatio, revenueGrowth].filter(
+    (f) => f !== undefined
+  ).length;
+  const valuationFields = [pbRatio, roe, roa].filter(
+    (f) => f !== undefined
+  ).length;
+  const marginFields = [grossMargin, netProfitMargin].filter(
+    (f) => f !== undefined
+  ).length;
+  const rangeFields = [weekHigh52, weekLow52].filter(
+    (f) => f !== undefined
+  ).length;
+  const extendedFields = [
+    freeCashFlow,
+    dividendYield,
+    debtToEquity,
+    currentRatio,
+    beta,
+    epsGrowth,
+    insiderSentiment,
+  ].filter((f) => f !== undefined).length;
+  const totalFields =
+    coreFields + valuationFields + marginFields + rangeFields + extendedFields;
   const maxFields = 17;
   const confidence = Math.min(1, totalFields / maxFields);
 
   if (insiderSentiment === "bearish" && coreFields > 0) {
-    warnings.push("Insider activity shows bearish sentiment - insiders selling");
+    warnings.push(
+      "Insider activity shows bearish sentiment - insiders selling"
+    );
   }
 
   return {
@@ -577,32 +633,52 @@ function fuseTechnicalData(
   for (const point of data) {
     if (point.buyCount !== undefined) totalBuyCount += point.buyCount;
     if (point.sellCount !== undefined) totalSellCount += point.sellCount;
-    if (point.neutralCount !== undefined) totalNeutralCount += point.neutralCount;
-    if (point.adx !== undefined) { adxSum += point.adx; adxCount++; }
+    if (point.neutralCount !== undefined)
+      totalNeutralCount += point.neutralCount;
+    if (point.adx !== undefined) {
+      adxSum += point.adx;
+      adxCount++;
+    }
     if (point.isTrending) trendingCount++;
-    if (point.support !== undefined) { supportSum += point.support; supportCount++; }
-    if (point.resistance !== undefined) { resistanceSum += point.resistance; resistanceCount++; }
-    if (point.volatility !== undefined) { volatilitySum += point.volatility; volatilityCount++; }
+    if (point.support !== undefined) {
+      supportSum += point.support;
+      supportCount++;
+    }
+    if (point.resistance !== undefined) {
+      resistanceSum += point.resistance;
+      resistanceCount++;
+    }
+    if (point.volatility !== undefined) {
+      volatilitySum += point.volatility;
+      volatilityCount++;
+    }
     if (point.trend === "bullish") bullishTrendCount++;
     else if (point.trend === "bearish") bearishTrendCount++;
-    
+
     if (!sources.includes(point.source)) {
       sources.push(point.source);
     }
   }
 
-  const overallSignal: "buy" | "neutral" | "sell" = 
-    totalBuyCount > totalSellCount + totalNeutralCount ? "buy" :
-    totalSellCount > totalBuyCount + totalNeutralCount ? "sell" : "neutral";
+  const overallSignal: "buy" | "neutral" | "sell" =
+    totalBuyCount > totalSellCount + totalNeutralCount
+      ? "buy"
+      : totalSellCount > totalBuyCount + totalNeutralCount
+        ? "sell"
+        : "neutral";
 
   const trend: "bullish" | "bearish" | "neutral" =
-    bullishTrendCount > bearishTrendCount ? "bullish" :
-    bearishTrendCount > bullishTrendCount ? "bearish" : "neutral";
+    bullishTrendCount > bearishTrendCount
+      ? "bullish"
+      : bearishTrendCount > bullishTrendCount
+        ? "bearish"
+        : "neutral";
 
   const totalIndicators = totalBuyCount + totalSellCount + totalNeutralCount;
-  const confidence = totalIndicators > 0 
-    ? Math.max(totalBuyCount, totalSellCount) / totalIndicators 
-    : 0;
+  const confidence =
+    totalIndicators > 0
+      ? Math.max(totalBuyCount, totalSellCount) / totalIndicators
+      : 0;
 
   if (overallSignal === "sell" && totalSellCount > totalBuyCount * 2) {
     warnings.push("Strong sell signals from technical indicators");
@@ -616,8 +692,10 @@ function fuseTechnicalData(
     adx: adxCount > 0 ? adxSum / adxCount : undefined,
     isTrending: trendingCount > data.length / 2,
     support: supportCount > 0 ? supportSum / supportCount : undefined,
-    resistance: resistanceCount > 0 ? resistanceSum / resistanceCount : undefined,
-    volatility: volatilityCount > 0 ? volatilitySum / volatilityCount : undefined,
+    resistance:
+      resistanceCount > 0 ? resistanceSum / resistanceCount : undefined,
+    volatility:
+      volatilityCount > 0 ? volatilitySum / volatilityCount : undefined,
     trend,
     confidence,
     sources,
@@ -664,19 +742,24 @@ function fuseShortInterestData(
   }
 
   const avgShortRatio = totalWeight > 0 ? weightedShortRatio / totalWeight : 0;
-  const avgDaysToCover = daysToCoverCount > 0 ? daysToCoverSum / daysToCoverCount : undefined;
+  const avgDaysToCover =
+    daysToCoverCount > 0 ? daysToCoverSum / daysToCoverCount : undefined;
 
   const trend: "increasing" | "decreasing" | "stable" =
-    increasingCount > decreasingCount ? "increasing" :
-    decreasingCount > increasingCount ? "decreasing" : "stable";
+    increasingCount > decreasingCount
+      ? "increasing"
+      : decreasingCount > increasingCount
+        ? "decreasing"
+        : "stable";
 
   const squeezePotential: "high" | "medium" | "low" =
-    highSqueezeCount > 0 ? "high" :
-    mediumSqueezeCount > 0 ? "medium" : "low";
+    highSqueezeCount > 0 ? "high" : mediumSqueezeCount > 0 ? "medium" : "low";
 
   // Warning for high short interest
   if (avgShortRatio > 0.4) {
-    warnings.push(`High short interest: ${(avgShortRatio * 100).toFixed(1)}% of volume is short selling`);
+    warnings.push(
+      `High short interest: ${(avgShortRatio * 100).toFixed(1)}% of volume is short selling`
+    );
   }
 
   if (squeezePotential === "high" && trend === "increasing") {
@@ -713,13 +796,25 @@ function fuseMacroData(
 
     if (indicator.includes("VIX") && vix === undefined) {
       vix = point.value;
-    } else if ((indicator.includes("FEDFUNDS") || indicator.includes("FED_FUNDS")) && fedFundsRate === undefined) {
+    } else if (
+      (indicator.includes("FEDFUNDS") || indicator.includes("FED_FUNDS")) &&
+      fedFundsRate === undefined
+    ) {
       fedFundsRate = point.value;
-    } else if ((indicator.includes("T10Y2Y") || indicator.includes("YIELD_CURVE")) && yieldCurve === undefined) {
+    } else if (
+      (indicator.includes("T10Y2Y") || indicator.includes("YIELD_CURVE")) &&
+      yieldCurve === undefined
+    ) {
       yieldCurve = point.value;
-    } else if ((indicator.includes("CPI") || indicator.includes("INFLATION")) && inflation === undefined) {
+    } else if (
+      (indicator.includes("CPI") || indicator.includes("INFLATION")) &&
+      inflation === undefined
+    ) {
       inflation = point.value;
-    } else if ((indicator.includes("UNRATE") || indicator.includes("UNEMPLOYMENT")) && unemployment === undefined) {
+    } else if (
+      (indicator.includes("UNRATE") || indicator.includes("UNEMPLOYMENT")) &&
+      unemployment === undefined
+    ) {
       unemployment = point.value;
     }
 
@@ -734,7 +829,9 @@ function fuseMacroData(
   if (vix !== undefined) {
     if (vix > 30) {
       marketRegime = "risk_off";
-      warnings.push(`Elevated VIX (${vix.toFixed(1)}) indicates high market fear`);
+      warnings.push(
+        `Elevated VIX (${vix.toFixed(1)}) indicates high market fear`
+      );
     } else if (vix < 15) {
       marketRegime = "risk_on";
     }
@@ -750,7 +847,13 @@ function fuseMacroData(
     warnings.push("Inverted yield curve detected - recession warning signal");
   }
 
-  const fieldsPresent = [vix, fedFundsRate, yieldCurve, inflation, unemployment].filter(f => f !== undefined).length;
+  const fieldsPresent = [
+    vix,
+    fedFundsRate,
+    yieldCurve,
+    inflation,
+    unemployment,
+  ].filter((f) => f !== undefined).length;
   const confidence = Math.min(1, fieldsPresent / 5);
 
   return {
@@ -772,10 +875,16 @@ function calculateTrendStrength(
 ): number {
   if (price.confidence === 0) return 0;
 
-  const priceDirection = price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0;
-  const sentimentDirection = sentiment.score > 0 ? 1 : sentiment.score < 0 ? -1 : 0;
-  const technicalDirection = technicals 
-    ? (technicals.signal === "buy" ? 1 : technicals.signal === "sell" ? -1 : 0)
+  const priceDirection =
+    price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0;
+  const sentimentDirection =
+    sentiment.score > 0 ? 1 : sentiment.score < 0 ? -1 : 0;
+  const technicalDirection = technicals
+    ? technicals.signal === "buy"
+      ? 1
+      : technicals.signal === "sell"
+        ? -1
+        : 0
     : 0;
 
   const priceStrength = Math.min(1, Math.abs(price.changePercent) / 5);
@@ -783,25 +892,37 @@ function calculateTrendStrength(
   const technicalStrength = technicals?.confidence || 0;
 
   const directions = [priceDirection, sentimentDirection];
-  const strengths = [priceStrength * price.confidence, sentimentStrength * sentiment.confidence];
-  
+  const strengths = [
+    priceStrength * price.confidence,
+    sentimentStrength * sentiment.confidence,
+  ];
+
   if (technicals && technicals.confidence > 0) {
     directions.push(technicalDirection);
     strengths.push(technicalStrength);
   }
 
   const totalStrength = strengths.reduce((a, b) => a + b, 0);
-  const avgDirection = directions.reduce((a, b) => a + b, 0) / directions.length;
+  const avgDirection =
+    directions.reduce((a, b) => a + b, 0) / directions.length;
 
   if (Math.abs(avgDirection) > 0.5) {
     return (totalStrength / strengths.length) * Math.sign(avgDirection);
   }
 
   if (priceDirection === sentimentDirection && priceDirection !== 0) {
-    return (priceStrength + sentimentStrength) / 2 * price.confidence * sentiment.confidence;
+    return (
+      ((priceStrength + sentimentStrength) / 2) *
+      price.confidence *
+      sentiment.confidence
+    );
   }
-  
-  if (priceDirection !== sentimentDirection && priceDirection !== 0 && sentimentDirection !== 0) {
+
+  if (
+    priceDirection !== sentimentDirection &&
+    priceDirection !== 0 &&
+    sentimentDirection !== 0
+  ) {
     return -Math.abs(priceStrength - sentimentStrength) / 2;
   }
 
@@ -811,7 +932,9 @@ function calculateTrendStrength(
 function calculateVolatility(data: MarketDataPoint[]): number {
   if (data.length === 0) return 0;
 
-  const withRange = data.filter(d => d.high !== undefined && d.low !== undefined && d.price);
+  const withRange = data.filter(
+    (d) => d.high !== undefined && d.low !== undefined && d.price
+  );
   if (withRange.length === 0) return 0;
 
   let totalVolatility = 0;
@@ -828,19 +951,24 @@ function calculateVolatilityWithTechnicals(
   technicalData: TechnicalDataPoint[]
 ): number {
   const baseVolatility = calculateVolatility(marketData);
-  
+
   if (technicalData.length === 0) return baseVolatility;
-  
+
   const technicalVolatilities = technicalData
-    .filter(t => t.volatility !== undefined)
-    .map(t => t.volatility!);
-  
+    .filter((t) => t.volatility !== undefined)
+    .map((t) => t.volatility!);
+
   if (technicalVolatilities.length === 0) return baseVolatility;
-  
-  const avgTechnicalVolatility = technicalVolatilities.reduce((a, b) => a + b, 0) / technicalVolatilities.length;
-  const normalizedTechnicalVolatility = Math.min(1, avgTechnicalVolatility / 100);
-  
-  return (baseVolatility * 0.6 + normalizedTechnicalVolatility * 0.4);
+
+  const avgTechnicalVolatility =
+    technicalVolatilities.reduce((a, b) => a + b, 0) /
+    technicalVolatilities.length;
+  const normalizedTechnicalVolatility = Math.min(
+    1,
+    avgTechnicalVolatility / 100
+  );
+
+  return baseVolatility * 0.6 + normalizedTechnicalVolatility * 0.4;
 }
 
 function calculateSignalAgreement(
@@ -851,7 +979,9 @@ function calculateSignalAgreement(
   const signals: number[] = [];
 
   if (price.confidence > 0) {
-    signals.push(price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0);
+    signals.push(
+      price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0
+    );
   }
 
   if (sentiment.confidence > 0) {
@@ -883,7 +1013,9 @@ function calculateSignalAgreementWithTechnicals(
   const signals: number[] = [];
 
   if (price.confidence > 0) {
-    signals.push(price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0);
+    signals.push(
+      price.changePercent > 0 ? 1 : price.changePercent < 0 ? -1 : 0
+    );
   }
 
   if (sentiment.confidence > 0) {
@@ -899,7 +1031,8 @@ function calculateSignalAgreementWithTechnicals(
   }
 
   if (technicals && technicals.confidence > 0) {
-    const technicalSignal = technicals.signal === "buy" ? 1 : technicals.signal === "sell" ? -1 : 0;
+    const technicalSignal =
+      technicals.signal === "buy" ? 1 : technicals.signal === "sell" ? -1 : 0;
     if (technicalSignal !== 0) signals.push(technicalSignal);
   }
 
@@ -920,29 +1053,35 @@ function assessDataQuality(
   const hasMarket = marketData.length > 0;
   const hasSentiment = sentimentData.length > 0;
   const hasFundamentals = fundamentalData.length > 0;
-  
-  const completeness = (Number(hasMarket) + Number(hasSentiment) + Number(hasFundamentals)) / 3;
+
+  const completeness =
+    (Number(hasMarket) + Number(hasSentiment) + Number(hasFundamentals)) / 3;
 
   const allTimestamps = [
-    ...marketData.map(d => d.timestamp),
-    ...sentimentData.map(d => d.timestamp),
-    ...fundamentalData.map(d => d.timestamp),
+    ...marketData.map((d) => d.timestamp),
+    ...sentimentData.map((d) => d.timestamp),
+    ...fundamentalData.map((d) => d.timestamp),
   ];
 
   let freshness = 0;
   if (allTimestamps.length > 0) {
-    const avgAge = allTimestamps.reduce((sum, ts) => sum + (now.getTime() - ts.getTime()), 0) / allTimestamps.length;
+    const avgAge =
+      allTimestamps.reduce(
+        (sum, ts) => sum + (now.getTime() - ts.getTime()),
+        0
+      ) / allTimestamps.length;
     const maxFreshAge = 60 * 60 * 1000;
-    freshness = Math.max(0, 1 - (avgAge / maxFreshAge));
+    freshness = Math.max(0, 1 - avgAge / maxFreshAge);
   }
 
   const avgReliability = [
-    ...marketData.map(d => SOURCE_RELIABILITY[d.source] || 0.5),
-    ...sentimentData.map(d => SOURCE_RELIABILITY[d.source] || 0.5),
+    ...marketData.map((d) => SOURCE_RELIABILITY[d.source] || 0.5),
+    ...sentimentData.map((d) => SOURCE_RELIABILITY[d.source] || 0.5),
   ];
-  const reliability = avgReliability.length > 0
-    ? avgReliability.reduce((a, b) => a + b, 0) / avgReliability.length
-    : 0;
+  const reliability =
+    avgReliability.length > 0
+      ? avgReliability.reduce((a, b) => a + b, 0) / avgReliability.length
+      : 0;
 
   return {
     completeness,
@@ -955,21 +1094,34 @@ export function formatForLLM(intelligence: FusedMarketIntelligence): string {
   const parts: string[] = [];
 
   parts.push(`Symbol: ${intelligence.symbol} (${intelligence.assetType})`);
-  parts.push(`Price: $${intelligence.price.current.toFixed(2)} (${intelligence.price.changePercent >= 0 ? "+" : ""}${intelligence.price.changePercent.toFixed(2)}%)`);
-  parts.push(`Sentiment: ${intelligence.sentiment.overall.toUpperCase()} (score: ${intelligence.sentiment.score.toFixed(2)}, agreement: ${(intelligence.sentiment.agreementLevel * 100).toFixed(0)}%)`);
-  parts.push(`Trend Strength: ${(intelligence.trendStrength * 100).toFixed(0)}%`);
-  parts.push(`Signal Agreement: ${(intelligence.signalAgreement * 100).toFixed(0)}%`);
+  parts.push(
+    `Price: $${intelligence.price.current.toFixed(2)} (${intelligence.price.changePercent >= 0 ? "+" : ""}${intelligence.price.changePercent.toFixed(2)}%)`
+  );
+  parts.push(
+    `Sentiment: ${intelligence.sentiment.overall.toUpperCase()} (score: ${intelligence.sentiment.score.toFixed(2)}, agreement: ${(intelligence.sentiment.agreementLevel * 100).toFixed(0)}%)`
+  );
+  parts.push(
+    `Trend Strength: ${(intelligence.trendStrength * 100).toFixed(0)}%`
+  );
+  parts.push(
+    `Signal Agreement: ${(intelligence.signalAgreement * 100).toFixed(0)}%`
+  );
 
   if (intelligence.fundamentals) {
     const f = intelligence.fundamentals;
     const fundParts: string[] = [];
     if (f.eps !== undefined) fundParts.push(`EPS: $${f.eps.toFixed(2)}`);
     if (f.peRatio !== undefined) fundParts.push(`P/E: ${f.peRatio.toFixed(1)}`);
-    if (f.revenueGrowth !== undefined) fundParts.push(`Revenue Growth: ${(f.revenueGrowth * 100).toFixed(1)}%`);
-    if (f.freeCashFlow !== undefined) fundParts.push(`FCF: $${(f.freeCashFlow / 1e9).toFixed(2)}B`);
-    if (f.dividendYield !== undefined) fundParts.push(`Div Yield: ${f.dividendYield.toFixed(2)}%`);
-    if (f.debtToEquity !== undefined) fundParts.push(`D/E: ${f.debtToEquity.toFixed(2)}`);
-    if (f.insiderSentiment) fundParts.push(`Insider: ${f.insiderSentiment.toUpperCase()}`);
+    if (f.revenueGrowth !== undefined)
+      fundParts.push(`Revenue Growth: ${(f.revenueGrowth * 100).toFixed(1)}%`);
+    if (f.freeCashFlow !== undefined)
+      fundParts.push(`FCF: $${(f.freeCashFlow / 1e9).toFixed(2)}B`);
+    if (f.dividendYield !== undefined)
+      fundParts.push(`Div Yield: ${f.dividendYield.toFixed(2)}%`);
+    if (f.debtToEquity !== undefined)
+      fundParts.push(`D/E: ${f.debtToEquity.toFixed(2)}`);
+    if (f.insiderSentiment)
+      fundParts.push(`Insider: ${f.insiderSentiment.toUpperCase()}`);
     if (fundParts.length > 0) {
       parts.push(`Fundamentals: ${fundParts.join(", ")}`);
     }
@@ -981,9 +1133,13 @@ export function formatForLLM(intelligence: FusedMarketIntelligence): string {
     techParts.push(`Signal: ${t.signal.toUpperCase()}`);
     techParts.push(`Trend: ${t.trend.toUpperCase()}`);
     if (t.adx !== undefined) techParts.push(`ADX: ${t.adx.toFixed(1)}`);
-    techParts.push(`Buy/Sell/Neutral: ${t.buyCount}/${t.sellCount}/${t.neutralCount}`);
-    if (t.support !== undefined) techParts.push(`Support: $${t.support.toFixed(2)}`);
-    if (t.resistance !== undefined) techParts.push(`Resistance: $${t.resistance.toFixed(2)}`);
+    techParts.push(
+      `Buy/Sell/Neutral: ${t.buyCount}/${t.sellCount}/${t.neutralCount}`
+    );
+    if (t.support !== undefined)
+      techParts.push(`Support: $${t.support.toFixed(2)}`);
+    if (t.resistance !== undefined)
+      techParts.push(`Resistance: $${t.resistance.toFixed(2)}`);
     parts.push(`Technicals: ${techParts.join(", ")}`);
   }
 
@@ -991,7 +1147,8 @@ export function formatForLLM(intelligence: FusedMarketIntelligence): string {
     const s = intelligence.shortInterest;
     const shortParts: string[] = [];
     shortParts.push(`Short Ratio: ${(s.shortRatio * 100).toFixed(1)}%`);
-    if (s.daysToCover !== undefined) shortParts.push(`Days to Cover: ${s.daysToCover.toFixed(1)}`);
+    if (s.daysToCover !== undefined)
+      shortParts.push(`Days to Cover: ${s.daysToCover.toFixed(1)}`);
     shortParts.push(`Trend: ${s.trend.toUpperCase()}`);
     shortParts.push(`Squeeze Potential: ${s.squeezePotential.toUpperCase()}`);
     parts.push(`Short Interest: ${shortParts.join(", ")}`);
@@ -1001,15 +1158,23 @@ export function formatForLLM(intelligence: FusedMarketIntelligence): string {
     const m = intelligence.macro;
     const macroParts: string[] = [];
     if (m.vix !== undefined) macroParts.push(`VIX: ${m.vix.toFixed(1)}`);
-    if (m.fedFundsRate !== undefined) macroParts.push(`Fed Funds: ${m.fedFundsRate.toFixed(2)}%`);
-    if (m.yieldCurve !== undefined) macroParts.push(`Yield Curve: ${m.yieldCurve.toFixed(2)}%`);
-    if (m.inflation !== undefined) macroParts.push(`Inflation: ${m.inflation.toFixed(1)}%`);
-    if (m.unemployment !== undefined) macroParts.push(`Unemployment: ${m.unemployment.toFixed(1)}%`);
-    macroParts.push(`Regime: ${m.marketRegime.toUpperCase().replace("_", " ")}`);
+    if (m.fedFundsRate !== undefined)
+      macroParts.push(`Fed Funds: ${m.fedFundsRate.toFixed(2)}%`);
+    if (m.yieldCurve !== undefined)
+      macroParts.push(`Yield Curve: ${m.yieldCurve.toFixed(2)}%`);
+    if (m.inflation !== undefined)
+      macroParts.push(`Inflation: ${m.inflation.toFixed(1)}%`);
+    if (m.unemployment !== undefined)
+      macroParts.push(`Unemployment: ${m.unemployment.toFixed(1)}%`);
+    macroParts.push(
+      `Regime: ${m.marketRegime.toUpperCase().replace("_", " ")}`
+    );
     parts.push(`Macro: ${macroParts.join(", ")}`);
   }
 
-  parts.push(`Data Quality: ${(intelligence.dataQuality.completeness * 100).toFixed(0)}% complete, ${(intelligence.dataQuality.freshness * 100).toFixed(0)}% fresh`);
+  parts.push(
+    `Data Quality: ${(intelligence.dataQuality.completeness * 100).toFixed(0)}% complete, ${(intelligence.dataQuality.freshness * 100).toFixed(0)}% fresh`
+  );
 
   if (intelligence.warnings.length > 0) {
     parts.push(`Warnings: ${intelligence.warnings.join("; ")}`);

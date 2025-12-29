@@ -21,18 +21,18 @@ import { toDecimal } from "../utils/money";
 // ============================================================================
 
 export interface FactorScore {
-  score: number;       // 0-100 normalized score
-  weight: number;      // Factor weight (0-1)
-  confidence: number;  // Data confidence (0-1)
+  score: number; // 0-100 normalized score
+  weight: number; // Factor weight (0-1)
+  confidence: number; // Data confidence (0-1)
   components: Record<string, number>; // Individual component scores
-  reasoning: string;   // Human-readable explanation
+  reasoning: string; // Human-readable explanation
 }
 
 export interface CompositeScore {
   symbol: string;
-  totalScore: number;           // 0-100 final score
+  totalScore: number; // 0-100 final score
   signal: "strong_buy" | "buy" | "hold" | "sell" | "strong_sell";
-  confidence: number;           // 0-1 overall confidence
+  confidence: number; // 0-1 overall confidence
   factors: {
     fundamental: FactorScore;
     technical: FactorScore;
@@ -90,10 +90,10 @@ export interface TechnicalData {
 }
 
 export interface SentimentData {
-  overallScore?: number;      // -1 to 1
-  newsScore?: number;         // -1 to 1
-  socialScore?: number;       // -1 to 1
-  analystRating?: number;     // 1-5 (1=strong sell, 5=strong buy)
+  overallScore?: number; // -1 to 1
+  newsScore?: number; // -1 to 1
+  socialScore?: number; // -1 to 1
+  analystRating?: number; // 1-5 (1=strong sell, 5=strong buy)
   analystUpgrades?: number;
   analystDowngrades?: number;
   priceTarget?: number;
@@ -108,7 +108,7 @@ export interface MacroData {
   inflation?: number;
   unemployment?: number;
   gdpGrowth?: number;
-  marketBreadth?: number;     // % of stocks positive
+  marketBreadth?: number; // % of stocks positive
 }
 
 export interface MicroData {
@@ -117,7 +117,7 @@ export interface MicroData {
   recentInsiderTrades?: number;
   insiderNetBuying?: boolean;
   priceVs52WeekHigh?: number; // % from high
-  priceVs52WeekLow?: number;  // % from low
+  priceVs52WeekLow?: number; // % from low
   shortInterest?: number;
   daysToCovert?: number;
 }
@@ -129,7 +129,7 @@ export interface MomentumData {
   priceChange3m?: number;
   priceChange6m?: number;
   priceChange1y?: number;
-  relativeStrength?: number;  // vs SPY
+  relativeStrength?: number; // vs SPY
   volumeChange?: number;
 }
 
@@ -149,11 +149,11 @@ export interface ScoringInput {
 // ============================================================================
 
 const FACTOR_WEIGHTS = {
-  fundamental: 0.20,
-  technical: 0.30,
-  sentiment: 0.20,
+  fundamental: 0.2,
+  technical: 0.3,
+  sentiment: 0.2,
   macro: 0.15,
-  micro: 0.10,
+  micro: 0.1,
   momentum: 0.05,
 };
 
@@ -161,8 +161,8 @@ const FACTOR_WEIGHTS = {
 const CRYPTO_FACTOR_WEIGHTS = {
   fundamental: 0.05,
   technical: 0.35,
-  sentiment: 0.30,
-  macro: 0.10,
+  sentiment: 0.3,
+  macro: 0.1,
   micro: 0.05,
   momentum: 0.15,
 };
@@ -174,22 +174,25 @@ const CRYPTO_FACTOR_WEIGHTS = {
 /**
  * Calculate fundamental factor score
  */
-function calculateFundamentalScore(data: FundamentalData | undefined): FactorScore {
+function calculateFundamentalScore(
+  data: FundamentalData | undefined
+): FactorScore {
   const components: Record<string, number> = {};
   let totalScore = 0;
   let weightSum = 0;
   const weights = {
-    valuation: 0.30,
+    valuation: 0.3,
     profitability: 0.25,
-    growth: 0.20,
+    growth: 0.2,
     financialHealth: 0.15,
-    ownership: 0.10,
+    ownership: 0.1,
   };
 
   // Valuation (P/E, P/B, P/S, PEG)
   if (data?.peRatio !== undefined) {
     let peScore = 50;
-    if (data.peRatio < 0) peScore = 20; // Negative earnings
+    if (data.peRatio < 0)
+      peScore = 20; // Negative earnings
     else if (data.peRatio < 10) peScore = 90;
     else if (data.peRatio < 15) peScore = 80;
     else if (data.peRatio < 20) peScore = 70;
@@ -223,9 +226,13 @@ function calculateFundamentalScore(data: FundamentalData | undefined): FactorSco
   }
 
   // Combine valuation components
-  const valuationComponents = ['peRatio', 'pbRatio', 'pegRatio'].filter(k => components[k] !== undefined);
+  const valuationComponents = ["peRatio", "pbRatio", "pegRatio"].filter(
+    (k) => components[k] !== undefined
+  );
   if (valuationComponents.length > 0) {
-    components.valuation = valuationComponents.reduce((sum, k) => sum + components[k], 0) / valuationComponents.length;
+    components.valuation =
+      valuationComponents.reduce((sum, k) => sum + components[k], 0) /
+      valuationComponents.length;
     totalScore += components.valuation * weights.valuation;
     weightSum += weights.valuation;
   }
@@ -252,7 +259,9 @@ function calculateFundamentalScore(data: FundamentalData | undefined): FactorSco
   }
 
   if (profitabilityScores.length > 0) {
-    components.profitability = profitabilityScores.reduce((a, b) => a + b, 0) / profitabilityScores.length;
+    components.profitability =
+      profitabilityScores.reduce((a, b) => a + b, 0) /
+      profitabilityScores.length;
     totalScore += components.profitability * weights.profitability;
     weightSum += weights.profitability;
   }
@@ -273,7 +282,8 @@ function calculateFundamentalScore(data: FundamentalData | undefined): FactorSco
   }
 
   if (growthScores.length > 0) {
-    components.growth = growthScores.reduce((a, b) => a + b, 0) / growthScores.length;
+    components.growth =
+      growthScores.reduce((a, b) => a + b, 0) / growthScores.length;
     totalScore += components.growth * weights.growth;
     weightSum += weights.growth;
   }
@@ -300,7 +310,8 @@ function calculateFundamentalScore(data: FundamentalData | undefined): FactorSco
   }
 
   if (healthScores.length > 0) {
-    components.financialHealth = healthScores.reduce((a, b) => a + b, 0) / healthScores.length;
+    components.financialHealth =
+      healthScores.reduce((a, b) => a + b, 0) / healthScores.length;
     totalScore += components.financialHealth * weights.financialHealth;
     weightSum += weights.financialHealth;
   }
@@ -320,7 +331,8 @@ function calculateFundamentalScore(data: FundamentalData | undefined): FactorSco
   }
 
   if (ownershipScores.length > 0) {
-    components.ownership = ownershipScores.reduce((a, b) => a + b, 0) / ownershipScores.length;
+    components.ownership =
+      ownershipScores.reduce((a, b) => a + b, 0) / ownershipScores.length;
     totalScore += components.ownership * weights.ownership;
     weightSum += weights.ownership;
   }
@@ -346,11 +358,11 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
   let totalScore = 0;
   let weightSum = 0;
   const weights = {
-    trend: 0.30,
+    trend: 0.3,
     momentum: 0.25,
-    volatility: 0.20,
+    volatility: 0.2,
     volume: 0.15,
-    pricePosition: 0.10,
+    pricePosition: 0.1,
   };
 
   if (!data?.price) {
@@ -371,7 +383,11 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
     const price = data.price;
 
     // Golden alignment: price > SMA20 > SMA50 > SMA200
-    if (price > data.sma20 && data.sma20 > data.sma50 && data.sma50 > data.sma200) {
+    if (
+      price > data.sma20 &&
+      data.sma20 > data.sma50 &&
+      data.sma50 > data.sma200
+    ) {
       trendScore = 90;
     }
     // Strong uptrend: price > all SMAs
@@ -379,7 +395,11 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
       trendScore = 75;
     }
     // Death cross alignment: price < SMA20 < SMA50 < SMA200
-    else if (price < data.sma20 && data.sma20 < data.sma50 && data.sma50 < data.sma200) {
+    else if (
+      price < data.sma20 &&
+      data.sma20 < data.sma50 &&
+      data.sma50 < data.sma200
+    ) {
       trendScore = 15;
     }
     // Strong downtrend: price < all SMAs
@@ -397,16 +417,20 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
 
   if (data.adx14) {
     let adxScore = 50;
-    if (data.adx14 > 40) adxScore = 80; // Strong trend
-    else if (data.adx14 > 25) adxScore = 65; // Moderate trend
-    else if (data.adx14 > 20) adxScore = 50; // Weak trend
+    if (data.adx14 > 40)
+      adxScore = 80; // Strong trend
+    else if (data.adx14 > 25)
+      adxScore = 65; // Moderate trend
+    else if (data.adx14 > 20)
+      adxScore = 50; // Weak trend
     else adxScore = 35; // No trend / choppy
     trendScores.push(adxScore);
     components.adx = adxScore;
   }
 
   if (trendScores.length > 0) {
-    components.trend = trendScores.reduce((a, b) => a + b, 0) / trendScores.length;
+    components.trend =
+      trendScores.reduce((a, b) => a + b, 0) / trendScores.length;
     totalScore += components.trend * weights.trend;
     weightSum += weights.trend;
   }
@@ -416,14 +440,21 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
 
   if (data.rsi14 !== undefined) {
     let rsiScore = 50;
-    if (data.rsi14 > 80) rsiScore = 20;      // Extremely overbought
-    else if (data.rsi14 > 70) rsiScore = 35; // Overbought
-    else if (data.rsi14 > 60) rsiScore = 55; // Slightly bullish
-    else if (data.rsi14 > 50) rsiScore = 65; // Neutral bullish
-    else if (data.rsi14 > 40) rsiScore = 60; // Neutral
-    else if (data.rsi14 > 30) rsiScore = 70; // Slightly oversold (buy zone)
-    else if (data.rsi14 > 20) rsiScore = 80; // Oversold (strong buy zone)
-    else rsiScore = 85;                       // Extremely oversold
+    if (data.rsi14 > 80)
+      rsiScore = 20; // Extremely overbought
+    else if (data.rsi14 > 70)
+      rsiScore = 35; // Overbought
+    else if (data.rsi14 > 60)
+      rsiScore = 55; // Slightly bullish
+    else if (data.rsi14 > 50)
+      rsiScore = 65; // Neutral bullish
+    else if (data.rsi14 > 40)
+      rsiScore = 60; // Neutral
+    else if (data.rsi14 > 30)
+      rsiScore = 70; // Slightly oversold (buy zone)
+    else if (data.rsi14 > 20)
+      rsiScore = 80; // Oversold (strong buy zone)
+    else rsiScore = 85; // Extremely oversold
     momentumScores.push(rsiScore);
     components.rsi = rsiScore;
   }
@@ -447,7 +478,8 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
   }
 
   if (momentumScores.length > 0) {
-    components.momentum = momentumScores.reduce((a, b) => a + b, 0) / momentumScores.length;
+    components.momentum =
+      momentumScores.reduce((a, b) => a + b, 0) / momentumScores.length;
     totalScore += components.momentum * weights.momentum;
     weightSum += weights.momentum;
   }
@@ -455,7 +487,9 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
   // Volatility (Bollinger Bands, ATR)
   if (data.bollingerUpper && data.bollingerLower && data.price) {
     const bbWidth = (data.bollingerUpper - data.bollingerLower) / data.price;
-    const pricePosition = (data.price - data.bollingerLower) / (data.bollingerUpper - data.bollingerLower);
+    const pricePosition =
+      (data.price - data.bollingerLower) /
+      (data.bollingerUpper - data.bollingerLower);
 
     let volScore = 50;
     // Price near lower band = potential buy
@@ -475,7 +509,8 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
     const volumeRatio = data.volume / data.avgVolume;
     let volScore = 50;
 
-    if (volumeRatio > 2) volScore = 80;      // Very high volume (strong interest)
+    if (volumeRatio > 2)
+      volScore = 80; // Very high volume (strong interest)
     else if (volumeRatio > 1.5) volScore = 70;
     else if (volumeRatio > 1) volScore = 60;
     else if (volumeRatio > 0.7) volScore = 50;
@@ -493,7 +528,8 @@ function calculateTechnicalScore(data: TechnicalData | undefined): FactorScore {
 
     let posScore = 50;
     // Near 52-week low = potential value (but check trend)
-    if (position < 0.2) posScore = 65; // Near bottom
+    if (position < 0.2)
+      posScore = 65; // Near bottom
     else if (position < 0.4) posScore = 60;
     else if (position < 0.6) posScore = 55;
     else if (position < 0.8) posScore = 50;
@@ -525,8 +561,8 @@ function calculateSentimentScore(data: SentimentData | undefined): FactorScore {
   let weightSum = 0;
   const weights = {
     news: 0.35,
-    social: 0.20,
-    analyst: 0.30,
+    social: 0.2,
+    analyst: 0.3,
     priceTarget: 0.15,
   };
 
@@ -559,10 +595,15 @@ function calculateSentimentScore(data: SentimentData | undefined): FactorScore {
     weightSum += weights.analyst;
 
     // Bonus/penalty for recent changes
-    if (data.analystUpgrades !== undefined && data.analystDowngrades !== undefined) {
+    if (
+      data.analystUpgrades !== undefined &&
+      data.analystDowngrades !== undefined
+    ) {
       const netUpgrades = data.analystUpgrades - data.analystDowngrades;
-      if (netUpgrades > 0) components.analyst = Math.min(100, components.analyst + 10);
-      else if (netUpgrades < 0) components.analyst = Math.max(0, components.analyst - 10);
+      if (netUpgrades > 0)
+        components.analyst = Math.min(100, components.analyst + 10);
+      else if (netUpgrades < 0)
+        components.analyst = Math.max(0, components.analyst - 10);
     }
   }
 
@@ -593,21 +634,26 @@ function calculateMacroScore(data: MacroData | undefined): FactorScore {
   let totalScore = 0;
   let weightSum = 0;
   const weights = {
-    volatility: 0.30,
-    marketTrend: 0.30,
-    breadth: 0.20,
-    economic: 0.20,
+    volatility: 0.3,
+    marketTrend: 0.3,
+    breadth: 0.2,
+    economic: 0.2,
   };
 
   // VIX / Volatility Regime
   if (data?.vix !== undefined) {
     let vixScore = 50;
-    if (data.vix < 15) vixScore = 80;       // Low fear = bullish
-    else if (data.vix < 20) vixScore = 65;  // Normal
-    else if (data.vix < 25) vixScore = 50;  // Elevated
-    else if (data.vix < 30) vixScore = 35;  // High fear
-    else if (data.vix < 40) vixScore = 25;  // Very high
-    else vixScore = 15;                      // Extreme fear
+    if (data.vix < 15)
+      vixScore = 80; // Low fear = bullish
+    else if (data.vix < 20)
+      vixScore = 65; // Normal
+    else if (data.vix < 25)
+      vixScore = 50; // Elevated
+    else if (data.vix < 30)
+      vixScore = 35; // High fear
+    else if (data.vix < 40)
+      vixScore = 25; // Very high
+    else vixScore = 15; // Extreme fear
 
     components.vix = vixScore;
     totalScore += vixScore * weights.volatility;
@@ -642,7 +688,8 @@ function calculateMacroScore(data: MacroData | undefined): FactorScore {
   }
 
   if (econScores.length > 0) {
-    components.economic = econScores.reduce((a, b) => a + b, 0) / econScores.length;
+    components.economic =
+      econScores.reduce((a, b) => a + b, 0) / econScores.length;
     totalScore += components.economic * weights.economic;
     weightSum += weights.economic;
   }
@@ -668,8 +715,8 @@ function calculateMicroScore(data: MicroData | undefined): FactorScore {
   let weightSum = 0;
   const weights = {
     earnings: 0.35,
-    insider: 0.30,
-    priceRange: 0.20,
+    insider: 0.3,
+    priceRange: 0.2,
     shortInterest: 0.15,
   };
 
@@ -696,14 +743,19 @@ function calculateMicroScore(data: MicroData | undefined): FactorScore {
   }
 
   // Price vs 52-Week Range
-  if (data?.priceVs52WeekHigh !== undefined && data?.priceVs52WeekLow !== undefined) {
+  if (
+    data?.priceVs52WeekHigh !== undefined &&
+    data?.priceVs52WeekLow !== undefined
+  ) {
     const fromHigh = Math.abs(data.priceVs52WeekHigh);
     const fromLow = data.priceVs52WeekLow;
 
     let rangeScore = 50;
     // Good: Far from highs but recovered from lows
-    if (fromHigh > 20 && fromLow > 20) rangeScore = 65; // Room to run
-    else if (fromHigh < 5) rangeScore = 40; // Near highs - limited upside
+    if (fromHigh > 20 && fromLow > 20)
+      rangeScore = 65; // Room to run
+    else if (fromHigh < 5)
+      rangeScore = 40; // Near highs - limited upside
     else if (fromLow < 10) rangeScore = 55; // Near lows - risky but could be value
 
     components.priceRange = rangeScore;
@@ -715,7 +767,8 @@ function calculateMicroScore(data: MicroData | undefined): FactorScore {
   if (data?.shortInterest !== undefined) {
     let shortScore = 50;
     // High short interest = potential squeeze but also bearish sentiment
-    if (data.shortInterest > 30) shortScore = 60; // Squeeze potential
+    if (data.shortInterest > 30)
+      shortScore = 60; // Squeeze potential
     else if (data.shortInterest > 20) shortScore = 55;
     else if (data.shortInterest > 10) shortScore = 50;
     else if (data.shortInterest > 5) shortScore = 55;
@@ -746,19 +799,22 @@ function calculateMomentumScore(data: MomentumData | undefined): FactorScore {
   let totalScore = 0;
   let weightSum = 0;
   const weights = {
-    shortTerm: 0.30,
-    mediumTerm: 0.40,
-    longTerm: 0.20,
-    relativeStrength: 0.10,
+    shortTerm: 0.3,
+    mediumTerm: 0.4,
+    longTerm: 0.2,
+    relativeStrength: 0.1,
   };
 
   // Short-term momentum (1-5 days)
   const shortTermChanges: number[] = [];
-  if (data?.priceChange1d !== undefined) shortTermChanges.push(data.priceChange1d);
-  if (data?.priceChange5d !== undefined) shortTermChanges.push(data.priceChange5d);
+  if (data?.priceChange1d !== undefined)
+    shortTermChanges.push(data.priceChange1d);
+  if (data?.priceChange5d !== undefined)
+    shortTermChanges.push(data.priceChange5d);
 
   if (shortTermChanges.length > 0) {
-    const avgShort = shortTermChanges.reduce((a, b) => a + b, 0) / shortTermChanges.length;
+    const avgShort =
+      shortTermChanges.reduce((a, b) => a + b, 0) / shortTermChanges.length;
     const shortScore = normalize(avgShort, -5, 5, 0, 100);
     components.shortTerm = shortScore;
     totalScore += shortScore * weights.shortTerm;
@@ -767,11 +823,14 @@ function calculateMomentumScore(data: MomentumData | undefined): FactorScore {
 
   // Medium-term momentum (1-3 months)
   const medTermChanges: number[] = [];
-  if (data?.priceChange1m !== undefined) medTermChanges.push(data.priceChange1m);
-  if (data?.priceChange3m !== undefined) medTermChanges.push(data.priceChange3m);
+  if (data?.priceChange1m !== undefined)
+    medTermChanges.push(data.priceChange1m);
+  if (data?.priceChange3m !== undefined)
+    medTermChanges.push(data.priceChange3m);
 
   if (medTermChanges.length > 0) {
-    const avgMed = medTermChanges.reduce((a, b) => a + b, 0) / medTermChanges.length;
+    const avgMed =
+      medTermChanges.reduce((a, b) => a + b, 0) / medTermChanges.length;
     const medScore = normalize(avgMed, -15, 25, 0, 100);
     components.mediumTerm = medScore;
     totalScore += medScore * weights.mediumTerm;
@@ -780,11 +839,14 @@ function calculateMomentumScore(data: MomentumData | undefined): FactorScore {
 
   // Long-term momentum (6-12 months)
   const longTermChanges: number[] = [];
-  if (data?.priceChange6m !== undefined) longTermChanges.push(data.priceChange6m);
-  if (data?.priceChange1y !== undefined) longTermChanges.push(data.priceChange1y);
+  if (data?.priceChange6m !== undefined)
+    longTermChanges.push(data.priceChange6m);
+  if (data?.priceChange1y !== undefined)
+    longTermChanges.push(data.priceChange1y);
 
   if (longTermChanges.length > 0) {
-    const avgLong = longTermChanges.reduce((a, b) => a + b, 0) / longTermChanges.length;
+    const avgLong =
+      longTermChanges.reduce((a, b) => a + b, 0) / longTermChanges.length;
     const longScore = normalize(avgLong, -30, 50, 0, 100);
     components.longTerm = longScore;
     totalScore += longScore * weights.longTerm;
@@ -864,7 +926,8 @@ export function calculateCompositeScore(input: ScoringInput): CompositeScore {
 
   // Determine data quality
   let dataQuality: CompositeScore["dataQuality"];
-  const avgConfidence = Object.values(factors).reduce((sum, f) => sum + f.confidence, 0) / 6;
+  const avgConfidence =
+    Object.values(factors).reduce((sum, f) => sum + f.confidence, 0) / 6;
   if (avgConfidence >= 0.8) dataQuality = "excellent";
   else if (avgConfidence >= 0.6) dataQuality = "good";
   else if (avgConfidence >= 0.4) dataQuality = "fair";
@@ -880,13 +943,17 @@ export function calculateCompositeScore(input: ScoringInput): CompositeScore {
     dataQuality,
   };
 
-  log.debug("MultiFactorScoring", `Composite score for ${input.symbol}: ${result.totalScore} (${result.signal})`, {
-    symbol: input.symbol,
-    score: result.totalScore,
-    signal: result.signal,
-    confidence: result.confidence.toFixed(2),
-    dataQuality: result.dataQuality,
-  });
+  log.debug(
+    "MultiFactorScoring",
+    `Composite score for ${input.symbol}: ${result.totalScore} (${result.signal})`,
+    {
+      symbol: input.symbol,
+      score: result.totalScore,
+      signal: result.signal,
+      confidence: result.confidence.toFixed(2),
+      dataQuality: result.dataQuality,
+    }
+  );
 
   return result;
 }
@@ -898,13 +965,22 @@ export function calculateCompositeScore(input: ScoringInput): CompositeScore {
 /**
  * Normalize a value from one range to another
  */
-function normalize(value: number, minIn: number, maxIn: number, minOut: number, maxOut: number): number {
+function normalize(
+  value: number,
+  minIn: number,
+  maxIn: number,
+  minOut: number,
+  maxOut: number
+): number {
   const normalized = (value - minIn) / (maxIn - minIn);
   const clamped = Math.max(0, Math.min(1, normalized));
   return minOut + clamped * (maxOut - minOut);
 }
 
-function generateFundamentalReasoning(components: Record<string, number>, score: number): string {
+function generateFundamentalReasoning(
+  components: Record<string, number>,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.valuation !== undefined) {
@@ -926,7 +1002,11 @@ function generateFundamentalReasoning(components: Record<string, number>, score:
   return parts.join(", ");
 }
 
-function generateTechnicalReasoning(components: Record<string, number>, data: TechnicalData | undefined, score: number): string {
+function generateTechnicalReasoning(
+  components: Record<string, number>,
+  data: TechnicalData | undefined,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.trend !== undefined) {
@@ -948,7 +1028,10 @@ function generateTechnicalReasoning(components: Record<string, number>, data: Te
   return parts.join(", ");
 }
 
-function generateSentimentReasoning(components: Record<string, number>, score: number): string {
+function generateSentimentReasoning(
+  components: Record<string, number>,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.news !== undefined) {
@@ -965,7 +1048,10 @@ function generateSentimentReasoning(components: Record<string, number>, score: n
   return parts.join(", ");
 }
 
-function generateMacroReasoning(components: Record<string, number>, score: number): string {
+function generateMacroReasoning(
+  components: Record<string, number>,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.vix !== undefined) {
@@ -982,7 +1068,10 @@ function generateMacroReasoning(components: Record<string, number>, score: numbe
   return parts.join(", ");
 }
 
-function generateMicroReasoning(components: Record<string, number>, score: number): string {
+function generateMicroReasoning(
+  components: Record<string, number>,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.earnings !== undefined && components.earnings > 60) {
@@ -998,7 +1087,10 @@ function generateMicroReasoning(components: Record<string, number>, score: numbe
   return parts.join(", ");
 }
 
-function generateMomentumReasoning(components: Record<string, number>, score: number): string {
+function generateMomentumReasoning(
+  components: Record<string, number>,
+  score: number
+): string {
   const parts: string[] = [];
 
   if (components.shortTerm !== undefined) {
@@ -1022,16 +1114,22 @@ function generateMomentumReasoning(components: Record<string, number>, score: nu
 /**
  * Calculate scores for multiple symbols in batch
  */
-export async function calculateBatchScores(inputs: ScoringInput[]): Promise<CompositeScore[]> {
-  return inputs.map(input => calculateCompositeScore(input));
+export async function calculateBatchScores(
+  inputs: ScoringInput[]
+): Promise<CompositeScore[]> {
+  return inputs.map((input) => calculateCompositeScore(input));
 }
 
 /**
  * Get top N candidates by score
  */
-export function getTopCandidates(scores: CompositeScore[], n: number, minScore: number = 55): CompositeScore[] {
+export function getTopCandidates(
+  scores: CompositeScore[],
+  n: number,
+  minScore: number = 55
+): CompositeScore[] {
   return scores
-    .filter(s => s.totalScore >= minScore && s.dataQuality !== "poor")
+    .filter((s) => s.totalScore >= minScore && s.dataQuality !== "poor")
     .sort((a, b) => b.totalScore - a.totalScore)
     .slice(0, n);
 }
@@ -1043,7 +1141,7 @@ export function filterBySignal(
   scores: CompositeScore[],
   signals: CompositeScore["signal"][]
 ): CompositeScore[] {
-  return scores.filter(s => signals.includes(s.signal));
+  return scores.filter((s) => signals.includes(s.signal));
 }
 
 // Export for use in other modules

@@ -55,7 +55,10 @@ class PositionReconciler {
   async reconcile(force: boolean = false): Promise<ReconciliationResult> {
     // Prevent concurrent reconciliation
     if (this.isReconciling) {
-      log.info("PositionReconciler", "Reconciliation already in progress, skipping");
+      log.info(
+        "PositionReconciler",
+        "Reconciliation already in progress, skipping"
+      );
       return this.createSkippedResult("Already reconciling");
     }
 
@@ -63,8 +66,13 @@ class PositionReconciler {
     if (!force && this.lastReconciliation) {
       const elapsed = Date.now() - this.lastReconciliation.getTime();
       if (elapsed < this.reconciliationInterval) {
-        log.info("PositionReconciler", `Skipping reconciliation, last run ${Math.round(elapsed / 1000)}s ago`);
-        return this.createSkippedResult(`Last run ${Math.round(elapsed / 1000)}s ago`);
+        log.info(
+          "PositionReconciler",
+          `Skipping reconciliation, last run ${Math.round(elapsed / 1000)}s ago`
+        );
+        return this.createSkippedResult(
+          `Last run ${Math.round(elapsed / 1000)}s ago`
+        );
       }
     }
 
@@ -77,24 +85,31 @@ class PositionReconciler {
       // Fetch positions from both sources
       const [brokerPositions, dbPositions] = await Promise.all([
         this.fetchBrokerPositions(),
-        this.fetchDBPositions()
+        this.fetchDBPositions(),
       ]);
 
       // Reconcile positions
-      const result = await this.performReconciliation(brokerPositions, dbPositions);
+      const result = await this.performReconciliation(
+        brokerPositions,
+        dbPositions
+      );
       result.duration_ms = Date.now() - startTime;
 
       this.lastReconciliation = new Date();
 
-      log.info("PositionReconciler", `Reconciliation completed in ${result.duration_ms}ms`, {
-        synced: result.synced,
-        added: result.added,
-        removed: result.removed,
-        conflicts: result.conflicts.length,
-        brokerPositions: result.brokerPositions,
-        dbPositions: result.dbPositions,
-        totalValue: result.totalValue
-      });
+      log.info(
+        "PositionReconciler",
+        `Reconciliation completed in ${result.duration_ms}ms`,
+        {
+          synced: result.synced,
+          added: result.added,
+          removed: result.removed,
+          conflicts: result.conflicts.length,
+          brokerPositions: result.brokerPositions,
+          dbPositions: result.dbPositions,
+          totalValue: result.totalValue,
+        }
+      );
 
       return result;
     } catch (error) {
@@ -109,7 +124,7 @@ class PositionReconciler {
         removed: 0,
         conflicts: [],
         totalValue: 0,
-        duration_ms: Date.now() - startTime
+        duration_ms: Date.now() - startTime,
       };
     } finally {
       this.isReconciling = false;
@@ -122,15 +137,17 @@ class PositionReconciler {
       return positions.map((p: any) => ({
         symbol: p.symbol,
         qty: parseFloat(p.qty),
-        side: parseFloat(p.qty) >= 0 ? "long" as const : "short" as const,
+        side: parseFloat(p.qty) >= 0 ? ("long" as const) : ("short" as const),
         marketValue: parseFloat(p.market_value),
         avgEntryPrice: parseFloat(p.avg_entry_price),
         currentPrice: parseFloat(p.current_price),
         unrealizedPL: parseFloat(p.unrealized_pl),
-        unrealizedPLPercent: parseFloat(p.unrealized_plpc) * 100
+        unrealizedPLPercent: parseFloat(p.unrealized_plpc) * 100,
       }));
     } catch (error) {
-      log.error("PositionReconciler", "Failed to fetch broker positions", { error });
+      log.error("PositionReconciler", "Failed to fetch broker positions", {
+        error,
+      });
       throw error;
     }
   }
@@ -141,7 +158,9 @@ class PositionReconciler {
       // Return all positions (schema doesn't have status field)
       return positions;
     } catch (error) {
-      log.error("PositionReconciler", "Failed to fetch DB positions", { error });
+      log.error("PositionReconciler", "Failed to fetch DB positions", {
+        error,
+      });
       throw error;
     }
   }
@@ -155,23 +174,29 @@ class PositionReconciler {
     let added = 0;
     let removed = 0;
 
-    const brokerSymbols = new Set(brokerPositions.map(p => p.symbol));
-    const dbSymbols = new Set(dbPositions.map(p => p.symbol));
+    const brokerSymbols = new Set(brokerPositions.map((p) => p.symbol));
+    const dbSymbols = new Set(dbPositions.map((p) => p.symbol));
 
     // Process broker positions (source of truth)
     for (const brokerPos of brokerPositions) {
-      const dbPos = dbPositions.find(p => p.symbol === brokerPos.symbol);
+      const dbPos = dbPositions.find((p) => p.symbol === brokerPos.symbol);
 
       if (!dbPos) {
         // Position exists in broker but not in DB - add to DB
         await this.addPositionToDB(brokerPos);
         added++;
-        log.info("PositionReconciler", `Added missing position: ${brokerPos.symbol} x ${brokerPos.qty}`, {
-          symbol: brokerPos.symbol,
-          qty: brokerPos.qty,
-          source: "broker_not_in_db"
-        });
-      } else if (Math.abs(parseFloat(dbPos.quantity) - brokerPos.qty) > 0.0001) {
+        log.info(
+          "PositionReconciler",
+          `Added missing position: ${brokerPos.symbol} x ${brokerPos.qty}`,
+          {
+            symbol: brokerPos.symbol,
+            qty: brokerPos.qty,
+            source: "broker_not_in_db",
+          }
+        );
+      } else if (
+        Math.abs(parseFloat(dbPos.quantity) - brokerPos.qty) > 0.0001
+      ) {
         // Quantity mismatch - conflict detected
         const dbQty = parseFloat(dbPos.quantity);
         const conflict: PositionConflict = {
@@ -181,7 +206,7 @@ class PositionReconciler {
           brokerValue: brokerPos.marketValue,
           dbValue: dbQty * brokerPos.currentPrice,
           resolution: "use_broker", // Broker is source of truth
-          resolved: false
+          resolved: false,
         };
 
         // Auto-resolve by using broker as source of truth
@@ -190,12 +215,16 @@ class PositionReconciler {
         conflicts.push(conflict);
         synced++;
 
-        log.warn("PositionReconciler", `Resolved quantity conflict for ${brokerPos.symbol}`, {
-          symbol: brokerPos.symbol,
-          brokerQty: brokerPos.qty,
-          dbQty: dbPos.quantity,
-          resolution: "use_broker"
-        });
+        log.warn(
+          "PositionReconciler",
+          `Resolved quantity conflict for ${brokerPos.symbol}`,
+          {
+            symbol: brokerPos.symbol,
+            brokerQty: brokerPos.qty,
+            dbQty: dbPos.quantity,
+            resolution: "use_broker",
+          }
+        );
       } else {
         // Positions match - update price data only
         await this.updateDBPositionPrices(dbPos.id, brokerPos);
@@ -209,15 +238,22 @@ class PositionReconciler {
         // Position was closed at broker - mark as closed in DB
         await this.closeDBPosition(dbPos.id);
         removed++;
-        log.info("PositionReconciler", `Closed stale position: ${dbPos.symbol}`, {
-          symbol: dbPos.symbol,
-          positionId: dbPos.id,
-          source: "db_not_in_broker"
-        });
+        log.info(
+          "PositionReconciler",
+          `Closed stale position: ${dbPos.symbol}`,
+          {
+            symbol: dbPos.symbol,
+            positionId: dbPos.id,
+            source: "db_not_in_broker",
+          }
+        );
       }
     }
 
-    const totalValue = brokerPositions.reduce((sum, p) => sum + p.marketValue, 0);
+    const totalValue = brokerPositions.reduce(
+      (sum, p) => sum + p.marketValue,
+      0
+    );
 
     return {
       timestamp: new Date(),
@@ -229,7 +265,7 @@ class PositionReconciler {
       removed,
       conflicts,
       totalValue,
-      duration_ms: 0 // Will be set by caller
+      duration_ms: 0, // Will be set by caller
     };
   }
 
@@ -252,7 +288,10 @@ class PositionReconciler {
     await storage.createPosition(newPosition);
   }
 
-  private async updateDBPosition(positionId: string, brokerPos: BrokerPosition): Promise<void> {
+  private async updateDBPosition(
+    positionId: string,
+    brokerPos: BrokerPosition
+  ): Promise<void> {
     await storage.updatePosition(positionId, {
       quantity: brokerPos.qty.toString(),
       currentPrice: brokerPos.currentPrice.toString(),
@@ -260,7 +299,10 @@ class PositionReconciler {
     });
   }
 
-  private async updateDBPositionPrices(positionId: string, brokerPos: BrokerPosition): Promise<void> {
+  private async updateDBPositionPrices(
+    positionId: string,
+    brokerPos: BrokerPosition
+  ): Promise<void> {
     await storage.updatePosition(positionId, {
       currentPrice: brokerPos.currentPrice.toString(),
       unrealizedPnl: brokerPos.unrealizedPL.toString(),
@@ -270,7 +312,10 @@ class PositionReconciler {
   private async closeDBPosition(positionId: string): Promise<void> {
     // Note: Position schema doesn't have status/closedAt fields
     // We could delete the position or just log this for now
-    log.info("PositionReconciler", `Position ${positionId} marked for closure (external)`);
+    log.info(
+      "PositionReconciler",
+      `Position ${positionId} marked for closure (external)`
+    );
     // If you want to delete: await storage.deletePosition(positionId);
   }
 
@@ -285,7 +330,7 @@ class PositionReconciler {
       removed: 0,
       conflicts: [],
       totalValue: 0,
-      duration_ms: 0
+      duration_ms: 0,
     };
   }
 
@@ -297,14 +342,18 @@ class PositionReconciler {
     nextRunIn: number | null;
   } {
     const nextRunIn = this.lastReconciliation
-      ? Math.max(0, this.reconciliationInterval - (Date.now() - this.lastReconciliation.getTime()))
+      ? Math.max(
+          0,
+          this.reconciliationInterval -
+            (Date.now() - this.lastReconciliation.getTime())
+        )
       : null;
 
     return {
       lastRun: this.lastReconciliation,
       interval: this.reconciliationInterval,
       isReconciling: this.isReconciling,
-      nextRunIn
+      nextRunIn,
     };
   }
 
@@ -316,7 +365,10 @@ class PositionReconciler {
   // Set reconciliation interval (in ms)
   setInterval(intervalMs: number): void {
     this.reconciliationInterval = intervalMs;
-    log.info("PositionReconciler", `Reconciliation interval set to ${intervalMs}ms`);
+    log.info(
+      "PositionReconciler",
+      `Reconciliation interval set to ${intervalMs}ms`
+    );
   }
 }
 

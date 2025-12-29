@@ -55,53 +55,89 @@ class TradingLogger {
       this.logs = this.logs.slice(-this.maxLogSize);
     }
 
-    const formattedTime = entry.timestamp.toISOString().split("T")[1].slice(0, 12);
+    const formattedTime = entry.timestamp
+      .toISOString()
+      .split("T")[1]
+      .slice(0, 12);
     const prefix = `[${formattedTime}] [${level.toUpperCase()}] [${category}]`;
-    
+
     switch (level) {
       case "debug":
         console.debug(`${prefix} ${message}`, metadata || "");
         break;
       case "info":
-        console.log(`${prefix} ${message}`, metadata ? JSON.stringify(metadata) : "");
+        console.log(
+          `${prefix} ${message}`,
+          metadata ? JSON.stringify(metadata) : ""
+        );
         break;
       case "warn":
         console.warn(`${prefix} ${message}`, metadata || "");
-        eventBus.emit<SystemEvent>("system:warning", {
-          level: "warning",
-          message,
-          details: metadata,
-        }, category, correlationId);
+        eventBus.emit<SystemEvent>(
+          "system:warning",
+          {
+            level: "warning",
+            message,
+            details: metadata,
+          },
+          category,
+          correlationId
+        );
         break;
       case "error":
       case "critical":
         console.error(`${prefix} ${message}`, metadata || "");
-        eventBus.emit<SystemEvent>("system:error", {
-          level: level === "critical" ? "critical" : "error",
-          message,
-          details: metadata,
-        }, category, correlationId);
+        eventBus.emit<SystemEvent>(
+          "system:error",
+          {
+            level: level === "critical" ? "critical" : "error",
+            message,
+            details: metadata,
+          },
+          category,
+          correlationId
+        );
         break;
     }
   }
 
-  debug(category: string, message: string, metadata?: Record<string, unknown>): void {
+  debug(
+    category: string,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.log("debug", category, message, metadata);
   }
 
-  info(category: string, message: string, metadata?: Record<string, unknown>): void {
+  info(
+    category: string,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.log("info", category, message, metadata);
   }
 
-  warn(category: string, message: string, metadata?: Record<string, unknown>): void {
+  warn(
+    category: string,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.log("warn", category, message, metadata);
   }
 
-  error(category: string, message: string, metadata?: Record<string, unknown>): void {
+  error(
+    category: string,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.log("error", category, message, metadata);
   }
 
-  critical(category: string, message: string, metadata?: Record<string, unknown>): void {
+  critical(
+    category: string,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.log("critical", category, message, metadata);
   }
 
@@ -109,11 +145,19 @@ class TradingLogger {
     this.info("TRADE", action, details);
   }
 
-  strategy(strategyName: string, action: string, details?: Record<string, unknown>): void {
+  strategy(
+    strategyName: string,
+    action: string,
+    details?: Record<string, unknown>
+  ): void {
     this.info("STRATEGY", `[${strategyName}] ${action}`, details);
   }
 
-  market(symbol: string, action: string, details?: Record<string, unknown>): void {
+  market(
+    symbol: string,
+    action: string,
+    details?: Record<string, unknown>
+  ): void {
     this.info("MARKET", `[${symbol}] ${action}`, details);
   }
 
@@ -121,7 +165,11 @@ class TradingLogger {
     this.info("AI", action, details);
   }
 
-  connector(connectorName: string, action: string, details?: Record<string, unknown>): void {
+  connector(
+    connectorName: string,
+    action: string,
+    details?: Record<string, unknown>
+  ): void {
     this.info("CONNECTOR", `[${connectorName}] ${action}`, details);
   }
 
@@ -135,7 +183,9 @@ class TradingLogger {
 
     if (filter?.level) {
       const minPriority = this.levelPriority[filter.level];
-      entries = entries.filter((e) => this.levelPriority[e.level] >= minPriority);
+      entries = entries.filter(
+        (e) => this.levelPriority[e.level] >= minPriority
+      );
     }
 
     if (filter?.category) {
@@ -197,6 +247,11 @@ class TradingLogger {
 
 export const logger = new TradingLogger();
 
-eventBus.subscribe("system:heartbeat", (event: TradingEvent<{ status: string }>) => {
-  logger.debug("SYSTEM", `Heartbeat from ${event.source}`, { status: event.data.status });
-});
+eventBus.subscribe(
+  "system:heartbeat",
+  (event: TradingEvent<{ status: string }>) => {
+    logger.debug("SYSTEM", `Heartbeat from ${event.source}`, {
+      status: event.data.status,
+    });
+  }
+);

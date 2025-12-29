@@ -11,7 +11,11 @@
  * @module broker-connection
  */
 
-import { alpaca, type AlpacaPosition, type MarketStatus } from "../connectors/alpaca";
+import {
+  alpaca,
+  type AlpacaPosition,
+  type MarketStatus,
+} from "../connectors/alpaca";
 
 /**
  * Checks if the Alpaca broker connection is active and authenticated
@@ -160,7 +164,10 @@ export async function canTradeExtendedHours(
   isCryptoSymbol: (symbol: string) => boolean
 ): Promise<{ allowed: boolean; reason?: string }> {
   if (isCryptoSymbol(symbol)) {
-    return { allowed: false, reason: "Extended hours trading is not available for crypto" };
+    return {
+      allowed: false,
+      reason: "Extended hours trading is not available for crypto",
+    };
   }
 
   const marketStatus = await getMarketStatus();
@@ -169,11 +176,17 @@ export async function canTradeExtendedHours(
   }
 
   // Allow trading during pre-market (4AM-9:30AM) and after-hours (4PM-8PM)
-  if (marketStatus.isExtendedHours ||
-      marketStatus.session === "pre-market" ||
-      marketStatus.session === "after-hours") {
+  if (
+    marketStatus.isExtendedHours ||
+    marketStatus.session === "pre-market" ||
+    marketStatus.session === "after-hours"
+  ) {
     return { allowed: true };
   }
 
-  return { allowed: false, reason: "Market is closed and not in extended hours session (4AM-8PM ET on weekdays)" };
+  return {
+    allowed: false,
+    reason:
+      "Market is closed and not in extended hours session (4AM-8PM ET on weekdays)",
+  };
 }

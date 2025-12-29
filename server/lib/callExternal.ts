@@ -71,7 +71,10 @@ export async function callExternal<T>(
       if (cached.isFresh) {
         cacheStatus = "fresh";
         await recordUsage(provider, { isCacheHit: true });
-        log.debug("CallExternal", `Cache HIT (fresh) for ${provider}:${effectiveCacheKey}`);
+        log.debug(
+          "CallExternal",
+          `Cache HIT (fresh) for ${provider}:${effectiveCacheKey}`
+        );
         return {
           data: cached.data,
           provenance: {
@@ -90,12 +93,18 @@ export async function callExternal<T>(
   if (!budgetPolicy.skipBudgetCheck) {
     const budgetCheck = await checkBudget(provider);
     if (!budgetCheck.allowed) {
-      log.warn("CallExternal", `Budget exhausted for ${provider}: ${budgetCheck.reason}`);
+      log.warn(
+        "CallExternal",
+        `Budget exhausted for ${provider}: ${budgetCheck.reason}`
+      );
 
       if (cacheStatus === "stale") {
         const staleData = await getFromCache<T>(provider, effectiveCacheKey);
         if (staleData) {
-          log.info("CallExternal", `Serving stale data for ${provider} due to budget limit`);
+          log.info(
+            "CallExternal",
+            `Serving stale data for ${provider} due to budget limit`
+          );
           await recordUsage(provider, { isCacheHit: true });
           return {
             data: staleData.data,
@@ -111,15 +120,21 @@ export async function callExternal<T>(
       }
 
       if (fallbackProvider && fallbackFetcher) {
-        log.info("CallExternal", `Trying fallback provider ${fallbackProvider} for ${provider}`);
+        log.info(
+          "CallExternal",
+          `Trying fallback provider ${fallbackProvider} for ${provider}`
+        );
         try {
-          const fallbackResult = await callExternal<T>(fallbackFetcher as () => Promise<T>, {
-            provider: fallbackProvider,
-            endpoint,
-            cacheKey: effectiveCacheKey,
-            budgetPolicy,
-            cachePolicy,
-          });
+          const fallbackResult = await callExternal<T>(
+            fallbackFetcher as () => Promise<T>,
+            {
+              provider: fallbackProvider,
+              endpoint,
+              cacheKey: effectiveCacheKey,
+              budgetPolicy,
+              cachePolicy,
+            }
+          );
           return {
             ...fallbackResult,
             provenance: {
@@ -128,11 +143,16 @@ export async function callExternal<T>(
             },
           };
         } catch (fallbackError) {
-          log.warn("CallExternal", `Fallback provider ${fallbackProvider} also failed`);
+          log.warn(
+            "CallExternal",
+            `Fallback provider ${fallbackProvider} also failed`
+          );
         }
       }
 
-      throw new Error(`Budget exhausted for ${provider}: ${budgetCheck.reason}`);
+      throw new Error(
+        `Budget exhausted for ${provider}: ${budgetCheck.reason}`
+      );
     }
   }
 
@@ -152,7 +172,10 @@ export async function callExternal<T>(
       });
     }
 
-    log.debug("CallExternal", `Fetched ${provider}:${effectiveCacheKey} in ${latencyMs}ms`);
+    log.debug(
+      "CallExternal",
+      `Fetched ${provider}:${effectiveCacheKey} in ${latencyMs}ms`
+    );
 
     const postBudget = await checkBudget(provider);
 
@@ -161,7 +184,9 @@ export async function callExternal<T>(
       provenance: {
         provider,
         cacheStatus: "miss",
-        budgetRemaining: postBudget.allowed ? postBudget.limit - postBudget.currentCount : 0,
+        budgetRemaining: postBudget.allowed
+          ? postBudget.limit - postBudget.currentCount
+          : 0,
         latencyMs,
         usedFallback,
       },
@@ -178,7 +203,10 @@ export async function callExternal<T>(
     if (cacheStatus === "stale") {
       const staleData = await getFromCache<T>(provider, effectiveCacheKey);
       if (staleData) {
-        log.warn("CallExternal", `Serving stale data for ${provider} after fetch error: ${error}`);
+        log.warn(
+          "CallExternal",
+          `Serving stale data for ${provider} after fetch error: ${error}`
+        );
         return {
           data: staleData.data,
           provenance: {
@@ -193,15 +221,21 @@ export async function callExternal<T>(
     }
 
     if (fallbackProvider && fallbackFetcher) {
-      log.info("CallExternal", `Trying fallback provider ${fallbackProvider} after error`);
+      log.info(
+        "CallExternal",
+        `Trying fallback provider ${fallbackProvider} after error`
+      );
       try {
-        const fallbackResult = await callExternal<T>(fallbackFetcher as () => Promise<T>, {
-          provider: fallbackProvider,
-          endpoint,
-          cacheKey: effectiveCacheKey,
-          budgetPolicy,
-          cachePolicy,
-        });
+        const fallbackResult = await callExternal<T>(
+          fallbackFetcher as () => Promise<T>,
+          {
+            provider: fallbackProvider,
+            endpoint,
+            cacheKey: effectiveCacheKey,
+            budgetPolicy,
+            cachePolicy,
+          }
+        );
         return {
           ...fallbackResult,
           provenance: {
@@ -210,7 +244,10 @@ export async function callExternal<T>(
           },
         };
       } catch (fallbackError) {
-        log.warn("CallExternal", `Fallback provider ${fallbackProvider} also failed`);
+        log.warn(
+          "CallExternal",
+          `Fallback provider ${fallbackProvider} also failed`
+        );
       }
     }
 
@@ -256,15 +293,32 @@ export async function getProviderStatus(provider: string): Promise<{
   };
 }
 
-export async function getAllProviderStatuses(): Promise<Record<string, Awaited<ReturnType<typeof getProviderStatus>>>> {
+export async function getAllProviderStatuses(): Promise<
+  Record<string, Awaited<ReturnType<typeof getProviderStatus>>>
+> {
   const providers = [
-    "alpaca", "finnhub", "coingecko", "coinmarketcap", "newsapi",
-    "polygon", "twelvedata", "valyu", "huggingface", "gdelt",
-    "openai", "groq", "together",
-    "aitrados_ohlc", "aitrados_news", "aitrados_econ"
+    "alpaca",
+    "finnhub",
+    "coingecko",
+    "coinmarketcap",
+    "newsapi",
+    "polygon",
+    "twelvedata",
+    "valyu",
+    "huggingface",
+    "gdelt",
+    "openai",
+    "groq",
+    "together",
+    "aitrados_ohlc",
+    "aitrados_news",
+    "aitrados_econ",
   ];
 
-  const statuses: Record<string, Awaited<ReturnType<typeof getProviderStatus>>> = {};
+  const statuses: Record<
+    string,
+    Awaited<ReturnType<typeof getProviderStatus>>
+  > = {};
   for (const provider of providers) {
     statuses[provider] = await getProviderStatus(provider);
   }

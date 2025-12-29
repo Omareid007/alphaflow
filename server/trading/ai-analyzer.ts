@@ -1,11 +1,22 @@
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
-import { aiDecisionEngine, type MarketData, type AIDecision, type NewsContext } from "../ai/decision-engine";
+import {
+  aiDecisionEngine,
+  type MarketData,
+  type AIDecision,
+  type NewsContext,
+} from "../ai/decision-engine";
 import { generateTraceId } from "../ai/llmGateway";
 import { newsapi } from "../connectors/newsapi";
 import type { Strategy } from "@shared/schema";
-import { fuseMarketData, type FusedMarketIntelligence } from "../ai/data-fusion-engine";
-import { createEnhancedDecisionLog, type EnhancedDecisionLog } from "../ai/enhanced-decision-log";
+import {
+  fuseMarketData,
+  type FusedMarketIntelligence,
+} from "../ai/data-fusion-engine";
+import {
+  createEnhancedDecisionLog,
+  type EnhancedDecisionLog,
+} from "../ai/enhanced-decision-log";
 import { huggingface } from "../connectors/huggingface";
 import { valyu } from "../connectors/valyu";
 import { gdelt } from "../connectors/gdelt";
@@ -127,14 +138,36 @@ export class AIAnalyzer {
     const upperSymbol = symbol.toUpperCase();
     // Common crypto pairs on Alpaca
     const cryptoPairs = [
-      "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "AVAX/USD",
-      "DOT/USD", "LINK/USD", "UNI/USD", "AAVE/USD", "LTC/USD", "BCH/USD",
-      "BTCUSD", "ETHUSD", "SOLUSD", "DOGEUSD", "SHIBUSD", "AVAXUSD",
-      "DOTUSD", "LINKUSD", "UNIUSD", "AAVEUSD", "LTCUSD", "BCHUSD"
+      "BTC/USD",
+      "ETH/USD",
+      "SOL/USD",
+      "DOGE/USD",
+      "SHIB/USD",
+      "AVAX/USD",
+      "DOT/USD",
+      "LINK/USD",
+      "UNI/USD",
+      "AAVE/USD",
+      "LTC/USD",
+      "BCH/USD",
+      "BTCUSD",
+      "ETHUSD",
+      "SOLUSD",
+      "DOGEUSD",
+      "SHIBUSD",
+      "AVAXUSD",
+      "DOTUSD",
+      "LINKUSD",
+      "UNIUSD",
+      "AAVEUSD",
+      "LTCUSD",
+      "BCHUSD",
     ];
     // Check if it's a known crypto pair or contains a slash (crypto format)
-    return cryptoPairs.includes(upperSymbol) ||
-           (symbol.includes("/") && upperSymbol.endsWith("USD"));
+    return (
+      cryptoPairs.includes(upperSymbol) ||
+      (symbol.includes("/") && upperSymbol.endsWith("USD"))
+    );
   }
 
   /**
@@ -158,7 +191,10 @@ export class AIAnalyzer {
    * normalizeSymbolForAlpaca("BTC/USD", false) // returns "BTCUSD"
    * ```
    */
-  private normalizeSymbolForAlpaca(symbol: string, forOrder: boolean = false): string {
+  private normalizeSymbolForAlpaca(
+    symbol: string,
+    forOrder: boolean = false
+  ): string {
     // For crypto orders, Alpaca requires the slash format (e.g., BTC/USD)
     // For stock orders and position lookups, use uppercase without slash
     if (forOrder && this.isCryptoSymbol(symbol)) {
@@ -202,21 +238,26 @@ export class AIAnalyzer {
       const snapshot = snapshots[lookupSymbol];
 
       if (snapshot) {
-        const currentPrice = snapshot.latestTrade?.p || snapshot.dailyBar?.c || snapshot.prevDailyBar?.c || 0;
+        const currentPrice =
+          snapshot.latestTrade?.p ||
+          snapshot.dailyBar?.c ||
+          snapshot.prevDailyBar?.c ||
+          0;
 
         if (!currentPrice || currentPrice <= 0) {
           log.warn("AIAnalyzer", "No valid price sources for symbol", {
             symbol,
             latestTrade: snapshot.latestTrade?.p,
             dailyBarClose: snapshot.dailyBar?.c,
-            prevDailyBarClose: snapshot.prevDailyBar?.c
+            prevDailyBarClose: snapshot.prevDailyBar?.c,
           });
           return null;
         }
 
         const prevClose = snapshot.prevDailyBar?.c || currentPrice;
         const priceChange = currentPrice - prevClose;
-        const priceChangePercent = prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
+        const priceChangePercent =
+          prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
 
         return {
           symbol: symbol.toUpperCase(),
@@ -232,7 +273,10 @@ export class AIAnalyzer {
       log.warn("AIAnalyzer", "No snapshot data returned", { symbol });
       return null;
     } catch (error) {
-      log.error("AIAnalyzer", "Failed to get market data", { symbol, error: (error as Error).message });
+      log.error("AIAnalyzer", "Failed to get market data", {
+        symbol,
+        error: (error as Error).message,
+      });
       return null;
     }
   }
@@ -260,8 +304,30 @@ export class AIAnalyzer {
    * @note For advanced sentiment, use Hugging Face FinBERT integration
    */
   analyzeSentiment(headlines: string[]): "bullish" | "bearish" | "neutral" {
-    const bullishWords = ["surge", "rally", "gain", "rise", "up", "growth", "positive", "beat", "record", "high"];
-    const bearishWords = ["drop", "fall", "decline", "down", "loss", "negative", "miss", "crash", "low", "sell"];
+    const bullishWords = [
+      "surge",
+      "rally",
+      "gain",
+      "rise",
+      "up",
+      "growth",
+      "positive",
+      "beat",
+      "record",
+      "high",
+    ];
+    const bearishWords = [
+      "drop",
+      "fall",
+      "decline",
+      "down",
+      "loss",
+      "negative",
+      "miss",
+      "crash",
+      "low",
+      "sell",
+    ];
 
     let score = 0;
     const text = headlines.join(" ").toLowerCase();
@@ -336,7 +402,15 @@ export class AIAnalyzer {
     newsContext?: NewsContext
   ): Promise<{
     hasEnrichment: boolean;
-    sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; headlines?: string[]; timestamp: Date }>;
+    sentimentData: Array<{
+      source: string;
+      symbol?: string;
+      sentiment: "positive" | "negative" | "neutral";
+      score: number;
+      confidence: number;
+      headlines?: string[];
+      timestamp: Date;
+    }>;
     fundamentalData: Array<{
       source: string;
       symbol: string;
@@ -346,10 +420,18 @@ export class AIAnalyzer {
       freeCashFlow?: number;
       dividendYield?: number;
       insiderSentiment?: "bullish" | "bearish" | "neutral";
-      timestamp: Date
+      timestamp: Date;
     }>;
   }> {
-    const sentimentData: Array<{ source: string; symbol?: string; sentiment: "positive" | "negative" | "neutral"; score: number; confidence: number; headlines?: string[]; timestamp: Date }> = [];
+    const sentimentData: Array<{
+      source: string;
+      symbol?: string;
+      sentiment: "positive" | "negative" | "neutral";
+      score: number;
+      confidence: number;
+      headlines?: string[];
+      timestamp: Date;
+    }> = [];
     const fundamentalData: Array<{
       source: string;
       symbol: string;
@@ -359,13 +441,17 @@ export class AIAnalyzer {
       freeCashFlow?: number;
       dividendYield?: number;
       insiderSentiment?: "bullish" | "bearish" | "neutral";
-      timestamp: Date
+      timestamp: Date;
     }> = [];
 
     const enrichmentPromises: Promise<void>[] = [];
 
     // Try Hugging Face sentiment enrichment if we have headlines
-    if (newsContext?.headlines && newsContext.headlines.length > 0 && huggingface.isAvailable()) {
+    if (
+      newsContext?.headlines &&
+      newsContext.headlines.length > 0 &&
+      huggingface.isAvailable()
+    ) {
       enrichmentPromises.push(
         (async () => {
           try {
@@ -376,7 +462,11 @@ export class AIAnalyzer {
             );
             if (signal) {
               const sentiment: "positive" | "negative" | "neutral" =
-                signal.sentimentScore > 0.2 ? "positive" : signal.sentimentScore < -0.2 ? "negative" : "neutral";
+                signal.sentimentScore > 0.2
+                  ? "positive"
+                  : signal.sentimentScore < -0.2
+                    ? "negative"
+                    : "neutral";
               sentimentData.push({
                 source: "huggingface_finbert",
                 symbol,
@@ -387,7 +477,9 @@ export class AIAnalyzer {
               });
             }
           } catch (e) {
-            log.debug("AI", `HuggingFace enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+            log.debug("AI", `HuggingFace enrichment skipped for ${symbol}`, {
+              reason: (e as Error).message,
+            });
           }
         })()
       );
@@ -399,13 +491,18 @@ export class AIAnalyzer {
       (async () => {
         try {
           const gdeltSentiment = isCrypto
-            ? await gdelt.getCryptoSentiment(symbol.replace(/USD$|USDT$|\/USD$/i, ""))
+            ? await gdelt.getCryptoSentiment(
+                symbol.replace(/USD$|USDT$|\/USD$/i, "")
+              )
             : await gdelt.analyzeSymbolSentiment(symbol);
 
           if (gdeltSentiment && gdeltSentiment.articleCount > 0) {
             const sentiment: "positive" | "negative" | "neutral" =
-              gdeltSentiment.sentiment === "bullish" ? "positive" :
-              gdeltSentiment.sentiment === "bearish" ? "negative" : "neutral";
+              gdeltSentiment.sentiment === "bullish"
+                ? "positive"
+                : gdeltSentiment.sentiment === "bearish"
+                  ? "negative"
+                  : "neutral";
 
             sentimentData.push({
               source: "gdelt",
@@ -425,7 +522,9 @@ export class AIAnalyzer {
             }
           }
         } catch (e) {
-          log.debug("AI", `GDELT enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+          log.debug("AI", `GDELT enrichment skipped for ${symbol}`, {
+            reason: (e as Error).message,
+          });
         }
       })()
     );
@@ -435,12 +534,13 @@ export class AIAnalyzer {
       enrichmentPromises.push(
         (async () => {
           try {
-            const [ratios, cashFlow, dividends, insiderData] = await Promise.all([
-              valyu.getFinancialRatios(symbol),
-              valyu.getCashFlow(symbol).catch(() => null),
-              valyu.getDividends(symbol).catch(() => null),
-              valyu.getInsiderTransactions(symbol).catch(() => null),
-            ]);
+            const [ratios, cashFlow, dividends, insiderData] =
+              await Promise.all([
+                valyu.getFinancialRatios(symbol),
+                valyu.getCashFlow(symbol).catch(() => null),
+                valyu.getDividends(symbol).catch(() => null),
+                valyu.getInsiderTransactions(symbol).catch(() => null),
+              ]);
 
             if (ratios || cashFlow || dividends || insiderData) {
               fundamentalData.push({
@@ -463,7 +563,9 @@ export class AIAnalyzer {
               }
             }
           } catch (e) {
-            log.debug("AI", `Valyu.ai enrichment skipped for ${symbol}`, { reason: (e as Error).message });
+            log.debug("AI", `Valyu.ai enrichment skipped for ${symbol}`, {
+              reason: (e as Error).message,
+            });
           }
         })()
       );
@@ -534,7 +636,12 @@ export class AIAnalyzer {
     symbol: string,
     strategyId?: string,
     traceId?: string
-  ): Promise<{ decision: AIDecision; marketData: MarketData; fusedIntelligence?: FusedMarketIntelligence; enhancedLog?: EnhancedDecisionLog }> {
+  ): Promise<{
+    decision: AIDecision;
+    marketData: MarketData;
+    fusedIntelligence?: FusedMarketIntelligence;
+    enhancedLog?: EnhancedDecisionLog;
+  }> {
     const effectiveTraceId = traceId || generateTraceId();
     const marketData = await this.getMarketDataForSymbol(symbol);
     if (!marketData) {
@@ -559,11 +666,18 @@ export class AIAnalyzer {
         };
       }
     } catch (e) {
-      log.debug("AIAnalyzer", "Could not fetch news", { symbol, error: (e as Error).message });
+      log.debug("AIAnalyzer", "Could not fetch news", {
+        symbol,
+        error: (e as Error).message,
+      });
     }
 
     // Gather enrichment data from optional sources
-    const enrichmentData = await this.gatherEnrichmentData(symbol, marketData, newsContext);
+    const enrichmentData = await this.gatherEnrichmentData(
+      symbol,
+      marketData,
+      newsContext
+    );
 
     // Fuse data from multiple sources if we have enrichment
     if (enrichmentData.hasEnrichment) {
@@ -571,16 +685,18 @@ export class AIAnalyzer {
         fusedIntelligence = fuseMarketData({
           symbol,
           assetType: this.isCryptoSymbol(symbol) ? "crypto" : "stock",
-          marketData: [{
-            source: "alpaca",
-            symbol,
-            price: marketData.currentPrice,
-            priceChange: marketData.priceChange24h,
-            priceChangePercent: marketData.priceChangePercent24h,
-            volume: marketData.volume,
-            timestamp: new Date(),
-            reliability: 0.95,
-          }],
+          marketData: [
+            {
+              source: "alpaca",
+              symbol,
+              price: marketData.currentPrice,
+              priceChange: marketData.priceChange24h,
+              priceChangePercent: marketData.priceChangePercent24h,
+              volume: marketData.volume,
+              timestamp: new Date(),
+              reliability: 0.95,
+            },
+          ],
           sentimentData: enrichmentData.sentimentData,
           fundamentalData: enrichmentData.fundamentalData,
         });
@@ -590,7 +706,9 @@ export class AIAnalyzer {
           dataQuality: fusedIntelligence.dataQuality.completeness,
         });
       } catch (e) {
-        log.warn("AI", `Data fusion failed for ${symbol}`, { error: (e as Error).message });
+        log.warn("AI", `Data fusion failed for ${symbol}`, {
+          error: (e as Error).message,
+        });
       }
     }
 
@@ -599,7 +717,9 @@ export class AIAnalyzer {
           id: strategy.id,
           name: strategy.name,
           type: strategy.type,
-          parameters: strategy.parameters ? JSON.parse(strategy.parameters) : undefined,
+          parameters: strategy.parameters
+            ? JSON.parse(strategy.parameters)
+            : undefined,
         }
       : undefined;
 
@@ -635,12 +755,14 @@ export class AIAnalyzer {
         suggestedQuantity: decision.suggestedQuantity,
         targetPrice: decision.targetPrice,
         stopLoss: decision.stopLoss,
-        fusedIntelligence: fusedIntelligence ? {
-          signalAgreement: fusedIntelligence.signalAgreement,
-          trendStrength: fusedIntelligence.trendStrength,
-          dataQuality: fusedIntelligence.dataQuality,
-          warnings: fusedIntelligence.warnings,
-        } : undefined,
+        fusedIntelligence: fusedIntelligence
+          ? {
+              signalAgreement: fusedIntelligence.signalAgreement,
+              trendStrength: fusedIntelligence.trendStrength,
+              dataQuality: fusedIntelligence.dataQuality,
+              warnings: fusedIntelligence.warnings,
+            }
+          : undefined,
         enhancedLogId: enhancedLog.id,
       }),
     });
@@ -677,15 +799,29 @@ export class AIAnalyzer {
    * @note Skips if decision already has an associated trade
    * @note Errors are logged but don't throw
    */
-  async linkAiDecisionToTrade(symbol: string, strategyId: string | undefined, tradeId: string): Promise<void> {
+  async linkAiDecisionToTrade(
+    symbol: string,
+    strategyId: string | undefined,
+    tradeId: string
+  ): Promise<void> {
     try {
-      const latestDecision = await storage.getLatestAiDecisionForSymbol(symbol, strategyId);
+      const latestDecision = await storage.getLatestAiDecisionForSymbol(
+        symbol,
+        strategyId
+      );
       if (latestDecision && !latestDecision.executedTradeId) {
-        await storage.updateAiDecision(latestDecision.id, { executedTradeId: tradeId });
-        log.debug("AIAnalyzer", "Linked AI decision to trade", { decisionId: latestDecision.id, tradeId });
+        await storage.updateAiDecision(latestDecision.id, {
+          executedTradeId: tradeId,
+        });
+        log.debug("AIAnalyzer", "Linked AI decision to trade", {
+          decisionId: latestDecision.id,
+          tradeId,
+        });
       }
     } catch (error) {
-      log.error("AIAnalyzer", "Failed to link AI decision to trade", { error: (error as Error).message });
+      log.error("AIAnalyzer", "Failed to link AI decision to trade", {
+        error: (error as Error).message,
+      });
     }
   }
 }

@@ -20,18 +20,21 @@ interface LatencyBuffer {
 }
 
 class ConnectorMetricsService {
-  private memoryBuffer: Map<string, {
-    totalRequests: number;
-    successCount: number;
-    failureCount: number;
-    cacheHits: number;
-    cacheMisses: number;
-    rateLimitHits: number;
-    fallbackUsed: number;
-    latencies: LatencyBuffer;
-    lastError?: string;
-    lastErrorAt?: Date;
-  }>;
+  private memoryBuffer: Map<
+    string,
+    {
+      totalRequests: number;
+      successCount: number;
+      failureCount: number;
+      cacheHits: number;
+      cacheMisses: number;
+      rateLimitHits: number;
+      fallbackUsed: number;
+      latencies: LatencyBuffer;
+      lastError?: string;
+      lastErrorAt?: Date;
+    }
+  >;
 
   private flushIntervalMs = 60000;
   private flushTimer: ReturnType<typeof setInterval> | null = null;
@@ -51,14 +54,16 @@ class ConnectorMetricsService {
     }
     this.flushTimer = setInterval(() => {
       this.flushToDatabase().catch((err) => {
-        log.error("ConnectorMetricsService", "Failed to flush metrics", { error: err });
+        log.error("ConnectorMetricsService", "Failed to flush metrics", {
+          error: err,
+        });
       });
     }, this.flushIntervalMs);
   }
 
   recordEvent(event: MetricEvent): void {
     const key = this.getBufferKey(event.connector, event.endpoint);
-    
+
     let buffer = this.memoryBuffer.get(key);
     if (!buffer) {
       buffer = {
@@ -154,9 +159,11 @@ class ConnectorMetricsService {
           const oldTotal = existing[0].totalRequests;
           const newTotal = oldTotal + buffer.totalRequests;
           const oldAvg = parseFloat(existing[0].avgLatencyMs || "0");
-          const newAvg = oldTotal > 0
-            ? (oldAvg * oldTotal + stats.avg * buffer.totalRequests) / newTotal
-            : stats.avg;
+          const newAvg =
+            oldTotal > 0
+              ? (oldAvg * oldTotal + stats.avg * buffer.totalRequests) /
+                newTotal
+              : stats.avg;
 
           await db
             .update(connectorMetrics)
@@ -211,12 +218,19 @@ class ConnectorMetricsService {
         buffer.lastError = undefined;
         buffer.lastErrorAt = undefined;
       } catch (error) {
-        log.error("ConnectorMetricsService", `Failed to flush metrics for ${key}`, { error });
+        log.error(
+          "ConnectorMetricsService",
+          `Failed to flush metrics for ${key}`,
+          { error }
+        );
       }
     }
   }
 
-  async getMetricsByConnector(connector: string, days: number = 7): Promise<typeof connectorMetrics.$inferSelect[]> {
+  async getMetricsByConnector(
+    connector: string,
+    days: number = 7
+  ): Promise<(typeof connectorMetrics.$inferSelect)[]> {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
@@ -232,7 +246,7 @@ class ConnectorMetricsService {
       .orderBy(desc(connectorMetrics.date));
   }
 
-  async getLatestMetrics(): Promise<typeof connectorMetrics.$inferSelect[]> {
+  async getLatestMetrics(): Promise<(typeof connectorMetrics.$inferSelect)[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -243,13 +257,15 @@ class ConnectorMetricsService {
       .orderBy(desc(connectorMetrics.totalRequests));
   }
 
-  async getConnectorSummary(): Promise<{
-    connector: string;
-    successRate: number;
-    avgLatencyMs: number;
-    totalRequests: number;
-    cacheHitRate: number;
-  }[]> {
+  async getConnectorSummary(): Promise<
+    {
+      connector: string;
+      successRate: number;
+      avgLatencyMs: number;
+      totalRequests: number;
+      cacheHitRate: number;
+    }[]
+  > {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
@@ -258,13 +274,16 @@ class ConnectorMetricsService {
       .from(connectorMetrics)
       .where(gte(connectorMetrics.date, weekAgo));
 
-    const byConnector = new Map<string, {
-      totalRequests: number;
-      successCount: number;
-      cacheHits: number;
-      cacheMisses: number;
-      latencySum: number;
-    }>();
+    const byConnector = new Map<
+      string,
+      {
+        totalRequests: number;
+        successCount: number;
+        cacheHits: number;
+        cacheMisses: number;
+        latencySum: number;
+      }
+    >();
 
     for (const m of metrics) {
       const existing = byConnector.get(m.connector) || {
@@ -279,19 +298,25 @@ class ConnectorMetricsService {
       existing.successCount += m.successCount;
       existing.cacheHits += m.cacheHits;
       existing.cacheMisses += m.cacheMisses;
-      existing.latencySum += parseFloat(m.avgLatencyMs || "0") * m.totalRequests;
+      existing.latencySum +=
+        parseFloat(m.avgLatencyMs || "0") * m.totalRequests;
 
       byConnector.set(m.connector, existing);
     }
 
     return Array.from(byConnector.entries()).map(([connector, data]) => ({
       connector,
-      successRate: data.totalRequests > 0 ? (data.successCount / data.totalRequests) * 100 : 100,
-      avgLatencyMs: data.totalRequests > 0 ? data.latencySum / data.totalRequests : 0,
+      successRate:
+        data.totalRequests > 0
+          ? (data.successCount / data.totalRequests) * 100
+          : 100,
+      avgLatencyMs:
+        data.totalRequests > 0 ? data.latencySum / data.totalRequests : 0,
       totalRequests: data.totalRequests,
-      cacheHitRate: (data.cacheHits + data.cacheMisses) > 0
-        ? (data.cacheHits / (data.cacheHits + data.cacheMisses)) * 100
-        : 0,
+      cacheHitRate:
+        data.cacheHits + data.cacheMisses > 0
+          ? (data.cacheHits / (data.cacheHits + data.cacheMisses)) * 100
+          : 0,
     }));
   }
 

@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Provider, Credential, Budget, ConnectionTestResult, UsageMetrics, ApiFunction, ApiDiscoveryResult } from "@/lib/admin/types";
+import {
+  Provider,
+  Credential,
+  Budget,
+  ConnectionTestResult,
+  UsageMetrics,
+  ApiFunction,
+  ApiDiscoveryResult,
+} from "@/lib/admin/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +29,9 @@ import { ApiFunctionsCard } from "./ApiFunctionsCard";
 
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(
+    null
+  );
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [usageMetrics, setUsageMetrics] = useState<UsageMetrics[]>([]);
@@ -32,20 +42,21 @@ export default function ProvidersPage() {
 
   useEffect(() => {
     loadProviders().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedProvider) {
       Promise.all([
         loadProviderDetails(selectedProvider.id),
-        loadApiFunctions(selectedProvider.id)
+        loadApiFunctions(selectedProvider.id),
       ]).catch(console.error);
     }
   }, [selectedProvider]);
 
   async function loadProviders() {
     try {
-      const res = await fetch('/api/admin/providers');
+      const res = await fetch("/api/admin/providers");
       if (res.ok) {
         const data = await res.json();
         setProviders(data);
@@ -54,7 +65,7 @@ export default function ProvidersPage() {
         }
       }
     } catch (error) {
-      toast.error('Failed to load providers');
+      toast.error("Failed to load providers");
     } finally {
       setLoading(false);
     }
@@ -65,14 +76,14 @@ export default function ProvidersPage() {
       const [credsRes, budgetRes, metricsRes] = await Promise.all([
         fetch(`/api/admin/providers/${id}/credentials`),
         fetch(`/api/admin/providers/${id}/budget`),
-        fetch(`/api/admin/providers/${id}/usage?days=30`)
+        fetch(`/api/admin/providers/${id}/usage?days=30`),
       ]);
 
       if (credsRes.ok) setCredentials(await credsRes.json());
       if (budgetRes.ok) setBudget(await budgetRes.json());
       if (metricsRes.ok) setUsageMetrics(await metricsRes.json());
     } catch (error) {
-      console.error('Failed to load provider details:', error);
+      console.error("Failed to load provider details:", error);
     }
   }
 
@@ -81,56 +92,58 @@ export default function ProvidersPage() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const res = await fetch('/api/admin/providers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/admin/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: formData.get('type'),
-          name: formData.get('name'),
-          baseUrl: formData.get('baseUrl') || undefined,
-          status: 'active',
+          type: formData.get("type"),
+          name: formData.get("name"),
+          baseUrl: formData.get("baseUrl") || undefined,
+          status: "active",
           tags: [],
-          metadata: {}
-        })
+          metadata: {},
+        }),
       });
 
       if (res.ok) {
-        toast.success('Provider created');
+        toast.success("Provider created");
         setCreateDialogOpen(false);
         loadProviders();
       } else {
-        toast.error('Failed to create provider');
+        toast.error("Failed to create provider");
       }
     } catch (error) {
-      toast.error('Failed to create provider');
+      toast.error("Failed to create provider");
     }
   }
 
   async function handleCreateProviderEnhanced(data: any) {
     try {
-      const res = await fetch('/api/admin/providers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      const res = await fetch("/api/admin/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
 
       if (res.ok) {
-        toast.success('Provider created successfully');
+        toast.success("Provider created successfully");
         setCreateDialogOpen(false);
         loadProviders();
       } else {
         const error = await res.json();
-        toast.error(error.message || 'Failed to create provider');
+        toast.error(error.message || "Failed to create provider");
       }
     } catch (error) {
-      toast.error('Failed to create provider');
+      toast.error("Failed to create provider");
     }
   }
 
   async function handleTestConnection(id: string) {
-    toast.loading('Testing connection...');
+    toast.loading("Testing connection...");
     try {
-      const res = await fetch(`/api/admin/providers/${id}/test`, { method: 'POST' });
+      const res = await fetch(`/api/admin/providers/${id}/test`, {
+        method: "POST",
+      });
       if (res.ok) {
         const result: ConnectionTestResult = await res.json();
         if (result.success) {
@@ -140,7 +153,7 @@ export default function ProvidersPage() {
         }
       }
     } catch (error) {
-      toast.error('Test failed');
+      toast.error("Test failed");
     }
   }
 
@@ -152,7 +165,7 @@ export default function ProvidersPage() {
         setApiFunctions(data);
       }
     } catch (error) {
-      console.error('Failed to load API functions:', error);
+      console.error("Failed to load API functions:", error);
     }
   }
 
@@ -161,30 +174,35 @@ export default function ProvidersPage() {
     if (!selectedProvider) return;
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
-    const documentUrl = formData.get('url') as string;
+    const documentUrl = formData.get("url") as string;
 
     if (!documentUrl) return;
 
     setDiscovering(true);
-    toast.loading('Analyzing API documentation...');
+    toast.loading("Analyzing API documentation...");
 
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/discover`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentUrl })
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/discover`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentUrl }),
+        }
+      );
 
       const result: ApiDiscoveryResult = await res.json();
 
       if (result.success) {
-        toast.success(`Discovered ${result.functionsDiscovered} endpoints and ${result.schemasDiscovered} schemas`);
+        toast.success(
+          `Discovered ${result.functionsDiscovered} endpoints and ${result.schemasDiscovered} schemas`
+        );
         loadApiFunctions(selectedProvider.id);
       } else {
-        toast.error(result.error || 'Failed to discover APIs');
+        toast.error(result.error || "Failed to discover APIs");
       }
     } catch (error) {
-      toast.error('Failed to discover APIs');
+      toast.error("Failed to discover APIs");
     } finally {
       setDiscovering(false);
     }
@@ -194,29 +212,35 @@ export default function ProvidersPage() {
     if (!selectedProvider) return;
 
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/functions/${funcId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isEnabled: enabled })
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/functions/${funcId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isEnabled: enabled }),
+        }
+      );
 
       if (res.ok) {
-        toast.success(`Endpoint ${enabled ? 'enabled' : 'disabled'}`);
+        toast.success(`Endpoint ${enabled ? "enabled" : "disabled"}`);
         loadApiFunctions(selectedProvider.id);
       }
     } catch (error) {
-      toast.error('Failed to update endpoint');
+      toast.error("Failed to update endpoint");
     }
   }
 
   async function handleTestApiFunction(funcId: string) {
     if (!selectedProvider) return;
 
-    toast.loading('Testing endpoint...');
+    toast.loading("Testing endpoint...");
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/functions/${funcId}/test`, {
-        method: 'POST'
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/functions/${funcId}/test`,
+        {
+          method: "POST",
+        }
+      );
 
       if (res.ok) {
         const result = await res.json();
@@ -228,7 +252,7 @@ export default function ProvidersPage() {
         loadApiFunctions(selectedProvider.id);
       }
     } catch (error) {
-      toast.error('Test failed');
+      toast.error("Test failed");
     }
   }
 
@@ -236,16 +260,19 @@ export default function ProvidersPage() {
     if (!selectedProvider) return;
 
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/functions/${funcId}`, {
-        method: 'DELETE'
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/functions/${funcId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (res.ok) {
-        toast.success('Endpoint removed');
+        toast.success("Endpoint removed");
         loadApiFunctions(selectedProvider.id);
       }
     } catch (error) {
-      toast.error('Failed to remove endpoint');
+      toast.error("Failed to remove endpoint");
     }
   }
 
@@ -256,23 +283,26 @@ export default function ProvidersPage() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/credentials`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: formData.get('kind'),
-          value: formData.get('value')
-        })
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/credentials`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: formData.get("kind"),
+            value: formData.get("value"),
+          }),
+        }
+      );
 
       if (res.ok) {
-        toast.success('Credential added');
+        toast.success("Credential added");
         loadProviderDetails(selectedProvider.id);
       } else {
-        toast.error('Failed to add credential');
+        toast.error("Failed to add credential");
       }
     } catch (error) {
-      toast.error('Failed to add credential');
+      toast.error("Failed to add credential");
     }
   }
 
@@ -283,25 +313,28 @@ export default function ProvidersPage() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const res = await fetch(`/api/admin/providers/${selectedProvider.id}/budget`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dailyLimit: Number(formData.get('dailyLimit')),
-          monthlyLimit: Number(formData.get('monthlyLimit')),
-          softLimit: Number(formData.get('softLimit')),
-          hardLimit: Number(formData.get('hardLimit'))
-        })
-      });
+      const res = await fetch(
+        `/api/admin/providers/${selectedProvider.id}/budget`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dailyLimit: Number(formData.get("dailyLimit")),
+            monthlyLimit: Number(formData.get("monthlyLimit")),
+            softLimit: Number(formData.get("softLimit")),
+            hardLimit: Number(formData.get("hardLimit")),
+          }),
+        }
+      );
 
       if (res.ok) {
-        toast.success('Budget updated');
+        toast.success("Budget updated");
         loadProviderDetails(selectedProvider.id);
       } else {
-        toast.error('Failed to update budget');
+        toast.error("Failed to update budget");
       }
     } catch (error) {
-      toast.error('Failed to update budget');
+      toast.error("Failed to update budget");
     }
   }
 
@@ -317,7 +350,9 @@ export default function ProvidersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Providers & Budgets</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Providers & Budgets
+          </h1>
           <p className="mt-1 text-muted-foreground">
             Manage external service providers and usage limits
           </p>
@@ -333,7 +368,10 @@ export default function ProvidersPage() {
             <DialogHeader>
               <DialogTitle>Add Provider</DialogTitle>
             </DialogHeader>
-            <ProviderForm mode="create" onSubmit={handleCreateProviderEnhanced} />
+            <ProviderForm
+              mode="create"
+              onSubmit={handleCreateProviderEnhanced}
+            />
           </DialogContent>
         </Dialog>
       </div>

@@ -23,7 +23,11 @@ export function MetricsGrid({ metrics }: MetricsGridProps) {
         format="percent"
         good={metrics.maxDrawdown < 20}
       />
-      <MetricTile label="Volatility" value={metrics.volatility} format="percent" />
+      <MetricTile
+        label="Volatility"
+        value={metrics.volatility}
+        format="percent"
+      />
       <MetricTile label="Win Rate" value={metrics.winRate} format="percent" />
       <MetricTile label="Total Trades" value={metrics.totalTrades} />
     </div>

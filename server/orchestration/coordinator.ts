@@ -1,4 +1,11 @@
-import { eventBus, type TradingEvent, type MarketDataEvent, type StrategySignalEvent, type TradeExecutedEvent, type PositionEvent } from "./events";
+import {
+  eventBus,
+  type TradingEvent,
+  type MarketDataEvent,
+  type StrategySignalEvent,
+  type TradeExecutedEvent,
+  type PositionEvent,
+} from "./events";
 import { logger } from "./logger";
 import { storage } from "../storage";
 
@@ -53,9 +60,12 @@ class TradingCoordinator {
       this.handleTradeExecuted(event);
     });
 
-    eventBus.subscribe<{ message: string; details?: Record<string, unknown> }>("trade:error", (event) => {
-      this.handleTradeError(event);
-    });
+    eventBus.subscribe<{ message: string; details?: Record<string, unknown> }>(
+      "trade:error",
+      (event) => {
+        this.handleTradeError(event);
+      }
+    );
 
     eventBus.subscribe("system:error", () => {
       this.errorCount++;
@@ -65,15 +75,21 @@ class TradingCoordinator {
       this.warningCount++;
     });
 
-    eventBus.subscribe("strategy:started", (event: TradingEvent<{ strategyId: string }>) => {
-      this.activeStrategies.add(event.data.strategyId);
-      logger.strategy(event.data.strategyId, "Started");
-    });
+    eventBus.subscribe(
+      "strategy:started",
+      (event: TradingEvent<{ strategyId: string }>) => {
+        this.activeStrategies.add(event.data.strategyId);
+        logger.strategy(event.data.strategyId, "Started");
+      }
+    );
 
-    eventBus.subscribe("strategy:stopped", (event: TradingEvent<{ strategyId: string }>) => {
-      this.activeStrategies.delete(event.data.strategyId);
-      logger.strategy(event.data.strategyId, "Stopped");
-    });
+    eventBus.subscribe(
+      "strategy:stopped",
+      (event: TradingEvent<{ strategyId: string }>) => {
+        this.activeStrategies.delete(event.data.strategyId);
+        logger.strategy(event.data.strategyId, "Stopped");
+      }
+    );
   }
 
   private handleStrategySignal(event: TradingEvent<StrategySignalEvent>): void {
@@ -94,7 +110,9 @@ class TradingCoordinator {
     });
   }
 
-  private handleTradeError(event: TradingEvent<{ message: string; details?: Record<string, unknown> }>): void {
+  private handleTradeError(
+    event: TradingEvent<{ message: string; details?: Record<string, unknown> }>
+  ): void {
     this.errorCount++;
     logger.error("TRADE", event.data.message, event.data.details);
   }
@@ -158,24 +176,36 @@ class TradingCoordinator {
   }
 
   private sendHeartbeat(): void {
-    eventBus.emit("system:heartbeat", {
-      status: "running",
-      activeStrategies: this.activeStrategies.size,
-      uptime: Date.now() - this.startTime.getTime(),
-    }, "coordinator");
+    eventBus.emit(
+      "system:heartbeat",
+      {
+        status: "running",
+        activeStrategies: this.activeStrategies.size,
+        uptime: Date.now() - this.startTime.getTime(),
+      },
+      "coordinator"
+    );
 
     storage.updateAgentStatus({ lastHeartbeat: new Date() }).catch((err) => {
-      logger.error("COORDINATOR", "Failed to update heartbeat in database", { error: String(err) });
+      logger.error("COORDINATOR", "Failed to update heartbeat in database", {
+        error: String(err),
+      });
     });
   }
 
   private async reconcilePositions(): Promise<void> {
     logger.info("COORDINATOR", "Starting position reconciliation...");
     try {
-      eventBus.emit("system:heartbeat", { status: "reconciling" }, "coordinator");
+      eventBus.emit(
+        "system:heartbeat",
+        { status: "reconciling" },
+        "coordinator"
+      );
       logger.info("COORDINATOR", "Position reconciliation completed");
     } catch (error) {
-      logger.error("COORDINATOR", "Position reconciliation failed", { error: String(error) });
+      logger.error("COORDINATOR", "Position reconciliation failed", {
+        error: String(error),
+      });
     }
   }
 
@@ -197,7 +227,10 @@ class TradingCoordinator {
 
   registerStrategy(strategyId: string): boolean {
     if (this.activeStrategies.size >= this.config.maxConcurrentStrategies) {
-      logger.warn("COORDINATOR", `Max concurrent strategies (${this.config.maxConcurrentStrategies}) reached`);
+      logger.warn(
+        "COORDINATOR",
+        `Max concurrent strategies (${this.config.maxConcurrentStrategies}) reached`
+      );
       return false;
     }
 
@@ -226,7 +259,9 @@ class TradingCoordinator {
 
   updateConfig(updates: Partial<CoordinatorConfig>): void {
     this.config = { ...this.config, ...updates };
-    logger.info("COORDINATOR", "Configuration updated", { config: this.config });
+    logger.info("COORDINATOR", "Configuration updated", {
+      config: this.config,
+    });
   }
 
   getConfig(): CoordinatorConfig {

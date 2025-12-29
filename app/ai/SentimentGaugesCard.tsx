@@ -13,7 +13,7 @@ export function SentimentGaugesCard({ sentiments }: SentimentGaugesCardProps) {
         <CardTitle className="text-lg">Sentiment Gauges</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {sentiments.slice(0, 4).map(signal => (
+        {sentiments.slice(0, 4).map((signal) => (
           <SentimentCard key={signal.id} signal={signal} />
         ))}
       </CardContent>

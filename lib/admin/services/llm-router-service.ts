@@ -1,34 +1,42 @@
-import { adminSupabase } from '../supabase';
-import { LlmModel, LlmRouteRule, LlmRoutingDecision } from '../types';
+import { adminSupabase } from "../supabase";
+import { LlmModel, LlmRouteRule, LlmRoutingDecision } from "../types";
 
 export interface ILlmRouterService {
   listModels(): Promise<LlmModel[]>;
-  createModel(data: Omit<LlmModel, 'id' | 'createdAt'>): Promise<LlmModel>;
+  createModel(data: Omit<LlmModel, "id" | "createdAt">): Promise<LlmModel>;
   updateModel(id: string, data: Partial<LlmModel>): Promise<LlmModel>;
   deleteModel(id: string): Promise<void>;
   listRules(): Promise<LlmRouteRule[]>;
-  createRule(data: Omit<LlmRouteRule, 'id' | 'createdAt'>): Promise<LlmRouteRule>;
+  createRule(
+    data: Omit<LlmRouteRule, "id" | "createdAt">
+  ): Promise<LlmRouteRule>;
   updateRule(id: string, data: Partial<LlmRouteRule>): Promise<LlmRouteRule>;
   deleteRule(id: string): Promise<void>;
-  dryRunRouting(taskType: string, promptLength: number, tier?: string): Promise<LlmRoutingDecision>;
+  dryRunRouting(
+    taskType: string,
+    promptLength: number,
+    tier?: string
+  ): Promise<LlmRoutingDecision>;
 }
 
 class LlmRouterService implements ILlmRouterService {
   async listModels(): Promise<LlmModel[]> {
     if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
-      .from('admin_llm_models')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("admin_llm_models")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
     return (data || []).map(this.mapModel);
   }
 
-  async createModel(input: Omit<LlmModel, 'id' | 'createdAt'>): Promise<LlmModel> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async createModel(
+    input: Omit<LlmModel, "id" | "createdAt">
+  ): Promise<LlmModel> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const { data, error } = await adminSupabase
-      .from('admin_llm_models')
+      .from("admin_llm_models")
       .insert({
         provider_id: input.providerId,
         model_name: input.modelName,
@@ -36,7 +44,7 @@ class LlmRouterService implements ILlmRouterService {
         cost_input: input.costInput,
         cost_output: input.costOutput,
         enabled: input.enabled,
-        metadata: input.metadata
+        metadata: input.metadata,
       })
       .select()
       .single();
@@ -46,17 +54,19 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async updateModel(id: string, input: Partial<LlmModel>): Promise<LlmModel> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const { data, error } = await adminSupabase
-      .from('admin_llm_models')
+      .from("admin_llm_models")
       .update({
         ...(input.contextWindow && { context_window: input.contextWindow }),
         ...(input.costInput !== undefined && { cost_input: input.costInput }),
-        ...(input.costOutput !== undefined && { cost_output: input.costOutput }),
+        ...(input.costOutput !== undefined && {
+          cost_output: input.costOutput,
+        }),
         ...(input.enabled !== undefined && { enabled: input.enabled }),
-        ...(input.metadata && { metadata: input.metadata })
+        ...(input.metadata && { metadata: input.metadata }),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -65,11 +75,11 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async deleteModel(id: string): Promise<void> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const { error } = await adminSupabase
-      .from('admin_llm_models')
+      .from("admin_llm_models")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
@@ -77,18 +87,20 @@ class LlmRouterService implements ILlmRouterService {
   async listRules(): Promise<LlmRouteRule[]> {
     if (!adminSupabase) return [];
     const { data, error } = await adminSupabase
-      .from('admin_llm_route_rules')
-      .select('*')
-      .order('priority', { ascending: false });
+      .from("admin_llm_route_rules")
+      .select("*")
+      .order("priority", { ascending: false });
 
     if (error) throw error;
     return (data || []).map(this.mapRule);
   }
 
-  async createRule(input: Omit<LlmRouteRule, 'id' | 'createdAt'>): Promise<LlmRouteRule> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async createRule(
+    input: Omit<LlmRouteRule, "id" | "createdAt">
+  ): Promise<LlmRouteRule> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const { data, error } = await adminSupabase
-      .from('admin_llm_route_rules')
+      .from("admin_llm_route_rules")
       .insert({
         name: input.name,
         match_conditions: input.matchConditions,
@@ -97,7 +109,7 @@ class LlmRouterService implements ILlmRouterService {
         max_cost_per_req: input.maxCostPerReq,
         timeout_ms: input.timeoutMs,
         enabled: input.enabled,
-        priority: input.priority
+        priority: input.priority,
       })
       .select()
       .single();
@@ -106,21 +118,30 @@ class LlmRouterService implements ILlmRouterService {
     return this.mapRule(data);
   }
 
-  async updateRule(id: string, input: Partial<LlmRouteRule>): Promise<LlmRouteRule> {
-    if (!adminSupabase) throw new Error('Database not configured');
+  async updateRule(
+    id: string,
+    input: Partial<LlmRouteRule>
+  ): Promise<LlmRouteRule> {
+    if (!adminSupabase) throw new Error("Database not configured");
     const { data, error } = await adminSupabase
-      .from('admin_llm_route_rules')
+      .from("admin_llm_route_rules")
       .update({
         ...(input.name && { name: input.name }),
-        ...(input.matchConditions && { match_conditions: input.matchConditions }),
-        ...(input.preferredModels && { preferred_models: input.preferredModels }),
+        ...(input.matchConditions && {
+          match_conditions: input.matchConditions,
+        }),
+        ...(input.preferredModels && {
+          preferred_models: input.preferredModels,
+        }),
         ...(input.fallbackModels && { fallback_models: input.fallbackModels }),
-        ...(input.maxCostPerReq !== undefined && { max_cost_per_req: input.maxCostPerReq }),
+        ...(input.maxCostPerReq !== undefined && {
+          max_cost_per_req: input.maxCostPerReq,
+        }),
         ...(input.timeoutMs && { timeout_ms: input.timeoutMs }),
         ...(input.enabled !== undefined && { enabled: input.enabled }),
-        ...(input.priority !== undefined && { priority: input.priority })
+        ...(input.priority !== undefined && { priority: input.priority }),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -129,25 +150,36 @@ class LlmRouterService implements ILlmRouterService {
   }
 
   async deleteRule(id: string): Promise<void> {
-    if (!adminSupabase) throw new Error('Database not configured');
+    if (!adminSupabase) throw new Error("Database not configured");
     const { error } = await adminSupabase
-      .from('admin_llm_route_rules')
+      .from("admin_llm_route_rules")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
 
-  async dryRunRouting(taskType: string, promptLength: number, tier?: string): Promise<LlmRoutingDecision> {
+  async dryRunRouting(
+    taskType: string,
+    promptLength: number,
+    tier?: string
+  ): Promise<LlmRoutingDecision> {
     const rules = await this.listRules();
     const models = await this.listModels();
-    const enabledModels = models.filter(m => m.enabled);
+    const enabledModels = models.filter((m) => m.enabled);
+
+    // Handle case where no models are configured or enabled
+    if (enabledModels.length === 0) {
+      throw new Error(
+        "No enabled LLM models configured. Please add and enable at least one model."
+      );
+    }
 
     let matchedRule: LlmRouteRule | undefined;
-    for (const rule of rules.filter(r => r.enabled)) {
+    for (const rule of rules.filter((r) => r.enabled)) {
       const conditions = rule.matchConditions as any;
-      if (conditions.taskType === taskType || conditions.taskType === '*') {
-        if (!tier || conditions.tier === tier || conditions.tier === '*') {
+      if (conditions.taskType === taskType || conditions.taskType === "*") {
+        if (!tier || conditions.tier === tier || conditions.tier === "*") {
           matchedRule = rule;
           break;
         }
@@ -158,28 +190,42 @@ class LlmRouterService implements ILlmRouterService {
     let reason: string;
 
     if (matchedRule && matchedRule.preferredModels.length > 0) {
-      const preferred = enabledModels.find(m => matchedRule!.preferredModels.includes(m.id));
+      const preferred = enabledModels.find((m) =>
+        matchedRule!.preferredModels.includes(m.id)
+      );
       if (preferred && preferred.contextWindow >= promptLength) {
         selectedModel = preferred;
         reason = `Matched rule "${matchedRule.name}" - using preferred model`;
       } else {
-        const fallback = enabledModels.find(m => matchedRule!.fallbackModels.includes(m.id) && m.contextWindow >= promptLength);
+        const fallback = enabledModels.find(
+          (m) =>
+            matchedRule!.fallbackModels.includes(m.id) &&
+            m.contextWindow >= promptLength
+        );
         if (fallback) {
           selectedModel = fallback;
           reason = `Preferred model unavailable, using fallback from rule "${matchedRule.name}"`;
         } else {
-          selectedModel = enabledModels.sort((a, b) => a.costInput - b.costInput)[0];
+          selectedModel = enabledModels.sort(
+            (a, b) => a.costInput - b.costInput
+          )[0];
           reason = `No suitable model in rule, defaulting to lowest cost model`;
         }
       }
     } else {
-      selectedModel = enabledModels.sort((a, b) => a.costInput - b.costInput)[0];
-      reason = 'No matching rules, using default (lowest cost) model';
+      selectedModel = enabledModels.sort(
+        (a, b) => a.costInput - b.costInput
+      )[0];
+      reason = "No matching rules, using default (lowest cost) model";
     }
 
-    const estimatedCost = (promptLength / 1000) * selectedModel.costInput + (promptLength * 0.5 / 1000) * selectedModel.costOutput;
+    const estimatedCost =
+      (promptLength / 1000) * selectedModel.costInput +
+      ((promptLength * 0.5) / 1000) * selectedModel.costOutput;
     const fallbacks = enabledModels
-      .filter(m => m.id !== selectedModel.id && m.contextWindow >= promptLength)
+      .filter(
+        (m) => m.id !== selectedModel.id && m.contextWindow >= promptLength
+      )
       .slice(0, 2);
 
     return {
@@ -187,7 +233,7 @@ class LlmRouterService implements ILlmRouterService {
       reason,
       matchedRule,
       estimatedCost: Math.round(estimatedCost * 100000) / 100000,
-      fallbacksAvailable: fallbacks
+      fallbacksAvailable: fallbacks,
     };
   }
 
@@ -201,7 +247,7 @@ class LlmRouterService implements ILlmRouterService {
       costOutput: Number(row.cost_output),
       enabled: row.enabled,
       metadata: row.metadata || {},
-      createdAt: row.created_at
+      createdAt: row.created_at,
     };
   }
 
@@ -212,11 +258,13 @@ class LlmRouterService implements ILlmRouterService {
       matchConditions: row.match_conditions || {},
       preferredModels: row.preferred_models || [],
       fallbackModels: row.fallback_models || [],
-      maxCostPerReq: row.max_cost_per_req ? Number(row.max_cost_per_req) : undefined,
+      maxCostPerReq: row.max_cost_per_req
+        ? Number(row.max_cost_per_req)
+        : undefined,
       timeoutMs: row.timeout_ms,
       enabled: row.enabled,
       priority: row.priority,
-      createdAt: row.created_at
+      createdAt: row.created_at,
     };
   }
 }

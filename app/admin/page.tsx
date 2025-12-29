@@ -14,18 +14,17 @@ import {
   ArrowRight,
   XCircle,
 } from "lucide-react";
-import {
-  useAdminDashboard,
-  useSystemHealth,
-} from "@/lib/api/hooks";
+import { useAdminDashboard, useSystemHealth } from "@/lib/api/hooks";
 import { useAuth } from "@/components/providers/auth-provider";
 
 export default function AdminDashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Only fetch data when authenticated
-  const { data: stats, isLoading: statsLoading } = useAdminDashboard(isAuthenticated);
-  const { data: health, isLoading: healthLoading } = useSystemHealth(isAuthenticated);
+  const { data: stats, isLoading: statsLoading } =
+    useAdminDashboard(isAuthenticated);
+  const { data: health, isLoading: healthLoading } =
+    useSystemHealth(isAuthenticated);
 
   const loading = authLoading || statsLoading || healthLoading;
 
@@ -47,17 +46,16 @@ export default function AdminDashboard() {
         );
       case "unhealthy":
         return (
-          <Badge variant="outline" className="bg-destructive/10 text-destructive">
+          <Badge
+            variant="outline"
+            className="bg-destructive/10 text-destructive"
+          >
             <XCircle className="mr-1 h-3 w-3" />
             {message}
           </Badge>
         );
       default:
-        return (
-          <Badge variant="outline">
-            {message}
-          </Badge>
-        );
+        return <Badge variant="outline">{message}</Badge>;
     }
   };
 
@@ -72,7 +70,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Admin Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Admin Dashboard
+        </h1>
         <p className="mt-1 text-muted-foreground">
           System overview and quick actions
         </p>
@@ -83,7 +83,9 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
-              <p className="font-semibold text-destructive">Kill Switch Enabled</p>
+              <p className="font-semibold text-destructive">
+                Kill Switch Enabled
+              </p>
               <p className="text-sm text-muted-foreground">
                 All automated trading operations are halted
               </p>
@@ -141,7 +143,9 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Running Jobs</p>
-                <p className="text-2xl font-semibold">{stats?.jobs.running || 0}</p>
+                <p className="text-2xl font-semibold">
+                  {stats?.jobs.running || 0}
+                </p>
                 <p className="text-xs text-muted-foreground">Active</p>
               </div>
             </div>
@@ -156,7 +160,9 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Failed Jobs</p>
-                <p className="text-2xl font-semibold">{stats?.jobs.failed || 0}</p>
+                <p className="text-2xl font-semibold">
+                  {stats?.jobs.failed || 0}
+                </p>
                 <p className="text-xs text-muted-foreground">Last 24h</p>
               </div>
             </div>
@@ -208,21 +214,30 @@ export default function AdminDashboard() {
               <>
                 <div className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
                   <span className="text-sm">Database Connection</span>
-                  <Badge variant="outline" className="bg-success/10 text-success">
+                  <Badge
+                    variant="outline"
+                    className="bg-success/10 text-success"
+                  >
                     <CheckCircle className="mr-1 h-3 w-3" />
                     Healthy
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
                   <span className="text-sm">API Endpoints</span>
-                  <Badge variant="outline" className="bg-success/10 text-success">
+                  <Badge
+                    variant="outline"
+                    className="bg-success/10 text-success"
+                  >
                     <CheckCircle className="mr-1 h-3 w-3" />
                     Operational
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
                   <span className="text-sm">Background Jobs</span>
-                  <Badge variant="outline" className="bg-success/10 text-success">
+                  <Badge
+                    variant="outline"
+                    className="bg-success/10 text-success"
+                  >
                     <CheckCircle className="mr-1 h-3 w-3" />
                     Running
                   </Badge>

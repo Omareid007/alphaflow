@@ -134,8 +134,14 @@ This strategy generates buy signals when the ${config.fastPeriod}-day moving ave
     if (marketIntelligence.volatility) {
       prompt += `\n- Volatility Level: ${marketIntelligence.volatility}`;
     }
-    if (marketIntelligence.recentNews && marketIntelligence.recentNews.length > 0) {
-      prompt += `\n- Recent News:\n${marketIntelligence.recentNews.slice(0, 3).map(n => `  - ${n}`).join("\n")}`;
+    if (
+      marketIntelligence.recentNews &&
+      marketIntelligence.recentNews.length > 0
+    ) {
+      prompt += `\n- Recent News:\n${marketIntelligence.recentNews
+        .slice(0, 3)
+        .map((n) => `  - ${n}`)
+        .join("\n")}`;
     }
   }
 
@@ -144,11 +150,19 @@ This strategy generates buy signals when the ${config.fastPeriod}-day moving ave
   return prompt;
 }
 
-function validateResult(result: Partial<StrategyValidationResult>): StrategyValidationResult {
-  const validSuitability = ["retail_friendly", "borderline", "advanced_only"] as const;
+function validateResult(
+  result: Partial<StrategyValidationResult>
+): StrategyValidationResult {
+  const validSuitability = [
+    "retail_friendly",
+    "borderline",
+    "advanced_only",
+  ] as const;
 
-  const suitability = validSuitability.includes(result.suitability as typeof validSuitability[number])
-    ? (result.suitability as typeof validSuitability[number])
+  const suitability = validSuitability.includes(
+    result.suitability as (typeof validSuitability)[number]
+  )
+    ? (result.suitability as (typeof validSuitability)[number])
     : "borderline";
 
   let confidence = Number(result.confidence);
@@ -157,9 +171,15 @@ function validateResult(result: Partial<StrategyValidationResult>): StrategyVali
   }
 
   return {
-    summary: result.summary || "This moving average crossover strategy follows price trends by tracking when short-term momentum crosses long-term averages.",
-    riskAssessment: result.riskAssessment || "Risk assessment pending. Please review parameters carefully.",
-    parameterFeedback: Array.isArray(result.parameterFeedback) ? result.parameterFeedback : [],
+    summary:
+      result.summary ||
+      "This moving average crossover strategy follows price trends by tracking when short-term momentum crosses long-term averages.",
+    riskAssessment:
+      result.riskAssessment ||
+      "Risk assessment pending. Please review parameters carefully.",
+    parameterFeedback: Array.isArray(result.parameterFeedback)
+      ? result.parameterFeedback
+      : [],
     suitability,
     confidence,
   };
@@ -167,7 +187,10 @@ function validateResult(result: Partial<StrategyValidationResult>): StrategyVali
 
 export function getValidatorStatus(): { available: boolean; model: string } {
   return {
-    available: !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY),
+    available: !!(
+      process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+      process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+    ),
     model: MODEL,
   };
 }

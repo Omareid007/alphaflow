@@ -1,5 +1,11 @@
 import { Router, Request, Response } from "express";
-import { invokeTool, listTools, listToolsByCategory, getToolSchemas, type ToolContext } from "../ai/toolRouter";
+import {
+  invokeTool,
+  listTools,
+  listToolsByCategory,
+  getToolSchemas,
+  type ToolContext,
+} from "../ai/toolRouter";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { badRequest, serverError } from "../lib/standard-errors";
@@ -13,7 +19,7 @@ router.get("/", async (req: Request, res: Response) => {
     const tools = category ? listToolsByCategory(category) : listTools();
 
     res.json({
-      tools: tools.map(t => ({
+      tools: tools.map((t) => ({
         name: t.name,
         description: t.description,
         category: t.category,
@@ -47,7 +53,8 @@ router.post("/invoke", async (req: Request, res: Response) => {
     }
 
     const context: ToolContext = {
-      traceId: traceId || `tool-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+      traceId:
+        traceId || `tool-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
       callerRole,
       debateSessionId,
     };
@@ -56,7 +63,10 @@ router.post("/invoke", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     log.error("ToolsAPI", `Failed to invoke tool: ${error}`);
-    return serverError(res, (error as Error).message || "Failed to invoke tool");
+    return serverError(
+      res,
+      (error as Error).message || "Failed to invoke tool"
+    );
   }
 });
 

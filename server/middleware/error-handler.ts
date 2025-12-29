@@ -34,7 +34,7 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  const correlationId = (req as any).correlationId || 'unknown';
+  const correlationId = (req as any).correlationId || "unknown";
 
   // Log the error with context
   log.error("ErrorHandler", `Unhandled error in ${req.method} ${req.path}`, {
@@ -49,7 +49,7 @@ export function errorHandler(
   });
 
   // Don't send error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env.NODE_ENV === "development";
 
   // Use the error's status code or default to 500
   const statusCode = err.statusCode || 500;
@@ -63,7 +63,7 @@ export function errorHandler(
 
   // Add stack trace in development
   if (isDevelopment && err.stack) {
-    errorResponse.stack = err.stack.split('\n').slice(0, 5);
+    errorResponse.stack = err.stack.split("\n").slice(0, 5);
   }
 
   res.status(statusCode).json(errorResponse);
@@ -73,7 +73,7 @@ export function errorHandler(
  * 404 Not Found handler
  */
 export function notFoundHandler(req: Request, res: Response) {
-  const correlationId = (req as any).correlationId || 'unknown';
+  const correlationId = (req as any).correlationId || "unknown";
 
   log.warn("ErrorHandler", `Route not found: ${req.method} ${req.path}`, {
     correlationId,

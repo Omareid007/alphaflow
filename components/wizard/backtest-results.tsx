@@ -1,6 +1,11 @@
 "use client";
 
-import { BacktestRun, BacktestMetrics, BacktestChartSeries, Interpretation } from "@/lib/types";
+import {
+  BacktestRun,
+  BacktestMetrics,
+  BacktestChartSeries,
+  Interpretation,
+} from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricsGrid } from "./MetricsGrid";
@@ -39,9 +44,11 @@ interface BacktestResultsProps {
 }
 
 // Transform API response to expected metrics format
-function transformToMetrics(backtest: BacktestRun | ApiBacktestRun): BacktestMetrics {
+function transformToMetrics(
+  backtest: BacktestRun | ApiBacktestRun
+): BacktestMetrics {
   // If already has metrics in expected format, use it
-  if ('metrics' in backtest && backtest.metrics) {
+  if ("metrics" in backtest && backtest.metrics) {
     return backtest.metrics;
   }
 
@@ -65,16 +72,20 @@ export function BacktestResults({
   backtest,
   onApplySuggestions,
   onRunAgain,
-  onDeploy
+  onDeploy,
 }: BacktestResultsProps) {
   // Transform metrics from API format if needed
   const metrics = transformToMetrics(backtest);
-  const chartSeries = ('chartSeries' in backtest ? backtest.chartSeries : undefined) || {
+  const chartSeries = ("chartSeries" in backtest
+    ? backtest.chartSeries
+    : undefined) || {
     equityCurve: [],
     drawdown: [],
     returns: [],
   };
-  const interpretation = ('interpretation' in backtest ? backtest.interpretation : undefined) || {
+  const interpretation = ("interpretation" in backtest
+    ? backtest.interpretation
+    : undefined) || {
     summary: "Backtest completed successfully.",
     strengths: [],
     risks: [],
@@ -125,10 +136,7 @@ export function BacktestResults({
 
       <Card>
         <CardContent className="py-6">
-          <BacktestActions
-            onRunAgain={onRunAgain}
-            onDeploy={onDeploy}
-          />
+          <BacktestActions onRunAgain={onRunAgain} onDeploy={onDeploy} />
         </CardContent>
       </Card>
     </div>

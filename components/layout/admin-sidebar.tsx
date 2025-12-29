@@ -19,7 +19,7 @@ import {
   Zap,
   Trophy,
   List,
-  Users
+  Users,
 } from "lucide-react";
 
 const navItems = [
@@ -39,7 +39,7 @@ const navItems = [
   { href: "/admin/ai-arena", label: "AI Arena", icon: Zap },
   { href: "/admin/competition", label: "Competition", icon: Trophy },
   { href: "/admin/strategies", label: "Strategies", icon: List },
-  { href: "/admin/users", label: "Users & Roles", icon: Users }
+  { href: "/admin/users", label: "Users & Roles", icon: Users },
 ];
 
 export function AdminSidebar() {
@@ -83,7 +83,10 @@ export function AdminSidebar() {
         </nav>
 
         <div className="border-t border-border p-4">
-          <Link href="/" className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
             Back to Main App
           </Link>
         </div>

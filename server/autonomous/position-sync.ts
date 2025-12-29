@@ -47,10 +47,15 @@ export async function syncPositionsFromBroker(
     try {
       if (userId) {
         await storage.syncPositionsFromAlpaca(userId, positions);
-        log.info("PositionSync", `Synced ${positions.length} positions to database`);
+        log.info(
+          "PositionSync",
+          `Synced ${positions.length} positions to database`
+        );
       }
     } catch (dbError) {
-      log.error("PositionSync", "Failed to sync positions to database", { error: String(dbError) });
+      log.error("PositionSync", "Failed to sync positions to database", {
+        error: String(dbError),
+      });
     }
 
     for (const pos of positions) {
@@ -63,8 +68,10 @@ export async function syncPositionsFromBroker(
       let takeProfitPrice = existingPos?.takeProfitPrice;
       const trailingStopPercent = existingPos?.trailingStopPercent;
 
-      const hardStopLoss = entryPrice * (1 - DEFAULT_HARD_STOP_LOSS_PERCENT / 100);
-      const defaultTakeProfit = entryPrice * (1 + DEFAULT_TAKE_PROFIT_PERCENT / 100);
+      const hardStopLoss =
+        entryPrice * (1 - DEFAULT_HARD_STOP_LOSS_PERCENT / 100);
+      const defaultTakeProfit =
+        entryPrice * (1 + DEFAULT_TAKE_PROFIT_PERCENT / 100);
 
       if (!stopLossPrice && entryPrice > 0) {
         stopLossPrice = hardStopLoss;
@@ -75,18 +82,30 @@ export async function syncPositionsFromBroker(
 
       // Enforce hard stop-loss floor
       if (stopLossPrice && stopLossPrice < hardStopLoss && entryPrice > 0) {
-        log.info("PositionSync", `Enforcing hard stop-loss for ${pos.symbol}: $${stopLossPrice.toFixed(2)} -> $${hardStopLoss.toFixed(2)}`);
+        log.info(
+          "PositionSync",
+          `Enforcing hard stop-loss for ${pos.symbol}: $${stopLossPrice.toFixed(2)} -> $${hardStopLoss.toFixed(2)}`
+        );
         stopLossPrice = hardStopLoss;
       }
 
       // Update trailing stop if position is profitable
       if (existingPos?.trailingStopPercent && currentPrice > entryPrice) {
-        const profitPercent = percentChange(currentPrice, entryPrice).toNumber();
+        const profitPercent = percentChange(
+          currentPrice,
+          entryPrice
+        ).toNumber();
         if (profitPercent > 5) {
-          const newStopLoss = trailingStopPrice(currentPrice, existingPos.trailingStopPercent).toNumber();
+          const newStopLoss = trailingStopPrice(
+            currentPrice,
+            existingPos.trailingStopPercent
+          ).toNumber();
           if (!stopLossPrice || newStopLoss > stopLossPrice) {
             stopLossPrice = newStopLoss;
-            log.info("PositionSync", `Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`);
+            log.info(
+              "PositionSync",
+              `Trailing stop updated for ${pos.symbol}: $${stopLossPrice.toFixed(2)}`
+            );
           }
         }
       }
@@ -112,9 +131,14 @@ export async function syncPositionsFromBroker(
       state.activePositions.set(pos.symbol, positionWithRules);
     }
 
-    log.info("PositionSync", `Synced ${positions.length} positions from broker`);
+    log.info(
+      "PositionSync",
+      `Synced ${positions.length} positions from broker`
+    );
   } catch (error) {
-    log.error("PositionSync", "Failed to sync positions", { error: String(error) });
+    log.error("PositionSync", "Failed to sync positions", {
+      error: String(error),
+    });
     state.errors.push(`Position sync failed: ${error}`);
   }
 }

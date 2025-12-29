@@ -1,12 +1,12 @@
 /**
  * Claude Client - Minimal fetch-based Anthropic Claude API client
- * 
+ *
  * Uses fetch to call the Anthropic Claude HTTP API directly, NO SDK.
  * Supports chat completions with tool calling.
- * 
+ *
  * Note: Claude OAuth is NOT supported by Anthropic for API access.
  * Only API key authentication is available. OAuth only works for Claude Code CLI.
- * 
+ *
  * @see docs/AI_MODELS_AND_PROVIDERS.md
  */
 
@@ -91,7 +91,8 @@ export class ClaudeClient implements LLMClient {
   private defaultModel: string;
 
   constructor() {
-    this.apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "";
+    this.apiKey =
+      process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "";
     this.defaultModel = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
   }
 
@@ -126,11 +127,13 @@ export class ClaudeClient implements LLMClient {
           tool_use_id: msg.tool_call_id || "",
           content: [{ type: "text" as const, text: msg.content }],
         };
-        
+
         const lastMsg = messages[messages.length - 1];
         if (lastMsg && lastMsg.role === "user") {
           if (typeof lastMsg.content === "string") {
-            lastMsg.content = [{ type: "text" as const, text: lastMsg.content }];
+            lastMsg.content = [
+              { type: "text" as const, text: lastMsg.content },
+            ];
           }
           (lastMsg.content as ClaudeMessageContent[]).push(toolResultBlock);
         } else {
@@ -162,23 +165,31 @@ export class ClaudeClient implements LLMClient {
     }
 
     if (req.tools && req.tools.length > 0) {
-      body.tools = req.tools.map((tool): ClaudeTool => ({
-        name: tool.function.name,
-        description: tool.function.description,
-        input_schema: {
-          type: "object",
-          properties: tool.function.parameters.properties,
-          required: tool.function.parameters.required,
-        },
-      }));
+      body.tools = req.tools.map(
+        (tool): ClaudeTool => ({
+          name: tool.function.name,
+          description: tool.function.description,
+          input_schema: {
+            type: "object",
+            properties: tool.function.parameters.properties,
+            required: tool.function.parameters.required,
+          },
+        })
+      );
 
       if (req.toolChoice) {
         if (req.toolChoice === "auto") {
           body.tool_choice = { type: "auto" };
         } else if (req.toolChoice === "none") {
           delete body.tools;
-        } else if (typeof req.toolChoice === "object" && req.toolChoice.function) {
-          body.tool_choice = { type: "tool", name: req.toolChoice.function.name };
+        } else if (
+          typeof req.toolChoice === "object" &&
+          req.toolChoice.function
+        ) {
+          body.tool_choice = {
+            type: "tool",
+            name: req.toolChoice.function.name,
+          };
         }
       }
     }
@@ -198,19 +209,27 @@ export class ClaudeClient implements LLMClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
-        
+
         if (response.status === 401) {
-          throw createLLMError(`Claude authentication failed: ${errorText}`, "claude", {
-            isAuthError: true,
-            statusCode: response.status,
-          });
+          throw createLLMError(
+            `Claude authentication failed: ${errorText}`,
+            "claude",
+            {
+              isAuthError: true,
+              statusCode: response.status,
+            }
+          );
         }
-        
+
         if (response.status === 429) {
-          throw createLLMError(`Claude rate limit exceeded: ${errorText}`, "claude", {
-            isRateLimit: true,
-            statusCode: response.status,
-          });
+          throw createLLMError(
+            `Claude rate limit exceeded: ${errorText}`,
+            "claude",
+            {
+              isRateLimit: true,
+              statusCode: response.status,
+            }
+          );
         }
 
         throw createLLMError(
@@ -261,7 +280,7 @@ export class ClaudeClient implements LLMClient {
       if ((error as any).provider === "claude") {
         throw error;
       }
-      
+
       log.error("ClaudeClient", "API call failed", { error });
       throw createLLMError(
         `Claude API call failed: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -17,17 +17,10 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import {
-  Search,
-  Code,
-  Trash2,
-  Play,
-  CheckCircle,
-  XCircle
-} from "lucide-react";
+import { Search, Code, Trash2, Play, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiFunction } from "@/lib/admin/types";
 
@@ -46,15 +39,15 @@ export function ApiFunctionsCard({
   onDiscoverApis,
   onToggleApiFunction,
   onTestApiFunction,
-  onDeleteApiFunction
+  onDeleteApiFunction,
 }: ApiFunctionsCardProps) {
   const [discoverDialogOpen, setDiscoverDialogOpen] = useState(false);
-  const [discoverUrl, setDiscoverUrl] = useState('');
+  const [discoverUrl, setDiscoverUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     onDiscoverApis(e);
     setDiscoverDialogOpen(false);
-    setDiscoverUrl('');
+    setDiscoverUrl("");
   };
 
   return (
@@ -87,7 +80,8 @@ export function ApiFunctionsCard({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter the URL to an OpenAPI/Swagger specification (JSON or YAML)
+                  Enter the URL to an OpenAPI/Swagger specification (JSON or
+                  YAML)
                 </p>
               </div>
               <div className="space-y-2">
@@ -99,7 +93,7 @@ export function ApiFunctionsCard({
                 </ul>
               </div>
               <Button type="submit" className="w-full" disabled={discovering}>
-                {discovering ? 'Analyzing...' : 'Discover APIs'}
+                {discovering ? "Analyzing..." : "Discover APIs"}
               </Button>
             </form>
           </DialogContent>
@@ -109,14 +103,21 @@ export function ApiFunctionsCard({
         {apiFunctions.length === 0 ? (
           <div className="text-center py-8">
             <Code className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <p className="mt-4 text-muted-foreground">No API functions discovered yet</p>
-            <p className="text-sm text-muted-foreground">Click "Discover APIs" to analyze the provider's API documentation</p>
+            <p className="mt-4 text-muted-foreground">
+              No API functions discovered yet
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Click &quot;Discover APIs&quot; to analyze the provider&apos;s API
+              documentation
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="mb-4 flex items-center justify-between text-sm text-muted-foreground">
               <span>{apiFunctions.length} endpoints discovered</span>
-              <span>{apiFunctions.filter(f => f.isEnabled).length} enabled</span>
+              <span>
+                {apiFunctions.filter((f) => f.isEnabled).length} enabled
+              </span>
             </div>
             <Table>
               <TableHeader>
@@ -129,16 +130,24 @@ export function ApiFunctionsCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {apiFunctions.map(func => (
+                {apiFunctions.map((func) => (
                   <TableRow key={func.id}>
                     <TableCell>
-                      <Badge variant="outline" className={cn(
-                        func.method === 'GET' && 'bg-blue-500/10 text-blue-500',
-                        func.method === 'POST' && 'bg-green-500/10 text-green-500',
-                        func.method === 'PUT' && 'bg-yellow-500/10 text-yellow-500',
-                        func.method === 'PATCH' && 'bg-orange-500/10 text-orange-500',
-                        func.method === 'DELETE' && 'bg-red-500/10 text-red-500'
-                      )}>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          func.method === "GET" &&
+                            "bg-blue-500/10 text-blue-500",
+                          func.method === "POST" &&
+                            "bg-green-500/10 text-green-500",
+                          func.method === "PUT" &&
+                            "bg-yellow-500/10 text-yellow-500",
+                          func.method === "PATCH" &&
+                            "bg-orange-500/10 text-orange-500",
+                          func.method === "DELETE" &&
+                            "bg-red-500/10 text-red-500"
+                        )}
+                      >
                         {func.method}
                       </Badge>
                     </TableCell>
@@ -146,31 +155,43 @@ export function ApiFunctionsCard({
                       <div>
                         <p className="font-mono text-sm">{func.path}</p>
                         {func.summary && (
-                          <p className="text-xs text-muted-foreground mt-1">{func.summary}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {func.summary}
+                          </p>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {func.lastTestSuccess === true && (
-                        <Badge variant="outline" className="bg-success/10 text-success">
+                        <Badge
+                          variant="outline"
+                          className="bg-success/10 text-success"
+                        >
                           <CheckCircle className="mr-1 h-3 w-3" />
                           OK
                         </Badge>
                       )}
                       {func.lastTestSuccess === false && (
-                        <Badge variant="outline" className="bg-destructive/10 text-destructive">
+                        <Badge
+                          variant="outline"
+                          className="bg-destructive/10 text-destructive"
+                        >
                           <XCircle className="mr-1 h-3 w-3" />
                           Failed
                         </Badge>
                       )}
                       {func.lastTestSuccess === null && (
-                        <span className="text-xs text-muted-foreground">Not tested</span>
+                        <span className="text-xs text-muted-foreground">
+                          Not tested
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
                       <Switch
                         checked={func.isEnabled}
-                        onCheckedChange={(checked) => onToggleApiFunction(func.id, checked)}
+                        onCheckedChange={(checked) =>
+                          onToggleApiFunction(func.id, checked)
+                        }
                       />
                     </TableCell>
                     <TableCell>

@@ -79,7 +79,9 @@ export interface SystemEvent {
   details?: Record<string, unknown>;
 }
 
-type EventHandler<T = unknown> = (event: TradingEvent<T>) => void | Promise<void>;
+type EventHandler<T = unknown> = (
+  event: TradingEvent<T>
+) => void | Promise<void>;
 
 class TradingEventBus extends EventEmitter {
   private eventHistory: TradingEvent[] = [];
@@ -91,7 +93,12 @@ class TradingEventBus extends EventEmitter {
     this.setMaxListeners(100);
   }
 
-  emit<T>(type: TradingEventType, data: T, source: string, correlationId?: string): boolean {
+  emit<T>(
+    type: TradingEventType,
+    data: T,
+    source: string,
+    correlationId?: string
+  ): boolean {
     const event: TradingEvent<T> = {
       type,
       timestamp: new Date(),
@@ -110,7 +117,7 @@ class TradingEventBus extends EventEmitter {
       this.handlers.set(type, new Set());
     }
     this.handlers.get(type)!.add(handler as EventHandler);
-    
+
     super.on(type, handler as (...args: unknown[]) => void);
 
     return () => {
@@ -161,7 +168,7 @@ class TradingEventBus extends EventEmitter {
 
   private addToHistory(event: TradingEvent): void {
     this.eventHistory.push(event);
-    
+
     if (this.eventHistory.length > this.maxHistorySize) {
       this.eventHistory = this.eventHistory.slice(-this.maxHistorySize);
     }
@@ -209,7 +216,7 @@ class TradingEventBus extends EventEmitter {
     newestEvent: Date | null;
   } {
     const eventsByType: Partial<Record<TradingEventType, number>> = {};
-    
+
     for (const event of this.eventHistory) {
       eventsByType[event.type] = (eventsByType[event.type] || 0) + 1;
     }
@@ -217,8 +224,12 @@ class TradingEventBus extends EventEmitter {
     return {
       totalEvents: this.eventHistory.length,
       eventsByType: eventsByType as Record<TradingEventType, number>,
-      oldestEvent: this.eventHistory.length > 0 ? this.eventHistory[0].timestamp : null,
-      newestEvent: this.eventHistory.length > 0 ? this.eventHistory[this.eventHistory.length - 1].timestamp : null,
+      oldestEvent:
+        this.eventHistory.length > 0 ? this.eventHistory[0].timestamp : null,
+      newestEvent:
+        this.eventHistory.length > 0
+          ? this.eventHistory[this.eventHistory.length - 1].timestamp
+          : null,
     };
   }
 }

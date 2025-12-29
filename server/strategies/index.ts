@@ -57,11 +57,7 @@ import { STRATEGY_SCHEMA as MA_SCHEMA } from "./moving-average-crossover";
 import { STRATEGY_SCHEMA as MRS_SCHEMA } from "./mean-reversion-scalper";
 import { STRATEGY_SCHEMA as MOM_SCHEMA } from "./momentum-strategy";
 
-export const ALL_STRATEGIES = [
-  MA_SCHEMA,
-  MRS_SCHEMA,
-  MOM_SCHEMA,
-] as const;
+export const ALL_STRATEGIES = [MA_SCHEMA, MRS_SCHEMA, MOM_SCHEMA] as const;
 
 export const STRATEGY_TYPES = {
   MOVING_AVERAGE_CROSSOVER: "moving_average_crossover",
@@ -69,7 +65,7 @@ export const STRATEGY_TYPES = {
   MOMENTUM_STRATEGY: "momentum_strategy",
 } as const;
 
-export type StrategyType = typeof STRATEGY_TYPES[keyof typeof STRATEGY_TYPES];
+export type StrategyType = (typeof STRATEGY_TYPES)[keyof typeof STRATEGY_TYPES];
 
 export function getStrategySchema(type: StrategyType) {
   switch (type) {

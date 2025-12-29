@@ -23,7 +23,10 @@ export class OpenAIClient extends OpenAICompatibleClient {
     });
 
     // Also check OPENAI_BASE_URL as fallback
-    if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.OPENAI_BASE_URL) {
+    if (
+      !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+      process.env.OPENAI_BASE_URL
+    ) {
       this.baseUrl = process.env.OPENAI_BASE_URL;
     }
   }

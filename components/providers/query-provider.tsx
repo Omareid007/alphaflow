@@ -12,7 +12,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             staleTime: 2 * 60 * 1000, // 2 minutes - reduce redundant fetches
             refetchOnWindowFocus: false,
             retry: (failureCount, error) => {
-              console.log('[QueryProvider] Query retry check:', {
+              console.log("[QueryProvider] Query retry check:", {
                 failureCount,
                 error: error instanceof Error ? error.message : String(error),
               });
@@ -26,18 +26,23 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
                   errorMessage.includes("unauthorized") ||
                   errorMessage.includes("forbidden")
                 ) {
-                  console.log('[QueryProvider] Not retrying - authentication error');
+                  console.log(
+                    "[QueryProvider] Not retrying - authentication error"
+                  );
                   return false;
                 }
               }
               // Retry up to 2 times for other errors
               const shouldRetry = failureCount < 2;
-              console.log('[QueryProvider] Retry decision:', shouldRetry);
+              console.log("[QueryProvider] Retry decision:", shouldRetry);
               return shouldRetry;
             },
             retryDelay: (attemptIndex) => {
               const delay = Math.min(1000 * 2 ** attemptIndex, 30000);
-              console.log('[QueryProvider] Retry delay:', { attemptIndex, delay });
+              console.log("[QueryProvider] Retry delay:", {
+                attemptIndex,
+                delay,
+              });
               return delay;
             },
             // Only refetch if data is stale (after staleTime)
@@ -47,11 +52,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             // Set a timeout for queries
             gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
             // Add network mode for better offline handling
-            networkMode: 'online',
+            networkMode: "online",
           },
           mutations: {
             retry: (failureCount, error) => {
-              console.log('[QueryProvider] Mutation retry check:', {
+              console.log("[QueryProvider] Mutation retry check:", {
                 failureCount,
                 error: error instanceof Error ? error.message : String(error),
               });
@@ -66,16 +71,21 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
                   errorMessage.includes("404") ||
                   errorMessage.includes("422")
                 ) {
-                  console.log('[QueryProvider] Not retrying mutation - client error');
+                  console.log(
+                    "[QueryProvider] Not retrying mutation - client error"
+                  );
                   return false;
                 }
               }
               // Retry once for 5xx errors
               const shouldRetry = failureCount < 1;
-              console.log('[QueryProvider] Mutation retry decision:', shouldRetry);
+              console.log(
+                "[QueryProvider] Mutation retry decision:",
+                shouldRetry
+              );
               return shouldRetry;
             },
-            networkMode: 'online',
+            networkMode: "online",
           },
         },
         // Add query cache logger
@@ -85,7 +95,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Log query client initialization
-  console.log('[QueryProvider] Initialized with configuration:', {
+  console.log("[QueryProvider] Initialized with configuration:", {
     defaultOptions: queryClient.getDefaultOptions(),
   });
 

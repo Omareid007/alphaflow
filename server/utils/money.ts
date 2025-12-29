@@ -56,10 +56,10 @@ import Decimal from "decimal.js";
  * maintaining precision for complex calculations.
  */
 Decimal.set({
-  precision: 20,        // High precision for intermediate calculations
-  rounding: Decimal.ROUND_HALF_UP,  // Standard financial rounding
-  toExpNeg: -9,         // Don't use exponential notation for small numbers
-  toExpPos: 21,         // Don't use exponential notation for large numbers
+  precision: 20, // High precision for intermediate calculations
+  rounding: Decimal.ROUND_HALF_UP, // Standard financial rounding
+  toExpNeg: -9, // Don't use exponential notation for small numbers
+  toExpPos: 21, // Don't use exponential notation for large numbers
 });
 
 // Re-export Decimal for direct use when needed
@@ -118,7 +118,10 @@ export type DecimalInput = string | number | Decimal | null | undefined;
  * toDecimal('bad', '50')  // Decimal(50)
  * ```
  */
-export function toDecimal(value: DecimalInput, defaultValue: DecimalInput = 0): Decimal {
+export function toDecimal(
+  value: DecimalInput,
+  defaultValue: DecimalInput = 0
+): Decimal {
   if (value === null || value === undefined || value === "") {
     return new Decimal(defaultValue ?? 0);
   }
@@ -321,7 +324,10 @@ export function formatPrice(price: DecimalInput, decimals: number = 2): string {
  * calculateQuantity('1000', '0')        // Decimal(0)
  * ```
  */
-export function calculateQuantity(notional: DecimalInput, price: DecimalInput): Decimal {
+export function calculateQuantity(
+  notional: DecimalInput,
+  price: DecimalInput
+): Decimal {
   const p = toDecimal(price);
   if (p.isZero()) return new Decimal(0);
   return toDecimal(notional).dividedBy(p);
@@ -353,7 +359,10 @@ export function calculateQuantity(notional: DecimalInput, price: DecimalInput): 
  * calculateWholeShares('100', '150')     // Decimal(0)
  * ```
  */
-export function calculateWholeShares(notional: DecimalInput, price: DecimalInput): Decimal {
+export function calculateWholeShares(
+  notional: DecimalInput,
+  price: DecimalInput
+): Decimal {
   return calculateQuantity(notional, price).floor();
 }
 
@@ -385,7 +394,10 @@ export function calculateWholeShares(notional: DecimalInput, price: DecimalInput
  * partialQuantity('1000', '10')     // Decimal(100)
  * ```
  */
-export function partialQuantity(quantity: DecimalInput, percent: DecimalInput): Decimal {
+export function partialQuantity(
+  quantity: DecimalInput,
+  percent: DecimalInput
+): Decimal {
   return toDecimal(quantity).times(toDecimal(percent)).dividedBy(100);
 }
 
@@ -421,7 +433,10 @@ export function partialQuantity(quantity: DecimalInput, percent: DecimalInput): 
  * formatQuantity(null)            // "0"
  * ```
  */
-export function formatQuantity(quantity: DecimalInput, decimals: number = 4): string {
+export function formatQuantity(
+  quantity: DecimalInput,
+  decimals: number = 4
+): string {
   const d = toDecimal(quantity);
   if (!d.isFinite()) return "0";
   if (d.isInteger()) return d.toString();
@@ -555,7 +570,10 @@ export function calculatePnLNumber(
  * percentChange('100', '0')         // Decimal(0)
  * ```
  */
-export function percentChange(current: DecimalInput, previous: DecimalInput): Decimal {
+export function percentChange(
+  current: DecimalInput,
+  previous: DecimalInput
+): Decimal {
   const prev = toDecimal(previous);
   if (prev.isZero()) return new Decimal(0);
 
@@ -578,7 +596,10 @@ export function percentChange(current: DecimalInput, previous: DecimalInput): De
  * percentChange('105', '100')        // Decimal(5)
  * ```
  */
-export function percentChangeNumber(current: DecimalInput, previous: DecimalInput): number {
+export function percentChangeNumber(
+  current: DecimalInput,
+  previous: DecimalInput
+): number {
   return percentChange(current, previous).toNumber();
 }
 
@@ -611,7 +632,10 @@ export function percentChangeNumber(current: DecimalInput, previous: DecimalInpu
  * formatPercent(Infinity)     // "0.00%"
  * ```
  */
-export function formatPercent(value: DecimalInput, decimals: number = 2): string {
+export function formatPercent(
+  value: DecimalInput,
+  decimals: number = 2
+): string {
   const d = toDecimal(value);
   if (!d.isFinite()) return "0.00%";
   return `${d.toFixed(decimals)}%`;
@@ -682,7 +706,10 @@ export function percentOf(value: DecimalInput, percent: DecimalInput): Decimal {
  * positionValue('100', '0')         // Decimal(0)
  * ```
  */
-export function positionValue(quantity: DecimalInput, price: DecimalInput): Decimal {
+export function positionValue(
+  quantity: DecimalInput,
+  price: DecimalInput
+): Decimal {
   return toDecimal(quantity).times(toDecimal(price));
 }
 
@@ -713,7 +740,10 @@ export function positionValue(quantity: DecimalInput, price: DecimalInput): Deci
  * costBasis('10.5', '100.50')       // Decimal(1055.25)
  * ```
  */
-export function costBasis(quantity: DecimalInput, avgEntryPrice: DecimalInput): Decimal {
+export function costBasis(
+  quantity: DecimalInput,
+  avgEntryPrice: DecimalInput
+): Decimal {
   return toDecimal(quantity).times(toDecimal(avgEntryPrice));
 }
 
@@ -988,7 +1018,10 @@ export function executionPrice(
  * calculateFeePercent('100000', '0.5')   // Decimal(500)
  * ```
  */
-export function calculateFeePercent(notional: DecimalInput, feePercent: DecimalInput): Decimal {
+export function calculateFeePercent(
+  notional: DecimalInput,
+  feePercent: DecimalInput
+): Decimal {
   return toDecimal(notional).times(toDecimal(feePercent)).dividedBy(100);
 }
 
@@ -1018,7 +1051,10 @@ export function calculateFeePercent(notional: DecimalInput, feePercent: DecimalI
  * totalTradeCost(notional, fee)          // Decimal(10010)
  * ```
  */
-export function totalTradeCost(notional: DecimalInput, fees: DecimalInput): Decimal {
+export function totalTradeCost(
+  notional: DecimalInput,
+  fees: DecimalInput
+): Decimal {
   return toDecimal(notional).plus(toDecimal(fees));
 }
 
@@ -1204,7 +1240,7 @@ export function kellyFraction(
   avgWin: DecimalInput,
   avgLoss: DecimalInput
 ): Decimal {
-  const w = toDecimal(winRate);  // As decimal (e.g., 0.6 for 60%)
+  const w = toDecimal(winRate); // As decimal (e.g., 0.6 for 60%)
   const win = toDecimal(avgWin);
   const loss = toDecimal(avgLoss).abs();
 
@@ -1302,7 +1338,10 @@ export function kellySuggestedSize(
  */
 export function mean(values: DecimalInput[]): Decimal {
   if (values.length === 0) return new Decimal(0);
-  const sum = values.reduce((acc: Decimal, v) => acc.plus(toDecimal(v)), new Decimal(0));
+  const sum = values.reduce(
+    (acc: Decimal, v) => acc.plus(toDecimal(v)),
+    new Decimal(0)
+  );
   return sum.dividedBy(values.length);
 }
 
@@ -1339,7 +1378,7 @@ export function mean(values: DecimalInput[]): Decimal {
 export function variance(values: DecimalInput[]): Decimal {
   if (values.length < 2) return new Decimal(0);
   const avg = mean(values);
-  const squaredDiffs = values.map(v => toDecimal(v).minus(avg).pow(2));
+  const squaredDiffs = values.map((v) => toDecimal(v).minus(avg).pow(2));
   return mean(squaredDiffs);
 }
 
@@ -1473,7 +1512,11 @@ export function sharpeRatio(
  * zScore('105', '100', '0')              // Decimal(0)
  * ```
  */
-export function zScore(value: DecimalInput, avg: DecimalInput, std: DecimalInput): Decimal {
+export function zScore(
+  value: DecimalInput,
+  avg: DecimalInput,
+  std: DecimalInput
+): Decimal {
   const s = toDecimal(std);
   if (s.isZero()) return new Decimal(0);
   return toDecimal(value).minus(toDecimal(avg)).dividedBy(s);
@@ -1570,8 +1613,15 @@ export function min(a: DecimalInput, b: DecimalInput): Decimal {
  * clamp(userPrice, '0.01', '999999')
  * ```
  */
-export function clamp(value: DecimalInput, minVal: DecimalInput, maxVal: DecimalInput): Decimal {
-  return Decimal.max(toDecimal(minVal), Decimal.min(toDecimal(value), toDecimal(maxVal)));
+export function clamp(
+  value: DecimalInput,
+  minVal: DecimalInput,
+  maxVal: DecimalInput
+): Decimal {
+  return Decimal.max(
+    toDecimal(minVal),
+    Decimal.min(toDecimal(value), toDecimal(maxVal))
+  );
 }
 
 /**

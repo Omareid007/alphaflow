@@ -122,7 +122,13 @@ export interface FuturesOrder {
   stopPrice?: number;
 
   // Status
-  status: "pending" | "open" | "filled" | "partially_filled" | "cancelled" | "rejected";
+  status:
+    | "pending"
+    | "open"
+    | "filled"
+    | "partially_filled"
+    | "cancelled"
+    | "rejected";
   timeInForce: "day" | "gtc" | "ioc" | "fok";
 
   // Execution details
@@ -254,7 +260,10 @@ export interface FuturesBroker {
   /**
    * Get position for specific symbol
    */
-  getPosition(symbol: string, contractMonth?: string): Promise<FuturesPosition | null>;
+  getPosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesPosition | null>;
 
   // ========== Order Management ==========
 
@@ -266,10 +275,12 @@ export interface FuturesBroker {
   /**
    * Create a bracket order (entry + stop loss + take profit)
    */
-  createBracketOrder(params: FuturesOrderParams & {
-    takeProfitPrice: number;
-    stopLossPrice: number;
-  }): Promise<FuturesOrder>;
+  createBracketOrder(
+    params: FuturesOrderParams & {
+      takeProfitPrice: number;
+      stopLossPrice: number;
+    }
+  ): Promise<FuturesOrder>;
 
   /**
    * Cancel an order
@@ -374,7 +385,9 @@ export class InteractiveBrokersFutures implements FuturesBroker {
   private connected: boolean = false;
 
   async connect(): Promise<void> {
-    throw new Error("Interactive Brokers connector not yet implemented. Install IB Gateway and @stoqey/ib package.");
+    throw new Error(
+      "Interactive Brokers connector not yet implemented. Install IB Gateway and @stoqey/ib package."
+    );
   }
 
   async disconnect(): Promise<void> {
@@ -389,7 +402,7 @@ export class InteractiveBrokersFutures implements FuturesBroker {
     return {
       connected: this.connected,
       authenticated: false,
-      error: "Not implemented - requires IB Gateway setup"
+      error: "Not implemented - requires IB Gateway setup",
     };
   }
 
@@ -401,7 +414,10 @@ export class InteractiveBrokersFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async getPosition(symbol: string, contractMonth?: string): Promise<FuturesPosition | null> {
+  async getPosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesPosition | null> {
     throw new Error("Not implemented");
   }
 
@@ -409,10 +425,12 @@ export class InteractiveBrokersFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async createBracketOrder(params: FuturesOrderParams & {
-    takeProfitPrice: number;
-    stopLossPrice: number;
-  }): Promise<FuturesOrder> {
+  async createBracketOrder(
+    params: FuturesOrderParams & {
+      takeProfitPrice: number;
+      stopLossPrice: number;
+    }
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
@@ -432,11 +450,17 @@ export class InteractiveBrokersFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async closePosition(symbol: string, contractMonth?: string): Promise<FuturesOrder> {
+  async closePosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
-  async getQuote(symbol: string, contractMonth?: string): Promise<FuturesQuote> {
+  async getQuote(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesQuote> {
     throw new Error("Not implemented");
   }
 
@@ -462,7 +486,11 @@ export class InteractiveBrokersFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  subscribeBars(symbols: string[], timeframe: string, callback: BarCallback): void {
+  subscribeBars(
+    symbols: string[],
+    timeframe: string,
+    callback: BarCallback
+  ): void {
     throw new Error("Not implemented");
   }
 
@@ -486,7 +514,9 @@ export class TradovateFutures implements FuturesBroker {
   private connected: boolean = false;
 
   async connect(): Promise<void> {
-    throw new Error("Tradovate connector not yet implemented. Requires Tradovate API credentials.");
+    throw new Error(
+      "Tradovate connector not yet implemented. Requires Tradovate API credentials."
+    );
   }
 
   async disconnect(): Promise<void> {
@@ -501,7 +531,7 @@ export class TradovateFutures implements FuturesBroker {
     return {
       connected: this.connected,
       authenticated: false,
-      error: "Not implemented - requires Tradovate API setup"
+      error: "Not implemented - requires Tradovate API setup",
     };
   }
 
@@ -513,7 +543,10 @@ export class TradovateFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async getPosition(symbol: string, contractMonth?: string): Promise<FuturesPosition | null> {
+  async getPosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesPosition | null> {
     throw new Error("Not implemented");
   }
 
@@ -521,10 +554,12 @@ export class TradovateFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async createBracketOrder(params: FuturesOrderParams & {
-    takeProfitPrice: number;
-    stopLossPrice: number;
-  }): Promise<FuturesOrder> {
+  async createBracketOrder(
+    params: FuturesOrderParams & {
+      takeProfitPrice: number;
+      stopLossPrice: number;
+    }
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
@@ -544,11 +579,17 @@ export class TradovateFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async closePosition(symbol: string, contractMonth?: string): Promise<FuturesOrder> {
+  async closePosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
-  async getQuote(symbol: string, contractMonth?: string): Promise<FuturesQuote> {
+  async getQuote(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesQuote> {
     throw new Error("Not implemented");
   }
 
@@ -574,7 +615,11 @@ export class TradovateFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  subscribeBars(symbols: string[], timeframe: string, callback: BarCallback): void {
+  subscribeBars(
+    symbols: string[],
+    timeframe: string,
+    callback: BarCallback
+  ): void {
     throw new Error("Not implemented");
   }
 
@@ -597,7 +642,9 @@ export class NinjaTraderFutures implements FuturesBroker {
   private connected: boolean = false;
 
   async connect(): Promise<void> {
-    throw new Error("NinjaTrader connector not yet implemented. Requires NinjaTrader 8 with ATI enabled.");
+    throw new Error(
+      "NinjaTrader connector not yet implemented. Requires NinjaTrader 8 with ATI enabled."
+    );
   }
 
   async disconnect(): Promise<void> {
@@ -612,7 +659,7 @@ export class NinjaTraderFutures implements FuturesBroker {
     return {
       connected: this.connected,
       authenticated: false,
-      error: "Not implemented - requires NinjaTrader setup"
+      error: "Not implemented - requires NinjaTrader setup",
     };
   }
 
@@ -624,7 +671,10 @@ export class NinjaTraderFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async getPosition(symbol: string, contractMonth?: string): Promise<FuturesPosition | null> {
+  async getPosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesPosition | null> {
     throw new Error("Not implemented");
   }
 
@@ -632,10 +682,12 @@ export class NinjaTraderFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async createBracketOrder(params: FuturesOrderParams & {
-    takeProfitPrice: number;
-    stopLossPrice: number;
-  }): Promise<FuturesOrder> {
+  async createBracketOrder(
+    params: FuturesOrderParams & {
+      takeProfitPrice: number;
+      stopLossPrice: number;
+    }
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
@@ -655,11 +707,17 @@ export class NinjaTraderFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  async closePosition(symbol: string, contractMonth?: string): Promise<FuturesOrder> {
+  async closePosition(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesOrder> {
     throw new Error("Not implemented");
   }
 
-  async getQuote(symbol: string, contractMonth?: string): Promise<FuturesQuote> {
+  async getQuote(
+    symbol: string,
+    contractMonth?: string
+  ): Promise<FuturesQuote> {
     throw new Error("Not implemented");
   }
 
@@ -685,7 +743,11 @@ export class NinjaTraderFutures implements FuturesBroker {
     throw new Error("Not implemented");
   }
 
-  subscribeBars(symbols: string[], timeframe: string, callback: BarCallback): void {
+  subscribeBars(
+    symbols: string[],
+    timeframe: string,
+    callback: BarCallback
+  ): void {
     throw new Error("Not implemented");
   }
 
@@ -701,7 +763,10 @@ export class NinjaTraderFutures implements FuturesBroker {
 /**
  * Supported futures broker types
  */
-export type FuturesBrokerType = "interactive_brokers" | "tradovate" | "ninjatrader";
+export type FuturesBrokerType =
+  | "interactive_brokers"
+  | "tradovate"
+  | "ninjatrader";
 
 /**
  * Factory function to create futures broker instances

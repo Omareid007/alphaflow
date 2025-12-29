@@ -1,6 +1,6 @@
 /**
  * Admin Module Registry - Server Side
- * 
+ *
  * Central registry for all admin modules. Modules register themselves
  * with metadata, capabilities, and health check endpoints.
  */
@@ -18,9 +18,14 @@ const moduleRegistry: Map<string, AdminModule> = new Map();
 /**
  * Register an admin module
  */
-export function registerAdminModule(module: AdminModule): ModuleRegistrationResult {
+export function registerAdminModule(
+  module: AdminModule
+): ModuleRegistrationResult {
   if (moduleRegistry.has(module.id)) {
-    log.warn("AdminRegistry", `Module ${module.id} already registered, overwriting`);
+    log.warn(
+      "AdminRegistry",
+      `Module ${module.id} already registered, overwriting`
+    );
   }
 
   const registeredModule: AdminModule = {
@@ -31,7 +36,10 @@ export function registerAdminModule(module: AdminModule): ModuleRegistrationResu
   };
 
   moduleRegistry.set(module.id, registeredModule);
-  log.info("AdminRegistry", `Registered module: ${module.id}`, { title: module.title, navGroup: module.navGroup });
+  log.info("AdminRegistry", `Registered module: ${module.id}`, {
+    title: module.title,
+    navGroup: module.navGroup,
+  });
 
   return { success: true, moduleId: module.id };
 }
@@ -53,7 +61,7 @@ export function unregisterAdminModule(moduleId: string): boolean {
  */
 export function getModules(): AdminModule[] {
   return Array.from(moduleRegistry.values())
-    .filter(m => m.enabled)
+    .filter((m) => m.enabled)
     .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
 }
 
@@ -61,7 +69,7 @@ export function getModules(): AdminModule[] {
  * Get modules by navigation group
  */
 export function getModulesByNavGroup(navGroup: string): AdminModule[] {
-  return getModules().filter(m => m.navGroup === navGroup);
+  return getModules().filter((m) => m.navGroup === navGroup);
 }
 
 /**
@@ -83,8 +91,8 @@ export function hasModule(moduleId: string): boolean {
  */
 export async function getAdminOverview(): Promise<AdminOverview> {
   const modules = getModules();
-  
-  const moduleStatuses = modules.map(m => ({
+
+  const moduleStatuses = modules.map((m) => ({
     id: m.id,
     title: m.title,
     navGroup: m.navGroup,
@@ -92,8 +100,12 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     health: undefined as ModuleHealthCheck | undefined,
   }));
 
-  const unhealthyCount = moduleStatuses.filter(m => m.health?.status === "unhealthy").length;
-  const degradedCount = moduleStatuses.filter(m => m.health?.status === "degraded").length;
+  const unhealthyCount = moduleStatuses.filter(
+    (m) => m.health?.status === "unhealthy"
+  ).length;
+  const degradedCount = moduleStatuses.filter(
+    (m) => m.health?.status === "degraded"
+  ).length;
 
   let overall: "healthy" | "degraded" | "unhealthy" = "healthy";
   if (unhealthyCount > 0) overall = "unhealthy";
@@ -115,10 +127,13 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 export function setModuleEnabled(moduleId: string, enabled: boolean): boolean {
   const module = moduleRegistry.get(moduleId);
   if (!module) return false;
-  
+
   module.enabled = enabled;
   moduleRegistry.set(moduleId, module);
-  log.info("AdminRegistry", `Module ${moduleId} ${enabled ? "enabled" : "disabled"}`);
+  log.info(
+    "AdminRegistry",
+    `Module ${moduleId} ${enabled ? "enabled" : "disabled"}`
+  );
   return true;
 }
 
@@ -129,7 +144,8 @@ export function initializeDefaultModules(): void {
   registerAdminModule({
     id: "api-budget",
     title: "API Budgets",
-    description: "Monitor rate limits, budget usage, and cache status for all providers",
+    description:
+      "Monitor rate limits, budget usage, and cache status for all providers",
     icon: "activity",
     navGroup: "system",
     capability: "admin:read",
@@ -145,7 +161,8 @@ export function initializeDefaultModules(): void {
   registerAdminModule({
     id: "model-router",
     title: "LLM Model Router",
-    description: "Role-based routing, fallback chains, cost tracking, and call logs",
+    description:
+      "Role-based routing, fallback chains, cost tracking, and call logs",
     icon: "git-branch",
     navGroup: "ai",
     capability: "admin:read",
@@ -172,7 +189,8 @@ export function initializeDefaultModules(): void {
   registerAdminModule({
     id: "data-fusion",
     title: "Data Fusion Engine",
-    description: "Intelligence score, active sources, and capabilities overview",
+    description:
+      "Intelligence score, active sources, and capabilities overview",
     icon: "layers",
     navGroup: "ai",
     capability: "admin:read",
@@ -183,7 +201,8 @@ export function initializeDefaultModules(): void {
   registerAdminModule({
     id: "ai-config",
     title: "AI Configuration",
-    description: "Auto-execute trades, conservative mode, and confidence thresholds",
+    description:
+      "Auto-execute trades, conservative mode, and confidence thresholds",
     icon: "cpu",
     navGroup: "ai",
     capability: "admin:write",
@@ -198,7 +217,8 @@ export function initializeDefaultModules(): void {
               key: "autoExecuteTrades",
               label: "Auto-Execute Trades",
               type: "boolean",
-              description: "Allow AI to execute trades automatically without approval",
+              description:
+                "Allow AI to execute trades automatically without approval",
               defaultValue: false,
             },
             {
@@ -255,15 +275,13 @@ export function initializeDefaultModules(): void {
   registerAdminModule({
     id: "debate-arena",
     title: "AI Debate Arena",
-    description: "Multi-role AI consensus system with debate sessions and voting",
+    description:
+      "Multi-role AI consensus system with debate sessions and voting",
     icon: "message-circle",
     navGroup: "ai",
     capability: "admin:read",
     route: "Debate",
-    apiEndpoints: [
-      "/api/debate/sessions",
-      "/api/debate/sessions/:id",
-    ],
+    apiEndpoints: ["/api/debate/sessions", "/api/debate/sessions/:id"],
     priority: 25,
   });
 
@@ -275,10 +293,7 @@ export function initializeDefaultModules(): void {
     navGroup: "ai",
     capability: "admin:read",
     route: "Competition",
-    apiEndpoints: [
-      "/api/competition/traders",
-      "/api/competition/runs",
-    ],
+    apiEndpoints: ["/api/competition/traders", "/api/competition/runs"],
     priority: 26,
   });
 
@@ -290,9 +305,7 @@ export function initializeDefaultModules(): void {
     navGroup: "trading",
     capability: "trading:manage",
     route: "Strategies",
-    apiEndpoints: [
-      "/api/strategies/versions",
-    ],
+    apiEndpoints: ["/api/strategies/versions"],
     priority: 6,
   });
 
@@ -304,13 +317,12 @@ export function initializeDefaultModules(): void {
     navGroup: "ai",
     capability: "admin:read",
     route: "Tools",
-    apiEndpoints: [
-      "/api/tools",
-      "/api/tools/invoke",
-      "/api/tools/invocations",
-    ],
+    apiEndpoints: ["/api/tools", "/api/tools/invoke", "/api/tools/invocations"],
     priority: 27,
   });
 
-  log.info("AdminRegistry", `Initialized ${moduleRegistry.size} default modules`);
+  log.info(
+    "AdminRegistry",
+    `Initialized ${moduleRegistry.size} default modules`
+  );
 }

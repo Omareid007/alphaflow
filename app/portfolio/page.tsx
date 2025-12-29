@@ -15,7 +15,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
 } from "recharts";
 import {
   TrendingUp,
@@ -23,18 +23,24 @@ import {
   DollarSign,
   PieChart as PieIcon,
   AlertTriangle,
-  Wallet
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COLORS = ["hsl(199, 89%, 48%)", "hsl(152, 69%, 45%)", "hsl(43, 96%, 56%)", "hsl(0, 72%, 51%)", "hsl(220, 14%, 50%)"];
+const COLORS = [
+  "hsl(199, 89%, 48%)",
+  "hsl(152, 69%, 45%)",
+  "hsl(43, 96%, 56%)",
+  "hsl(0, 72%, 51%)",
+  "hsl(220, 14%, 50%)",
+];
 
 function MetricCard({
   title,
   value,
   change,
   icon: Icon,
-  variant = "default"
+  variant = "default",
 }: {
   title: string;
   value: string;
@@ -46,7 +52,7 @@ function MetricCard({
     default: "text-foreground",
     success: "text-success",
     warning: "text-warning",
-    danger: "text-destructive"
+    danger: "text-destructive",
   };
 
   return (
@@ -55,7 +61,14 @@ function MetricCard({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{title}</p>
-            <p className={cn("mt-2 text-3xl font-semibold", variantStyles[variant])}>{value}</p>
+            <p
+              className={cn(
+                "mt-2 text-3xl font-semibold",
+                variantStyles[variant]
+              )}
+            >
+              {value}
+            </p>
             {change !== undefined && (
               <div className="mt-2 flex items-center gap-1">
                 {change >= 0 ? (
@@ -63,8 +76,15 @@ function MetricCard({
                 ) : (
                   <TrendingDown className="h-4 w-4 text-destructive" />
                 )}
-                <span className={change >= 0 ? "text-sm text-success" : "text-sm text-destructive"}>
-                  {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                <span
+                  className={
+                    change >= 0
+                      ? "text-sm text-success"
+                      : "text-sm text-destructive"
+                  }
+                >
+                  {change >= 0 ? "+" : ""}
+                  {change.toFixed(2)}%
                 </span>
               </div>
             )}
@@ -84,7 +104,7 @@ export default function PortfolioPage() {
     data: portfolioSnapshot,
     isLoading: portfolioLoading,
     error: portfolioError,
-    refetch: refetchPortfolio
+    refetch: refetchPortfolio,
   } = usePortfolioSnapshot();
 
   // Fetch positions with 30s auto-refresh
@@ -92,7 +112,7 @@ export default function PortfolioPage() {
     data: positions,
     isLoading: positionsLoading,
     error: positionsError,
-    refetch: refetchPositions
+    refetch: refetchPositions,
   } = usePositions();
 
   // Fetch strategies for active strategies section
@@ -100,13 +120,18 @@ export default function PortfolioPage() {
     data: strategies = [],
     isLoading: strategiesLoading,
     error: strategiesError,
-    refetch: refetchStrategies
+    refetch: refetchStrategies,
   } = useStrategies();
 
   const isLoading = portfolioLoading || positionsLoading || strategiesLoading;
   const hasError = portfolioError || positionsError || strategiesError;
 
-  if (isLoading && !portfolioSnapshot && !positions && strategies.length === 0) {
+  if (
+    isLoading &&
+    !portfolioSnapshot &&
+    !positions &&
+    strategies.length === 0
+  ) {
     return (
       <div className="space-y-6">
         <div>
@@ -118,14 +143,20 @@ export default function PortfolioPage() {
         <div className="flex h-96 items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Loading portfolio...</p>
+            <p className="text-sm text-muted-foreground">
+              Loading portfolio...
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  if ((portfolioError || !portfolioSnapshot) && !positions && strategies.length === 0) {
+  if (
+    (portfolioError || !portfolioSnapshot) &&
+    !positions &&
+    strategies.length === 0
+  ) {
     return (
       <div className="space-y-6">
         <div>
@@ -139,13 +170,15 @@ export default function PortfolioPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Unable to load portfolio data</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+              Unable to load portfolio data
+            </h3>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
               {portfolioError instanceof Error
                 ? portfolioError.message
                 : positionsError instanceof Error
-                ? positionsError.message
-                : "Failed to load portfolio data. Please check your connection and try again."}
+                  ? positionsError.message
+                  : "Failed to load portfolio data. Please check your connection and try again."}
             </p>
             <Button
               onClick={() => {
@@ -179,11 +212,18 @@ export default function PortfolioPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-warning/10">
               <AlertTriangle className="h-8 w-8 text-warning" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Portfolio data unavailable</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+              Portfolio data unavailable
+            </h3>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              Unable to retrieve your portfolio snapshot. Some data may be incomplete.
+              Unable to retrieve your portfolio snapshot. Some data may be
+              incomplete.
             </p>
-            <Button onClick={() => refetchPortfolio()} variant="outline" className="mt-6">
+            <Button
+              onClick={() => refetchPortfolio()}
+              variant="outline"
+              className="mt-6"
+            >
               Retry
             </Button>
           </CardContent>
@@ -193,26 +233,29 @@ export default function PortfolioPage() {
   }
 
   // Transform positions data for charts
-  const pieData = (positions || []).map(p => ({
+  const pieData = (positions || []).map((p) => ({
     name: p.symbol,
-    value: (p.marketValue / portfolioSnapshot.portfolioValue) * 100
+    value: (p.marketValue / portfolioSnapshot.portfolioValue) * 100,
   }));
 
-  const pnlData = (positions || []).map(p => ({
+  const pnlData = (positions || []).map((p) => ({
     symbol: p.symbol,
     pnl: p.unrealizedPl,
-    pnlPercent: p.unrealizedPlPct
+    pnlPercent: p.unrealizedPlPct,
   }));
 
-  const exposedAmount = portfolioSnapshot.portfolioValue - portfolioSnapshot.cash;
-  const cashPercent = portfolioSnapshot.portfolioValue > 0
-    ? (portfolioSnapshot.cash / portfolioSnapshot.portfolioValue) * 100
-    : 0;
+  const exposedAmount =
+    portfolioSnapshot.portfolioValue - portfolioSnapshot.cash;
+  const cashPercent =
+    portfolioSnapshot.portfolioValue > 0
+      ? (portfolioSnapshot.cash / portfolioSnapshot.portfolioValue) * 100
+      : 0;
 
   // Calculate exposure percentage
-  const exposurePercent = portfolioSnapshot.portfolioValue > 0
-    ? (exposedAmount / portfolioSnapshot.portfolioValue) * 100
-    : 0;
+  const exposurePercent =
+    portfolioSnapshot.portfolioValue > 0
+      ? (exposedAmount / portfolioSnapshot.portfolioValue) * 100
+      : 0;
 
   // Calculate drawdown (using daily P&L as a proxy)
   const drawdownPercent = Math.abs(Math.min(0, portfolioSnapshot.dailyPlPct));
@@ -231,7 +274,9 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning" />
             <div className="text-sm">
-              <p className="font-medium text-warning">Some data could not be loaded</p>
+              <p className="font-medium text-warning">
+                Some data could not be loaded
+              </p>
               <p className="text-warning/80">
                 {positionsError && "Unable to load positions. "}
                 {strategiesError && "Unable to load strategies. "}
@@ -287,7 +332,10 @@ export default function PortfolioPage() {
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={entry.name}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -319,7 +367,7 @@ export default function PortfolioPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={pnlData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tickFormatter={v => `$${v}`} />
+                  <XAxis type="number" tickFormatter={(v) => `$${v}`} />
                   <YAxis type="category" dataKey="symbol" width={50} />
                   <Tooltip
                     content={({ active, payload }) => {
@@ -328,8 +376,16 @@ export default function PortfolioPage() {
                       return (
                         <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
                           <p className="font-medium">{data.symbol}</p>
-                          <p className={cn("text-sm", data.pnl >= 0 ? "text-success" : "text-destructive")}>
-                            ${data.pnl.toLocaleString()} ({data.pnlPercent.toFixed(1)}%)
+                          <p
+                            className={cn(
+                              "text-sm",
+                              data.pnl >= 0
+                                ? "text-success"
+                                : "text-destructive"
+                            )}
+                          >
+                            ${data.pnl.toLocaleString()} (
+                            {data.pnlPercent.toFixed(1)}%)
                           </p>
                         </div>
                       );
@@ -355,25 +411,37 @@ export default function PortfolioPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Cash Available</span>
-                <span className="font-medium">${portfolioSnapshot.cash.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground">
+                  Cash Available
+                </span>
+                <span className="font-medium">
+                  ${portfolioSnapshot.cash.toLocaleString()}
+                </span>
               </div>
               <Progress value={cashPercent} className="h-2" />
-              <p className="text-xs text-muted-foreground">{cashPercent.toFixed(1)}% of portfolio</p>
+              <p className="text-xs text-muted-foreground">
+                {cashPercent.toFixed(1)}% of portfolio
+              </p>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Invested</span>
-                <span className="font-medium">${exposedAmount.toLocaleString()}</span>
+                <span className="font-medium">
+                  ${exposedAmount.toLocaleString()}
+                </span>
               </div>
               <Progress value={100 - cashPercent} className="h-2" />
-              <p className="text-xs text-muted-foreground">{(100 - cashPercent).toFixed(1)}% of portfolio</p>
+              <p className="text-xs text-muted-foreground">
+                {(100 - cashPercent).toFixed(1)}% of portfolio
+              </p>
             </div>
           </div>
           <div className="border-t pt-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Buying Power</span>
-              <span className="font-medium">${portfolioSnapshot.buyingPower.toLocaleString()}</span>
+              <span className="font-medium">
+                ${portfolioSnapshot.buyingPower.toLocaleString()}
+              </span>
             </div>
           </div>
         </CardContent>
@@ -385,17 +453,24 @@ export default function PortfolioPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {strategies.filter(s => s.status === "live" || s.status === "paper").length === 0 ? (
+            {strategies.filter(
+              (s) => s.status === "live" || s.status === "paper"
+            ).length === 0 ? (
               <p className="text-muted-foreground">No active strategies</p>
             ) : (
               strategies
-                .filter(s => s.status === "live" || s.status === "paper")
-                .map(strategy => (
-                  <div key={strategy.id} className="flex items-center justify-between rounded-lg bg-secondary/50 p-4">
+                .filter((s) => s.status === "live" || s.status === "paper")
+                .map((strategy) => (
+                  <div
+                    key={strategy.id}
+                    className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
+                  >
                     <div>
                       <p className="font-medium">{strategy.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {strategy.mode === 'paper' ? 'Paper Trading' : 'Live Trading'}
+                        {strategy.mode === "paper"
+                          ? "Paper Trading"
+                          : "Live Trading"}
                       </p>
                     </div>
                     {strategy.performanceSummary && (
@@ -403,13 +478,22 @@ export default function PortfolioPage() {
                         <p
                           className={cn(
                             "font-semibold",
-                            (strategy.performanceSummary.totalReturn || 0) >= 0 ? "text-success" : "text-destructive"
+                            (strategy.performanceSummary.totalReturn || 0) >= 0
+                              ? "text-success"
+                              : "text-destructive"
                           )}
                         >
-                          {(strategy.performanceSummary.totalReturn || 0) >= 0 ? "+" : ""}
-                          {(strategy.performanceSummary.totalReturn || 0).toFixed(2)}%
+                          {(strategy.performanceSummary.totalReturn || 0) >= 0
+                            ? "+"
+                            : ""}
+                          {(
+                            strategy.performanceSummary.totalReturn || 0
+                          ).toFixed(2)}
+                          %
                         </p>
-                        <p className="text-sm text-muted-foreground">Total Return</p>
+                        <p className="text-sm text-muted-foreground">
+                          Total Return
+                        </p>
                       </div>
                     )}
                   </div>

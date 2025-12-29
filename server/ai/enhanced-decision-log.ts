@@ -1,19 +1,24 @@
 /**
  * Enhanced AI Decision Logging - Full transparency into AI trading decisions
- * 
+ *
  * Provides:
  * - Complete input snapshot (market data, sentiment, fundamentals)
  * - Reasoning chain with step-by-step analysis
  * - Alternative actions considered with scores
  * - Provider and model information
  * - Cost and latency metrics
- * 
+ *
  * @see docs/AI_MODELS_AND_PROVIDERS.md
  */
 
 import { log } from "../utils/logger";
 import { FusedMarketIntelligence } from "./data-fusion-engine";
-import { AIDecision, MarketData, NewsContext, StrategyContext } from "./decision-engine";
+import {
+  AIDecision,
+  MarketData,
+  NewsContext,
+  StrategyContext,
+} from "./decision-engine";
 
 export interface InputSnapshot {
   marketData: {
@@ -25,7 +30,7 @@ export interface InputSnapshot {
     high24h?: number;
     low24h?: number;
   };
-  
+
   sentiment?: {
     overall: string;
     score: number;
@@ -33,14 +38,14 @@ export interface InputSnapshot {
     sources: string[];
     headlines?: string[];
   };
-  
+
   fundamentals?: {
     eps?: number;
     peRatio?: number;
     revenueGrowth?: number;
     sources: string[];
   };
-  
+
   fusedIntelligence?: {
     trendStrength: number;
     signalAgreement: number;
@@ -51,7 +56,7 @@ export interface InputSnapshot {
     };
     warnings: string[];
   };
-  
+
   strategyContext?: {
     id: string;
     name: string;
@@ -62,7 +67,13 @@ export interface InputSnapshot {
 
 export interface ReasoningStep {
   step: number;
-  category: "market_analysis" | "sentiment_analysis" | "fundamental_analysis" | "risk_assessment" | "signal_synthesis" | "final_decision";
+  category:
+    | "market_analysis"
+    | "sentiment_analysis"
+    | "fundamental_analysis"
+    | "risk_assessment"
+    | "signal_synthesis"
+    | "final_decision";
   observation: string;
   implication: string;
   weight: number;
@@ -79,19 +90,19 @@ export interface EnhancedDecisionLog {
   id: string;
   timestamp: Date;
   cycleId?: string;
-  
+
   input: InputSnapshot;
-  
+
   reasoning: {
     steps: ReasoningStep[];
     summary: string;
     keyFactors: string[];
   };
-  
+
   alternatives: AlternativeConsidered[];
-  
+
   decision: AIDecision;
-  
+
   providerInfo: {
     provider: string;
     model: string;
@@ -99,7 +110,7 @@ export interface EnhancedDecisionLog {
     latencyMs?: number;
     cost?: number;
   };
-  
+
   metadata: {
     dataSourcesUsed: string[];
     enrichmentApplied: boolean;
@@ -184,11 +195,13 @@ export function generateReasoningSteps(
     step: stepNum++,
     category: "market_analysis",
     observation: `Current price: $${input.marketData.price.toFixed(2)}, 24h change: ${(input.marketData.changePercent24h || 0).toFixed(2)}%`,
-    implication: input.marketData.changePercent24h && input.marketData.changePercent24h > 0
-      ? "Positive short-term momentum"
-      : input.marketData.changePercent24h && input.marketData.changePercent24h < 0
-        ? "Negative short-term momentum"
-        : "Neutral price action",
+    implication:
+      input.marketData.changePercent24h && input.marketData.changePercent24h > 0
+        ? "Positive short-term momentum"
+        : input.marketData.changePercent24h &&
+            input.marketData.changePercent24h < 0
+          ? "Negative short-term momentum"
+          : "Neutral price action",
     weight: 0.3,
   });
 
@@ -197,11 +210,12 @@ export function generateReasoningSteps(
       step: stepNum++,
       category: "sentiment_analysis",
       observation: `Sentiment: ${input.sentiment.overall} (score: ${input.sentiment.score.toFixed(2)}, confidence: ${(input.sentiment.confidence * 100).toFixed(0)}%)`,
-      implication: input.sentiment.overall === "bullish"
-        ? "Market sentiment supports buying"
-        : input.sentiment.overall === "bearish"
-          ? "Market sentiment suggests caution"
-          : "Neutral sentiment, no strong directional bias",
+      implication:
+        input.sentiment.overall === "bullish"
+          ? "Market sentiment supports buying"
+          : input.sentiment.overall === "bearish"
+            ? "Market sentiment suggests caution"
+            : "Neutral sentiment, no strong directional bias",
       weight: 0.25,
     });
   }
@@ -212,17 +226,21 @@ export function generateReasoningSteps(
       fundObs.push(`P/E: ${input.fundamentals.peRatio.toFixed(1)}`);
     }
     if (input.fundamentals.revenueGrowth !== undefined) {
-      fundObs.push(`Revenue growth: ${(input.fundamentals.revenueGrowth * 100).toFixed(1)}%`);
+      fundObs.push(
+        `Revenue growth: ${(input.fundamentals.revenueGrowth * 100).toFixed(1)}%`
+      );
     }
-    
+
     if (fundObs.length > 0) {
       steps.push({
         step: stepNum++,
         category: "fundamental_analysis",
         observation: fundObs.join(", "),
-        implication: input.fundamentals.revenueGrowth && input.fundamentals.revenueGrowth > 0
-          ? "Fundamentals indicate growth"
-          : "Fundamentals suggest caution",
+        implication:
+          input.fundamentals.revenueGrowth &&
+          input.fundamentals.revenueGrowth > 0
+            ? "Fundamentals indicate growth"
+            : "Fundamentals suggest caution",
         weight: 0.2,
       });
     }
@@ -233,11 +251,12 @@ export function generateReasoningSteps(
       step: stepNum++,
       category: "signal_synthesis",
       observation: `Signal agreement: ${(input.fusedIntelligence.signalAgreement * 100).toFixed(0)}%, Trend strength: ${(input.fusedIntelligence.trendStrength * 100).toFixed(0)}%`,
-      implication: input.fusedIntelligence.signalAgreement > 0.7
-        ? "Strong consensus across data sources"
-        : input.fusedIntelligence.signalAgreement < 0.3
-          ? "Conflicting signals suggest uncertainty"
-          : "Mixed signals require careful evaluation",
+      implication:
+        input.fusedIntelligence.signalAgreement > 0.7
+          ? "Strong consensus across data sources"
+          : input.fusedIntelligence.signalAgreement < 0.3
+            ? "Conflicting signals suggest uncertainty"
+            : "Mixed signals require careful evaluation",
       weight: 0.15,
     });
   }
@@ -246,11 +265,12 @@ export function generateReasoningSteps(
     step: stepNum++,
     category: "risk_assessment",
     observation: `Risk level: ${decision.riskLevel}, Confidence: ${(decision.confidence * 100).toFixed(0)}%`,
-    implication: decision.riskLevel === "low"
-      ? "Low risk supports position taking"
-      : decision.riskLevel === "high"
-        ? "High risk warrants smaller position or waiting"
-        : "Moderate risk, proceed with caution",
+    implication:
+      decision.riskLevel === "low"
+        ? "Low risk supports position taking"
+        : decision.riskLevel === "high"
+          ? "High risk warrants smaller position or waiting"
+          : "Moderate risk, proceed with caution",
     weight: 0.1,
   });
 
@@ -282,32 +302,41 @@ export function generateAlternatives(
     switch (action) {
       case "buy":
         confidence = input.sentiment?.overall === "bullish" ? 0.4 : 0.2;
-        if (input.marketData.changePercent24h && input.marketData.changePercent24h > 0) {
+        if (
+          input.marketData.changePercent24h &&
+          input.marketData.changePercent24h > 0
+        ) {
           confidence += 0.1;
         }
         reasoning = "Potential entry point based on market conditions";
-        whyRejected = chosenDecision.action === "hold"
-          ? "Insufficient conviction for entry"
-          : "Better opportunity identified in opposite direction";
+        whyRejected =
+          chosenDecision.action === "hold"
+            ? "Insufficient conviction for entry"
+            : "Better opportunity identified in opposite direction";
         break;
 
       case "sell":
         confidence = input.sentiment?.overall === "bearish" ? 0.4 : 0.2;
-        if (input.marketData.changePercent24h && input.marketData.changePercent24h < 0) {
+        if (
+          input.marketData.changePercent24h &&
+          input.marketData.changePercent24h < 0
+        ) {
           confidence += 0.1;
         }
         reasoning = "Exit or short opportunity based on bearish signals";
-        whyRejected = chosenDecision.action === "hold"
-          ? "No existing position or insufficient bearish confirmation"
-          : "Bullish signals outweigh bearish indicators";
+        whyRejected =
+          chosenDecision.action === "hold"
+            ? "No existing position or insufficient bearish confirmation"
+            : "Bullish signals outweigh bearish indicators";
         break;
 
       case "hold":
         confidence = 0.5;
         reasoning = "Wait for clearer signals before acting";
-        whyRejected = chosenDecision.confidence > 0.6
-          ? "Strong signals support taking action"
-          : "Opportunity cost of waiting outweighed by potential gains";
+        whyRejected =
+          chosenDecision.confidence > 0.6
+            ? "Strong signals support taking action"
+            : "Opportunity cost of waiting outweighed by potential gains";
         break;
     }
 
@@ -334,14 +363,20 @@ export function createEnhancedDecisionLog(
   cycleId?: string
 ): EnhancedDecisionLog {
   const id = `decision_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const input = createInputSnapshot(marketData, newsContext, strategy, fusedIntelligence);
+  const input = createInputSnapshot(
+    marketData,
+    newsContext,
+    strategy,
+    fusedIntelligence
+  );
   const reasoning = generateReasoningSteps(input, decision);
   const alternatives = generateAlternatives(input, decision);
 
   const dataSourcesUsed: string[] = [];
   if (input.marketData) dataSourcesUsed.push("market_data");
   if (input.sentiment) dataSourcesUsed.push(...(input.sentiment.sources || []));
-  if (input.fundamentals) dataSourcesUsed.push(...(input.fundamentals.sources || []));
+  if (input.fundamentals)
+    dataSourcesUsed.push(...(input.fundamentals.sources || []));
 
   const keyFactors: string[] = [];
   const sortedSteps = [...reasoning].sort((a, b) => b.weight - a.weight);
@@ -390,7 +425,9 @@ export function createEnhancedDecisionLog(
   return enhancedLog;
 }
 
-export function formatDecisionLogForDisplay(decisionLog: EnhancedDecisionLog): string {
+export function formatDecisionLogForDisplay(
+  decisionLog: EnhancedDecisionLog
+): string {
   const parts: string[] = [];
 
   parts.push(`=== AI Decision Log: ${decisionLog.id} ===`);
@@ -403,13 +440,19 @@ export function formatDecisionLogForDisplay(decisionLog: EnhancedDecisionLog): s
   parts.push(`Symbol: ${decisionLog.input.marketData.symbol}`);
   parts.push(`Price: $${decisionLog.input.marketData.price.toFixed(2)}`);
   if (decisionLog.input.marketData.changePercent24h !== undefined) {
-    parts.push(`24h Change: ${decisionLog.input.marketData.changePercent24h.toFixed(2)}%`);
+    parts.push(
+      `24h Change: ${decisionLog.input.marketData.changePercent24h.toFixed(2)}%`
+    );
   }
   if (decisionLog.input.sentiment) {
-    parts.push(`Sentiment: ${decisionLog.input.sentiment.overall} (score: ${decisionLog.input.sentiment.score.toFixed(2)})`);
+    parts.push(
+      `Sentiment: ${decisionLog.input.sentiment.overall} (score: ${decisionLog.input.sentiment.score.toFixed(2)})`
+    );
   }
   if (decisionLog.input.fundamentals?.peRatio) {
-    parts.push(`P/E Ratio: ${decisionLog.input.fundamentals.peRatio.toFixed(1)}`);
+    parts.push(
+      `P/E Ratio: ${decisionLog.input.fundamentals.peRatio.toFixed(1)}`
+    );
   }
 
   parts.push(`\n--- REASONING CHAIN ---`);
@@ -425,7 +468,9 @@ export function formatDecisionLogForDisplay(decisionLog: EnhancedDecisionLog): s
 
   parts.push(`\n--- ALTERNATIVES CONSIDERED ---`);
   for (const alt of decisionLog.alternatives) {
-    parts.push(`  ${alt.action.toUpperCase()}: ${(alt.confidence * 100).toFixed(0)}% confidence`);
+    parts.push(
+      `  ${alt.action.toUpperCase()}: ${(alt.confidence * 100).toFixed(0)}% confidence`
+    );
     if (alt.whyRejected) {
       parts.push(`    Rejected: ${alt.whyRejected}`);
     }
@@ -433,7 +478,9 @@ export function formatDecisionLogForDisplay(decisionLog: EnhancedDecisionLog): s
 
   parts.push(`\n--- FINAL DECISION ---`);
   parts.push(`Action: ${decisionLog.decision.action.toUpperCase()}`);
-  parts.push(`Confidence: ${(decisionLog.decision.confidence * 100).toFixed(0)}%`);
+  parts.push(
+    `Confidence: ${(decisionLog.decision.confidence * 100).toFixed(0)}%`
+  );
   parts.push(`Risk Level: ${decisionLog.decision.riskLevel}`);
   parts.push(`Reasoning: ${decisionLog.decision.reasoning}`);
 
@@ -448,8 +495,12 @@ export function formatDecisionLogForDisplay(decisionLog: EnhancedDecisionLog): s
   }
 
   parts.push(`\n--- METADATA ---`);
-  parts.push(`Data Sources: ${decisionLog.metadata.dataSourcesUsed.join(", ")}`);
-  parts.push(`Enrichment Applied: ${decisionLog.metadata.enrichmentApplied ? "Yes" : "No"}`);
+  parts.push(
+    `Data Sources: ${decisionLog.metadata.dataSourcesUsed.join(", ")}`
+  );
+  parts.push(
+    `Enrichment Applied: ${decisionLog.metadata.enrichmentApplied ? "Yes" : "No"}`
+  );
   parts.push(`Warnings: ${decisionLog.metadata.warningCount}`);
 
   return parts.join("\n");

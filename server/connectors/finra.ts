@@ -56,7 +56,10 @@ class FINRAConnector {
    * Get RegSHO short volume data for a symbol
    * This is daily short volume data from FINRA's public RegSHO files
    */
-  async getRegSHOShortVolume(symbol: string, days: number = 20): Promise<ShortInterestData[]> {
+  async getRegSHOShortVolume(
+    symbol: string,
+    days: number = 20
+  ): Promise<ShortInterestData[]> {
     const cacheKey = `regsho_${symbol}_${days}`;
     const cached = this.regShoCache.get(cacheKey);
     if (cached?.isFresh) {
@@ -81,7 +84,9 @@ class FINRAConnector {
 
         try {
           const data = await this.fetchRegSHOFile(dateStr);
-          const symbolData = data.find(d => d.symbol === symbol.toUpperCase());
+          const symbolData = data.find(
+            (d) => d.symbol === symbol.toUpperCase()
+          );
           if (symbolData) {
             results.push(symbolData);
           }
@@ -94,12 +99,17 @@ class FINRAConnector {
 
       if (results.length > 0) {
         this.regShoCache.set(cacheKey, results);
-        log.info("FINRA", `Fetched ${results.length} RegSHO records for ${symbol}`);
+        log.info(
+          "FINRA",
+          `Fetched ${results.length} RegSHO records for ${symbol}`
+        );
       }
 
       return results;
     } catch (error) {
-      log.error("FINRA", `Failed to fetch RegSHO data for ${symbol}`, { error: String(error) });
+      log.error("FINRA", `Failed to fetch RegSHO data for ${symbol}`, {
+        error: String(error),
+      });
       return cached?.data || [];
     }
   }
@@ -114,7 +124,7 @@ class FINRAConnector {
 
     const response = await fetch(url, {
       headers: {
-        "Accept": "text/plain",
+        Accept: "text/plain",
       },
     });
 
@@ -131,7 +141,7 @@ class FINRAConnector {
    * Format: Date|Symbol|ShortVolume|ShortExemptVolume|TotalVolume|Market
    */
   private parseRegSHOFile(text: string, dateStr: string): ShortInterestData[] {
-    const lines = text.split("\n").filter(line => line.trim());
+    const lines = text.split("\n").filter((line) => line.trim());
     const results: ShortInterestData[] = [];
 
     // Skip header line
@@ -162,7 +172,9 @@ class FINRAConnector {
   /**
    * Get short interest summary with trend analysis
    */
-  async getShortInterestSummary(symbol: string): Promise<ShortInterestSummary | null> {
+  async getShortInterestSummary(
+    symbol: string
+  ): Promise<ShortInterestSummary | null> {
     const historicalData = await this.getRegSHOShortVolume(symbol, 30);
 
     if (historicalData.length === 0) {
@@ -170,14 +182,18 @@ class FINRAConnector {
     }
 
     // Calculate metrics
-    const shortRatios = historicalData.map(d => d.shortRatio);
+    const shortRatios = historicalData.map((d) => d.shortRatio);
     const latestShortRatio = shortRatios[0];
-    const averageShortRatio = shortRatios.reduce((a, b) => a + b, 0) / shortRatios.length;
+    const averageShortRatio =
+      shortRatios.reduce((a, b) => a + b, 0) / shortRatios.length;
 
     // Determine trend (compare first half to second half)
     const midpoint = Math.floor(shortRatios.length / 2);
-    const recentAvg = shortRatios.slice(0, midpoint).reduce((a, b) => a + b, 0) / midpoint || 0;
-    const olderAvg = shortRatios.slice(midpoint).reduce((a, b) => a + b, 0) / (shortRatios.length - midpoint) || 0;
+    const recentAvg =
+      shortRatios.slice(0, midpoint).reduce((a, b) => a + b, 0) / midpoint || 0;
+    const olderAvg =
+      shortRatios.slice(midpoint).reduce((a, b) => a + b, 0) /
+        (shortRatios.length - midpoint) || 0;
 
     let shortRatioTrend: "increasing" | "decreasing" | "stable";
     const trendThreshold = 0.05; // 5% threshold
@@ -190,9 +206,14 @@ class FINRAConnector {
     }
 
     // Calculate days to cover (simplified)
-    const avgVolume = historicalData.reduce((sum, d) => sum + d.totalVolume, 0) / historicalData.length;
-    const avgShortVolume = historicalData.reduce((sum, d) => sum + d.shortVolume, 0) / historicalData.length;
-    const daysToCover = avgVolume > 0 ? avgShortVolume / avgVolume * 10 : null; // Estimate
+    const avgVolume =
+      historicalData.reduce((sum, d) => sum + d.totalVolume, 0) /
+      historicalData.length;
+    const avgShortVolume =
+      historicalData.reduce((sum, d) => sum + d.shortVolume, 0) /
+      historicalData.length;
+    const daysToCover =
+      avgVolume > 0 ? (avgShortVolume / avgVolume) * 10 : null; // Estimate
 
     return {
       symbol: symbol.toUpperCase(),
@@ -208,7 +229,9 @@ class FINRAConnector {
   /**
    * Get short interest data for multiple symbols
    */
-  async getBulkShortInterest(symbols: string[]): Promise<Map<string, ShortInterestSummary>> {
+  async getBulkShortInterest(
+    symbols: string[]
+  ): Promise<Map<string, ShortInterestSummary>> {
     const results = new Map<string, ShortInterestSummary>();
 
     // Process in batches to avoid rate limiting
@@ -230,11 +253,14 @@ class FINRAConnector {
 
       // Rate limiting delay
       if (i + batchSize < symbols.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 
-    log.info("FINRA", `Fetched short interest for ${results.size}/${symbols.length} symbols`);
+    log.info(
+      "FINRA",
+      `Fetched short interest for ${results.size}/${symbols.length} symbols`
+    );
     return results;
   }
 
@@ -252,13 +278,19 @@ class FINRAConnector {
     // High short ratio (>40% is significant)
     if (summary.latestShortRatio > 0.5) {
       score += 40;
-      factors.push(`Very high short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`);
+      factors.push(
+        `Very high short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`
+      );
     } else if (summary.latestShortRatio > 0.4) {
       score += 30;
-      factors.push(`High short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`);
+      factors.push(
+        `High short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`
+      );
     } else if (summary.latestShortRatio > 0.3) {
       score += 20;
-      factors.push(`Elevated short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`);
+      factors.push(
+        `Elevated short ratio: ${(summary.latestShortRatio * 100).toFixed(1)}%`
+      );
     }
 
     // Increasing trend

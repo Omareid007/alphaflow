@@ -63,10 +63,14 @@ export class CloudflareClient implements LLMClient {
         tokenConfigured: true,
       });
     } else {
-      log.warn("CloudflareClient", "Cloudflare credentials not configured - provider will be unavailable", {
-        hasAccountId: !!this.accountId,
-        hasApiToken: !!this.apiToken,
-      });
+      log.warn(
+        "CloudflareClient",
+        "Cloudflare credentials not configured - provider will be unavailable",
+        {
+          hasAccountId: !!this.accountId,
+          hasApiToken: !!this.apiToken,
+        }
+      );
     }
   }
 
@@ -103,7 +107,12 @@ export class CloudflareClient implements LLMClient {
           continue;
         }
         messages.push({
-          role: msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
+          role:
+            msg.role === "system"
+              ? "system"
+              : msg.role === "assistant"
+                ? "assistant"
+                : "user",
           content: msg.content,
         });
       }
@@ -122,7 +131,7 @@ export class CloudflareClient implements LLMClient {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${this.apiToken}`,
+          Authorization: `Bearer ${this.apiToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(cloudflareRequest),
@@ -157,7 +166,8 @@ export class CloudflareClient implements LLMClient {
       const data: CloudflareAIResponse = await response.json();
 
       if (!data.success) {
-        const errorMsg = data.errors?.[0]?.message || "Unknown Cloudflare error";
+        const errorMsg =
+          data.errors?.[0]?.message || "Unknown Cloudflare error";
         log.error("CloudflareClient", "API returned unsuccessful response", {
           error: errorMsg,
           latency,
@@ -169,9 +179,10 @@ export class CloudflareClient implements LLMClient {
 
       // Cloudflare doesn't provide token counts in response
       // Estimate based on content length (rough approximation)
-      const estimatedTokens = Math.ceil((req.system || "").length / 4) +
-                             Math.ceil(req.messages.map(m => m.content).join("").length / 4) +
-                             Math.ceil(content.length / 4);
+      const estimatedTokens =
+        Math.ceil((req.system || "").length / 4) +
+        Math.ceil(req.messages.map((m) => m.content).join("").length / 4) +
+        Math.ceil(content.length / 4);
 
       log.info("CloudflareClient", "Request successful", {
         model,
@@ -244,7 +255,9 @@ export class CloudflareClient implements LLMClient {
         maxTokens: 10,
       });
 
-      return (response.content || response.text || "").toLowerCase().includes("ok");
+      return (response.content || response.text || "")
+        .toLowerCase()
+        .includes("ok");
     } catch (error) {
       log.error("CloudflareClient", "Health check failed", {
         error: (error as Error).message,

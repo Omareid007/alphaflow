@@ -1,12 +1,27 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import bcrypt from "bcryptjs";
-import { createSession, getSession, deleteSession, cleanupExpiredSessions } from "./lib/session";
+import {
+  createSession,
+  getSession,
+  deleteSession,
+  cleanupExpiredSessions,
+} from "./lib/session";
 import { storage } from "./storage";
 import { db, getPoolStats } from "./db";
 import { sql, desc, eq } from "drizzle-orm";
-import { allocationPolicies, rebalanceRuns, alertRules, universeFundamentals } from "@shared/schema";
-import { badRequest, unauthorized, serverError, validationError } from "./lib/standard-errors";
+import {
+  allocationPolicies,
+  rebalanceRuns,
+  alertRules,
+  universeFundamentals,
+} from "@shared/schema";
+import {
+  badRequest,
+  unauthorized,
+  serverError,
+  validationError,
+} from "./lib/standard-errors";
 import { sanitizeInput, sanitizeUserInput } from "./lib/sanitization";
 import {
   insertUserSchema,
@@ -19,11 +34,11 @@ import { alpaca } from "./connectors/alpaca";
 import { alpacaTradingEngine } from "./trading/alpaca-trading-engine";
 import { alpacaStream } from "./trading/alpaca-stream";
 import { tradingSessionManager } from "./services/trading-session-manager";
-import { 
+import {
   orderExecutionEngine,
-  identifyUnrealOrders, 
-  cleanupUnrealOrders, 
-  reconcileOrderBook 
+  identifyUnrealOrders,
+  cleanupUnrealOrders,
+  reconcileOrderBook,
 } from "./trading/order-execution-flow";
 import { orchestrator } from "./autonomous/orchestrator";
 import { coordinator } from "./orchestration";
@@ -40,9 +55,26 @@ import {
   type WebhookConfig,
 } from "./lib/webhook-emitter";
 import { getAllUsageStats, getUsageStats } from "./lib/apiBudget";
-import { getCacheStats, getAllCacheEntries, purgeExpiredCache, invalidateCache } from "./lib/persistentApiCache";
-import { getAllProviderPolicies, getProviderPolicy, enableProvider, disableProvider } from "./lib/apiPolicy";
-import { roleBasedRouter, getAllRoleConfigs, updateRoleConfig, getRecentCalls, getCallStats, type RoleConfig } from "./ai/roleBasedRouter";
+import {
+  getCacheStats,
+  getAllCacheEntries,
+  purgeExpiredCache,
+  invalidateCache,
+} from "./lib/persistentApiCache";
+import {
+  getAllProviderPolicies,
+  getProviderPolicy,
+  enableProvider,
+  disableProvider,
+} from "./lib/apiPolicy";
+import {
+  roleBasedRouter,
+  getAllRoleConfigs,
+  updateRoleConfig,
+  getRecentCalls,
+  getCallStats,
+  type RoleConfig,
+} from "./ai/roleBasedRouter";
 import { tradabilityService } from "./services/tradability-service";
 import { workQueue } from "./lib/work-queue";
 import backtestsRouter from "./routes/backtests";
@@ -93,11 +125,38 @@ import cryptoRouter from "./routes/crypto";
 import stockRouter from "./routes/stock";
 import { enrichmentScheduler } from "./services/enrichment-scheduler";
 import { alertService } from "./observability/alertService";
-import { initializeDefaultModules, getModules, getModule, getAdminOverview } from "./admin/registry";
-import { createRBACContext, hasCapability, filterModulesByCapability, getAllRoles, getRoleInfo, type RBACContext } from "./admin/rbac";
-import { getSetting, getSettingFull, setSetting, deleteSetting, listSettings, sanitizeSettingForResponse } from "./admin/settings";
+import {
+  initializeDefaultModules,
+  getModules,
+  getModule,
+  getAdminOverview,
+} from "./admin/registry";
+import {
+  createRBACContext,
+  hasCapability,
+  filterModulesByCapability,
+  getAllRoles,
+  getRoleInfo,
+  type RBACContext,
+} from "./admin/rbac";
+import {
+  getSetting,
+  getSettingFull,
+  setSetting,
+  deleteSetting,
+  listSettings,
+  sanitizeSettingForResponse,
+} from "./admin/settings";
 import { globalSearch, getRelatedEntities } from "./admin/global-search";
-import { alpacaUniverseService, liquidityService, fundamentalsService, candidatesService, tradingEnforcementService, allocationService, rebalancerService } from "./universe";
+import {
+  alpacaUniverseService,
+  liquidityService,
+  fundamentalsService,
+  candidatesService,
+  tradingEnforcementService,
+  allocationService,
+  rebalancerService,
+} from "./universe";
 import type { AdminCapability } from "@shared/types/admin-module";
 import { auditLogger } from "./middleware/audit-logger";
 import { log } from "./utils/logger";
@@ -115,7 +174,7 @@ function getCookieOptions() {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "none" as const : "lax" as const,
+    sameSite: isProduction ? ("none" as const) : ("lax" as const),
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
@@ -126,21 +185,25 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     const sessionId = req.cookies?.session;
 
     if (!sessionId) {
-      log.warn("Auth", "No session cookie found for request:", { path: req.path });
+      log.warn("Auth", "No session cookie found for request:", {
+        path: req.path,
+      });
       return res.status(401).json({
         error: "Not authenticated",
         code: "NO_SESSION",
-        message: "Please log in to access this resource"
+        message: "Please log in to access this resource",
       });
     }
 
     const session = await getSession(sessionId);
     if (!session) {
-      log.warn("Auth", "Session expired or invalid:", { sessionId: sessionId.substring(0, 8) + '...' });
+      log.warn("Auth", "Session expired or invalid:", {
+        sessionId: sessionId.substring(0, 8) + "...",
+      });
       return res.status(401).json({
         error: "Session expired",
         code: "SESSION_EXPIRED",
-        message: "Your session has expired. Please log in again."
+        message: "Your session has expired. Please log in again.",
       });
     }
 
@@ -151,12 +214,16 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     return res.status(500).json({
       error: "Authentication error",
       code: "AUTH_ERROR",
-      message: "An error occurred while verifying your session"
+      message: "An error occurred while verifying your session",
     });
   }
 }
 
-async function adminTokenMiddleware(req: Request, res: Response, next: NextFunction) {
+async function adminTokenMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const adminToken = process.env.ADMIN_TOKEN;
   const headerToken = req.headers["x-admin-token"] as string;
 
@@ -174,7 +241,12 @@ async function adminTokenMiddleware(req: Request, res: Response, next: NextFunct
     }
   }
 
-  return res.status(401).json({ error: "Admin authentication required. Provide valid session or X-Admin-Token header." });
+  return res
+    .status(401)
+    .json({
+      error:
+        "Admin authentication required. Provide valid session or X-Admin-Token header.",
+    });
 }
 
 function requireCapability(...capabilities: AdminCapability[]) {
@@ -191,7 +263,9 @@ function requireCapability(...capabilities: AdminCapability[]) {
     const rbacContext = createRBACContext(user);
     req.rbac = rbacContext;
 
-    const hasRequiredCapability = capabilities.some(cap => hasCapability(rbacContext, cap));
+    const hasRequiredCapability = capabilities.some((cap) =>
+      hasCapability(rbacContext, cap)
+    );
     if (!hasRequiredCapability) {
       return res.status(403).json({
         error: "Forbidden",
@@ -206,33 +280,43 @@ function requireCapability(...capabilities: AdminCapability[]) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   log.info("Routes", "Starting route registration...");
-  
+
   // Initialize admin module registry
   initializeDefaultModules();
   log.info("Routes", "Admin module registry initialized");
-  
+
   // Delay async initializations to let server start first
   setTimeout(() => {
     log.info("Routes", "Starting delayed initializations...");
-    coordinator.start().catch(err =>
-      log.error("Routes", "Failed to start trading coordinator", { error: err })
-    );
-    alpacaTradingEngine.initialize().catch(err =>
-      log.error("Routes", "Failed to initialize Alpaca trading engine", { error: err })
-    );
-    orchestrator.autoStart().catch(err =>
-      log.error("Routes", "Failed to auto-start orchestrator", { error: err })
-    );
+    coordinator
+      .start()
+      .catch((err) =>
+        log.error("Routes", "Failed to start trading coordinator", {
+          error: err,
+        })
+      );
+    alpacaTradingEngine
+      .initialize()
+      .catch((err) =>
+        log.error("Routes", "Failed to initialize Alpaca trading engine", {
+          error: err,
+        })
+      );
+    orchestrator
+      .autoStart()
+      .catch((err) =>
+        log.error("Routes", "Failed to auto-start orchestrator", { error: err })
+      );
     // Start the work queue worker for durable order execution
     workQueue.startWorker(5000);
     log.info("Routes", "Work queue worker started with 5s poll interval");
-    
+
     // Connect to Alpaca WebSocket for real-time trade updates
     alpacaStream.connect().catch((err) => {
       log.error("Routes", "Failed to connect to Alpaca stream", { error: err });
     });
     log.info("Routes", "Alpaca trade updates stream connecting...");
-    
+
     // Start periodic order reconciler (every 45 seconds)
     setInterval(async () => {
       try {
@@ -244,7 +328,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         log.info("Routes", "Periodic order reconciliation triggered");
       } catch (err) {
-        log.error("Routes", "Failed to trigger order reconciliation", { error: err });
+        log.error("Routes", "Failed to trigger order reconciliation", {
+          error: err,
+        });
       }
     }, 45000);
     log.info("Routes", "Order reconciliation job scheduled (45s interval)");
@@ -255,10 +341,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       log.info("Bootstrap", "Checking for admin user...");
       const adminUser = await storage.getUserByUsername("admintest");
-      log.info("Bootstrap", "Admin user check complete:", { status: adminUser ? "exists" : "not found" });
+      log.info("Bootstrap", "Admin user check complete:", {
+        status: adminUser ? "exists" : "not found",
+      });
       if (!adminUser) {
         const hashedPassword = await bcrypt.hash("admin1234", 10);
-        await storage.createUser({ username: "admintest", password: hashedPassword, isAdmin: true });
+        await storage.createUser({
+          username: "admintest",
+          password: hashedPassword,
+          isAdmin: true,
+        });
         log.info("Bootstrap", "Created admin user: admintest");
       } else {
         if (!adminUser.isAdmin) {
@@ -361,28 +453,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-
-  app.delete("/api/alpaca/orders/:orderId", authMiddleware, async (req, res) => {
-    try {
-      await alpaca.cancelOrder(req.params.orderId);
-      res.status(204).send();
-    } catch (error) {
-      log.error("Routes", "Failed to cancel Alpaca order", { error: error });
-      res.status(500).json({ error: "Failed to cancel Alpaca order" });
+  app.delete(
+    "/api/alpaca/orders/:orderId",
+    authMiddleware,
+    async (req, res) => {
+      try {
+        await alpaca.cancelOrder(req.params.orderId);
+        res.status(204).send();
+      } catch (error) {
+        log.error("Routes", "Failed to cancel Alpaca order", { error: error });
+        res.status(500).json({ error: "Failed to cancel Alpaca order" });
+      }
     }
-  });
+  );
 
   const redactWebhook = (webhook: WebhookConfig) => ({
     ...webhook,
-    secret: webhook.secret ? '***REDACTED***' : undefined,
-    headers: webhook.headers ? Object.fromEntries(
-      Object.entries(webhook.headers).map(([k, v]) => 
-        k.toLowerCase().includes('auth') || k.toLowerCase().includes('token') || k.toLowerCase().includes('key')
-          ? [k, '***REDACTED***'] : [k, v]
-      )
-    ) : undefined,
+    secret: webhook.secret ? "***REDACTED***" : undefined,
+    headers: webhook.headers
+      ? Object.fromEntries(
+          Object.entries(webhook.headers).map(([k, v]) =>
+            k.toLowerCase().includes("auth") ||
+            k.toLowerCase().includes("token") ||
+            k.toLowerCase().includes("key")
+              ? [k, "***REDACTED***"]
+              : [k, v]
+          )
+        )
+      : undefined,
   });
-
 
   const {
     registerChannel,
@@ -398,18 +497,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     sendDirectNotification,
     getNotificationHistory,
     getNotificationStats,
-  } = await import('./lib/notification-service');
+  } = await import("./lib/notification-service");
 
-  type NotificationChannel = import('./lib/notification-service').NotificationChannel;
-  type NotificationTemplate = import('./lib/notification-service').NotificationTemplate;
+  type NotificationChannel =
+    import("./lib/notification-service").NotificationChannel;
+  type NotificationTemplate =
+    import("./lib/notification-service").NotificationTemplate;
 
   const redactChannelConfig = (channel: any) => {
     const redacted = { ...channel };
     if (redacted.config) {
       const config = { ...redacted.config };
-      if ('botToken' in config) config.botToken = '***REDACTED***';
-      if ('webhookUrl' in config) config.webhookUrl = config.webhookUrl.replace(/\/[^/]+$/, '/***REDACTED***');
-      if ('password' in config) config.password = '***REDACTED***';
+      if ("botToken" in config) config.botToken = "***REDACTED***";
+      if ("webhookUrl" in config)
+        config.webhookUrl = config.webhookUrl.replace(
+          /\/[^/]+$/,
+          "/***REDACTED***"
+        );
+      if ("password" in config) config.password = "***REDACTED***";
       redacted.config = config;
     }
     return redacted;

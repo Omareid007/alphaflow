@@ -1,5 +1,10 @@
 import { db } from "../db";
-import { universeAssets, universeLiquidityMetrics, type InsertUniverseAsset, type UniverseAsset } from "@shared/schema";
+import {
+  universeAssets,
+  universeLiquidityMetrics,
+  type InsertUniverseAsset,
+  type UniverseAsset,
+} from "@shared/schema";
 import { alpaca, type AlpacaAsset } from "../connectors/alpaca";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { log } from "../utils/logger";
@@ -53,7 +58,9 @@ function isSpacName(name: string): boolean {
 }
 
 export class AlpacaUniverseService {
-  async refreshAssets(options: UniverseRefreshOptions = {}): Promise<UniverseRefreshResult> {
+  async refreshAssets(
+    options: UniverseRefreshOptions = {}
+  ): Promise<UniverseRefreshResult> {
     const startTime = Date.now();
     const {
       status = "active",
@@ -64,24 +71,34 @@ export class AlpacaUniverseService {
       traceId,
     } = options;
 
-    log.info("AlpacaUniverse", "Starting asset refresh", { assetClass, status, traceId });
+    log.info("AlpacaUniverse", "Starting asset refresh", {
+      assetClass,
+      status,
+      traceId,
+    });
 
     let alpacaAssets: AlpacaAsset[];
     try {
       alpacaAssets = await alpaca.getAssets(status, assetClass);
     } catch (error) {
-      log.error("AlpacaUniverse", "Failed to fetch Alpaca assets", { error: error instanceof Error ? error.message : String(error) });
+      log.error("AlpacaUniverse", "Failed to fetch Alpaca assets", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(`Failed to fetch Alpaca assets: ${error}`);
     }
 
-    log.info("AlpacaUniverse", "Fetched assets from Alpaca", { count: alpacaAssets.length });
+    log.info("AlpacaUniverse", "Fetched assets from Alpaca", {
+      count: alpacaAssets.length,
+    });
 
     let added = 0;
     let updated = 0;
     let excluded = 0;
 
     const existingSymbols = new Set(
-      (await db.select({ symbol: universeAssets.symbol }).from(universeAssets)).map((a) => a.symbol)
+      (
+        await db.select({ symbol: universeAssets.symbol }).from(universeAssets)
+      ).map((a) => a.symbol)
     );
 
     for (const asset of alpacaAssets) {
@@ -137,34 +154,49 @@ export class AlpacaUniverseService {
           excluded++;
         }
       } catch (error) {
-        log.error("AlpacaUniverse", "Failed to upsert asset", { symbol: asset.symbol, error: error instanceof Error ? error.message : String(error) });
+        log.error("AlpacaUniverse", "Failed to upsert asset", {
+          symbol: asset.symbol,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
     const fetchedSymbols = new Set(alpacaAssets.map((a) => a.symbol));
-    const symbolsToRemove = [...existingSymbols].filter((s) => !fetchedSymbols.has(s));
-    
+    const symbolsToRemove = [...existingSymbols].filter(
+      (s) => !fetchedSymbols.has(s)
+    );
+
     for (const symbol of symbolsToRemove) {
       await db
         .update(universeAssets)
-        .set({ 
-          tradable: false, 
+        .set({
+          tradable: false,
           status: "delisted",
           excluded: true,
           excludeReason: "No longer in Alpaca assets",
           lastRefreshedAt: new Date(),
         })
         .where(eq(universeAssets.symbol, symbol));
-      
+
       await db
         .delete(universeLiquidityMetrics)
         .where(eq(universeLiquidityMetrics.symbol, symbol));
     }
-    
-    log.info("AlpacaUniverse", "Cleaned up delisted symbols from liquidity metrics", { count: symbolsToRemove.length });
+
+    log.info(
+      "AlpacaUniverse",
+      "Cleaned up delisted symbols from liquidity metrics",
+      { count: symbolsToRemove.length }
+    );
 
     const duration = Date.now() - startTime;
-    log.info("AlpacaUniverse", "Refresh complete", { added, updated, removed: symbolsToRemove.length, excluded, duration });
+    log.info("AlpacaUniverse", "Refresh complete", {
+      added,
+      updated,
+      removed: symbolsToRemove.length,
+      excluded,
+      duration,
+    });
 
     return {
       success: true,
@@ -179,7 +211,7 @@ export class AlpacaUniverseService {
 
   async getStats(): Promise<UniverseStats> {
     const allAssets = await db.select().from(universeAssets);
-    
+
     const byExchange: Record<string, number> = {};
     const byAssetClass: Record<string, number> = {};
     let activeTradable = 0;
@@ -191,7 +223,8 @@ export class AlpacaUniverseService {
 
     for (const asset of allAssets) {
       byExchange[asset.exchange] = (byExchange[asset.exchange] || 0) + 1;
-      byAssetClass[asset.assetClass] = (byAssetClass[asset.assetClass] || 0) + 1;
+      byAssetClass[asset.assetClass] =
+        (byAssetClass[asset.assetClass] || 0) + 1;
 
       if (asset.tradable && !asset.excluded) {
         activeTradable++;
@@ -226,15 +259,17 @@ export class AlpacaUniverseService {
     };
   }
 
-  async getAssets(options: {
-    tradableOnly?: boolean;
-    excludeOtc?: boolean;
-    excludeSpac?: boolean;
-    excludePennyStocks?: boolean;
-    exchange?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<UniverseAsset[]> {
+  async getAssets(
+    options: {
+      tradableOnly?: boolean;
+      excludeOtc?: boolean;
+      excludeSpac?: boolean;
+      excludePennyStocks?: boolean;
+      exchange?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<UniverseAsset[]> {
     const {
       tradableOnly = true,
       excludeOtc = true,
@@ -281,7 +316,11 @@ export class AlpacaUniverseService {
     return result[0] || null;
   }
 
-  async setExcluded(symbol: string, excluded: boolean, reason?: string): Promise<boolean> {
+  async setExcluded(
+    symbol: string,
+    excluded: boolean,
+    reason?: string
+  ): Promise<boolean> {
     const result = await db
       .update(universeAssets)
       .set({
@@ -293,7 +332,10 @@ export class AlpacaUniverseService {
     return true;
   }
 
-  async markPennyStock(symbol: string, isPennyStock: boolean): Promise<boolean> {
+  async markPennyStock(
+    symbol: string,
+    isPennyStock: boolean
+  ): Promise<boolean> {
     await db
       .update(universeAssets)
       .set({

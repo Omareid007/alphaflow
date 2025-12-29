@@ -1,6 +1,6 @@
 /**
  * Advanced Rebalancing Service
- * 
+ *
  * Implements advanced trading features:
  * - Partial take-profit levels (scale out at different profit levels)
  * - Trailing stop automation (move to breakeven at X% profit)
@@ -12,9 +12,20 @@ import { db } from "../db";
 import { macroIndicators } from "@shared/schema";
 import { log } from "../utils/logger";
 import { PositionWithRules } from "../autonomous/orchestrator";
-import { toDecimal, trailingStopPrice, kellyFraction as calcKellyFraction, kellySuggestedSize, percentOf } from "../utils/money";
+import {
+  toDecimal,
+  trailingStopPrice,
+  kellyFraction as calcKellyFraction,
+  kellySuggestedSize,
+  percentOf,
+} from "../utils/money";
 
-export type MarketRegime = "bullish" | "bearish" | "sideways" | "volatile" | "unknown";
+export type MarketRegime =
+  | "bullish"
+  | "bearish"
+  | "sideways"
+  | "volatile"
+  | "unknown";
 
 export interface PartialTakeProfitLevel {
   profitPercent: number;
@@ -83,7 +94,10 @@ const positionProfitRules = new Map<string, PositionProfitRules>();
 
 class AdvancedRebalancingService {
   private marketRegimeConfig: MarketRegimeConfig = DEFAULT_MARKET_REGIME_CONFIG;
-  private lastRegimeAnalysis: { regime: MarketRegime; analyzedAt: Date } | null = null;
+  private lastRegimeAnalysis: {
+    regime: MarketRegime;
+    analyzedAt: Date;
+  } | null = null;
   private kellyFraction: number = 0.25;
 
   registerPosition(
@@ -94,10 +108,13 @@ class AdvancedRebalancingService {
     const rules: PositionProfitRules = {
       symbol,
       entryPrice,
-      partialTakeProfits: customRules?.partialTakeProfits || 
+      partialTakeProfits:
+        customRules?.partialTakeProfits ||
         JSON.parse(JSON.stringify(DEFAULT_PARTIAL_TAKE_PROFITS)),
-      trailingStop: customRules?.trailingStop || 
-        { ...DEFAULT_TRAILING_STOP, highWaterMark: entryPrice },
+      trailingStop: customRules?.trailingStop || {
+        ...DEFAULT_TRAILING_STOP,
+        highWaterMark: entryPrice,
+      },
       maxHoldingPeriodHours: customRules?.maxHoldingPeriodHours || 168,
       createdAt: new Date(),
     };
@@ -131,12 +148,16 @@ class AdvancedRebalancingService {
       if (!level.executed && currentProfitPercent >= level.profitPercent) {
         level.executed = true;
         level.executedAt = new Date();
-        
-        log.info("AdvancedRebalancing", `Partial take-profit triggered for ${position.symbol}`, {
-          profitLevel: level.profitPercent,
-          closePercent: level.closePercent,
-          currentProfit: currentProfitPercent.toFixed(2),
-        });
+
+        log.info(
+          "AdvancedRebalancing",
+          `Partial take-profit triggered for ${position.symbol}`,
+          {
+            profitLevel: level.profitPercent,
+            closePercent: level.closePercent,
+            currentProfit: currentProfitPercent.toFixed(2),
+          }
+        );
 
         return {
           shouldClose: true,
@@ -171,23 +192,34 @@ class AdvancedRebalancingService {
 
     if (currentProfitPercent >= config.breakEvenTriggerPercent) {
       const breakEvenStop = toDecimal(rules.entryPrice).times(1.005).toNumber();
-      const trailingStop = trailingStopPrice(config.highWaterMark, config.trailPercent).toNumber();
+      const trailingStop = trailingStopPrice(
+        config.highWaterMark,
+        config.trailPercent
+      ).toNumber();
 
       newStopLoss = Math.max(breakEvenStop, trailingStop);
-      reason = currentProfitPercent >= config.breakEvenTriggerPercent * 1.5
-        ? `Trailing stop at ${config.trailPercent}% below high water mark ($${config.highWaterMark.toFixed(2)})`
-        : `Moved stop to breakeven + 0.5%`;
+      reason =
+        currentProfitPercent >= config.breakEvenTriggerPercent * 1.5
+          ? `Trailing stop at ${config.trailPercent}% below high water mark ($${config.highWaterMark.toFixed(2)})`
+          : `Moved stop to breakeven + 0.5%`;
     } else {
-      newStopLoss = trailingStopPrice(config.highWaterMark, config.trailPercent).toNumber();
+      newStopLoss = trailingStopPrice(
+        config.highWaterMark,
+        config.trailPercent
+      ).toNumber();
       reason = `Initial trailing stop at ${config.trailPercent}% below current price`;
     }
 
     if (!position.stopLossPrice || newStopLoss > position.stopLossPrice) {
-      log.info("AdvancedRebalancing", `Trailing stop update for ${position.symbol}`, {
-        oldStop: position.stopLossPrice?.toFixed(2),
-        newStop: newStopLoss.toFixed(2),
-        reason,
-      });
+      log.info(
+        "AdvancedRebalancing",
+        `Trailing stop update for ${position.symbol}`,
+        {
+          oldStop: position.stopLossPrice?.toFixed(2),
+          newStop: newStopLoss.toFixed(2),
+          reason,
+        }
+      );
 
       return { newStopLoss, reason };
     }
@@ -198,19 +230,23 @@ class AdvancedRebalancingService {
   async detectMarketRegime(): Promise<MarketRegime> {
     try {
       const indicators = await db.select().from(macroIndicators);
-      
+
       if (indicators.length === 0) {
         return "unknown";
       }
 
-      const vix = indicators.find(i => i.indicatorId === "VIXCLS");
-      const yieldSpread = indicators.find(i => i.indicatorId === "T10Y2Y");
-      const fedFundsRate = indicators.find(i => i.indicatorId === "FEDFUNDS");
-      const unemployment = indicators.find(i => i.indicatorId === "UNRATE");
+      const vix = indicators.find((i) => i.indicatorId === "VIXCLS");
+      const yieldSpread = indicators.find((i) => i.indicatorId === "T10Y2Y");
+      const fedFundsRate = indicators.find((i) => i.indicatorId === "FEDFUNDS");
+      const unemployment = indicators.find((i) => i.indicatorId === "UNRATE");
 
       const vixValue = vix?.latestValue ? parseFloat(vix.latestValue) : 20;
-      const spreadValue = yieldSpread?.latestValue ? parseFloat(yieldSpread.latestValue) : 0;
-      const unemploymentChange = unemployment?.changePercent ? parseFloat(unemployment.changePercent) : 0;
+      const spreadValue = yieldSpread?.latestValue
+        ? parseFloat(yieldSpread.latestValue)
+        : 0;
+      const unemploymentChange = unemployment?.changePercent
+        ? parseFloat(unemployment.changePercent)
+        : 0;
 
       let regime: MarketRegime;
 
@@ -218,14 +254,18 @@ class AdvancedRebalancingService {
         regime = "volatile";
       } else if (spreadValue < 0) {
         regime = "bearish";
-      } else if (vixValue < 15 && spreadValue > 0.5 && unemploymentChange <= 0) {
+      } else if (
+        vixValue < 15 &&
+        spreadValue > 0.5 &&
+        unemploymentChange <= 0
+      ) {
         regime = "bullish";
       } else {
         regime = "sideways";
       }
 
       this.lastRegimeAnalysis = { regime, analyzedAt: new Date() };
-      
+
       log.info("AdvancedRebalancing", `Market regime detected: ${regime}`, {
         vix: vixValue,
         yieldSpread: spreadValue,
@@ -234,7 +274,9 @@ class AdvancedRebalancingService {
 
       return regime;
     } catch (error) {
-      log.error("AdvancedRebalancing", "Failed to detect market regime", { error: String(error) });
+      log.error("AdvancedRebalancing", "Failed to detect market regime", {
+        error: String(error),
+      });
       return "unknown";
     }
   }
@@ -243,7 +285,8 @@ class AdvancedRebalancingService {
     basePositionSizePercent: number,
     regime?: MarketRegime
   ): number {
-    const currentRegime = regime || this.lastRegimeAnalysis?.regime || "unknown";
+    const currentRegime =
+      regime || this.lastRegimeAnalysis?.regime || "unknown";
 
     let multiplier: number;
 
@@ -258,13 +301,16 @@ class AdvancedRebalancingService {
         multiplier = this.marketRegimeConfig.volatileMultiplier;
         break;
       case "sideways":
-        multiplier = this.marketRegimeConfig.sidewaysStrategy === "reduce" ? 0.75 : 1.0;
+        multiplier =
+          this.marketRegimeConfig.sidewaysStrategy === "reduce" ? 0.75 : 1.0;
         break;
       default:
         multiplier = 1.0;
     }
 
-    const adjustedSize = toDecimal(basePositionSizePercent).times(multiplier).toNumber();
+    const adjustedSize = toDecimal(basePositionSizePercent)
+      .times(multiplier)
+      .toNumber();
 
     log.debug("AdvancedRebalancing", `Regime-adjusted position size`, {
       regime: currentRegime,
@@ -284,7 +330,14 @@ class AdvancedRebalancingService {
     portfolioValue: number;
     maxPositionSizePercent: number;
   }): KellyPositionSize {
-    const { confidence, targetProfit, stopLoss, entryPrice, portfolioValue, maxPositionSizePercent } = params;
+    const {
+      confidence,
+      targetProfit,
+      stopLoss,
+      entryPrice,
+      portfolioValue,
+      maxPositionSizePercent,
+    } = params;
 
     const winRate = toDecimal(confidence).dividedBy(100);
     const lossRate = toDecimal(1).minus(winRate);
@@ -314,10 +367,18 @@ class AdvancedRebalancingService {
     const adjustedKellyPercent = adjustedKellyDecimal.times(100).toNumber();
 
     // Use kellySuggestedSize from money module (handles capping internally)
-    const suggestedSize = kellySuggestedSize(portfolioValue, rawKellyDecimal, this.kellyFraction, maxPositionSizePercent).toNumber();
+    const suggestedSize = kellySuggestedSize(
+      portfolioValue,
+      rawKellyDecimal,
+      this.kellyFraction,
+      maxPositionSizePercent
+    ).toNumber();
     const cappedKelly = Math.min(adjustedKellyPercent, maxPositionSizePercent);
 
-    const expectedReturn = winRate.times(avgWin).minus(lossRate.times(avgLoss)).toNumber();
+    const expectedReturn = winRate
+      .times(avgWin)
+      .minus(lossRate.times(avgLoss))
+      .toNumber();
 
     log.debug("AdvancedRebalancing", `Kelly position size calculated`, {
       winRate: winRate.toNumber().toFixed(3),

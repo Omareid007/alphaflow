@@ -165,7 +165,10 @@ class FinnhubConnector {
     if (!apiKey) {
       const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("Finnhub", `No API key, serving stale L1 data for ${l1CacheKey}`);
+        log.debug(
+          "Finnhub",
+          `No API key, serving stale L1 data for ${l1CacheKey}`
+        );
         return stale;
       }
       throw new Error("FINNHUB_API_KEY is not configured");
@@ -182,7 +185,10 @@ class FinnhubConnector {
         this.pendingRefreshes.add(l1CacheKey);
         this.backgroundRefresh(endpoint, l1CacheKey, l1Cache);
       }
-      log.debug("Finnhub", `Serving stale L1 data for ${l1CacheKey}, refreshing in background`);
+      log.debug(
+        "Finnhub",
+        `Serving stale L1 data for ${l1CacheKey}, refreshing in background`
+      );
       return l1Cached.data;
     }
 
@@ -226,7 +232,10 @@ class FinnhubConnector {
     } catch (error) {
       const stale = l1Cache.getStale(l1CacheKey);
       if (stale) {
-        log.debug("Finnhub", `Error fetching, serving stale L1 data for ${l1CacheKey}`);
+        log.debug(
+          "Finnhub",
+          `Error fetching, serving stale L1 data for ${l1CacheKey}`
+        );
         return stale;
       }
       throw error;
@@ -236,7 +245,11 @@ class FinnhubConnector {
   async getQuote(symbol: string): Promise<StockQuote> {
     const l1CacheKey = `quote_${symbol}`;
     const endpoint = `/quote?symbol=${symbol.toUpperCase()}`;
-    return this.fetchWithL1Cache<StockQuote>(endpoint, l1CacheKey, this.quoteCache);
+    return this.fetchWithL1Cache<StockQuote>(
+      endpoint,
+      l1CacheKey,
+      this.quoteCache
+    );
   }
 
   async getCandles(
@@ -251,30 +264,46 @@ class FinnhubConnector {
 
     const l1CacheKey = `candles_${symbol}_${resolution}_${fromTime}_${toTime}`;
     const endpoint = `/stock/candle?symbol=${symbol.toUpperCase()}&resolution=${resolution}&from=${fromTime}&to=${toTime}`;
-    return this.fetchWithL1Cache<StockCandle>(endpoint, l1CacheKey, this.candleCache);
+    return this.fetchWithL1Cache<StockCandle>(
+      endpoint,
+      l1CacheKey,
+      this.candleCache
+    );
   }
 
   async getCompanyProfile(symbol: string): Promise<CompanyProfile> {
     const l1CacheKey = `profile_${symbol}`;
     const endpoint = `/stock/profile2?symbol=${symbol.toUpperCase()}`;
-    return this.fetchWithL1Cache<CompanyProfile>(endpoint, l1CacheKey, this.profileCache);
+    return this.fetchWithL1Cache<CompanyProfile>(
+      endpoint,
+      l1CacheKey,
+      this.profileCache
+    );
   }
 
   async searchSymbols(query: string): Promise<SymbolSearchResult> {
     const l1CacheKey = `search_${query}`;
     const endpoint = `/search?q=${encodeURIComponent(query)}`;
-    return this.fetchWithL1Cache<SymbolSearchResult>(endpoint, l1CacheKey, this.searchCache);
+    return this.fetchWithL1Cache<SymbolSearchResult>(
+      endpoint,
+      l1CacheKey,
+      this.searchCache
+    );
   }
 
   async getMarketNews(category = "general"): Promise<MarketNews[]> {
     const l1CacheKey = `news_${category}`;
     const endpoint = `/news?category=${category}`;
-    return this.fetchWithL1Cache<MarketNews[]>(endpoint, l1CacheKey, this.newsCache);
+    return this.fetchWithL1Cache<MarketNews[]>(
+      endpoint,
+      l1CacheKey,
+      this.newsCache
+    );
   }
 
   async getMultipleQuotes(symbols: string[]): Promise<Map<string, StockQuote>> {
     const quotes = new Map<string, StockQuote>();
-    
+
     for (const symbol of symbols) {
       try {
         const quote = await this.getQuote(symbol);
@@ -282,23 +311,36 @@ class FinnhubConnector {
           quotes.set(symbol, quote);
         }
       } catch (error) {
-        log.error("Finnhub", `Failed to fetch quote for ${symbol}`, { error: String(error) });
+        log.error("Finnhub", `Failed to fetch quote for ${symbol}`, {
+          error: String(error),
+        });
       }
     }
-    
+
     return quotes;
   }
 
   async getBasicFinancials(symbol: string): Promise<BasicFinancials> {
     const l1CacheKey = `financials_${symbol}`;
     const endpoint = `/stock/metric?symbol=${symbol.toUpperCase()}&metric=all`;
-    return this.fetchWithL1Cache<BasicFinancials>(endpoint, l1CacheKey, this.financialsCache);
+    return this.fetchWithL1Cache<BasicFinancials>(
+      endpoint,
+      l1CacheKey,
+      this.financialsCache
+    );
   }
 
-  async getTechnicalIndicator(symbol: string, resolution = "D"): Promise<TechnicalIndicator> {
+  async getTechnicalIndicator(
+    symbol: string,
+    resolution = "D"
+  ): Promise<TechnicalIndicator> {
     const l1CacheKey = `technical_${symbol}_${resolution}`;
     const endpoint = `/scan/technical-indicator?symbol=${symbol.toUpperCase()}&resolution=${resolution}`;
-    return this.fetchWithL1Cache<TechnicalIndicator>(endpoint, l1CacheKey, this.technicalCache);
+    return this.fetchWithL1Cache<TechnicalIndicator>(
+      endpoint,
+      l1CacheKey,
+      this.technicalCache
+    );
   }
 
   async getKeyMetrics(symbol: string): Promise<{
@@ -337,7 +379,9 @@ class FinnhubConnector {
         weekLow52: m["52WeekLow"] ?? null,
       };
     } catch (error) {
-      log.warn("Finnhub", `Failed to get key metrics for ${symbol}`, { error: String(error) });
+      log.warn("Finnhub", `Failed to get key metrics for ${symbol}`, {
+        error: String(error),
+      });
       return {
         peRatio: null,
         pbRatio: null,
@@ -376,7 +420,9 @@ class FinnhubConnector {
         isTrending: indicator.trend.trending,
       };
     } catch (error) {
-      log.warn("Finnhub", `Failed to get technical signals for ${symbol}`, { error: String(error) });
+      log.warn("Finnhub", `Failed to get technical signals for ${symbol}`, {
+        error: String(error),
+      });
       return {
         signal: "neutral",
         buyCount: 0,
@@ -388,16 +434,20 @@ class FinnhubConnector {
     }
   }
 
-  getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
-    const totalCacheSize = 
-      this.quoteCache.size() + 
-      this.candleCache.size() + 
-      this.profileCache.size() + 
-      this.searchCache.size() + 
+  getConnectionStatus(): {
+    connected: boolean;
+    hasApiKey: boolean;
+    cacheSize: number;
+  } {
+    const totalCacheSize =
+      this.quoteCache.size() +
+      this.candleCache.size() +
+      this.profileCache.size() +
+      this.searchCache.size() +
       this.newsCache.size() +
       this.financialsCache.size() +
       this.technicalCache.size();
-    
+
     return {
       connected: !!this.getApiKey(),
       hasApiKey: !!this.getApiKey(),

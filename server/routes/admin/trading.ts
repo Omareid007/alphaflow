@@ -12,7 +12,7 @@ import {
   candidatesService,
   tradingEnforcementService,
   allocationService,
-  rebalancerService
+  rebalancerService,
 } from "../../universe";
 import { log } from "../../utils/logger";
 
@@ -77,7 +77,7 @@ router.post("/universe/refresh", async (req: Request, res: Response) => {
   try {
     const { assetClass } = req.body;
     const result = await alpacaUniverseService.refreshAssets({
-      assetClass: assetClass || "us_equity"
+      assetClass: assetClass || "us_equity",
     });
     res.json({
       ...result,
@@ -90,25 +90,36 @@ router.post("/universe/refresh", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/universe/exclude/:symbol - Exclude symbol (requires admin:write)
-router.post("/universe/exclude/:symbol", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const { reason } = req.body;
-    await alpacaUniverseService.setExcluded(symbol, true, reason || "Admin exclusion");
-    res.json({ success: true, symbol, excluded: true });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to exclude symbol", { error });
-    res.status(500).json({ error: "Failed to exclude symbol" });
+router.post(
+  "/universe/exclude/:symbol",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const { reason } = req.body;
+      await alpacaUniverseService.setExcluded(
+        symbol,
+        true,
+        reason || "Admin exclusion"
+      );
+      res.json({ success: true, symbol, excluded: true });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to exclude symbol", { error });
+      res.status(500).json({ error: "Failed to exclude symbol" });
+    }
   }
-});
+);
 
 // GET /api/admin/universe/tradable - Get tradable symbols (requires admin:read)
 router.get("/universe/tradable", async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
-    const assets = await storage.getBrokerAssets("us_equity", true, limit ? parseInt(limit as string) : 500);
+    const assets = await storage.getBrokerAssets(
+      "us_equity",
+      true,
+      limit ? parseInt(limit as string) : 500
+    );
     res.json({
-      symbols: assets.map(a => a.symbol),
+      symbols: assets.map((a) => a.symbol),
       count: assets.length,
     });
   } catch (error) {
@@ -137,19 +148,22 @@ router.get("/liquidity/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/liquidity/metrics/:symbol - Get symbol liquidity (requires admin:read)
-router.get("/liquidity/metrics/:symbol", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const metrics = await liquidityService.getMetricsBySymbol(symbol);
-    if (!metrics) {
-      return res.status(404).json({ error: "Liquidity metrics not found" });
+router.get(
+  "/liquidity/metrics/:symbol",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const metrics = await liquidityService.getMetricsBySymbol(symbol);
+      if (!metrics) {
+        return res.status(404).json({ error: "Liquidity metrics not found" });
+      }
+      res.json(metrics);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get liquidity metrics", { error });
+      res.status(500).json({ error: "Failed to get liquidity metrics" });
     }
-    res.json(metrics);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get liquidity metrics", { error });
-    res.status(500).json({ error: "Failed to get liquidity metrics" });
   }
-});
+);
 
 // GET /api/admin/liquidity/tier/:tier - Get symbols by tier (requires admin:read)
 router.get("/liquidity/tier/:tier", async (req: Request, res: Response) => {
@@ -157,7 +171,9 @@ router.get("/liquidity/tier/:tier", async (req: Request, res: Response) => {
     const { tier } = req.params;
     const { limit } = req.query;
     if (!["A", "B", "C", "D"].includes(tier)) {
-      return res.status(400).json({ error: "Invalid tier. Must be A, B, C, or D" });
+      return res
+        .status(400)
+        .json({ error: "Invalid tier. Must be A, B, C, or D" });
     }
     const metrics = await liquidityService.getMetricsByTier(
       tier as "A" | "B" | "C",
@@ -190,7 +206,7 @@ router.post("/liquidity/compute", async (req: Request, res: Response) => {
     const { symbols, traceId } = req.body;
     const result = await liquidityService.computeLiquidityMetrics({
       symbols,
-      traceId: traceId || `liq-${Date.now()}`
+      traceId: traceId || `liq-${Date.now()}`,
     });
     res.json({
       ...result,
@@ -225,7 +241,8 @@ router.get("/fundamentals/stats", async (req: Request, res: Response) => {
 router.get("/fundamentals/:symbol", async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
-    const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
+    const fundamentals =
+      await fundamentalsService.getFundamentalsBySymbol(symbol);
     if (!fundamentals) {
       return res.status(404).json({ error: "Fundamentals not found" });
     }
@@ -256,7 +273,7 @@ router.post("/fundamentals/fetch", async (req: Request, res: Response) => {
     const { symbols, traceId } = req.body;
     const result = await fundamentalsService.fetchAndStoreFundamentals({
       symbols,
-      traceId: traceId || `fund-${Date.now()}`
+      traceId: traceId || `fund-${Date.now()}`,
     });
     res.json({
       ...result,
@@ -293,7 +310,10 @@ router.get("/candidates", async (req: Request, res: Response) => {
     const { status, limit } = req.query;
 
     let candidates;
-    if (status && ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)) {
+    if (
+      status &&
+      ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(status as string)
+    ) {
       candidates = await candidatesService.getCandidatesByStatus(
         status as "NEW" | "WATCHLIST" | "APPROVED" | "REJECTED",
         limit ? parseInt(limit as string) : 100
@@ -348,46 +368,55 @@ router.post("/candidates/generate", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/candidates/:symbol/approve - Approve candidate (requires admin:write)
-router.post("/candidates/:symbol/approve", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const userId = req.userId;
+router.post(
+  "/candidates/:symbol/approve",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const userId = req.userId;
 
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const result = await candidatesService.approveCandidate(symbol, userId);
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to approve candidate", { error });
+      res.status(500).json({ error: "Failed to approve candidate" });
     }
-
-    const result = await candidatesService.approveCandidate(symbol, userId);
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to approve candidate", { error });
-    res.status(500).json({ error: "Failed to approve candidate" });
   }
-});
+);
 
 // POST /api/admin/candidates/:symbol/reject - Reject candidate (requires admin:write)
-router.post("/candidates/:symbol/reject", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const result = await candidatesService.rejectCandidate(symbol);
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to reject candidate", { error });
-    res.status(500).json({ error: "Failed to reject candidate" });
+router.post(
+  "/candidates/:symbol/reject",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const result = await candidatesService.rejectCandidate(symbol);
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to reject candidate", { error });
+      res.status(500).json({ error: "Failed to reject candidate" });
+    }
   }
-});
+);
 
 // POST /api/admin/candidates/:symbol/watchlist - Add to watchlist (requires admin:write)
-router.post("/candidates/:symbol/watchlist", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const result = await candidatesService.watchlistCandidate(symbol);
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to watchlist candidate", { error });
-    res.status(500).json({ error: "Failed to watchlist candidate" });
+router.post(
+  "/candidates/:symbol/watchlist",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const result = await candidatesService.watchlistCandidate(symbol);
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to watchlist candidate", { error });
+      res.status(500).json({ error: "Failed to watchlist candidate" });
+    }
   }
-});
+);
 
 // GET /api/admin/candidates/approved/list - Get approved symbols (requires admin:read)
 router.get("/candidates/approved/list", async (req: Request, res: Response) => {
@@ -425,10 +454,16 @@ router.post("/enforcement/check", async (req: Request, res: Response) => {
     const { symbol, symbols, traceId } = req.body;
 
     if (symbol) {
-      const result = await tradingEnforcementService.canTradeSymbol(symbol, traceId || `chk-${Date.now()}`);
+      const result = await tradingEnforcementService.canTradeSymbol(
+        symbol,
+        traceId || `chk-${Date.now()}`
+      );
       res.json(result);
     } else if (symbols && Array.isArray(symbols)) {
-      const results = await tradingEnforcementService.canTradeMultiple(symbols, traceId || `chk-${Date.now()}`);
+      const results = await tradingEnforcementService.canTradeMultiple(
+        symbols,
+        traceId || `chk-${Date.now()}`
+      );
       res.json({ results: Object.fromEntries(results) });
     } else {
       res.status(400).json({ error: "Provide symbol or symbols array" });
@@ -481,18 +516,21 @@ router.get("/allocation/policies", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/allocation/policies/active - Get active policy (requires admin:read)
-router.get("/allocation/policies/active", async (req: Request, res: Response) => {
-  try {
-    const policy = await allocationService.getActivePolicy();
-    if (!policy) {
-      return res.status(404).json({ error: "No active policy found" });
+router.get(
+  "/allocation/policies/active",
+  async (req: Request, res: Response) => {
+    try {
+      const policy = await allocationService.getActivePolicy();
+      if (!policy) {
+        return res.status(404).json({ error: "No active policy found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get active policy", { error });
+      res.status(500).json({ error: "Failed to get active policy" });
     }
-    res.json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get active policy", { error });
-    res.status(500).json({ error: "Failed to get active policy" });
   }
-});
+);
 
 // GET /api/admin/allocation/policies/:id - Get policy by ID (requires admin:read)
 router.get("/allocation/policies/:id", async (req: Request, res: Response) => {
@@ -525,57 +563,70 @@ router.post("/allocation/policies", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/allocation/policies/:id - Update policy (requires admin:write)
-router.patch("/allocation/policies/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const policy = await allocationService.updatePolicy(id, req.body);
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+router.patch(
+  "/allocation/policies/:id",
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.updatePolicy(id, req.body);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to update policy", { error });
+      res.status(500).json({ error: "Failed to update policy" });
     }
-    res.json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to update policy", { error });
-    res.status(500).json({ error: "Failed to update policy" });
   }
-});
+);
 
 // POST /api/admin/allocation/policies/:id/activate - Activate policy (requires admin:write)
-router.post("/allocation/policies/:id/activate", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const policy = await allocationService.activatePolicy(id);
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+router.post(
+  "/allocation/policies/:id/activate",
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.activatePolicy(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json({ success: true, policy });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to activate policy", { error });
+      res.status(500).json({ error: "Failed to activate policy" });
     }
-    res.json({ success: true, policy });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to activate policy", { error });
-    res.status(500).json({ error: "Failed to activate policy" });
   }
-});
+);
 
 // POST /api/admin/allocation/policies/:id/deactivate - Deactivate policy (requires admin:write)
-router.post("/allocation/policies/:id/deactivate", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const policy = await allocationService.deactivatePolicy(id);
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+router.post(
+  "/allocation/policies/:id/deactivate",
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.deactivatePolicy(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json({ success: true, policy });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to deactivate policy", { error });
+      res.status(500).json({ error: "Failed to deactivate policy" });
     }
-    res.json({ success: true, policy });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to deactivate policy", { error });
-    res.status(500).json({ error: "Failed to deactivate policy" });
   }
-});
+);
 
 // POST /api/admin/allocation/analyze - Analyze rebalance (requires admin:read)
 router.post("/allocation/analyze", async (req: Request, res: Response) => {
   try {
     const { traceId } = req.body;
-    const analysis = await allocationService.analyzeRebalance(traceId || `analyze-${Date.now()}`);
+    const analysis = await allocationService.analyzeRebalance(
+      traceId || `analyze-${Date.now()}`
+    );
     if (!analysis) {
-      return res.status(400).json({ error: "No active allocation policy configured" });
+      return res
+        .status(400)
+        .json({ error: "No active allocation policy configured" });
     }
     res.json({
       ...analysis,
@@ -639,16 +690,24 @@ router.get("/rebalancer/stats", async (req: Request, res: Response) => {
 router.post("/rebalancer/dry-run", async (req: Request, res: Response) => {
   try {
     const { traceId } = req.body;
-    const analysis = await rebalancerService.executeDryRun(traceId || `dry-${Date.now()}`);
+    const analysis = await rebalancerService.executeDryRun(
+      traceId || `dry-${Date.now()}`
+    );
     if (!analysis) {
-      return res.status(400).json({ error: "No active allocation policy configured" });
+      return res
+        .status(400)
+        .json({ error: "No active allocation policy configured" });
     }
     res.json({
       ...analysis,
-      analysis: analysis.analysis ? {
-        ...analysis.analysis,
-        currentPositions: Object.fromEntries(analysis.analysis.currentPositions),
-      } : null,
+      analysis: analysis.analysis
+        ? {
+            ...analysis.analysis,
+            currentPositions: Object.fromEntries(
+              analysis.analysis.currentPositions
+            ),
+          }
+        : null,
     });
   } catch (error) {
     log.error("AdminTrading", "Failed to execute dry run", { error });
@@ -672,19 +731,27 @@ router.post("/rebalancer/execute", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/rebalancer/profit-taking/analyze - Analyze profit-taking (requires admin:read)
-router.post("/rebalancer/profit-taking/analyze", async (req: Request, res: Response) => {
-  try {
-    const { traceId } = req.body;
-    const policy = await allocationService.getActivePolicy();
-    if (!policy) {
-      return res.status(400).json({ error: "No active allocation policy configured" });
+router.post(
+  "/rebalancer/profit-taking/analyze",
+  async (req: Request, res: Response) => {
+    try {
+      const { traceId } = req.body;
+      const policy = await allocationService.getActivePolicy();
+      if (!policy) {
+        return res
+          .status(400)
+          .json({ error: "No active allocation policy configured" });
+      }
+      const analysis = await rebalancerService.analyzeProfitTaking(
+        policy,
+        traceId || `profit-${Date.now()}`
+      );
+      res.json({ candidates: analysis, count: analysis.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to analyze profit-taking", { error });
+      res.status(500).json({ error: "Failed to analyze profit-taking" });
     }
-    const analysis = await rebalancerService.analyzeProfitTaking(policy, traceId || `profit-${Date.now()}`);
-    res.json({ candidates: analysis, count: analysis.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to analyze profit-taking", { error });
-    res.status(500).json({ error: "Failed to analyze profit-taking" });
   }
-});
+);
 
 export default router;

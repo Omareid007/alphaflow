@@ -14,20 +14,20 @@ import { log } from "../utils/logger";
  * List of sensitive fields to exclude from request body logging
  */
 const SENSITIVE_FIELDS = [
-  'password',
-  'token',
-  'apiKey',
-  'secret',
-  'authorization',
-  'cookie',
-  'session',
+  "password",
+  "token",
+  "apiKey",
+  "secret",
+  "authorization",
+  "cookie",
+  "session",
 ];
 
 /**
  * Sanitize request body by removing sensitive fields
  */
 function sanitizeRequestBody(body: any): any {
-  if (!body || typeof body !== 'object') {
+  if (!body || typeof body !== "object") {
     return body;
   }
 
@@ -35,13 +35,13 @@ function sanitizeRequestBody(body: any): any {
 
   for (const field of SENSITIVE_FIELDS) {
     if (field in sanitized) {
-      sanitized[field] = '[REDACTED]';
+      sanitized[field] = "[REDACTED]";
     }
   }
 
   // Recursively sanitize nested objects
   for (const key in sanitized) {
-    if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+    if (typeof sanitized[key] === "object" && sanitized[key] !== null) {
       sanitized[key] = sanitizeRequestBody(sanitized[key]);
     }
   }
@@ -53,20 +53,20 @@ function sanitizeRequestBody(body: any): any {
  * Determine action name from method and path
  */
 function getActionName(method: string, path: string): string {
-  const pathSegments = path.split('/').filter(Boolean);
+  const pathSegments = path.split("/").filter(Boolean);
 
   // Extract resource from path
-  let resource = 'unknown';
-  if (pathSegments.length >= 2 && pathSegments[0] === 'api') {
+  let resource = "unknown";
+  if (pathSegments.length >= 2 && pathSegments[0] === "api") {
     resource = pathSegments[1];
   }
 
   // Map HTTP methods to action verbs
   const actionMap: Record<string, string> = {
-    'POST': 'create',
-    'PUT': 'update',
-    'PATCH': 'update',
-    'DELETE': 'delete',
+    POST: "create",
+    PUT: "update",
+    PATCH: "update",
+    DELETE: "delete",
   };
 
   const verb = actionMap[method] || method.toLowerCase();
@@ -83,7 +83,13 @@ function extractResourceId(req: Request): string | undefined {
   }
 
   // Try common ID param names
-  for (const param of ['userId', 'strategyId', 'orderId', 'tradeId', 'backtestId']) {
+  for (const param of [
+    "userId",
+    "strategyId",
+    "orderId",
+    "tradeId",
+    "backtestId",
+  ]) {
     if (req.params[param]) {
       return req.params[param];
     }
@@ -102,10 +108,10 @@ function extractResourceId(req: Request): string | undefined {
  */
 function getClientIp(req: Request): string {
   return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    (req.headers['x-real-ip'] as string) ||
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    (req.headers["x-real-ip"] as string) ||
     req.socket.remoteAddress ||
-    'unknown'
+    "unknown"
   );
 }
 
@@ -120,12 +126,12 @@ export async function auditLogger(
   const startTime = Date.now();
 
   // Only log state-changing operations
-  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return next();
   }
 
   // Skip health check and non-API endpoints
-  if (req.path.startsWith('/health') || !req.path.startsWith('/api')) {
+  if (req.path.startsWith("/health") || !req.path.startsWith("/api")) {
     return next();
   }
 
@@ -138,21 +144,23 @@ export async function auditLogger(
       const user = await storage.getUser(userId);
       username = user?.username || null;
     } catch (error: any) {
-      log.error("AuditLogger", "Failed to get username", { error: error.message });
+      log.error("AuditLogger", "Failed to get username", {
+        error: error.message,
+      });
     }
   }
 
   // Prepare audit log data
-  const auditLog: Omit<InsertAuditLog, 'id' | 'timestamp'> = {
+  const auditLog: Omit<InsertAuditLog, "id" | "timestamp"> = {
     userId,
     username,
     action: getActionName(req.method, req.path),
-    resource: req.path.split('/')[2] || 'unknown', // Extract from /api/resource/...
+    resource: req.path.split("/")[2] || "unknown", // Extract from /api/resource/...
     resourceId: extractResourceId(req),
     method: req.method,
     path: req.path,
     ipAddress: getClientIp(req),
-    userAgent: req.headers['user-agent'] || null,
+    userAgent: req.headers["user-agent"] || null,
     requestBody: sanitizeRequestBody(req.body),
     responseStatus: null,
     errorMessage: null,
@@ -174,17 +182,18 @@ export async function auditLogger(
   };
 
   // Wait for response to finish
-  res.on('finish', async () => {
+  res.on("finish", async () => {
     try {
       // Update audit log with response info
       auditLog.responseStatus = res.statusCode;
 
       // Log error message if response failed
       if (res.statusCode >= 400) {
-        if (typeof responseBody === 'string') {
+        if (typeof responseBody === "string") {
           try {
             const parsed = JSON.parse(responseBody);
-            auditLog.errorMessage = parsed.error || parsed.message || 'Unknown error';
+            auditLog.errorMessage =
+              parsed.error || parsed.message || "Unknown error";
           } catch {
             auditLog.errorMessage = responseBody.substring(0, 500);
           }
@@ -202,10 +211,12 @@ export async function auditLogger(
         path: auditLog.path,
         status: auditLog.responseStatus,
         durationMs: duration,
-        user: username || 'anonymous'
+        user: username || "anonymous",
       });
     } catch (error: any) {
-      log.error("AuditLogger", "Failed to save audit log", { error: error.message });
+      log.error("AuditLogger", "Failed to save audit log", {
+        error: error.message,
+      });
     }
   });
 
@@ -247,10 +258,7 @@ export async function getRecentAuditLogs(
 /**
  * Get audit logs (alias for getRecentAuditLogs)
  */
-export async function getAuditLogs(
-  limit: number = 100,
-  offset: number = 0
-) {
+export async function getAuditLogs(limit: number = 100, offset: number = 0) {
   return storage.getRecentAuditLogs(limit, offset);
 }
 
@@ -269,7 +277,9 @@ export async function getAuditStats() {
     const todayLogs = logs.filter((l: any) => new Date(l.timestamp) >= today);
     const weekLogs = logs.filter((l: any) => new Date(l.timestamp) >= thisWeek);
 
-    const errorLogs = logs.filter((l: any) => l.responseStatus && l.responseStatus >= 400);
+    const errorLogs = logs.filter(
+      (l: any) => l.responseStatus && l.responseStatus >= 400
+    );
 
     const actionCounts: Record<string, number> = {};
     logs.forEach((l: any) => {
@@ -287,7 +297,9 @@ export async function getAuditStats() {
         .map(([action, count]) => ({ action, count })),
     };
   } catch (error: any) {
-    log.error("AuditLogger", "Failed to get audit stats", { error: error.message });
+    log.error("AuditLogger", "Failed to get audit stats", {
+      error: error.message,
+    });
     return {
       totalLogs: 0,
       todayCount: 0,

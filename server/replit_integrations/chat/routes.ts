@@ -15,7 +15,9 @@ export function registerChatRoutes(app: Express): void {
       const conversations = await chatStorage.getAllConversations();
       res.json(conversations);
     } catch (error) {
-      log.error("Chat", "Error fetching conversations", { error: error instanceof Error ? error.message : String(error) });
+      log.error("Chat", "Error fetching conversations", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
@@ -31,7 +33,9 @@ export function registerChatRoutes(app: Express): void {
       const messages = await chatStorage.getMessagesByConversation(id);
       res.json({ ...conversation, messages });
     } catch (error) {
-      log.error("Chat", "Error fetching conversation", { error: error instanceof Error ? error.message : String(error) });
+      log.error("Chat", "Error fetching conversation", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
@@ -40,10 +44,14 @@ export function registerChatRoutes(app: Express): void {
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
       const { title } = req.body;
-      const conversation = await chatStorage.createConversation(title || "New Chat");
+      const conversation = await chatStorage.createConversation(
+        title || "New Chat"
+      );
       res.status(201).json(conversation);
     } catch (error) {
-      log.error("Chat", "Error creating conversation", { error: error instanceof Error ? error.message : String(error) });
+      log.error("Chat", "Error creating conversation", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ error: "Failed to create conversation" });
     }
   });
@@ -55,66 +63,82 @@ export function registerChatRoutes(app: Express): void {
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
-      log.error("Chat", "Error deleting conversation", { error: error instanceof Error ? error.message : String(error) });
+      log.error("Chat", "Error deleting conversation", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ error: "Failed to delete conversation" });
     }
   });
 
   // Send message and get AI response (streaming)
-  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
-    try {
-      const conversationId = parseInt(req.params.id);
-      const { content } = req.body;
+  app.post(
+    "/api/conversations/:id/messages",
+    async (req: Request, res: Response) => {
+      try {
+        const conversationId = parseInt(req.params.id);
+        const { content } = req.body;
 
-      // Save user message
-      await chatStorage.createMessage(conversationId, "user", content);
+        // Save user message
+        await chatStorage.createMessage(conversationId, "user", content);
 
-      // Get conversation history for context
-      const messages = await chatStorage.getMessagesByConversation(conversationId);
-      const chatMessages = messages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
+        // Get conversation history for context
+        const messages =
+          await chatStorage.getMessagesByConversation(conversationId);
+        const chatMessages = messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
 
-      // Set up SSE
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
+        // Set up SSE
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
 
-      // Stream response from Anthropic
-      const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-5",
-        max_tokens: 2048,
-        messages: chatMessages,
-      });
+        // Stream response from Anthropic
+        const stream = anthropic.messages.stream({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          messages: chatMessages,
+        });
 
-      let fullResponse = "";
+        let fullResponse = "";
 
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          const content = event.delta.text;
-          if (content) {
-            fullResponse += content;
-            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            const content = event.delta.text;
+            if (content) {
+              fullResponse += content;
+              res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
           }
         }
-      }
 
-      // Save assistant message
-      await chatStorage.createMessage(conversationId, "assistant", fullResponse);
+        // Save assistant message
+        await chatStorage.createMessage(
+          conversationId,
+          "assistant",
+          fullResponse
+        );
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-      res.end();
-    } catch (error) {
-      log.error("Chat", "Error sending message", { error: error instanceof Error ? error.message : String(error) });
-      // Check if headers already sent (SSE streaming started)
-      if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
         res.end();
-      } else {
-        res.status(500).json({ error: "Failed to send message" });
+      } catch (error) {
+        log.error("Chat", "Error sending message", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Check if headers already sent (SSE streaming started)
+        if (res.headersSent) {
+          res.write(
+            `data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`
+          );
+          res.end();
+        } else {
+          res.status(500).json({ error: "Failed to send message" });
+        }
       }
     }
-  });
+  );
 }
-

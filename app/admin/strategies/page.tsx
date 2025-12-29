@@ -10,23 +10,25 @@ export default function AdminStrategiesPage() {
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'live':
-        return 'default';
-      case 'paper':
-        return 'secondary';
-      case 'paused':
-        return 'outline';
-      case 'stopped':
-        return 'destructive';
+      case "live":
+        return "default";
+      case "paper":
+        return "secondary";
+      case "paused":
+        return "outline";
+      case "stopped":
+        return "destructive";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Strategies (Admin)</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Strategies (Admin)
+        </h1>
         <p className="mt-1 text-muted-foreground">Global strategy management</p>
       </div>
 
@@ -52,8 +54,11 @@ export default function AdminStrategiesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {strategies.map(strat => (
-                <div key={strat.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+              {strategies.map((strat) => (
+                <div
+                  key={strat.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                   <div>
                     <p className="font-medium">{strat.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -61,12 +66,18 @@ export default function AdminStrategiesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={getStatusVariant(strat.status || '')}>
-                      {strat.status?.toUpperCase() || 'UNKNOWN'}
+                    <Badge variant={getStatusVariant(strat.status || "")}>
+                      {strat.status?.toUpperCase() || "UNKNOWN"}
                     </Badge>
                     {strat.performanceSummary?.totalReturn !== undefined && (
-                      <span className={strat.performanceSummary.totalReturn >= 0 ? 'text-success' : 'text-destructive'}>
-                        {strat.performanceSummary.totalReturn >= 0 ? '+' : ''}
+                      <span
+                        className={
+                          strat.performanceSummary.totalReturn >= 0
+                            ? "text-success"
+                            : "text-destructive"
+                        }
+                      >
+                        {strat.performanceSummary.totalReturn >= 0 ? "+" : ""}
                         {strat.performanceSummary.totalReturn.toFixed(2)}%
                       </span>
                     )}

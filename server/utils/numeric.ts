@@ -1,6 +1,9 @@
 import { toDecimal, toNumber } from "./money";
 
-export function safeParseFloat(value: string | number | null | undefined, defaultValue: number = 0): number {
+export function safeParseFloat(
+  value: string | number | null | undefined,
+  defaultValue: number = 0
+): number {
   if (value === null || value === undefined || value === "") {
     return defaultValue;
   }
@@ -20,15 +23,18 @@ export function safeParseFloat(value: string | number | null | undefined, defaul
   return toNumber(toDecimal(trimmed, defaultValue));
 }
 
-export function safeParseInt(value: string | number | null | undefined, defaultValue: number = 0): number {
+export function safeParseInt(
+  value: string | number | null | undefined,
+  defaultValue: number = 0
+): number {
   if (value === null || value === undefined || value === "") {
     return defaultValue;
   }
-  
+
   if (typeof value === "number") {
     return Number.isFinite(value) ? Math.floor(value) : defaultValue;
   }
-  
+
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : defaultValue;
 }
@@ -42,7 +48,10 @@ export function formatQuantity(value: number, decimals: number = 4): string {
   const d = toDecimal(value);
   if (!d.isFinite()) return "0";
   if (d.isInteger()) return d.toString();
-  return d.toDecimalPlaces(decimals).toFixed(decimals).replace(/\.?0+$/, "");
+  return d
+    .toDecimalPlaces(decimals)
+    .toFixed(decimals)
+    .replace(/\.?0+$/, "");
 }
 
 export function formatPercent(value: number, decimals: number = 2): string {
@@ -58,7 +67,11 @@ export function calculatePnL(
   side: "long" | "short" = "long"
 ): number {
   // Check for non-finite values BEFORE Decimal conversion
-  if (!Number.isFinite(entryPrice) || !Number.isFinite(exitPrice) || !Number.isFinite(quantity)) {
+  if (
+    !Number.isFinite(entryPrice) ||
+    !Number.isFinite(exitPrice) ||
+    !Number.isFinite(quantity)
+  ) {
     return 0;
   }
 
@@ -79,7 +92,11 @@ export function calculatePercentChange(
   previousPrice: number
 ): number {
   // Check for non-finite values BEFORE Decimal conversion
-  if (!Number.isFinite(currentPrice) || !Number.isFinite(previousPrice) || previousPrice === 0) {
+  if (
+    !Number.isFinite(currentPrice) ||
+    !Number.isFinite(previousPrice) ||
+    previousPrice === 0
+  ) {
     return 0;
   }
 
@@ -231,7 +248,9 @@ export function normalizePositionData(position: {
     unrealizedPnl: safeParseFloat(position.unrealized_pl),
     unrealizedPnlPercent: safeParseFloat(position.unrealized_plpc),
     unrealizedIntradayPnl: safeParseFloat(position.unrealized_intraday_pl),
-    unrealizedIntradayPnlPercent: safeParseFloat(position.unrealized_intraday_plpc),
+    unrealizedIntradayPnlPercent: safeParseFloat(
+      position.unrealized_intraday_plpc
+    ),
     currentPrice: safeParseFloat(position.current_price),
     lastdayPrice: safeParseFloat(position.lastday_price),
     changeToday: safeParseFloat(position.change_today),
@@ -281,7 +300,9 @@ export function normalizeOrderData(order: {
     notional: order.notional ? safeParseFloat(order.notional) : null,
     quantity: safeParseFloat(order.qty),
     filledQuantity: safeParseFloat(order.filled_qty),
-    filledAvgPrice: order.filled_avg_price ? safeParseFloat(order.filled_avg_price) : null,
+    filledAvgPrice: order.filled_avg_price
+      ? safeParseFloat(order.filled_avg_price)
+      : null,
     orderClass: order.order_class,
     orderType: order.order_type,
     type: order.type,

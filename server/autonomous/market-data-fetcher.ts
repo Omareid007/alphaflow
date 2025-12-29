@@ -67,7 +67,8 @@ import { MarketData } from "../ai/decision-engine";
 import { tradingConfig } from "../config/trading-config";
 import { UniverseSymbols } from "./universe-builder";
 
-const ALPACA_SNAPSHOT_CHUNK_SIZE = tradingConfig.universe.alpacaSnapshotChunkSize;
+const ALPACA_SNAPSHOT_CHUNK_SIZE =
+  tradingConfig.universe.alpacaSnapshotChunkSize;
 
 /**
  * Fetch market data for the given universe of symbols
@@ -114,7 +115,11 @@ export async function fetchMarketData(
     const fetchedFromAlpaca = new Set<string>();
 
     // Chunk requests to avoid URL length issues
-    for (let i = 0; i < universe.stocks.length; i += ALPACA_SNAPSHOT_CHUNK_SIZE) {
+    for (
+      let i = 0;
+      i < universe.stocks.length;
+      i += ALPACA_SNAPSHOT_CHUNK_SIZE
+    ) {
       const chunk = universe.stocks.slice(i, i + ALPACA_SNAPSHOT_CHUNK_SIZE);
       try {
         const snapshots = await alpaca.getSnapshots(chunk);
@@ -123,7 +128,8 @@ export async function fetchMarketData(
             const price = snapshot.latestTrade?.p || snapshot.dailyBar?.c || 0;
             const prevClose = snapshot.prevDailyBar?.c || price;
             const change = price - prevClose;
-            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            const changePercent =
+              prevClose > 0 ? (change / prevClose) * 100 : 0;
 
             marketData.set(symbol, {
               symbol,
@@ -138,15 +144,21 @@ export async function fetchMarketData(
           }
         }
       } catch (chunkError) {
-        log.warn("MarketDataFetcher", `Alpaca snapshot chunk failed, will use Finnhub fallback`, {
-          chunkStart: i,
-          error: String(chunkError)
-        });
+        log.warn(
+          "MarketDataFetcher",
+          `Alpaca snapshot chunk failed, will use Finnhub fallback`,
+          {
+            chunkStart: i,
+            error: String(chunkError),
+          }
+        );
       }
     }
 
     // Fallback to Finnhub for symbols missing from Alpaca
-    const missingSymbols = universe.stocks.filter(s => !fetchedFromAlpaca.has(s));
+    const missingSymbols = universe.stocks.filter(
+      (s) => !fetchedFromAlpaca.has(s)
+    );
     if (missingSymbols.length > 0 && missingSymbols.length <= 30) {
       try {
         const finnhubPrices = await finnhub.getMultipleQuotes(missingSymbols);
@@ -162,20 +174,30 @@ export async function fetchMarketData(
             });
           }
         }
-        log.info("MarketDataFetcher", `Finnhub fallback fetched ${finnhubPrices.size}/${missingSymbols.length} symbols`);
+        log.info(
+          "MarketDataFetcher",
+          `Finnhub fallback fetched ${finnhubPrices.size}/${missingSymbols.length} symbols`
+        );
       } catch (finnhubError) {
-        log.warn("MarketDataFetcher", `Finnhub fallback also failed`, { error: String(finnhubError) });
+        log.warn("MarketDataFetcher", `Finnhub fallback also failed`, {
+          error: String(finnhubError),
+        });
       }
     }
 
-    log.info("MarketDataFetcher", `Stock data fetched: ${marketData.size}/${universe.stocks.length} symbols via Alpaca+Finnhub`);
+    log.info(
+      "MarketDataFetcher",
+      `Stock data fetched: ${marketData.size}/${universe.stocks.length} symbols via Alpaca+Finnhub`
+    );
   } catch (error) {
-    log.error("MarketDataFetcher", "Failed to fetch stock data", { error: String(error) });
+    log.error("MarketDataFetcher", "Failed to fetch stock data", {
+      error: String(error),
+    });
   }
 
   // Fetch crypto data - prefer Alpaca crypto snapshots
   try {
-    const cryptoSymbols = universe.crypto.map(c => normalizeCryptoSymbol(c));
+    const cryptoSymbols = universe.crypto.map((c) => normalizeCryptoSymbol(c));
     if (cryptoSymbols.length > 0) {
       try {
         const cryptoSnapshots = await alpaca.getCryptoSnapshots(cryptoSymbols);
@@ -184,10 +206,11 @@ export async function fetchMarketData(
             const price = snapshot.latestTrade.p;
             const prevClose = snapshot.prevDailyBar?.c || price;
             const change = price - prevClose;
-            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            const changePercent =
+              prevClose > 0 ? (change / prevClose) * 100 : 0;
 
             // Store with bare symbol (BTC) not pair (BTC/USD)
-            const bareSymbol = symbol.replace('/USD', '').toUpperCase();
+            const bareSymbol = symbol.replace("/USD", "").toUpperCase();
             marketData.set(bareSymbol, {
               symbol: bareSymbol,
               currentPrice: price,
@@ -199,10 +222,17 @@ export async function fetchMarketData(
             });
           }
         }
-        log.info("MarketDataFetcher", `Crypto data fetched via Alpaca: ${Object.keys(cryptoSnapshots).length} symbols`);
+        log.info(
+          "MarketDataFetcher",
+          `Crypto data fetched via Alpaca: ${Object.keys(cryptoSnapshots).length} symbols`
+        );
       } catch (alpacaCryptoError) {
         // Fallback to CoinGecko
-        log.warn("MarketDataFetcher", "Alpaca crypto failed, falling back to CoinGecko", { error: String(alpacaCryptoError) });
+        log.warn(
+          "MarketDataFetcher",
+          "Alpaca crypto failed, falling back to CoinGecko",
+          { error: String(alpacaCryptoError) }
+        );
         const cryptoPrices = await coingecko.getMarkets();
         const watchedCrypto = cryptoPrices.filter((c) =>
           universe.crypto.includes(c.symbol.toUpperCase())
@@ -222,7 +252,9 @@ export async function fetchMarketData(
       }
     }
   } catch (error) {
-    log.error("MarketDataFetcher", "Failed to fetch crypto data", { error: String(error) });
+    log.error("MarketDataFetcher", "Failed to fetch crypto data", {
+      error: String(error),
+    });
   }
 
   return marketData;
@@ -274,7 +306,7 @@ export async function fetchSingleSymbolData(
         const prevClose = snapshot.prevDailyBar?.c || price;
         const change = price - prevClose;
         const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-        const bareSymbol = symbol.replace('/USD', '').toUpperCase();
+        const bareSymbol = symbol.replace("/USD", "").toUpperCase();
 
         return {
           symbol: bareSymbol,
@@ -308,7 +340,11 @@ export async function fetchSingleSymbolData(
       }
     }
   } catch (error) {
-    log.warn("MarketDataFetcher", `Failed to fetch single symbol data for ${symbol}`, { error: String(error) });
+    log.warn(
+      "MarketDataFetcher",
+      `Failed to fetch single symbol data for ${symbol}`,
+      { error: String(error) }
+    );
   }
 
   return null;

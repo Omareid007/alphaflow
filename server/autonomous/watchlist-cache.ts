@@ -28,7 +28,18 @@ import { log } from "../utils/logger";
  * @private
  */
 const FALLBACK_WATCHLIST = {
-  stocks: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM"],
+  stocks: [
+    "SPY",
+    "QQQ",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "TSLA",
+    "JPM",
+  ],
   crypto: ["BTC", "ETH", "SOL"],
 };
 
@@ -73,11 +84,14 @@ const WATCHLIST_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  * console.log(watchlist.stocks); // ["AAPL", "MSFT", ...]
  * console.log(watchlist.crypto); // ["BTC", "ETH", ...]
  */
-export async function getWatchlist(): Promise<{ stocks: string[]; crypto: string[] }> {
+export async function getWatchlist(): Promise<{
+  stocks: string[];
+  crypto: string[];
+}> {
   const now = Date.now();
 
   // Return cached if still valid
-  if (cachedWatchlist && (now - watchlistCacheTime) < WATCHLIST_CACHE_TTL_MS) {
+  if (cachedWatchlist && now - watchlistCacheTime < WATCHLIST_CACHE_TTL_MS) {
     return cachedWatchlist;
   }
 
@@ -85,14 +99,24 @@ export async function getWatchlist(): Promise<{ stocks: string[]; crypto: string
     const dynamicWatchlist = await candidatesService.getWatchlistSymbols();
 
     // If database has symbols, use them; otherwise fall back to defaults
-    if (dynamicWatchlist.stocks.length > 0 || dynamicWatchlist.crypto.length > 0) {
+    if (
+      dynamicWatchlist.stocks.length > 0 ||
+      dynamicWatchlist.crypto.length > 0
+    ) {
       cachedWatchlist = dynamicWatchlist;
       watchlistCacheTime = now;
-      log.info("WatchlistCache", `Loaded ${dynamicWatchlist.stocks.length} stocks and ${dynamicWatchlist.crypto.length} crypto from database`);
+      log.info(
+        "WatchlistCache",
+        `Loaded ${dynamicWatchlist.stocks.length} stocks and ${dynamicWatchlist.crypto.length} crypto from database`
+      );
       return dynamicWatchlist;
     }
   } catch (error) {
-    log.warn("WatchlistCache", "Failed to load watchlist from database, using fallback", { error: String(error) });
+    log.warn(
+      "WatchlistCache",
+      "Failed to load watchlist from database, using fallback",
+      { error: String(error) }
+    );
   }
 
   // Fallback to hardcoded minimal list

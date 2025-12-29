@@ -1,14 +1,14 @@
 /**
  * Doc Assistant Core - AI-powered documentation helper
- * 
+ *
  * This module provides AI-assisted answers to questions about the system
  * using ONLY the safe, read-only tools that access docs/*.md files.
- * 
+ *
  * SAFETY: This is PURELY read-only and must NEVER:
  * - Call trading or connector code
  * - Modify any system state
  * - Access secrets or PII
- * 
+ *
  * @see docs/DOC_ASSISTANT.md for usage
  * @see docs/AGENT_EXECUTION_GUIDE.md Section 14 for governance
  */
@@ -48,21 +48,21 @@ interface DocAssistantResult {
   tokensUsed?: number;
 }
 
-export async function askDocAssistant(question: string): Promise<DocAssistantResult> {
-  const messages: LLMMessage[] = [
-    { role: "user", content: question },
-  ];
-  
+export async function askDocAssistant(
+  question: string
+): Promise<DocAssistantResult> {
+  const messages: LLMMessage[] = [{ role: "user", content: question }];
+
   const references: string[] = [];
   const toolsUsed: string[] = [];
   let totalTokens = 0;
-  
+
   const maxIterations = 5;
   let iterations = 0;
-  
+
   while (iterations < maxIterations) {
     iterations++;
-    
+
     const request: LLMRequest = {
       system: SYSTEM_PROMPT,
       messages,
@@ -71,7 +71,7 @@ export async function askDocAssistant(question: string): Promise<DocAssistantRes
       maxTokens: 1500,
       temperature: 0.2,
     };
-    
+
     let response: LLMResponse;
     try {
       response = await llm.call(request);
@@ -82,13 +82,14 @@ export async function askDocAssistant(question: string): Promise<DocAssistantRes
         toolsUsed: [],
       };
     }
-    
+
     if (response.tokensUsed) {
-      totalTokens += typeof response.tokensUsed === 'number'
-        ? response.tokensUsed
-        : (response.tokensUsed.total || 0);
+      totalTokens +=
+        typeof response.tokensUsed === "number"
+          ? response.tokensUsed
+          : response.tokensUsed.total || 0;
     }
-    
+
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return {
         answer: response.text || "I couldn't find an answer to your question.",
@@ -97,21 +98,21 @@ export async function askDocAssistant(question: string): Promise<DocAssistantRes
         tokensUsed: totalTokens,
       };
     }
-    
+
     messages.push({
       role: "assistant",
       content: response.text || "",
     });
-    
+
     for (const toolCall of response.toolCalls) {
       toolsUsed.push(toolCall.name);
-      
+
       const result: ToolResult = await executeToolCall(toolCall);
-      
+
       if (result.result.success && result.result.reference) {
         references.push(result.result.reference);
       }
-      
+
       messages.push({
         role: "tool",
         content: JSON.stringify(result.result),
@@ -120,9 +121,10 @@ export async function askDocAssistant(question: string): Promise<DocAssistantRes
       });
     }
   }
-  
+
   return {
-    answer: "I reached the maximum number of tool calls without finding a complete answer. Please try a more specific question.",
+    answer:
+      "I reached the maximum number of tool calls without finding a complete answer. Please try a more specific question.",
     references,
     toolsUsed,
     tokensUsed: totalTokens,
@@ -132,12 +134,12 @@ export async function askDocAssistant(question: string): Promise<DocAssistantRes
 export async function listAvailableDocs(): Promise<string[]> {
   const fs = await import("fs");
   const path = await import("path");
-  
+
   const docsDir = path.join(process.cwd(), "docs");
-  
+
   try {
     const files = fs.readdirSync(docsDir);
-    return files.filter(f => f.endsWith(".md"));
+    return files.filter((f) => f.endsWith(".md"));
   } catch {
     return [];
   }

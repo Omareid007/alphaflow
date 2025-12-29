@@ -10,21 +10,25 @@ import { DataSourcesCard } from "./DataSourcesCard";
 import { SentimentGaugesCard } from "./SentimentGaugesCard";
 
 export default function AiPulsePage() {
-  const { data: apiEvents = [], isLoading: loading } = useAiEvents({ limit: 100 });
+  const { data: apiEvents = [], isLoading: loading } = useAiEvents({
+    limit: 100,
+  });
   const { data: sourcesData = [] } = useFeedSources();
   const { data: sentimentsData = [] } = useSentiment();
 
   // Use real data from API
   const sources: FeedSource[] = sourcesData;
-  const sentiments: SentimentSignal[] = (Array.isArray(sentimentsData) ? sentimentsData : []) as unknown as SentimentSignal[];
+  const sentiments: SentimentSignal[] = (Array.isArray(sentimentsData)
+    ? sentimentsData
+    : []) as unknown as SentimentSignal[];
 
   // Convert API events to expected format
-  const events = apiEvents.map(e => ({
+  const events = apiEvents.map((e) => ({
     id: e.id,
     time: e.createdAt || e.time || new Date().toISOString(),
     type: e.type,
-    headline: e.title || e.headline || '',
-    explanation: e.description || e.explanation || '',
+    headline: e.title || e.headline || "",
+    explanation: e.description || e.explanation || "",
     confidence: e.confidence || 0,
     impactedStrategies: e.impactedStrategies || [],
     symbol: e.symbol,
@@ -39,8 +43,8 @@ export default function AiPulsePage() {
     );
   }
 
-  const signalEvents = events.filter(e => e.type === "signal");
-  const riskEvents = events.filter(e => e.type === "risk");
+  const signalEvents = events.filter((e) => e.type === "signal");
+  const riskEvents = events.filter((e) => e.type === "risk");
 
   return (
     <div className="space-y-6">

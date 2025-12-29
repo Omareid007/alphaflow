@@ -13,7 +13,7 @@ export function MetricTile({
   label,
   value,
   format = "number",
-  good = true
+  good = true,
 }: MetricTileProps) {
   let formatted: string;
   if (format === "percent") {

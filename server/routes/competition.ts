@@ -1,7 +1,11 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
-import type { InsertTraderProfile, InsertCompetitionRun, InsertCompetitionScore } from "@shared/schema";
+import type {
+  InsertTraderProfile,
+  InsertCompetitionRun,
+  InsertCompetitionScore,
+} from "@shared/schema";
 
 const router = Router();
 
@@ -17,7 +21,14 @@ router.get("/traders", async (req: Request, res: Response) => {
 
 router.post("/traders", async (req: Request, res: Response) => {
   try {
-    const { name, description, strategyVersionId, modelProfile, riskPreset, universeFilter } = req.body;
+    const {
+      name,
+      description,
+      strategyVersionId,
+      modelProfile,
+      riskPreset,
+      universeFilter,
+    } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "name is required" });
@@ -36,7 +47,9 @@ router.post("/traders", async (req: Request, res: Response) => {
     res.json(trader);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to create trader: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to create trader" });
+    res
+      .status(500)
+      .json({ error: (error as Error).message || "Failed to create trader" });
   }
 });
 
@@ -62,7 +75,9 @@ router.patch("/traders/:id", async (req: Request, res: Response) => {
     res.json(trader);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to update trader: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to update trader" });
+    res
+      .status(500)
+      .json({ error: (error as Error).message || "Failed to update trader" });
   }
 });
 
@@ -81,13 +96,25 @@ router.post("/runs", async (req: Request, res: Response) => {
   try {
     const { name, mode, traderIds, universeSymbols, config } = req.body;
 
-    if (!name || !mode || !traderIds || !Array.isArray(traderIds) || traderIds.length === 0) {
-      return res.status(400).json({ error: "name, mode, and traderIds are required" });
+    if (
+      !name ||
+      !mode ||
+      !traderIds ||
+      !Array.isArray(traderIds) ||
+      traderIds.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ error: "name, mode, and traderIds are required" });
     }
 
     const validModes = ["paper", "backtest", "simulation"];
     if (!validModes.includes(mode)) {
-      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(", ")}` });
+      return res
+        .status(400)
+        .json({
+          error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
+        });
     }
 
     const traceId = `competition-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -105,7 +132,11 @@ router.post("/runs", async (req: Request, res: Response) => {
     res.json(run);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to create competition run: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to create competition run" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to create competition run",
+      });
   }
 });
 
@@ -133,13 +164,28 @@ router.patch("/runs/:id", async (req: Request, res: Response) => {
     res.json(run);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to update competition run: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to update competition run" });
+    res
+      .status(500)
+      .json({
+        error: (error as Error).message || "Failed to update competition run",
+      });
   }
 });
 
 router.post("/runs/:id/scores", async (req: Request, res: Response) => {
   try {
-    const { traderId, rank, metrics, pnl, pnlPct, sharpe, sortino, maxDrawdown, winRate, totalTrades } = req.body;
+    const {
+      traderId,
+      rank,
+      metrics,
+      pnl,
+      pnlPct,
+      sharpe,
+      sortino,
+      maxDrawdown,
+      winRate,
+      totalTrades,
+    } = req.body;
 
     if (!traderId) {
       return res.status(400).json({ error: "traderId is required" });
@@ -162,7 +208,9 @@ router.post("/runs/:id/scores", async (req: Request, res: Response) => {
     res.json(score);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to create score: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to create score" });
+    res
+      .status(500)
+      .json({ error: (error as Error).message || "Failed to create score" });
   }
 });
 

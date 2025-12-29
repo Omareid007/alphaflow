@@ -39,7 +39,7 @@ router.get("/positions", async (req: Request, res: Response) => {
     const positions = await alpaca.getPositions();
     // Filter out dust positions (< 0.0001 shares)
     const DUST_THRESHOLD = 0.0001;
-    const filteredPositions = positions.filter(p => {
+    const filteredPositions = positions.filter((p) => {
       const qty = Math.abs(parseFloat(p.qty || "0"));
       return qty >= DUST_THRESHOLD;
     });
@@ -53,7 +53,8 @@ router.get("/positions", async (req: Request, res: Response) => {
 // GET /api/alpaca/assets - Get tradable assets
 router.get("/assets", async (req: Request, res: Response) => {
   try {
-    const assetClass = (req.query.asset_class as "us_equity" | "crypto") || "us_equity";
+    const assetClass =
+      (req.query.asset_class as "us_equity" | "crypto") || "us_equity";
     const assets = await alpaca.getAssets("active", assetClass);
     res.json(assets);
   } catch (error) {
@@ -65,14 +66,18 @@ router.get("/assets", async (req: Request, res: Response) => {
 // GET /api/alpaca/assets/search - Search for assets
 router.get("/assets/search", async (req: Request, res: Response) => {
   try {
-    const query = (req.query.query as string || "").toUpperCase();
+    const query = ((req.query.query as string) || "").toUpperCase();
     if (!query) {
       return res.json([]);
     }
     const allAssets = await alpaca.getAssets("active", "us_equity");
-    const matches = allAssets.filter(a =>
-      a.symbol.includes(query) || (a.name && a.name.toUpperCase().includes(query))
-    ).slice(0, 20);
+    const matches = allAssets
+      .filter(
+        (a) =>
+          a.symbol.includes(query) ||
+          (a.name && a.name.toUpperCase().includes(query))
+      )
+      .slice(0, 20);
     res.json(matches);
   } catch (error) {
     log.error("AlpacaAPI", "Failed to search assets", { error });
@@ -96,16 +101,23 @@ router.post("/rebalance/preview", async (req: Request, res: Response) => {
   try {
     const { targetAllocations } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
-      return res.status(400).json({ error: "targetAllocations array required" });
+      return res
+        .status(400)
+        .json({ error: "targetAllocations array required" });
     }
 
     for (const alloc of targetAllocations) {
       if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
-        return res.status(400).json({ error: "Each allocation must have symbol and targetPercent" });
+        return res
+          .status(400)
+          .json({
+            error: "Each allocation must have symbol and targetPercent",
+          });
       }
     }
 
-    const preview = await alpacaTradingEngine.previewRebalance(targetAllocations);
+    const preview =
+      await alpacaTradingEngine.previewRebalance(targetAllocations);
     res.json(preview);
   } catch (error) {
     log.error("AlpacaAPI", "Failed to preview rebalance", { error });
@@ -118,10 +130,15 @@ router.post("/rebalance/execute", async (req: Request, res: Response) => {
   try {
     const { targetAllocations, preview } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
-      return res.status(400).json({ error: "targetAllocations array required" });
+      return res
+        .status(400)
+        .json({ error: "targetAllocations array required" });
     }
 
-    const result = await alpacaTradingEngine.executeRebalance(targetAllocations, preview);
+    const result = await alpacaTradingEngine.executeRebalance(
+      targetAllocations,
+      preview
+    );
     res.json(result);
   } catch (error) {
     log.error("AlpacaAPI", "Failed to execute rebalance", { error });
@@ -147,7 +164,9 @@ router.get("/bars", async (req: Request, res: Response) => {
     if (!symbol) {
       return res.status(400).json({ error: "symbol parameter required" });
     }
-    const symbolArr = (symbol as string).split(",").map(s => s.trim().toUpperCase());
+    const symbolArr = (symbol as string)
+      .split(",")
+      .map((s) => s.trim().toUpperCase());
     const bars = await alpaca.getBars(
       symbolArr,
       timeframe as string,
@@ -169,10 +188,10 @@ router.get("/snapshots", async (req: Request, res: Response) => {
     if (!symbolsParam) {
       return res.status(400).json({ error: "symbols parameter required" });
     }
-    const symbols = symbolsParam.split(",").map(s => s.trim().toUpperCase());
+    const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
     const snapshots = await alpaca.getSnapshots(symbols);
 
-    const result = symbols.map(symbol => {
+    const result = symbols.map((symbol) => {
       const snap = snapshots[symbol];
       if (!snap) {
         return { symbol, price: null, change: null, volume: null };
@@ -180,7 +199,7 @@ router.get("/snapshots", async (req: Request, res: Response) => {
       const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
       const prevClose = snap.prevDailyBar?.c || price;
       const change = price - prevClose;
-      const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+      const changePercent = prevClose ? (change / prevClose) * 100 : 0;
       return {
         symbol,
         price,
@@ -231,7 +250,7 @@ router.post("/reset-circuit-breaker", async (req: Request, res: Response) => {
     log.info("AlpacaAPI", "Circuit breaker reset successfully via API");
     res.json({
       success: true,
-      message: "Circuit breaker reset successfully"
+      message: "Circuit breaker reset successfully",
     });
   } catch (error) {
     log.error("AlpacaAPI", "Failed to reset circuit breaker", { error });
@@ -244,8 +263,11 @@ router.get("/orders", async (req: Request, res: Response) => {
   try {
     const statusParam = (req.query.status as string) || "all";
     const status: "open" | "closed" | "all" =
-      statusParam === "open" ? "open" :
-      statusParam === "closed" ? "closed" : "all";
+      statusParam === "open"
+        ? "open"
+        : statusParam === "closed"
+          ? "closed"
+          : "all";
     const limit = parseInt(req.query.limit as string) || 100;
     const orders = await alpaca.getOrders(status, limit);
     res.json(orders);
@@ -258,7 +280,16 @@ router.get("/orders", async (req: Request, res: Response) => {
 // POST /api/alpaca/orders - Create a new order
 router.post("/orders", async (req: Request, res: Response) => {
   try {
-    const { symbol, side, type, qty, notional, time_in_force, limit_price, stop_price } = req.body;
+    const {
+      symbol,
+      side,
+      type,
+      qty,
+      notional,
+      time_in_force,
+      limit_price,
+      stop_price,
+    } = req.body;
 
     if (!symbol || !side) {
       return res.status(400).json({ error: "symbol and side are required" });
@@ -303,7 +334,9 @@ router.delete("/orders", async (req: Request, res: Response) => {
     res.json({ success: true, message: "All orders cancelled" });
   } catch (error: any) {
     log.error("AlpacaAPI", "Failed to cancel all orders", { error });
-    res.status(500).json({ error: error.message || "Failed to cancel all orders" });
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to cancel all orders" });
   }
 });
 
@@ -315,7 +348,9 @@ router.delete("/positions/:symbol", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     log.error("AlpacaAPI", "Failed to close position", { error });
-    res.status(500).json({ error: error.message || "Failed to close position" });
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to close position" });
   }
 });
 
@@ -326,14 +361,17 @@ router.delete("/positions", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     log.error("AlpacaAPI", "Failed to close all positions", { error });
-    res.status(500).json({ error: error.message || "Failed to close all positions" });
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to close all positions" });
   }
 });
 
 // GET /api/alpaca/clock - Get market clock
 router.get("/clock", async (req: Request, res: Response) => {
   try {
-    const { alpacaTradingEngine } = await import("../trading/alpaca-trading-engine");
+    const { alpacaTradingEngine } =
+      await import("../trading/alpaca-trading-engine");
     const clock = await alpacaTradingEngine.getClock();
     res.json(clock);
   } catch (error) {
@@ -345,7 +383,8 @@ router.get("/clock", async (req: Request, res: Response) => {
 // GET /api/alpaca/market-status - Get market status
 router.get("/market-status", async (req: Request, res: Response) => {
   try {
-    const { alpacaTradingEngine } = await import("../trading/alpaca-trading-engine");
+    const { alpacaTradingEngine } =
+      await import("../trading/alpaca-trading-engine");
     const status = await alpacaTradingEngine.getMarketStatus();
     res.json(status);
   } catch (error) {
@@ -355,17 +394,23 @@ router.get("/market-status", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/can-trade-extended/:symbol - Check extended hours availability
-router.get("/can-trade-extended/:symbol", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const { alpacaTradingEngine } = await import("../trading/alpaca-trading-engine");
-    const result = await alpacaTradingEngine.canTradeExtendedHours(symbol);
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaAPI", "Failed to check extended hours", { error });
-    res.status(500).json({ error: "Failed to check extended hours availability" });
+router.get(
+  "/can-trade-extended/:symbol",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const { alpacaTradingEngine } =
+        await import("../trading/alpaca-trading-engine");
+      const result = await alpacaTradingEngine.canTradeExtendedHours(symbol);
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaAPI", "Failed to check extended hours", { error });
+      res
+        .status(500)
+        .json({ error: "Failed to check extended hours availability" });
+    }
   }
-});
+);
 
 // GET /api/alpaca/portfolio-history - Get portfolio history
 router.get("/portfolio-history", async (req: Request, res: Response) => {

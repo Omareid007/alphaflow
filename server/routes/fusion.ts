@@ -13,7 +13,9 @@ router.get("/intelligence", async (req: Request, res: Response) => {
     const intelligence = await dataFusionEngine.getMarketIntelligence();
     res.json(intelligence);
   } catch (error) {
-    log.error("FusionRoutes", "Failed to get market intelligence", { error: error });
+    log.error("FusionRoutes", "Failed to get market intelligence", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get market intelligence" });
   }
 });
@@ -27,7 +29,9 @@ router.get("/market-data", async (req: Request, res: Response) => {
     const fusedData = await dataFusionEngine.getFusedMarketData();
     res.json(fusedData);
   } catch (error) {
-    log.error("FusionRoutes", "Failed to get fused market data", { error: error });
+    log.error("FusionRoutes", "Failed to get fused market data", {
+      error: error,
+    });
     res.status(500).json({ error: "Failed to get fused market data" });
   }
 });

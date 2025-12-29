@@ -5,7 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 
 interface Symbol {
@@ -25,7 +25,7 @@ export function AddSymbolDialog({
   open,
   onOpenChange,
   availableSymbols,
-  onAddSymbol
+  onAddSymbol,
 }: AddSymbolDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,7 +45,7 @@ export function AddSymbolDialog({
               All available symbols are already in your watchlist
             </p>
           ) : (
-            availableSymbols.map(item => (
+            availableSymbols.map((item) => (
               <button
                 key={item.symbol}
                 onClick={() => onAddSymbol(item.symbol)}
@@ -55,7 +55,9 @@ export function AddSymbolDialog({
                   <p className="font-medium">{item.symbol}</p>
                   <p className="text-sm text-muted-foreground">{item.name}</p>
                 </div>
-                <span className="text-muted-foreground">${item.price.toFixed(2)}</span>
+                <span className="text-muted-foreground">
+                  ${item.price.toFixed(2)}
+                </span>
               </button>
             ))
           )}

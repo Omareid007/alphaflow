@@ -76,7 +76,10 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerDay: envInt("COINMARKETCAP_RATE_LIMIT_PER_DAY", 300),
     minRequestIntervalMs: envInt("COINMARKETCAP_MIN_INTERVAL_MS", 1000),
     cacheFreshDurationMs: envInt("COINMARKETCAP_CACHE_FRESH_MS", 5 * 60 * 1000),
-    cacheStaleDurationMs: envInt("COINMARKETCAP_CACHE_STALE_MS", 60 * 60 * 1000),
+    cacheStaleDurationMs: envInt(
+      "COINMARKETCAP_CACHE_STALE_MS",
+      60 * 60 * 1000
+    ),
     priority: 6,
     enabled: envBool("COINMARKETCAP_ENABLED", true),
   },
@@ -112,8 +115,14 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     provider: "valyu",
     maxRequestsPerWeek: envInt("VALYU_RATE_LIMIT_PER_WEEK", 100),
     minRequestIntervalMs: envInt("VALYU_MIN_INTERVAL_MS", 5000),
-    cacheFreshDurationMs: envInt("VALYU_CACHE_FRESH_MS", 7 * 24 * 60 * 60 * 1000),
-    cacheStaleDurationMs: envInt("VALYU_CACHE_STALE_MS", 90 * 24 * 60 * 60 * 1000),
+    cacheFreshDurationMs: envInt(
+      "VALYU_CACHE_FRESH_MS",
+      7 * 24 * 60 * 60 * 1000
+    ),
+    cacheStaleDurationMs: envInt(
+      "VALYU_CACHE_STALE_MS",
+      90 * 24 * 60 * 60 * 1000
+    ),
     priority: 2,
     enabled: envBool("VALYU_ENABLED", true),
   },
@@ -123,7 +132,10 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerDay: envInt("HUGGINGFACE_RATE_LIMIT_PER_DAY", 1000),
     minRequestIntervalMs: envInt("HUGGINGFACE_MIN_INTERVAL_MS", 200),
     cacheFreshDurationMs: envInt("HUGGINGFACE_CACHE_FRESH_MS", 30 * 60 * 1000),
-    cacheStaleDurationMs: envInt("HUGGINGFACE_CACHE_STALE_MS", 2 * 60 * 60 * 1000),
+    cacheStaleDurationMs: envInt(
+      "HUGGINGFACE_CACHE_STALE_MS",
+      2 * 60 * 60 * 1000
+    ),
     priority: 7,
     enabled: envBool("HUGGINGFACE_ENABLED", true),
   },
@@ -165,7 +177,10 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxTokensPerDay: envInt("TOGETHER_TOKENS_PER_DAY", 800000),
     minRequestIntervalMs: envInt("TOGETHER_MIN_INTERVAL_MS", 100),
     cacheFreshDurationMs: envInt("TOGETHER_CACHE_FRESH_MS", 60 * 60 * 1000),
-    cacheStaleDurationMs: envInt("TOGETHER_CACHE_STALE_MS", 24 * 60 * 60 * 1000),
+    cacheStaleDurationMs: envInt(
+      "TOGETHER_CACHE_STALE_MS",
+      24 * 60 * 60 * 1000
+    ),
     priority: 8,
     enabled: envBool("TOGETHER_ENABLED", true),
   },
@@ -193,7 +208,10 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerDay: envInt("AITRADOS_OHLC_RATE_LIMIT_PER_DAY", 1000),
     minRequestIntervalMs: envInt("AITRADOS_OHLC_MIN_INTERVAL_MS", 500),
     cacheFreshDurationMs: envInt("AITRADOS_OHLC_CACHE_FRESH_MS", 60 * 1000),
-    cacheStaleDurationMs: envInt("AITRADOS_OHLC_CACHE_STALE_MS", 15 * 60 * 1000),
+    cacheStaleDurationMs: envInt(
+      "AITRADOS_OHLC_CACHE_STALE_MS",
+      15 * 60 * 1000
+    ),
     priority: 6,
     enabled: envBool("AITRADOS_ENABLED", true),
   },
@@ -203,7 +221,10 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerDay: envInt("AITRADOS_NEWS_RATE_LIMIT_PER_DAY", 500),
     minRequestIntervalMs: envInt("AITRADOS_NEWS_MIN_INTERVAL_MS", 1000),
     cacheFreshDurationMs: envInt("AITRADOS_NEWS_CACHE_FRESH_MS", 5 * 60 * 1000),
-    cacheStaleDurationMs: envInt("AITRADOS_NEWS_CACHE_STALE_MS", 30 * 60 * 1000),
+    cacheStaleDurationMs: envInt(
+      "AITRADOS_NEWS_CACHE_STALE_MS",
+      30 * 60 * 1000
+    ),
     priority: 5,
     enabled: envBool("AITRADOS_ENABLED", true),
   },
@@ -212,8 +233,14 @@ const providerPolicies: Record<string, ProviderPolicy> = {
     maxRequestsPerHour: envInt("AITRADOS_ECON_RATE_LIMIT_PER_HOUR", 30),
     maxRequestsPerDay: envInt("AITRADOS_ECON_RATE_LIMIT_PER_DAY", 200),
     minRequestIntervalMs: envInt("AITRADOS_ECON_MIN_INTERVAL_MS", 2000),
-    cacheFreshDurationMs: envInt("AITRADOS_ECON_CACHE_FRESH_MS", 10 * 60 * 1000),
-    cacheStaleDurationMs: envInt("AITRADOS_ECON_CACHE_STALE_MS", 60 * 60 * 1000),
+    cacheFreshDurationMs: envInt(
+      "AITRADOS_ECON_CACHE_FRESH_MS",
+      10 * 60 * 1000
+    ),
+    cacheStaleDurationMs: envInt(
+      "AITRADOS_ECON_CACHE_STALE_MS",
+      60 * 60 * 1000
+    ),
     priority: 5,
     enabled: envBool("AITRADOS_ENABLED", true),
   },
@@ -255,8 +282,11 @@ const providerPolicies: Record<string, ProviderPolicy> = {
 export function getProviderPolicy(provider: string): ProviderPolicy {
   const policy = providerPolicies[provider.toLowerCase()];
   if (policy) return policy;
-  
-  log.debug("ApiPolicy", `No policy found for provider ${provider}, using defaults`);
+
+  log.debug(
+    "ApiPolicy",
+    `No policy found for provider ${provider}, using defaults`
+  );
   return { ...defaultPolicy, provider };
 }
 
@@ -264,13 +294,20 @@ export function getAllProviderPolicies(): ProviderPolicy[] {
   return Object.values(providerPolicies);
 }
 
-export function updateProviderPolicy(provider: string, updates: Partial<ProviderPolicy>): void {
+export function updateProviderPolicy(
+  provider: string,
+  updates: Partial<ProviderPolicy>
+): void {
   const existing = providerPolicies[provider.toLowerCase()];
   if (existing) {
     providerPolicies[provider.toLowerCase()] = { ...existing, ...updates };
     log.info("ApiPolicy", `Updated policy for ${provider}`, updates);
   } else {
-    providerPolicies[provider.toLowerCase()] = { ...defaultPolicy, provider, ...updates };
+    providerPolicies[provider.toLowerCase()] = {
+      ...defaultPolicy,
+      provider,
+      ...updates,
+    };
     log.info("ApiPolicy", `Created new policy for ${provider}`, updates);
   }
 }
@@ -285,42 +322,88 @@ export function enableProvider(provider: string): void {
 
 export function getWindowDurationMs(windowType: WindowType): number {
   switch (windowType) {
-    case "minute": return 60 * 1000;
-    case "hour": return 60 * 60 * 1000;
-    case "day": return 24 * 60 * 60 * 1000;
-    case "week": return 7 * 24 * 60 * 60 * 1000;
+    case "minute":
+      return 60 * 1000;
+    case "hour":
+      return 60 * 60 * 1000;
+    case "day":
+      return 24 * 60 * 60 * 1000;
+    case "week":
+      return 7 * 24 * 60 * 60 * 1000;
   }
 }
 
-export function getWindowBoundaries(windowType: WindowType): { start: Date; end: Date } {
+export function getWindowBoundaries(windowType: WindowType): {
+  start: Date;
+  end: Date;
+} {
   const now = new Date();
   const durationMs = getWindowDurationMs(windowType);
-  
+
   let start: Date;
   switch (windowType) {
     case "minute":
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0);
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+        0,
+        0
+      );
       break;
     case "hour":
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        0,
+        0,
+        0
+      );
       break;
     case "day":
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0
+      );
       break;
     case "week":
       const dayOfWeek = now.getDay();
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek, 0, 0, 0, 0);
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - dayOfWeek,
+        0,
+        0,
+        0,
+        0
+      );
       break;
   }
-  
+
   return { start, end: new Date(start.getTime() + durationMs) };
 }
 
-export function getLimitForWindow(policy: ProviderPolicy, windowType: WindowType): number | undefined {
+export function getLimitForWindow(
+  policy: ProviderPolicy,
+  windowType: WindowType
+): number | undefined {
   switch (windowType) {
-    case "minute": return policy.maxRequestsPerMinute;
-    case "hour": return policy.maxRequestsPerHour;
-    case "day": return policy.maxRequestsPerDay;
-    case "week": return policy.maxRequestsPerWeek;
+    case "minute":
+      return policy.maxRequestsPerMinute;
+    case "hour":
+      return policy.maxRequestsPerHour;
+    case "day":
+      return policy.maxRequestsPerDay;
+    case "week":
+      return policy.maxRequestsPerWeek;
   }
 }

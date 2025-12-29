@@ -26,10 +26,17 @@ interface StepData {
 interface ConfigStepProps {
   stepData: StepData;
   configValues: Record<string, string | number | boolean | string[]>;
-  onFieldChange: (key: string, value: string | number | boolean | string[]) => void;
+  onFieldChange: (
+    key: string,
+    value: string | number | boolean | string[]
+  ) => void;
 }
 
-export function ConfigStep({ stepData, configValues, onFieldChange }: ConfigStepProps) {
+export function ConfigStep({
+  stepData,
+  configValues,
+  onFieldChange,
+}: ConfigStepProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
@@ -54,12 +61,12 @@ export function ConfigStep({ stepData, configValues, onFieldChange }: ConfigStep
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
-          {stepData.fields.map(field => (
+          {stepData.fields.map((field) => (
             <WizardField
               key={field.key}
               field={field}
               value={configValues[field.key]}
-              onChange={value => onFieldChange(field.key, value)}
+              onChange={(value) => onFieldChange(field.key, value)}
             />
           ))}
         </div>
@@ -70,12 +77,12 @@ export function ConfigStep({ stepData, configValues, onFieldChange }: ConfigStep
               Advanced Settings
             </h4>
             <div className="grid gap-6 md:grid-cols-2">
-              {stepData.advancedFields.map(field => (
+              {stepData.advancedFields.map((field) => (
                 <WizardField
                   key={field.key}
                   field={field}
                   value={configValues[field.key]}
-                  onChange={value => onFieldChange(field.key, value)}
+                  onChange={(value) => onFieldChange(field.key, value)}
                 />
               ))}
             </div>

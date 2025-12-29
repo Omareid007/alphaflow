@@ -1,9 +1,9 @@
 /**
  * Traces API - Full observability into AI decision chains
- * 
+ *
  * Provides traceId-based inspection of the complete flow:
  * decision → LLM calls → trade execution → broker confirmation
- * 
+ *
  * @see docs/OBSERVABILITY.md
  */
 
@@ -77,33 +77,44 @@ interface TraceResponse {
 
 tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
   const { traceId } = req.params;
-  
+
   if (!traceId) {
     return res.status(400).json({ error: "traceId is required" });
   }
-  
+
   try {
-    const [decisionResults, llmCallResults, workItemResults, tradeResults] = await Promise.all([
-      db.select().from(aiDecisions).where(eq(aiDecisions.traceId, traceId)),
-      db.select().from(llmCalls).where(eq(llmCalls.traceId, traceId)).orderBy(desc(llmCalls.createdAt)),
-      db.select().from(workItems).where(
-        or(
-          like(workItems.payload, `%${traceId}%`),
-          like(workItems.result, `%${traceId}%`)
-        )
-      ),
-      Promise.resolve([]),
-    ]);
-    
+    const [decisionResults, llmCallResults, workItemResults, tradeResults] =
+      await Promise.all([
+        db.select().from(aiDecisions).where(eq(aiDecisions.traceId, traceId)),
+        db
+          .select()
+          .from(llmCalls)
+          .where(eq(llmCalls.traceId, traceId))
+          .orderBy(desc(llmCalls.createdAt)),
+        db
+          .select()
+          .from(workItems)
+          .where(
+            or(
+              like(workItems.payload, `%${traceId}%`),
+              like(workItems.result, `%${traceId}%`)
+            )
+          ),
+        Promise.resolve([]),
+      ]);
+
     const decision = decisionResults[0] || null;
-    
-    let relatedTrades: typeof trades.$inferSelect[] = [];
+
+    let relatedTrades: (typeof trades.$inferSelect)[] = [];
     if (decision?.executedTradeId) {
-      relatedTrades = await db.select().from(trades).where(eq(trades.id, decision.executedTradeId));
+      relatedTrades = await db
+        .select()
+        .from(trades)
+        .where(eq(trades.id, decision.executedTradeId));
     }
-    
+
     const events: TraceEvent[] = [];
-    
+
     if (decision) {
       events.push({
         timestamp: decision.createdAt,
@@ -117,7 +128,7 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         },
       });
     }
-    
+
     for (const call of llmCallResults) {
       events.push({
         timestamp: call.createdAt,
@@ -133,7 +144,7 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         },
       });
     }
-    
+
     for (const item of workItemResults) {
       events.push({
         timestamp: item.nextRunAt,
@@ -147,7 +158,7 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         },
       });
     }
-    
+
     for (const trade of relatedTrades) {
       events.push({
         timestamp: trade.executedAt,
@@ -162,14 +173,23 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         },
       });
     }
-    
+
     events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    
-    const totalTokens = llmCallResults.reduce((sum, c) => sum + (c.totalTokens || 0), 0);
-    const estimatedCost = llmCallResults.reduce((sum, c) => sum + parseFloat(c.estimatedCost || "0"), 0);
-    const totalLatency = llmCallResults.reduce((sum, c) => sum + (c.latencyMs || 0), 0);
-    const providersUsed = [...new Set(llmCallResults.map(c => c.provider))];
-    
+
+    const totalTokens = llmCallResults.reduce(
+      (sum, c) => sum + (c.totalTokens || 0),
+      0
+    );
+    const estimatedCost = llmCallResults.reduce(
+      (sum, c) => sum + parseFloat(c.estimatedCost || "0"),
+      0
+    );
+    const totalLatency = llmCallResults.reduce(
+      (sum, c) => sum + (c.latencyMs || 0),
+      0
+    );
+    const providersUsed = [...new Set(llmCallResults.map((c) => c.provider))];
+
     let finalOutcome = "unknown";
     if (relatedTrades.length > 0) {
       finalOutcome = relatedTrades[0].status;
@@ -182,20 +202,24 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
     } else if (llmCallResults.length > 0) {
       finalOutcome = "pending";
     }
-    
+
     const response: TraceResponse = {
       traceId,
       events,
-      decision: decision ? {
-        id: decision.id,
-        symbol: decision.symbol,
-        action: decision.action,
-        confidence: decision.confidence ? parseFloat(decision.confidence) : null,
-        reasoning: decision.reasoning,
-        status: decision.status,
-        createdAt: decision.createdAt,
-      } : undefined,
-      llmCalls: llmCallResults.map(c => {
+      decision: decision
+        ? {
+            id: decision.id,
+            symbol: decision.symbol,
+            action: decision.action,
+            confidence: decision.confidence
+              ? parseFloat(decision.confidence)
+              : null,
+            reasoning: decision.reasoning,
+            status: decision.status,
+            createdAt: decision.createdAt,
+          }
+        : undefined,
+      llmCalls: llmCallResults.map((c) => {
         let purpose: string | null = null;
         let criticality: string | null = null;
         try {
@@ -218,7 +242,7 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
           createdAt: c.createdAt,
         };
       }),
-      workItems: workItemResults.map(w => ({
+      workItems: workItemResults.map((w) => ({
         id: w.id,
         type: w.type,
         status: w.status,
@@ -227,7 +251,7 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         symbol: w.symbol,
         result: w.result,
       })),
-      trades: relatedTrades.map(t => ({
+      trades: relatedTrades.map((t) => ({
         id: t.id,
         symbol: t.symbol,
         side: t.side,
@@ -245,16 +269,19 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
         finalOutcome,
       },
     };
-    
+
     log.debug("Traces", "Trace lookup complete", {
       traceId,
       eventsCount: events.length,
       llmCallsCount: llmCallResults.length,
     });
-    
+
     return res.json(response);
   } catch (error) {
-    log.error("Traces", "Failed to fetch trace", { traceId, error: String(error) });
+    log.error("Traces", "Failed to fetch trace", {
+      traceId,
+      error: String(error),
+    });
     return res.status(500).json({ error: "Failed to fetch trace" });
   }
 });
@@ -262,17 +289,19 @@ tracesRouter.get("/:traceId", async (req: Request, res: Response) => {
 tracesRouter.get("/", async (req: Request, res: Response) => {
   const { limit: limitStr = "20", symbol, status } = req.query;
   const limit = Math.min(parseInt(limitStr as string, 10) || 20, 100);
-  
+
   try {
-    let query = db.select({
-      traceId: aiDecisions.traceId,
-      id: aiDecisions.id,
-      symbol: aiDecisions.symbol,
-      action: aiDecisions.action,
-      status: aiDecisions.status,
-      createdAt: aiDecisions.createdAt,
-    }).from(aiDecisions);
-    
+    let query = db
+      .select({
+        traceId: aiDecisions.traceId,
+        id: aiDecisions.id,
+        symbol: aiDecisions.symbol,
+        action: aiDecisions.action,
+        status: aiDecisions.status,
+        createdAt: aiDecisions.createdAt,
+      })
+      .from(aiDecisions);
+
     const conditions = [];
     if (symbol) {
       conditions.push(eq(aiDecisions.symbol, symbol as string));
@@ -281,15 +310,17 @@ tracesRouter.get("/", async (req: Request, res: Response) => {
       conditions.push(eq(aiDecisions.status, status as string));
     }
     conditions.push(eq(aiDecisions.traceId, aiDecisions.traceId));
-    
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as typeof query;
     }
-    
-    const results = await query.orderBy(desc(aiDecisions.createdAt)).limit(limit);
-    
+
+    const results = await query
+      .orderBy(desc(aiDecisions.createdAt))
+      .limit(limit);
+
     return res.json({
-      traces: results.filter(r => r.traceId),
+      traces: results.filter((r) => r.traceId),
       total: results.length,
     });
   } catch (error) {

@@ -41,18 +41,28 @@ class PositionReconciliationJob {
    */
   start(): void {
     if (this.cronTask) {
-      log.warn("PositionReconciliation", "Job already running, ignoring start request");
+      log.warn(
+        "PositionReconciliation",
+        "Job already running, ignoring start request"
+      );
       return;
     }
 
     // Cron expression: "*/5 * * * *" = every 5 minutes
-    this.cronTask = cron.schedule("*/5 * * * *", async () => {
-      await this.executeSync();
-    }, {
-      timezone: "America/New_York", // Use market timezone (NYSE)
-    });
+    this.cronTask = cron.schedule(
+      "*/5 * * * *",
+      async () => {
+        await this.executeSync();
+      },
+      {
+        timezone: "America/New_York", // Use market timezone (NYSE)
+      }
+    );
 
-    log.info("PositionReconciliation", "Cron job started - syncing every 5 minutes");
+    log.info(
+      "PositionReconciliation",
+      "Cron job started - syncing every 5 minutes"
+    );
 
     // Update next run time
     this.updateNextRunTime();
@@ -84,7 +94,10 @@ class PositionReconciliationJob {
     errors: Array<{ symbol: string; error: string }>;
   }> {
     if (this.isRunning) {
-      log.warn("PositionReconciliation", "Sync already in progress, skipping this run");
+      log.warn(
+        "PositionReconciliation",
+        "Sync already in progress, skipping this run"
+      );
       return { created: [], updated: [], removed: [], errors: [] };
     }
 
@@ -123,33 +136,54 @@ class PositionReconciliationJob {
 
       // Log discrepancies if any
       if (result.created.length > 0) {
-        log.info("PositionReconciliation", `Created ${result.created.length} new positions: ${result.created.join(", ")}`);
+        log.info(
+          "PositionReconciliation",
+          `Created ${result.created.length} new positions: ${result.created.join(", ")}`
+        );
       }
 
       if (result.updated.length > 0) {
-        log.info("PositionReconciliation", `Updated ${result.updated.length} existing positions: ${result.updated.join(", ")}`);
+        log.info(
+          "PositionReconciliation",
+          `Updated ${result.updated.length} existing positions: ${result.updated.join(", ")}`
+        );
       }
 
       if (result.removed.length > 0) {
-        log.warn("PositionReconciliation", `Removed ${result.removed.length} stale positions: ${result.removed.join(", ")}`);
+        log.warn(
+          "PositionReconciliation",
+          `Removed ${result.removed.length} stale positions: ${result.removed.join(", ")}`
+        );
       }
 
       // Log errors if any
       if (result.errors.length > 0) {
-        log.error("PositionReconciliation", `Encountered ${result.errors.length} errors during sync`, {
-          errors: result.errors,
-        });
+        log.error(
+          "PositionReconciliation",
+          `Encountered ${result.errors.length} errors during sync`,
+          {
+            errors: result.errors,
+          }
+        );
       }
 
       // Emit SSE event for position updates
-      if (result.created.length > 0 || result.updated.length > 0 || result.removed.length > 0) {
-        eventBus.emit("position:updated", {
-          type: "reconciliation",
-          created: result.created,
-          updated: result.updated,
-          removed: result.removed,
-          timestamp: new Date().toISOString(),
-        }, "position-reconciliation-job");
+      if (
+        result.created.length > 0 ||
+        result.updated.length > 0 ||
+        result.removed.length > 0
+      ) {
+        eventBus.emit(
+          "position:updated",
+          {
+            type: "reconciliation",
+            created: result.created,
+            updated: result.updated,
+            removed: result.removed,
+            timestamp: new Date().toISOString(),
+          },
+          "position-reconciliation-job"
+        );
       }
 
       return result;
@@ -170,11 +204,15 @@ class PositionReconciliationJob {
       });
 
       // Emit SSE error event
-      eventBus.emit("system:error", {
-        message: "Position reconciliation failed",
-        error: errorMessage,
-        timestamp: new Date().toISOString(),
-      }, "position-reconciliation-job");
+      eventBus.emit(
+        "system:error",
+        {
+          message: "Position reconciliation failed",
+          error: errorMessage,
+          timestamp: new Date().toISOString(),
+        },
+        "position-reconciliation-job"
+      );
 
       // Re-throw so caller knows it failed
       throw error;

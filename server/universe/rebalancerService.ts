@@ -36,14 +36,19 @@ class RebalancerService {
     wouldSkip: number;
   } | null> {
     log.info("RebalancerService", "Starting dry run analysis", { traceId });
-    
+
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
-      log.info("RebalancerService", "No active policy - cannot analyze", { traceId });
+      log.info("RebalancerService", "No active policy - cannot analyze", {
+        traceId,
+      });
       return null;
     }
 
-    const profitTaking = await this.analyzeProfitTaking(analysis.policy, traceId);
+    const profitTaking = await this.analyzeProfitTaking(
+      analysis.policy,
+      traceId
+    );
 
     let wouldSubmit = 0;
     let wouldSkip = 0;
@@ -54,7 +59,10 @@ class RebalancerService {
         continue;
       }
 
-      const enforcement = await tradingEnforcementService.canTradeSymbol(intent.symbol, traceId);
+      const enforcement = await tradingEnforcementService.canTradeSymbol(
+        intent.symbol,
+        traceId
+      );
       if (intent.action === "SELL" || enforcement.eligible) {
         wouldSubmit++;
       } else {
@@ -62,7 +70,11 @@ class RebalancerService {
       }
     }
 
-    log.info("RebalancerService", "Dry run complete", { traceId, wouldSubmit, wouldSkip });
+    log.info("RebalancerService", "Dry run complete", {
+      traceId,
+      wouldSubmit,
+      wouldSkip,
+    });
 
     return {
       analysis,
@@ -72,9 +84,15 @@ class RebalancerService {
     };
   }
 
-  async executeRebalance(traceId: string, dryRun = false): Promise<RebalanceExecutionResult> {
+  async executeRebalance(
+    traceId: string,
+    dryRun = false
+  ): Promise<RebalanceExecutionResult> {
     const startTime = Date.now();
-    log.info("RebalancerService", "Starting rebalance execution", { traceId, dryRun });
+    log.info("RebalancerService", "Starting rebalance execution", {
+      traceId,
+      dryRun,
+    });
 
     const analysis = await allocationService.analyzeRebalance(traceId);
     if (!analysis) {
@@ -127,10 +145,16 @@ class RebalancerService {
     const errors: string[] = [];
     let ordersSubmitted = 0;
     let ordersSkipped = 0;
-    const executedOrders: { symbol: string; workItemId: string; side: string }[] = [];
+    const executedOrders: {
+      symbol: string;
+      workItemId: string;
+      side: string;
+    }[] = [];
 
-    const sellIntents = analysis.intents.filter(i => i.action === "SELL" || i.action === "TRIM");
-    const buyIntents = analysis.intents.filter(i => i.action === "BUY");
+    const sellIntents = analysis.intents.filter(
+      (i) => i.action === "SELL" || i.action === "TRIM"
+    );
+    const buyIntents = analysis.intents.filter((i) => i.action === "BUY");
 
     for (const intent of sellIntents) {
       if (Math.abs(intent.notionalDelta) < 10) {
@@ -139,8 +163,11 @@ class RebalancerService {
       }
 
       try {
-        const enforcement = await tradingEnforcementService.canTradeSymbol(intent.symbol, traceId);
-        
+        const enforcement = await tradingEnforcementService.canTradeSymbol(
+          intent.symbol,
+          traceId
+        );
+
         if (intent.action === "SELL" || enforcement.eligible) {
           const currentPos = analysis.currentPositions.get(intent.symbol);
           if (!currentPos) {
@@ -155,7 +182,10 @@ class RebalancerService {
             const snapshot = snapshots?.[intent.symbol];
             price = snapshot?.latestTrade?.p || snapshot?.latestQuote?.ap || 0;
           } catch (e) {
-            log.warn("RebalancerService", "Failed to get snapshot", { traceId, symbol: intent.symbol });
+            log.warn("RebalancerService", "Failed to get snapshot", {
+              traceId,
+              symbol: intent.symbol,
+            });
           }
           if (!price || price <= 0 || !isFinite(price)) {
             errors.push(`${intent.symbol}: Could not get valid price`);
@@ -191,7 +221,11 @@ class RebalancerService {
             maxAttempts: 3,
           });
 
-          executedOrders.push({ symbol: intent.symbol, workItemId: workItem.id, side: "sell" });
+          executedOrders.push({
+            symbol: intent.symbol,
+            workItemId: workItem.id,
+            side: "sell",
+          });
           ordersSubmitted++;
         } else {
           ordersSkipped++;
@@ -204,16 +238,27 @@ class RebalancerService {
     }
 
     for (const intent of buyIntents) {
-      if (!intent.notionalDelta || !isFinite(intent.notionalDelta) || intent.notionalDelta < 10) {
+      if (
+        !intent.notionalDelta ||
+        !isFinite(intent.notionalDelta) ||
+        intent.notionalDelta < 10
+      ) {
         ordersSkipped++;
         continue;
       }
 
       try {
-        const enforcement = await tradingEnforcementService.canTradeSymbol(intent.symbol, traceId);
-        
+        const enforcement = await tradingEnforcementService.canTradeSymbol(
+          intent.symbol,
+          traceId
+        );
+
         if (!enforcement.eligible) {
-          log.info("RebalancerService", "Skipping BUY", { traceId, symbol: intent.symbol, reason: enforcement.reason });
+          log.info("RebalancerService", "Skipping BUY", {
+            traceId,
+            symbol: intent.symbol,
+            reason: enforcement.reason,
+          });
           ordersSkipped++;
           continue;
         }
@@ -239,7 +284,11 @@ class RebalancerService {
           maxAttempts: 3,
         });
 
-        executedOrders.push({ symbol: intent.symbol, workItemId: workItem.id, side: "buy" });
+        executedOrders.push({
+          symbol: intent.symbol,
+          workItemId: workItem.id,
+          side: "buy",
+        });
         ordersSubmitted++;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -248,10 +297,13 @@ class RebalancerService {
       }
     }
 
-    const holdIntents = analysis.intents.filter(i => i.action === "HOLD").length;
+    const holdIntents = analysis.intents.filter(
+      (i) => i.action === "HOLD"
+    ).length;
     ordersSkipped += holdIntents;
 
-    const finalStatus = errors.length > 0 ? "completed_with_errors" : "completed";
+    const finalStatus =
+      errors.length > 0 ? "completed_with_errors" : "completed";
     await allocationService.updateRebalanceRun(run.id, {
       status: finalStatus,
       completedAt: new Date(),
@@ -259,7 +311,11 @@ class RebalancerService {
       rationale: `Submitted ${ordersSubmitted} orders, skipped ${ordersSkipped}. ${errors.length} errors.`,
     });
 
-    log.info("RebalancerService", "Execution complete", { traceId, ordersSubmitted, errorCount: errors.length });
+    log.info("RebalancerService", "Execution complete", {
+      traceId,
+      ordersSubmitted,
+      errorCount: errors.length,
+    });
 
     return {
       runId: run.id,
@@ -279,7 +335,8 @@ class RebalancerService {
   ): Promise<ProfitTakingAnalysis[]> {
     if (!policy) return [];
 
-    const profitThreshold = parseFloat(policy.profitTakingThresholdPct || "20") / 100;
+    const profitThreshold =
+      parseFloat(policy.profitTakingThresholdPct || "20") / 100;
     const positions = await alpaca.getPositions();
     const results: ProfitTakingAnalysis[] = [];
 
@@ -303,7 +360,10 @@ class RebalancerService {
       }
     }
 
-    log.info("RebalancerService", "Profit-taking analysis", { traceId, candidateCount: results.length });
+    log.info("RebalancerService", "Profit-taking analysis", {
+      traceId,
+      candidateCount: results.length,
+    });
     return results;
   }
 
@@ -319,7 +379,7 @@ class RebalancerService {
       limit: 20,
     });
 
-    const successfulRuns = runs.filter(r => r.status === "completed").length;
+    const successfulRuns = runs.filter((r) => r.status === "completed").length;
     const totalOrders = runs.reduce((sum, r) => {
       const orders = r.executedOrders as unknown[];
       return sum + (Array.isArray(orders) ? orders.length : 0);

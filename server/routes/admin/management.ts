@@ -17,7 +17,7 @@ const router = Router();
 // GET /api/admin/audit-logs - Get audit logs
 router.get("/audit-logs", async (req: Request, res: Response) => {
   try {
-    const { getAuditLogs } = await import('../../middleware/audit-logger');
+    const { getAuditLogs } = await import("../../middleware/audit-logger");
 
     const { limit, offset } = req.query;
     const limitNum = limit ? parseInt(limit as string) : 100;
@@ -34,7 +34,7 @@ router.get("/audit-logs", async (req: Request, res: Response) => {
 // GET /api/admin/audit-logs/stats - Get audit log statistics
 router.get("/audit-logs/stats", async (req: Request, res: Response) => {
   try {
-    const { getAuditStats } = await import('../../middleware/audit-logger');
+    const { getAuditStats } = await import("../../middleware/audit-logger");
     const stats = await getAuditStats();
     res.json(stats);
   } catch (error) {
@@ -132,7 +132,9 @@ router.post("/users", async (req: Request, res: Response) => {
     const { username, password, isAdmin } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: "Username and password are required" });
+      return res
+        .status(400)
+        .json({ error: "Username and password are required" });
     }
 
     // Check if username already exists
@@ -235,7 +237,7 @@ router.get("/observability/metrics", async (req: Request, res: Response) => {
       system: {
         memoryUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
         memoryTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
-        uptimeHours: Math.round(uptime / 3600 * 10) / 10,
+        uptimeHours: Math.round((uptime / 3600) * 10) / 10,
         nodeVersion: process.version,
       },
       workQueue: {
@@ -296,7 +298,9 @@ router.get("/observability/health", async (req: Request, res: Response) => {
 
     // Check API providers
     const providerStatuses = await getAllProviderStatuses();
-    const providersHealthy = Object.values(providerStatuses).some((s: any) => s.isAvailable);
+    const providersHealthy = Object.values(providerStatuses).some(
+      (s: any) => s.isAvailable
+    );
 
     // Check Alpaca
     let alpacaHealthy = false;
@@ -310,10 +314,22 @@ router.get("/observability/health", async (req: Request, res: Response) => {
 
     res.json({
       services: [
-        { name: "Database", status: dbHealthy ? "healthy" : "unhealthy", message: dbHealthy ? "Connected" : "Connection failed" },
+        {
+          name: "Database",
+          status: dbHealthy ? "healthy" : "unhealthy",
+          message: dbHealthy ? "Connected" : "Connection failed",
+        },
         { name: "API Endpoints", status: "healthy", message: "Operational" },
-        { name: "LLM Providers", status: providersHealthy ? "healthy" : "degraded", message: providersHealthy ? "Available" : "No providers" },
-        { name: "Alpaca Trading", status: alpacaHealthy ? "healthy" : "unhealthy", message: alpacaHealthy ? "Connected" : "Disconnected" },
+        {
+          name: "LLM Providers",
+          status: providersHealthy ? "healthy" : "degraded",
+          message: providersHealthy ? "Available" : "No providers",
+        },
+        {
+          name: "Alpaca Trading",
+          status: alpacaHealthy ? "healthy" : "unhealthy",
+          message: alpacaHealthy ? "Connected" : "Disconnected",
+        },
         { name: "Background Jobs", status: "healthy", message: "Running" },
       ],
       overall: dbHealthy && alpacaHealthy ? "healthy" : "degraded",

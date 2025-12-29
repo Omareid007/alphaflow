@@ -20,7 +20,10 @@ import { alpaca } from "../connectors/alpaca";
 import { tradingSessionManager } from "../services/trading-session-manager";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
-import { isCryptoSymbol, normalizeCryptoSymbol } from "../trading/crypto-trading-config";
+import {
+  isCryptoSymbol,
+  normalizeCryptoSymbol,
+} from "../trading/crypto-trading-config";
 
 /**
  * Pre-trade validation check result.
@@ -118,7 +121,10 @@ export async function preTradeGuard(
     // Crypto markets are 24/7
     if (isCrypto) {
       result.canTrade = true;
-      log.info("PreTradeGuard", `Crypto market 24/7 - trading enabled for ${symbol}`);
+      log.info(
+        "PreTradeGuard",
+        `Crypto market 24/7 - trading enabled for ${symbol}`
+      );
       return result;
     }
 
@@ -132,12 +138,19 @@ export async function preTradeGuard(
     // Regular trading hours
     if (sessionInfo.session === "regular") {
       result.canTrade = true;
-      log.info("PreTradeGuard", `Regular hours - trading enabled for ${symbol}`);
+      log.info(
+        "PreTradeGuard",
+        `Regular hours - trading enabled for ${symbol}`
+      );
       return result;
     }
 
     // Extended hours trading (pre-market or after-hours)
-    if (sessionInfo.isExtendedHours && (sessionInfo.session === "pre_market" || sessionInfo.session === "after_hours")) {
+    if (
+      sessionInfo.isExtendedHours &&
+      (sessionInfo.session === "pre_market" ||
+        sessionInfo.session === "after_hours")
+    ) {
       result.useExtendedHours = true;
       result.useLimitOrder = true;
 
@@ -150,7 +163,10 @@ export async function preTradeGuard(
           const volatilityMultiplier = sessionInfo.volatilityMultiplier;
           result.limitPrice = Math.round(basePrice * 100) / 100;
           result.canTrade = true;
-          log.info("PreTradeGuard", `Extended hours (${sessionInfo.session}) trading enabled for ${symbol} at $${result.limitPrice} (volatility: ${volatilityMultiplier}x)`);
+          log.info(
+            "PreTradeGuard",
+            `Extended hours (${sessionInfo.session}) trading enabled for ${symbol} at $${result.limitPrice} (volatility: ${volatilityMultiplier}x)`
+          );
           return result;
         } else {
           result.reason = `Cannot get current price for ${symbol} during ${sessionInfo.session}`;
@@ -165,9 +181,14 @@ export async function preTradeGuard(
     // Market is closed
     if (sessionInfo.session === "closed") {
       result.canTrade = false;
-      const nextOpenStr = sessionInfo.nextOpen ? sessionInfo.nextOpen.toLocaleString() : "unknown";
+      const nextOpenStr = sessionInfo.nextOpen
+        ? sessionInfo.nextOpen.toLocaleString()
+        : "unknown";
       result.reason = `Market is closed (next open: ${nextOpenStr})`;
-      log.info("PreTradeGuard", `Market closed for ${symbol} - next open: ${nextOpenStr}`);
+      log.info(
+        "PreTradeGuard",
+        `Market closed for ${symbol} - next open: ${nextOpenStr}`
+      );
       return result;
     }
 
@@ -207,14 +228,22 @@ export async function preTradeGuard(
  *   console.log(`Cannot trade: ${crypto.reason}`);
  * }
  */
-export async function isSymbolTradable(symbol: string, isCrypto: boolean): Promise<{ tradable: boolean; reason?: string }> {
+export async function isSymbolTradable(
+  symbol: string,
+  isCrypto: boolean
+): Promise<{ tradable: boolean; reason?: string }> {
   try {
     if (isCrypto) {
       const normalizedSymbol = normalizeCryptoSymbol(symbol);
       const assets = await alpaca.getAssets("active", "crypto");
-      const found = assets.find(a => a.symbol === normalizedSymbol && a.tradable);
+      const found = assets.find(
+        (a) => a.symbol === normalizedSymbol && a.tradable
+      );
       if (!found) {
-        return { tradable: false, reason: `Crypto ${normalizedSymbol} is not tradable on Alpaca` };
+        return {
+          tradable: false,
+          reason: `Crypto ${normalizedSymbol} is not tradable on Alpaca`,
+        };
       }
       return { tradable: true };
     } else {

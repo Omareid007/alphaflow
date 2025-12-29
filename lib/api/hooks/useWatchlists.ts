@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../client';
-import { Watchlist } from '@/lib/types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../client";
+import { Watchlist } from "@/lib/types";
 
 export function useWatchlists() {
   return useQuery({
-    queryKey: ['watchlists'],
+    queryKey: ["watchlists"],
     queryFn: async () => {
       try {
-        return await api.get<Watchlist[]>('/api/watchlists');
+        return await api.get<Watchlist[]>("/api/watchlists");
       } catch {
         // Return empty array if endpoint unavailable
         return [];
@@ -18,7 +18,7 @@ export function useWatchlists() {
 
 export function useWatchlist(id: string) {
   return useQuery({
-    queryKey: ['watchlists', id],
+    queryKey: ["watchlists", id],
     queryFn: () => api.get<Watchlist>(`/api/watchlists/${id}`),
     enabled: !!id,
   });
@@ -28,12 +28,22 @@ export function useAddToWatchlist() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ watchlistId, symbol }: { watchlistId: string; symbol: string }) => {
-      return await api.post(`/api/watchlists/${watchlistId}/symbols`, { symbol });
+    mutationFn: async ({
+      watchlistId,
+      symbol,
+    }: {
+      watchlistId: string;
+      symbol: string;
+    }) => {
+      return await api.post(`/api/watchlists/${watchlistId}/symbols`, {
+        symbol,
+      });
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlists', variables.watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlists"] });
+      queryClient.invalidateQueries({
+        queryKey: ["watchlists", variables.watchlistId],
+      });
     },
   });
 }
@@ -42,12 +52,22 @@ export function useRemoveFromWatchlist() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ watchlistId, symbol }: { watchlistId: string; symbol: string }) => {
-      return await api.delete(`/api/watchlists/${watchlistId}/symbols/${symbol}`);
+    mutationFn: async ({
+      watchlistId,
+      symbol,
+    }: {
+      watchlistId: string;
+      symbol: string;
+    }) => {
+      return await api.delete(
+        `/api/watchlists/${watchlistId}/symbols/${symbol}`
+      );
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlists', variables.watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlists"] });
+      queryClient.invalidateQueries({
+        queryKey: ["watchlists", variables.watchlistId],
+      });
     },
   });
 }
@@ -57,9 +77,9 @@ export function useCreateWatchlist() {
 
   return useMutation({
     mutationFn: (data: { name: string; symbols?: string[] }) =>
-      api.post<Watchlist>('/api/watchlists', data),
+      api.post<Watchlist>("/api/watchlists", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
+      queryClient.invalidateQueries({ queryKey: ["watchlists"] });
     },
   });
 }
@@ -70,7 +90,7 @@ export function useDeleteWatchlist() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/watchlists/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
+      queryClient.invalidateQueries({ queryKey: ["watchlists"] });
     },
   });
 }

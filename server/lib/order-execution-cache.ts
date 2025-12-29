@@ -1,4 +1,4 @@
-import { ApiCache } from './api-cache';
+import { ApiCache } from "./api-cache";
 
 interface QuickQuote {
   symbol: string;
@@ -72,11 +72,11 @@ export function isTradable(symbol: string): boolean | null {
 }
 
 export function cacheAccountSnapshot(snapshot: AccountSnapshot): void {
-  accountSnapshotCache.set('account', snapshot);
+  accountSnapshotCache.set("account", snapshot);
 }
 
 export function getAccountSnapshot(): AccountSnapshot | null {
-  const result = accountSnapshotCache.get('account');
+  const result = accountSnapshotCache.get("account");
   return result?.data ?? null;
 }
 
@@ -87,16 +87,29 @@ export function getCachedBuyingPower(): number | null {
 
 export function preloadOrderValidationData(
   symbols: string[],
-  getQuote: (symbol: string) => Promise<{ price: number; bid: number; ask: number }>,
-  getAsset: (symbol: string) => Promise<{ tradable: boolean; fractionable: boolean; shortable: boolean; marginable: boolean }>,
-  getAccount: () => Promise<{ buying_power: string; cash: string; equity: string }>
+  getQuote: (
+    symbol: string
+  ) => Promise<{ price: number; bid: number; ask: number }>,
+  getAsset: (
+    symbol: string
+  ) => Promise<{
+    tradable: boolean;
+    fractionable: boolean;
+    shortable: boolean;
+    marginable: boolean;
+  }>,
+  getAccount: () => Promise<{
+    buying_power: string;
+    cash: string;
+    equity: string;
+  }>
 ): Promise<void> {
   const now = Date.now();
-  
+
   const quotePromises = symbols.map(async (symbol) => {
     const cached = getQuickQuote(symbol);
     if (cached) return;
-    
+
     try {
       const quote = await getQuote(symbol);
       cacheQuickQuote({
@@ -107,14 +120,13 @@ export function preloadOrderValidationData(
         spread: quote.ask - quote.bid,
         timestamp: now,
       });
-    } catch {
-    }
+    } catch {}
   });
-  
+
   const assetPromises = symbols.map(async (symbol) => {
     const cached = getTradability(symbol);
     if (cached) return;
-    
+
     try {
       const asset = await getAsset(symbol);
       cacheTradability({
@@ -125,14 +137,13 @@ export function preloadOrderValidationData(
         marginable: asset.marginable,
         timestamp: now,
       });
-    } catch {
-    }
+    } catch {}
   });
-  
+
   const accountPromise = (async () => {
     const cached = getAccountSnapshot();
     if (cached) return;
-    
+
     try {
       const account = await getAccount();
       cacheAccountSnapshot({
@@ -141,11 +152,12 @@ export function preloadOrderValidationData(
         equity: parseFloat(account.equity),
         timestamp: now,
       });
-    } catch {
-    }
+    } catch {}
   })();
-  
-  return Promise.all([...quotePromises, ...assetPromises, accountPromise]).then(() => {});
+
+  return Promise.all([...quotePromises, ...assetPromises, accountPromise]).then(
+    () => {}
+  );
 }
 
 export function clearOrderCaches(): void {
@@ -162,6 +174,6 @@ export function getOrderCacheStats(): {
   return {
     quotes: quickQuoteCache.size(),
     tradability: tradabilityCache.size(),
-    hasAccountSnapshot: accountSnapshotCache.has('account'),
+    hasAccountSnapshot: accountSnapshotCache.has("account"),
   };
 }

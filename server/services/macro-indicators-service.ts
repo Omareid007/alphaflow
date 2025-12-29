@@ -1,7 +1,12 @@
 import { db } from "../db";
 import { macroIndicators } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { fred, MacroIndicatorData, MacroCategory, FRED_SERIES } from "../connectors/fred";
+import {
+  fred,
+  MacroIndicatorData,
+  MacroCategory,
+  FRED_SERIES,
+} from "../connectors/fred";
 import { log } from "../utils/logger";
 
 export interface MacroDataSummary {
@@ -14,7 +19,11 @@ export interface MacroDataSummary {
 export interface MacroAlert {
   indicatorId: string;
   name: string;
-  type: "yield_curve_inversion" | "high_volatility" | "rate_change" | "inflation_spike";
+  type:
+    | "yield_curve_inversion"
+    | "high_volatility"
+    | "rate_change"
+    | "inflation_spike";
   severity: "low" | "medium" | "high";
   message: string;
   value: number;
@@ -28,7 +37,10 @@ class MacroIndicatorsService {
     failed: number;
     errors: string[];
   }> {
-    log.info("MacroIndicatorsService", "Starting full macro indicators refresh from FRED");
+    log.info(
+      "MacroIndicatorsService",
+      "Starting full macro indicators refresh from FRED"
+    );
 
     const allData = await fred.getAllIndicators();
     let updated = 0;
@@ -41,11 +53,16 @@ class MacroIndicatorsService {
         updated++;
       } catch (error) {
         failed++;
-        errors.push(`${data.indicatorId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        errors.push(
+          `${data.indicatorId}: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
       }
     }
 
-    log.info("MacroIndicatorsService", `Refresh complete: ${updated} updated, ${failed} failed`);
+    log.info(
+      "MacroIndicatorsService",
+      `Refresh complete: ${updated} updated, ${failed} failed`
+    );
 
     return { success: failed === 0, updated, failed, errors };
   }
@@ -55,7 +72,10 @@ class MacroIndicatorsService {
     updated: number;
     data: MacroIndicatorData[];
   }> {
-    log.info("MacroIndicatorsService", "Refreshing critical macro indicators from FRED");
+    log.info(
+      "MacroIndicatorsService",
+      "Refreshing critical macro indicators from FRED"
+    );
 
     const criticalData = await fred.getCriticalIndicators();
     let updated = 0;
@@ -65,7 +85,11 @@ class MacroIndicatorsService {
         await this.upsertIndicator(data);
         updated++;
       } catch (error) {
-        log.error("MacroIndicatorsService", `Failed to upsert ${data.indicatorId}`, { error });
+        log.error(
+          "MacroIndicatorsService",
+          `Failed to upsert ${data.indicatorId}`,
+          { error }
+        );
       }
     }
 
@@ -106,18 +130,27 @@ class MacroIndicatorsService {
     }
   }
 
-  async getLatestIndicators(): Promise<typeof macroIndicators.$inferSelect[]> {
-    return db.select().from(macroIndicators).orderBy(macroIndicators.lastUpdatedAt);
+  async getLatestIndicators(): Promise<
+    (typeof macroIndicators.$inferSelect)[]
+  > {
+    return db
+      .select()
+      .from(macroIndicators)
+      .orderBy(macroIndicators.lastUpdatedAt);
   }
 
-  async getIndicatorsByCategory(category: MacroCategory): Promise<typeof macroIndicators.$inferSelect[]> {
+  async getIndicatorsByCategory(
+    category: MacroCategory
+  ): Promise<(typeof macroIndicators.$inferSelect)[]> {
     return db
       .select()
       .from(macroIndicators)
       .where(eq(macroIndicators.category, category));
   }
 
-  async getIndicator(indicatorId: string): Promise<typeof macroIndicators.$inferSelect | null> {
+  async getIndicator(
+    indicatorId: string
+  ): Promise<typeof macroIndicators.$inferSelect | null> {
     const result = await db
       .select()
       .from(macroIndicators)
@@ -160,7 +193,9 @@ class MacroIndicatorsService {
     };
   }
 
-  private detectAlerts(indicators: typeof macroIndicators.$inferSelect[]): MacroAlert[] {
+  private detectAlerts(
+    indicators: (typeof macroIndicators.$inferSelect)[]
+  ): MacroAlert[] {
     const alerts: MacroAlert[] = [];
 
     for (const indicator of indicators) {
@@ -224,7 +259,9 @@ class MacroIndicatorsService {
     return alerts;
   }
 
-  getMarketRegimeFromMacro(indicators: typeof macroIndicators.$inferSelect[]): {
+  getMarketRegimeFromMacro(
+    indicators: (typeof macroIndicators.$inferSelect)[]
+  ): {
     regime: "risk_on" | "risk_off" | "neutral" | "uncertain";
     confidence: number;
     signals: string[];

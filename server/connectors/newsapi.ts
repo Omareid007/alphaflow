@@ -56,10 +56,10 @@ class NewsAPIConnector {
   private getCached<T>(key: string, allowStale = false): T | null {
     const entry = this.cache.get(key) as CacheEntry<T> | undefined;
     if (!entry) return null;
-    
+
     const age = Date.now() - entry.timestamp;
     const maxAge = allowStale ? this.staleCacheDuration : this.cacheDuration;
-    
+
     if (age < maxAge) {
       return entry.data;
     }
@@ -70,7 +70,11 @@ class NewsAPIConnector {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  private async fetchWithRetry<T>(url: string, endpoint: string, cacheKey: string): Promise<T> {
+  private async fetchWithRetry<T>(
+    url: string,
+    endpoint: string,
+    cacheKey: string
+  ): Promise<T> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
       throw new Error("NEWS_API_KEY is not configured");
@@ -97,7 +101,10 @@ class NewsAPIConnector {
       return result.data;
     } catch (error) {
       if (staleData) {
-        log.debug("NewsAPI", `Returning L1 stale data for ${cacheKey} after error`);
+        log.debug(
+          "NewsAPI",
+          `Returning L1 stale data for ${cacheKey} after error`
+        );
         return staleData;
       }
       throw error;
@@ -125,7 +132,11 @@ class NewsAPIConnector {
 
     try {
       const url = `${NEWSAPI_BASE_URL}/top-headlines?category=${category}&country=${country}&pageSize=${pageSize}`;
-      const response = await this.fetchWithRetry<NewsAPIResponse>(url, "/top-headlines", cacheKey);
+      const response = await this.fetchWithRetry<NewsAPIResponse>(
+        url,
+        "/top-headlines",
+        cacheKey
+      );
 
       if (response.status !== "ok") {
         throw new Error("NewsAPI returned error status");
@@ -136,7 +147,10 @@ class NewsAPIConnector {
     } catch (error) {
       const stale = this.getCached<NewsArticle[]>(cacheKey, true);
       if (stale) {
-        log.debug("NewsAPI", "getTopHeadlines returning stale data due to error");
+        log.debug(
+          "NewsAPI",
+          "getTopHeadlines returning stale data due to error"
+        );
         return stale;
       }
       throw error;
@@ -158,7 +172,11 @@ class NewsAPIConnector {
 
     try {
       const url = `${NEWSAPI_BASE_URL}/everything?q=${encodeURIComponent(query)}&sortBy=${sortBy}&pageSize=${pageSize}&language=${language}`;
-      const response = await this.fetchWithRetry<NewsAPIResponse>(url, "/everything", cacheKey);
+      const response = await this.fetchWithRetry<NewsAPIResponse>(
+        url,
+        "/everything",
+        cacheKey
+      );
 
       if (response.status !== "ok") {
         throw new Error("NewsAPI returned error status");
@@ -209,7 +227,11 @@ class NewsAPIConnector {
 
     try {
       const url = `${NEWSAPI_BASE_URL}/top-headlines/sources?category=${category}&language=${language}`;
-      const response = await this.fetchWithRetry<NewsSourcesResponse>(url, "/sources", cacheKey);
+      const response = await this.fetchWithRetry<NewsSourcesResponse>(
+        url,
+        "/sources",
+        cacheKey
+      );
 
       if (response.status !== "ok") {
         throw new Error("NewsAPI returned error status");
@@ -227,9 +249,9 @@ class NewsAPIConnector {
     }
   }
 
-  async getConnectionStatus(): Promise<{ 
-    connected: boolean; 
-    hasApiKey: boolean; 
+  async getConnectionStatus(): Promise<{
+    connected: boolean;
+    hasApiKey: boolean;
     cacheSize: number;
     budgetStatus: {
       allowed: boolean;
@@ -240,9 +262,12 @@ class NewsAPIConnector {
   }> {
     const hasApiKey = !!this.getApiKey();
     const providerStatus = await getProviderStatus("newsapi");
-    
+
     return {
-      connected: hasApiKey && providerStatus.enabled && providerStatus.budgetStatus.allowed,
+      connected:
+        hasApiKey &&
+        providerStatus.enabled &&
+        providerStatus.budgetStatus.allowed,
       hasApiKey,
       cacheSize: this.cache.size,
       budgetStatus: providerStatus.budgetStatus,

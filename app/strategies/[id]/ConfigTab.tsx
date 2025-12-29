@@ -15,8 +15,8 @@ export function ConfigTab({ strategy, template }: ConfigTabProps) {
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {template?.stepSchema.steps.map(step =>
-            step.fields.map(field => (
+          {template?.stepSchema.steps.map((step) =>
+            step.fields.map((field) => (
               <div key={field.key} className="rounded-lg bg-secondary/50 p-4">
                 <p className="text-sm text-muted-foreground">{field.label}</p>
                 <p className="mt-1 font-medium">

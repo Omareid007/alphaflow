@@ -23,14 +23,22 @@ router.get("/timeline", async (req: Request, res: Response) => {
     ]);
 
     // Check Alpaca connectivity
-    const alpacaConnected = brokerOrders.length > 0 || decisions.some(d => d.executedTradeId);
+    const alpacaConnected =
+      brokerOrders.length > 0 || decisions.some((d) => d.executedTradeId);
     const alpacaStatus = alpacaConnected ? "live" : "unavailable";
 
     // Build timeline events
     interface TimelineEventInternal {
       id: string;
       ts: string;
-      category: "decision" | "order" | "fill" | "position" | "risk" | "system" | "data_fetch";
+      category:
+        | "decision"
+        | "order"
+        | "fill"
+        | "position"
+        | "risk"
+        | "system"
+        | "data_fetch";
       title: string;
       subtitle: string | null;
       status: "success" | "pending" | "warning" | "error" | "info";
@@ -53,21 +61,32 @@ router.get("/timeline", async (req: Request, res: Response) => {
 
     // Add decision events
     for (const d of decisions) {
-      const status = d.status === "filled" || d.status === "executed" ? "success" :
-                     d.status === "skipped" || d.status === "rejected" ? "warning" :
-                     d.status === "pending" || d.status === "pending_execution" ? "pending" :
-                     d.status === "failed" ? "error" : "info";
+      const status =
+        d.status === "filled" || d.status === "executed"
+          ? "success"
+          : d.status === "skipped" || d.status === "rejected"
+            ? "warning"
+            : d.status === "pending" || d.status === "pending_execution"
+              ? "pending"
+              : d.status === "failed"
+                ? "error"
+                : "info";
 
-      const subtitle = d.action === "hold" ? "No action taken" :
-                       d.skipReason ? `Skipped: ${d.skipReason}` :
-                       `${d.action.toUpperCase()} ${d.symbol}`;
+      const subtitle =
+        d.action === "hold"
+          ? "No action taken"
+          : d.skipReason
+            ? `Skipped: ${d.skipReason}`
+            : `${d.action.toUpperCase()} ${d.symbol}`;
 
       events.push({
         id: `decision-${d.id}`,
         ts: new Date(d.createdAt).toISOString(),
         category: "decision",
         title: `AI Decision: ${d.action.toUpperCase()} ${d.symbol}`,
-        subtitle: d.confidence ? `Confidence: ${(parseFloat(d.confidence) * 100).toFixed(0)}%` : null,
+        subtitle: d.confidence
+          ? `Confidence: ${(parseFloat(d.confidence) * 100).toFixed(0)}%`
+          : null,
         status,
         entityLinks: {
           decisionId: d.id,
@@ -92,14 +111,19 @@ router.get("/timeline", async (req: Request, res: Response) => {
 
     // Add broker order events
     for (const o of brokerOrders) {
-      const status = o.status === "filled" ? "success" :
-                     o.status === "canceled" || o.status === "expired" ? "warning" :
-                     o.status === "rejected" ? "error" :
-                     "pending";
+      const status =
+        o.status === "filled"
+          ? "success"
+          : o.status === "canceled" || o.status === "expired"
+            ? "warning"
+            : o.status === "rejected"
+              ? "error"
+              : "pending";
 
-      const filledInfo = o.filled_qty && parseFloat(o.filled_qty) > 0
-        ? `${o.filled_qty} @ $${parseFloat(o.filled_avg_price || "0").toFixed(2)}`
-        : `${o.qty} shares`;
+      const filledInfo =
+        o.filled_qty && parseFloat(o.filled_qty) > 0
+          ? `${o.filled_qty} @ $${parseFloat(o.filled_avg_price || "0").toFixed(2)}`
+          : `${o.qty} shares`;
 
       events.push({
         id: `order-${o.id}`,
@@ -132,10 +156,14 @@ router.get("/timeline", async (req: Request, res: Response) => {
     // Add trade fill events from database (for historical fills)
     for (const t of trades) {
       // Skip if we already have an order event for this
-      const matchingOrder = brokerOrders.find(o =>
-        o.symbol === t.symbol &&
-        o.status === "filled" &&
-        Math.abs(new Date(o.filled_at || 0).getTime() - new Date(t.executedAt).getTime()) < 60000
+      const matchingOrder = brokerOrders.find(
+        (o) =>
+          o.symbol === t.symbol &&
+          o.status === "filled" &&
+          Math.abs(
+            new Date(o.filled_at || 0).getTime() -
+              new Date(t.executedAt).getTime()
+          ) < 60000
       );
       if (matchingOrder) continue;
 
@@ -169,22 +197,26 @@ router.get("/timeline", async (req: Request, res: Response) => {
     // Filter by category if specified
     let filteredEvents = events;
     if (categoryFilter && categoryFilter !== "all") {
-      filteredEvents = events.filter(e => e.category === categoryFilter);
+      filteredEvents = events.filter((e) => e.category === categoryFilter);
     }
 
     // Sort by timestamp descending
-    filteredEvents.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    filteredEvents.sort(
+      (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()
+    );
 
     // Apply cursor-based pagination
     let startIdx = 0;
     if (cursor) {
-      const cursorIdx = filteredEvents.findIndex(e => e.id === cursor);
+      const cursorIdx = filteredEvents.findIndex((e) => e.id === cursor);
       if (cursorIdx >= 0) startIdx = cursorIdx + 1;
     }
 
     const paginatedEvents = filteredEvents.slice(startIdx, startIdx + limit);
     const hasMore = startIdx + limit < filteredEvents.length;
-    const nextCursor = hasMore ? paginatedEvents[paginatedEvents.length - 1]?.id : null;
+    const nextCursor = hasMore
+      ? paginatedEvents[paginatedEvents.length - 1]?.id
+      : null;
 
     res.json({
       events: paginatedEvents,

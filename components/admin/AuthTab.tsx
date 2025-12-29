@@ -1,7 +1,13 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface AuthTabProps {
@@ -17,7 +23,10 @@ export function AuthTab({ formData, updateField }: AuthTabProps) {
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
         <Label htmlFor="authMethod">Authentication Method</Label>
-        <Select value={formData.authMethod} onValueChange={(value) => updateField('authMethod', value)}>
+        <Select
+          value={formData.authMethod}
+          onValueChange={(value) => updateField("authMethod", value)}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -39,13 +48,15 @@ export function AuthTab({ formData, updateField }: AuthTabProps) {
           value={JSON.stringify(formData.customHeaders, null, 2)}
           onChange={(e) => {
             try {
-              updateField('customHeaders', JSON.parse(e.target.value));
+              updateField("customHeaders", JSON.parse(e.target.value));
             } catch {}
           }}
           placeholder='{"X-Custom-Header": "value"}'
           rows={4}
         />
-        <p className="text-xs text-muted-foreground">JSON object with custom header key-value pairs</p>
+        <p className="text-xs text-muted-foreground">
+          JSON object with custom header key-value pairs
+        </p>
       </div>
     </div>
   );

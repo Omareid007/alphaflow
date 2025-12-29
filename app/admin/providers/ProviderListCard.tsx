@@ -12,7 +12,7 @@ interface ProviderListCardProps {
 export function ProviderListCard({
   providers,
   selectedProvider,
-  onSelectProvider
+  onSelectProvider,
 }: ProviderListCardProps) {
   return (
     <Card>
@@ -20,7 +20,7 @@ export function ProviderListCard({
         <CardTitle className="text-lg">Providers</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {providers.map(provider => (
+        {providers.map((provider) => (
           <button
             key={provider.id}
             onClick={() => onSelectProvider(provider)}
@@ -38,7 +38,7 @@ export function ProviderListCard({
             <Badge
               variant="secondary"
               className={
-                provider.status === 'active'
+                provider.status === "active"
                   ? "bg-success/10 text-success"
                   : "bg-destructive/10 text-destructive"
               }

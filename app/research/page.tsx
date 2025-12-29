@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useWatchlists, useAddToWatchlist, useRemoveFromWatchlist, useMarketQuotes } from "@/lib/api/hooks";
+import {
+  useWatchlists,
+  useAddToWatchlist,
+  useRemoveFromWatchlist,
+  useMarketQuotes,
+} from "@/lib/api/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Star } from "lucide-react";
@@ -13,22 +18,22 @@ import { SummaryStatsCards } from "./SummaryStatsCards";
 
 // Symbol metadata (names only, prices fetched from API)
 const symbolMetadata: Record<string, string> = {
-  "AAPL": "Apple Inc",
-  "MSFT": "Microsoft Corp",
-  "GOOGL": "Alphabet Inc",
-  "AMZN": "Amazon.com Inc",
-  "NVDA": "NVIDIA Corp",
-  "TSLA": "Tesla Inc",
-  "META": "Meta Platforms",
-  "JPM": "JPMorgan Chase",
-  "V": "Visa Inc",
-  "JNJ": "Johnson & Johnson",
-  "WMT": "Walmart Inc",
-  "PG": "Procter & Gamble",
-  "SPY": "S&P 500 ETF",
-  "QQQ": "Nasdaq 100 ETF",
+  AAPL: "Apple Inc",
+  MSFT: "Microsoft Corp",
+  GOOGL: "Alphabet Inc",
+  AMZN: "Amazon.com Inc",
+  NVDA: "NVIDIA Corp",
+  TSLA: "Tesla Inc",
+  META: "Meta Platforms",
+  JPM: "JPMorgan Chase",
+  V: "Visa Inc",
+  JNJ: "Johnson & Johnson",
+  WMT: "Walmart Inc",
+  PG: "Procter & Gamble",
+  SPY: "S&P 500 ETF",
+  QQQ: "Nasdaq 100 ETF",
   "BTC/USD": "Bitcoin",
-  "ETH/USD": "Ethereum"
+  "ETH/USD": "Ethereum",
 };
 
 const defaultSymbols = Object.keys(symbolMetadata);
@@ -47,8 +52,8 @@ export default function ResearchPage() {
 
   // Build availableSymbols with real-time prices
   const availableSymbols = useMemo(() => {
-    return defaultSymbols.map(symbol => {
-      const quote = quotes.find(q => q.symbol === symbol);
+    return defaultSymbols.map((symbol) => {
+      const quote = quotes.find((q) => q.symbol === symbol);
       return {
         symbol,
         name: symbolMetadata[symbol] || symbol,
@@ -66,17 +71,22 @@ export default function ResearchPage() {
     }
   }, [watchlists, activeWatchlist]);
 
-  const currentWatchlist = watchlists.find(w => w.id === activeWatchlist);
+  const currentWatchlist = watchlists.find((w) => w.id === activeWatchlist);
 
-  const filteredItems = currentWatchlist?.items.filter(item =>
-    item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredItems =
+    currentWatchlist?.items.filter(
+      (item) =>
+        item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
 
   const handleAddSymbol = async (symbol: string) => {
     if (!activeWatchlist) return;
     try {
-      await addToWatchlist.mutateAsync({ watchlistId: activeWatchlist, symbol });
+      await addToWatchlist.mutateAsync({
+        watchlistId: activeWatchlist,
+        symbol,
+      });
       toast.success(`${symbol} added to watchlist`);
       setAddDialogOpen(false);
     } catch (error) {
@@ -87,7 +97,10 @@ export default function ResearchPage() {
   const handleRemoveSymbol = async (symbol: string) => {
     if (!activeWatchlist) return;
     try {
-      await removeFromWatchlist.mutateAsync({ watchlistId: activeWatchlist, symbol });
+      await removeFromWatchlist.mutateAsync({
+        watchlistId: activeWatchlist,
+        symbol,
+      });
       toast.success(`${symbol} removed from watchlist`);
     } catch (error) {
       toast.error(`Failed to remove ${symbol} from watchlist`);
@@ -102,8 +115,10 @@ export default function ResearchPage() {
     );
   }
 
-  const symbolsInWatchlist = currentWatchlist?.items.map(i => i.symbol) || [];
-  const availableToAdd = availableSymbols.filter(s => !symbolsInWatchlist.includes(s.symbol));
+  const symbolsInWatchlist = currentWatchlist?.items.map((i) => i.symbol) || [];
+  const availableToAdd = availableSymbols.filter(
+    (s) => !symbolsInWatchlist.includes(s.symbol)
+  );
 
   return (
     <div className="space-y-6">
@@ -117,7 +132,7 @@ export default function ResearchPage() {
       <Tabs value={activeWatchlist || ""} onValueChange={setActiveWatchlist}>
         <div className="flex items-center justify-between">
           <TabsList>
-            {watchlists.map(wl => (
+            {watchlists.map((wl) => (
               <TabsTrigger key={wl.id} value={wl.id}>
                 <Star className="mr-2 h-4 w-4" />
                 {wl.name}
@@ -126,10 +141,7 @@ export default function ResearchPage() {
           </TabsList>
 
           <div className="flex items-center gap-3">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-            />
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
             <AddSymbolDialog
               open={addDialogOpen}
               onOpenChange={setAddDialogOpen}
@@ -139,7 +151,7 @@ export default function ResearchPage() {
           </div>
         </div>
 
-        {watchlists.map(wl => (
+        {watchlists.map((wl) => (
           <TabsContent key={wl.id} value={wl.id} className="mt-6">
             <Card>
               <CardHeader>
@@ -154,7 +166,9 @@ export default function ResearchPage() {
                 {filteredItems.length === 0 ? (
                   <div className="py-12 text-center">
                     <p className="text-muted-foreground">
-                      {searchQuery ? "No symbols match your search" : "No symbols in this watchlist"}
+                      {searchQuery
+                        ? "No symbols match your search"
+                        : "No symbols in this watchlist"}
                     </p>
                   </div>
                 ) : (

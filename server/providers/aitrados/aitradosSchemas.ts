@@ -19,11 +19,13 @@ export const OhlcBarSchema = z.object({
 });
 
 export const OhlcLatestResponseSchema = AitradosBaseResponseSchema.extend({
-  result: z.object({
-    symbol: z.string().optional(),
-    interval: z.string().optional(),
-    data: z.array(OhlcBarSchema).optional(),
-  }).optional(),
+  result: z
+    .object({
+      symbol: z.string().optional(),
+      interval: z.string().optional(),
+      data: z.array(OhlcBarSchema).optional(),
+    })
+    .optional(),
 });
 
 export const NewsItemSchema = z.object({
@@ -41,12 +43,14 @@ export const NewsItemSchema = z.object({
 });
 
 export const NewsListResponseSchema = AitradosBaseResponseSchema.extend({
-  result: z.object({
-    next_page_key: z.string().optional(),
-    next_page_url: z.string().optional(),
-    count: z.number().optional(),
-    data: z.array(NewsItemSchema).optional(),
-  }).optional(),
+  result: z
+    .object({
+      next_page_key: z.string().optional(),
+      next_page_url: z.string().optional(),
+      count: z.number().optional(),
+      data: z.array(NewsItemSchema).optional(),
+    })
+    .optional(),
 });
 
 export const EconomicEventSchema = z.object({
@@ -64,22 +68,28 @@ export const EconomicEventSchema = z.object({
 });
 
 export const EconomicEventResponseSchema = AitradosBaseResponseSchema.extend({
-  result: z.object({
-    next_page_key: z.string().optional(),
-    next_page_url: z.string().optional(),
-    count: z.number().optional(),
-    data: z.array(EconomicEventSchema).optional(),
-  }).optional(),
+  result: z
+    .object({
+      next_page_key: z.string().optional(),
+      next_page_url: z.string().optional(),
+      count: z.number().optional(),
+      data: z.array(EconomicEventSchema).optional(),
+    })
+    .optional(),
 });
 
 export const AitradosErrorSchema = z.object({
   status: z.string(),
   code: z.number(),
   message: z.string(),
-  detail: z.array(z.object({
-    field: z.string(),
-    message: z.string(),
-  })).optional(),
+  detail: z
+    .array(
+      z.object({
+        field: z.string(),
+        message: z.string(),
+      })
+    )
+    .optional(),
 });
 
 export type OhlcBar = z.infer<typeof OhlcBarSchema>;

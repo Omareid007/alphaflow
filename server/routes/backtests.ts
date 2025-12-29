@@ -1,7 +1,15 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { backtestRuns, backtestTradeEvents, backtestEquityCurve } from "@shared/schema";
-import { runBacktest, getBacktestRun, listBacktestRuns } from "../services/backtesting";
+import {
+  backtestRuns,
+  backtestTradeEvents,
+  backtestEquityCurve,
+} from "@shared/schema";
+import {
+  runBacktest,
+  getBacktestRun,
+  listBacktestRuns,
+} from "../services/backtesting";
 import { eq, desc } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { sanitizeArray } from "../lib/sanitization";
@@ -22,29 +30,43 @@ router.post("/run", async (req: Request, res: Response) => {
       slippageModel = { type: "bps", value: 5 },
       executionPriceRule = "NEXT_OPEN",
       strategyType = "moving_average_crossover",
-      strategyParams = {}
+      strategyParams = {},
     } = req.body;
 
     // Allow universe to be optional, but provide helpful validation
     if (universe && !Array.isArray(universe)) {
-      return res.status(400).json({ error: "universe must be an array of symbols" });
+      return res
+        .status(400)
+        .json({ error: "universe must be an array of symbols" });
     }
 
     // If universe is not provided or empty, use a default set of popular symbols
     const defaultUniverse = ["SPY", "QQQ", "AAPL"];
-    const backtestUniverse = (universe && universe.length > 0) ? universe : defaultUniverse;
+    const backtestUniverse =
+      universe && universe.length > 0 ? universe : defaultUniverse;
 
     if (backtestUniverse.length === 0) {
-      return res.status(400).json({ error: "universe must contain at least one symbol. Default symbols: SPY, QQQ, AAPL" });
+      return res
+        .status(400)
+        .json({
+          error:
+            "universe must contain at least one symbol. Default symbols: SPY, QQQ, AAPL",
+        });
     }
     if (!startDate || !endDate) {
-      return res.status(400).json({ error: "startDate and endDate are required" });
+      return res
+        .status(400)
+        .json({ error: "startDate and endDate are required" });
     }
 
-    const validStrategyTypes = ['moving_average_crossover', 'rsi_oscillator', 'buy_and_hold'];
+    const validStrategyTypes = [
+      "moving_average_crossover",
+      "rsi_oscillator",
+      "buy_and_hold",
+    ];
     if (strategyType && !validStrategyTypes.includes(strategyType)) {
       return res.status(400).json({
-        error: `Invalid strategyType. Must be one of: ${validStrategyTypes.join(', ')}`
+        error: `Invalid strategyType. Must be one of: ${validStrategyTypes.join(", ")}`,
       });
     }
 
@@ -70,14 +92,16 @@ router.post("/run", async (req: Request, res: Response) => {
         oversoldThreshold: strategyParams.oversoldThreshold || 30,
         overboughtThreshold: strategyParams.overboughtThreshold || 70,
         allocationPct: strategyParams.allocationPct || 10,
-        ...strategyParams
-      }
+        ...strategyParams,
+      },
     });
 
     res.json(result);
   } catch (error) {
     log.error("BacktestAPI", `Failed to run backtest: ${error}`);
-    res.status(500).json({ error: (error as Error).message || "Failed to run backtest" });
+    res
+      .status(500)
+      .json({ error: (error as Error).message || "Failed to run backtest" });
   }
 });
 
@@ -108,17 +132,19 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.get("/:id/equity-curve", async (req: Request, res: Response) => {
   try {
-    const points = await db.select().from(backtestEquityCurve)
+    const points = await db
+      .select()
+      .from(backtestEquityCurve)
       .where(eq(backtestEquityCurve.runId, req.params.id))
       .orderBy(backtestEquityCurve.ts);
-    
-    const formattedPoints = points.map(p => ({
+
+    const formattedPoints = points.map((p) => ({
       ts: p.ts.toISOString(),
       equity: parseFloat(p.equity),
       cash: parseFloat(p.cash),
       exposure: parseFloat(p.exposure),
     }));
-    
+
     res.json({ points: formattedPoints });
   } catch (error) {
     log.error("BacktestAPI", `Failed to get equity curve: ${error}`);
@@ -128,11 +154,13 @@ router.get("/:id/equity-curve", async (req: Request, res: Response) => {
 
 router.get("/:id/trades", async (req: Request, res: Response) => {
   try {
-    const trades = await db.select().from(backtestTradeEvents)
+    const trades = await db
+      .select()
+      .from(backtestTradeEvents)
       .where(eq(backtestTradeEvents.runId, req.params.id))
       .orderBy(backtestTradeEvents.ts);
-    
-    const formattedTrades = trades.map(t => ({
+
+    const formattedTrades = trades.map((t) => ({
       id: t.id,
       runId: t.runId,
       ts: t.ts.toISOString(),
@@ -147,7 +175,7 @@ router.get("/:id/trades", async (req: Request, res: Response) => {
       positionAfter: parseFloat(t.positionAfter),
       cashAfter: parseFloat(t.cashAfter),
     }));
-    
+
     res.json({ trades: formattedTrades });
   } catch (error) {
     log.error("BacktestAPI", `Failed to get trades: ${error}`);

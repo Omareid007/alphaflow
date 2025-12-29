@@ -21,13 +21,18 @@ const router = Router();
  */
 const redactWebhook = (webhook: WebhookConfig) => ({
   ...webhook,
-  secret: webhook.secret ? '***REDACTED***' : undefined,
-  headers: webhook.headers ? Object.fromEntries(
-    Object.entries(webhook.headers).map(([k, v]) =>
-      k.toLowerCase().includes('auth') || k.toLowerCase().includes('token') || k.toLowerCase().includes('key')
-        ? [k, '***REDACTED***'] : [k, v]
-    )
-  ) : undefined,
+  secret: webhook.secret ? "***REDACTED***" : undefined,
+  headers: webhook.headers
+    ? Object.fromEntries(
+        Object.entries(webhook.headers).map(([k, v]) =>
+          k.toLowerCase().includes("auth") ||
+          k.toLowerCase().includes("token") ||
+          k.toLowerCase().includes("key")
+            ? [k, "***REDACTED***"]
+            : [k, v]
+        )
+      )
+    : undefined,
 });
 
 /**
@@ -61,8 +66,10 @@ router.post("/", (req: Request, res: Response) => {
     }
 
     // Enforce HTTPS in production
-    if (!url.startsWith('https://') && process.env.NODE_ENV === 'production') {
-      return res.status(400).json({ error: "Webhook URL must use HTTPS in production" });
+    if (!url.startsWith("https://") && process.env.NODE_ENV === "production") {
+      return res
+        .status(400)
+        .json({ error: "Webhook URL must use HTTPS in production" });
     }
 
     // Create webhook configuration
@@ -71,7 +78,7 @@ router.post("/", (req: Request, res: Response) => {
       id,
       name,
       url,
-      eventTypes: eventTypes || ['*'],
+      eventTypes: eventTypes || ["*"],
       enabled: enabled !== false,
       headers,
       secret,
@@ -135,7 +142,7 @@ router.post("/test", async (req: Request, res: Response) => {
   try {
     const { eventType, payload } = req.body;
     const results = await emitEvent(
-      eventType || 'system.test',
+      eventType || "system.test",
       payload || { test: true, timestamp: new Date().toISOString() }
     );
     res.json({ deliveries: results.length, results });

@@ -9,21 +9,25 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     const sessionId = req.cookies?.session;
 
     if (!sessionId) {
-      log.warn("Auth", "No session cookie found for request:", { path: req.path });
+      log.warn("Auth", "No session cookie found for request:", {
+        path: req.path,
+      });
       return res.status(401).json({
         error: "Not authenticated",
         code: "NO_SESSION",
-        message: "Please log in to access this resource"
+        message: "Please log in to access this resource",
       });
     }
 
     const session = await getSession(sessionId);
     if (!session) {
-      log.warn("Auth", "Session expired or invalid:", { sessionId: sessionId.substring(0, 8) + '...' });
+      log.warn("Auth", "Session expired or invalid:", {
+        sessionId: sessionId.substring(0, 8) + "...",
+      });
       return res.status(401).json({
         error: "Session expired",
         code: "SESSION_EXPIRED",
-        message: "Your session has expired. Please log in again."
+        message: "Your session has expired. Please log in again.",
       });
     }
 
@@ -33,7 +37,7 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     log.error("Auth", "Authentication error:", { error });
     res.status(500).json({
       error: "Authentication failed",
-      code: "AUTH_ERROR"
+      code: "AUTH_ERROR",
     });
   }
 }
@@ -41,23 +45,34 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
 export function registerPortfolioTradingRoutes(app: Express) {
   app.post("/api/strategy-config", authMiddleware, async (req, res) => {
     try {
-      const { normalizeMovingAverageConfig } = await import("../strategies/moving-average-crossover");
+      const { normalizeMovingAverageConfig } =
+        await import("../strategies/moving-average-crossover");
       const config = normalizeMovingAverageConfig(req.body);
       res.json(config);
     } catch (error) {
-      log.error("Routes", "Failed to normalize strategy config", { error: error });
-      res.status(500).json({ error: (error as Error).message || "Failed to normalize config" });
+      log.error("Routes", "Failed to normalize strategy config", {
+        error: error,
+      });
+      res
+        .status(500)
+        .json({
+          error: (error as Error).message || "Failed to normalize config",
+        });
     }
   });
 
   app.post("/api/strategy-validate", authMiddleware, async (req, res) => {
     try {
-      const { normalizeMovingAverageConfig } = await import("../strategies/moving-average-crossover");
-      const { validateMovingAverageConfig, getValidatorStatus } = await import("../ai/ai-strategy-validator");
+      const { normalizeMovingAverageConfig } =
+        await import("../strategies/moving-average-crossover");
+      const { validateMovingAverageConfig, getValidatorStatus } =
+        await import("../ai/ai-strategy-validator");
 
       const status = getValidatorStatus();
       if (!status.available) {
-        return res.status(503).json({ error: "AI validation service is not available" });
+        return res
+          .status(503)
+          .json({ error: "AI validation service is not available" });
       }
 
       const config = normalizeMovingAverageConfig(req.body.config || req.body);
@@ -65,10 +80,13 @@ export function registerPortfolioTradingRoutes(app: Express) {
       res.json(result);
     } catch (error) {
       log.error("Routes", "Failed to validate strategy", { error: error });
-      res.status(500).json({ error: (error as Error).message || "Failed to validate strategy" });
+      res
+        .status(500)
+        .json({
+          error: (error as Error).message || "Failed to validate strategy",
+        });
     }
   });
-
 
   // Portfolio snapshot endpoint for Next.js dashboard (MUST be before /api/positions/:id)
 
@@ -86,8 +104,13 @@ export function registerPortfolioTradingRoutes(app: Express) {
       // Calculate metrics
       const totalEquity = parseFloat(account.equity);
       const totalCash = parseFloat(account.cash);
-      const todayPnL = parseFloat(account.equity) - parseFloat(account.last_equity);
-      const totalPositionValue = positions.reduce((sum, pos) => sum + (parseFloat(pos.currentPrice || "0") * parseFloat(pos.quantity)), 0);
+      const todayPnL =
+        parseFloat(account.equity) - parseFloat(account.last_equity);
+      const totalPositionValue = positions.reduce(
+        (sum, pos) =>
+          sum + parseFloat(pos.currentPrice || "0") * parseFloat(pos.quantity),
+        0
+      );
 
       res.json({
         totalEquity,
@@ -118,12 +141,13 @@ export function registerPortfolioTradingRoutes(app: Express) {
 
       // Filter for high-confidence buy/sell signals that haven't been executed
       const candidates = recentDecisions
-        .filter(d =>
-          (d.action === 'buy' || d.action === 'sell') &&
-          d.status === 'pending' &&
-          parseFloat(d.confidence || "0") >= 0.6
+        .filter(
+          (d) =>
+            (d.action === "buy" || d.action === "sell") &&
+            d.status === "pending" &&
+            parseFloat(d.confidence || "0") >= 0.6
         )
-        .map(d => ({
+        .map((d) => ({
           symbol: d.symbol,
           action: d.action,
           confidence: d.confidence,

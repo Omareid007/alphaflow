@@ -66,7 +66,11 @@ export interface NormalizedEconomicEvent {
   source_provider: "aitrados";
 }
 
-function normalizeOhlc(response: OhlcLatestResponse, symbol: string, interval: string): NormalizedOhlcData {
+function normalizeOhlc(
+  response: OhlcLatestResponse,
+  symbol: string,
+  interval: string
+): NormalizedOhlcData {
   const bar = response.result?.data?.[0];
   if (!bar) {
     return {
@@ -80,11 +84,13 @@ function normalizeOhlc(response: OhlcLatestResponse, symbol: string, interval: s
       source: "aitrados",
     };
   }
-  
+
   return {
     symbol: response.result?.symbol || symbol,
     interval: response.result?.interval || interval,
-    timestamp: bar.timestamp || (bar.datetime ? new Date(bar.datetime).getTime() : Date.now()),
+    timestamp:
+      bar.timestamp ||
+      (bar.datetime ? new Date(bar.datetime).getTime() : Date.now()),
     open: bar.open,
     high: bar.high,
     low: bar.low,
@@ -102,21 +108,31 @@ function normalizeNews(items: NewsItem[]): NormalizedNewsData[] {
     source: item.publisher,
     publishedAt: new Date(item.published_date),
     symbols: item.symbol ? [item.symbol] : [],
-    sentiment: item.sentiment_score !== null || item.sentiment_label !== null ? {
-      score: item.sentiment_score,
-      label: item.sentiment_label as "positive" | "negative" | "neutral" | null,
-    } : undefined,
+    sentiment:
+      item.sentiment_score !== null || item.sentiment_label !== null
+        ? {
+            score: item.sentiment_score,
+            label: item.sentiment_label as
+              | "positive"
+              | "negative"
+              | "neutral"
+              | null,
+          }
+        : undefined,
     source_provider: "aitrados" as const,
   }));
 }
 
-function normalizeEconomicEvent(event: EconomicEvent, index: number): NormalizedEconomicEvent {
+function normalizeEconomicEvent(
+  event: EconomicEvent,
+  index: number
+): NormalizedEconomicEvent {
   const importanceMap: Record<string, "low" | "medium" | "high"> = {
     low: "low",
     medium: "medium",
     high: "high",
   };
-  
+
   return {
     id: event.event_id || `aitrados-event-${index}`,
     name: event.event_name || "Unknown Event",
@@ -125,7 +141,9 @@ function normalizeEconomicEvent(event: EconomicEvent, index: number): Normalized
     actual: event.actual,
     forecast: event.forecast,
     previous: event.previous,
-    importance: event.importance ? importanceMap[event.importance.toLowerCase()] : undefined,
+    importance: event.importance
+      ? importanceMap[event.importance.toLowerCase()]
+      : undefined,
     source_provider: "aitrados" as const,
   };
 }
@@ -134,7 +152,11 @@ export async function getLatestOhlc(
   symbol: string,
   interval: OhlcLatestParams["interval"] = "DAY",
   schemaAsset: OhlcLatestParams["schemaAsset"] = "stock"
-): Promise<{ raw: OhlcLatestResponse; normalized: NormalizedOhlcData; provenance: unknown }> {
+): Promise<{
+  raw: OhlcLatestResponse;
+  normalized: NormalizedOhlcData;
+  provenance: unknown;
+}> {
   if (!isAitradosEnabled()) {
     throw new Error("AiTrados provider is disabled");
   }
@@ -154,7 +176,11 @@ export async function getLatestOhlc(
 
 export async function getNewsList(
   params: NewsListParams = {}
-): Promise<{ raw: NewsListResponse; normalized: NormalizedNewsData[]; provenance: unknown }> {
+): Promise<{
+  raw: NewsListResponse;
+  normalized: NormalizedNewsData[];
+  provenance: unknown;
+}> {
   if (!isAitradosEnabled()) {
     throw new Error("AiTrados provider is disabled");
   }
@@ -165,7 +191,7 @@ export async function getNewsList(
   });
 
   const items = result.data.result?.data || [];
-  
+
   return {
     raw: result.data,
     normalized: normalizeNews(items),
@@ -175,7 +201,11 @@ export async function getNewsList(
 
 export async function getEconomicEvents(
   params: EconomicEventParams = {}
-): Promise<{ raw: EconomicEventResponse; normalized: NormalizedEconomicEvent[]; provenance: unknown }> {
+): Promise<{
+  raw: EconomicEventResponse;
+  normalized: NormalizedEconomicEvent[];
+  provenance: unknown;
+}> {
   if (!isAitradosEnabled()) {
     throw new Error("AiTrados provider is disabled");
   }
@@ -183,7 +213,7 @@ export async function getEconomicEvents(
   const result = await fetchEconomicEvent(params);
 
   const events = result.data.result?.data || [];
-  
+
   return {
     raw: result.data,
     normalized: events.map((e, i) => normalizeEconomicEvent(e, i)),
@@ -213,7 +243,7 @@ export async function testConnection(): Promise<{
   }
 
   const startTime = Date.now();
-  
+
   try {
     await fetchNewsList({ limit: 1 });
     return {

@@ -1,15 +1,15 @@
 /**
  * Valyu.ai Connector - AI-native financial data API
- * 
+ *
  * Natural language queries for structured financial data:
  * - Earnings data (quarterly & annual EPS, revenue, net income)
  * - Financial ratios (P/E, ROE, debt/equity, revenue growth)
  * - Balance sheets, income statements, cash flow statements
  * - SEC filings (10-K, 10-Q, 8-K in markdown)
  * - Insider trading data
- * 
+ *
  * Pricing: Per retrieval (result count), not per request
- * 
+ *
  * @see docs/CONNECTORS_AND_INTEGRATIONS.md
  * @see docs/API_BUDGETING_AND_CACHING.md#valyu-retrieval-based-budgeting
  */
@@ -198,8 +198,9 @@ class ValyuConnector {
     }
 
     const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
-    const maxPrice = options.maxPrice ?? 0.10;
-    const relevanceThreshold = options.relevanceThreshold ?? DEFAULT_RELEVANCE_THRESHOLD;
+    const maxPrice = options.maxPrice ?? 0.1;
+    const relevanceThreshold =
+      options.relevanceThreshold ?? DEFAULT_RELEVANCE_THRESHOLD;
 
     const cacheKey = buildCacheKey(
       "valyu",
@@ -288,8 +289,8 @@ class ValyuConnector {
       }
     );
 
-    const content = response.results.map(r => r.content).join("\n");
-    
+    const content = response.results.map((r) => r.content).join("\n");
+
     const data: EarningsData = {
       symbol,
       rawData: content,
@@ -298,7 +299,9 @@ class ValyuConnector {
     const epsMatch = content.match(/EPS[:\s]*\$?([\d.]+)/i);
     if (epsMatch) data.eps = parseFloat(epsMatch[1]);
 
-    const revenueMatch = content.match(/revenue[:\s]*\$?([\d.]+)\s*(billion|million)?/i);
+    const revenueMatch = content.match(
+      /revenue[:\s]*\$?([\d.]+)\s*(billion|million)?/i
+    );
     if (revenueMatch) {
       let revenue = parseFloat(revenueMatch[1]);
       if (revenueMatch[2]?.toLowerCase() === "billion") revenue *= 1e9;
@@ -325,8 +328,8 @@ class ValyuConnector {
       }
     );
 
-    const content = response.results.map(r => r.content).join("\n");
-    
+    const content = response.results.map((r) => r.content).join("\n");
+
     const data: FinancialRatios = {
       symbol,
       rawData: content,
@@ -422,27 +425,49 @@ class ValyuConnector {
       rawData: content,
     };
 
-    const assetsMatch = content.match(/total\s*assets[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const assetsMatch = content.match(
+      /total\s*assets[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (assetsMatch) {
-      data.totalAssets = this.parseFinancialValue(assetsMatch[1], assetsMatch[2]);
+      data.totalAssets = this.parseFinancialValue(
+        assetsMatch[1],
+        assetsMatch[2]
+      );
     }
 
-    const liabilitiesMatch = content.match(/total\s*liabilities[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const liabilitiesMatch = content.match(
+      /total\s*liabilities[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (liabilitiesMatch) {
-      data.totalLiabilities = this.parseFinancialValue(liabilitiesMatch[1], liabilitiesMatch[2]);
+      data.totalLiabilities = this.parseFinancialValue(
+        liabilitiesMatch[1],
+        liabilitiesMatch[2]
+      );
     }
 
-    const equityMatch = content.match(/(?:total\s*)?(?:shareholders?[']?\s*)?equity[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const equityMatch = content.match(
+      /(?:total\s*)?(?:shareholders?[']?\s*)?equity[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (equityMatch) {
-      data.totalEquity = this.parseFinancialValue(equityMatch[1], equityMatch[2]);
+      data.totalEquity = this.parseFinancialValue(
+        equityMatch[1],
+        equityMatch[2]
+      );
     }
 
-    const cashMatch = content.match(/cash\s*(?:and\s*)?(?:equivalents)?[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const cashMatch = content.match(
+      /cash\s*(?:and\s*)?(?:equivalents)?[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (cashMatch) {
-      data.cashAndEquivalents = this.parseFinancialValue(cashMatch[1], cashMatch[2]);
+      data.cashAndEquivalents = this.parseFinancialValue(
+        cashMatch[1],
+        cashMatch[2]
+      );
     }
 
-    const debtMatch = content.match(/total\s*debt[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const debtMatch = content.match(
+      /total\s*debt[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (debtMatch) {
       data.totalDebt = this.parseFinancialValue(debtMatch[1], debtMatch[2]);
     }
@@ -474,33 +499,52 @@ class ValyuConnector {
       rawData: content,
     };
 
-    const revenueMatch = content.match(/(?:total\s*)?revenue[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const revenueMatch = content.match(
+      /(?:total\s*)?revenue[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (revenueMatch) {
       data.revenue = this.parseFinancialValue(revenueMatch[1], revenueMatch[2]);
     }
 
-    const costMatch = content.match(/cost\s*of\s*(?:goods\s*sold|revenue)[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const costMatch = content.match(
+      /cost\s*of\s*(?:goods\s*sold|revenue)[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (costMatch) {
       data.costOfRevenue = this.parseFinancialValue(costMatch[1], costMatch[2]);
     }
 
-    const grossMatch = content.match(/gross\s*profit[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const grossMatch = content.match(
+      /gross\s*profit[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (grossMatch) {
       data.grossProfit = this.parseFinancialValue(grossMatch[1], grossMatch[2]);
     }
 
-    const opIncomeMatch = content.match(/operating\s*income[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const opIncomeMatch = content.match(
+      /operating\s*income[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (opIncomeMatch) {
-      data.operatingIncome = this.parseFinancialValue(opIncomeMatch[1], opIncomeMatch[2]);
+      data.operatingIncome = this.parseFinancialValue(
+        opIncomeMatch[1],
+        opIncomeMatch[2]
+      );
     }
 
-    const netIncomeMatch = content.match(/net\s*income[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i);
+    const netIncomeMatch = content.match(
+      /net\s*income[:\s]*\$?([\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (netIncomeMatch) {
-      data.netIncome = this.parseFinancialValue(netIncomeMatch[1], netIncomeMatch[2]);
+      data.netIncome = this.parseFinancialValue(
+        netIncomeMatch[1],
+        netIncomeMatch[2]
+      );
     }
 
     this.incomeStatementCache.set(cacheKey, data);
-    log.info("Valyu", "Income statement fetched", { symbol, hasData: !!content });
+    log.info("Valyu", "Income statement fetched", {
+      symbol,
+      hasData: !!content,
+    });
     return data;
   }
 
@@ -526,24 +570,44 @@ class ValyuConnector {
       rawData: content,
     };
 
-    const opCashMatch = content.match(/(?:net\s*)?(?:cash\s*from\s*)?operating\s*(?:activities|cash\s*flow)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i);
+    const opCashMatch = content.match(
+      /(?:net\s*)?(?:cash\s*from\s*)?operating\s*(?:activities|cash\s*flow)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (opCashMatch) {
-      data.operatingCashFlow = this.parseFinancialValue(opCashMatch[1], opCashMatch[2]);
+      data.operatingCashFlow = this.parseFinancialValue(
+        opCashMatch[1],
+        opCashMatch[2]
+      );
     }
 
-    const invCashMatch = content.match(/(?:net\s*)?(?:cash\s*from\s*)?investing\s*(?:activities)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i);
+    const invCashMatch = content.match(
+      /(?:net\s*)?(?:cash\s*from\s*)?investing\s*(?:activities)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (invCashMatch) {
-      data.investingCashFlow = this.parseFinancialValue(invCashMatch[1], invCashMatch[2]);
+      data.investingCashFlow = this.parseFinancialValue(
+        invCashMatch[1],
+        invCashMatch[2]
+      );
     }
 
-    const finCashMatch = content.match(/(?:net\s*)?(?:cash\s*from\s*)?financing\s*(?:activities)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i);
+    const finCashMatch = content.match(
+      /(?:net\s*)?(?:cash\s*from\s*)?financing\s*(?:activities)?[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (finCashMatch) {
-      data.financingCashFlow = this.parseFinancialValue(finCashMatch[1], finCashMatch[2]);
+      data.financingCashFlow = this.parseFinancialValue(
+        finCashMatch[1],
+        finCashMatch[2]
+      );
     }
 
-    const freeCashMatch = content.match(/free\s*cash\s*flow[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i);
+    const freeCashMatch = content.match(
+      /free\s*cash\s*flow[:\s]*\$?([-\d.,]+)\s*(billion|million|B|M)?/i
+    );
     if (freeCashMatch) {
-      data.freeCashFlow = this.parseFinancialValue(freeCashMatch[1], freeCashMatch[2]);
+      data.freeCashFlow = this.parseFinancialValue(
+        freeCashMatch[1],
+        freeCashMatch[2]
+      );
     }
 
     this.cashFlowCache.set(cacheKey, data);
@@ -573,37 +637,50 @@ class ValyuConnector {
       rawData: content,
     };
 
-    const amountMatch = content.match(/dividend\s*(?:amount)?[:\s]*\$?([\d.,]+)/i);
+    const amountMatch = content.match(
+      /dividend\s*(?:amount)?[:\s]*\$?([\d.,]+)/i
+    );
     if (amountMatch) {
       data.dividendAmount = this.parseFinancialValue(amountMatch[1]);
     }
 
     const yieldMatch = content.match(/(?:dividend\s*)?yield[:\s]*([\d.,]+)%?/i);
     if (yieldMatch) {
-      data.dividendYield = parseFloat(yieldMatch[1].replace(/,/g, ''));
+      data.dividendYield = parseFloat(yieldMatch[1].replace(/,/g, ""));
     }
 
-    const exDateMatch = content.match(/ex[- ]?dividend\s*date[:\s]*(\d{4}[-/]\d{2}[-/]\d{2}|\w+\s+\d+,?\s*\d{4})/i);
+    const exDateMatch = content.match(
+      /ex[- ]?dividend\s*date[:\s]*(\d{4}[-/]\d{2}[-/]\d{2}|\w+\s+\d+,?\s*\d{4})/i
+    );
     if (exDateMatch) {
       data.exDividendDate = exDateMatch[1];
     }
 
-    const payDateMatch = content.match(/payment\s*date[:\s]*(\d{4}[-/]\d{2}[-/]\d{2}|\w+\s+\d+,?\s*\d{4})/i);
+    const payDateMatch = content.match(
+      /payment\s*date[:\s]*(\d{4}[-/]\d{2}[-/]\d{2}|\w+\s+\d+,?\s*\d{4})/i
+    );
     if (payDateMatch) {
       data.paymentDate = payDateMatch[1];
     }
 
-    const freqMatch = content.match(/(?:dividend\s*)?(?:payment\s*)?frequency[:\s]*(quarterly|monthly|annual|semi-?annual)/i);
+    const freqMatch = content.match(
+      /(?:dividend\s*)?(?:payment\s*)?frequency[:\s]*(quarterly|monthly|annual|semi-?annual)/i
+    );
     if (freqMatch) {
       data.frequency = freqMatch[1].toLowerCase();
     }
 
     this.dividendCache.set(cacheKey, data);
-    log.info("Valyu", "Dividend data fetched", { symbol, yield: data.dividendYield });
+    log.info("Valyu", "Dividend data fetched", {
+      symbol,
+      yield: data.dividendYield,
+    });
     return data;
   }
 
-  async getInsiderTransactions(symbol: string): Promise<InsiderTransactionData> {
+  async getInsiderTransactions(
+    symbol: string
+  ): Promise<InsiderTransactionData> {
     const cacheKey = buildCacheKey("valyu", "insider", symbol);
     const cached = this.insiderCache.get(cacheKey);
     if (cached?.isFresh) {
@@ -738,18 +815,33 @@ class ValyuConnector {
     dividends: DividendData;
     insiderActivity: InsiderTransactionData;
   }> {
-    const [earnings, ratios, balanceSheet, incomeStatement, cashFlow, dividends, insiderActivity] =
-      await Promise.all([
-        this.getEarnings(symbol),
-        this.getFinancialRatios(symbol),
-        this.getBalanceSheet(symbol),
-        this.getIncomeStatement(symbol),
-        this.getCashFlow(symbol),
-        this.getDividends(symbol),
-        this.getInsiderTransactions(symbol),
-      ]);
+    const [
+      earnings,
+      ratios,
+      balanceSheet,
+      incomeStatement,
+      cashFlow,
+      dividends,
+      insiderActivity,
+    ] = await Promise.all([
+      this.getEarnings(symbol),
+      this.getFinancialRatios(symbol),
+      this.getBalanceSheet(symbol),
+      this.getIncomeStatement(symbol),
+      this.getCashFlow(symbol),
+      this.getDividends(symbol),
+      this.getInsiderTransactions(symbol),
+    ]);
 
-    return { earnings, ratios, balanceSheet, incomeStatement, cashFlow, dividends, insiderActivity };
+    return {
+      earnings,
+      ratios,
+      balanceSheet,
+      incomeStatement,
+      cashFlow,
+      dividends,
+      insiderActivity,
+    };
   }
 
   private parseFinancialValue(valueStr: string, unit?: string): number {
@@ -765,7 +857,11 @@ class ValyuConnector {
     return value;
   }
 
-  getConnectionStatus(): { connected: boolean; hasApiKey: boolean; cacheSize: number } {
+  getConnectionStatus(): {
+    connected: boolean;
+    hasApiKey: boolean;
+    cacheSize: number;
+  } {
     return {
       connected: this.isAvailable(),
       hasApiKey: this.isAvailable(),

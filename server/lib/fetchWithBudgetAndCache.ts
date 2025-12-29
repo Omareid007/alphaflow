@@ -45,12 +45,12 @@ async function throttle(provider: string): Promise<void> {
   const policy = getProviderPolicy(provider);
   const lastRequest = throttleState.get(provider) || 0;
   const timeSinceLastRequest = Date.now() - lastRequest;
-  
+
   if (timeSinceLastRequest < policy.minRequestIntervalMs) {
     const waitTime = policy.minRequestIntervalMs - timeSinceLastRequest;
-    await new Promise(resolve => setTimeout(resolve, waitTime));
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
   }
-  
+
   throttleState.set(provider, Date.now());
 }
 
@@ -80,11 +80,11 @@ export async function fetchWithBudgetAndCache<T>(
     if (cached) {
       await recordUsage(provider, { isCacheHit: true });
       onCacheHit?.(cached.data);
-      
+
       log.debug("FetchWithBudget", `Cache hit for ${provider}:${cacheKey}`, {
         isFresh: cached.isFresh,
       });
-      
+
       return {
         data: cached.data,
         fromCache: true,
@@ -101,12 +101,18 @@ export async function fetchWithBudgetAndCache<T>(
         reason: budgetCheck.reason,
         retryAfterMs: budgetCheck.retryAfterMs,
       });
-      
-      onBudgetExhausted?.(budgetCheck.reason || "Budget exhausted", budgetCheck.retryAfterMs);
-      
+
+      onBudgetExhausted?.(
+        budgetCheck.reason || "Budget exhausted",
+        budgetCheck.retryAfterMs
+      );
+
       const staleData = await getFromCache<T>(provider, cacheKey);
       if (staleData) {
-        log.debug("FetchWithBudget", `Serving stale data due to budget for ${provider}:${cacheKey}`);
+        log.debug(
+          "FetchWithBudget",
+          `Serving stale data due to budget for ${provider}:${cacheKey}`
+        );
         return {
           data: staleData.data,
           fromCache: true,
@@ -114,7 +120,7 @@ export async function fetchWithBudgetAndCache<T>(
           latencyMs: Date.now() - startTime,
         };
       }
-      
+
       throw new BudgetExhaustedError(
         provider,
         budgetCheck.reason || "Budget exhausted",
@@ -130,7 +136,7 @@ export async function fetchWithBudgetAndCache<T>(
   let isRateLimited = false;
 
   try {
-    const data = await fetcher() as T;
+    const data = (await fetcher()) as T;
     const latencyMs = Date.now() - fetchStartTime;
 
     await setInCache(provider, cacheKey, data);
@@ -141,9 +147,13 @@ export async function fetchWithBudgetAndCache<T>(
       latencyMs,
     });
 
-    log.debug("FetchWithBudget", `Fetched fresh data for ${provider}:${cacheKey}`, {
-      latencyMs,
-    });
+    log.debug(
+      "FetchWithBudget",
+      `Fetched fresh data for ${provider}:${cacheKey}`,
+      {
+        latencyMs,
+      }
+    );
 
     return {
       data,
@@ -153,9 +163,12 @@ export async function fetchWithBudgetAndCache<T>(
     };
   } catch (error) {
     isError = true;
-    
+
     if (error instanceof Error) {
-      if (error.message.includes("429") || error.message.toLowerCase().includes("rate limit")) {
+      if (
+        error.message.includes("429") ||
+        error.message.toLowerCase().includes("rate limit")
+      ) {
         isRateLimited = true;
       }
     }
@@ -170,9 +183,13 @@ export async function fetchWithBudgetAndCache<T>(
 
     const staleData = await getFromCache<T>(provider, cacheKey);
     if (staleData) {
-      log.warn("FetchWithBudget", `Serving stale data due to error for ${provider}:${cacheKey}`, {
-        error: String(error),
-      });
+      log.warn(
+        "FetchWithBudget",
+        `Serving stale data due to error for ${provider}:${cacheKey}`,
+        {
+          error: String(error),
+        }
+      );
       return {
         data: staleData.data,
         fromCache: true,
@@ -189,18 +206,22 @@ export async function fetchWithBudgetAndCacheMultiple<T>(
   requests: FetchOptions[]
 ): Promise<Map<string, FetchResult<T>>> {
   const results = new Map<string, FetchResult<T>>();
-  
+
   const promises = requests.map(async (request) => {
     try {
       const result = await fetchWithBudgetAndCache<T>(request);
       results.set(request.cacheKey, result);
     } catch (error) {
-      log.warn("FetchWithBudget", `Failed to fetch ${request.provider}:${request.cacheKey}`, {
-        error: String(error),
-      });
+      log.warn(
+        "FetchWithBudget",
+        `Failed to fetch ${request.provider}:${request.cacheKey}`,
+        {
+          error: String(error),
+        }
+      );
     }
   });
-  
+
   await Promise.allSettled(promises);
   return results;
 }
@@ -209,7 +230,9 @@ export function createProviderFetcher(provider: string) {
   return async function <T>(
     cacheKey: string,
     fetcher: () => Promise<T>,
-    options: Partial<Omit<FetchOptions, "provider" | "cacheKey" | "fetcher">> = {}
+    options: Partial<
+      Omit<FetchOptions, "provider" | "cacheKey" | "fetcher">
+    > = {}
   ): Promise<FetchResult<T>> {
     return fetchWithBudgetAndCache<T>({
       provider,

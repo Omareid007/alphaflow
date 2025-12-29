@@ -18,19 +18,19 @@ export default function LlmRouterPage() {
   async function handleDryRun() {
     try {
       const res = await fetch(`/api/admin/llm-router/dry-run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskType, promptLength })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskType, promptLength }),
       });
 
       if (res.ok) {
         const result = await res.json();
         setRoutingResult(result);
       } else {
-        toast.error('Dry run failed');
+        toast.error("Dry run failed");
       }
     } catch (error) {
-      toast.error('Failed to run routing test');
+      toast.error("Failed to run routing test");
     }
   }
 
@@ -57,19 +57,27 @@ export default function LlmRouterPage() {
           <CardContent>
             <div className="space-y-3">
               {[
-                { name: 'GPT-4', context: '8k', cost: 0.03 },
-                { name: 'GPT-3.5 Turbo', context: '16k', cost: 0.001 },
-                { name: 'Claude-3 Opus', context: '200k', cost: 0.015 },
-                { name: 'Llama-2-70B', context: '4k', cost: 0.0007 }
-              ].map(model => (
-                <div key={model.name} className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
+                { name: "GPT-4", context: "8k", cost: 0.03 },
+                { name: "GPT-3.5 Turbo", context: "16k", cost: 0.001 },
+                { name: "Claude-3 Opus", context: "200k", cost: 0.015 },
+                { name: "Llama-2-70B", context: "4k", cost: 0.0007 },
+              ].map((model) => (
+                <div
+                  key={model.name}
+                  className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
+                >
                   <div>
                     <p className="font-medium">{model.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {model.context} context • ${model.cost}/1k tokens
                     </p>
                   </div>
-                  <Badge variant="outline" className="bg-success/10 text-success">Enabled</Badge>
+                  <Badge
+                    variant="outline"
+                    className="bg-success/10 text-success"
+                  >
+                    Enabled
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -108,9 +116,17 @@ export default function LlmRouterPage() {
             {routingResult && (
               <div className="mt-4 space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
                 <p className="text-sm font-medium">Selected Model:</p>
-                <p className="text-lg font-semibold">{routingResult.selectedModel?.modelName || 'GPT-3.5 Turbo'}</p>
-                <p className="text-sm text-muted-foreground">{routingResult.reason || 'Default selection based on cost optimization'}</p>
-                <p className="text-xs text-muted-foreground">Estimated cost: ${routingResult.estimatedCost?.toFixed(5) || '0.00100'}</p>
+                <p className="text-lg font-semibold">
+                  {routingResult.selectedModel?.modelName || "GPT-3.5 Turbo"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {routingResult.reason ||
+                    "Default selection based on cost optimization"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Estimated cost: $
+                  {routingResult.estimatedCost?.toFixed(5) || "0.00100"}
+                </p>
               </div>
             )}
           </CardContent>
@@ -124,14 +140,23 @@ export default function LlmRouterPage() {
         <CardContent>
           <div className="space-y-3">
             {[
-              { name: 'High Priority Analysis', match: 'analysis + premium', model: 'GPT-4' },
-              { name: 'Code Generation', match: 'code + *', model: 'Claude-3' },
-              { name: 'Quick Tasks', match: '* + fast', model: 'GPT-3.5' }
-            ].map(rule => (
-              <div key={rule.name} className="flex items-center justify-between rounded-lg border border-border p-3">
+              {
+                name: "High Priority Analysis",
+                match: "analysis + premium",
+                model: "GPT-4",
+              },
+              { name: "Code Generation", match: "code + *", model: "Claude-3" },
+              { name: "Quick Tasks", match: "* + fast", model: "GPT-3.5" },
+            ].map((rule) => (
+              <div
+                key={rule.name}
+                className="flex items-center justify-between rounded-lg border border-border p-3"
+              >
                 <div>
                   <p className="font-medium">{rule.name}</p>
-                  <p className="text-xs text-muted-foreground">Match: {rule.match} → {rule.model}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Match: {rule.match} → {rule.model}
+                  </p>
                 </div>
                 <Badge variant="outline">Active</Badge>
               </div>

@@ -1,5 +1,10 @@
 import { db } from "../db";
-import { universeFundamentals, universeAssets, type InsertUniverseFundamentals, type UniverseFundamentals } from "@shared/schema";
+import {
+  universeFundamentals,
+  universeAssets,
+  type InsertUniverseFundamentals,
+  type UniverseFundamentals,
+} from "@shared/schema";
 import { finnhub } from "../connectors/finnhub";
 import { eq, sql, and, desc, isNull, isNotNull } from "drizzle-orm";
 import { getSetting } from "../admin/settings";
@@ -27,18 +32,25 @@ export interface FundamentalsComputeResult {
 
 const DEFAULT_SCORE_WEIGHTS = {
   revenueGrowth: 0.35,
-  margins: 0.30,
-  leverage: 0.20,
+  margins: 0.3,
+  leverage: 0.2,
   dilution: 0.15,
 };
 
-function safeParseNumeric(value: string | number | null | undefined): number | null {
+function safeParseNumeric(
+  value: string | number | null | undefined
+): number | null {
   if (value === null || value === undefined) return null;
   const num = typeof value === "string" ? parseFloat(value) : value;
   return isNaN(num) ? null : num;
 }
 
-function normalizeScore(value: number | null, min: number, max: number, invert = false): number {
+function normalizeScore(
+  value: number | null,
+  min: number,
+  max: number,
+  invert = false
+): number {
   if (value === null) return 0.5;
   const clamped = Math.max(min, Math.min(max, value));
   const normalized = (clamped - min) / (max - min);
@@ -46,25 +58,34 @@ function normalizeScore(value: number | null, min: number, max: number, invert =
 }
 
 export class FundamentalsService {
-  calculateQualityGrowthScore(fundamentals: UniverseFundamentals): QualityGrowthScore {
+  calculateQualityGrowthScore(
+    fundamentals: UniverseFundamentals
+  ): QualityGrowthScore {
     const revenueCagr = safeParseNumeric(fundamentals.revenueCagr3y);
     const grossMargin = safeParseNumeric(fundamentals.grossMargin);
     const operatingMargin = safeParseNumeric(fundamentals.operatingMargin);
     const netMargin = safeParseNumeric(fundamentals.netMargin);
-    const freeCashFlowMargin = safeParseNumeric(fundamentals.freeCashFlowMargin);
+    const freeCashFlowMargin = safeParseNumeric(
+      fundamentals.freeCashFlowMargin
+    );
     const debtToEquity = safeParseNumeric(fundamentals.debtToEquity);
     const sharesDilution = safeParseNumeric(fundamentals.sharesDilution1y);
 
-    const revenueGrowthScore = normalizeScore(revenueCagr, -0.10, 0.50);
+    const revenueGrowthScore = normalizeScore(revenueCagr, -0.1, 0.5);
 
-    const avgMargin = [grossMargin, operatingMargin, netMargin, freeCashFlowMargin]
+    const avgMargin = [
+      grossMargin,
+      operatingMargin,
+      netMargin,
+      freeCashFlowMargin,
+    ]
       .filter((m) => m !== null)
       .reduce((sum, m, _, arr) => sum + (m as number) / arr.length, 0);
-    const marginScore = normalizeScore(avgMargin, -0.10, 0.40);
+    const marginScore = normalizeScore(avgMargin, -0.1, 0.4);
 
     const leverageScore = normalizeScore(debtToEquity, 0, 3, true);
 
-    const dilutionScore = normalizeScore(sharesDilution, -0.10, 0.15, true);
+    const dilutionScore = normalizeScore(sharesDilution, -0.1, 0.15, true);
 
     const qualityScore = (marginScore + leverageScore) / 2;
     const growthScore = (revenueGrowthScore + (1 - dilutionScore)) / 2;
@@ -89,11 +110,13 @@ export class FundamentalsService {
     };
   }
 
-  async fetchAndStoreFundamentals(options: {
-    symbols?: string[];
-    batchSize?: number;
-    traceId?: string;
-  } = {}): Promise<FundamentalsComputeResult> {
+  async fetchAndStoreFundamentals(
+    options: {
+      symbols?: string[];
+      batchSize?: number;
+      traceId?: string;
+    } = {}
+  ): Promise<FundamentalsComputeResult> {
     const startTime = Date.now();
     const { symbols, batchSize = 10, traceId } = options;
 
@@ -106,14 +129,18 @@ export class FundamentalsService {
       const assets = await db
         .select({ symbol: universeAssets.symbol })
         .from(universeAssets)
-        .where(and(
-          eq(universeAssets.tradable, true),
-          eq(universeAssets.excluded, false)
-        ));
+        .where(
+          and(
+            eq(universeAssets.tradable, true),
+            eq(universeAssets.excluded, false)
+          )
+        );
       targetSymbols = assets.map((a) => a.symbol);
     }
 
-    log.info("FundamentalsService", "Fetching fundamentals for symbols", { count: targetSymbols.length });
+    log.info("FundamentalsService", "Fetching fundamentals for symbols", {
+      count: targetSymbols.length,
+    });
 
     let computed = 0;
     let failed = 0;
@@ -129,18 +156,32 @@ export class FundamentalsService {
           ]);
 
           const metric = basicFinancials?.metric || {};
-          
+
           const fundamentalsData: InsertUniverseFundamentals = {
             symbol,
             marketCap: profile?.marketCapitalization?.toString() || null,
             sector: profile?.finnhubIndustry || null,
             industry: profile?.finnhubIndustry || null,
-            revenueTtm: metric.revenuePerShareTTM ? (metric.revenuePerShareTTM * (metric.sharesOutstanding || 1)).toString() : null,
-            revenueCagr3y: metric.revenueGrowthTTMYoy ? (metric.revenueGrowthTTMYoy / 100).toString() : null,
-            grossMargin: metric.grossMarginTTM ? (metric.grossMarginTTM / 100).toString() : null,
-            operatingMargin: metric.operatingMarginTTM ? (metric.operatingMarginTTM / 100).toString() : null,
-            netMargin: metric.netProfitMarginTTM ? (metric.netProfitMarginTTM / 100).toString() : null,
-            freeCashFlowMargin: metric.freeCashFlowMarginTTM ? (metric.freeCashFlowMarginTTM / 100).toString() : null,
+            revenueTtm: metric.revenuePerShareTTM
+              ? (
+                  metric.revenuePerShareTTM * (metric.sharesOutstanding || 1)
+                ).toString()
+              : null,
+            revenueCagr3y: metric.revenueGrowthTTMYoy
+              ? (metric.revenueGrowthTTMYoy / 100).toString()
+              : null,
+            grossMargin: metric.grossMarginTTM
+              ? (metric.grossMarginTTM / 100).toString()
+              : null,
+            operatingMargin: metric.operatingMarginTTM
+              ? (metric.operatingMarginTTM / 100).toString()
+              : null,
+            netMargin: metric.netProfitMarginTTM
+              ? (metric.netProfitMarginTTM / 100).toString()
+              : null,
+            freeCashFlowMargin: metric.freeCashFlowMarginTTM
+              ? (metric.freeCashFlowMarginTTM / 100).toString()
+              : null,
             debtToEquity: metric.totalDebtToEquity?.toString() || null,
             sharesDilution1y: null,
             source: "finnhub",
@@ -150,7 +191,10 @@ export class FundamentalsService {
           await this.upsertFundamentals(fundamentalsData);
           computed++;
         } catch (error) {
-          log.error("FundamentalsService", "Failed to fetch fundamentals", { symbol, error: error instanceof Error ? error.message : String(error) });
+          log.error("FundamentalsService", "Failed to fetch fundamentals", {
+            symbol,
+            error: error instanceof Error ? error.message : String(error),
+          });
           failed++;
         }
       }
@@ -161,7 +205,11 @@ export class FundamentalsService {
     }
 
     const duration = Date.now() - startTime;
-    log.info("FundamentalsService", "Fetch complete", { computed, failed, duration });
+    log.info("FundamentalsService", "Fetch complete", {
+      computed,
+      failed,
+      duration,
+    });
 
     return {
       success: true,
@@ -172,7 +220,9 @@ export class FundamentalsService {
     };
   }
 
-  private async upsertFundamentals(data: InsertUniverseFundamentals): Promise<void> {
+  private async upsertFundamentals(
+    data: InsertUniverseFundamentals
+  ): Promise<void> {
     const existing = await db
       .select({ id: universeFundamentals.id })
       .from(universeFundamentals)
@@ -192,7 +242,9 @@ export class FundamentalsService {
     }
   }
 
-  async getFundamentalsBySymbol(symbol: string): Promise<UniverseFundamentals | null> {
+  async getFundamentalsBySymbol(
+    symbol: string
+  ): Promise<UniverseFundamentals | null> {
     const result = await db
       .select()
       .from(universeFundamentals)
@@ -201,7 +253,9 @@ export class FundamentalsService {
     return result[0] || null;
   }
 
-  async getFundamentalsWithScores(limit = 100): Promise<Array<UniverseFundamentals & QualityGrowthScore>> {
+  async getFundamentalsWithScores(
+    limit = 100
+  ): Promise<Array<UniverseFundamentals & QualityGrowthScore>> {
     const fundamentals = await db
       .select()
       .from(universeFundamentals)
@@ -213,7 +267,9 @@ export class FundamentalsService {
     }));
   }
 
-  async getTopByScore(limit = 50): Promise<Array<UniverseFundamentals & QualityGrowthScore>> {
+  async getTopByScore(
+    limit = 50
+  ): Promise<Array<UniverseFundamentals & QualityGrowthScore>> {
     const fundamentals = await db
       .select()
       .from(universeFundamentals)
@@ -224,9 +280,7 @@ export class FundamentalsService {
       ...this.calculateQualityGrowthScore(f),
     }));
 
-    return scored
-      .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, limit);
+    return scored.sort((a, b) => b.finalScore - a.finalScore).slice(0, limit);
   }
 
   async getStats(): Promise<{

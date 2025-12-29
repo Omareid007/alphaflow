@@ -12,7 +12,11 @@
 import { log } from "../utils/logger";
 import { gdelt } from "../connectors/gdelt";
 import { newsapi } from "../connectors/newsapi";
-import { calculateCompositeScore, type ScoringInput, type CompositeScore } from "../scoring/multi-factor-scoring-engine";
+import {
+  calculateCompositeScore,
+  type ScoringInput,
+  type CompositeScore,
+} from "../scoring/multi-factor-scoring-engine";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -40,9 +44,9 @@ export enum DecisionType {
 
 export interface SentimentScore {
   headlineSentiment: number; // -1 to 1
-  summarySentiment: number;  // -1 to 1
-  combinedScore: number;     // -1 to 1
-  confidence: number;        // 0 to 1
+  summarySentiment: number; // -1 to 1
+  combinedScore: number; // -1 to 1
+  confidence: number; // 0 to 1
   newsId: string;
   timestamp: Date;
   source: string;
@@ -52,8 +56,8 @@ export interface SentimentScore {
 export interface SentimentHistory {
   symbol: string;
   scores: SentimentScore[];
-  momentum: number;          // Rate of change in sentiment
-  volatility: number;        // Sentiment volatility
+  momentum: number; // Rate of change in sentiment
+  volatility: number; // Sentiment volatility
   lastUpdate: Date;
 }
 
@@ -68,7 +72,7 @@ export interface EnhancedDecision {
   decisionType: DecisionType;
   symbol: string;
   confidence: number;
-  suggestedSize: number;     // Fraction of max position (0-1)
+  suggestedSize: number; // Fraction of max position (0-1)
   entryPrice?: number;
   takeProfitPrice?: number;
   stopLossPrice?: number;
@@ -88,13 +92,13 @@ export interface EnhancedDecision {
 }
 
 export interface NewsEnhancedConfig {
-  minConfidence: number;           // Minimum confidence to act (default: 0.6)
-  newsWeight: number;              // Weight for news signals (default: 0.3)
-  technicalWeight: number;         // Weight for technical signals (default: 0.7)
-  sentimentDecayHours: number;     // Hours for sentiment to decay (default: 4)
-  momentumWindow: number;          // Number of scores for momentum calc (default: 10)
-  minNewsForSignal: number;        // Minimum news items for confidence (default: 2)
-  maxSentimentAge: number;         // Max age of sentiment in hours (default: 24)
+  minConfidence: number; // Minimum confidence to act (default: 0.6)
+  newsWeight: number; // Weight for news signals (default: 0.3)
+  technicalWeight: number; // Weight for technical signals (default: 0.7)
+  sentimentDecayHours: number; // Hours for sentiment to decay (default: 4)
+  momentumWindow: number; // Number of scores for momentum calc (default: 10)
+  minNewsForSignal: number; // Minimum news items for confidence (default: 2)
+  maxSentimentAge: number; // Max age of sentiment in hours (default: 24)
 }
 
 // ============================================================================
@@ -125,7 +129,8 @@ export class NewsEnhancedDecisionEngine {
   private technicalSignals: Map<string, TechnicalSignal[]> = new Map();
 
   // Position tracking for context
-  private positions: Map<string, { qty: number; avgEntryPrice: number }> = new Map();
+  private positions: Map<string, { qty: number; avgEntryPrice: number }> =
+    new Map();
 
   // Decision history
   private decisionHistory: EnhancedDecision[] = [];
@@ -152,15 +157,50 @@ export class NewsEnhancedDecisionEngine {
     // In production, integrate with FinBERT or similar model
 
     const positiveKeywords = [
-      "surge", "soar", "jump", "gain", "rise", "boost", "beat", "exceed",
-      "outperform", "upgrade", "bullish", "rally", "breakthrough", "record",
-      "profit", "growth", "strong", "positive", "optimistic", "recovery",
+      "surge",
+      "soar",
+      "jump",
+      "gain",
+      "rise",
+      "boost",
+      "beat",
+      "exceed",
+      "outperform",
+      "upgrade",
+      "bullish",
+      "rally",
+      "breakthrough",
+      "record",
+      "profit",
+      "growth",
+      "strong",
+      "positive",
+      "optimistic",
+      "recovery",
     ];
 
     const negativeKeywords = [
-      "plunge", "crash", "drop", "fall", "decline", "miss", "cut", "downgrade",
-      "bearish", "selloff", "weakness", "concern", "warning", "risk", "loss",
-      "negative", "pessimistic", "recession", "layoff", "lawsuit", "investigation",
+      "plunge",
+      "crash",
+      "drop",
+      "fall",
+      "decline",
+      "miss",
+      "cut",
+      "downgrade",
+      "bearish",
+      "selloff",
+      "weakness",
+      "concern",
+      "warning",
+      "risk",
+      "loss",
+      "negative",
+      "pessimistic",
+      "recession",
+      "layoff",
+      "lawsuit",
+      "investigation",
     ];
 
     const headlineLower = headline.toLowerCase();
@@ -184,14 +224,14 @@ export class NewsEnhancedDecisionEngine {
 
     // Calculate sentiment scores (-1 to 1)
     const headlineTotal = headlinePositive + headlineNegative;
-    const headlineSentiment = headlineTotal > 0
-      ? (headlinePositive - headlineNegative) / headlineTotal
-      : 0;
+    const headlineSentiment =
+      headlineTotal > 0
+        ? (headlinePositive - headlineNegative) / headlineTotal
+        : 0;
 
     const summaryTotal = summaryPositive + summaryNegative;
-    const summarySentiment = summaryTotal > 0
-      ? (summaryPositive - summaryNegative) / summaryTotal
-      : 0;
+    const summarySentiment =
+      summaryTotal > 0 ? (summaryPositive - summaryNegative) / summaryTotal : 0;
 
     // Combined score (headline weighted 70%)
     const combinedScore = 0.7 * headlineSentiment + 0.3 * summarySentiment;
@@ -233,28 +273,46 @@ export class NewsEnhancedDecisionEngine {
     // Prune old scores
     const maxAge = this.config.maxSentimentAge * 3600000; // to milliseconds
     const cutoff = Date.now() - maxAge;
-    history.scores = history.scores.filter(s => s.timestamp.getTime() > cutoff);
+    history.scores = history.scores.filter(
+      (s) => s.timestamp.getTime() > cutoff
+    );
 
     // Calculate momentum (rate of change)
     if (history.scores.length >= 2) {
       const recentScores = history.scores.slice(-this.config.momentumWindow);
-      const oldAvg = recentScores.slice(0, Math.floor(recentScores.length / 2))
-        .reduce((sum, s) => sum + s.combinedScore, 0) / Math.floor(recentScores.length / 2);
-      const newAvg = recentScores.slice(Math.floor(recentScores.length / 2))
-        .reduce((sum, s) => sum + s.combinedScore, 0) / (recentScores.length - Math.floor(recentScores.length / 2));
+      const oldAvg =
+        recentScores
+          .slice(0, Math.floor(recentScores.length / 2))
+          .reduce((sum, s) => sum + s.combinedScore, 0) /
+        Math.floor(recentScores.length / 2);
+      const newAvg =
+        recentScores
+          .slice(Math.floor(recentScores.length / 2))
+          .reduce((sum, s) => sum + s.combinedScore, 0) /
+        (recentScores.length - Math.floor(recentScores.length / 2));
 
       history.momentum = newAvg - oldAvg;
     }
 
     // Calculate volatility (standard deviation)
     if (history.scores.length >= 3) {
-      const mean = history.scores.reduce((sum, s) => sum + s.combinedScore, 0) / history.scores.length;
-      const variance = history.scores.reduce((sum, s) => sum + Math.pow(s.combinedScore - mean, 2), 0) / history.scores.length;
+      const mean =
+        history.scores.reduce((sum, s) => sum + s.combinedScore, 0) /
+        history.scores.length;
+      const variance =
+        history.scores.reduce(
+          (sum, s) => sum + Math.pow(s.combinedScore - mean, 2),
+          0
+        ) / history.scores.length;
       history.volatility = Math.sqrt(variance);
     }
   }
 
-  getAggregateSentiment(symbol: string): { score: number; confidence: number; momentum: number } {
+  getAggregateSentiment(symbol: string): {
+    score: number;
+    confidence: number;
+    momentum: number;
+  } {
     const history = this.sentimentHistory.get(symbol);
 
     if (!history || history.scores.length === 0) {
@@ -280,9 +338,11 @@ export class NewsEnhancedDecisionEngine {
 
     // Confidence based on number of scores and recency
     const scoreCount = history.scores.length;
-    const recencyBonus = history.scores.some(s =>
-      now - s.timestamp.getTime() < 3600000 // News in last hour
-    ) ? 0.2 : 0;
+    const recencyBonus = history.scores.some(
+      (s) => now - s.timestamp.getTime() < 3600000 // News in last hour
+    )
+      ? 0.2
+      : 0;
 
     const confidence = Math.min(
       (scoreCount / this.config.minNewsForSignal) * 0.5 + recencyBonus,
@@ -298,7 +358,12 @@ export class NewsEnhancedDecisionEngine {
 
   // ==================== TECHNICAL SIGNALS ====================
 
-  updateTechnicalSignal(symbol: string, signal: SignalStrength, confidence: number, source: string): void {
+  updateTechnicalSignal(
+    symbol: string,
+    signal: SignalStrength,
+    confidence: number,
+    source: string
+  ): void {
     let signals = this.technicalSignals.get(symbol);
 
     if (!signals) {
@@ -317,7 +382,7 @@ export class NewsEnhancedDecisionEngine {
     const cutoff = Date.now() - 1800000;
     this.technicalSignals.set(
       symbol,
-      signals.filter(s => s.timestamp.getTime() > cutoff)
+      signals.filter((s) => s.timestamp.getTime() > cutoff)
     );
   }
 
@@ -370,10 +435,13 @@ export class NewsEnhancedDecisionEngine {
     let combinedConfidence: number;
 
     if (sentiment.confidence > 0 && technical.confidence > 0) {
-      combinedScore = (
-        this.config.newsWeight * sentiment.score * sentiment.confidence +
-        this.config.technicalWeight * technical.score * technical.confidence
-      ) / (this.config.newsWeight * sentiment.confidence + this.config.technicalWeight * technical.confidence);
+      combinedScore =
+        (this.config.newsWeight * sentiment.score * sentiment.confidence +
+          this.config.technicalWeight *
+            technical.score *
+            technical.confidence) /
+        (this.config.newsWeight * sentiment.confidence +
+          this.config.technicalWeight * technical.confidence);
 
       combinedConfidence = (sentiment.confidence + technical.confidence) / 2;
     } else if (technical.confidence > 0) {
@@ -396,7 +464,11 @@ export class NewsEnhancedDecisionEngine {
       if (signSentiment === signTechnical && signSentiment !== 0) {
         alignment = "aligned";
         combinedConfidence *= 1.1; // Boost confidence when aligned
-      } else if (signSentiment !== 0 && signTechnical !== 0 && signSentiment !== signTechnical) {
+      } else if (
+        signSentiment !== 0 &&
+        signTechnical !== 0 &&
+        signSentiment !== signTechnical
+      ) {
         alignment = "divergent";
         combinedConfidence *= 0.7; // Reduce confidence when divergent
       }
@@ -415,12 +487,13 @@ export class NewsEnhancedDecisionEngine {
     );
 
     // Calculate price targets
-    const { entryPrice, takeProfitPrice, stopLossPrice } = this.calculatePriceTargets(
-      decisionType,
-      currentPrice,
-      combinedScore,
-      position
-    );
+    const { entryPrice, takeProfitPrice, stopLossPrice } =
+      this.calculatePriceTargets(
+        decisionType,
+        currentPrice,
+        combinedScore,
+        position
+      );
 
     const decision: EnhancedDecision = {
       decisionType,
@@ -442,7 +515,9 @@ export class NewsEnhancedDecisionEngine {
         alignment,
       },
       timestamp: new Date(),
-      isActionable: combinedConfidence >= this.config.minConfidence && decisionType !== DecisionType.HOLD,
+      isActionable:
+        combinedConfidence >= this.config.minConfidence &&
+        decisionType !== DecisionType.HOLD,
     };
 
     // Store in history
@@ -470,17 +545,27 @@ export class NewsEnhancedDecisionEngine {
       const unrealizedPnlPct = ((currentPrice - entryPrice) / entryPrice) * 100;
 
       if (isLong && unrealizedPnlPct >= 2) {
-        if (score < 0.5) { // Momentum weakening
-          return { decisionType: DecisionType.TAKE_PROFIT, sizeMultiplier: 0.5 };
+        if (score < 0.5) {
+          // Momentum weakening
+          return {
+            decisionType: DecisionType.TAKE_PROFIT,
+            sizeMultiplier: 0.5,
+          };
         }
         if (unrealizedPnlPct >= 5) {
-          return { decisionType: DecisionType.TAKE_PROFIT, sizeMultiplier: 0.75 };
+          return {
+            decisionType: DecisionType.TAKE_PROFIT,
+            sizeMultiplier: 0.75,
+          };
         }
       }
 
       if (isShort && unrealizedPnlPct <= -2) {
         if (score > -0.5) {
-          return { decisionType: DecisionType.TAKE_PROFIT, sizeMultiplier: 0.5 };
+          return {
+            decisionType: DecisionType.TAKE_PROFIT,
+            sizeMultiplier: 0.5,
+          };
         }
       }
     }
@@ -490,30 +575,36 @@ export class NewsEnhancedDecisionEngine {
       return { decisionType: DecisionType.HOLD, sizeMultiplier: 0 };
     }
 
-    if (score >= 1.5) { // Strong buy
+    if (score >= 1.5) {
+      // Strong buy
       if (!hasPosition) {
         return { decisionType: DecisionType.ENTER_LONG, sizeMultiplier: 1.0 };
       } else if (isLong) {
         return { decisionType: DecisionType.SCALE_IN, sizeMultiplier: 0.5 };
-      } else { // is short
+      } else {
+        // is short
         return { decisionType: DecisionType.EXIT_SHORT, sizeMultiplier: 1.0 };
       }
-    } else if (score >= 0.5) { // Buy
+    } else if (score >= 0.5) {
+      // Buy
       if (!hasPosition) {
         return { decisionType: DecisionType.ENTER_LONG, sizeMultiplier: 0.5 };
       } else if (isShort) {
         return { decisionType: DecisionType.EXIT_SHORT, sizeMultiplier: 0.5 };
       }
       return { decisionType: DecisionType.HOLD, sizeMultiplier: 0 };
-    } else if (score <= -1.5) { // Strong sell
+    } else if (score <= -1.5) {
+      // Strong sell
       if (!hasPosition) {
         return { decisionType: DecisionType.ENTER_SHORT, sizeMultiplier: 1.0 };
       } else if (isShort) {
         return { decisionType: DecisionType.SCALE_IN, sizeMultiplier: 0.5 };
-      } else { // is long
+      } else {
+        // is long
         return { decisionType: DecisionType.EXIT_LONG, sizeMultiplier: 1.0 };
       }
-    } else if (score <= -0.5) { // Sell
+    } else if (score <= -0.5) {
+      // Sell
       if (!hasPosition) {
         return { decisionType: DecisionType.ENTER_SHORT, sizeMultiplier: 0.5 };
       } else if (isLong) {
@@ -531,25 +622,42 @@ export class NewsEnhancedDecisionEngine {
     score: number,
     position?: { qty: number; avgEntryPrice: number }
   ): { entryPrice?: number; takeProfitPrice?: number; stopLossPrice?: number } {
-    if (decisionType === DecisionType.HOLD || decisionType === DecisionType.TAKE_PROFIT) {
+    if (
+      decisionType === DecisionType.HOLD ||
+      decisionType === DecisionType.TAKE_PROFIT
+    ) {
       return {};
     }
 
     // Dynamic targets based on signal strength
     const strength = Math.abs(score);
 
-    if (decisionType === DecisionType.ENTER_LONG || (decisionType === DecisionType.SCALE_IN && score > 0)) {
+    if (
+      decisionType === DecisionType.ENTER_LONG ||
+      (decisionType === DecisionType.SCALE_IN && score > 0)
+    ) {
       const entry = currentPrice;
       const takeProfit = currentPrice * (1 + 0.02 + 0.01 * strength); // 2-4% target
-      const stopLoss = currentPrice * (1 - 0.01 - 0.005 * strength);  // 1-2% stop
-      return { entryPrice: entry, takeProfitPrice: takeProfit, stopLossPrice: stopLoss };
+      const stopLoss = currentPrice * (1 - 0.01 - 0.005 * strength); // 1-2% stop
+      return {
+        entryPrice: entry,
+        takeProfitPrice: takeProfit,
+        stopLossPrice: stopLoss,
+      };
     }
 
-    if (decisionType === DecisionType.ENTER_SHORT || (decisionType === DecisionType.SCALE_IN && score < 0)) {
+    if (
+      decisionType === DecisionType.ENTER_SHORT ||
+      (decisionType === DecisionType.SCALE_IN && score < 0)
+    ) {
       const entry = currentPrice;
       const takeProfit = currentPrice * (1 - 0.02 - 0.01 * strength);
       const stopLoss = currentPrice * (1 + 0.01 + 0.005 * strength);
-      return { entryPrice: entry, takeProfitPrice: takeProfit, stopLossPrice: stopLoss };
+      return {
+        entryPrice: entry,
+        takeProfitPrice: takeProfit,
+        stopLossPrice: stopLoss,
+      };
     }
 
     return { entryPrice: currentPrice };
@@ -557,7 +665,10 @@ export class NewsEnhancedDecisionEngine {
 
   // ==================== NEWS FETCHING ====================
 
-  async fetchAndProcessNews(symbol: string, isCrypto: boolean = false): Promise<number> {
+  async fetchAndProcessNews(
+    symbol: string,
+    isCrypto: boolean = false
+  ): Promise<number> {
     let newsCount = 0;
 
     try {
@@ -578,7 +689,10 @@ export class NewsEnhancedDecisionEngine {
         }
       }
     } catch (error) {
-      log.debug("NewsEnhancedDecisionEngine", `GDELT fetch error for ${symbol}: ${error}`);
+      log.debug(
+        "NewsEnhancedDecisionEngine",
+        `GDELT fetch error for ${symbol}: ${error}`
+      );
     }
 
     try {
@@ -603,7 +717,10 @@ export class NewsEnhancedDecisionEngine {
         }
       }
     } catch (error) {
-      log.debug("NewsEnhancedDecisionEngine", `NewsAPI fetch error for ${symbol}: ${error}`);
+      log.debug(
+        "NewsEnhancedDecisionEngine",
+        `NewsAPI fetch error for ${symbol}: ${error}`
+      );
     }
 
     return newsCount;
@@ -625,7 +742,12 @@ export class NewsEnhancedDecisionEngine {
     await this.fetchAndProcessNews(symbol, isCrypto);
 
     // Make enhanced decision
-    const enhanced = this.makeDecision(symbol, currentPrice, position, marketData);
+    const enhanced = this.makeDecision(
+      symbol,
+      currentPrice,
+      position,
+      marketData
+    );
 
     // Calculate composite score for integration with multi-factor scoring
     let composite: CompositeScore | undefined;
@@ -643,7 +765,10 @@ export class NewsEnhancedDecisionEngine {
 
       composite = calculateCompositeScore(scoringInput);
     } catch (error) {
-      log.debug("NewsEnhancedDecisionEngine", `Composite score error: ${error}`);
+      log.debug(
+        "NewsEnhancedDecisionEngine",
+        `Composite score error: ${error}`
+      );
     }
 
     return { enhanced, composite };
