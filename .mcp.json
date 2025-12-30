@@ -40,18 +40,11 @@
         "/home/runner/workspace"
       ]
     },
-    "fetch": {
+    "context7": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-fetch"
-      ]
-    },
-    "time": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-time"
+        "@upstash/context7-mcp@latest"
       ]
     },
     "ts-morph": {
@@ -73,21 +66,6 @@
       "env": {
         "PLAYWRIGHT_HEADLESS": "true"
       }
-    },
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-puppeteer"
-      ]
-    },
-    "sqlite": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-sqlite",
-        "/tmp/claude-local.db"
-      ]
     },
     "github": {
       "command": "npx",
@@ -119,14 +97,6 @@
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY}"
       }
-    },
-    "sentry": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote@latest",
-        "https://mcp.sentry.dev/mcp"
-      ]
     },
     "exa": {
       "command": "npx",
@@ -179,6 +149,23 @@
       "env": {
         "POLYGON_API_KEY": "${POLYGON_API_KEY}"
       }
+    },
+    "octagon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@octagonai/octagon-mcp-server"
+      ],
+      "env": {
+        "OCTAGON_API_KEY": "${OCTAGON_API_KEY}"
+      }
+    },
+    "coingecko": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@coingecko/mcp-server"
+      ]
     }
   }
 }
