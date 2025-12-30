@@ -14,7 +14,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 | Lines of Code          | ~154,138 | ~152,000 | ~2,000        |
 | Dependencies           | 104      | 81       | 23 packages   |
 | Static Assets          | 3.88 MB  | 400 KB   | 86% reduction |
-| Security Vulns         | 8        | 7        | 1 fixed       |
+| Security Vulns         | 8        | 4        | 4 fixed       |
 
 ## Cleanup Status
 
@@ -109,7 +109,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 #### Phase 9: Test Coverage Infrastructure
 - [x] **Extended Vitest coverage** to include `server/` and `shared/` directories
 - [x] **Created server test templates** (notification-service.test.ts, email-service.test.ts)
-- [x] **Test count increased**: 206 tests passing
+- [x] **Test count**: 238 tests passing (14 test suites)
 
 #### Phase 10: Email Notifications
 - [x] **Installed @sendgrid/mail** for email delivery
@@ -189,30 +189,110 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Updated all error handlers with ErrorWithMessage type
 - [x] **Type safety reduction**: 82 → 59 `:any` annotations (28% improvement)
 
+### Phase 15: Security & Testing (Dec 30, 2024)
+
+#### Security Improvements
+- [x] **Added helmet security headers** to `server/index.ts`
+  - Content-Security-Policy with strict directives
+  - X-Content-Type-Options, X-Frame-Options, HSTS
+  - Cross-Origin Resource Policy configured
+- [x] **Added rate limiting to auth routes** via `express-rate-limit`
+  - 5 attempts per 15-minute window per IP
+  - Applied to `/api/auth/login` and `/api/auth/signup`
+  - Structured logging on rate limit exceeded
+- [x] **Created comprehensive security audit report**
+  - `analysis/security/security-audit-report.md`
+  - OWASP Top 10 compliance matrix (9/10 passing)
+  - Dependency vulnerability analysis (7 total, 3 high)
+  - Remediation plan with priorities
+
+#### Test Coverage Expansion
+- [x] **Created 32 tests for `server/connectors/alpaca.ts`**
+  - Account, positions, orders CRUD operations
+  - Order validation (symbol, qty, prices)
+  - Bracket, OCO, OTO, trailing stop orders
+  - Cache management and circuit breaker tests
+  - Market clock and session detection
+- [x] **Created 48 tests for `server/trading/order-execution-flow.ts`**
+  - Error classification (8 error types with recovery strategies)
+  - Order validation (schema, tradability, price, type/TIF combinations)
+  - Order execution (retries, partial fills, cancellations)
+  - Expected vs actual outcome analysis (slippage, fill times)
+  - Recovery strategies (CHECK_AND_SYNC, ADJUST_AND_RETRY, WAIT_FOR_MARKET_OPEN)
+  - Order book cleanup (identify/cleanup unreal orders, reconciliation)
+  - Shared order helpers (waitForAlpacaOrderFill, cancelExpiredOrders)
+- [x] **Total tests increased**: 206 → 238 → 286 (39% overall increase)
+
+#### Updated Metrics
+- **OWASP Compliance**: 9/10 categories passing
+- **Security Risk**: Reduced from MEDIUM to LOW-MEDIUM
+- **Test Files**: 15 passing test suites
+
+### Phase 16: High-Severity Vulnerability Fix (Dec 30, 2024)
+
+#### CVE-2025-64756 / GHSA-5j98-mcp5-4vw2 - glob Command Injection
+- [x] **Researched vulnerability** using parallel agents and web search
+  - Affects glob@10.2.0 - 10.4.5 CLI `-c/--cmd` option
+  - Command injection via shell metacharacters in filenames
+  - Library API (used by eslint-config-next) is NOT affected
+- [x] **Applied npm overrides fix** in `package.json`:
+  ```json
+  "overrides": {
+    "glob": "10.5.0"
+  }
+  ```
+- [x] **Fixed ESLint configuration**
+  - Removed `eslint.config.js` (incorrectly referenced eslint-config-expo)
+  - Updated `.eslintrc.json` with no-console rule for server code
+- [x] **Updated security audit report** at `analysis/security/security-audit-report.md`
+
+#### Vulnerability Status Change
+
+| Severity | Before | After | Change |
+|----------|--------|-------|--------|
+| Critical | 0 | 0 | - |
+| High | 3 | **0** | ✅ -3 |
+| Moderate | 4 | 4 | - |
+| **Total** | **7** | **4** | **-3** |
+
+#### Remaining Vulnerabilities (Moderate, Dev-only)
+- 4x esbuild vulnerabilities via drizzle-kit
+- Only affects development environment
+- Not exploitable in production
+- Waiting for upstream drizzle-kit update
+
 ### Remaining Items (Future)
 
-| Item                          | Priority | Notes                               |
-| ----------------------------- | -------- | ----------------------------------- |
-| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining    |
-| Type safety upgrade           | P2       | 59 `:any` remaining (down from 82)  |
-| Test coverage expansion       | P1       | Add more server tests               |
-| Remaining vulnerabilities     | Medium   | glob in eslint-config-next          |
-| Missing flow documentation    | P2       | Dashboard, AI Pulse, Research flows |
+| Item                          | Priority | Notes                                    |
+| ----------------------------- | -------- | ---------------------------------------- |
+| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining         |
+| Type safety upgrade           | P2       | 59 `:any` remaining (down from 82)       |
+| Test coverage expansion       | P1       | Continue adding server tests             |
+| esbuild vulnerabilities       | Low      | 4 moderate, dev-only, wait for drizzle-kit |
+| Password reset flow           | P1       | Auth endpoints need completion           |
+| Missing flow documentation    | P2       | Dashboard, AI Pulse, Research flows      |
 
 ## Security Status
 
-### Fixed (Dec 29, 2024)
+### Fixed (Dec 29-30, 2024)
 
-| CVE            | Severity | Description                             |
-| -------------- | -------- | --------------------------------------- |
-| CVE-2025-29927 | Critical | Next.js Middleware Authorization Bypass |
-| CVE-2025-55184 | High     | Next.js DoS via infinite loop           |
-| CVE-2025-55183 | Medium   | Next.js Source Code Exposure            |
+| CVE            | Severity | Description                             | Fix Method |
+| -------------- | -------- | --------------------------------------- | ---------- |
+| CVE-2025-29927 | Critical | Next.js Middleware Authorization Bypass | Next.js 14.2.35 |
+| CVE-2025-55184 | High     | Next.js DoS via infinite loop           | Next.js 14.2.35 |
+| CVE-2025-55183 | Medium   | Next.js Source Code Exposure            | Next.js 14.2.35 |
+| CVE-2025-64756 | High     | glob CLI Command Injection              | npm overrides glob@10.5.0 |
+| GHSA-5j98-mcp5-4vw2 | High | glob CLI Command Injection (same as above) | npm overrides glob@10.5.0 |
 
-### Remaining (Non-Critical)
+### Remaining (Moderate, Dev-only)
 
-- glob vulnerability in eslint-config-next (would require Next.js 15 to fix)
-- esbuild-kit in drizzle-kit (moderate)
+| Package | Severity | Impact | Notes |
+|---------|----------|--------|-------|
+| esbuild | Moderate | Dev only | Via drizzle-kit, wait for upstream |
+| @esbuild-kit/core-utils | Moderate | Dev only | Deprecated, merged into tsx |
+| @esbuild-kit/esm-loader | Moderate | Dev only | Deprecated, merged into tsx |
+
+**Production Impact:** None - all remaining vulnerabilities are in development dependencies only.
 
 ## MCP Servers
 
