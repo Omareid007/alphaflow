@@ -1,8 +1,5 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "prettier"
-  ],
+  "extends": ["next/core-web-vitals", "prettier"],
   "plugins": ["prettier"],
   "rules": {
     "prettier/prettier": "warn",
@@ -10,6 +7,14 @@
     "react/prop-types": "off",
     "react-hooks/exhaustive-deps": "warn"
   },
+  "overrides": [
+    {
+      "files": ["server/**/*.ts"],
+      "rules": {
+        "no-console": "warn"
+      }
+    }
+  ],
   "ignorePatterns": [
     "node_modules/",
     ".next/",
