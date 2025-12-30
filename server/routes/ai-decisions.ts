@@ -24,6 +24,10 @@ import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { orchestrator } from "../autonomous/orchestrator";
 import { marketConditionAnalyzer } from "../ai/market-condition-analyzer";
 import { alpaca, type AlpacaOrder } from "../connectors/alpaca";
+import {
+  sentimentAggregator,
+  type AggregatedSentiment,
+} from "../services/sentiment-aggregator";
 import { insertAiDecisionSchema } from "@shared/schema";
 import type { Order, Trade, Position } from "@shared/schema";
 
@@ -413,6 +417,7 @@ router.get("/events", async (req: Request, res: Response) => {
 /**
  * GET /api/ai/sentiment
  * Get sentiment signals for specified symbols
+ * Uses the SentimentAggregatorService which combines GDELT, NewsAPI, and HuggingFace FinBERT
  */
 router.get("/sentiment", async (req: Request, res: Response) => {
   try {
@@ -424,30 +429,116 @@ router.get("/sentiment", async (req: Request, res: Response) => {
       "NVDA",
     ];
 
-    // Generate sentiment signals based on available data
-    // In production, this would call the data fusion engine or sentiment analysis service
-    const sentiments = symbols.map((symbol) => ({
-      id: `sent-${symbol}-${Date.now()}`,
-      sourceId: "data-fusion",
-      sourceName: "Data Fusion Engine",
-      symbol,
-      score: Math.random() * 100 - 50, // -50 to +50
-      trend:
-        Math.random() > 0.5
-          ? ("up" as const)
-          : Math.random() > 0.5
-            ? ("down" as const)
-            : ("neutral" as const),
-      explanation: `Aggregate sentiment analysis for ${symbol} based on news, social media, and market data`,
-      timestamp: new Date().toISOString(),
-    }));
+    // Use the real sentiment aggregator service
+    const sentimentResults = await sentimentAggregator.batchGetSentiment(symbols);
+
+    // Transform aggregated sentiment to API response format
+    const sentiments = symbols.map((symbol) => {
+      const result = sentimentResults.get(symbol);
+
+      if (!result) {
+        return {
+          id: `sent-${symbol}-${Date.now()}`,
+          sourceId: "sentiment-aggregator",
+          sourceName: "Sentiment Aggregator",
+          symbol,
+          score: 0,
+          trend: "neutral" as const,
+          explanation: `No sentiment data available for ${symbol}`,
+          sources: [],
+          confidence: 0,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Convert -1 to 1 score to -50 to +50 for UI compatibility
+      const uiScore = result.overallScore * 50;
+
+      // Map recommendation to trend
+      const trendMap: Record<string, "up" | "down" | "neutral"> = {
+        bullish: "up",
+        bearish: "down",
+        neutral: "neutral",
+        conflicted: "neutral",
+      };
+
+      return {
+        id: `sent-${symbol}-${Date.now()}`,
+        sourceId: "sentiment-aggregator",
+        sourceName: "Sentiment Aggregator",
+        symbol,
+        score: uiScore,
+        trend: trendMap[result.recommendation] || "neutral",
+        explanation: generateExplanation(result),
+        sources: result.sources.map((s) => ({
+          name: s.name,
+          score: s.score * 50,
+          confidence: s.confidence,
+          articleCount: s.articleCount,
+        })),
+        confidence: result.overallConfidence,
+        conflictDetected: result.conflictDetected,
+        recommendation: result.recommendation,
+        cacheHit: result.cacheHit,
+        timestamp: result.timestamp.toISOString(),
+      };
+    });
 
     res.json(sentiments);
   } catch (error) {
     log.error("AiDecisionsAPI", `Failed to get sentiment signals: ${error}`);
-    res.status(500).json({ error: "Failed to get sentiment signals" });
+    // Return fallback data to prevent UI breaking
+    const symbols = (req.query.symbols as string)?.split(",") || ["SPY", "QQQ", "AAPL", "TSLA", "NVDA"];
+    const fallback = symbols.map((symbol) => ({
+      id: `sent-${symbol}-${Date.now()}`,
+      sourceId: "fallback",
+      sourceName: "Fallback",
+      symbol,
+      score: 0,
+      trend: "neutral" as const,
+      explanation: "Sentiment data temporarily unavailable",
+      sources: [],
+      confidence: 0,
+      timestamp: new Date().toISOString(),
+    }));
+    res.json(fallback);
   }
 });
+
+/**
+ * Helper to generate explanation text from aggregated sentiment
+ */
+function generateExplanation(result: AggregatedSentiment): string {
+  const validSources = result.sources.filter((s) => !s.error && s.confidence > 0);
+  const sourceNames = validSources.map((s) => s.name).join(", ");
+
+  if (validSources.length === 0) {
+    return `No sentiment data available for ${result.symbol}`;
+  }
+
+  const scoreText =
+    result.overallScore > 0.25
+      ? "positive"
+      : result.overallScore < -0.25
+        ? "negative"
+        : "neutral";
+
+  const confidenceText =
+    result.overallConfidence > 0.7
+      ? "high"
+      : result.overallConfidence > 0.4
+        ? "moderate"
+        : "low";
+
+  let explanation = `${result.recommendation.charAt(0).toUpperCase() + result.recommendation.slice(1)} sentiment for ${result.symbol} based on ${validSources.length} source(s): ${sourceNames}. `;
+  explanation += `Overall ${scoreText} score (${(result.overallScore * 100).toFixed(1)}%) with ${confidenceText} confidence.`;
+
+  if (result.conflictDetected) {
+    explanation += ` Note: Conflicting signals detected between sources.`;
+  }
+
+  return explanation;
+}
 
 // ============================================================================
 // LLM CACHE MANAGEMENT ENDPOINTS

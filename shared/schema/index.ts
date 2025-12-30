@@ -8,25 +8,28 @@
  */
 
 // Core domains
-export * from './auth';
-export * from './trading';
-export * from './orders';
+export * from "./auth";
+export * from "./trading";
+export * from "./orders";
 
 // AI & Decision Making
-export * from './ai-decisions';
-export * from './orchestration';
-export * from './debate-arena';
+export * from "./ai-decisions";
+export * from "./orchestration";
+export * from "./debate-arena";
 
 // Market & Analysis
-export * from './market-data';
-export * from './analysis';
-export * from './universe';
-export * from './allocation';
+export * from "./market-data";
+export * from "./analysis";
+export * from "./universe";
+export * from "./allocation";
 
 // Testing & Evaluation
-export * from './backtest';
-export * from './competition';
-export * from './strategy-versioning';
+export * from "./backtest";
+export * from "./competition";
+export * from "./strategy-versioning";
 
 // Monitoring & Infrastructure
-export * from './monitoring';
+export * from "./monitoring";
+
+// User Features
+export * from "./watchlist";

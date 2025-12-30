@@ -112,6 +112,7 @@ import newsRouter from "./routes/news";
 import cmcRouter from "./routes/cmc";
 import tradingSessionsRouter from "./routes/trading-sessions";
 import feedsRouter from "./routes/feeds";
+import watchlistsRouter from "./routes/watchlists";
 import connectorsRouter from "./routes/connectors";
 import fusionRouter from "./routes/fusion";
 import marketQuotesRouter from "./routes/market-quotes";
@@ -241,12 +242,10 @@ async function adminTokenMiddleware(
     }
   }
 
-  return res
-    .status(401)
-    .json({
-      error:
-        "Admin authentication required. Provide valid session or X-Admin-Token header.",
-    });
+  return res.status(401).json({
+    error:
+      "Admin authentication required. Provide valid session or X-Admin-Token header.",
+  });
 }
 
 function requireCapability(...capabilities: AdminCapability[]) {
@@ -288,20 +287,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delay async initializations to let server start first
   setTimeout(() => {
     log.info("Routes", "Starting delayed initializations...");
-    coordinator
-      .start()
-      .catch((err) =>
-        log.error("Routes", "Failed to start trading coordinator", {
-          error: err,
-        })
-      );
-    alpacaTradingEngine
-      .initialize()
-      .catch((err) =>
-        log.error("Routes", "Failed to initialize Alpaca trading engine", {
-          error: err,
-        })
-      );
+    coordinator.start().catch((err) =>
+      log.error("Routes", "Failed to start trading coordinator", {
+        error: err,
+      })
+    );
+    alpacaTradingEngine.initialize().catch((err) =>
+      log.error("Routes", "Failed to initialize Alpaca trading engine", {
+        error: err,
+      })
+    );
     orchestrator
       .autoStart()
       .catch((err) =>
@@ -411,6 +406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/cmc", cmcRouter); // CoinMarketCap routes (public)
   app.use("/api/trading-sessions", authMiddleware, tradingSessionsRouter); // trading session routes
   app.use("/api/feeds", authMiddleware, feedsRouter); // data feeds status
+  app.use("/api/watchlists", authMiddleware, watchlistsRouter); // watchlist management
   app.use("/api/connectors", authMiddleware, connectorsRouter); // connector status
   app.use("/api/fusion", authMiddleware, fusionRouter); // data fusion routes
   app.use("/api/market", authMiddleware, marketQuotesRouter); // market quotes
