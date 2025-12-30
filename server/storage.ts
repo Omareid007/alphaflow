@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, like, or, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import {
   sanitizeInput,
@@ -27,6 +27,7 @@ import {
   strategyVersions,
   toolInvocations,
   auditLogs,
+  passwordResetTokens,
   type User,
   type InsertUser,
   type Strategy,
@@ -71,6 +72,7 @@ import {
   type DebateSessionStatus,
   type AuditLog,
   type InsertAuditLog,
+  insertAuditLogSchema,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -91,6 +93,7 @@ export interface EnrichedTrade extends Trade {
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getAdminUser(): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
@@ -99,6 +102,12 @@ export interface IStorage {
     updates: Partial<InsertUser>
   ): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+
+  // Password reset tokens
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+  getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<void>;
+  deleteExpiredPasswordResetTokens(): Promise<number>;
 
   getStrategies(): Promise<Strategy[]>;
   getStrategy(id: string): Promise<Strategy | undefined>;
@@ -172,18 +181,18 @@ export interface IStorage {
   getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]>;
 
   // Audit Logging
-  createAuditLog(log: any): Promise<any>;
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getUserAuditLogs(
     userId: string,
     limit?: number,
     offset?: number
-  ): Promise<any[]>;
+  ): Promise<AuditLog[]>;
   getResourceAuditLogs(
     resource: string,
     resourceId: string,
     limit?: number
-  ): Promise<any[]>;
-  getRecentAuditLogs(limit?: number, offset?: number): Promise<any[]>;
+  ): Promise<AuditLog[]>;
+  getRecentAuditLogs(limit?: number, offset?: number): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -197,6 +206,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
     return user;
   }
 
@@ -237,6 +254,43 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Password reset token methods
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+      used: false,
+    });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined> {
+    const [result] = await db
+      .select({
+        userId: passwordResetTokens.userId,
+        expiresAt: passwordResetTokens.expiresAt,
+        used: passwordResetTokens.used,
+      })
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return result;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async deleteExpiredPasswordResetTokens(): Promise<number> {
+    const result = await db
+      .delete(passwordResetTokens)
+      .where(lte(passwordResetTokens.expiresAt, new Date()))
+      .returning();
+    return result.length;
   }
 
   async getStrategies(): Promise<Strategy[]> {
@@ -314,7 +368,7 @@ export class DatabaseStorage implements IStorage {
     userId: string,
     filters: TradeFilters
   ): Promise<{ trades: EnrichedTrade[]; total: number }> {
-    const conditions: any[] = [eq(trades.userId, userId)];
+    const conditions: SQL<unknown>[] = [eq(trades.userId, userId)];
 
     if (filters.symbol) {
       conditions.push(eq(trades.symbol, filters.symbol));
@@ -1298,9 +1352,8 @@ export class DatabaseStorage implements IStorage {
   // AUDIT LOGGING
   // ============================================================================
 
-  async createAuditLog(logEntry: any): Promise<any> {
+  async createAuditLog(logEntry: InsertAuditLog): Promise<AuditLog> {
     try {
-      const { auditLogs } = await import("@shared/schema");
       const [result] = await db.insert(auditLogs).values(logEntry).returning();
       return result;
     } catch (error) {
@@ -1313,9 +1366,8 @@ export class DatabaseStorage implements IStorage {
     userId: string,
     limit = 100,
     offset = 0
-  ): Promise<any[]> {
+  ): Promise<AuditLog[]> {
     try {
-      const { auditLogs } = await import("@shared/schema");
       return db
         .select()
         .from(auditLogs)
@@ -1333,9 +1385,8 @@ export class DatabaseStorage implements IStorage {
     resource: string,
     resourceId: string,
     limit = 50
-  ): Promise<any[]> {
+  ): Promise<AuditLog[]> {
     try {
-      const { auditLogs } = await import("@shared/schema");
       return db
         .select()
         .from(auditLogs)
@@ -1357,9 +1408,8 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRecentAuditLogs(limit = 100, offset = 0): Promise<any[]> {
+  async getRecentAuditLogs(limit = 100, offset = 0): Promise<AuditLog[]> {
     try {
-      const { auditLogs } = await import("@shared/schema");
       return db
         .select()
         .from(auditLogs)

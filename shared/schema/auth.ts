@@ -11,7 +11,17 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, index, unique, integer } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  boolean,
+  jsonb,
+  index,
+  unique,
+  integer,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -27,12 +37,14 @@ import { z } from "zod";
  * @property {string} id - Auto-generated UUID primary key
  * @property {string} username - Unique username for authentication
  * @property {string} password - Hashed password (never stored in plaintext)
+ * @property {string|null} email - Optional email for password reset functionality
  * @property {boolean} isAdmin - Whether the user has administrator privileges (default: false)
  *
  * @remarks
  * - All sessions and related records are cascade deleted when a user is removed
  * - Usernames are unique and required for login
  * - Passwords should be hashed using bcrypt or similar before storage
+ * - Email is optional but required for password reset functionality
  */
 export const users = pgTable("users", {
   id: varchar("id")
@@ -40,6 +52,7 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
   isAdmin: boolean("is_admin").default(false).notNull(),
 });
 
@@ -60,15 +73,61 @@ export const users = pgTable("users", {
  * - Indexed on expiresAt for automated cleanup of expired sessions
  * - Expired sessions should be purged regularly via background job
  */
-export const sessions = pgTable("sessions", {
-  id: text("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("sessions_user_id_idx").on(table.userId),
-  index("sessions_expires_at_idx").on(table.expiresAt),
-]);
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: varchar("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("sessions_user_id_idx").on(table.userId),
+    index("sessions_expires_at_idx").on(table.expiresAt),
+  ]
+);
+
+/**
+ * Password Reset Tokens table
+ *
+ * Manages password reset tokens for secure password recovery.
+ *
+ * @property {string} id - Auto-generated UUID primary key
+ * @property {string} userId - Foreign key to users table (cascade delete)
+ * @property {string} token - Unique token for password reset verification
+ * @property {Date} expiresAt - Timestamp when the token expires
+ * @property {boolean} used - Whether the token has been used
+ * @property {Date} createdAt - When the token was created
+ *
+ * @remarks
+ * Security features:
+ * - Tokens are cascade deleted when the user is removed
+ * - Tokens expire after a short period (typically 1 hour)
+ * - Tokens are single-use (marked as used after password reset)
+ * - Indexed on token for efficient lookup
+ */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    used: boolean("used").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("password_reset_tokens_user_id_idx").on(table.userId),
+    index("password_reset_tokens_token_idx").on(table.token),
+    index("password_reset_tokens_expires_at_idx").on(table.expiresAt),
+  ]
+);
 
 // ============================================================================
 // ADMIN SETTINGS
@@ -97,24 +156,33 @@ export const sessions = pgTable("sessions", {
  * - Secret settings should be encrypted at rest
  * - Read-only settings prevent accidental modification of critical config
  */
-export const adminSettings = pgTable("admin_settings", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  namespace: text("namespace").notNull(),
-  key: text("key").notNull(),
-  value: jsonb("value").notNull(),
-  description: text("description"),
-  isSecret: boolean("is_secret").default(false).notNull(),
-  isReadOnly: boolean("is_read_only").default(false).notNull(),
-  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => [
-  index("admin_settings_namespace_idx").on(table.namespace),
-  index("admin_settings_key_idx").on(table.key),
-  unique("admin_settings_namespace_key_unique").on(table.namespace, table.key),
-]);
+export const adminSettings = pgTable(
+  "admin_settings",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    namespace: text("namespace").notNull(),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    description: text("description"),
+    isSecret: boolean("is_secret").default(false).notNull(),
+    isReadOnly: boolean("is_read_only").default(false).notNull(),
+    updatedBy: varchar("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("admin_settings_namespace_idx").on(table.namespace),
+    index("admin_settings_key_idx").on(table.key),
+    unique("admin_settings_namespace_key_unique").on(
+      table.namespace,
+      table.key
+    ),
+  ]
+);
 
 // ============================================================================
 // AUDIT LOGGING
@@ -147,29 +215,35 @@ export const adminSettings = pgTable("admin_settings", {
  * - Request body is stored for debugging and compliance purposes
  * - Should be rotated/archived periodically based on retention policies
  */
-export const auditLogs = pgTable("audit_logs", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  username: text("username"),
-  action: text("action").notNull(),
-  resource: text("resource").notNull(),
-  resourceId: text("resource_id"),
-  method: text("method").notNull(),
-  path: text("path").notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  requestBody: jsonb("request_body"),
-  responseStatus: integer("response_status"),
-  errorMessage: text("error_message"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-}, (table) => [
-  index("audit_logs_user_id_idx").on(table.userId),
-  index("audit_logs_action_idx").on(table.action),
-  index("audit_logs_resource_idx").on(table.resource),
-  index("audit_logs_timestamp_idx").on(table.timestamp),
-]);
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    username: text("username"),
+    action: text("action").notNull(),
+    resource: text("resource").notNull(),
+    resourceId: text("resource_id"),
+    method: text("method").notNull(),
+    path: text("path").notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    requestBody: jsonb("request_body"),
+    responseStatus: integer("response_status"),
+    errorMessage: text("error_message"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_logs_user_id_idx").on(table.userId),
+    index("audit_logs_action_idx").on(table.action),
+    index("audit_logs_resource_idx").on(table.resource),
+    index("audit_logs_timestamp_idx").on(table.timestamp),
+  ]
+);
 
 // ============================================================================
 // INSERT SCHEMAS
@@ -181,14 +255,31 @@ export const auditLogs = pgTable("audit_logs", {
  * @remarks
  * - Omits auto-generated fields (id)
  * - isAdmin is optional and defaults to false
+ * - Email is optional but required for password reset
  * - Password should be hashed before insertion
  */
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  isAdmin: true,
-}).extend({
-  isAdmin: z.boolean().optional(),
+export const insertUserSchema = createInsertSchema(users)
+  .pick({
+    username: true,
+    password: true,
+    email: true,
+    isAdmin: true,
+  })
+  .extend({
+    email: z.string().email().optional(),
+    isAdmin: z.boolean().optional(),
+  });
+
+/**
+ * Zod schema for inserting a new password reset token
+ *
+ * @remarks
+ * - Omits auto-generated fields (id, createdAt)
+ * - used defaults to false
+ */
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+  id: true,
+  createdAt: true,
 });
 
 /**

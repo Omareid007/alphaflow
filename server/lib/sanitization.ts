@@ -78,10 +78,10 @@ export function sanitizeArray(arr: string[]): string[] {
  */
 export function sanitizeUserInput(user: {
   username?: string;
-  email?: string;
+  email?: string | null;
   displayName?: string;
   bio?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }): typeof user {
   const sanitized = { ...user };
 
@@ -111,7 +111,7 @@ export function sanitizeStrategyInput(strategy: {
   name?: string;
   description?: string | null;
   notes?: string | null;
-  [key: string]: any;
+  [key: string]: unknown;
 }): typeof strategy {
   const sanitized = { ...strategy };
 
@@ -138,7 +138,7 @@ export function sanitizeBacktestInput(backtest: {
   notes?: string;
   description?: string;
   name?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }): typeof backtest {
   const sanitized = { ...backtest };
 
