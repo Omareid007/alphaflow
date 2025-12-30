@@ -261,6 +261,97 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - Not exploitable in production
 - Waiting for upstream drizzle-kit update
 
+### Phase 17: Trading-Specific Claude Code Features (Dec 30, 2024)
+
+#### Trading Automation Hooks
+- [x] **Added PostToolUse hook** for auto-formatting TypeScript after edits
+  - Runs Prettier on `.ts` and `.tsx` files after Edit/Write operations
+  - Configured in `.claude/settings.local.json`
+
+#### Trading-Specific Agents (3 files in `~/.claude/agents/`)
+- [x] **trade-analyzer.md** - Performance analysis, Sharpe ratio, win rate calculation
+  - Uses mcp__postgres__query for trade history
+  - Uses mcp__yfinance for market data comparison
+  - Provides actionable recommendations
+- [x] **risk-monitor.md** - Portfolio risk monitoring, position limits
+  - Enforces 5% max position, 25% sector exposure limits
+  - Real-time concentration and correlation analysis
+  - Pre-trade validation checklist
+- [x] **order-debugger.md** - Order execution debugging, 422 error analysis
+  - Timeline reconstruction for failed orders
+  - Circuit breaker status checking
+  - Root cause analysis for common errors
+
+#### Trading-Specific Skills (2 directories in `~/.claude/skills/`)
+- [x] **order-execution/SKILL.md** - Safe order execution workflow
+  - Pre-trade validation (market hours, symbol, position size)
+  - Order placement with proper client_order_id generation
+  - Post-trade verification and error recovery
+- [x] **backtest-analysis/SKILL.md** - Backtest result analysis
+  - Key metrics (Sharpe, Sortino, Calmar, drawdown)
+  - Calculation functions with TypeScript examples
+  - Walk-forward validation and red flag detection
+
+#### Trading Commands (3 files in `~/.claude/commands/`)
+- [x] **/market-status** - Check market hours, trading eligibility
+- [x] **/portfolio-health** - Quick portfolio health check with risk metrics
+- [x] **/debug-order** - Debug specific order by ID
+
+#### Updated Totals
+- **Skills**: 16 (14 + 2 trading-specific)
+- **Custom Agents**: 8 (5 + 3 trading-specific)
+- **Custom Commands**: 17 (14 + 3 trading-specific)
+- **Hooks**: 1 (PostToolUse for auto-formatting)
+
+### Phase 18: Advanced Claude Code Integration (Dec 30, 2024)
+
+#### Advanced Hooks System
+- [x] **5 hooks configured** in `.claude/settings.local.json`:
+  - `PreToolUse` - Order validation before Bash commands
+  - `PostToolUse` - Auto-format TypeScript after Edit/Write
+  - `UserPromptSubmit` - Market context injection
+  - `SessionStart` - Portfolio and market initialization
+  - `Stop` - Session cleanup and summary
+
+#### Custom Trading MCP Server
+- [x] **Created `mcp-servers/trading-utilities/`** package
+  - Full MCP server implementation using @modelcontextprotocol/sdk
+  - 5 trading-specific tools:
+    | Tool | Purpose |
+    |------|---------|
+    | `check_portfolio_risk` | Calculate VaR, concentration, sector exposure |
+    | `validate_order` | Pre-trade validation against risk limits |
+    | `get_live_positions` | Current positions with P&L |
+    | `market_status` | Market clock, next open/close |
+    | `check_circuit_breaker` | Circuit breaker state |
+  - Risk thresholds: 5% position, 25% sector, 5% daily drawdown
+  - Registered in `.mcp.json` with environment variables
+
+#### Background Portfolio Monitoring
+- [x] **Created `~/.claude/agents/background-portfolio-monitor.md`**
+  - Continuous surveillance agent definition
+  - 60-second check interval
+  - Multi-threshold alert system
+- [x] **Created `/home/runner/workspace/scripts/background-monitor.ts`**
+  - Polls positions continuously
+  - Checks concentration, sector exposure, drawdown
+  - Slack webhook integration for alerts
+
+#### Helper Scripts for Hooks
+- [x] **`scripts/validate-trading-command.sh`** - Pre-trade validation
+- [x] **`scripts/inject-market-context.sh`** - Market context for prompts
+- [x] **`scripts/session-init.sh`** - Session initialization
+- [x] **`scripts/session-cleanup.sh`** - Session cleanup and logging
+
+#### Updated Totals
+| Component | Before | After |
+|-----------|--------|-------|
+| MCP Servers | 24 | **25** (+trading-utilities) |
+| Skills | 16 | 16 |
+| Custom Agents | 8 | **9** (+background-portfolio-monitor) |
+| Custom Commands | 17 | 17 |
+| Hooks | 1 | **5** |
+
 ### Remaining Items (Future)
 
 | Item                          | Priority | Notes                                    |
@@ -296,7 +387,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 ## MCP Servers
 
-Configured in `.mcp.json` (24 servers total, updated Dec 30, 2024):
+Configured in `.mcp.json` (25 servers total, updated Dec 30, 2024):
 
 ### Core Servers (No API Key Required)
 
@@ -312,6 +403,12 @@ Configured in `.mcp.json` (24 servers total, updated Dec 30, 2024):
 | `playwright`          | Browser automation, E2E testing       |
 | `vitest`              | AI-optimized test runner (NEW)        |
 | `openapi`             | API specification interaction (NEW)   |
+
+### Custom MCP Server (Local)
+
+| Server              | Purpose                                   |
+| ------------------- | ----------------------------------------- |
+| `trading-utilities` | Portfolio risk, order validation, positions |
 
 ### API Key Required (Configure When Available)
 
@@ -342,7 +439,7 @@ Configured in `.mcp.json` (24 servers total, updated Dec 30, 2024):
 - `sentry` (requires OAuth)
 - `stripe` (not needed)
 
-## Custom Skills (14 total)
+## Custom Skills (16 total)
 
 Located in `~/.claude/skills/`:
 | Skill | Purpose |
@@ -357,10 +454,12 @@ Located in `~/.claude/skills/`:
 | `project-structure` | Codebase navigation, imports |
 | `risk-management` | Position sizing, pre-trade validation |
 | `email-notifications` | SendGrid integration, trade alerts |
-| `refactoring-strategies` | Extract Method, DI patterns (NEW) |
-| `api-documentation` | OpenAPI 3.0 generation (NEW) |
-| `database-migrations` | Drizzle ORM migrations (NEW) |
-| `security-scanning` | SAST, OWASP compliance (NEW) |
+| `refactoring-strategies` | Extract Method, DI patterns |
+| `api-documentation` | OpenAPI 3.0 generation |
+| `database-migrations` | Drizzle ORM migrations |
+| `security-scanning` | SAST, OWASP compliance |
+| `order-execution` | Safe order execution workflow (NEW) |
+| `backtest-analysis` | Backtest result analysis (NEW) |
 
 ## Product Analysis System
 
@@ -468,7 +567,7 @@ log.info("Trading", "Order placed", { orderId });
 
 ## Available Analysis Tools
 
-### Commands (14 total, use with `/`)
+### Commands (17 total, use with `/`)
 
 | Command              | Purpose                                                      |
 | -------------------- | ------------------------------------------------------------ |
@@ -481,11 +580,14 @@ log.info("Trading", "Order placed", { orderId });
 | `/list-todos`        | Extract TODO/FIXME/HACK comments                             |
 | `/validate-types`    | TypeScript strict validation, `:any` detection               |
 | `/check-mcp-status`  | Verify MCP server configurations                             |
-| `/refactor-analyze`  | Find god objects, duplicates, type issues (NEW)              |
-| `/generate-api-docs` | Generate OpenAPI from Express routes (NEW)                   |
-| `/analyze-coverage`  | Test coverage gap analysis (NEW)                             |
-| `/generate-migration`| Database migration generation (NEW)                          |
-| `/security-scan`     | Comprehensive security analysis (NEW)                        |
+| `/refactor-analyze`  | Find god objects, duplicates, type issues                    |
+| `/generate-api-docs` | Generate OpenAPI from Express routes                         |
+| `/analyze-coverage`  | Test coverage gap analysis                                   |
+| `/generate-migration`| Database migration generation                                |
+| `/security-scan`     | Comprehensive security analysis                              |
+| `/market-status`     | Check market hours, trading eligibility (NEW)                |
+| `/portfolio-health`  | Quick portfolio health check with risk metrics (NEW)         |
+| `/debug-order`       | Debug specific order by ID (NEW)                             |
 
 ### Task Tool Subagents (via Task tool)
 
@@ -496,7 +598,7 @@ log.info("Trading", "Order placed", { orderId });
 | `Plan`                  | planning      | Implementation planning             |
 | `claude-code-guide`     | documentation | Claude Code/SDK documentation       |
 
-### Custom Agents (5 files in `~/.claude/agents/`)
+### Custom Agents (9 files in `~/.claude/agents/`)
 
 | Agent                          | Purpose                              |
 | ------------------------------ | ------------------------------------ |
@@ -505,6 +607,10 @@ log.info("Trading", "Order placed", { orderId });
 | `test-coverage-analyzer`       | Parse coverage, identify gaps        |
 | `migration-analyzer`           | Schema diff, safe migrations         |
 | `vulnerability-tracker`        | CVE tracking, npm audit, remediation |
+| `trade-analyzer`               | Trading performance analysis         |
+| `risk-monitor`                 | Portfolio risk monitoring            |
+| `order-debugger`               | Order execution debugging            |
+| `background-portfolio-monitor` | Continuous portfolio surveillance (NEW) |
 
 ## Non-Destructive Operation Rules
 
@@ -573,11 +679,12 @@ npx bundle-phobia-cli [package-name]
 
 ## Configuration Locations
 
-| File                            | Purpose                                 |
-| ------------------------------- | --------------------------------------- |
-| `~/.claude/settings.local.json` | Hooks configuration                     |
-| `~/.claude/agents/`             | Custom agents (13 total)                |
-| `~/.claude/commands/`           | Custom commands (9 total)               |
-| `~/.claude/skills/`             | Custom skills (9 total)                 |
-| `.mcp.json`                     | MCP server configuration (18 servers)   |
-| `.env`                          | Environment variables (source of truth) |
+| File                            | Purpose                                  |
+| ------------------------------- | ---------------------------------------- |
+| `~/.claude/settings.local.json` | Hooks configuration (5 hook types)       |
+| `~/.claude/agents/`             | Custom agents (9 total)                  |
+| `~/.claude/commands/`           | Custom commands (17 total)               |
+| `~/.claude/skills/`             | Custom skills (16 total)                 |
+| `.mcp.json`                     | MCP server configuration (25 servers)    |
+| `.env`                          | Environment variables (source of truth)  |
+| `mcp-servers/trading-utilities/`| Custom trading MCP server (5 tools)      |

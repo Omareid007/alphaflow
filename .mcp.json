@@ -158,6 +158,16 @@
         "REDIS_HOST": "${REDIS_HOST:-localhost}",
         "REDIS_PORT": "${REDIS_PORT:-6379}"
       }
+    },
+    "trading-utilities": {
+      "command": "npx",
+      "args": ["-y", "tsx", "./mcp-servers/trading-utilities/src/index.ts"],
+      "env": {
+        "ALPACA_API_KEY": "${ALPACA_API_KEY}",
+        "ALPACA_SECRET_KEY": "${ALPACA_SECRET_KEY}",
+        "ALPACA_BASE_URL": "${ALPACA_BASE_URL:-https://paper-api.alpaca.markets}",
+        "SERVER_URL": "${SERVER_URL:-http://localhost:5000}"
+      }
     }
   }
 }
