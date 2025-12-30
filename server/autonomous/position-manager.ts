@@ -293,10 +293,14 @@ export class PositionManager {
         positionSizePercent = (positionValue / portfolioValue) * 100;
 
         if (sizingResult.warnings && sizingResult.warnings.length > 0) {
-          log.info("PositionManager", `Position sizing warnings for ${symbol}`, {
-            warnings: sizingResult.warnings,
-            strategyId: executionContext.strategyId,
-          });
+          log.info(
+            "PositionManager",
+            `Position sizing warnings for ${symbol}`,
+            {
+              warnings: sizingResult.warnings,
+              strategyId: executionContext.strategyId,
+            }
+          );
         }
 
         log.info("PositionManager", `Using strategy-based position sizing`, {
@@ -411,7 +415,10 @@ export class PositionManager {
       let queuedResult;
 
       // Determine bracket order parameters - strategy config takes priority over AI decision
-      let bracketParams: { takeProfitPrice?: number; stopLossPrice?: number } | null = null;
+      let bracketParams: {
+        takeProfitPrice?: number;
+        stopLossPrice?: number;
+      } | null = null;
 
       if (executionContext?.params.bracketOrders.enabled && !isCrypto) {
         // Use strategy-based bracket orders
@@ -427,8 +434,10 @@ export class PositionManager {
             log.info("PositionManager", `Using strategy-based bracket orders`, {
               symbol,
               strategyId: executionContext.strategyId,
-              takeProfitPercent: executionContext.params.bracketOrders.takeProfitPercent,
-              stopLossPercent: executionContext.params.bracketOrders.stopLossPercent,
+              takeProfitPercent:
+                executionContext.params.bracketOrders.takeProfitPercent,
+              stopLossPercent:
+                executionContext.params.bracketOrders.stopLossPercent,
               takeProfitPrice: bracketParams.takeProfitPrice,
               stopLossPrice: bracketParams.stopLossPrice,
             });
@@ -442,7 +451,8 @@ export class PositionManager {
         };
       }
 
-      const hasBracketParams = bracketParams?.takeProfitPrice && bracketParams?.stopLossPrice;
+      const hasBracketParams =
+        bracketParams?.takeProfitPrice && bracketParams?.stopLossPrice;
 
       if (
         preCheck.useExtendedHours &&
@@ -499,7 +509,9 @@ export class PositionManager {
             type: "market",
             time_in_force: "day",
             order_class: "bracket",
-            take_profit: { limit_price: bracketParams.takeProfitPrice.toFixed(2) },
+            take_profit: {
+              limit_price: bracketParams.takeProfitPrice.toFixed(2),
+            },
             stop_loss: { stop_price: bracketParams.stopLossPrice.toFixed(2) },
           };
           queuedResult = await queueOrderExecution({
@@ -530,14 +542,73 @@ export class PositionManager {
           });
         }
       } else {
+        // Use strategy-based order execution settings if available
+        const orderExecution = executionContext?.params.orderExecution;
+
         // CRITICAL FIX: Market orders CANNOT use GTC time_in_force
-        const orderParams: CreateOrderParams = {
-          symbol: brokerSymbol,
-          notional: positionValue.toFixed(2),
-          side: "buy",
-          type: "market",
-          time_in_force: "day",
-        };
+        // For market orders, always use "day"; for limit orders, use strategy config
+        const effectiveOrderType = orderExecution?.orderType || "market";
+        const effectiveTIF =
+          effectiveOrderType === "market"
+            ? "day"
+            : orderExecution?.timeInForce || "day";
+
+        let orderParams: CreateOrderParams;
+
+        if (effectiveOrderType === "limit" && orderExecution) {
+          // Calculate limit price based on strategy config
+          const currentPrice = await this.fetchCurrentPrice(symbol);
+          if (currentPrice <= 0) {
+            return {
+              success: false,
+              action: "skip",
+              reason: "Unable to fetch current price for limit order",
+              symbol,
+            };
+          }
+          const offsetPct = orderExecution.limitOffsetPercent / 100;
+          const limitPrice =
+            Math.round(currentPrice * (1 + offsetPct) * 100) / 100;
+          const estimatedQty = Math.floor(positionValue / currentPrice);
+
+          if (estimatedQty < 1) {
+            return {
+              success: false,
+              action: "skip",
+              reason: `Position value too small for limit order ($${positionValue.toFixed(2)} at $${currentPrice})`,
+              symbol,
+            };
+          }
+
+          orderParams = {
+            symbol: brokerSymbol,
+            qty: estimatedQty.toString(),
+            side: "buy",
+            type: "limit",
+            time_in_force: effectiveTIF,
+            limit_price: limitPrice.toFixed(2),
+            ...(orderExecution.extendedHours && { extended_hours: true }),
+          };
+
+          log.info("PositionManager", `Using strategy-based limit order`, {
+            symbol,
+            strategyId: executionContext?.strategyId,
+            orderType: effectiveOrderType,
+            timeInForce: effectiveTIF,
+            limitPrice,
+            extendedHours: orderExecution.extendedHours,
+          });
+        } else {
+          // Standard market order
+          orderParams = {
+            symbol: brokerSymbol,
+            notional: positionValue.toFixed(2),
+            side: "buy",
+            type: "market",
+            time_in_force: "day",
+          };
+        }
+
         queuedResult = await queueOrderExecution({
           orderParams,
           traceId: this.currentTraceId,
@@ -646,7 +717,9 @@ export class PositionManager {
         openedAt: new Date(),
         stopLossPrice: bracketParams?.stopLossPrice ?? decision.stopLoss,
         takeProfitPrice: bracketParams?.takeProfitPrice ?? decision.targetPrice,
-        trailingStopPercent: executionContext?.params.bracketOrders.trailingStopPercent ?? decision.trailingStopPercent,
+        trailingStopPercent:
+          executionContext?.params.bracketOrders.trailingStopPercent ??
+          decision.trailingStopPercent,
         strategyId: executionContext?.strategyId,
       };
 
@@ -1330,7 +1403,7 @@ export class PositionManager {
   // ============================================================================
 
   /**
-   * Calculate total portfolio exposure as a percentage
+   * Calculate total portfolio exposure as a percentage (using cached positions)
    */
   private calculateTotalExposure(portfolioValue: number): number {
     let totalValue = 0;
@@ -1338,6 +1411,142 @@ export class PositionManager {
       totalValue += position.currentPrice * position.quantity;
     }
     return (totalValue / portfolioValue) * 100;
+  }
+
+  /**
+   * Get real-time exposure from broker (not cached)
+   *
+   * Fetches current account and positions directly from Alpaca for accurate
+   * exposure calculation before critical order decisions.
+   *
+   * @returns Promise with portfolioValue, currentExposure, and positionsCount
+   */
+  async getRealTimeExposure(): Promise<{
+    portfolioValue: number;
+    currentExposure: number;
+    positionsCount: number;
+    buyingPower: number;
+    exposureDetails: Array<{
+      symbol: string;
+      marketValue: number;
+      exposurePercent: number;
+    }>;
+  }> {
+    try {
+      // Fetch directly from broker - no caching
+      const [account, positions] = await Promise.all([
+        alpaca.getAccount(),
+        alpaca.getPositions(),
+      ]);
+
+      const portfolioValue = safeParseFloat(account.portfolio_value);
+      const buyingPower = safeParseFloat(account.buying_power);
+
+      let totalExposure = 0;
+      const exposureDetails: Array<{
+        symbol: string;
+        marketValue: number;
+        exposurePercent: number;
+      }> = [];
+
+      for (const position of positions) {
+        const marketValue = safeParseFloat(position.market_value);
+        const exposurePercent = (marketValue / portfolioValue) * 100;
+        totalExposure += exposurePercent;
+        exposureDetails.push({
+          symbol: position.symbol,
+          marketValue,
+          exposurePercent,
+        });
+      }
+
+      log.debug("PositionManager", "Real-time exposure check", {
+        portfolioValue,
+        currentExposure: totalExposure.toFixed(2),
+        positionsCount: positions.length,
+        buyingPower,
+      });
+
+      return {
+        portfolioValue,
+        currentExposure: totalExposure,
+        positionsCount: positions.length,
+        buyingPower,
+        exposureDetails,
+      };
+    } catch (error) {
+      log.error("PositionManager", "Failed to get real-time exposure", {
+        error: String(error),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Validate exposure before opening a new position
+   *
+   * Performs a real-time broker check to ensure the new position won't exceed
+   * exposure limits. This is more accurate than cached exposure calculations.
+   *
+   * @param positionSizePercent - Size of new position as percentage of portfolio
+   * @returns Validation result with current exposure details
+   */
+  async validateExposureForNewPosition(positionSizePercent: number): Promise<{
+    canOpen: boolean;
+    reason?: string;
+    currentExposure: number;
+    projectedExposure: number;
+    maxExposure: number;
+  }> {
+    try {
+      const exposure = await this.getRealTimeExposure();
+      const projectedExposure = exposure.currentExposure + positionSizePercent;
+      const maxExposure = this.riskLimits.maxTotalExposurePercent;
+
+      if (projectedExposure > maxExposure) {
+        return {
+          canOpen: false,
+          reason: `Would exceed max exposure: ${exposure.currentExposure.toFixed(1)}% + ${positionSizePercent.toFixed(1)}% = ${projectedExposure.toFixed(1)}% > ${maxExposure}%`,
+          currentExposure: exposure.currentExposure,
+          projectedExposure,
+          maxExposure,
+        };
+      }
+
+      // Also check buying power
+      const account = await alpaca.getAccount();
+      const buyingPower = safeParseFloat(account.buying_power);
+      const portfolioValue = safeParseFloat(account.portfolio_value);
+      const requiredCapital = portfolioValue * (positionSizePercent / 100);
+
+      if (requiredCapital > buyingPower) {
+        return {
+          canOpen: false,
+          reason: `Insufficient buying power: need $${requiredCapital.toFixed(2)} but only have $${buyingPower.toFixed(2)}`,
+          currentExposure: exposure.currentExposure,
+          projectedExposure,
+          maxExposure,
+        };
+      }
+
+      return {
+        canOpen: true,
+        currentExposure: exposure.currentExposure,
+        projectedExposure,
+        maxExposure,
+      };
+    } catch (error) {
+      log.error("PositionManager", "Exposure validation failed", {
+        error: String(error),
+      });
+      return {
+        canOpen: false,
+        reason: `Exposure check failed: ${error}`,
+        currentExposure: 0,
+        projectedExposure: 0,
+        maxExposure: this.riskLimits.maxTotalExposurePercent,
+      };
+    }
   }
 
   /**

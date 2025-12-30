@@ -423,8 +423,9 @@ class AutonomousOrchestrator implements OrchestratorInterface {
       const marketData = await fetchMarketData(universe);
 
       const allStrategies = await storage.getStrategies();
+      // Filter for deployed strategies (paper or live status)
       const activeStrategies = allStrategies.filter(
-        (s: Strategy) => s.isActive
+        (s: Strategy) => s.status === "paper" || s.status === "live"
       );
 
       for (const [symbol, data] of marketData.entries()) {
@@ -456,7 +457,8 @@ class AutonomousOrchestrator implements OrchestratorInterface {
           );
 
           // Use strategy-specific confidence threshold if available
-          const minConfidence = executionContext?.params.entryRules.minConfidence ?? 0.7;
+          const minConfidence =
+            executionContext?.params.entryRules.minConfidence ?? 0.7;
 
           if (
             decision.confidence >= minConfidence &&
@@ -517,7 +519,10 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             );
 
             // AUTO-APPROVE: Dynamically approve symbols with high-confidence buy signals
-            if (decision.action === "buy" && decision.confidence >= minConfidence) {
+            if (
+              decision.action === "buy" &&
+              decision.confidence >= minConfidence
+            ) {
               this.autoApproveSymbol(symbol).catch((err) =>
                 log.warn(
                   "Orchestrator",
@@ -616,17 +621,43 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             result.action !== "hold" &&
             result.action !== "skip"
           ) {
+            // Successful trade execution
             await storage.updateAiDecision(decision.aiDecisionId, {
               status: "executed",
               filledPrice: result.price?.toString(),
               filledAt: new Date(),
             });
           } else if (result.action === "hold") {
+            // Intentional hold - no trade attempt
             await storage.updateAiDecision(decision.aiDecisionId, {
               status: "skipped",
               skipReason: "Hold action - no trade executed",
             });
+          } else if (result.action === "skip") {
+            // Pre-validation skip (exposure limits, tradability, etc.)
+            await storage.updateAiDecision(decision.aiDecisionId, {
+              status: "skipped",
+              skipReason: result.reason || "Validation failed - trade skipped",
+            });
+          } else if (!result.success) {
+            // Trade attempted but failed (order rejected, timeout, etc.)
+            await storage.updateAiDecision(decision.aiDecisionId, {
+              status: "failed",
+              skipReason:
+                result.reason || result.error || "Order execution failed",
+            });
+            log.warn(
+              "Orchestrator",
+              `AI decision ${decision.aiDecisionId} failed`,
+              {
+                symbol,
+                action: result.action,
+                reason: result.reason,
+                error: result.error,
+              }
+            );
           } else {
+            // Fallback - should not reach here
             await storage.updateAiDecision(decision.aiDecisionId, {
               status: "skipped",
               skipReason: result.reason || "Trade not executed",
@@ -701,7 +732,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     }
 
     if (decision.action === "buy") {
-      return await this.positionManager.openPosition(symbol, decision, executionContext);
+      return await this.positionManager.openPosition(
+        symbol,
+        decision,
+        executionContext
+      );
     }
 
     if (decision.action === "sell" && existingPosition) {
