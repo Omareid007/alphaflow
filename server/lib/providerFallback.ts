@@ -3,13 +3,23 @@ import { getBreaker, isCircuitOpen } from "./circuitBreaker";
 import { ApiCache } from "./api-cache";
 import { log } from "../utils/logger";
 
+/**
+ * Provider fetch arguments - can be a single string (symbol) or more complex params
+ */
+export type ProviderFetchArgs = [string, ...unknown[]];
+
+/**
+ * Raw data from a provider before normalization
+ */
+export type ProviderRawData = Record<string, unknown>;
+
 export interface ProviderAdapter<T> {
   name: string;
   priority: number;
   costPerCall: number;
   isEnabled: () => boolean;
-  fetch: (...args: any[]) => Promise<T>;
-  normalize?: (data: any) => T;
+  fetch: (...args: ProviderFetchArgs) => Promise<T>;
+  normalize?: (data: ProviderRawData) => T;
 }
 
 export interface FallbackResult<T> {
@@ -51,7 +61,7 @@ export class ProviderFallbackManager<T> {
     });
   }
 
-  async fetch(cacheKey: string, ...args: any[]): Promise<FallbackResult<T>> {
+  async fetch(cacheKey: string, ...args: ProviderFetchArgs): Promise<FallbackResult<T>> {
     const fullCacheKey = `${this.cachePrefix}:${cacheKey}`;
 
     const cached = this.cache.get(fullCacheKey);
@@ -94,7 +104,8 @@ export class ProviderFallbackManager<T> {
         let data: T = (await breaker.fire()) as T;
 
         if (provider.normalize) {
-          data = provider.normalize(data) as T;
+          // Provider returned raw data that needs normalization
+          data = provider.normalize(data as unknown as ProviderRawData);
         }
 
         this.cache.set(fullCacheKey, data);
@@ -143,7 +154,7 @@ export class ProviderFallbackManager<T> {
 
   async fetchWithFallbackOnly(
     cacheKey: string,
-    ...args: any[]
+    ...args: ProviderFetchArgs
   ): Promise<FallbackResult<T> | null> {
     try {
       return await this.fetch(cacheKey, ...args);

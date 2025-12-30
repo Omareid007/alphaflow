@@ -41,10 +41,11 @@ import {
   validateLimitPrice,
   validateBracketOrder,
   validateTrailingStop,
-  TERMINAL_STATUSES,
-  ACTIVE_STATUSES,
-  FAILED_STATUSES,
+  isTerminalStatus,
+  isActiveStatus,
+  isFailedStatus,
   type ValidationResult,
+  type FailedStatus,
 } from "./order-types-matrix";
 import { tradingConfig } from "../config/trading-config";
 
@@ -481,8 +482,9 @@ class OrderExecutionEngine {
       // Phase 5: Record Actual Outcome
       state.actualOutcome = this.recordActualOutcome(monitoredOrder, state);
 
-      if (FAILED_STATUSES.includes(monitoredOrder.status as any)) {
-        state.status = monitoredOrder.status as any;
+      if (isFailedStatus(monitoredOrder.status)) {
+        // Map Alpaca status to our execution state (canceled/expired/rejected → canceled or failed)
+        state.status = monitoredOrder.status === "canceled" ? "canceled" : "failed";
         return {
           success: false,
           state,
@@ -546,9 +548,10 @@ class OrderExecutionEngine {
     // Schema validation
     try {
       CreateOrderSchema.parse(params);
-    } catch (e: any) {
+    } catch (e: unknown) {
       result.valid = false;
-      result.errors.push(`Schema validation failed: ${e.message}`);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      result.errors.push(`Schema validation failed: ${errorMessage}`);
       return result;
     }
 
@@ -846,7 +849,7 @@ class OrderExecutionEngine {
       try {
         const order = await alpaca.getOrder(orderId);
 
-        if (TERMINAL_STATUSES.includes(order.status as any)) {
+        if (isTerminalStatus(order.status)) {
           return order;
         }
 
@@ -1118,7 +1121,7 @@ export async function identifyUnrealOrders(): Promise<UnrealOrder[]> {
         isUnreal = true;
         reason = "Order has zero quantity and zero notional";
       } else if (
-        ACTIVE_STATUSES.includes(order.status as any) &&
+        isActiveStatus(order.status) &&
         orderAgeMs >= staleThresholdMs &&
         filledQty === 0
       ) {
@@ -1168,7 +1171,7 @@ export async function cleanupUnrealOrders(): Promise<{
     result.identified = unrealOrders.length;
 
     for (const order of unrealOrders) {
-      if (ACTIVE_STATUSES.includes(order.status as any)) {
+      if (isActiveStatus(order.status)) {
         try {
           await alpaca.cancelOrder(order.orderId);
           log.info("OrderCleanup", "Canceled unreal order", {
@@ -1308,11 +1311,7 @@ export async function waitForAlpacaOrderFill(
         };
       }
 
-      if (
-        TERMINAL_STATUSES.includes(
-          order.status as (typeof TERMINAL_STATUSES)[number]
-        )
-      ) {
+      if (isTerminalStatus(order.status)) {
         log.info("OrderFlow", "Order ended with status", {
           orderId,
           status: order.status,

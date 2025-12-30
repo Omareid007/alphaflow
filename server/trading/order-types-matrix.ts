@@ -447,6 +447,28 @@ export const ACTIVE_STATUSES = [
  */
 export const FAILED_STATUSES = ["canceled", "expired", "rejected"] as const;
 
+/**
+ * Order status type definitions
+ */
+export type TerminalStatus = (typeof TERMINAL_STATUSES)[number];
+export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
+export type FailedStatus = (typeof FAILED_STATUSES)[number];
+
+/**
+ * Type guard functions for order status checking
+ */
+export function isTerminalStatus(status: string): status is TerminalStatus {
+  return (TERMINAL_STATUSES as readonly string[]).includes(status);
+}
+
+export function isActiveStatus(status: string): status is ActiveStatus {
+  return (ACTIVE_STATUSES as readonly string[]).includes(status);
+}
+
+export function isFailedStatus(status: string): status is FailedStatus {
+  return (FAILED_STATUSES as readonly string[]).includes(status);
+}
+
 // ============================================================================
 // VALIDATION HELPER FUNCTIONS
 // ============================================================================

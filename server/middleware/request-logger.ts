@@ -8,6 +8,14 @@ import { log } from "../utils/logger";
 import { randomBytes } from "crypto";
 
 /**
+ * Extended Express Request with correlation ID and user info
+ */
+export interface RequestWithCorrelation extends Request {
+  correlationId?: string;
+  userId?: string;
+}
+
+/**
  * Generate a unique correlation ID for request tracking
  */
 function generateCorrelationId(): string {
@@ -19,11 +27,12 @@ function generateCorrelationId(): string {
  */
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const startTime = Date.now();
+  const extendedReq = req as RequestWithCorrelation;
   const correlationId =
     (req.headers["x-correlation-id"] as string) || generateCorrelationId();
 
   // Attach correlation ID to request for use in other middleware/routes
-  (req as any).correlationId = correlationId;
+  extendedReq.correlationId = correlationId;
 
   // Add correlation ID to response headers
   res.setHeader("X-Correlation-ID", correlationId);
@@ -34,14 +43,14 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     method: req.method,
     path: req.path,
     query: Object.keys(req.query).length > 0 ? req.query : undefined,
-    userId: (req as any).userId,
+    userId: extendedReq.userId,
     ip: req.ip || req.socket.remoteAddress,
     userAgent: req.headers["user-agent"],
   });
 
-  // Capture response
+  // Capture response - use proper response body type
   const originalSend = res.send;
-  res.send = function (data: any) {
+  res.send = function (data: string | Buffer | object) {
     const duration = Date.now() - startTime;
 
     // Log response
@@ -51,7 +60,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       path: req.path,
       statusCode: res.statusCode,
       durationMs: duration,
-      userId: (req as any).userId,
+      userId: extendedReq.userId,
     });
 
     // Call original send
@@ -67,7 +76,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 export function performanceLogger(thresholdMs: number = 1000) {
   return (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
-    const correlationId = (req as any).correlationId || "unknown";
+    const extendedReq = req as RequestWithCorrelation;
+    const correlationId = extendedReq.correlationId || "unknown";
 
     res.on("finish", () => {
       const duration = Date.now() - startTime;

@@ -19,6 +19,53 @@ import type {
 } from "@shared/schema";
 import crypto from "crypto";
 
+/**
+ * Order types supported by Alpaca
+ */
+type AlpacaOrderType = "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
+
+/**
+ * Time in force values for orders
+ */
+type AlpacaTimeInForce = "day" | "gtc" | "opg" | "cls" | "ioc" | "fok";
+
+/**
+ * Order class for bracket/OCO orders
+ */
+type AlpacaOrderClass = "simple" | "bracket" | "oco" | "oto";
+
+/**
+ * Alpaca order submission parameters
+ */
+interface AlpacaOrderParams {
+  symbol: string;
+  side: "buy" | "sell";
+  type: AlpacaOrderType;
+  time_in_force: AlpacaTimeInForce;
+  client_order_id: string;
+  qty?: string;
+  notional?: string;
+  limit_price?: string;
+  stop_price?: string;
+  extended_hours?: boolean;
+  order_class?: AlpacaOrderClass;
+  take_profit?: { limit_price: string };
+  stop_loss?: { stop_price: string };
+}
+
+/**
+ * Alpaca position response structure
+ */
+interface AlpacaPosition {
+  symbol: string;
+  qty: string;
+  qty_available?: string;
+  avg_entry_price: string;
+  market_value: string;
+  unrealized_pl: string;
+  side: string;
+}
+
 // Cached admin user ID for database operations
 let cachedAdminUserId: string | null = null;
 
@@ -437,12 +484,12 @@ class WorkQueueServiceImpl implements WorkQueueService {
       side: side as "buy" | "sell",
       qty,
       notional,
-      type: (type || "market") as any,
-      timeInForce: (time_in_force || "day") as any,
+      type: (type || "market") as AlpacaOrderType,
+      timeInForce: (time_in_force || "day") as AlpacaTimeInForce,
       limitPrice: limit_price?.toString(),
       stopPrice: stop_price?.toString(),
       extendedHours: extended_hours,
-      orderClass: order_class as any,
+      orderClass: order_class as AlpacaOrderClass | undefined,
       takeProfitLimitPrice: effectiveTakeProfitLimitPrice?.toString(),
       stopLossStopPrice: effectiveStopLossStopPrice?.toString(),
     };
@@ -541,8 +588,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
     if (side === "sell" && validatedQty) {
       try {
         // Fetch LIVE position data directly from Alpaca
-        const positions = await alpaca.getPositions();
-        const position = positions.find((p: any) => p.symbol === symbol);
+        const positions = (await alpaca.getPositions()) as AlpacaPosition[];
+        const position = positions.find((p) => p.symbol === symbol);
 
         if (!position) {
           log.warn(
@@ -647,10 +694,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
         }
 
         validatedQty = finalQty.toString();
-      } catch (posError: any) {
+      } catch (posError: unknown) {
+        const errorMessage = posError instanceof Error ? posError.message : String(posError);
         log.error(
           "work-queue",
-          `Position validation failed for ${symbol}: ${posError.message}`,
+          `Position validation failed for ${symbol}: ${errorMessage}`,
           { traceId }
         );
         // Continue with original qty - let Alpaca reject if invalid
@@ -688,10 +736,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
           );
           return;
         }
-      } catch (validationError: any) {
+      } catch (validationError: unknown) {
+        const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
         log.warn(
           "work-queue",
-          `Extended hours validation failed: ${validationError.message}`,
+          `Extended hours validation failed: ${errorMessage}`,
           { traceId }
         );
         // Continue - let Alpaca handle it
@@ -700,11 +749,11 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
     // USE TRANSFORMED ORDER PARAMS from smart router
     // The smart router has already corrected order type, TIF, and calculated limit prices
-    const orderParams: any = {
+    const orderParams: AlpacaOrderParams = {
       symbol,
-      side,
-      type: transformedOrder.type,
-      time_in_force: transformedOrder.timeInForce,
+      side: side as "buy" | "sell",
+      type: transformedOrder.type as AlpacaOrderType,
+      time_in_force: transformedOrder.timeInForce as AlpacaTimeInForce,
       client_order_id: clientOrderId,
     };
 
