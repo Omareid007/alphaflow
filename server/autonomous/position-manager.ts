@@ -348,9 +348,9 @@ export class PositionManager {
       }
 
       let queuedResult;
-      // TEMPORARILY DISABLED: Bracket orders failing due to work-queue format mismatch
-      // Use simple market orders until tsx server restart or format fix deployed
-      const hasBracketParams = false; // Was: decision.targetPrice && decision.stopLoss && !isCrypto;
+      // Re-enabled: Bracket orders now use correct nested format per Alpaca API
+      const hasBracketParams =
+        decision.targetPrice && decision.stopLoss && !isCrypto;
 
       if (
         preCheck.useExtendedHours &&
@@ -398,16 +398,15 @@ export class PositionManager {
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
           const estimatedQty = (positionValue / currentPrice).toFixed(6);
-          // CRITICAL FIX: Bracket orders MUST use time_in_force: "day" per Alpaca API requirements
-          const orderParams: any = {
+          // Bracket orders MUST use time_in_force: "day" per Alpaca API requirements
+          // Use nested format for take_profit/stop_loss per Alpaca API spec
+          const orderParams: CreateOrderParams = {
             symbol: brokerSymbol,
             qty: estimatedQty,
             side: "buy",
             type: "market",
             time_in_force: "day",
             order_class: "bracket",
-            take_profit_limit_price: decision.targetPrice.toFixed(2),
-            stop_loss_stop_price: decision.stopLoss.toFixed(2),
             take_profit: { limit_price: decision.targetPrice.toFixed(2) },
             stop_loss: { stop_price: decision.stopLoss.toFixed(2) },
           };
