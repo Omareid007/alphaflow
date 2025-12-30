@@ -6,6 +6,7 @@ dotenv.config({ override: true });
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
@@ -16,6 +17,7 @@ import { alpaca } from "./connectors/alpaca";
 import { cleanupExpiredSessions } from "./lib/session";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { requestLogger, performanceLogger } from "./middleware/request-logger";
+import { wsServer } from "./lib/websocket-server";
 
 process.on("uncaughtException", (err) => {
   log.error("FATAL", "Uncaught exception", { error: err });
@@ -45,6 +47,11 @@ async function gracefulShutdown(signal: string) {
         });
       });
     }
+
+    // Shutdown WebSocket server
+    log.info("SHUTDOWN", "Shutting down WebSocket server...");
+    wsServer.shutdown();
+    log.info("SHUTDOWN", "WebSocket server shutdown complete");
 
     // Stop background jobs
     log.info("SHUTDOWN", "Stopping background jobs...");
@@ -262,7 +269,9 @@ function setupErrorHandler(app: express.Application) {
 // Verify Alpaca account on startup to catch credential mismatches early
 async function verifyAlpacaAccount() {
   const apiKey = process.env.ALPACA_API_KEY;
-  const maskedKey = apiKey ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}` : "NOT SET";
+  const maskedKey = apiKey
+    ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`
+    : "NOT SET";
 
   log.info("ALPACA_VERIFY", `Using API Key: ${maskedKey}`);
 
@@ -270,12 +279,21 @@ async function verifyAlpacaAccount() {
     const account = await alpaca.getAccount();
     log.info("ALPACA_VERIFY", `Connected to Alpaca account: ${account.id}`);
     log.info("ALPACA_VERIFY", `Account Status: ${account.status}`);
-    log.info("ALPACA_VERIFY", `Buying Power: $${parseFloat(account.buying_power).toFixed(2)}`);
-    log.info("ALPACA_VERIFY", `Portfolio Value: $${parseFloat(account.portfolio_value).toFixed(2)}`);
+    log.info(
+      "ALPACA_VERIFY",
+      `Buying Power: $${parseFloat(account.buying_power).toFixed(2)}`
+    );
+    log.info(
+      "ALPACA_VERIFY",
+      `Portfolio Value: $${parseFloat(account.portfolio_value).toFixed(2)}`
+    );
     return true;
   } catch (error) {
     log.error("ALPACA_VERIFY", "Failed to connect to Alpaca", { error });
-    log.warn("ALPACA_VERIFY", "Server will continue but trading features may not work");
+    log.warn(
+      "ALPACA_VERIFY",
+      "Server will continue but trading features may not work"
+    );
     return false;
   }
 }
@@ -291,6 +309,24 @@ async function verifyAlpacaAccount() {
 
     log.info("STARTUP", "Beginning server initialization...");
     setupCors(app);
+
+    // Security headers via helmet
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          connectSrc: ["'self'", "https:", "wss:"],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // Required for some external resources
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }));
+    log.info("STARTUP", "Security headers configured (helmet)");
+
     setupBodyParsing(app);
     app.use(cookieParser());
     setupRequestLogging(app);
@@ -329,6 +365,11 @@ async function verifyAlpacaAccount() {
 
     // Store server globally for graceful shutdown
     global.httpServer = server;
+
+    // Initialize WebSocket server for real-time updates
+    log.info("STARTUP", "Initializing WebSocket server...");
+    wsServer.initialize(server);
+    log.info("STARTUP", "WebSocket server initialized on /ws path");
 
     server.listen(
       {

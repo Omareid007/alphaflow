@@ -5,6 +5,7 @@ import type { OrderStatus } from "@shared/schema";
 import { hookIntoTradeUpdates } from "./order-retry-handler";
 import { toDecimal, calculatePnL, formatPrice } from "../utils/money";
 import { tradingConfig } from "../config/trading-config";
+import { broadcastTradeUpdate } from "../lib/websocket-server";
 
 // Use config-based URL that respects ALPACA_TRADING_MODE environment variable
 const ALPACA_STREAM_URL =
@@ -291,6 +292,16 @@ class AlpacaStreamManager {
         filledAvgPrice: order.filled_avg_price,
         traceId,
         rawJson: order,
+      });
+
+      // Broadcast trade update to connected WebSocket clients
+      broadcastTradeUpdate({
+        orderId: brokerOrderId,
+        symbol: order.symbol,
+        side: order.side,
+        status: newStatus,
+        filledQty: order.filled_qty,
+        filledPrice: order.filled_avg_price || undefined,
       });
 
       if ((event === "fill" || event === "partial_fill") && price && qty) {
