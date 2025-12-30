@@ -29,6 +29,13 @@ import { candidatesService } from "../universe/candidatesService";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { tradingSessionManager } from "../services/trading-session-manager";
 
+// Strategy execution context for applying strategy parameters to trades
+import {
+  parseStrategyContext,
+  validateDecision,
+  type StrategyExecutionContext,
+} from "./strategy-execution-context";
+
 // Types and constants from extracted modules
 import {
   OrchestratorConfig,
@@ -36,6 +43,7 @@ import {
   RiskLimits,
   PositionWithRules,
   ExecutionResult,
+  PendingSignal,
   DEFAULT_CONFIG,
   DEFAULT_RISK_LIMITS,
 } from "./types";
@@ -424,6 +432,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
           activeStrategies.find((s: Strategy) => s.assets?.includes(symbol)) ||
           activeStrategies[0];
 
+        // Create execution context from strategy for rule validation
+        const executionContext: StrategyExecutionContext | null = strategy
+          ? parseStrategyContext(strategy)
+          : null;
+
         try {
           const decision = await aiDecisionEngine.analyzeOpportunity(
             symbol,
@@ -442,11 +455,45 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             { traceId: this.currentTraceId || undefined }
           );
 
+          // Use strategy-specific confidence threshold if available
+          const minConfidence = executionContext?.params.entryRules.minConfidence ?? 0.7;
+
           if (
-            decision.confidence >= 0.7 &&
+            decision.confidence >= minConfidence &&
             decision.action !== "hold" &&
             this.userId
           ) {
+            // Validate decision against strategy rules
+            if (executionContext) {
+              const validation = validateDecision(
+                {
+                  symbol,
+                  action: decision.action,
+                  confidence: decision.confidence,
+                  reasoning: decision.reasoning,
+                },
+                executionContext,
+                this.state.activePositions.size
+              );
+
+              if (!validation.valid) {
+                log.info("Orchestrator", `Decision blocked by strategy rules`, {
+                  symbol,
+                  action: decision.action,
+                  reason: validation.reason,
+                  strategyId: executionContext.strategyId,
+                });
+                continue; // Skip this signal
+              }
+
+              if (validation.warnings && validation.warnings.length > 0) {
+                log.warn("Orchestrator", `Decision warnings`, {
+                  symbol,
+                  warnings: validation.warnings,
+                });
+              }
+            }
+
             const aiDecision = await storage.createAiDecision({
               userId: this.userId,
               strategyId: strategy?.id || null,
@@ -470,7 +517,7 @@ class AutonomousOrchestrator implements OrchestratorInterface {
             );
 
             // AUTO-APPROVE: Dynamically approve symbols with high-confidence buy signals
-            if (decision.action === "buy" && decision.confidence >= 0.7) {
+            if (decision.action === "buy" && decision.confidence >= minConfidence) {
               this.autoApproveSymbol(symbol).catch((err) =>
                 log.warn(
                   "Orchestrator",
@@ -479,9 +526,11 @@ class AutonomousOrchestrator implements OrchestratorInterface {
               );
             }
 
+            // Store signal with execution context for position sizing
             this.state.pendingSignals.set(symbol, {
               ...decision,
               aiDecisionId: aiDecision.id,
+              executionContext,
             });
           }
         } catch (error) {
@@ -602,7 +651,7 @@ class AutonomousOrchestrator implements OrchestratorInterface {
 
   private async executeSignal(
     symbol: string,
-    decision: AIDecision
+    decision: PendingSignal
   ): Promise<ExecutionResult> {
     const positionCount = this.state.activePositions.size;
     if (
@@ -618,6 +667,7 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     }
 
     const existingPosition = this.state.activePositions.get(symbol);
+    const executionContext = decision.executionContext || null;
 
     if (decision.action === "buy" && existingPosition) {
       // Reinforcement threshold: 50% confidence
@@ -629,7 +679,8 @@ class AutonomousOrchestrator implements OrchestratorInterface {
         return await this.positionManager.reinforcePosition(
           symbol,
           decision,
-          existingPosition
+          existingPosition,
+          executionContext
         );
       }
       return {
@@ -650,7 +701,7 @@ class AutonomousOrchestrator implements OrchestratorInterface {
     }
 
     if (decision.action === "buy") {
-      return await this.positionManager.openPosition(symbol, decision);
+      return await this.positionManager.openPosition(symbol, decision, executionContext);
     }
 
     if (decision.action === "sell" && existingPosition) {

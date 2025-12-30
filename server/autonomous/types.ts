@@ -11,6 +11,7 @@
 
 import { tradingConfig } from "../config/trading-config";
 import type { AIDecision } from "../ai/decision-engine";
+import type { StrategyExecutionContext } from "./strategy-execution-context";
 
 // ============================================================================
 // CONFIG CONSTANTS (from tradingConfig)
@@ -191,6 +192,22 @@ export interface ExecutionResult {
 }
 
 /**
+ * Pending signal with AI decision and optional strategy execution context.
+ *
+ * Extends AIDecision with additional fields for tracking and strategy-based execution.
+ * The execution context contains strategy configuration for position sizing and bracket orders.
+ *
+ * @interface PendingSignal
+ * @extends AIDecision
+ * @property {string} [aiDecisionId] - Database ID of the AI decision record
+ * @property {StrategyExecutionContext | null} [executionContext] - Strategy configuration for execution
+ */
+export interface PendingSignal extends AIDecision {
+  aiDecisionId?: string;
+  executionContext?: StrategyExecutionContext | null;
+}
+
+/**
  * Current state of the autonomous orchestrator.
  *
  * Maintains the runtime state of the trading system, including active positions,
@@ -202,7 +219,7 @@ export interface ExecutionResult {
  * @property {Date | null} lastAnalysisTime - Timestamp of last market analysis cycle
  * @property {Date | null} lastPositionCheckTime - Timestamp of last position monitoring check
  * @property {Map<string, PositionWithRules>} activePositions - Currently held positions by symbol
- * @property {Map<string, AIDecision>} pendingSignals - AI decisions awaiting execution
+ * @property {Map<string, PendingSignal>} pendingSignals - AI decisions with context awaiting execution
  * @property {ExecutionResult[]} executionHistory - History of execution attempts
  * @property {number} dailyPnl - Today's profit/loss in dollars
  * @property {number} dailyTradeCount - Number of trades executed today
@@ -215,7 +232,7 @@ export interface OrchestratorState {
   lastAnalysisTime: Date | null;
   lastPositionCheckTime: Date | null;
   activePositions: Map<string, PositionWithRules>;
-  pendingSignals: Map<string, AIDecision>;
+  pendingSignals: Map<string, PendingSignal>;
   executionHistory: ExecutionResult[];
   dailyPnl: number;
   dailyTradeCount: number;

@@ -82,6 +82,13 @@ import { advancedRebalancingService } from "../services/advanced-rebalancing-ser
 import { sectorExposureService } from "../services/sector-exposure-service";
 import { tradabilityService } from "../services/tradability-service";
 
+// Strategy execution context for applying strategy parameters to trades
+import {
+  calculatePositionSize,
+  calculateBracketOrderParams,
+  type StrategyExecutionContext,
+} from "./strategy-execution-context";
+
 import type {
   PositionWithRules,
   ExecutionResult,
@@ -241,7 +248,8 @@ export class PositionManager {
    */
   async openPosition(
     symbol: string,
-    decision: AIDecision
+    decision: AIDecision,
+    executionContext?: StrategyExecutionContext | null
   ): Promise<ExecutionResult> {
     try {
       const account = await alpaca.getAccount();
@@ -250,11 +258,64 @@ export class PositionManager {
       // Update state with actual portfolio value
       this.state.portfolioValue = portfolioValue;
 
-      const positionSizePercent = Math.min(
-        (decision.suggestedQuantity || 0.05) * 100,
-        this.riskLimits.maxPositionSizePercent
-      );
-      const positionValue = portfolioValue * (positionSizePercent / 100);
+      // Calculate position size - use strategy config if available, otherwise fallback to default
+      let positionValue: number;
+      let positionSizePercent: number;
+
+      if (executionContext) {
+        // Use strategy-based position sizing
+        const currentPrice = await this.fetchCurrentPrice(symbol);
+        if (currentPrice <= 0) {
+          return {
+            success: false,
+            action: "skip",
+            reason: "Unable to fetch current price for position sizing",
+            symbol,
+          };
+        }
+
+        const sizingResult = calculatePositionSize(
+          executionContext,
+          portfolioValue,
+          currentPrice
+        );
+
+        if (sizingResult.quantity < 1) {
+          return {
+            success: false,
+            action: "skip",
+            reason: sizingResult.warnings?.[0] || "Position size too small",
+            symbol,
+          };
+        }
+
+        positionValue = sizingResult.notional;
+        positionSizePercent = (positionValue / portfolioValue) * 100;
+
+        if (sizingResult.warnings && sizingResult.warnings.length > 0) {
+          log.info("PositionManager", `Position sizing warnings for ${symbol}`, {
+            warnings: sizingResult.warnings,
+            strategyId: executionContext.strategyId,
+          });
+        }
+
+        log.info("PositionManager", `Using strategy-based position sizing`, {
+          symbol,
+          strategyId: executionContext.strategyId,
+          strategyName: executionContext.strategyName,
+          sizingType: executionContext.params.positionSizing.type,
+          sizingValue: executionContext.params.positionSizing.value,
+          calculatedNotional: positionValue.toFixed(2),
+          calculatedPercent: positionSizePercent.toFixed(2),
+        });
+      } else {
+        // Default position sizing (existing behavior)
+        positionSizePercent = Math.min(
+          (decision.suggestedQuantity || 0.05) * 100,
+          this.riskLimits.maxPositionSizePercent
+        );
+        positionValue = portfolioValue * (positionSizePercent / 100);
+      }
 
       const totalExposure = this.calculateTotalExposure(portfolioValue);
       if (
@@ -348,9 +409,40 @@ export class PositionManager {
       }
 
       let queuedResult;
-      // Re-enabled: Bracket orders now use correct nested format per Alpaca API
-      const hasBracketParams =
-        decision.targetPrice && decision.stopLoss && !isCrypto;
+
+      // Determine bracket order parameters - strategy config takes priority over AI decision
+      let bracketParams: { takeProfitPrice?: number; stopLossPrice?: number } | null = null;
+
+      if (executionContext?.params.bracketOrders.enabled && !isCrypto) {
+        // Use strategy-based bracket orders
+        const currentPrice = await this.fetchCurrentPrice(symbol);
+        if (currentPrice > 0) {
+          const strategyBracket = calculateBracketOrderParams(
+            executionContext,
+            currentPrice,
+            "buy"
+          );
+          if (strategyBracket) {
+            bracketParams = strategyBracket;
+            log.info("PositionManager", `Using strategy-based bracket orders`, {
+              symbol,
+              strategyId: executionContext.strategyId,
+              takeProfitPercent: executionContext.params.bracketOrders.takeProfitPercent,
+              stopLossPercent: executionContext.params.bracketOrders.stopLossPercent,
+              takeProfitPrice: bracketParams.takeProfitPrice,
+              stopLossPrice: bracketParams.stopLossPrice,
+            });
+          }
+        }
+      } else if (decision.targetPrice && decision.stopLoss && !isCrypto) {
+        // Use AI decision's bracket order params
+        bracketParams = {
+          takeProfitPrice: decision.targetPrice,
+          stopLossPrice: decision.stopLoss,
+        };
+      }
+
+      const hasBracketParams = bracketParams?.takeProfitPrice && bracketParams?.stopLossPrice;
 
       if (
         preCheck.useExtendedHours &&
@@ -388,12 +480,12 @@ export class PositionManager {
         });
       } else if (
         hasBracketParams &&
-        decision.targetPrice &&
-        decision.stopLoss
+        bracketParams?.takeProfitPrice &&
+        bracketParams?.stopLossPrice
       ) {
         log.info(
           "PositionManager",
-          `Bracket order for ${symbol}: TP=$${decision.targetPrice.toFixed(2)}, SL=$${decision.stopLoss.toFixed(2)}`
+          `Bracket order for ${symbol}: TP=$${bracketParams.takeProfitPrice.toFixed(2)}, SL=$${bracketParams.stopLossPrice.toFixed(2)}`
         );
         const currentPrice = await this.fetchCurrentPrice(symbol);
         if (currentPrice > 0 && positionValue > 0) {
@@ -407,8 +499,8 @@ export class PositionManager {
             type: "market",
             time_in_force: "day",
             order_class: "bracket",
-            take_profit: { limit_price: decision.targetPrice.toFixed(2) },
-            stop_loss: { stop_price: decision.stopLoss.toFixed(2) },
+            take_profit: { limit_price: bracketParams.takeProfitPrice.toFixed(2) },
+            stop_loss: { stop_price: bracketParams.stopLossPrice.toFixed(2) },
           };
           queuedResult = await queueOrderExecution({
             orderParams,
@@ -534,7 +626,7 @@ export class PositionManager {
           entryPrice: filledPrice,
           quantity: filledQty,
           marketSessionAtEntry: marketStatus.session,
-          strategyId: undefined,
+          strategyId: executionContext?.strategyId,
         }).catch((err) =>
           log.error("PositionManager", `Failed to record trade outcome: ${err}`)
         );
@@ -542,6 +634,7 @@ export class PositionManager {
 
       this.state.dailyTradeCount++;
 
+      // Use strategy-based bracket params if available, otherwise fall back to AI decision
       const positionWithRules: PositionWithRules = {
         symbol,
         quantity: filledQty,
@@ -551,9 +644,10 @@ export class PositionManager {
         unrealizedPnl: 0,
         unrealizedPnlPercent: 0,
         openedAt: new Date(),
-        stopLossPrice: decision.stopLoss,
-        takeProfitPrice: decision.targetPrice,
-        trailingStopPercent: decision.trailingStopPercent,
+        stopLossPrice: bracketParams?.stopLossPrice ?? decision.stopLoss,
+        takeProfitPrice: bracketParams?.takeProfitPrice ?? decision.targetPrice,
+        trailingStopPercent: executionContext?.params.bracketOrders.trailingStopPercent ?? decision.trailingStopPercent,
+        strategyId: executionContext?.strategyId,
       };
 
       this.state.activePositions.set(symbol, positionWithRules);
@@ -926,16 +1020,22 @@ export class PositionManager {
   async reinforcePosition(
     symbol: string,
     decision: AIDecision,
-    existingPosition: PositionWithRules
+    existingPosition: PositionWithRules,
+    executionContext?: StrategyExecutionContext | null
   ): Promise<ExecutionResult> {
-    log.info("PositionManager", `Reinforcing position: ${symbol}`);
+    log.info("PositionManager", `Reinforcing position: ${symbol}`, {
+      strategyId: executionContext?.strategyId,
+      strategyName: executionContext?.strategyName,
+    });
 
+    // For reinforcement, we scale down the suggested quantity by 50% to manage risk
+    // when pyramiding into existing positions
     const reinforceDecision: AIDecision = {
       ...decision,
       suggestedQuantity: (decision.suggestedQuantity || 0.05) * 0.5,
     };
 
-    return await this.openPosition(symbol, reinforceDecision);
+    return await this.openPosition(symbol, reinforceDecision, executionContext);
   }
 
   // ============================================================================
