@@ -135,6 +135,29 @@
       "env": {
         "SENDGRID_API_KEY": "${SENDGRID_API_KEY}"
       }
+    },
+    "vitest": {
+      "command": "npx",
+      "args": ["-y", "@djankies/vitest-mcp"]
+    },
+    "openapi": {
+      "command": "npx",
+      "args": ["-y", "@ivotoby/openapi-mcp-server"],
+      "env": {
+        "OPENAPI_SPEC_PATH": "${OPENAPI_SPEC_PATH}"
+      }
+    },
+    "yfinance": {
+      "command": "npx",
+      "args": ["-y", "@mokemokechicken/yfinance-mcp-server"]
+    },
+    "redis": {
+      "command": "npx",
+      "args": ["-y", "@gongrzhe/server-redis-mcp"],
+      "env": {
+        "REDIS_HOST": "${REDIS_HOST:-localhost}",
+        "REDIS_PORT": "${REDIS_PORT:-6379}"
+      }
     }
   }
 }

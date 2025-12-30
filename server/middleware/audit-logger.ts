@@ -7,8 +7,38 @@
 
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
-import type { InsertAuditLog } from "@shared/schema";
+import type { InsertAuditLog, AuditLog } from "@shared/schema";
 import { log } from "../utils/logger";
+
+/**
+ * Type for JSON-serializable objects
+ */
+type JsonObject = Record<string, unknown>;
+
+/**
+ * Type for sanitized request body - can be any JSON-serializable value
+ */
+type SanitizedBody = JsonObject | string | number | boolean | null;
+
+/**
+ * Type for captured response body
+ */
+type ResponseBody = SanitizedBody | Buffer;
+
+/**
+ * Type for error response body with error/message fields
+ */
+interface ErrorResponseBody {
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Error type with message property
+ */
+interface ErrorWithMessage {
+  message: string;
+}
 
 /**
  * List of sensitive fields to exclude from request body logging
@@ -26,12 +56,12 @@ const SENSITIVE_FIELDS = [
 /**
  * Sanitize request body by removing sensitive fields
  */
-function sanitizeRequestBody(body: any): any {
+function sanitizeRequestBody(body: unknown): SanitizedBody {
   if (!body || typeof body !== "object") {
-    return body;
+    return body as SanitizedBody;
   }
 
-  const sanitized = { ...body };
+  const sanitized: JsonObject = { ...(body as JsonObject) };
 
   for (const field of SENSITIVE_FIELDS) {
     if (field in sanitized) {
@@ -143,9 +173,10 @@ export async function auditLogger(
     try {
       const user = await storage.getUser(userId);
       username = user?.username || null;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as ErrorWithMessage;
       log.error("AuditLogger", "Failed to get username", {
-        error: error.message,
+        error: err.message,
       });
     }
   }
@@ -169,14 +200,14 @@ export async function auditLogger(
   // Capture response
   const originalSend = res.send;
   const originalJson = res.json;
-  let responseBody: any;
+  let responseBody: ResponseBody;
 
-  res.send = function (body: any) {
+  res.send = function (this: Response, body: ResponseBody) {
     responseBody = body;
     return originalSend.call(this, body);
   };
 
-  res.json = function (body: any) {
+  res.json = function (this: Response, body: SanitizedBody) {
     responseBody = body;
     return originalJson.call(this, body);
   };
@@ -197,8 +228,11 @@ export async function auditLogger(
           } catch {
             auditLog.errorMessage = responseBody.substring(0, 500);
           }
-        } else if (responseBody?.error || responseBody?.message) {
-          auditLog.errorMessage = responseBody.error || responseBody.message;
+        } else if (typeof responseBody === 'object' && responseBody !== null && !Buffer.isBuffer(responseBody)) {
+          const errBody = responseBody as ErrorResponseBody;
+          if (errBody.error || errBody.message) {
+            auditLog.errorMessage = errBody.error || errBody.message || null;
+          }
         }
       }
 
@@ -213,9 +247,10 @@ export async function auditLogger(
         durationMs: duration,
         user: username || "anonymous",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as ErrorWithMessage;
       log.error("AuditLogger", "Failed to save audit log", {
-        error: error.message,
+        error: err.message,
       });
     }
   });
@@ -274,15 +309,15 @@ export async function getAuditStats() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const todayLogs = logs.filter((l: any) => new Date(l.timestamp) >= today);
-    const weekLogs = logs.filter((l: any) => new Date(l.timestamp) >= thisWeek);
+    const todayLogs = logs.filter((l: AuditLog) => new Date(l.timestamp) >= today);
+    const weekLogs = logs.filter((l: AuditLog) => new Date(l.timestamp) >= thisWeek);
 
     const errorLogs = logs.filter(
-      (l: any) => l.responseStatus && l.responseStatus >= 400
+      (l: AuditLog) => l.responseStatus && l.responseStatus >= 400
     );
 
     const actionCounts: Record<string, number> = {};
-    logs.forEach((l: any) => {
+    logs.forEach((l: AuditLog) => {
       actionCounts[l.action] = (actionCounts[l.action] || 0) + 1;
     });
 
@@ -296,9 +331,10 @@ export async function getAuditStats() {
         .slice(0, 5)
         .map(([action, count]) => ({ action, count })),
     };
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AuditLogger", "Failed to get audit stats", {
-      error: error.message,
+      error: err.message,
     });
     return {
       totalLogs: 0,

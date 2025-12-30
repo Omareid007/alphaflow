@@ -6,6 +6,11 @@ import {
   fills,
   workItems,
   llmCalls,
+  AiDecision,
+  Trade,
+  Order,
+  Fill,
+  LlmCall,
 } from "@shared/schema";
 import { like, or, eq, desc } from "drizzle-orm";
 
@@ -196,11 +201,11 @@ export async function globalSearch(
 }
 
 export async function getRelatedEntities(traceId: string): Promise<{
-  aiDecisions: any[];
-  trades: any[];
-  orders: any[];
-  fills: any[];
-  llmCalls: any[];
+  aiDecisions: AiDecision[];
+  trades: Trade[];
+  orders: Order[];
+  fills: Fill[];
+  llmCalls: LlmCall[];
 }> {
   const [
     aiDecisionResults,

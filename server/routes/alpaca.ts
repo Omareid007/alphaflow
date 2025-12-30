@@ -8,6 +8,23 @@ import { alpaca } from "../connectors/alpaca";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { log } from "../utils/logger";
 
+/** Order parameters for Alpaca API */
+interface AlpacaOrderParams {
+  symbol: string;
+  side: "buy" | "sell";
+  type: "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
+  time_in_force: "day" | "gtc" | "opg" | "cls" | "ioc" | "fok";
+  qty?: string;
+  notional?: string;
+  limit_price?: string;
+  stop_price?: string;
+}
+
+/** Error type with message property */
+interface ErrorWithMessage {
+  message: string;
+}
+
 const router = Router();
 
 // POST /api/alpaca/clear-cache - Clear Alpaca cache (admin only)
@@ -108,11 +125,9 @@ router.post("/rebalance/preview", async (req: Request, res: Response) => {
 
     for (const alloc of targetAllocations) {
       if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
-        return res
-          .status(400)
-          .json({
-            error: "Each allocation must have symbol and targetPercent",
-          });
+        return res.status(400).json({
+          error: "Each allocation must have symbol and targetPercent",
+        });
       }
     }
 
@@ -234,11 +249,12 @@ router.get("/health", async (req: Request, res: Response) => {
       buyingPower: account.buying_power,
       equity: account.equity,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Alpaca health check failed", { error });
     res.status(503).json({
       status: "unhealthy",
-      error: error.message || "Connection failed",
+      error: err.message || "Connection failed",
     });
   }
 });
@@ -295,7 +311,7 @@ router.post("/orders", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "symbol and side are required" });
     }
 
-    const orderParams: any = {
+    const orderParams: AlpacaOrderParams = {
       symbol: symbol.toUpperCase(),
       side,
       type: type || "market",
@@ -309,9 +325,10 @@ router.post("/orders", async (req: Request, res: Response) => {
 
     const order = await alpaca.createOrder(orderParams);
     res.json(order);
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Failed to create order", { error });
-    res.status(500).json({ error: error.message || "Failed to create order" });
+    res.status(500).json({ error: err.message || "Failed to create order" });
   }
 });
 
@@ -321,9 +338,10 @@ router.delete("/orders/:orderId", async (req: Request, res: Response) => {
     const { orderId } = req.params;
     await alpaca.cancelOrder(orderId);
     res.json({ success: true, message: "Order cancelled" });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Failed to cancel order", { error });
-    res.status(500).json({ error: error.message || "Failed to cancel order" });
+    res.status(500).json({ error: err.message || "Failed to cancel order" });
   }
 });
 
@@ -332,11 +350,12 @@ router.delete("/orders", async (req: Request, res: Response) => {
   try {
     await alpaca.cancelAllOrders();
     res.json({ success: true, message: "All orders cancelled" });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Failed to cancel all orders", { error });
     res
       .status(500)
-      .json({ error: error.message || "Failed to cancel all orders" });
+      .json({ error: err.message || "Failed to cancel all orders" });
   }
 });
 
@@ -346,11 +365,12 @@ router.delete("/positions/:symbol", async (req: Request, res: Response) => {
     const { symbol } = req.params;
     const result = await alpaca.closePosition(symbol);
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Failed to close position", { error });
     res
       .status(500)
-      .json({ error: error.message || "Failed to close position" });
+      .json({ error: err.message || "Failed to close position" });
   }
 });
 
@@ -359,11 +379,12 @@ router.delete("/positions", async (req: Request, res: Response) => {
   try {
     const result = await alpaca.closeAllPositions();
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as ErrorWithMessage;
     log.error("AlpacaAPI", "Failed to close all positions", { error });
     res
       .status(500)
-      .json({ error: error.message || "Failed to close all positions" });
+      .json({ error: err.message || "Failed to close all positions" });
   }
 });
 

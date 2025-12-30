@@ -132,14 +132,72 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Updated CLAUDE.md** with Phase 8-12 enhancements
 - [x] **Created email-notifications skill** (`~/.claude/skills/email-notifications.md`)
 
+### Phase 13: Claude Code Enhancement v2 (Dec 30, 2024)
+
+#### New Skills (4 files in `~/.claude/skills/`)
+- [x] **refactoring-strategies.md** - Extract Method, Extract Class, DI patterns
+- [x] **api-documentation.md** - OpenAPI 3.0 generation from Express routes
+- [x] **database-migrations.md** - Drizzle ORM migration patterns, rollback
+- [x] **security-scanning.md** - SAST, secrets detection, OWASP compliance
+
+#### New Agents (5 files in `~/.claude/agents/`)
+- [x] **code-refactoring-planner.md** - Analyze refactoring opportunities
+- [x] **api-documentation-generator.md** - Discover routes, generate OpenAPI
+- [x] **test-coverage-analyzer.md** - Parse coverage, identify gaps
+- [x] **migration-analyzer.md** - Schema diff, safe migrations
+- [x] **vulnerability-tracker.md** - CVE tracking, npm audit, remediation
+
+#### New Commands (5 files in `~/.claude/commands/`)
+- [x] **refactor-analyze.md** - Find god objects, duplicates, type issues
+- [x] **generate-api-docs.md** - Generate OpenAPI from Express routes
+- [x] **analyze-coverage.md** - Test coverage gap analysis
+- [x] **generate-migration.md** - Database migration generation
+- [x] **security-scan.md** - Comprehensive security analysis
+
+#### New MCP Servers (2 additions)
+- [x] **vitest** - AI-optimized test runner via `@djankies/vitest-mcp`
+- [x] **openapi** - API specification interaction via `@ivotoby/openapi-mcp-server`
+
+#### Updated Totals
+- **MCP Servers**: 22 (20 + vitest + openapi)
+- **Skills**: 14 (10 + 4 new)
+- **Custom Agents**: 5 (in `~/.claude/agents/`)
+- **Custom Commands**: 14 (9 + 5 new)
+
+### Phase 14: MCP Expansion & Type Safety (Dec 30, 2024)
+
+#### New MCP Servers
+- [x] **yfinance** - Free Yahoo Finance market data via `@mokemokechicken/yfinance-mcp-server`
+- [x] **redis** - High-speed caching via `@gongrzhe/server-redis-mcp`
+- [x] **Total MCP servers**: 24 (22 + yfinance + redis)
+
+#### Documentation Created
+- [x] **docs/SKILLS_GUIDE.md** - Complete guide to 14 skills
+- [x] **docs/AGENTS_GUIDE.md** - Guide to 5 custom agents + Task subagents
+- [x] **docs/COMMANDS_REFERENCE.md** - Reference for all 14 commands
+
+#### Type Safety Improvements
+- [x] **Fixed `server/middleware/audit-logger.ts`**: 11 `:any` → 0
+  - Added JsonObject, SanitizedBody, ResponseBody, ErrorResponseBody types
+  - Added ErrorWithMessage interface for error handling
+  - Updated all filter callbacks with proper AuditLog type
+- [x] **Fixed `server/admin/global-search.ts`**: 5 `:any` → 0
+  - Imported AiDecision, Trade, Order, Fill, LlmCall types
+  - Updated getRelatedEntities return type
+- [x] **Fixed `server/routes/alpaca.ts`**: 7 `:any` → 0
+  - Added AlpacaOrderParams interface
+  - Updated all error handlers with ErrorWithMessage type
+- [x] **Type safety reduction**: 82 → 59 `:any` annotations (28% improvement)
+
 ### Remaining Items (Future)
 
-| Item                          | Priority | Notes                            |
-| ----------------------------- | -------- | -------------------------------- |
-| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining |
-| Type safety upgrade           | P2       | ~190 `:any` remaining            |
-| Test coverage expansion       | P1       | Add more server tests            |
-| Remaining vulnerabilities     | Medium   | glob in eslint-config-next       |
+| Item                          | Priority | Notes                               |
+| ----------------------------- | -------- | ----------------------------------- |
+| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining    |
+| Type safety upgrade           | P2       | 59 `:any` remaining (down from 82)  |
+| Test coverage expansion       | P1       | Add more server tests               |
+| Remaining vulnerabilities     | Medium   | glob in eslint-config-next          |
+| Missing flow documentation    | P2       | Dashboard, AI Pulse, Research flows |
 
 ## Security Status
 
@@ -158,7 +216,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 ## MCP Servers
 
-Configured in `.mcp.json` (20 servers total, updated Dec 30, 2024):
+Configured in `.mcp.json` (24 servers total, updated Dec 30, 2024):
 
 ### Core Servers (No API Key Required)
 
@@ -172,6 +230,8 @@ Configured in `.mcp.json` (20 servers total, updated Dec 30, 2024):
 | `context7`            | Real-time library documentation (NEW) |
 | `ts-morph`            | TypeScript AST refactoring            |
 | `playwright`          | Browser automation, E2E testing       |
+| `vitest`              | AI-optimized test runner (NEW)        |
+| `openapi`             | API specification interaction (NEW)   |
 
 ### API Key Required (Configure When Available)
 
@@ -202,7 +262,7 @@ Configured in `.mcp.json` (20 servers total, updated Dec 30, 2024):
 - `sentry` (requires OAuth)
 - `stripe` (not needed)
 
-## Custom Skills (9 total)
+## Custom Skills (14 total)
 
 Located in `~/.claude/skills/`:
 | Skill | Purpose |
@@ -216,6 +276,11 @@ Located in `~/.claude/skills/`:
 | `npm-dependencies` | Dependency auditing, security |
 | `project-structure` | Codebase navigation, imports |
 | `risk-management` | Position sizing, pre-trade validation |
+| `email-notifications` | SendGrid integration, trade alerts |
+| `refactoring-strategies` | Extract Method, DI patterns (NEW) |
+| `api-documentation` | OpenAPI 3.0 generation (NEW) |
+| `database-migrations` | Drizzle ORM migrations (NEW) |
+| `security-scanning` | SAST, OWASP compliance (NEW) |
 
 ## Product Analysis System
 
@@ -323,37 +388,43 @@ log.info("Trading", "Order placed", { orderId });
 
 ## Available Analysis Tools
 
-### Commands (9 total, use with `/`)
+### Commands (14 total, use with `/`)
 
-| Command             | Purpose                                                      |
-| ------------------- | ------------------------------------------------------------ |
-| `/analyze-project`  | Full project analysis                                        |
-| `/health-check`     | Quick project health check                                   |
-| `/find-issues`      | Find all issues in code                                      |
-| `/generate-spec`    | Generate documentation/specs                                 |
-| `/generate-tests`   | Auto-generate tests from code                                |
-| `/analyze-gap`      | Deep-dive gap analysis (type-safety, testing, accessibility) |
-| `/list-todos`       | Extract TODO/FIXME/HACK comments                             |
-| `/validate-types`   | TypeScript strict validation, `:any` detection               |
-| `/check-mcp-status` | Verify MCP server configurations                             |
+| Command              | Purpose                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| `/analyze-project`   | Full project analysis                                        |
+| `/health-check`      | Quick project health check                                   |
+| `/find-issues`       | Find all issues in code                                      |
+| `/generate-spec`     | Generate documentation/specs                                 |
+| `/generate-tests`    | Auto-generate tests from code                                |
+| `/analyze-gap`       | Deep-dive gap analysis (type-safety, testing, accessibility) |
+| `/list-todos`        | Extract TODO/FIXME/HACK comments                             |
+| `/validate-types`    | TypeScript strict validation, `:any` detection               |
+| `/check-mcp-status`  | Verify MCP server configurations                             |
+| `/refactor-analyze`  | Find god objects, duplicates, type issues (NEW)              |
+| `/generate-api-docs` | Generate OpenAPI from Express routes (NEW)                   |
+| `/analyze-coverage`  | Test coverage gap analysis (NEW)                             |
+| `/generate-migration`| Database migration generation (NEW)                          |
+| `/security-scan`     | Comprehensive security analysis (NEW)                        |
 
-### Agents (13 total, via ~/.claude/agents/)
+### Task Tool Subagents (via Task tool)
 
-| Agent                    | Category      | Purpose                             |
-| ------------------------ | ------------- | ----------------------------------- |
-| `project-discoverer`     | discovery     | Structure discovery                 |
-| `code-analyzer`          | analysis      | Pattern and code analysis           |
-| `flow-mapper`            | analysis      | User journey mapping                |
-| `dependency-auditor`     | analysis      | Package and dependency auditing     |
-| `change-impact-analyzer` | analysis      | Trace downstream effects of changes |
-| `architecture-reviewer`  | analysis      | Design pattern validation           |
-| `documentation-auditor`  | analysis      | Documentation completeness          |
-| `security-auditor`       | analysis      | OWASP checks, auth testing          |
-| `trading-analyst`        | trading       | Trading strategy analysis           |
-| `spec-writer`            | documentation | PRD/specification writing           |
-| `test-designer`          | testing       | Test planning and design            |
-| `enhancement-planner`    | optimization  | Safe enhancement planning           |
-| `performance-profiler`   | optimization  | Latency, SLOs, memory               |
+| Subagent Type           | Category      | Purpose                             |
+| ----------------------- | ------------- | ----------------------------------- |
+| `general-purpose`       | utility       | Multi-step tasks, code search       |
+| `Explore`               | discovery     | Codebase exploration, file patterns |
+| `Plan`                  | planning      | Implementation planning             |
+| `claude-code-guide`     | documentation | Claude Code/SDK documentation       |
+
+### Custom Agents (5 files in `~/.claude/agents/`)
+
+| Agent                          | Purpose                              |
+| ------------------------------ | ------------------------------------ |
+| `code-refactoring-planner`     | Analyze refactoring opportunities    |
+| `api-documentation-generator`  | Discover routes, generate OpenAPI    |
+| `test-coverage-analyzer`       | Parse coverage, identify gaps        |
+| `migration-analyzer`           | Schema diff, safe migrations         |
+| `vulnerability-tracker`        | CVE tracking, npm audit, remediation |
 
 ## Non-Destructive Operation Rules
 

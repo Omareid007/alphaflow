@@ -2,8 +2,9 @@
 
 This document provides instructions for obtaining and configuring API keys for MCP servers that require authentication.
 
-## Quick Reference
+## Quick Reference (24 Servers)
 
+### Core Servers (No API Key Required)
 | Server | Status | Env Variable(s) | Cost |
 |--------|--------|-----------------|------|
 | postgres | ✅ Working | `DATABASE_URL` | - |
@@ -11,21 +12,33 @@ This document provides instructions for obtaining and configuring API keys for M
 | memory | ✅ Working | None | Free |
 | filesystem | ✅ Working | None | Free |
 | git | ✅ Working | None | Free |
-| fetch | ✅ Working | None | Free |
-| time | ✅ Working | None | Free |
+| context7 | ✅ Working | None | Free |
 | ts-morph | ✅ Working | None | Free |
 | playwright | ✅ Working | None | Free |
-| puppeteer | ✅ Working | None | Free |
-| sqlite | ✅ Working | None | Free |
+| vitest | ✅ Working | None | Free |
+| openapi | ✅ Working | `OPENAPI_SPEC_PATH` (optional) | Free |
+| coingecko | ✅ Working | None | Free tier |
+| yfinance | ✅ Working | None | Free |
+| redis | 🔑 Needs Key | `REDIS_HOST`, `REDIS_PORT` | Free (self-hosted) |
+
+### API Key Required
+| Server | Status | Env Variable(s) | Cost |
+|--------|--------|-----------------|------|
 | github | 🔑 Needs Key | `GITHUB_PERSONAL_ACCESS_TOKEN` | Free |
 | slack | 🔑 Needs Key | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` | Free |
 | brave-search | 🔑 Needs Key | `BRAVE_API_KEY` | Freemium |
-| sentry | 🔑 Needs Key | OAuth | Free tier |
 | exa | 🔑 Needs Key | `EXA_API_KEY` | Paid |
-| financial-datasets | 🔑 Needs Key | `FINANCIAL_DATASETS_API_KEY` | Paid |
+| sendgrid | 🔑 Needs Key | `SENDGRID_API_KEY` | Freemium |
+| codacy | 🔑 Needs Key | `CODACY_ACCOUNT_TOKEN` | Free tier |
+
+### Finance-Specific (API Key Required)
+| Server | Status | Env Variable(s) | Cost |
+|--------|--------|-----------------|------|
 | alpaca-trading | ✅ Configured | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` | Free |
+| financial-datasets | 🔑 Needs Key | `FINANCIAL_DATASETS_API_KEY` | Paid |
 | alphavantage | 🔑 Needs Key | `ALPHAVANTAGE_API_KEY` | Freemium |
 | polygon | 🔑 Needs Key | `POLYGON_API_KEY` | Paid |
+| octagon | 🔑 Needs Key | `OCTAGON_API_KEY` | Paid |
 
 ---
 
@@ -323,13 +336,239 @@ curl "https://api.polygon.io/v2/aggs/ticker/AAPL/prev?apiKey=$POLYGON_API_KEY"
 
 ---
 
+## Context7 MCP Server (NEW)
+
+### Purpose
+Real-time library documentation lookup for any npm package.
+
+### Configuration
+No API key required. Works out of the box.
+
+```json
+{
+  "context7": {
+    "command": "npx",
+    "args": ["-y", "@upstash/context7-mcp@latest"]
+  }
+}
+```
+
+---
+
+## Vitest MCP Server (NEW)
+
+### Purpose
+AI-optimized test runner with LLM-friendly output and coverage analysis.
+
+### Configuration
+No API key required. Works out of the box.
+
+```json
+{
+  "vitest": {
+    "command": "npx",
+    "args": ["-y", "@djankies/vitest-mcp"]
+  }
+}
+```
+
+### Features
+- Run tests with AI-friendly output
+- Coverage analysis
+- Log capturing
+- Line-by-line coverage
+
+---
+
+## OpenAPI MCP Server (NEW)
+
+### Purpose
+Interact with APIs via OpenAPI specifications.
+
+### Configuration
+
+```json
+{
+  "openapi": {
+    "command": "npx",
+    "args": ["-y", "@ivotoby/openapi-mcp-server"],
+    "env": {
+      "OPENAPI_SPEC_PATH": "${OPENAPI_SPEC_PATH}"
+    }
+  }
+}
+```
+
+### Environment Variable (Optional)
+```bash
+# Path to your OpenAPI spec file
+OPENAPI_SPEC_PATH=/home/runner/workspace/docs/api/OPENAPI_SPEC.yaml
+```
+
+---
+
+## SendGrid MCP Server (NEW)
+
+### Purpose
+Email notifications, trade alerts, and marketing emails.
+
+### Getting API Key
+
+1. Go to https://app.sendgrid.com
+2. Sign up for account
+3. Navigate to Settings → API Keys
+4. Create new API key with "Full Access" or "Restricted Access"
+5. Copy the API key (starts with `SG.`)
+
+### Pricing
+- **Free**: 100 emails/day forever
+- **Essentials**: $19.95/month for 50K emails
+- **Pro**: $89.95/month for 100K emails
+
+### Configuration
+
+```bash
+# Add to .env
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SENDGRID_FROM_EMAIL=alerts@yourdomain.com
+```
+
+### Verify
+
+```bash
+curl -X POST https://api.sendgrid.com/v3/mail/send \
+  -H "Authorization: Bearer $SENDGRID_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"personalizations":[{"to":[{"email":"test@example.com"}]}],"from":{"email":"test@yourdomain.com"},"subject":"Test","content":[{"type":"text/plain","value":"Test"}]}'
+```
+
+---
+
+## Codacy MCP Server (NEW)
+
+### Purpose
+Code quality metrics, coverage tracking, and security analysis.
+
+### Getting API Key
+
+1. Go to https://app.codacy.com
+2. Sign up and add your repository
+3. Navigate to Account → Access Management → API tokens
+4. Generate new token
+5. Copy the token
+
+### Pricing
+- **Free**: Open source projects
+- **Pro**: $15/user/month
+
+### Configuration
+
+```bash
+# Add to .env
+CODACY_ACCOUNT_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### Verify
+
+```bash
+curl -H "api-token: $CODACY_ACCOUNT_TOKEN" \
+  https://app.codacy.com/api/v3/user
+```
+
+---
+
+## Octagon MCP Server (NEW)
+
+### Purpose
+SEC filings, financial research, and company analysis.
+
+### Getting API Key
+
+1. Go to https://octagon.ai
+2. Sign up for account
+3. Navigate to API section
+4. Generate API key
+5. Copy the key
+
+### Configuration
+
+```bash
+# Add to .env
+OCTAGON_API_KEY=oct_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Yahoo Finance MCP Server (NEW)
+
+### Purpose
+Free market data including stock quotes, historical prices, and company information.
+
+### Configuration
+No API key required. Works out of the box.
+
+```json
+{
+  "yfinance": {
+    "command": "npx",
+    "args": ["-y", "@mokemokechicken/yfinance-mcp-server"]
+  }
+}
+```
+
+### Features
+- Real-time stock quotes
+- Historical price data
+- Company financials
+- Options data
+- Market indices
+
+---
+
+## Redis MCP Server (NEW)
+
+### Purpose
+High-performance caching for market data, session storage, and rate limiting.
+
+### Configuration
+
+```json
+{
+  "redis": {
+    "command": "npx",
+    "args": ["-y", "@gongrzhe/server-redis-mcp"],
+    "env": {
+      "REDIS_HOST": "${REDIS_HOST:-localhost}",
+      "REDIS_PORT": "${REDIS_PORT:-6379}"
+    }
+  }
+}
+```
+
+### Environment Variables
+```bash
+# Add to .env (optional - defaults shown)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+# REDIS_PASSWORD=your-password  # If authentication required
+```
+
+### Use Cases
+- Cache frequently accessed market data
+- Session management
+- Rate limiting counters
+- Pub/sub for real-time updates
+- Queue management
+
+---
+
 ## Environment File Template
 
 Add these to your `.env` file:
 
 ```bash
 # ===========================================
-# MCP Server API Keys
+# MCP Server API Keys (22 Servers)
 # ===========================================
 
 # GitHub (Repository operations)
@@ -345,6 +584,13 @@ BRAVE_API_KEY=
 # Exa (AI-powered search)
 EXA_API_KEY=
 
+# SendGrid (Email notifications) - NEW
+SENDGRID_API_KEY=
+SENDGRID_FROM_EMAIL=
+
+# Codacy (Code quality) - NEW
+CODACY_ACCOUNT_TOKEN=
+
 # Financial Datasets (Fundamentals)
 FINANCIAL_DATASETS_API_KEY=
 
@@ -354,10 +600,20 @@ ALPHAVANTAGE_API_KEY=
 # Polygon (Real-time market data)
 POLYGON_API_KEY=
 
+# Octagon (SEC filings) - NEW
+OCTAGON_API_KEY=
+
+# OpenAPI (Optional spec path) - NEW
+OPENAPI_SPEC_PATH=
+
 # Alpaca (Already configured)
 # ALPACA_API_KEY=
 # ALPACA_SECRET_KEY=
 # ALPACA_PAPER=true
+
+# Redis (optional - defaults shown)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ---
