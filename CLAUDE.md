@@ -6,19 +6,20 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 ## Codebase Metrics (as of Dec 29, 2024)
 
-| Metric | Before | After | Savings |
-|--------|--------|-------|---------|
-| Total Workspace | 2.0 GB | 1.9 GB | 100 MB |
-| Source Code | 535 MB | 530 MB | 5 MB |
-| TypeScript/React Files | 501 | 485 | 16 files |
-| Lines of Code | ~154,138 | ~152,000 | ~2,000 |
-| Dependencies | 104 | 81 | 23 packages |
-| Static Assets | 3.88 MB | 400 KB | 86% reduction |
-| Security Vulns | 8 | 7 | 1 fixed |
+| Metric                 | Before   | After    | Savings       |
+| ---------------------- | -------- | -------- | ------------- |
+| Total Workspace        | 2.0 GB   | 1.9 GB   | 100 MB        |
+| Source Code            | 535 MB   | 530 MB   | 5 MB          |
+| TypeScript/React Files | 501      | 485      | 16 files      |
+| Lines of Code          | ~154,138 | ~152,000 | ~2,000        |
+| Dependencies           | 104      | 81       | 23 packages   |
+| Static Assets          | 3.88 MB  | 400 KB   | 86% reduction |
+| Security Vulns         | 8        | 7        | 1 fixed       |
 
 ## Cleanup Status
 
 ### Completed (Dec 29, 2024)
+
 - [x] Alpaca account mismatch resolved (dotenv override)
 - [x] MCP servers configured (initial 7 servers)
 - [x] Analysis agents created (initial 4 agents)
@@ -32,6 +33,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] Custom skills created (initial 3 skills)
 
 ### Phase 3 Cleanup Completed (Dec 29, 2024)
+
 - [x] **Removed 23 unused packages** (104 → 81 dependencies)
 - [x] **Removed 16 unused UI components** (accordion, carousel, drawer, form, etc.)
 - [x] **Optimized icons** (2.9 MB → 400 KB, 86% reduction via Sharp)
@@ -42,6 +44,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Added new npm scripts** (clean:code, clean:deps, optimize:images)
 
 ### Phase 4 Enhancements (Dec 29, 2024)
+
 - [x] **Added 4 finance MCP servers** (financial-datasets, alpaca-trading, alphavantage, polygon)
 - [x] **Removed Docker MCP** (not functional in Replit)
 - [x] **Created error boundaries** (`components/error-boundaries/`)
@@ -52,6 +55,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Created futures roadmap** (`docs/FUTURES_ROADMAP.md`)
 
 ### Phase 5: Product Discovery System (Dec 29, 2024)
+
 - [x] **Created Product Analyst skill** with 6 subagents and 8 commands
 - [x] **Created 8 product analysis commands** (discover-app, analyze-flows, audit-components, etc.)
 - [x] **Created 6 product analysis agents** (app-discoverer, ui-analyst, flow-mapper, etc.)
@@ -78,6 +82,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - `docs/api/OPENAPI_SPEC.yaml` - Full OpenAPI 3.0 specification
 
 ### Phase 6: Structured Logging (Dec 29, 2024)
+
 - [x] **Installed Pino logging stack** (pino, pino-http, pino-pretty)
 - [x] **Upgraded `server/utils/logger.ts`** to use Pino internally
 - [x] **Migrated console.log statements** in server code to structured logger
@@ -86,6 +91,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Implemented automatic credential redaction** (API keys, passwords, tokens)
 
 ### Phase 7: Claude Code Enhancement (Dec 30, 2024)
+
 - [x] **Created 6 new skills** (ai-llm-patterns, backtest-framework, market-analysis, npm-dependencies, project-structure, risk-management)
 - [x] **Created 4 new agents** (dependency-auditor, change-impact-analyzer, architecture-reviewer, documentation-auditor)
 - [x] **Created 4 new commands** (analyze-gap, list-todos, validate-types, check-mcp-status)
@@ -93,63 +99,102 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Total inventory**: 9 skills, 13 agents, 9 commands, 18 MCP servers
 - [x] **Added Context7 MCP** for real-time library documentation
 
+### Phase 8-12: Infrastructure & Quality (Dec 30, 2024)
+
+#### Phase 8: New MCP Servers
+- [x] **Added Codacy MCP** for code quality and coverage metrics
+- [x] **Added SendGrid MCP** for email notification workflows
+- [x] **Total MCP servers**: 20 (18 + Codacy + SendGrid)
+
+#### Phase 9: Test Coverage Infrastructure
+- [x] **Extended Vitest coverage** to include `server/` and `shared/` directories
+- [x] **Created server test templates** (notification-service.test.ts, email-service.test.ts)
+- [x] **Test count increased**: 206 tests passing
+
+#### Phase 10: Email Notifications
+- [x] **Installed @sendgrid/mail** for email delivery
+- [x] **Created `server/lib/email-service.ts`** with SendGrid integration
+- [x] **Implemented email channel** in notification-service.ts (was stub)
+- [x] **Enabled email in routes** (removed 400 error block)
+- [x] **Features**: sendEmail(), sendTradeAlert(), isEmailConfigured()
+
+#### Phase 11: Type Safety Improvements
+- [x] **Fixed `server/lib/standard-errors.ts`**: 17 `:any` → 0
+  - Added ErrorDetails, ZodIssue, ZodErrorLike, HttpError interfaces
+  - Added type guards: isZodError(), isHttpError()
+  - Updated asyncHandler with proper Express types
+- [x] **Fixed `server/trading/order-retry-handler.ts`**: 22 `as any` → 0
+  - Added OrderType, TimeInForce type definitions
+  - Created toOrderType(), toTimeInForce() helper functions
+  - Updated all rejection handlers with proper type assertions
+
+#### Phase 12: Documentation
+- [x] **Updated CLAUDE.md** with Phase 8-12 enhancements
+- [x] **Created email-notifications skill** (`~/.claude/skills/email-notifications.md`)
+
 ### Remaining Items (Future)
-| Item | Priority | Notes |
-|------|----------|-------|
-| Backtest script consolidation | Low | 14 scripts (~8K lines) remaining |
-| Type safety upgrade | P1 | 289 `:any` annotations |
-| Test coverage | P0 | <5% → 60% target |
-| Email notifications | P1 | Code stub exists |
-| Remaining vulnerabilities | Medium | glob in eslint-config-next |
+
+| Item                          | Priority | Notes                            |
+| ----------------------------- | -------- | -------------------------------- |
+| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining |
+| Type safety upgrade           | P2       | ~190 `:any` remaining            |
+| Test coverage expansion       | P1       | Add more server tests            |
+| Remaining vulnerabilities     | Medium   | glob in eslint-config-next       |
 
 ## Security Status
 
 ### Fixed (Dec 29, 2024)
-| CVE | Severity | Description |
-|-----|----------|-------------|
+
+| CVE            | Severity | Description                             |
+| -------------- | -------- | --------------------------------------- |
 | CVE-2025-29927 | Critical | Next.js Middleware Authorization Bypass |
-| CVE-2025-55184 | High | Next.js DoS via infinite loop |
-| CVE-2025-55183 | Medium | Next.js Source Code Exposure |
+| CVE-2025-55184 | High     | Next.js DoS via infinite loop           |
+| CVE-2025-55183 | Medium   | Next.js Source Code Exposure            |
 
 ### Remaining (Non-Critical)
+
 - glob vulnerability in eslint-config-next (would require Next.js 15 to fix)
 - esbuild-kit in drizzle-kit (moderate)
 
 ## MCP Servers
 
-Configured in `.mcp.json` (18 servers total, updated Dec 30, 2024):
+Configured in `.mcp.json` (20 servers total, updated Dec 30, 2024):
 
 ### Core Servers (No API Key Required)
-| Server | Purpose |
-|--------|---------|
-| `postgres` | Database queries |
-| `sequential-thinking` | Complex problem-solving |
-| `memory` | Persistent knowledge graph |
-| `filesystem` | Secure file operations |
-| `git` | Git repository operations |
-| `context7` | Real-time library documentation (NEW) |
-| `ts-morph` | TypeScript AST refactoring |
-| `playwright` | Browser automation, E2E testing |
+
+| Server                | Purpose                               |
+| --------------------- | ------------------------------------- |
+| `postgres`            | Database queries                      |
+| `sequential-thinking` | Complex problem-solving               |
+| `memory`              | Persistent knowledge graph            |
+| `filesystem`          | Secure file operations                |
+| `git`                 | Git repository operations             |
+| `context7`            | Real-time library documentation (NEW) |
+| `ts-morph`            | TypeScript AST refactoring            |
+| `playwright`          | Browser automation, E2E testing       |
 
 ### API Key Required (Configure When Available)
-| Server | Purpose | Env Variable |
-|--------|---------|--------------|
-| `github` | Repository operations, issues | `GITHUB_PERSONAL_ACCESS_TOKEN` |
-| `slack` | Trade alerts, notifications | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
-| `brave-search` | Privacy-focused web search | `BRAVE_API_KEY` |
-| `exa` | AI-powered web search | `EXA_API_KEY` |
+
+| Server         | Purpose                       | Env Variable                       |
+| -------------- | ----------------------------- | ---------------------------------- |
+| `github`       | Repository operations, issues | `GITHUB_PERSONAL_ACCESS_TOKEN`     |
+| `slack`        | Trade alerts, notifications   | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
+| `brave-search` | Privacy-focused web search    | `BRAVE_API_KEY`                    |
+| `exa`          | AI-powered web search         | `EXA_API_KEY`                      |
 
 ### Finance-Specific MCP Servers
-| Server | Purpose | Env Variable |
-|--------|---------|--------------|
-| `financial-datasets` | Income statements, balance sheets, prices | `FINANCIAL_DATASETS_API_KEY` |
-| `alpaca-trading` | Direct MCP trading via Alpaca | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` |
-| `alphavantage` | 100+ financial APIs, fundamentals | `ALPHAVANTAGE_API_KEY` |
-| `polygon` | Real-time market data, options | `POLYGON_API_KEY` |
-| `octagon` | SEC filings, financial research | `OCTAGON_API_KEY` |
-| `coingecko` | Cryptocurrency data | (free tier) |
+
+| Server               | Purpose                                   | Env Variable                          |
+| -------------------- | ----------------------------------------- | ------------------------------------- |
+| `financial-datasets` | Income statements, balance sheets, prices | `FINANCIAL_DATASETS_API_KEY`          |
+| `alpaca-trading`     | Direct MCP trading via Alpaca             | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` |
+| `alphavantage`       | 100+ financial APIs, fundamentals         | `ALPHAVANTAGE_API_KEY`                |
+| `polygon`            | Real-time market data, options            | `POLYGON_API_KEY`                     |
+| `octagon`            | SEC filings, financial research           | `OCTAGON_API_KEY`                     |
+| `coingecko`          | Cryptocurrency data                       | (free tier)                           |
 
 ### Removed Servers (Dec 30, 2024)
+
 - `puppeteer` (redundant with playwright)
 - `sqlite` (using PostgreSQL)
 - `fetch` (built-in capabilities)
@@ -177,29 +222,33 @@ Located in `~/.claude/skills/`:
 PM & UI/UX discovery system using specialized agents and commands (listed in Available Analysis Tools section).
 
 ### Analysis Output Directories
-| Directory | Contents |
-|-----------|----------|
-| `./analysis/` | Discovery results, gap analysis, component inventory |
-| `./specs/` | Feature specifications, gap fix specs |
-| `./proposals/` | Enhancement plans, upgrade proposals |
-| `./docs/` | Product documentation, API specs |
+
+| Directory      | Contents                                             |
+| -------------- | ---------------------------------------------------- |
+| `./analysis/`  | Discovery results, gap analysis, component inventory |
+| `./specs/`     | Feature specifications, gap fix specs                |
+| `./proposals/` | Enhancement plans, upgrade proposals                 |
+| `./docs/`      | Product documentation, API specs                     |
 
 ## Backtest Script Migration (Dec 29, 2024)
 
 ### Completed Migrations
-| Script | Before | After | Savings |
-|--------|--------|-------|---------|
-| omar-backtest.ts | 779 | 247 | 68% |
-| omar-momentum-optimizer.ts | 805 | 669 | 17% |
-| omar-hyperoptimizer.ts | 957 | 682 | 29% |
-| omar-backtest-enhanced.ts | 1,565 | 731 | 53% |
-| omar-weight-optimizer.ts | 1,335 | 853 | 36% |
-| omar-ultra-hyperoptimizer.ts | 1,843 | 865 | 53% |
+
+| Script                       | Before | After | Savings |
+| ---------------------------- | ------ | ----- | ------- |
+| omar-backtest.ts             | 779    | 247   | 68%     |
+| omar-momentum-optimizer.ts   | 805    | 669   | 17%     |
+| omar-hyperoptimizer.ts       | 957    | 682   | 29%     |
+| omar-backtest-enhanced.ts    | 1,565  | 731   | 53%     |
+| omar-weight-optimizer.ts     | 1,335  | 853   | 36%     |
+| omar-ultra-hyperoptimizer.ts | 1,843  | 865   | 53%     |
 
 **Total: 3,237 lines saved (44% average reduction)**
 
 ### Shared Modules Created
+
 Located in `scripts/shared/`:
+
 - `types.ts` - AlpacaBar, BacktestConfig, Trade, Genome, ParamRange
 - `alpaca-api.ts` - fetchAlpacaBars, fetchHistoricalData, SYMBOL_LISTS
 - `technical-indicators.ts` - 16 indicators (RSI, SMA, EMA, ATR, MACD, BB, etc.)
@@ -207,11 +256,13 @@ Located in `scripts/shared/`:
 - `genetic-algorithm.ts` - crossover, mutate, tournamentSelect, normalizeWeights
 
 ### Remaining Scripts (Lower Priority)
+
 14 scripts (~8,000 lines) can use same migration pattern when needed
 
 ## Environment Configuration
 
 ### Critical: Alpaca Credentials
+
 The `.env` file takes precedence over Replit Secrets via `dotenv.config({ override: true })`.
 
 Verify with: `GET /api/admin/alpaca-account`
@@ -219,81 +270,90 @@ Verify with: `GET /api/admin/alpaca-account`
 ## Structured Logging
 
 ### Overview
+
 The platform uses **Pino** for high-performance structured JSON logging with automatic credential redaction.
 
 ### Usage
+
 ```typescript
-import { log } from '../utils/logger';
+import { log } from "../utils/logger";
 
 // Standard logging (backward compatible API)
-log.info('Trading', 'Order placed', { symbol: 'AAPL', quantity: 100 });
-log.warn('Alpaca', 'Rate limit approaching', { remaining: 5 });
-log.error('AI', 'Provider failed', { provider: 'openai', error });
+log.info("Trading", "Order placed", { symbol: "AAPL", quantity: 100 });
+log.warn("Alpaca", "Rate limit approaching", { remaining: 5 });
+log.error("AI", "Provider failed", { provider: "openai", error });
 
 // Module-specific loggers (direct Pino child loggers)
-import { tradingLogger, autonomousLogger, aiLogger } from '../utils/logger';
+import { tradingLogger, autonomousLogger, aiLogger } from "../utils/logger";
 
-tradingLogger.info({ symbol: 'AAPL', price: 150.25 }, 'Position opened');
-autonomousLogger.debug({ cycleId: 'cyc-abc123' }, 'Cycle started');
+tradingLogger.info({ symbol: "AAPL", price: 150.25 }, "Position opened");
+autonomousLogger.debug({ cycleId: "cyc-abc123" }, "Cycle started");
 ```
 
 ### Features
-| Feature | Description |
-|---------|-------------|
-| JSON output | Production logs are structured JSON for log aggregation |
-| Pretty printing | Development logs are colorized and human-readable |
-| Auto-redaction | API keys, passwords, tokens automatically censored |
-| Correlation IDs | Request/cycle IDs for distributed tracing |
-| Module loggers | Child loggers for trading, autonomous, ai, api, connector |
+
+| Feature         | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| JSON output     | Production logs are structured JSON for log aggregation   |
+| Pretty printing | Development logs are colorized and human-readable         |
+| Auto-redaction  | API keys, passwords, tokens automatically censored        |
+| Correlation IDs | Request/cycle IDs for distributed tracing                 |
+| Module loggers  | Child loggers for trading, autonomous, ai, api, connector |
 
 ### Automatic Redaction
+
 These fields are automatically redacted to `[REDACTED]`:
+
 - `alpacaApiKey`, `alpacaSecretKey`, `apiKey`, `secretKey`
 - `password`, `token`, `accessToken`, `refreshToken`
 - `authorization`, `cookie`, `session`, `jwt`
 - Nested patterns: `*.apiKey`, `*.password`, `body.token`
 
 ### ESLint Enforcement
+
 The `no-console` rule is enabled for `server/**/*.ts` files. Use the structured logger instead:
+
 ```typescript
 // ❌ Bad - will trigger ESLint warning
-console.log('Order placed:', orderId);
+console.log("Order placed:", orderId);
 
 // ✅ Good - use structured logger
-log.info('Trading', 'Order placed', { orderId });
+log.info("Trading", "Order placed", { orderId });
 ```
 
 ## Available Analysis Tools
 
 ### Commands (9 total, use with `/`)
-| Command | Purpose |
-|---------|---------|
-| `/analyze-project` | Full project analysis |
-| `/health-check` | Quick project health check |
-| `/find-issues` | Find all issues in code |
-| `/generate-spec` | Generate documentation/specs |
-| `/generate-tests` | Auto-generate tests from code |
-| `/analyze-gap` | Deep-dive gap analysis (type-safety, testing, accessibility) |
-| `/list-todos` | Extract TODO/FIXME/HACK comments |
-| `/validate-types` | TypeScript strict validation, `:any` detection |
-| `/check-mcp-status` | Verify MCP server configurations |
+
+| Command             | Purpose                                                      |
+| ------------------- | ------------------------------------------------------------ |
+| `/analyze-project`  | Full project analysis                                        |
+| `/health-check`     | Quick project health check                                   |
+| `/find-issues`      | Find all issues in code                                      |
+| `/generate-spec`    | Generate documentation/specs                                 |
+| `/generate-tests`   | Auto-generate tests from code                                |
+| `/analyze-gap`      | Deep-dive gap analysis (type-safety, testing, accessibility) |
+| `/list-todos`       | Extract TODO/FIXME/HACK comments                             |
+| `/validate-types`   | TypeScript strict validation, `:any` detection               |
+| `/check-mcp-status` | Verify MCP server configurations                             |
 
 ### Agents (13 total, via ~/.claude/agents/)
-| Agent | Category | Purpose |
-|-------|----------|---------|
-| `project-discoverer` | discovery | Structure discovery |
-| `code-analyzer` | analysis | Pattern and code analysis |
-| `flow-mapper` | analysis | User journey mapping |
-| `dependency-auditor` | analysis | Package and dependency auditing |
-| `change-impact-analyzer` | analysis | Trace downstream effects of changes |
-| `architecture-reviewer` | analysis | Design pattern validation |
-| `documentation-auditor` | analysis | Documentation completeness |
-| `security-auditor` | analysis | OWASP checks, auth testing |
-| `trading-analyst` | trading | Trading strategy analysis |
-| `spec-writer` | documentation | PRD/specification writing |
-| `test-designer` | testing | Test planning and design |
-| `enhancement-planner` | optimization | Safe enhancement planning |
-| `performance-profiler` | optimization | Latency, SLOs, memory |
+
+| Agent                    | Category      | Purpose                             |
+| ------------------------ | ------------- | ----------------------------------- |
+| `project-discoverer`     | discovery     | Structure discovery                 |
+| `code-analyzer`          | analysis      | Pattern and code analysis           |
+| `flow-mapper`            | analysis      | User journey mapping                |
+| `dependency-auditor`     | analysis      | Package and dependency auditing     |
+| `change-impact-analyzer` | analysis      | Trace downstream effects of changes |
+| `architecture-reviewer`  | analysis      | Design pattern validation           |
+| `documentation-auditor`  | analysis      | Documentation completeness          |
+| `security-auditor`       | analysis      | OWASP checks, auth testing          |
+| `trading-analyst`        | trading       | Trading strategy analysis           |
+| `spec-writer`            | documentation | PRD/specification writing           |
+| `test-designer`          | testing       | Test planning and design            |
+| `enhancement-planner`    | optimization  | Safe enhancement planning           |
+| `performance-profiler`   | optimization  | Latency, SLOs, memory               |
 
 ## Non-Destructive Operation Rules
 
@@ -332,37 +392,41 @@ npx bundle-phobia-cli [package-name]
 ## Documentation Structure
 
 ### Analysis Documents
-| Directory | Contents |
-|-----------|----------|
-| `analysis/flows/` | User flow documentation (backtesting, trading, portfolio, admin) |
-| `analysis/gaps/` | Gap analysis (type-safety, test-coverage, accessibility) |
-| `analysis/components/` | Component usage matrix |
+
+| Directory              | Contents                                                         |
+| ---------------------- | ---------------------------------------------------------------- |
+| `analysis/flows/`      | User flow documentation (backtesting, trading, portfolio, admin) |
+| `analysis/gaps/`       | Gap analysis (type-safety, test-coverage, accessibility)         |
+| `analysis/components/` | Component usage matrix                                           |
 
 ### Specifications
-| Directory | Contents |
-|-----------|----------|
+
+| Directory         | Contents                                                                |
+| ----------------- | ----------------------------------------------------------------------- |
 | `specs/features/` | Feature specs (email-notifications, futures-trading, mobile-responsive) |
-| `specs/gaps/` | Gap fix specs (type-safety-fix, test-infrastructure) |
+| `specs/gaps/`     | Gap fix specs (type-safety-fix, test-infrastructure)                    |
 
 ### Proposals
-| Directory | Contents |
-|-----------|----------|
+
+| Directory    | Contents                                                                             |
+| ------------ | ------------------------------------------------------------------------------------ |
 | `proposals/` | Enhancement proposals (console-log-removal, type-safety-upgrade, test-coverage-plan) |
 
 ### Product Documentation
-| Directory | Contents |
-|-----------|----------|
-| `docs/product/` | Feature matrix, user journeys |
-| `docs/api/` | OpenAPI specification |
-| `docs/` | MCP API keys guide, futures roadmap |
+
+| Directory       | Contents                            |
+| --------------- | ----------------------------------- |
+| `docs/product/` | Feature matrix, user journeys       |
+| `docs/api/`     | OpenAPI specification               |
+| `docs/`         | MCP API keys guide, futures roadmap |
 
 ## Configuration Locations
 
-| File | Purpose |
-|------|---------|
-| `~/.claude/settings.local.json` | Hooks configuration |
-| `~/.claude/agents/` | Custom agents (13 total) |
-| `~/.claude/commands/` | Custom commands (9 total) |
-| `~/.claude/skills/` | Custom skills (9 total) |
-| `.mcp.json` | MCP server configuration (18 servers) |
-| `.env` | Environment variables (source of truth) |
+| File                            | Purpose                                 |
+| ------------------------------- | --------------------------------------- |
+| `~/.claude/settings.local.json` | Hooks configuration                     |
+| `~/.claude/agents/`             | Custom agents (13 total)                |
+| `~/.claude/commands/`           | Custom commands (9 total)               |
+| `~/.claude/skills/`             | Custom skills (9 total)                 |
+| `.mcp.json`                     | MCP server configuration (18 servers)   |
+| `.env`                          | Environment variables (source of truth) |

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { log } from "../utils/logger";
+import { sendEmail, isEmailConfigured } from "./email-service";
 
 export interface NotificationChannel {
   id: string;
@@ -25,12 +26,9 @@ interface DiscordConfig {
 }
 
 interface EmailConfig {
-  smtpHost: string;
-  smtpPort: number;
-  username: string;
-  password: string;
   from: string;
   to: string[];
+  replyTo?: string;
 }
 
 export interface NotificationTemplate {
@@ -191,12 +189,34 @@ async function sendToChannel(
         await sendDiscord(channel.config as DiscordConfig, message);
         result.success = true;
         break;
-      case "email":
-        result.error = "Email notifications not yet implemented - skipping";
-        log.warn("Notification", "Email channel skipped - not implemented", {
-          channelId: channel.id,
+      case "email": {
+        if (!isEmailConfigured()) {
+          result.error = "SENDGRID_API_KEY not configured";
+          log.warn("Notification", "Email skipped - SendGrid not configured", {
+            channelId: channel.id,
+          });
+          break;
+        }
+        const emailConfig = channel.config as EmailConfig;
+        const emailResult = await sendEmail({
+          to: emailConfig.to,
+          from: emailConfig.from,
+          subject: message.substring(0, 100).replace(/<[^>]*>/g, ''),
+          text: message.replace(/<[^>]*>/g, ''),
+          html: message.replace(/\n/g, '<br>'),
+          replyTo: emailConfig.replyTo,
         });
+        if (emailResult.success) {
+          result.success = true;
+          log.info("Notification", "Email sent successfully", {
+            channelId: channel.id,
+            to: emailConfig.to.length,
+          });
+        } else {
+          result.error = emailResult.error;
+        }
         break;
+      }
       default:
         result.error = `Unsupported channel type: ${channel.type}`;
     }

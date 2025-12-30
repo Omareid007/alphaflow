@@ -67,11 +67,6 @@ router.post("/channels", (req: Request, res: Response) => {
     if (!["telegram", "slack", "discord", "email"].includes(type)) {
       return res.status(400).json({ error: "Invalid channel type" });
     }
-    if (type === "email") {
-      return res
-        .status(400)
-        .json({ error: "Email notifications not yet supported" });
-    }
     const id = `ch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const channel: NotificationChannel = {
       id,

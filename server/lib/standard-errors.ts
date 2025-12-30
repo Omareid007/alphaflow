@@ -5,14 +5,23 @@
  * Format: { error: string, message: string, statusCode: number, details?: any }
  */
 
-import type { Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { log } from "../utils/logger";
+
+/**
+ * Error details can be field validation errors, additional context, or debug info
+ */
+export interface ErrorDetails {
+  fields?: Array<{ field: string; message: string }>;
+  stack?: string;
+  [key: string]: unknown;
+}
 
 export interface StandardError {
   error: string;
   message: string;
   statusCode: number;
-  details?: any;
+  details?: ErrorDetails;
   timestamp?: string;
   path?: string;
 }
@@ -25,7 +34,7 @@ export function sendError(
   statusCode: number,
   error: string,
   message: string,
-  details?: any
+  details?: ErrorDetails
 ): Response {
   const errorResponse: StandardError = {
     error,
@@ -47,7 +56,7 @@ export function sendError(
 export function badRequest(
   res: Response,
   message: string = "Invalid request parameters",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 400, "Bad Request", message, details);
 }
@@ -58,7 +67,7 @@ export function badRequest(
 export function unauthorized(
   res: Response,
   message: string = "Authentication required",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 401, "Unauthorized", message, details);
 }
@@ -69,7 +78,7 @@ export function unauthorized(
 export function forbidden(
   res: Response,
   message: string = "Access denied",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 403, "Forbidden", message, details);
 }
@@ -80,7 +89,7 @@ export function forbidden(
 export function notFound(
   res: Response,
   message: string = "Resource not found",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 404, "Not Found", message, details);
 }
@@ -91,7 +100,7 @@ export function notFound(
 export function conflict(
   res: Response,
   message: string = "Resource conflict",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 409, "Conflict", message, details);
 }
@@ -102,7 +111,7 @@ export function conflict(
 export function validationError(
   res: Response,
   message: string = "Validation failed",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 422, "Validation Error", message, details);
 }
@@ -113,7 +122,7 @@ export function validationError(
 export function tooManyRequests(
   res: Response,
   message: string = "Rate limit exceeded",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 429, "Too Many Requests", message, details);
 }
@@ -124,7 +133,7 @@ export function tooManyRequests(
 export function serverError(
   res: Response,
   message: string = "An internal server error occurred",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 500, "Internal Server Error", message, details);
 }
@@ -135,16 +144,34 @@ export function serverError(
 export function serviceUnavailable(
   res: Response,
   message: string = "Service temporarily unavailable",
-  details?: any
+  details?: ErrorDetails
 ): Response {
   return sendError(res, 503, "Service Unavailable", message, details);
 }
 
 /**
+ * Zod error issue structure
+ */
+interface ZodIssue {
+  path: (string | number)[];
+  message: string;
+  code?: string;
+}
+
+/**
+ * Zod error structure for typing
+ */
+interface ZodErrorLike {
+  errors?: ZodIssue[];
+  issues?: ZodIssue[];
+}
+
+/**
  * Create error from Zod validation result
  */
-export function fromZodError(res: Response, zodError: any): Response {
-  const details = zodError.errors?.map((err: any) => ({
+export function fromZodError(res: Response, zodError: ZodErrorLike): Response {
+  const issues = zodError.errors || zodError.issues || [];
+  const details = issues.map((err: ZodIssue) => ({
     field: err.path.join("."),
     message: err.message,
   }));
@@ -153,35 +180,64 @@ export function fromZodError(res: Response, zodError: any): Response {
 }
 
 /**
+ * Extended error with status code
+ */
+interface HttpError extends Error {
+  statusCode?: number;
+}
+
+/**
+ * Type guard for ZodError-like objects
+ */
+function isZodError(error: unknown): error is ZodErrorLike & { name: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name: string }).name === "ZodError"
+  );
+}
+
+/**
+ * Type guard for HttpError
+ */
+function isHttpError(error: unknown): error is HttpError {
+  return error instanceof Error && "statusCode" in error;
+}
+
+/**
  * Wrap async route handlers with automatic error handling
  */
 export function asyncHandler(
-  fn: (req: any, res: any, next: any) => Promise<any>
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>
 ) {
-  return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch((error) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch((error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
       log.error("AsyncHandler", "Error caught in async handler", {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
 
       // Handle specific error types
-      if (error.name === "ZodError") {
+      if (isZodError(error)) {
         return fromZodError(res, error);
       }
 
-      if (error.statusCode) {
+      if (isHttpError(error)) {
         return sendError(
           res,
-          error.statusCode,
+          error.statusCode || 500,
           error.name || "Error",
           error.message
         );
       }
 
       // Default to server error
-      return serverError(res, error.message || "An unexpected error occurred", {
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      return serverError(res, errorMessage || "An unexpected error occurred", {
+        stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
       });
     });
   };
@@ -194,7 +250,7 @@ export class AppError extends Error {
   constructor(
     public statusCode: number,
     message: string,
-    public details?: any
+    public details?: ErrorDetails
   ) {
     super(message);
     this.name = "AppError";

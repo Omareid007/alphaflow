@@ -1,6 +1,7 @@
 import {
   alpaca,
   type AlpacaOrder,
+  type AlpacaPosition,
   type CreateOrderParams,
 } from "../connectors/alpaca";
 import { storage } from "../storage";
@@ -14,6 +15,33 @@ import {
   calculateWholeShares,
   roundPrice,
 } from "../utils/money";
+
+// Type definitions for Alpaca order parameters
+export type OrderType = "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
+export type TimeInForce = "day" | "gtc" | "opg" | "cls" | "ioc" | "fok";
+
+const VALID_ORDER_TYPES: OrderType[] = ["market", "limit", "stop", "stop_limit", "trailing_stop"];
+const VALID_TIME_IN_FORCE: TimeInForce[] = ["day", "gtc", "opg", "cls", "ioc", "fok"];
+
+/**
+ * Safely convert string to OrderType with fallback
+ */
+function toOrderType(value: string | undefined, fallback: OrderType = "limit"): OrderType {
+  if (value && VALID_ORDER_TYPES.includes(value as OrderType)) {
+    return value as OrderType;
+  }
+  return fallback;
+}
+
+/**
+ * Safely convert string to TimeInForce with fallback
+ */
+function toTimeInForce(value: string | undefined, fallback: TimeInForce = "day"): TimeInForce {
+  if (value && VALID_TIME_IN_FORCE.includes(value as TimeInForce)) {
+    return value as TimeInForce;
+  }
+  return fallback;
+}
 
 // Re-export AlpacaTradeUpdate for external consumers
 export type { AlpacaTradeUpdate };
@@ -195,7 +223,7 @@ const rejectionHandlers: RejectionHandler[] = [
           side: order.order.side as "buy" | "sell",
           qty: order.order.qty,
           type: "limit",
-          time_in_force: order.order.time_in_force as any,
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: limitPrice.toFixed(2),
         },
         explanation: `Adjusted limit price to $${limitPrice.toFixed(2)} (0.5% from market) to meet broker requirements`,
@@ -225,8 +253,8 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: requiredQty.toString(),
-          type: order.order.type as any,
-          time_in_force: order.order.time_in_force as any,
+          type: toOrderType(order.order.type),
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: order.order.limit_price || undefined,
         },
         explanation: `Increased quantity to ${requiredQty} shares to meet minimum order value ($${minNotional})`,
@@ -263,8 +291,8 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: affordableQty.toString(),
-          type: order.order.type as any,
-          time_in_force: order.order.time_in_force as any,
+          type: toOrderType(order.order.type),
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: order.order.limit_price || undefined,
         },
         explanation: `Reduced quantity to ${affordableQty} shares to fit within buying power ($${buyingPower.toFixed(2)})`,
@@ -306,8 +334,8 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: wholeShares.toString(),
-          type: order.order.type as any,
-          time_in_force: order.order.time_in_force as any,
+          type: toOrderType(order.order.type),
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: order.order.limit_price || undefined,
           extended_hours: order.order.extended_hours,
         },
@@ -328,7 +356,7 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: order.order.qty,
-          type: order.order.type as any,
+          type: toOrderType(order.order.type),
           time_in_force: "day", // Safest default
           limit_price: order.order.limit_price || undefined,
           stop_price: order.order.stop_price || undefined,
@@ -377,8 +405,8 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: order.order.qty,
-          type: order.order.type as any,
-          time_in_force: order.order.time_in_force as any,
+          type: toOrderType(order.order.type),
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: order.order.limit_price || undefined,
           order_class: "simple", // Remove bracket
         },
@@ -463,8 +491,8 @@ const rejectionHandlers: RejectionHandler[] = [
           symbol: order.order.symbol,
           side: order.order.side as "buy" | "sell",
           qty: order.order.qty,
-          type: order.order.type as any,
-          time_in_force: order.order.time_in_force as any,
+          type: toOrderType(order.order.type),
+          time_in_force: toTimeInForce(order.order.time_in_force),
           limit_price: order.order.limit_price || undefined,
         },
         explanation: `Delayed retry by 30 seconds to avoid wash trade rule`,
@@ -595,8 +623,8 @@ const rejectionHandlers: RejectionHandler[] = [
             symbol: order.order.symbol,
             side: order.order.side as "buy" | "sell",
             qty: order.order.qty,
-            type: (order.order.type || "limit") as any,
-            time_in_force: (order.order.time_in_force || "day") as any,
+            type: toOrderType(order.order.type || "limit"),
+            time_in_force: toTimeInForce(order.order.time_in_force || "day"),
             limit_price: order.order.limit_price || undefined,
             extended_hours: order.order.extended_hours,
           },
@@ -611,8 +639,8 @@ const rejectionHandlers: RejectionHandler[] = [
             symbol: order.order.symbol,
             side: order.order.side as "buy" | "sell",
             notional: order.order.notional,
-            type: (order.order.type || "limit") as any,
-            time_in_force: (order.order.time_in_force || "day") as any,
+            type: toOrderType(order.order.type || "limit"),
+            time_in_force: toTimeInForce(order.order.time_in_force || "day"),
             limit_price: order.order.limit_price || undefined,
             extended_hours: order.order.extended_hours,
           },
@@ -626,7 +654,7 @@ const rejectionHandlers: RejectionHandler[] = [
         try {
           const positions = await alpaca.getPositions();
           const position = positions.find(
-            (p: any) => p.symbol === order.order.symbol
+            (p: AlpacaPosition) => p.symbol === order.order.symbol
           );
           if (position) {
             const availableQty = Math.floor(
@@ -638,8 +666,8 @@ const rejectionHandlers: RejectionHandler[] = [
                   symbol: order.order.symbol,
                   side: "sell",
                   qty: availableQty.toString(),
-                  type: (order.order.type || "limit") as any,
-                  time_in_force: (order.order.time_in_force || "day") as any,
+                  type: toOrderType(order.order.type || "limit"),
+                  time_in_force: toTimeInForce(order.order.time_in_force || "day"),
                   limit_price: order.order.limit_price || undefined,
                   extended_hours: order.order.extended_hours,
                 },
@@ -665,8 +693,8 @@ const rejectionHandlers: RejectionHandler[] = [
             symbol: order.order.symbol,
             side: order.order.side as "buy" | "sell",
             notional: minNotional.toString(),
-            type: (order.order.type || "limit") as any,
-            time_in_force: (order.order.time_in_force || "day") as any,
+            type: toOrderType(order.order.type || "limit"),
+            time_in_force: toTimeInForce(order.order.time_in_force || "day"),
             limit_price: order.order.limit_price || undefined,
             extended_hours: order.order.extended_hours,
           },
@@ -689,7 +717,7 @@ const rejectionHandlers: RejectionHandler[] = [
       try {
         const positions = await alpaca.getPositions();
         const position = positions.find(
-          (p: any) => p.symbol === order.order.symbol
+          (p: AlpacaPosition) => p.symbol === order.order.symbol
         );
 
         if (!position) {
@@ -718,8 +746,8 @@ const rejectionHandlers: RejectionHandler[] = [
             symbol: order.order.symbol,
             side: order.order.side as "buy" | "sell",
             qty: wholeQty.toString(),
-            type: order.order.type as any,
-            time_in_force: order.order.time_in_force as any,
+            type: toOrderType(order.order.type),
+            time_in_force: toTimeInForce(order.order.time_in_force),
             limit_price: order.order.limit_price || undefined,
             extended_hours: order.order.extended_hours,
           },

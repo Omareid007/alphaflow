@@ -10,17 +10,11 @@
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "memory": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
     },
     "filesystem": {
       "command": "npx",
@@ -42,47 +36,32 @@
     },
     "context7": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ]
+      "args": ["-y", "@upstash/context7-mcp@latest"]
     },
     "ts-morph": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@sirosuzume/mcp-tsmorph-refactor"
-      ],
+      "args": ["-y", "@sirosuzume/mcp-tsmorph-refactor"],
       "env": {
         "LOG_LEVEL": "info"
       }
     },
     "playwright": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@playwright/mcp@latest"
-      ],
+      "args": ["-y", "@playwright/mcp@latest"],
       "env": {
         "PLAYWRIGHT_HEADLESS": "true"
       }
     },
     "github": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
+      "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
     },
     "slack": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-slack"
-      ],
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
       "env": {
         "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
         "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
@@ -90,40 +69,28 @@
     },
     "brave-search": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-brave-search"
-      ],
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY}"
       }
     },
     "exa": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-exa"
-      ],
+      "args": ["-y", "@anthropic-ai/mcp-exa"],
       "env": {
         "EXA_API_KEY": "${EXA_API_KEY}"
       }
     },
     "financial-datasets": {
       "command": "npx",
-      "args": [
-        "-y",
-        "financial-datasets-mcp"
-      ],
+      "args": ["-y", "financial-datasets-mcp"],
       "env": {
         "FINANCIAL_DATASETS_API_KEY": "${FINANCIAL_DATASETS_API_KEY}"
       }
     },
     "alpaca-trading": {
       "command": "npx",
-      "args": [
-        "-y",
-        "alpaca-mcp"
-      ],
+      "args": ["-y", "alpaca-mcp"],
       "env": {
         "ALPACA_API_KEY": "${ALPACA_API_KEY}",
         "ALPACA_SECRET_KEY": "${ALPACA_SECRET_KEY}",
@@ -132,40 +99,42 @@
     },
     "alphavantage": {
       "command": "npx",
-      "args": [
-        "-y",
-        "alphavantage-mcp"
-      ],
+      "args": ["-y", "alphavantage-mcp"],
       "env": {
         "ALPHAVANTAGE_API_KEY": "${ALPHAVANTAGE_API_KEY}"
       }
     },
     "polygon": {
       "command": "npx",
-      "args": [
-        "-y",
-        "polygon-mcp-server"
-      ],
+      "args": ["-y", "polygon-mcp-server"],
       "env": {
         "POLYGON_API_KEY": "${POLYGON_API_KEY}"
       }
     },
     "octagon": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@octagonai/octagon-mcp-server"
-      ],
+      "args": ["-y", "@octagonai/octagon-mcp-server"],
       "env": {
         "OCTAGON_API_KEY": "${OCTAGON_API_KEY}"
       }
     },
     "coingecko": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@coingecko/mcp-server"
-      ]
+      "args": ["-y", "@coingecko/mcp-server"]
+    },
+    "codacy": {
+      "command": "npx",
+      "args": ["-y", "@codacy/codacy-mcp"],
+      "env": {
+        "CODACY_ACCOUNT_TOKEN": "${CODACY_ACCOUNT_TOKEN}"
+      }
+    },
+    "sendgrid": {
+      "command": "npx",
+      "args": ["-y", "sendgrid-api-mcp-server"],
+      "env": {
+        "SENDGRID_API_KEY": "${SENDGRID_API_KEY}"
+      }
     }
   }
 }
