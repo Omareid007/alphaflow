@@ -4,8 +4,10 @@ import { log } from "../utils/logger";
 // Dubai Pulse API Configuration
 const DUBAI_PULSE_API_KEY = process.env.UAE_MARKETS_API_KEY || "";
 const DUBAI_PULSE_BASE_URL = "https://api.dubaipulse.gov.ae";
-const USE_DEMO_DATA =
-  !DUBAI_PULSE_API_KEY || process.env.UAE_MARKETS_USE_DEMO === "true";
+
+// IMPORTANT: Demo data mode has been REMOVED
+// Connector will only return real data from Dubai Pulse API or empty arrays
+// To use this connector, configure UAE_MARKETS_API_KEY environment variable
 
 export interface UAEStock {
   symbol: string;
@@ -68,181 +70,8 @@ export interface UAEMarketInfo {
   notes: string;
 }
 
-interface UAEStockBase {
-  symbol: string;
-  name: string;
-  exchange: "ADX" | "DFM";
-  sector: string;
-  basePrice: number;
-  baseChange: number;
-  baseChangePercent: number;
-  baseVolume: number;
-  marketCap?: number;
-  currency: string;
-}
-
-interface UAEMarketSummaryBase {
-  exchange: "ADX" | "DFM";
-  indexName: string;
-  baseIndexValue: number;
-  baseChange: number;
-  baseChangePercent: number;
-  baseTradingValue: number;
-  baseTradingVolume: number;
-  advancers: number;
-  decliners: number;
-  unchanged: number;
-}
-
-const UAE_STOCK_TEMPLATES: UAEStockBase[] = [
-  {
-    symbol: "ADNOCDIST",
-    name: "ADNOC Distribution",
-    exchange: "ADX",
-    sector: "Energy",
-    basePrice: 4.28,
-    baseChange: 0.08,
-    baseChangePercent: 1.9,
-    baseVolume: 12500000,
-    marketCap: 53500000000,
-    currency: "AED",
-  },
-  {
-    symbol: "ETISALAT",
-    name: "Emirates Telecommunications (Etisalat)",
-    exchange: "ADX",
-    sector: "Telecommunications",
-    basePrice: 25.5,
-    baseChange: -0.2,
-    baseChangePercent: -0.78,
-    baseVolume: 3200000,
-    marketCap: 221000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "FAB",
-    name: "First Abu Dhabi Bank",
-    exchange: "ADX",
-    sector: "Financials",
-    basePrice: 13.8,
-    baseChange: 0.15,
-    baseChangePercent: 1.1,
-    baseVolume: 8500000,
-    marketCap: 152000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "ADCB",
-    name: "Abu Dhabi Commercial Bank",
-    exchange: "ADX",
-    sector: "Financials",
-    basePrice: 9.45,
-    baseChange: 0.05,
-    baseChangePercent: 0.53,
-    baseVolume: 5600000,
-    marketCap: 65000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "ALDAR",
-    name: "Aldar Properties",
-    exchange: "ADX",
-    sector: "Real Estate",
-    basePrice: 6.82,
-    baseChange: 0.12,
-    baseChangePercent: 1.79,
-    baseVolume: 15200000,
-    marketCap: 54000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "EMAAR",
-    name: "Emaar Properties",
-    exchange: "DFM",
-    sector: "Real Estate",
-    basePrice: 9.15,
-    baseChange: 0.25,
-    baseChangePercent: 2.81,
-    baseVolume: 22000000,
-    marketCap: 80000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "DIB",
-    name: "Dubai Islamic Bank",
-    exchange: "DFM",
-    sector: "Financials",
-    basePrice: 6.2,
-    baseChange: -0.05,
-    baseChangePercent: -0.8,
-    baseVolume: 9800000,
-    marketCap: 45000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "EMIRATESNBD",
-    name: "Emirates NBD",
-    exchange: "DFM",
-    sector: "Financials",
-    basePrice: 18.9,
-    baseChange: 0.3,
-    baseChangePercent: 1.61,
-    baseVolume: 4500000,
-    marketCap: 118000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "DU",
-    name: "Emirates Integrated Telecommunications (du)",
-    exchange: "DFM",
-    sector: "Telecommunications",
-    basePrice: 6.75,
-    baseChange: 0.1,
-    baseChangePercent: 1.5,
-    baseVolume: 3200000,
-    marketCap: 30000000000,
-    currency: "AED",
-  },
-  {
-    symbol: "DEWA",
-    name: "Dubai Electricity & Water Authority",
-    exchange: "DFM",
-    sector: "Utilities",
-    basePrice: 2.58,
-    baseChange: 0.02,
-    baseChangePercent: 0.78,
-    baseVolume: 18500000,
-    marketCap: 130000000000,
-    currency: "AED",
-  },
-];
-
-const UAE_SUMMARY_TEMPLATES: UAEMarketSummaryBase[] = [
-  {
-    exchange: "ADX",
-    indexName: "ADX General Index",
-    baseIndexValue: 9856.42,
-    baseChange: 45.23,
-    baseChangePercent: 0.46,
-    baseTradingValue: 1250000000,
-    baseTradingVolume: 285000000,
-    advancers: 32,
-    decliners: 18,
-    unchanged: 8,
-  },
-  {
-    exchange: "DFM",
-    indexName: "DFM General Index",
-    baseIndexValue: 4285.67,
-    baseChange: -12.35,
-    baseChangePercent: -0.29,
-    baseTradingValue: 890000000,
-    baseTradingVolume: 195000000,
-    advancers: 22,
-    decliners: 28,
-    unchanged: 12,
-  },
-];
+// Demo data templates removed - connector now uses live API only
+// To enable UAE market data, configure UAE_MARKETS_API_KEY environment variable
 
 const UAE_MARKET_INFO: UAEMarketInfo = {
   exchanges: {
@@ -307,43 +136,8 @@ const UAE_MARKET_INFO: UAEMarketInfo = {
     "UAE markets operate Sunday-Thursday. First exchange globally to operate under Islamic Sharia principles (DFM).",
 };
 
-function generateDemoStocks(): UAEStock[] {
-  const now = new Date().toISOString();
-  return UAE_STOCK_TEMPLATES.map((template) => ({
-    symbol: template.symbol,
-    name: template.name,
-    exchange: template.exchange,
-    sector: template.sector,
-    currentPrice: template.basePrice,
-    change: template.baseChange,
-    changePercent: template.baseChangePercent,
-    volume: template.baseVolume,
-    marketCap: template.marketCap,
-    currency: template.currency,
-    lastUpdated: now,
-  }));
-}
-
-function generateDemoSummaries(): UAEMarketSummary[] {
-  const now = new Date().toISOString();
-  return UAE_SUMMARY_TEMPLATES.map((template) => ({
-    exchange: template.exchange,
-    indexName: template.indexName,
-    indexValue: template.baseIndexValue,
-    change: template.baseChange,
-    changePercent: template.baseChangePercent,
-    tradingValue: template.baseTradingValue,
-    tradingVolume: template.baseTradingVolume,
-    advancers: template.advancers,
-    decliners: template.decliners,
-    unchanged: template.unchanged,
-    lastUpdated: now,
-  }));
-}
-
-export interface UAEMarketsConfig {
-  useDemoData?: boolean;
-}
+// Demo data generation functions removed
+// Connector now returns live API data or empty arrays when API key not configured
 
 interface DubaiPulseIndexResponse {
   data?: {
@@ -439,6 +233,7 @@ class UAEMarketsConnector {
 
   /**
    * Fetch stocks with live API integration
+   * Returns empty array when API key not configured
    */
   async getTopStocks(exchange?: "ADX" | "DFM"): Promise<UAEStock[]> {
     const cacheKey = `stocks_${exchange || "all"}`;
@@ -448,29 +243,30 @@ class UAEMarketsConnector {
       return cached.data;
     }
 
-    // Try to fetch live data if configured for DFM
-    if (exchange === "DFM" && !USE_DEMO_DATA) {
-      // Note: Dubai Pulse doesn't provide individual stock data in the free tier
-      // Would need DFM Native API or premium provider for stock-level data
+    // Note: Dubai Pulse free tier doesn't provide individual stock data
+    // Would need DFM Native API or premium provider (Twelve Data, ICE, LSEG) for stock-level data
+    if (!DUBAI_PULSE_API_KEY) {
       log.info(
         "UAEMarkets",
-        "Live stock data requires DFM Native API or premium provider"
+        "UAE_MARKETS_API_KEY not configured - returning empty stock list"
       );
+      return [];
     }
 
-    // Fallback to demo data
-    let stocks = generateDemoStocks();
+    log.info(
+      "UAEMarkets",
+      "Live stock data requires DFM Native API or premium provider (Twelve Data, ICE Data Services, LSEG)"
+    );
 
-    if (exchange) {
-      stocks = stocks.filter((s) => s.exchange === exchange);
-    }
-
+    // Return empty array - stock data not available in free tier
+    const stocks: UAEStock[] = [];
     this.stocksCache.set(cacheKey, stocks);
     return stocks;
   }
 
   /**
    * Fetch market summary with live API integration
+   * Returns only live data from Dubai Pulse API or empty array
    */
   async getMarketSummary(
     exchange?: "ADX" | "DFM"
@@ -480,6 +276,14 @@ class UAEMarketsConnector {
 
     if (cached?.isFresh) {
       return cached.data;
+    }
+
+    if (!DUBAI_PULSE_API_KEY) {
+      log.info(
+        "UAEMarkets",
+        "UAE_MARKETS_API_KEY not configured - returning empty market summary"
+      );
+      return [];
     }
 
     let summaries: UAEMarketSummary[] = [];
@@ -493,18 +297,13 @@ class UAEMarketsConnector {
       }
     }
 
-    // Fallback to demo data for missing exchanges
-    const demoSummaries = generateDemoSummaries();
-
-    if (summaries.length === 0) {
-      // No live data, use all demo data
-      summaries = demoSummaries;
-    } else if (!exchange) {
-      // Live DFM data but need ADX demo data
-      const adxDemo = demoSummaries.find((s) => s.exchange === "ADX");
-      if (adxDemo) {
-        summaries.push(adxDemo);
-      }
+    // Note: ADX data not available via free Dubai Pulse API
+    // For ADX market summary, would need premium data provider
+    if (!exchange || exchange === "ADX") {
+      log.info(
+        "UAEMarkets",
+        "ADX market summary requires premium data provider (Twelve Data, ICE Data Services, LSEG)"
+      );
     }
 
     // Filter by exchange if specified
@@ -522,20 +321,16 @@ class UAEMarketsConnector {
 
   getConnectionStatus(): {
     connected: boolean;
-    dataSource: "live" | "demo";
+    dataSource: "live" | "unavailable";
     cacheSize: number;
-    isMockData: boolean;
-    isDemoData: boolean;
-    apiCallCount?: number;
-    lastApiCall?: string | null;
+    apiCallCount: number;
+    lastApiCall: string | null;
     apiConfigured: boolean;
   } {
     return {
-      connected: true,
-      dataSource: this.usingLiveData ? "live" : "demo",
+      connected: !!DUBAI_PULSE_API_KEY,
+      dataSource: this.usingLiveData ? "live" : "unavailable",
       cacheSize: this.stocksCache.size() + this.summaryCache.size(),
-      isMockData: !this.usingLiveData,
-      isDemoData: !this.usingLiveData,
       apiCallCount: this.apiCallCount,
       lastApiCall: this.lastApiCallTime?.toISOString() || null,
       apiConfigured: !!DUBAI_PULSE_API_KEY,

@@ -102,16 +102,19 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 8-12: Infrastructure & Quality (Dec 30, 2024)
 
 #### Phase 8: New MCP Servers
+
 - [x] **Added Codacy MCP** for code quality and coverage metrics
 - [x] **Added SendGrid MCP** for email notification workflows
 - [x] **Total MCP servers**: 20 (18 + Codacy + SendGrid)
 
 #### Phase 9: Test Coverage Infrastructure
+
 - [x] **Extended Vitest coverage** to include `server/` and `shared/` directories
 - [x] **Created server test templates** (notification-service.test.ts, email-service.test.ts)
 - [x] **Test count**: 238 tests passing (14 test suites)
 
 #### Phase 10: Email Notifications
+
 - [x] **Installed @sendgrid/mail** for email delivery
 - [x] **Created `server/lib/email-service.ts`** with SendGrid integration
 - [x] **Implemented email channel** in notification-service.ts (was stub)
@@ -119,6 +122,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Features**: sendEmail(), sendTradeAlert(), isEmailConfigured()
 
 #### Phase 11: Type Safety Improvements
+
 - [x] **Fixed `server/lib/standard-errors.ts`**: 17 `:any` → 0
   - Added ErrorDetails, ZodIssue, ZodErrorLike, HttpError interfaces
   - Added type guards: isZodError(), isHttpError()
@@ -129,18 +133,21 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Updated all rejection handlers with proper type assertions
 
 #### Phase 12: Documentation
+
 - [x] **Updated CLAUDE.md** with Phase 8-12 enhancements
 - [x] **Created email-notifications skill** (`~/.claude/skills/email-notifications.md`)
 
 ### Phase 13: Claude Code Enhancement v2 (Dec 30, 2024)
 
 #### New Skills (4 files in `~/.claude/skills/`)
+
 - [x] **refactoring-strategies.md** - Extract Method, Extract Class, DI patterns
 - [x] **api-documentation.md** - OpenAPI 3.0 generation from Express routes
 - [x] **database-migrations.md** - Drizzle ORM migration patterns, rollback
 - [x] **security-scanning.md** - SAST, secrets detection, OWASP compliance
 
 #### New Agents (5 files in `~/.claude/agents/`)
+
 - [x] **code-refactoring-planner.md** - Analyze refactoring opportunities
 - [x] **api-documentation-generator.md** - Discover routes, generate OpenAPI
 - [x] **test-coverage-analyzer.md** - Parse coverage, identify gaps
@@ -148,6 +155,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **vulnerability-tracker.md** - CVE tracking, npm audit, remediation
 
 #### New Commands (5 files in `~/.claude/commands/`)
+
 - [x] **refactor-analyze.md** - Find god objects, duplicates, type issues
 - [x] **generate-api-docs.md** - Generate OpenAPI from Express routes
 - [x] **analyze-coverage.md** - Test coverage gap analysis
@@ -155,10 +163,12 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **security-scan.md** - Comprehensive security analysis
 
 #### New MCP Servers (2 additions)
+
 - [x] **vitest** - AI-optimized test runner via `@djankies/vitest-mcp`
 - [x] **openapi** - API specification interaction via `@ivotoby/openapi-mcp-server`
 
 #### Updated Totals
+
 - **MCP Servers**: 22 (20 + vitest + openapi)
 - **Skills**: 14 (10 + 4 new)
 - **Custom Agents**: 5 (in `~/.claude/agents/`)
@@ -167,16 +177,19 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 14: MCP Expansion & Type Safety (Dec 30, 2024)
 
 #### New MCP Servers
+
 - [x] **yfinance** - Free Yahoo Finance market data via `@mokemokechicken/yfinance-mcp-server`
 - [x] **redis** - High-speed caching via `@gongrzhe/server-redis-mcp`
 - [x] **Total MCP servers**: 24 (22 + yfinance + redis)
 
 #### Documentation Created
+
 - [x] **docs/SKILLS_GUIDE.md** - Complete guide to 14 skills
 - [x] **docs/AGENTS_GUIDE.md** - Guide to 5 custom agents + Task subagents
 - [x] **docs/COMMANDS_REFERENCE.md** - Reference for all 14 commands
 
 #### Type Safety Improvements
+
 - [x] **Fixed `server/middleware/audit-logger.ts`**: 11 `:any` → 0
   - Added JsonObject, SanitizedBody, ResponseBody, ErrorResponseBody types
   - Added ErrorWithMessage interface for error handling
@@ -192,6 +205,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 15: Security & Testing (Dec 30, 2024)
 
 #### Security Improvements
+
 - [x] **Added helmet security headers** to `server/index.ts`
   - Content-Security-Policy with strict directives
   - X-Content-Type-Options, X-Frame-Options, HSTS
@@ -207,6 +221,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Remediation plan with priorities
 
 #### Test Coverage Expansion
+
 - [x] **Created 32 tests for `server/connectors/alpaca.ts`**
   - Account, positions, orders CRUD operations
   - Order validation (symbol, qty, prices)
@@ -224,6 +239,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 - [x] **Total tests increased**: 206 → 238 → 286 (39% overall increase)
 
 #### Updated Metrics
+
 - **OWASP Compliance**: 9/10 categories passing
 - **Security Risk**: Reduced from MEDIUM to LOW-MEDIUM
 - **Test Files**: 15 passing test suites
@@ -231,6 +247,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 16: High-Severity Vulnerability Fix (Dec 30, 2024)
 
 #### CVE-2025-64756 / GHSA-5j98-mcp5-4vw2 - glob Command Injection
+
 - [x] **Researched vulnerability** using parallel agents and web search
   - Affects glob@10.2.0 - 10.4.5 CLI `-c/--cmd` option
   - Command injection via shell metacharacters in filenames
@@ -248,14 +265,15 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 #### Vulnerability Status Change
 
-| Severity | Before | After | Change |
-|----------|--------|-------|--------|
-| Critical | 0 | 0 | - |
-| High | 3 | **0** | ✅ -3 |
-| Moderate | 4 | 4 | - |
-| **Total** | **7** | **4** | **-3** |
+| Severity  | Before | After | Change |
+| --------- | ------ | ----- | ------ |
+| Critical  | 0      | 0     | -      |
+| High      | 3      | **0** | ✅ -3  |
+| Moderate  | 4      | 4     | -      |
+| **Total** | **7**  | **4** | **-3** |
 
 #### Remaining Vulnerabilities (Moderate, Dev-only)
+
 - 4x esbuild vulnerabilities via drizzle-kit
 - Only affects development environment
 - Not exploitable in production
@@ -264,14 +282,16 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 17: Trading-Specific Claude Code Features (Dec 30, 2024)
 
 #### Trading Automation Hooks
+
 - [x] **Added PostToolUse hook** for auto-formatting TypeScript after edits
   - Runs Prettier on `.ts` and `.tsx` files after Edit/Write operations
   - Configured in `.claude/settings.local.json`
 
 #### Trading-Specific Agents (3 files in `~/.claude/agents/`)
+
 - [x] **trade-analyzer.md** - Performance analysis, Sharpe ratio, win rate calculation
-  - Uses mcp__postgres__query for trade history
-  - Uses mcp__yfinance for market data comparison
+  - Uses mcp**postgres**query for trade history
+  - Uses mcp\_\_yfinance for market data comparison
   - Provides actionable recommendations
 - [x] **risk-monitor.md** - Portfolio risk monitoring, position limits
   - Enforces 5% max position, 25% sector exposure limits
@@ -283,6 +303,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Root cause analysis for common errors
 
 #### Trading-Specific Skills (2 directories in `~/.claude/skills/`)
+
 - [x] **order-execution/SKILL.md** - Safe order execution workflow
   - Pre-trade validation (market hours, symbol, position size)
   - Order placement with proper client_order_id generation
@@ -293,11 +314,13 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Walk-forward validation and red flag detection
 
 #### Trading Commands (3 files in `~/.claude/commands/`)
+
 - [x] **/market-status** - Check market hours, trading eligibility
 - [x] **/portfolio-health** - Quick portfolio health check with risk metrics
 - [x] **/debug-order** - Debug specific order by ID
 
 #### Updated Totals
+
 - **Skills**: 16 (14 + 2 trading-specific)
 - **Custom Agents**: 8 (5 + 3 trading-specific)
 - **Custom Commands**: 17 (14 + 3 trading-specific)
@@ -306,6 +329,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 ### Phase 18: Advanced Claude Code Integration (Dec 30, 2024)
 
 #### Advanced Hooks System
+
 - [x] **5 hooks configured** in `.claude/settings.local.json`:
   - `PreToolUse` - Order validation before Bash commands
   - `PostToolUse` - Auto-format TypeScript after Edit/Write
@@ -314,6 +338,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - `Stop` - Session cleanup and summary
 
 #### Custom Trading MCP Server
+
 - [x] **Created `mcp-servers/trading-utilities/`** package
   - Full MCP server implementation using @modelcontextprotocol/sdk
   - 5 trading-specific tools:
@@ -328,6 +353,7 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Registered in `.mcp.json` with environment variables
 
 #### Background Portfolio Monitoring
+
 - [x] **Created `~/.claude/agents/background-portfolio-monitor.md`**
   - Continuous surveillance agent definition
   - 60-second check interval
@@ -338,76 +364,300 @@ Trading platform with autonomous strategy management, backtesting, and broker in
   - Slack webhook integration for alerts
 
 #### Helper Scripts for Hooks
+
 - [x] **`scripts/validate-trading-command.sh`** - Pre-trade validation
 - [x] **`scripts/inject-market-context.sh`** - Market context for prompts
 - [x] **`scripts/session-init.sh`** - Session initialization
 - [x] **`scripts/session-cleanup.sh`** - Session cleanup and logging
 
 #### Updated Totals
-| Component | Before | After |
-|-----------|--------|-------|
-| MCP Servers | 24 | **25** (+trading-utilities) |
-| Skills | 16 | 16 |
-| Custom Agents | 8 | **9** (+background-portfolio-monitor) |
-| Custom Commands | 17 | 17 |
-| Hooks | 1 | **5** |
+
+| Component       | Before | After                                 |
+| --------------- | ------ | ------------------------------------- |
+| MCP Servers     | 24     | **25** (+trading-utilities)           |
+| Skills          | 16     | 16                                    |
+| Custom Agents   | 8      | **9** (+background-portfolio-monitor) |
+| Custom Commands | 17     | 17                                    |
+| Hooks           | 1      | **5**                                 |
+
+### Phase 19: Strategy Execution Integration (Dec 30, 2024)
+
+#### Phase 7: System Integration (COMPLETED)
+
+- [x] **Task 7.1**: Activated exit rule enforcer in `server/index.ts`
+  - Added import and startup call for exitRuleEnforcer
+  - 30-second check interval for stop-loss/take-profit enforcement
+  - Added graceful shutdown handler
+- [x] **Task 7.2**: Exported missing hooks in `lib/api/hooks/index.ts`
+  - useStrategyOrders, useExecutionContext, useExecuteStrategyOrder
+  - useCloseStrategyPosition, usePreviewPositionSize
+  - StrategyOrder, StrategyExecutionContext types
+- [x] **Task 7.3**: Added Execution tab to `app/strategies/[id]/page.tsx`
+  - StrategyExecutionDashboard component integration
+  - Default tab set based on strategy status (paper/live → Execution)
+- [x] **Task 7.4**: Linked positions to strategies in `app/portfolio/page.tsx`
+  - Positions grouped by strategyId
+  - "View Strategy" links for each position group
+
+#### Phase 8: MCP Enhancement (COMPLETED)
+
+- [x] **Task 8.1**: Added 3 strategy monitoring tools to `trading-utilities` MCP server
+      | Tool | Input | Output |
+      |------|-------|--------|
+      | `get_strategy_status` | strategyId | Execution state, recent signals/orders, exit rules |
+      | `get_strategy_performance` | strategyId, periodDays | Sharpe, Sortino, drawdown, win rate, profit factor |
+      | `debug_order_execution` | orderId | Timeline, failure analysis, fill details, slippage |
+- [x] **Task 8.2**: Created `~/.claude/skills/strategy-monitoring.md`
+  - MCP tool documentation with inputs/outputs
+  - Monitoring workflows (daily check, performance review, order debugging)
+  - Red flags and common issues with solutions
+- [x] **Task 8.3**: Created `~/.claude/agents/strategy-execution-monitor.md`
+  - 6-step workflow for strategy health monitoring
+  - Alert thresholds (Critical/Warning/Info levels)
+  - Integration points with MCP tools and database queries
+
+#### Phase 9: Documentation & Testing (COMPLETED)
+
+- [x] **Task 9.1**: Updated CLAUDE.md with Phase 7-9 status
+- [x] **Task 9.2**: Added integration tests for strategy execution flow
+  - `tests/integration/strategy-execution-integration.test.ts` (48 tests)
+  - Tests: State transitions, exit rules, performance metrics, order tracking
+
+#### New MCP Tools Added (trading-utilities server)
+
+| Tool                       | Purpose                                                   |
+| -------------------------- | --------------------------------------------------------- |
+| `get_strategy_status`      | Strategy execution state, signals, orders, exit rules     |
+| `get_strategy_performance` | Performance metrics (Sharpe, Sortino, win rate, drawdown) |
+| `debug_order_execution`    | Order timeline, failure analysis, slippage calculation    |
+
+#### New Types Added (`mcp-servers/trading-utilities/src/types.ts`)
+
+- `StrategyStatus` - Execution state, recent signals/orders, exit rules
+- `StrategyPerformance` - Metrics, benchmark comparison, recent trades
+- `OrderDebugInfo` - Timeline, execution details, failure analysis
+- `AlpacaOrder` - Full Alpaca order response type
+
+#### Updated Totals (Phase 19)
+
+| Component        | Before | After                                |
+| ---------------- | ------ | ------------------------------------ |
+| MCP Server Tools | 5      | **8** (+3 strategy tools)            |
+| Skills           | 16     | **17** (+strategy-monitoring)        |
+| Custom Agents    | 9      | **10** (+strategy-execution-monitor) |
+
+### Phase 20: Missing Routes & Type Safety (Dec 30, 2024)
+
+#### New API Routes Created
+
+- [x] **`server/routes/candidates.ts`** - Stock candidate screening API
+  - `GET /api/candidates` - List candidates with status filter
+  - `GET /api/candidates/stats` - Candidate statistics
+  - `GET /api/candidates/:symbol` - Get specific candidate
+  - `POST /api/candidates/generate` - Trigger candidate generation
+  - `POST /api/candidates/:symbol/approve` - Approve candidate
+  - `POST /api/candidates/:symbol/reject` - Reject candidate
+  - `POST /api/candidates/:symbol/watchlist` - Add to watchlist
+  - `POST /api/candidates/bulk-approve` - Bulk approve candidates
+  - `POST /api/candidates/bulk-reject` - Bulk reject candidates
+- [x] **`server/routes/settings.ts`** - User settings API
+  - `GET /api/settings` - Get user settings (theme, notifications, risk guardrails)
+  - `PUT /api/settings` - Update user settings with deep merge
+  - Uses adminSettings table with per-user namespace pattern
+- [x] **Updated `/api/ai/sentiment`** in `server/routes/ai-analysis.ts`
+  - Replaced mock data with real `sentimentAggregator.batchGetSentiment()`
+  - Transforms -1 to 1 score range to -100 to 100 for frontend
+
+#### Type Safety Improvements
+
+- [x] **Fixed `server/routes/notifications.ts`** - Redact channel config types
+  - Created `RedactedChannelResponse` interface
+  - Updated `redactChannelConfig()` to accept `NotificationChannel` directly
+  - Proper type handling for union config types (Telegram, Slack, Discord, Email)
+
+#### Admin Pages Verified (Already Implemented)
+
+- [x] **`app/admin/competition/page.tsx`** (827 lines)
+  - Trader profiles tab with create/edit dialogs
+  - Competition runs tab with create dialog
+  - Leaderboard tab with statistics
+  - Full integration with `useCompetition` hooks
+- [x] **`app/admin/fundamentals/page.tsx`** (876 lines)
+  - Symbol lookup with search
+  - Factor catalog with category filtering
+  - Stats cards for factor health
+  - Full integration with `useFundamentalFactors` hooks
+- [x] **`app/admin/strategies/page.tsx`** (1,274 lines)
+  - Statistics cards (total, live, paper, paused, stopped)
+  - Search and status filtering
+  - Strategy table with CRUD operations
+  - Deploy, pause, resume, stop dialogs
+  - Version management panel
+  - Edit and delete confirmation dialogs
+
+#### Routes Registered in `server/routes.ts`
+
+```typescript
+app.use("/api/candidates", authMiddleware, candidatesRouter);
+app.use("/api/settings", authMiddleware, settingsRouter);
+```
+
+### Phase 21: AI Client Type Safety (Dec 30, 2024)
+
+#### Type Safety Improvements - AI Clients
+
+- [x] **Fixed `server/ai/claudeClient.ts`**
+  - Added proper `LLMClientError` type guard for error re-throwing
+  - Replaced `(error as any).provider` with proper type checking
+- [x] **Fixed `server/ai/huggingfaceClient.ts`**
+  - Added `UsageInfo` interface for token usage tracking
+  - Changed `requestBody: any` to `HuggingFaceTextGenRequest | HuggingFaceChatRequest`
+  - Changed `usage: any` to `UsageInfo`
+- [x] **Fixed `server/ai/llmGateway.ts`**
+  - Added `LLMClient` import
+  - Changed `client: any` to `client: LLMClient` in PROVIDER_CLIENTS
+- [x] **Fixed `server/ai/roleBasedRouter.ts`**
+  - Added `LLMClient` import
+  - Changed `client: any` to `client: LLMClient` in PROVIDER_CLIENTS
+  - Added proper type handling for `tokensUsed` union type (number | object)
+
+#### Type Safety Metrics
+
+| Metric                 | Before | After | Improvement   |
+| ---------------------- | ------ | ----- | ------------- |
+| Server `:any` count    | 59     | 24    | 59% reduction |
+| AI client `:any` count | 5      | 0     | 100% fixed    |
+
+### Phase 22: Quick Win Integrations & Product Planning (Dec 31, 2024)
+
+#### Product Management Deliverables
+
+- [x] **Created comprehensive product roadmap** (`docs/product/PRODUCT_ROADMAP_2025.md`)
+  - 4-phase implementation plan (550 hours total)
+  - Phase 1 (P0): 78 hours - Critical fixes
+  - Phase 2 (P1): 252 hours - Core features
+  - Phase 3 (P2): 148 hours - UX enhancements
+  - Phase 4 (P3): 72 hours - Polish & documentation
+- [x] **Created Password Reset BRD** (`docs/product/BRD_PASSWORD_RESET.md`)
+  - Database schema, API endpoints, email templates
+  - 16 tests required (8 unit, 6 integration, 2 E2E)
+  - 8-hour implementation plan
+- [x] **Created Real-Time Data BRD** (`docs/product/BRD_REALTIME_DATA.md`)
+  - SSE architecture, connection management
+  - useSSE hook design (150 lines)
+  - 35 tests required (20 unit, 10 integration, 5 E2E)
+  - 24-hour implementation plan
+- [x] **Created Execution Plan** (`docs/EXECUTION_PLAN_SONNET_1M.md`)
+  - 5,000+ lines of detailed implementation steps
+  - Pre-flight checklist, file modification matrix
+  - Testing strategy, deployment checklist
+  - Monitoring & rollback plan
+
+#### Quick Win Integrations (Dec 31, 2024)
+
+- [x] **Installed ioredis** (Redis client library for Node.js)
+  - High-performance caching layer
+  - 9 new dependencies added
+- [x] **Added Finnhub MCP server** to `.mcp.json`
+  - Real-time quotes, fundamentals, news
+  - 60 API calls/min free tier
+  - Uses `uvx mcp-finnhub` Python package
+- [x] **Created Redis caching service** (`server/lib/redis-cache.ts`)
+  - 300+ lines of production-ready caching
+  - TTL-based expiration (quotes: 1min, fundamentals: 1hr)
+  - Automatic connection management with health checks
+  - Graceful degradation when Redis unavailable
+  - Rate limiting counter support
+  - Cache statistics and monitoring
+- [x] **Created Integration Setup Guide** (`docs/INTEGRATION_SETUP_GUIDE.md`)
+  - 26 MCP servers documented
+  - 15 direct API integrations documented
+  - Step-by-step setup instructions
+  - Free tier limits and costs
+  - Testing & troubleshooting guides
+
+#### MCP Server Configuration
+
+- **Total MCP servers**: 26 (25 + Finnhub)
+- **Active (no API key required)**: 13 servers
+- **Needs API key**: 13 servers
+- **Quick Win priorities**:
+  - 🔥 Finnhub (60 calls/min free) - Real-time quotes
+  - 🔥 AlphaVantage (500 calls/day free) - Fundamentals
+  - 🔥 GitHub (unlimited free) - Repository operations
+  - 🔥 Slack (unlimited free) - Trade alerts
+  - 🔥 Redis (self-hosted free) - Caching
+
+#### Integration Status Update
+
+| Integration  | Status       | Free Tier      | Value             |
+| ------------ | ------------ | -------------- | ----------------- |
+| Finnhub      | 🔑 Needs Key | 60 calls/min   | Market data       |
+| AlphaVantage | 🔑 Needs Key | 500 calls/day  | Fundamentals      |
+| GitHub       | 🔑 Needs Key | ✅ Unlimited   | CI/CD automation  |
+| Slack        | 🔑 Needs Key | ✅ Unlimited   | Real-time alerts  |
+| Redis        | 🔑 Needs Key | ✅ Self-hosted | 5-10x performance |
+
+**Expected Impact**: 5-10x faster API responses, 90% fewer external API calls, $0/month cost
 
 ### Remaining Items (Future)
 
-| Item                          | Priority | Notes                                    |
-| ----------------------------- | -------- | ---------------------------------------- |
-| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining         |
-| Type safety upgrade           | P2       | 59 `:any` remaining (down from 82)       |
-| Test coverage expansion       | P1       | Continue adding server tests             |
+| Item                          | Priority | Notes                                      |
+| ----------------------------- | -------- | ------------------------------------------ |
+| Backtest script consolidation | Low      | 14 scripts (~8K lines) remaining           |
+| Type safety upgrade           | P3       | 24 `:any` remaining (down from 82)         |
+| Test coverage expansion       | P1       | Continue adding server tests               |
 | esbuild vulnerabilities       | Low      | 4 moderate, dev-only, wait for drizzle-kit |
-| Password reset flow           | P1       | Auth endpoints need completion           |
-| Missing flow documentation    | P2       | Dashboard, AI Pulse, Research flows      |
+| Password reset flow           | P1       | Auth endpoints need completion             |
+| Missing flow documentation    | P2       | Dashboard, AI Pulse, Research flows        |
 
 ## Security Status
 
 ### Fixed (Dec 29-30, 2024)
 
-| CVE            | Severity | Description                             | Fix Method |
-| -------------- | -------- | --------------------------------------- | ---------- |
-| CVE-2025-29927 | Critical | Next.js Middleware Authorization Bypass | Next.js 14.2.35 |
-| CVE-2025-55184 | High     | Next.js DoS via infinite loop           | Next.js 14.2.35 |
-| CVE-2025-55183 | Medium   | Next.js Source Code Exposure            | Next.js 14.2.35 |
-| CVE-2025-64756 | High     | glob CLI Command Injection              | npm overrides glob@10.5.0 |
-| GHSA-5j98-mcp5-4vw2 | High | glob CLI Command Injection (same as above) | npm overrides glob@10.5.0 |
+| CVE                 | Severity | Description                                | Fix Method                |
+| ------------------- | -------- | ------------------------------------------ | ------------------------- |
+| CVE-2025-29927      | Critical | Next.js Middleware Authorization Bypass    | Next.js 14.2.35           |
+| CVE-2025-55184      | High     | Next.js DoS via infinite loop              | Next.js 14.2.35           |
+| CVE-2025-55183      | Medium   | Next.js Source Code Exposure               | Next.js 14.2.35           |
+| CVE-2025-64756      | High     | glob CLI Command Injection                 | npm overrides glob@10.5.0 |
+| GHSA-5j98-mcp5-4vw2 | High     | glob CLI Command Injection (same as above) | npm overrides glob@10.5.0 |
 
 ### Remaining (Moderate, Dev-only)
 
-| Package | Severity | Impact | Notes |
-|---------|----------|--------|-------|
-| esbuild | Moderate | Dev only | Via drizzle-kit, wait for upstream |
-| @esbuild-kit/core-utils | Moderate | Dev only | Deprecated, merged into tsx |
-| @esbuild-kit/esm-loader | Moderate | Dev only | Deprecated, merged into tsx |
+| Package                 | Severity | Impact   | Notes                              |
+| ----------------------- | -------- | -------- | ---------------------------------- |
+| esbuild                 | Moderate | Dev only | Via drizzle-kit, wait for upstream |
+| @esbuild-kit/core-utils | Moderate | Dev only | Deprecated, merged into tsx        |
+| @esbuild-kit/esm-loader | Moderate | Dev only | Deprecated, merged into tsx        |
 
 **Production Impact:** None - all remaining vulnerabilities are in development dependencies only.
 
 ## MCP Servers
 
-Configured in `.mcp.json` (25 servers total, updated Dec 30, 2024):
+Configured in `.mcp.json` (26 servers total, updated Dec 31, 2024):
 
 ### Core Servers (No API Key Required)
 
-| Server                | Purpose                               |
-| --------------------- | ------------------------------------- |
-| `postgres`            | Database queries                      |
-| `sequential-thinking` | Complex problem-solving               |
-| `memory`              | Persistent knowledge graph            |
-| `filesystem`          | Secure file operations                |
-| `git`                 | Git repository operations             |
-| `context7`            | Real-time library documentation (NEW) |
-| `ts-morph`            | TypeScript AST refactoring            |
-| `playwright`          | Browser automation, E2E testing       |
-| `vitest`              | AI-optimized test runner (NEW)        |
-| `openapi`             | API specification interaction (NEW)   |
+| Server                | Purpose                         |
+| --------------------- | ------------------------------- |
+| `postgres`            | Database queries                |
+| `sequential-thinking` | Complex problem-solving         |
+| `memory`              | Persistent knowledge graph      |
+| `filesystem`          | Secure file operations          |
+| `git`                 | Git repository operations       |
+| `context7`            | Real-time library documentation |
+| `ts-morph`            | TypeScript AST refactoring      |
+| `playwright`          | Browser automation, E2E testing |
+| `vitest`              | AI-optimized test runner        |
+| `openapi`             | API specification interaction   |
+| `yfinance`            | Yahoo Finance data (free)       |
+| `coingecko`           | Cryptocurrency data (free)      |
 
 ### Custom MCP Server (Local)
 
-| Server              | Purpose                                   |
-| ------------------- | ----------------------------------------- |
+| Server              | Purpose                                     |
+| ------------------- | ------------------------------------------- |
 | `trading-utilities` | Portfolio risk, order validation, positions |
 
 ### API Key Required (Configure When Available)
@@ -418,17 +668,20 @@ Configured in `.mcp.json` (25 servers total, updated Dec 30, 2024):
 | `slack`        | Trade alerts, notifications   | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
 | `brave-search` | Privacy-focused web search    | `BRAVE_API_KEY`                    |
 | `exa`          | AI-powered web search         | `EXA_API_KEY`                      |
+| `redis`        | Caching, performance          | `REDIS_HOST`, `REDIS_PORT`         |
+| `sendgrid`     | Email notifications           | `SENDGRID_API_KEY`                 |
+| `codacy`       | Code quality metrics          | `CODACY_ACCOUNT_TOKEN`             |
 
 ### Finance-Specific MCP Servers
 
-| Server               | Purpose                                   | Env Variable                          |
-| -------------------- | ----------------------------------------- | ------------------------------------- |
-| `financial-datasets` | Income statements, balance sheets, prices | `FINANCIAL_DATASETS_API_KEY`          |
-| `alpaca-trading`     | Direct MCP trading via Alpaca             | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` |
-| `alphavantage`       | 100+ financial APIs, fundamentals         | `ALPHAVANTAGE_API_KEY`                |
-| `polygon`            | Real-time market data, options            | `POLYGON_API_KEY`                     |
-| `octagon`            | SEC filings, financial research           | `OCTAGON_API_KEY`                     |
-| `coingecko`          | Cryptocurrency data                       | (free tier)                           |
+| Server               | Purpose                                    | Env Variable                          |
+| -------------------- | ------------------------------------------ | ------------------------------------- |
+| `finnhub`            | Real-time quotes, fundamentals, news (NEW) | `FINNHUB_API_KEY`                     |
+| `financial-datasets` | Income statements, balance sheets, prices  | `FINANCIAL_DATASETS_API_KEY`          |
+| `alpaca-trading`     | Direct MCP trading via Alpaca              | `ALPACA_API_KEY`, `ALPACA_SECRET_KEY` |
+| `alphavantage`       | 100+ financial APIs, fundamentals          | `ALPHAVANTAGE_API_KEY`                |
+| `polygon`            | Real-time market data, options             | `POLYGON_API_KEY`                     |
+| `octagon`            | SEC filings, financial research            | `OCTAGON_API_KEY`                     |
 
 ### Removed Servers (Dec 30, 2024)
 
@@ -569,47 +822,47 @@ log.info("Trading", "Order placed", { orderId });
 
 ### Commands (17 total, use with `/`)
 
-| Command              | Purpose                                                      |
-| -------------------- | ------------------------------------------------------------ |
-| `/analyze-project`   | Full project analysis                                        |
-| `/health-check`      | Quick project health check                                   |
-| `/find-issues`       | Find all issues in code                                      |
-| `/generate-spec`     | Generate documentation/specs                                 |
-| `/generate-tests`    | Auto-generate tests from code                                |
-| `/analyze-gap`       | Deep-dive gap analysis (type-safety, testing, accessibility) |
-| `/list-todos`        | Extract TODO/FIXME/HACK comments                             |
-| `/validate-types`    | TypeScript strict validation, `:any` detection               |
-| `/check-mcp-status`  | Verify MCP server configurations                             |
-| `/refactor-analyze`  | Find god objects, duplicates, type issues                    |
-| `/generate-api-docs` | Generate OpenAPI from Express routes                         |
-| `/analyze-coverage`  | Test coverage gap analysis                                   |
-| `/generate-migration`| Database migration generation                                |
-| `/security-scan`     | Comprehensive security analysis                              |
-| `/market-status`     | Check market hours, trading eligibility (NEW)                |
-| `/portfolio-health`  | Quick portfolio health check with risk metrics (NEW)         |
-| `/debug-order`       | Debug specific order by ID (NEW)                             |
+| Command               | Purpose                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `/analyze-project`    | Full project analysis                                        |
+| `/health-check`       | Quick project health check                                   |
+| `/find-issues`        | Find all issues in code                                      |
+| `/generate-spec`      | Generate documentation/specs                                 |
+| `/generate-tests`     | Auto-generate tests from code                                |
+| `/analyze-gap`        | Deep-dive gap analysis (type-safety, testing, accessibility) |
+| `/list-todos`         | Extract TODO/FIXME/HACK comments                             |
+| `/validate-types`     | TypeScript strict validation, `:any` detection               |
+| `/check-mcp-status`   | Verify MCP server configurations                             |
+| `/refactor-analyze`   | Find god objects, duplicates, type issues                    |
+| `/generate-api-docs`  | Generate OpenAPI from Express routes                         |
+| `/analyze-coverage`   | Test coverage gap analysis                                   |
+| `/generate-migration` | Database migration generation                                |
+| `/security-scan`      | Comprehensive security analysis                              |
+| `/market-status`      | Check market hours, trading eligibility (NEW)                |
+| `/portfolio-health`   | Quick portfolio health check with risk metrics (NEW)         |
+| `/debug-order`        | Debug specific order by ID (NEW)                             |
 
 ### Task Tool Subagents (via Task tool)
 
-| Subagent Type           | Category      | Purpose                             |
-| ----------------------- | ------------- | ----------------------------------- |
-| `general-purpose`       | utility       | Multi-step tasks, code search       |
-| `Explore`               | discovery     | Codebase exploration, file patterns |
-| `Plan`                  | planning      | Implementation planning             |
-| `claude-code-guide`     | documentation | Claude Code/SDK documentation       |
+| Subagent Type       | Category      | Purpose                             |
+| ------------------- | ------------- | ----------------------------------- |
+| `general-purpose`   | utility       | Multi-step tasks, code search       |
+| `Explore`           | discovery     | Codebase exploration, file patterns |
+| `Plan`              | planning      | Implementation planning             |
+| `claude-code-guide` | documentation | Claude Code/SDK documentation       |
 
 ### Custom Agents (9 files in `~/.claude/agents/`)
 
-| Agent                          | Purpose                              |
-| ------------------------------ | ------------------------------------ |
-| `code-refactoring-planner`     | Analyze refactoring opportunities    |
-| `api-documentation-generator`  | Discover routes, generate OpenAPI    |
-| `test-coverage-analyzer`       | Parse coverage, identify gaps        |
-| `migration-analyzer`           | Schema diff, safe migrations         |
-| `vulnerability-tracker`        | CVE tracking, npm audit, remediation |
-| `trade-analyzer`               | Trading performance analysis         |
-| `risk-monitor`                 | Portfolio risk monitoring            |
-| `order-debugger`               | Order execution debugging            |
+| Agent                          | Purpose                                 |
+| ------------------------------ | --------------------------------------- |
+| `code-refactoring-planner`     | Analyze refactoring opportunities       |
+| `api-documentation-generator`  | Discover routes, generate OpenAPI       |
+| `test-coverage-analyzer`       | Parse coverage, identify gaps           |
+| `migration-analyzer`           | Schema diff, safe migrations            |
+| `vulnerability-tracker`        | CVE tracking, npm audit, remediation    |
+| `trade-analyzer`               | Trading performance analysis            |
+| `risk-monitor`                 | Portfolio risk monitoring               |
+| `order-debugger`               | Order execution debugging               |
 | `background-portfolio-monitor` | Continuous portfolio surveillance (NEW) |
 
 ## Non-Destructive Operation Rules
@@ -679,12 +932,12 @@ npx bundle-phobia-cli [package-name]
 
 ## Configuration Locations
 
-| File                            | Purpose                                  |
-| ------------------------------- | ---------------------------------------- |
-| `~/.claude/settings.local.json` | Hooks configuration (5 hook types)       |
-| `~/.claude/agents/`             | Custom agents (9 total)                  |
-| `~/.claude/commands/`           | Custom commands (17 total)               |
-| `~/.claude/skills/`             | Custom skills (16 total)                 |
-| `.mcp.json`                     | MCP server configuration (25 servers)    |
-| `.env`                          | Environment variables (source of truth)  |
-| `mcp-servers/trading-utilities/`| Custom trading MCP server (5 tools)      |
+| File                             | Purpose                                 |
+| -------------------------------- | --------------------------------------- |
+| `~/.claude/settings.local.json`  | Hooks configuration (5 hook types)      |
+| `~/.claude/agents/`              | Custom agents (9 total)                 |
+| `~/.claude/commands/`            | Custom commands (17 total)              |
+| `~/.claude/skills/`              | Custom skills (16 total)                |
+| `.mcp.json`                      | MCP server configuration (25 servers)   |
+| `.env`                           | Environment variables (source of truth) |
+| `mcp-servers/trading-utilities/` | Custom trading MCP server (5 tools)     |
