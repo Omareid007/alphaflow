@@ -1,8 +1,19 @@
 "use client";
 
-import { usePortfolioSnapshot, usePositions, useStrategies } from "@/lib/api";
+import {
+  usePortfolioSnapshot,
+  usePositions,
+  useStrategies,
+  useTrades,
+  type Position,
+  type Trade,
+  type Strategy,
+} from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import {
   PieChart,
@@ -26,6 +37,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
+import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 const COLORS = [
   "hsl(199, 89%, 48%)",
@@ -99,6 +116,11 @@ function MetricCard({
 }
 
 export default function PortfolioPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const lastPnlRef = useRef<number | null>(null);
+
   // Fetch portfolio snapshot with 30s auto-refresh
   const {
     data: portfolioSnapshot,
@@ -122,6 +144,36 @@ export default function PortfolioPage() {
     error: strategiesError,
     refetch: refetchStrategies,
   } = useStrategies();
+
+  // Real-time SSE connection for live P&L updates
+  const { isConnected, status } = useRealTimeTrading({
+    enabled: !!user?.id,
+    userId: user?.id,
+    onPositionUpdate: (data) => {
+      // Invalidate queries to trigger refetch with new data
+      queryClient.invalidateQueries({ queryKey: ["positions"] });
+      queryClient.invalidateQueries({ queryKey: ["portfolioSnapshot"] });
+
+      // Show toast notification for significant P&L changes
+      const newPnl = data.totalPnL || 0;
+      if (lastPnlRef.current !== null) {
+        const pnlChange = Math.abs(newPnl - lastPnlRef.current);
+        if (pnlChange > 100) {
+          // Notify on >$100 change
+          toast({
+            title: "Position Updated",
+            description: `P&L ${newPnl >= 0 ? "+" : ""}$${newPnl.toFixed(2)}`,
+            variant: newPnl >= 0 ? "default" : "destructive",
+          });
+        }
+      }
+      lastPnlRef.current = newPnl;
+    },
+    onPriceUpdate: (data) => {
+      // Invalidate queries for real-time price updates
+      queryClient.invalidateQueries({ queryKey: ["positions"] });
+    },
+  });
 
   const isLoading = portfolioLoading || positionsLoading || strategiesLoading;
   const hasError = portfolioError || positionsError || strategiesError;
@@ -165,34 +217,15 @@ export default function PortfolioPage() {
             View your positions, allocations, and risk metrics
           </p>
         </div>
-        <Card className="border-destructive/50">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
-            </div>
-            <h3 className="mt-4 text-lg font-semibold">
-              Unable to load portfolio data
-            </h3>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              {portfolioError instanceof Error
-                ? portfolioError.message
-                : positionsError instanceof Error
-                  ? positionsError.message
-                  : "Failed to load portfolio data. Please check your connection and try again."}
-            </p>
-            <Button
-              onClick={() => {
-                refetchPortfolio();
-                refetchPositions();
-                refetchStrategies();
-              }}
-              variant="outline"
-              className="mt-6"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Unable to load portfolio data"
+          error={portfolioError || positionsError}
+          onRetry={() => {
+            refetchPortfolio();
+            refetchPositions();
+            refetchStrategies();
+          }}
+        />
       </div>
     );
   }
@@ -262,11 +295,16 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Portfolio</h1>
-        <p className="mt-1 text-muted-foreground">
-          View your positions, allocations, and risk metrics
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Portfolio</h1>
+          <p className="mt-1 text-muted-foreground">
+            View your positions, allocations, and risk metrics
+          </p>
+        </div>
+        {user?.id && (
+          <ConnectionStatus userId={user.id} compact={false} showStats={true} />
+        )}
       </div>
 
       {(positionsError || strategiesError) && (
@@ -465,37 +503,55 @@ export default function PortfolioPage() {
                     key={strategy.id}
                     className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
                   >
-                    <div>
-                      <p className="font-medium">{strategy.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {strategy.mode === "paper"
-                          ? "Paper Trading"
-                          : "Live Trading"}
-                      </p>
-                    </div>
-                    {strategy.performanceSummary && (
-                      <div className="text-right">
-                        <p
-                          className={cn(
-                            "font-semibold",
-                            (strategy.performanceSummary.totalReturn || 0) >= 0
-                              ? "text-success"
-                              : "text-destructive"
-                          )}
-                        >
-                          {(strategy.performanceSummary.totalReturn || 0) >= 0
-                            ? "+"
-                            : ""}
-                          {(
-                            strategy.performanceSummary.totalReturn || 0
-                          ).toFixed(2)}
-                          %
-                        </p>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{strategy.name}</p>
+                          <Badge
+                            variant={
+                              strategy.mode === "live" ? "default" : "secondary"
+                            }
+                          >
+                            {strategy.mode === "paper" ? "Paper" : "Live"}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                          Total Return
+                          {strategy.type || "Custom Strategy"}
                         </p>
                       </div>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {strategy.performanceSummary && (
+                        <div className="text-right">
+                          <p
+                            className={cn(
+                              "font-semibold",
+                              (strategy.performanceSummary.totalReturn || 0) >=
+                                0
+                                ? "text-success"
+                                : "text-destructive"
+                            )}
+                          >
+                            {(strategy.performanceSummary.totalReturn || 0) >= 0
+                              ? "+"
+                              : ""}
+                            {(
+                              strategy.performanceSummary.totalReturn || 0
+                            ).toFixed(2)}
+                            %
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {strategy.performanceSummary.totalTrades || 0}{" "}
+                            trades
+                          </p>
+                        </div>
+                      )}
+                      <Link href={`/strategies/${strategy.id}`}>
+                        <Button variant="outline" size="sm">
+                          View Strategy
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 ))
             )}
