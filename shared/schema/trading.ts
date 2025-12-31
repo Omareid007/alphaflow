@@ -255,6 +255,7 @@ export const trades = pgTable(
  * @property {string|null} unrealizedPnl - Unrealized profit/loss (stored as numeric string for precision)
  * @property {string} side - Position side ("long" or "short")
  * @property {Date} openedAt - When the position was first opened
+ * @property {Date} entryTime - Entry timestamp for exit rule tracking (persists across restarts, fixes TE-001)
  * @property {string|null} strategyId - Foreign key to strategies table (set null on strategy delete)
  *
  * @remarks
@@ -268,6 +269,11 @@ export const trades = pgTable(
  * P&L Calculation:
  * - unrealizedPnl = (currentPrice - entryPrice) * quantity
  * - Should be updated whenever currentPrice is updated
+ *
+ * Entry Time Tracking (TE-001 Fix):
+ * - entryTime persists to database, unlike in-memory Map in exit-rule-enforcer
+ * - Used by exit rule enforcer for time-based exits (maxHoldingPeriodHours)
+ * - Survives server restarts, preventing incorrect holding period calculations
  */
 export const positions = pgTable(
   "positions",
@@ -285,6 +291,8 @@ export const positions = pgTable(
     unrealizedPnl: numeric("unrealized_pnl"),
     side: text("side").notNull(),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
+    // NEW: Entry time for tracking holding period (used by exit rule enforcer)
+    entryTime: timestamp("entry_time").defaultNow().notNull(),
     strategyId: varchar("strategy_id").references(() => strategies.id, {
       onDelete: "set null",
     }),
@@ -340,6 +348,12 @@ export const performanceSummarySchema = z
 
 /**
  * Zod schema for strategy config validation
+ *
+ * Supports two formats:
+ * 1. Nested structure (advanced): { entryRules: {...}, positionSizing: {...}, ... }
+ * 2. Flat structure (wizard): { market: "...", symbols: [...], lookbackPeriod: 20, ... }
+ *
+ * Uses .passthrough() to allow flat wizard fields alongside nested advanced fields
  */
 export const strategyConfigSchema = z
   .object({
@@ -384,6 +398,7 @@ export const strategyConfigSchema = z
       })
       .optional(),
   })
+  .passthrough() // Allow flat wizard fields (market, symbols, etc.)
   .optional();
 
 export const insertStrategySchema = createInsertSchema(strategies)
