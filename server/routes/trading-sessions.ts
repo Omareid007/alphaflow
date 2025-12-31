@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { tradingSessionManager } from "../services/trading-session-manager";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -8,7 +9,7 @@ const router = Router();
  * GET /api/trading-sessions/all
  * Get all trading sessions info
  */
-router.get("/all", async (req: Request, res: Response) => {
+router.get("/all", requireAuth, async (req: Request, res: Response) => {
   try {
     const allSessions = tradingSessionManager.getAllSessionInfo();
     res.json({
@@ -27,7 +28,7 @@ router.get("/all", async (req: Request, res: Response) => {
  * GET /api/trading-sessions/:exchange
  * Get current session for a specific exchange
  */
-router.get("/:exchange", async (req: Request, res: Response) => {
+router.get("/:exchange", requireAuth, async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
     const session = tradingSessionManager.getCurrentSession(
@@ -55,7 +56,7 @@ router.get("/:exchange", async (req: Request, res: Response) => {
  * GET /api/trading-sessions/:exchange/is-open
  * Check if market is currently open for an exchange
  */
-router.get("/:exchange/is-open", async (req: Request, res: Response) => {
+router.get("/:exchange/is-open", requireAuth, async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
     const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
@@ -77,7 +78,7 @@ router.get("/:exchange/is-open", async (req: Request, res: Response) => {
  * GET /api/trading-sessions/:exchange/next-open
  * Get next market open time for an exchange
  */
-router.get("/:exchange/next-open", async (req: Request, res: Response) => {
+router.get("/:exchange/next-open", requireAuth, async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
     const nextOpen = tradingSessionManager.getNextMarketOpen(
@@ -101,7 +102,7 @@ router.get("/:exchange/next-open", async (req: Request, res: Response) => {
  * GET /api/trading-sessions/:exchange/volatility
  * Get volatility multiplier for current session
  */
-router.get("/:exchange/volatility", async (req: Request, res: Response) => {
+router.get("/:exchange/volatility", requireAuth, async (req: Request, res: Response) => {
   try {
     const { exchange } = req.params;
     const session = tradingSessionManager.getCurrentSession(

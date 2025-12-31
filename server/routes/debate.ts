@@ -6,10 +6,11 @@ import {
   type DebateConfig,
 } from "../ai/debateArena";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.post("/sessions", async (req: Request, res: Response) => {
+router.post("/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbols, config = {}, triggeredBy, strategyVersionId } = req.body;
 
@@ -38,7 +39,7 @@ router.post("/sessions", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/sessions", async (req: Request, res: Response) => {
+router.get("/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const sessions = await listDebateSessions(limit);
@@ -49,7 +50,7 @@ router.get("/sessions", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/sessions/:id", async (req: Request, res: Response) => {
+router.get("/sessions/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const details = await getDebateDetails(req.params.id);
     if (!details) {

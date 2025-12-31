@@ -2,13 +2,14 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { alpaca, AlpacaOrder } from "../connectors/alpaca";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/activity/timeline
 // Unified Activity Timeline Endpoint
 // Composes events from AI decisions, broker orders, fills, and system events
-router.get("/timeline", async (req: Request, res: Response) => {
+router.get("/timeline", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   try {
     const limit = parseInt(req.query.limit as string) || 50;

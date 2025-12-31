@@ -20,7 +20,10 @@ import { log } from "../utils/logger";
  * - Orchestration status and configuration
  */
 
-export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
+import type { RequestHandler } from "express";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+
+export function registerAutonomousRoutes(app: Express, authMiddleware: RequestHandler) {
   // ==================== AUTONOMOUS STATE MANAGEMENT ====================
 
   /**
@@ -150,11 +153,9 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
     try {
       const { mode } = req.body;
       if (!["autonomous", "semi-auto", "manual"].includes(mode)) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid mode. Use: autonomous, semi-auto, or manual",
-          });
+        return res.status(400).json({
+          error: "Invalid mode. Use: autonomous, semi-auto, or manual",
+        });
       }
       await orchestrator.setMode(mode);
       res.json({ success: true, mode: orchestrator.getMode() });
@@ -275,12 +276,10 @@ export function registerAutonomousRoutes(app: Express, authMiddleware: any) {
             result,
           });
         } else {
-          res
-            .status(400)
-            .json({
-              success: false,
-              error: result.error || "Failed to close position",
-            });
+          res.status(400).json({
+            success: false,
+            error: result.error || "Failed to close position",
+          });
         }
       } catch (error) {
         log.error("AutonomousRoutes", "Failed to close position", {

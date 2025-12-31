@@ -1,10 +1,11 @@
 import { Router, Request, Response } from "express";
 import { jina } from "../connectors/jina";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.post("/embeddings", async (req: Request, res: Response) => {
+router.post("/embeddings", requireAuth, async (req: Request, res: Response) => {
   try {
     const { input, model, task, dimensions } = req.body;
     if (!input) {
@@ -22,7 +23,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/read", async (req: Request, res: Response) => {
+router.get("/read", requireAuth, async (req: Request, res: Response) => {
   try {
     const { url } = req.query;
     if (!url || typeof url !== "string") {
@@ -40,7 +41,7 @@ router.get("/read", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const { query, limit } = req.query;
     if (!query || typeof query !== "string") {
@@ -56,7 +57,7 @@ router.get("/search", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/rerank", async (req: Request, res: Response) => {
+router.post("/rerank", requireAuth, async (req: Request, res: Response) => {
   try {
     const { query, documents, model, top_n } = req.body;
     if (!query || !documents || !Array.isArray(documents)) {
@@ -72,7 +73,7 @@ router.post("/rerank", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/semantic-search", async (req: Request, res: Response) => {
+router.post("/semantic-search", requireAuth, async (req: Request, res: Response) => {
   try {
     const { query, corpus, topK } = req.body;
     if (!query || !corpus || !Array.isArray(corpus)) {
@@ -98,7 +99,7 @@ router.post("/semantic-search", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/health", async (_req: Request, res: Response) => {
+router.get("/health", requireAuth, async (_req: Request, res: Response) => {
   const hasKey = !!process.env.JINA_API_KEY;
   res.json({
     status: hasKey ? "configured" : "missing_api_key",

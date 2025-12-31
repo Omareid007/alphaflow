@@ -12,6 +12,7 @@ import {
   type WebhookConfig,
 } from "../lib/webhook-emitter";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -86,8 +87,9 @@ router.post("/", (req: Request, res: Response) => {
 
     registerWebhook(config);
     res.status(201).json(redactWebhook(config));
-  } catch (error: any) {
-    log.error("Webhooks", "Webhook creation error", { error: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error("Webhooks", "Webhook creation error", { error: errorMessage });
     res.status(500).json({ error: "Failed to create webhook" });
   }
 });
@@ -138,7 +140,7 @@ router.delete("/:id", (req: Request, res: Response) => {
  * - eventType (string, optional): Event type to emit, defaults to 'system.test'
  * - payload (unknown, optional): Custom test payload
  */
-router.post("/test", async (req: Request, res: Response) => {
+router.post("/test", requireAuth, async (req: Request, res: Response) => {
   try {
     const { eventType, payload } = req.body;
     const results = await emitEvent(
@@ -146,8 +148,9 @@ router.post("/test", async (req: Request, res: Response) => {
       payload || { test: true, timestamp: new Date().toISOString() }
     );
     res.json({ deliveries: results.length, results });
-  } catch (error: any) {
-    log.error("Webhooks", "Webhook test error", { error: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error("Webhooks", "Webhook test error", { error: errorMessage });
     res.status(500).json({ error: "Failed to send test event" });
   }
 });

@@ -12,6 +12,7 @@ import { db } from "../db";
 import { aiDecisions, llmCalls, workItems, trades } from "@shared/schema";
 import { eq, desc, and, or, like } from "drizzle-orm";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 export const tracesRouter = Router();
 

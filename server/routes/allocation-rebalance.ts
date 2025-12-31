@@ -3,6 +3,7 @@ import { db } from "../db";
 import { desc, eq } from "drizzle-orm";
 import { allocationPolicies, rebalanceRuns } from "@shared/schema";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const router = Router();
 // ALLOCATION POLICIES ENDPOINTS
 // ============================================================================
 
-router.get("/allocation-policies", async (req: Request, res: Response) => {
+router.get("/allocation-policies", requireAuth, async (req: Request, res: Response) => {
   try {
     const policies = await db.query.allocationPolicies.findMany({
       orderBy: [desc(allocationPolicies.createdAt)],
@@ -22,7 +23,7 @@ router.get("/allocation-policies", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/allocation-policies", async (req: Request, res: Response) => {
+router.post("/allocation-policies", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -126,7 +127,7 @@ router.delete(
 // REBALANCE RUNS ENDPOINTS
 // ============================================================================
 
-router.get("/rebalance/runs", async (req: Request, res: Response) => {
+router.get("/rebalance/runs", requireAuth, async (req: Request, res: Response) => {
   try {
     const { limit, status } = req.query;
     let whereClause = undefined;
@@ -145,7 +146,7 @@ router.get("/rebalance/runs", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/rebalance/trigger", async (req: Request, res: Response) => {
+router.post("/rebalance/trigger", requireAuth, async (req: Request, res: Response) => {
   try {
     const { policyId, triggerType = "manual" } = req.body;
 

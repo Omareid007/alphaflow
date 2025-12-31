@@ -2,12 +2,13 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/agent/status
 // Get the current status of the trading agent
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = await storage.getAgentStatus();
     if (!status) {
@@ -26,7 +27,7 @@ router.get("/status", async (req: Request, res: Response) => {
 
 // POST /api/agent/toggle
 // Toggle the trading agent on/off
-router.post("/toggle", async (req: Request, res: Response) => {
+router.post("/toggle", requireAuth, async (req: Request, res: Response) => {
   try {
     const currentStatus = await storage.getAgentStatus();
     const newIsRunning = !(currentStatus?.isRunning ?? false);

@@ -6,11 +6,12 @@
 import { Router, Request, Response } from "express";
 import { coingecko } from "../connectors/coingecko";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/crypto/markets - Get top cryptocurrencies
-router.get("/markets", async (req: Request, res: Response) => {
+router.get("/markets", requireAuth, async (req: Request, res: Response) => {
   try {
     const perPage = parseInt(req.query.per_page as string) || 20;
     const page = parseInt(req.query.page as string) || 1;
@@ -24,7 +25,7 @@ router.get("/markets", async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/prices - Get prices for specific coins
-router.get("/prices", async (req: Request, res: Response) => {
+router.get("/prices", requireAuth, async (req: Request, res: Response) => {
   try {
     const ids = (req.query.ids as string) || "bitcoin,ethereum,solana";
     const coinIds = ids.split(",").map((id) => id.trim());
@@ -37,7 +38,7 @@ router.get("/prices", async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/chart/:coinId - Get price chart data
-router.get("/chart/:coinId", async (req: Request, res: Response) => {
+router.get("/chart/:coinId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { coinId } = req.params;
     const days = (req.query.days as string) || "7";
@@ -50,7 +51,7 @@ router.get("/chart/:coinId", async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/trending - Get trending cryptocurrencies
-router.get("/trending", async (req: Request, res: Response) => {
+router.get("/trending", requireAuth, async (req: Request, res: Response) => {
   try {
     const trending = await coingecko.getTrending();
     res.json(trending);
@@ -61,7 +62,7 @@ router.get("/trending", async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/global - Get global crypto market stats
-router.get("/global", async (req: Request, res: Response) => {
+router.get("/global", requireAuth, async (req: Request, res: Response) => {
   try {
     const global = await coingecko.getGlobalData();
     res.json(global);
@@ -72,7 +73,7 @@ router.get("/global", async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/search - Search for cryptocurrencies
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = (req.query.q as string) || "";
     if (!query) {

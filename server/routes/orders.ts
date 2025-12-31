@@ -17,6 +17,7 @@ import {
 import { workQueue } from "../lib/work-queue";
 import { tradabilityService } from "../services/tradability-service";
 import type { Fill } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -28,7 +29,7 @@ const router = Router();
  * GET /api/orders/unreal
  * Identify orders that exist locally but not in the broker
  */
-router.get("/unreal", async (req: Request, res: Response) => {
+router.get("/unreal", requireAuth, async (req: Request, res: Response) => {
   try {
     const unrealOrders = await identifyUnrealOrders();
     res.json({
@@ -47,7 +48,7 @@ router.get("/unreal", async (req: Request, res: Response) => {
  * POST /api/orders/cleanup
  * Clean up unreal orders (cancel them locally)
  */
-router.post("/cleanup", async (req: Request, res: Response) => {
+router.post("/cleanup", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await cleanupUnrealOrders();
     res.json({
@@ -68,7 +69,7 @@ router.post("/cleanup", async (req: Request, res: Response) => {
  * POST /api/orders/reconcile
  * Reconcile order book between local database and broker
  */
-router.post("/reconcile", async (req: Request, res: Response) => {
+router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await reconcileOrderBook();
     res.json({
@@ -91,7 +92,7 @@ router.post("/reconcile", async (req: Request, res: Response) => {
  * GET /api/orders/execution-engine/status
  * Get status of active order executions
  */
-router.get("/execution-engine/status", async (req: Request, res: Response) => {
+router.get("/execution-engine/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const activeExecutions = orderExecutionEngine.getActiveExecutions();
     const executions = Array.from(activeExecutions.entries()).map(
@@ -127,7 +128,7 @@ router.get("/execution-engine/status", async (req: Request, res: Response) => {
  * Get orders from local database with optional status filter
  * Query params: { limit?: number, status?: string }
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   try {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -161,7 +162,7 @@ router.get("/", async (req: Request, res: Response) => {
  * POST /api/orders/sync
  * Manually trigger order sync with broker
  */
-router.post("/sync", async (req: Request, res: Response) => {
+router.post("/sync", requireAuth, async (req: Request, res: Response) => {
   try {
     const traceId = `api-sync-${Date.now()}`;
 
@@ -191,7 +192,7 @@ router.post("/sync", async (req: Request, res: Response) => {
  * Get live orders from Alpaca (source of truth per SOURCE_OF_TRUTH_CONTRACT.md)
  * Query params: { limit?: number }
  */
-router.get("/recent", async (req: Request, res: Response) => {
+router.get("/recent", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   try {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -230,7 +231,7 @@ router.get("/recent", async (req: Request, res: Response) => {
  * Get recent fills from all orders
  * Query params: { limit?: number }
  */
-router.get("/fills", async (req: Request, res: Response) => {
+router.get("/fills", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   try {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -272,7 +273,7 @@ router.get("/fills", async (req: Request, res: Response) => {
  * GET /api/orders/fills/order/:orderId
  * Get fills for a specific order
  */
-router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
+router.get("/fills/order/:orderId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 
@@ -309,7 +310,7 @@ router.get("/fills/order/:orderId", async (req: Request, res: Response) => {
  * Get a single order by ID with its associated fills
  * Supports both database ID and broker order ID
  */
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 

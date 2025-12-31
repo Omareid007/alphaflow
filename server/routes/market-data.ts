@@ -5,6 +5,7 @@ import { coingecko } from "../connectors/coingecko";
 import { finnhub } from "../connectors/finnhub";
 import { alpaca } from "../connectors/alpaca";
 import { newsapi } from "../connectors/newsapi";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
 // ================
 
 // Get cryptocurrency markets with pagination and sorting
-router.get("/crypto/markets", async (req: Request, res: Response) => {
+router.get("/crypto/markets", requireAuth, async (req: Request, res: Response) => {
   try {
     const perPage = parseInt(req.query.per_page as string) || 20;
     const page = parseInt(req.query.page as string) || 1;
@@ -26,7 +27,7 @@ router.get("/crypto/markets", async (req: Request, res: Response) => {
 });
 
 // Get cryptocurrency prices for multiple coins
-router.get("/crypto/prices", async (req: Request, res: Response) => {
+router.get("/crypto/prices", requireAuth, async (req: Request, res: Response) => {
   try {
     const ids = (req.query.ids as string) || "bitcoin,ethereum,solana";
     const coinIds = ids.split(",").map((id) => id.trim());
@@ -39,7 +40,7 @@ router.get("/crypto/prices", async (req: Request, res: Response) => {
 });
 
 // Get cryptocurrency chart data
-router.get("/crypto/chart/:coinId", async (req: Request, res: Response) => {
+router.get("/crypto/chart/:coinId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { coinId } = req.params;
     const days = (req.query.days as string) || "7";
@@ -52,7 +53,7 @@ router.get("/crypto/chart/:coinId", async (req: Request, res: Response) => {
 });
 
 // Get trending cryptocurrencies
-router.get("/crypto/trending", async (req: Request, res: Response) => {
+router.get("/crypto/trending", requireAuth, async (req: Request, res: Response) => {
   try {
     const trending = await coingecko.getTrending();
     res.json(trending);
@@ -63,7 +64,7 @@ router.get("/crypto/trending", async (req: Request, res: Response) => {
 });
 
 // Get global cryptocurrency market data
-router.get("/crypto/global", async (req: Request, res: Response) => {
+router.get("/crypto/global", requireAuth, async (req: Request, res: Response) => {
   try {
     const global = await coingecko.getGlobalData();
     res.json(global);
@@ -74,7 +75,7 @@ router.get("/crypto/global", async (req: Request, res: Response) => {
 });
 
 // Search cryptocurrencies by query
-router.get("/crypto/search", async (req: Request, res: Response) => {
+router.get("/crypto/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = (req.query.q as string) || "";
     if (!query) {
@@ -92,7 +93,7 @@ router.get("/crypto/search", async (req: Request, res: Response) => {
 // ===============
 
 // Get stock quote for a single symbol
-router.get("/stock/quote/:symbol", async (req: Request, res: Response) => {
+router.get("/stock/quote/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const quote = await finnhub.getQuote(symbol);
@@ -104,7 +105,7 @@ router.get("/stock/quote/:symbol", async (req: Request, res: Response) => {
 });
 
 // Get stock quotes for multiple symbols
-router.get("/stock/quotes", async (req: Request, res: Response) => {
+router.get("/stock/quotes", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols =
       (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
@@ -122,7 +123,7 @@ router.get("/stock/quotes", async (req: Request, res: Response) => {
 });
 
 // Get OHLC candles for a stock
-router.get("/stock/candles/:symbol", async (req: Request, res: Response) => {
+router.get("/stock/candles/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const resolution = (req.query.resolution as string) || "D";
@@ -139,7 +140,7 @@ router.get("/stock/candles/:symbol", async (req: Request, res: Response) => {
 });
 
 // Get company profile for a stock
-router.get("/stock/profile/:symbol", async (req: Request, res: Response) => {
+router.get("/stock/profile/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const profile = await finnhub.getCompanyProfile(symbol);
@@ -151,7 +152,7 @@ router.get("/stock/profile/:symbol", async (req: Request, res: Response) => {
 });
 
 // Search for stocks by query
-router.get("/stock/search", async (req: Request, res: Response) => {
+router.get("/stock/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = (req.query.q as string) || "";
     if (!query) {
@@ -166,7 +167,7 @@ router.get("/stock/search", async (req: Request, res: Response) => {
 });
 
 // Get market news for a category
-router.get("/stock/news", async (req: Request, res: Response) => {
+router.get("/stock/news", requireAuth, async (req: Request, res: Response) => {
   try {
     const category = (req.query.category as string) || "general";
     const news = await finnhub.getMarketNews(category);
@@ -181,7 +182,7 @@ router.get("/stock/news", async (req: Request, res: Response) => {
 // ================
 
 // Get real-time market quotes for multiple symbols (requires authentication)
-router.get("/market/quotes", async (req: Request, res: Response) => {
+router.get("/market/quotes", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbolsParam = req.query.symbols as string;
     if (!symbolsParam) {
@@ -222,7 +223,7 @@ router.get("/market/quotes", async (req: Request, res: Response) => {
 // ==============
 
 // Get top news headlines by category and country
-router.get("/news/headlines", async (req: Request, res: Response) => {
+router.get("/news/headlines", requireAuth, async (req: Request, res: Response) => {
   try {
     const category =
       (req.query.category as "business" | "technology" | "general") ||
@@ -242,7 +243,7 @@ router.get("/news/headlines", async (req: Request, res: Response) => {
 });
 
 // Search news articles by query
-router.get("/news/search", async (req: Request, res: Response) => {
+router.get("/news/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = req.query.q as string;
     if (!query) {
@@ -261,7 +262,7 @@ router.get("/news/search", async (req: Request, res: Response) => {
 });
 
 // Get market-related news
-router.get("/news/market", async (req: Request, res: Response) => {
+router.get("/news/market", requireAuth, async (req: Request, res: Response) => {
   try {
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.getMarketNews(pageSize);
@@ -273,7 +274,7 @@ router.get("/news/market", async (req: Request, res: Response) => {
 });
 
 // Get cryptocurrency-related news
-router.get("/news/crypto", async (req: Request, res: Response) => {
+router.get("/news/crypto", requireAuth, async (req: Request, res: Response) => {
   try {
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.getCryptoNews(pageSize);
@@ -285,7 +286,7 @@ router.get("/news/crypto", async (req: Request, res: Response) => {
 });
 
 // Get news for a specific stock symbol
-router.get("/news/stock/:symbol", async (req: Request, res: Response) => {
+router.get("/news/stock/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const pageSize = parseInt(req.query.pageSize as string) || 10;

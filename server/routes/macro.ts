@@ -3,10 +3,11 @@ import { fred, FRED_SERIES, MacroCategory } from "../connectors/fred";
 import { macroIndicatorsService } from "../services/macro-indicators-service";
 import { log } from "../utils/logger";
 import { badRequest, notFound, serverError } from "../lib/standard-errors";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.get("/indicators", async (_req: Request, res: Response) => {
+router.get("/indicators", requireAuth, async (_req: Request, res: Response) => {
   try {
     const indicators = await macroIndicatorsService.getLatestIndicators();
     res.json({ success: true, data: indicators });
@@ -16,7 +17,7 @@ router.get("/indicators", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/indicators/:id", async (req: Request, res: Response) => {
+router.get("/indicators/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const indicator = await macroIndicatorsService.getIndicator(req.params.id);
     if (!indicator) {
@@ -29,7 +30,7 @@ router.get("/indicators/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/category/:category", async (req: Request, res: Response) => {
+router.get("/category/:category", requireAuth, async (req: Request, res: Response) => {
   try {
     const category = req.params.category as MacroCategory;
     const validCategories = [
@@ -58,7 +59,7 @@ router.get("/category/:category", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/summary", async (_req: Request, res: Response) => {
+router.get("/summary", requireAuth, async (_req: Request, res: Response) => {
   try {
     const summary = await macroIndicatorsService.getMacroSummary();
     res.json({ success: true, data: summary });
@@ -68,7 +69,7 @@ router.get("/summary", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/refresh", async (_req: Request, res: Response) => {
+router.post("/refresh", requireAuth, async (_req: Request, res: Response) => {
   try {
     const result = await macroIndicatorsService.refreshCriticalIndicators();
     res.json({ success: true, data: result });
@@ -80,7 +81,7 @@ router.post("/refresh", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/refresh/all", async (_req: Request, res: Response) => {
+router.post("/refresh/all", requireAuth, async (_req: Request, res: Response) => {
   try {
     const result = await macroIndicatorsService.refreshAllIndicators();
     res.json({ success: true, data: result });
@@ -92,7 +93,7 @@ router.post("/refresh/all", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/regime", async (_req: Request, res: Response) => {
+router.get("/regime", requireAuth, async (_req: Request, res: Response) => {
   try {
     const indicators = await macroIndicatorsService.getLatestIndicators();
     const regime = macroIndicatorsService.getMarketRegimeFromMacro(indicators);
@@ -105,7 +106,7 @@ router.get("/regime", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/series", async (_req: Request, res: Response) => {
+router.get("/series", requireAuth, async (_req: Request, res: Response) => {
   try {
     const series = Object.entries(FRED_SERIES).map(([id, config]) => ({
       id,
@@ -119,7 +120,7 @@ router.get("/series", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/status", async (_req: Request, res: Response) => {
+router.get("/status", requireAuth, async (_req: Request, res: Response) => {
   try {
     const isConfigured = macroIndicatorsService.isConfigured();
     const indicators = await macroIndicatorsService.getLatestIndicators();

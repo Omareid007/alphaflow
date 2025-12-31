@@ -3,10 +3,11 @@ import { enrichmentScheduler } from "../services/enrichment-scheduler";
 import { log } from "../utils/logger";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.get("/status", async (_req: Request, res: Response) => {
+router.get("/status", requireAuth, async (_req: Request, res: Response) => {
   try {
     const status = enrichmentScheduler.getStatus();
     res.json({ success: true, data: status });
@@ -18,7 +19,7 @@ router.get("/status", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/status/:jobName", async (req: Request, res: Response) => {
+router.get("/status/:jobName", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = enrichmentScheduler.getJobStatus(req.params.jobName);
     if (!status) {
@@ -31,7 +32,7 @@ router.get("/status/:jobName", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/run/:jobName", async (req: Request, res: Response) => {
+router.post("/run/:jobName", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await enrichmentScheduler.runJobManually(req.params.jobName);
     res
@@ -43,7 +44,7 @@ router.post("/run/:jobName", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/stats", async (_req: Request, res: Response) => {
+router.get("/stats", requireAuth, async (_req: Request, res: Response) => {
   try {
     const technicals = await db.execute(
       sql`SELECT COUNT(*) as count FROM universe_technicals`

@@ -32,11 +32,12 @@ import { getAllUsageStats } from "../../lib/apiBudget";
 import { getCallStats } from "../../ai/roleBasedRouter";
 import { alpacaTradingEngine } from "../../trading/alpaca-trading-engine";
 import { log } from "../../utils/logger";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/admin/modules - Get all admin modules
-router.get("/modules", async (req: Request, res: Response) => {
+router.get("/modules", requireAdmin, async (req: Request, res: Response) => {
   try {
     const modules = getModules();
     res.json({
@@ -50,7 +51,7 @@ router.get("/modules", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/modules/accessible - Get accessible modules for current user
-router.get("/modules/accessible", async (req: Request, res: Response) => {
+router.get("/modules/accessible", requireAdmin, async (req: Request, res: Response) => {
   try {
     const user = await storage.getUser(req.userId!);
     if (!user) {
@@ -75,7 +76,7 @@ router.get("/modules/accessible", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/modules/:id - Get specific module
-router.get("/modules/:id", async (req: Request, res: Response) => {
+router.get("/modules/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const module = getModule(req.params.id);
     if (!module) {
@@ -89,7 +90,7 @@ router.get("/modules/:id", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/overview - Get admin overview
-router.get("/overview", async (req: Request, res: Response) => {
+router.get("/overview", requireAdmin, async (req: Request, res: Response) => {
   try {
     const overview = await getAdminOverview();
 
@@ -125,7 +126,7 @@ router.get("/overview", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/rbac/me - Get current user's RBAC context
-router.get("/rbac/me", async (req: Request, res: Response) => {
+router.get("/rbac/me", requireAdmin, async (req: Request, res: Response) => {
   try {
     const user = await storage.getUser(req.userId!);
     if (!user) {
@@ -146,7 +147,7 @@ router.get("/rbac/me", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/rbac/roles - Get all roles
-router.get("/rbac/roles", async (req: Request, res: Response) => {
+router.get("/rbac/roles", requireAdmin, async (req: Request, res: Response) => {
   try {
     const roles = getAllRoles();
     res.json({ roles });
@@ -157,7 +158,7 @@ router.get("/rbac/roles", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/rbac/check/:capability - Check capability
-router.get("/rbac/check/:capability", async (req: Request, res: Response) => {
+router.get("/rbac/check/:capability", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { capability } = req.params;
     const user = await storage.getUser(req.userId!);
@@ -178,7 +179,7 @@ router.get("/rbac/check/:capability", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/settings - List all settings
-router.get("/settings", async (req: Request, res: Response) => {
+router.get("/settings", requireAdmin, async (req: Request, res: Response) => {
   try {
     const settings = await listSettings();
     res.json({
@@ -192,7 +193,7 @@ router.get("/settings", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/settings/:namespace/:key - Get specific setting
-router.get("/settings/:namespace/:key", async (req: Request, res: Response) => {
+router.get("/settings/:namespace/:key", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { namespace, key } = req.params;
     const setting = await getSettingFull(namespace, key);
@@ -207,7 +208,7 @@ router.get("/settings/:namespace/:key", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/settings/:namespace/:key - Update setting (requires admin:write)
-router.put("/settings/:namespace/:key", async (req: Request, res: Response) => {
+router.put("/settings/:namespace/:key", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { namespace, key } = req.params;
     const { value, description, isSecret } = req.body;
@@ -248,7 +249,7 @@ router.delete(
 );
 
 // GET /api/admin/orchestrator/status - Get orchestrator status (requires admin:read)
-router.get("/orchestrator/status", async (req: Request, res: Response) => {
+router.get("/orchestrator/status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const state = orchestrator.getState();
     const riskLimits = orchestrator.getRiskLimits();
@@ -264,7 +265,7 @@ router.get("/orchestrator/status", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/orchestrator/pause - Pause orchestrator (requires admin:write)
-router.post("/orchestrator/pause", async (req: Request, res: Response) => {
+router.post("/orchestrator/pause", requireAdmin, async (req: Request, res: Response) => {
   try {
     await orchestrator.stop(true); // preserveAutoStart=true acts like pause
     res.json({ success: true, message: "Orchestrator paused" });
@@ -275,7 +276,7 @@ router.post("/orchestrator/pause", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/orchestrator/resume - Resume orchestrator (requires admin:write)
-router.post("/orchestrator/resume", async (req: Request, res: Response) => {
+router.post("/orchestrator/resume", requireAdmin, async (req: Request, res: Response) => {
   try {
     await orchestrator.start();
     res.json({ success: true, message: "Orchestrator resumed" });
@@ -286,7 +287,7 @@ router.post("/orchestrator/resume", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/orchestrator/run-now - Trigger immediate run (requires admin:write)
-router.post("/orchestrator/run-now", async (req: Request, res: Response) => {
+router.post("/orchestrator/run-now", requireAdmin, async (req: Request, res: Response) => {
   try {
     await orchestrator.start();
     res.json({ success: true, message: "Orchestrator run triggered" });
@@ -297,7 +298,7 @@ router.post("/orchestrator/run-now", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/orchestrator/config - Update orchestrator config (requires admin:write)
-router.put("/orchestrator/config", async (req: Request, res: Response) => {
+router.put("/orchestrator/config", requireAdmin, async (req: Request, res: Response) => {
   try {
     const config = req.body;
     if (config.riskLimits) {
@@ -329,7 +330,7 @@ router.post(
 );
 
 // GET /api/admin/jobs/status - Get jobs status
-router.get("/jobs/status", async (req: Request, res: Response) => {
+router.get("/jobs/status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const counts = {
       PENDING: await storage.getWorkItemCount("PENDING"),
@@ -351,7 +352,7 @@ router.get("/jobs/status", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/jobs/sync-positions - Sync positions (requires admin:write)
-router.post("/jobs/sync-positions", async (req: Request, res: Response) => {
+router.post("/jobs/sync-positions", requireAdmin, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     if (!userId) {
@@ -368,7 +369,7 @@ router.post("/jobs/sync-positions", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/search - Global search (requires admin:read)
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { q, limit } = req.query;
     if (!q || typeof q !== "string") {
@@ -388,7 +389,7 @@ router.get("/search", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/trace/:traceId - Get trace details (requires admin:read)
-router.get("/trace/:traceId", async (req: Request, res: Response) => {
+router.get("/trace/:traceId", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { traceId } = req.params;
 

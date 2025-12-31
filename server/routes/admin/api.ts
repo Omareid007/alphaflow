@@ -19,11 +19,12 @@ import {
 } from "../../lib/apiPolicy";
 import { dataFusionEngine } from "../../fusion/data-fusion-engine";
 import { log } from "../../utils/logger";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/admin/api-usage - Get API usage stats
-router.get("/api-usage", async (req: Request, res: Response) => {
+router.get("/api-usage", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { provider } = req.query;
 
@@ -43,7 +44,7 @@ router.get("/api-usage", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/api-cache - Get API cache stats
-router.get("/api-cache", async (req: Request, res: Response) => {
+router.get("/api-cache", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { provider } = req.query;
     const providerFilter = typeof provider === "string" ? provider : undefined;
@@ -59,7 +60,7 @@ router.get("/api-cache", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/api-cache/purge - Purge API cache (requires admin:danger)
-router.post("/api-cache/purge", async (req: Request, res: Response) => {
+router.post("/api-cache/purge", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { provider, key, expiredOnly } = req.body;
 
@@ -87,7 +88,7 @@ router.post("/api-cache/purge", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/provider-status - Get provider statuses
-router.get("/provider-status", async (req: Request, res: Response) => {
+router.get("/provider-status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllProviderStatuses } = await import("../../lib/callExternal");
     const statuses = await getAllProviderStatuses();
@@ -165,7 +166,7 @@ router.patch(
 );
 
 // GET /api/admin/valyu-budget - Get Valyu budget status
-router.get("/valyu-budget", async (req: Request, res: Response) => {
+router.get("/valyu-budget", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getValyuBudgetStatus, getValyuBudgetConfig } =
       await import("../../lib/valyuBudget");
@@ -179,7 +180,7 @@ router.get("/valyu-budget", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/valyu-budget - Update Valyu budget
-router.put("/valyu-budget", async (req: Request, res: Response) => {
+router.put("/valyu-budget", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { updateValyuBudgetConfig, getValyuBudgetConfig } =
       await import("../../lib/valyuBudget");
@@ -213,7 +214,7 @@ router.put("/valyu-budget", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/connectors-health - Get connector health status
-router.get("/connectors-health", async (req: Request, res: Response) => {
+router.get("/connectors-health", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllProviderStatuses } = await import("../../lib/callExternal");
     const providerStatuses = await getAllProviderStatuses();
@@ -319,7 +320,7 @@ router.get("/connectors-health", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/api-keys-status - Get API keys status
-router.get("/api-keys-status", async (req: Request, res: Response) => {
+router.get("/api-keys-status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllAvailableProviders } = await import("../../ai/index");
     const aiProviders = getAllAvailableProviders();
@@ -451,7 +452,7 @@ router.get("/api-keys-status", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/data-fusion-status - Get data fusion status
-router.get("/data-fusion-status", async (req: Request, res: Response) => {
+router.get("/data-fusion-status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllProviderStatuses } = await import("../../lib/callExternal");
     const providerStatuses = await getAllProviderStatuses();
@@ -598,7 +599,7 @@ router.get("/data-fusion-status", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/alpaca-account - Verify Alpaca account configuration
-router.get("/alpaca-account", async (req: Request, res: Response) => {
+router.get("/alpaca-account", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { alpaca } = await import("../../connectors/alpaca");
     const { tradingConfig } = await import("../../config/trading-config");
@@ -653,9 +654,10 @@ router.get("/alpaca-account", async (req: Request, res: Response) => {
     res.json({
       configuration: {
         tradingMode: tradingConfig.alpaca.tradingMode,
-        baseUrl: tradingConfig.alpaca.tradingMode === "live"
-          ? tradingConfig.alpaca.liveUrl
-          : tradingConfig.alpaca.paperUrl,
+        baseUrl:
+          tradingConfig.alpaca.tradingMode === "live"
+            ? tradingConfig.alpaca.liveUrl
+            : tradingConfig.alpaca.paperUrl,
       },
       credentials: {
         runningEnvKey: maskedEnvKey,

@@ -9,11 +9,12 @@ import { alpaca } from "../connectors/alpaca";
 import { orchestrator } from "../autonomous/orchestrator";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/analytics/summary - Get trading performance summary
-router.get("/summary", async (req: Request, res: Response) => {
+router.get("/summary", requireAuth, async (req: Request, res: Response) => {
   try {
     const orchestratorState = orchestrator.getState();
     const riskLimits = orchestrator.getRiskLimits();

@@ -10,10 +10,11 @@ import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { badRequest, serverError } from "../lib/standard-errors";
 import type { ToolCategory } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const category = req.query.category as ToolCategory | undefined;
     const tools = category ? listToolsByCategory(category) : listTools();
@@ -34,7 +35,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/schemas", async (req: Request, res: Response) => {
+router.get("/schemas", requireAuth, async (req: Request, res: Response) => {
   try {
     const schemas = getToolSchemas();
     res.json({ schemas });
@@ -44,7 +45,7 @@ router.get("/schemas", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/invoke", async (req: Request, res: Response) => {
+router.post("/invoke", requireAuth, async (req: Request, res: Response) => {
   try {
     const { toolName, params, traceId, callerRole, debateSessionId } = req.body;
 
@@ -70,7 +71,7 @@ router.post("/invoke", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/invocations", async (req: Request, res: Response) => {
+router.get("/invocations", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 100;
     const traceId = req.query.traceId as string;

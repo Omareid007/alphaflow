@@ -11,6 +11,7 @@ import { gdelt } from "../connectors/gdelt";
 import { aiDecisionEngine } from "../ai/decision-engine";
 import { dataFusionEngine } from "../fusion/data-fusion-engine";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -18,7 +19,7 @@ const router = Router();
  * GET /api/connectors/status
  * Get connection status of all connectors
  */
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const cryptoStatus = coingecko.getConnectionStatus();
     const stockStatus = finnhub.getConnectionStatus();
@@ -141,9 +142,9 @@ router.get("/status", async (req: Request, res: Response) => {
           category: "market_data",
           description: "Dubai DFM & Abu Dhabi ADX stocks",
           connected: uaeStatus.connected,
-          hasApiKey: false, // Demo data, no API key required
+          hasApiKey: uaeStatus.apiConfigured,
           cacheSize: uaeStatus.cacheSize,
-          isMockData: uaeStatus.isMockData,
+          dataSource: uaeStatus.dataSource,
           lastChecked: new Date().toISOString(),
         },
         {

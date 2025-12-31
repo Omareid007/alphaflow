@@ -8,11 +8,12 @@ import { storage } from "../storage";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { createLiveSourceMetadata } from "@shared/position-mapper";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/risk/settings - Get current risk settings
-router.get("/settings", async (req: Request, res: Response) => {
+router.get("/settings", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = await storage.getAgentStatus();
     if (!status) {
@@ -38,7 +39,7 @@ router.get("/settings", async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/settings - Update risk settings
-router.post("/settings", async (req: Request, res: Response) => {
+router.post("/settings", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       maxPositionSizePercent,
@@ -101,7 +102,7 @@ router.post("/settings", async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/kill-switch - Toggle kill switch
-router.post("/kill-switch", async (req: Request, res: Response) => {
+router.post("/kill-switch", requireAuth, async (req: Request, res: Response) => {
   try {
     const { activate } = req.body;
     const shouldActivate = activate === true || activate === "true";
@@ -130,7 +131,7 @@ router.post("/kill-switch", async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/close-all - Close all positions
-router.post("/close-all", async (req: Request, res: Response) => {
+router.post("/close-all", requireAuth, async (req: Request, res: Response) => {
   try {
     log.info("RISK", "Closing all positions via Alpaca...");
     // SECURITY: Mark as authorized since this is an admin-initiated emergency action
@@ -149,7 +150,7 @@ router.post("/close-all", async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/emergency-liquidate - Emergency liquidation
-router.post("/emergency-liquidate", async (req: Request, res: Response) => {
+router.post("/emergency-liquidate", requireAuth, async (req: Request, res: Response) => {
   try {
     log.info("EMERGENCY", "Initiating full portfolio liquidation...");
 

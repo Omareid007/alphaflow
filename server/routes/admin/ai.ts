@@ -14,11 +14,43 @@ import {
   type RoleConfig,
 } from "../../ai/roleBasedRouter";
 import { log } from "../../utils/logger";
+import type { LLMRole } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
+
+/**
+ * Valid work item statuses
+ */
+type WorkItemStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "DEAD_LETTER";
+
+/**
+ * Valid roles for the role-based router
+ */
+const VALID_ROLES: LLMRole[] = [
+  "market_news_summarizer",
+  "technical_analyst",
+  "risk_manager",
+  "execution_planner",
+  "post_trade_reporter",
+];
+
+/**
+ * Type guard to check if a string is a valid LLM role
+ */
+function isValidRole(role: string): role is LLMRole {
+  return VALID_ROLES.includes(role as LLMRole);
+}
+
+/**
+ * Type guard to check if a string is a valid work item status
+ */
+function isValidWorkItemStatus(status: string): status is WorkItemStatus {
+  return ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "DEAD_LETTER"].includes(status);
+}
 
 const router = Router();
 
 // GET /api/admin/ai-config - Get AI configuration
-router.get("/ai-config", async (req: Request, res: Response) => {
+router.get("/ai-config", requireAdmin, async (req: Request, res: Response) => {
   try {
     const agentStatus = await storage.getAgentStatus();
     res.json({
@@ -32,7 +64,7 @@ router.get("/ai-config", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/ai-config - Update AI configuration
-router.put("/ai-config", async (req: Request, res: Response) => {
+router.put("/ai-config", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { autoExecuteTrades, conservativeMode } = req.body;
     const updates: { autoExecuteTrades?: boolean; conservativeMode?: boolean } =
@@ -55,7 +87,7 @@ router.put("/ai-config", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/model-router/configs - Get model router configurations
-router.get("/model-router/configs", async (req: Request, res: Response) => {
+router.get("/model-router/configs", requireAdmin, async (req: Request, res: Response) => {
   try {
     const configs = await getAllRoleConfigs();
     const availableProviders = roleBasedRouter.getAvailableProviders();
@@ -72,24 +104,15 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { role } = req.params;
-      const validRoles = [
-        "market_news_summarizer",
-        "technical_analyst",
-        "risk_manager",
-        "execution_planner",
-        "post_trade_reporter",
-      ];
 
-      if (!validRoles.includes(role)) {
-        return res
-          .status(400)
-          .json({
-            error: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
-          });
+      if (!isValidRole(role)) {
+        return res.status(400).json({
+          error: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`,
+        });
       }
 
       const updates = req.body as Partial<RoleConfig>;
-      const updated = await updateRoleConfig(role as any, updates);
+      const updated = await updateRoleConfig(role, updates);
       res.json({ success: true, config: updated });
     } catch (error) {
       log.error("AdminAI", "Failed to update role config", { error });
@@ -99,11 +122,11 @@ router.put(
 );
 
 // GET /api/admin/model-router/calls - Get recent LLM calls
-router.get("/model-router/calls", async (req: Request, res: Response) => {
+router.get("/model-router/calls", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { role, limit } = req.query;
     const limitNum = parseInt(limit as string) || 20;
-    const roleFilter = typeof role === "string" ? (role as any) : undefined;
+    const roleFilter = typeof role === "string" && isValidRole(role) ? role : undefined;
 
     const calls = await getRecentCalls(limitNum, roleFilter);
     res.json({ calls, count: calls.length });
@@ -114,7 +137,7 @@ router.get("/model-router/calls", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/model-router/stats - Get LLM call statistics
-router.get("/model-router/stats", async (req: Request, res: Response) => {
+router.get("/model-router/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await getCallStats();
     res.json(stats);
@@ -125,11 +148,12 @@ router.get("/model-router/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/work-items - Get work items
-router.get("/work-items", async (req: Request, res: Response) => {
+router.get("/work-items", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { status, type, limit } = req.query;
     const limitNum = parseInt(limit as string) || 50;
-    const items = await storage.getWorkItems(limitNum, status as any);
+    const statusFilter = typeof status === "string" && isValidWorkItemStatus(status) ? status : undefined;
+    const items = await storage.getWorkItems(limitNum, statusFilter);
 
     const filteredItems = type ? items.filter((i) => i.type === type) : items;
 
@@ -153,7 +177,7 @@ router.get("/work-items", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/work-items/retry - Retry a work item (requires admin:write)
-router.post("/work-items/retry", async (req: Request, res: Response) => {
+router.post("/work-items/retry", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.body;
     if (!id) {
@@ -186,7 +210,7 @@ router.post("/work-items/retry", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/work-items/dead-letter - Move to dead letter (requires admin:danger)
-router.post("/work-items/dead-letter", async (req: Request, res: Response) => {
+router.post("/work-items/dead-letter", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id, reason } = req.body;
     if (!id) {
@@ -211,7 +235,7 @@ router.post("/work-items/dead-letter", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/orchestrator-health - Get orchestrator health
-router.get("/orchestrator-health", async (req: Request, res: Response) => {
+router.get("/orchestrator-health", requireAdmin, async (req: Request, res: Response) => {
   try {
     const agentStatusData = await storage.getAgentStatus();
     const counts = {

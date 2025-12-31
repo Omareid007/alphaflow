@@ -18,6 +18,7 @@ import {
   clearLLMCacheForRole,
   resetLLMCacheStats,
 } from "../ai/llmGateway";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ const router = Router();
  */
 
 // GET /api/cache/llm/stats - Get LLM cache statistics
-router.get("/llm/stats", async (req: Request, res: Response) => {
+router.get("/llm/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = getLLMCacheStats();
     res.json(stats);
@@ -37,7 +38,7 @@ router.get("/llm/stats", async (req: Request, res: Response) => {
 });
 
 // POST /api/cache/llm/clear - Clear entire LLM cache
-router.post("/llm/clear", async (req: Request, res: Response) => {
+router.post("/llm/clear", requireAuth, async (req: Request, res: Response) => {
   try {
     clearLLMCache();
     res.json({ success: true, message: "LLM cache cleared" });
@@ -48,7 +49,7 @@ router.post("/llm/clear", async (req: Request, res: Response) => {
 });
 
 // POST /api/cache/llm/clear/:role - Clear LLM cache for specific role
-router.post("/llm/clear/:role", async (req: Request, res: Response) => {
+router.post("/llm/clear/:role", requireAuth, async (req: Request, res: Response) => {
   try {
     const { role } = req.params;
 
@@ -65,7 +66,7 @@ router.post("/llm/clear/:role", async (req: Request, res: Response) => {
 });
 
 // POST /api/cache/llm/reset-stats - Reset LLM cache statistics
-router.post("/llm/reset-stats", async (req: Request, res: Response) => {
+router.post("/llm/reset-stats", requireAuth, async (req: Request, res: Response) => {
   try {
     resetLLMCacheStats();
     res.json({ success: true, message: "Cache statistics reset" });
@@ -80,7 +81,7 @@ router.post("/llm/reset-stats", async (req: Request, res: Response) => {
  */
 
 // GET /api/cache/api - Get API cache statistics and entries
-router.get("/api", async (req: Request, res: Response) => {
+router.get("/api", requireAuth, async (req: Request, res: Response) => {
   try {
     const { provider } = req.query;
     const providerFilter = typeof provider === "string" ? provider : undefined;
@@ -96,7 +97,7 @@ router.get("/api", async (req: Request, res: Response) => {
 });
 
 // POST /api/cache/api/purge - Purge API cache entries
-router.post("/api/purge", async (req: Request, res: Response) => {
+router.post("/api/purge", requireAuth, async (req: Request, res: Response) => {
   try {
     const { provider, key, expiredOnly } = req.body;
 

@@ -1,11 +1,12 @@
 import { Router, Request, Response } from "express";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/performance/metrics
 // Get comprehensive performance metrics for the system
-router.get("/metrics", async (req: Request, res: Response) => {
+router.get("/metrics", requireAuth, async (req: Request, res: Response) => {
   try {
     const { performanceTracker } = await import("../lib/performance-metrics");
     const { getOrderCacheStats } = await import("../lib/order-execution-cache");

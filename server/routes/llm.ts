@@ -9,6 +9,7 @@ import {
   getCallStats,
   type RoleConfig,
 } from "../ai/roleBasedRouter";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const router = Router();
  */
 
 // GET /api/llm/configs - Get all role-based router configurations
-router.get("/configs", async (req: Request, res: Response) => {
+router.get("/configs", requireAuth, async (req: Request, res: Response) => {
   try {
     const configs = await getAllRoleConfigs();
     const availableProviders = roleBasedRouter.getAvailableProviders();
@@ -30,7 +31,7 @@ router.get("/configs", async (req: Request, res: Response) => {
 });
 
 // PUT /api/llm/configs/:role - Update role-based router configuration
-router.put("/configs/:role", async (req: Request, res: Response) => {
+router.put("/configs/:role", requireAuth, async (req: Request, res: Response) => {
   try {
     const { role } = req.params;
     const validRoles = [
@@ -63,7 +64,7 @@ router.put("/configs/:role", async (req: Request, res: Response) => {
  */
 
 // GET /api/llm/calls - Get recent LLM calls
-router.get("/calls", async (req: Request, res: Response) => {
+router.get("/calls", requireAuth, async (req: Request, res: Response) => {
   try {
     const { role, limit } = req.query;
     const limitNum = parseInt(limit as string) || 20;
@@ -79,7 +80,7 @@ router.get("/calls", async (req: Request, res: Response) => {
 });
 
 // GET /api/llm/stats - Get LLM call statistics
-router.get("/stats", async (req: Request, res: Response) => {
+router.get("/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = await getCallStats();
 

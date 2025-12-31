@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { log } from "../utils/logger";
 import { connectorMetricsService } from "../services/connector-metrics-service";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -96,7 +97,7 @@ function determineStatus(
  * GET /api/feeds
  * Get status of all data feed connectors with real health metrics
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     // Get connector summary from metrics service
     const connectorSummaries = await connectorMetricsService.getConnectorSummary();
@@ -158,7 +159,7 @@ router.get("/", async (req: Request, res: Response) => {
  * GET /api/feeds/:id
  * Get detailed status for a specific feed
  */
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const config = FEED_CONFIGS.find((f) => f.id === id);

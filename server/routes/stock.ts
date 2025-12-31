@@ -6,11 +6,12 @@
 import { Router, Request, Response } from "express";
 import { finnhub } from "../connectors/finnhub";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/stock/quote/:symbol - Get stock quote
-router.get("/quote/:symbol", async (req: Request, res: Response) => {
+router.get("/quote/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const quote = await finnhub.getQuote(symbol);
@@ -22,7 +23,7 @@ router.get("/quote/:symbol", async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/quotes - Get multiple stock quotes
-router.get("/quotes", async (req: Request, res: Response) => {
+router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols =
       (req.query.symbols as string) || "AAPL,GOOGL,MSFT,AMZN,TSLA";
@@ -40,7 +41,7 @@ router.get("/quotes", async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/candles/:symbol - Get stock candles/chart data
-router.get("/candles/:symbol", async (req: Request, res: Response) => {
+router.get("/candles/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const resolution = (req.query.resolution as string) || "D";
@@ -57,7 +58,7 @@ router.get("/candles/:symbol", async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/profile/:symbol - Get company profile
-router.get("/profile/:symbol", async (req: Request, res: Response) => {
+router.get("/profile/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const profile = await finnhub.getCompanyProfile(symbol);
@@ -69,7 +70,7 @@ router.get("/profile/:symbol", async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/search - Search for stocks
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = (req.query.q as string) || "";
     if (!query) {
@@ -84,7 +85,7 @@ router.get("/search", async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/news - Get market news
-router.get("/news", async (req: Request, res: Response) => {
+router.get("/news", requireAuth, async (req: Request, res: Response) => {
   try {
     const category = (req.query.category as string) || "general";
     const news = await finnhub.getMarketNews(category);

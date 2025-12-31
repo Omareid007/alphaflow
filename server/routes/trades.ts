@@ -6,11 +6,12 @@ import { badRequest, notFound, serverError } from "../lib/standard-errors";
 import type { InsertTrade } from "@shared/schema";
 import { insertTradeSchema } from "@shared/schema";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/trades - Get trades with optional limit
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const trades = await storage.getTrades(req.userId!, limit);
@@ -24,7 +25,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/trades/enriched - Get trades with filters (symbols, strategy, P&L direction, dates)
-router.get("/enriched", async (req: Request, res: Response) => {
+router.get("/enriched", requireAuth, async (req: Request, res: Response) => {
   try {
     const filters = {
       limit: parseInt(req.query.limit as string) || 20,
@@ -52,7 +53,7 @@ router.get("/enriched", async (req: Request, res: Response) => {
 });
 
 // GET /api/trades/symbols - Get all distinct symbols from trades
-router.get("/symbols", async (req: Request, res: Response) => {
+router.get("/symbols", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols = await storage.getDistinctSymbols();
     res.json(symbols);
@@ -65,7 +66,7 @@ router.get("/symbols", async (req: Request, res: Response) => {
 });
 
 // GET /api/trades/:id - Get single trade by ID
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const trade = await storage.getTrade(req.params.id);
     if (!trade) {
@@ -81,7 +82,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // GET /api/trades/:id/enriched - Get enriched trade by ID with additional metadata
-router.get("/:id/enriched", async (req: Request, res: Response) => {
+router.get("/:id/enriched", requireAuth, async (req: Request, res: Response) => {
   try {
     const trade = await storage.getEnrichedTrade(req.params.id);
     if (!trade) {
@@ -97,7 +98,7 @@ router.get("/:id/enriched", async (req: Request, res: Response) => {
 });
 
 // POST /api/trades - Create a new trade
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const parsed = insertTradeSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -114,7 +115,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // POST /api/trades/backfill-prices - Backfill trade prices from Alpaca order history
-router.post("/backfill-prices", async (req: Request, res: Response) => {
+router.post("/backfill-prices", requireAuth, async (req: Request, res: Response) => {
   try {
     const trades = await storage.getTrades(undefined, 500);
     const zeroTrades = trades.filter((t) => safeParseFloat(t.price, 0) === 0);

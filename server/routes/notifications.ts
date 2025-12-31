@@ -17,6 +17,7 @@ import {
   type NotificationChannel,
   type NotificationTemplate,
 } from "../lib/notification-service";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -24,20 +25,45 @@ const router = Router();
 // HELPER FUNCTIONS
 // ============================================================================
 
-const redactChannelConfig = (channel: any) => {
-  const redacted = { ...channel };
-  if (redacted.config) {
-    const config = { ...redacted.config };
-    if ("botToken" in config) config.botToken = "***REDACTED***";
-    if ("webhookUrl" in config)
-      config.webhookUrl = config.webhookUrl.replace(
-        /\/[^/]+$/,
-        "/***REDACTED***"
-      );
-    if ("password" in config) config.password = "***REDACTED***";
-    redacted.config = config;
+/**
+ * Redacted channel response for API output
+ */
+interface RedactedChannelResponse {
+  id: string;
+  type: string;
+  name: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  createdAt: Date;
+}
+
+/**
+ * Redacts sensitive fields from a notification channel config for API responses.
+ * Handles all channel types: telegram, slack, discord, email.
+ */
+const redactChannelConfig = (channel: NotificationChannel): RedactedChannelResponse => {
+  // Shallow copy the config as a plain object
+  const config: Record<string, unknown> = { ...channel.config };
+
+  // Redact sensitive fields based on what exists
+  if ("botToken" in config && typeof config.botToken === "string") {
+    config.botToken = "***REDACTED***";
   }
-  return redacted;
+  if ("webhookUrl" in config && typeof config.webhookUrl === "string") {
+    config.webhookUrl = config.webhookUrl.replace(/\/[^/]+$/, "/***REDACTED***");
+  }
+  if ("password" in config && typeof config.password === "string") {
+    config.password = "***REDACTED***";
+  }
+
+  return {
+    id: channel.id,
+    type: channel.type,
+    name: channel.name,
+    enabled: channel.enabled,
+    config,
+    createdAt: channel.createdAt,
+  };
 };
 
 // ============================================================================
@@ -100,7 +126,7 @@ router.delete("/channels/:id", (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.post("/channels/:id/test", async (req: Request, res: Response) => {
+router.post("/channels/:id/test", requireAuth, async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
     const result = await sendDirectNotification(
@@ -170,7 +196,7 @@ router.delete("/templates/:id", (req: Request, res: Response) => {
 // NOTIFICATION ROUTES
 // ============================================================================
 
-router.post("/send", async (req: Request, res: Response) => {
+router.post("/send", requireAuth, async (req: Request, res: Response) => {
   try {
     const { eventType, data } = req.body;
     if (!eventType) {

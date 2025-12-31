@@ -7,6 +7,37 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { storage } from "../../storage";
 import { log } from "../../utils/logger";
+import type { AuditLog } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
+
+/**
+ * Type for user update data
+ */
+interface UserUpdateData {
+  username?: string;
+  password?: string;
+  isAdmin?: boolean;
+}
+
+/**
+ * Type for provider status from callExternal
+ */
+interface ProviderStatusInfo {
+  enabled: boolean;
+  budgetStatus: {
+    allowed: boolean;
+    currentCount: number;
+    limit: number;
+    windowType: string;
+  };
+  lastCallTime: number | null;
+  policy: {
+    maxRequestsPerMinute?: number;
+    maxRequestsPerDay?: number;
+    maxRequestsPerWeek?: number;
+    cacheFreshDurationMs: number;
+  };
+}
 
 const router = Router();
 
@@ -15,7 +46,7 @@ const router = Router();
 // ============================================================================
 
 // GET /api/admin/audit-logs - Get audit logs
-router.get("/audit-logs", async (req: Request, res: Response) => {
+router.get("/audit-logs", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAuditLogs } = await import("../../middleware/audit-logger");
 
@@ -32,7 +63,7 @@ router.get("/audit-logs", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/audit-logs/stats - Get audit log statistics
-router.get("/audit-logs/stats", async (req: Request, res: Response) => {
+router.get("/audit-logs/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAuditStats } = await import("../../middleware/audit-logger");
     const stats = await getAuditStats();
@@ -48,7 +79,7 @@ router.get("/audit-logs/stats", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/dashboard - Get dashboard stats
-router.get("/dashboard", async (req: Request, res: Response) => {
+router.get("/dashboard", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllAvailableProviders } = await import("../../ai/index");
     const { getAllProviderStatuses } = await import("../../lib/callExternal");
@@ -95,7 +126,7 @@ router.get("/dashboard", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/users - Get all users (requires admin:read)
-router.get("/users", async (req: Request, res: Response) => {
+router.get("/users", requireAdmin, async (req: Request, res: Response) => {
   try {
     const allUsers = await storage.getAllUsers();
     // Return users without password field
@@ -111,7 +142,7 @@ router.get("/users", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/users/:id - Get specific user (requires admin:read)
-router.get("/users/:id", async (req: Request, res: Response) => {
+router.get("/users/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = await storage.getUser(id);
@@ -127,7 +158,7 @@ router.get("/users/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/users - Create user (requires admin:write)
-router.post("/users", async (req: Request, res: Response) => {
+router.post("/users", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { username, password, isAdmin } = req.body;
 
@@ -161,12 +192,12 @@ router.post("/users", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/users/:id - Update user (requires admin:write)
-router.patch("/users/:id", async (req: Request, res: Response) => {
+router.patch("/users/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { username, password, isAdmin } = req.body;
 
-    const updates: any = {};
+    const updates: UserUpdateData = {};
     if (username !== undefined) updates.username = username;
     if (isAdmin !== undefined) updates.isAdmin = isAdmin;
 
@@ -188,7 +219,7 @@ router.patch("/users/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/users/:id - Delete user (requires admin:danger)
-router.delete("/users/:id", async (req: Request, res: Response) => {
+router.delete("/users/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -214,7 +245,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/observability/metrics - Get system metrics (requires admin:read)
-router.get("/observability/metrics", async (req: Request, res: Response) => {
+router.get("/observability/metrics", requireAdmin, async (req: Request, res: Response) => {
   try {
     // System metrics
     const memUsage = process.memoryUsage();
@@ -228,8 +259,8 @@ router.get("/observability/metrics", async (req: Request, res: Response) => {
 
     // Database stats (via audit logs as proxy for activity)
     const recentLogs = await storage.getRecentAuditLogs(100);
-    const logsLast24h = recentLogs.filter((log: any) => {
-      const logTime = new Date(log.timestamp || log.createdAt).getTime();
+    const logsLast24h = recentLogs.filter((auditLog: AuditLog) => {
+      const logTime = new Date(auditLog.timestamp).getTime();
       return Date.now() - logTime < 24 * 60 * 60 * 1000;
     }).length;
 
@@ -259,17 +290,17 @@ router.get("/observability/metrics", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/observability/logs - Get logs (requires admin:read)
-router.get("/observability/logs", async (req: Request, res: Response) => {
+router.get("/observability/logs", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { limit, offset, level } = req.query;
+    const { limit, offset, action } = req.query;
     const limitNum = parseInt(limit as string) || 50;
     const offsetNum = parseInt(offset as string) || 0;
 
     const logs = await storage.getRecentAuditLogs(limitNum, offsetNum);
 
-    // Filter by level if specified
-    const filteredLogs = level
-      ? logs.filter((log: any) => log.level === level)
+    // Filter by action if specified (audit logs track actions, not levels)
+    const filteredLogs = action
+      ? logs.filter((auditLog: AuditLog) => auditLog.action === action)
       : logs;
 
     res.json({
@@ -284,7 +315,7 @@ router.get("/observability/logs", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/observability/health - Get health status (requires admin:read)
-router.get("/observability/health", async (req: Request, res: Response) => {
+router.get("/observability/health", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { getAllProviderStatuses } = await import("../../lib/callExternal");
 
@@ -299,7 +330,7 @@ router.get("/observability/health", async (req: Request, res: Response) => {
     // Check API providers
     const providerStatuses = await getAllProviderStatuses();
     const providersHealthy = Object.values(providerStatuses).some(
-      (s: any) => s.isAvailable
+      (s: ProviderStatusInfo) => s.enabled && s.budgetStatus.allowed
     );
 
     // Check Alpaca

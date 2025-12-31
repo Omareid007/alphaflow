@@ -30,6 +30,7 @@ import {
 } from "../services/sentiment-aggregator";
 import { insertAiDecisionSchema } from "@shared/schema";
 import type { Order, Trade, Position } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -41,7 +42,7 @@ const router = Router();
  * GET /api/ai-decisions
  * Fetch recent AI trading decisions
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const decisions = await storage.getAiDecisions(req.userId!, limit);
@@ -56,7 +57,7 @@ router.get("/", async (req: Request, res: Response) => {
  * GET /api/ai-decisions/history
  * Fetch AI decisions history with filtering and pagination
  */
-router.get("/history", async (req: Request, res: Response) => {
+router.get("/history", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 100;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -91,7 +92,7 @@ router.get("/history", async (req: Request, res: Response) => {
  * POST /api/ai-decisions
  * Create a new AI decision record
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const parsed = insertAiDecisionSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -110,7 +111,7 @@ router.post("/", async (req: Request, res: Response) => {
  * Returns AI decisions with linked orders, trades, positions
  * Includes complete timeline stages from decision through position
  */
-router.get("/enriched", async (req: Request, res: Response) => {
+router.get("/enriched", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -294,7 +295,7 @@ router.get("/enriched", async (req: Request, res: Response) => {
  * POST /api/ai/analyze
  * Analyze a trading opportunity and generate AI decision
  */
-router.post("/analyze", async (req: Request, res: Response) => {
+router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, marketData, newsContext, strategyId } = req.body;
 
@@ -358,7 +359,7 @@ router.post("/analyze", async (req: Request, res: Response) => {
  * GET /api/ai/status
  * Get current AI decision engine status
  */
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = aiDecisionEngine.getStatus();
     res.json(status);
@@ -372,7 +373,7 @@ router.get("/status", async (req: Request, res: Response) => {
  * GET /api/ai/events
  * Aggregates recent AI activity for dashboard
  */
-router.get("/events", async (req: Request, res: Response) => {
+router.get("/events", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const type = req.query.type as string | undefined;
@@ -419,7 +420,7 @@ router.get("/events", async (req: Request, res: Response) => {
  * Get sentiment signals for specified symbols
  * Uses the SentimentAggregatorService which combines GDELT, NewsAPI, and HuggingFace FinBERT
  */
-router.get("/sentiment", async (req: Request, res: Response) => {
+router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols = (req.query.symbols as string)?.split(",") || [
       "SPY",
@@ -548,7 +549,7 @@ function generateExplanation(result: AggregatedSentiment): string {
  * GET /api/ai/cache/stats
  * Get LLM response cache statistics
  */
-router.get("/cache/stats", async (req: Request, res: Response) => {
+router.get("/cache/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = getLLMCacheStats();
     res.json(stats);
@@ -562,7 +563,7 @@ router.get("/cache/stats", async (req: Request, res: Response) => {
  * POST /api/ai/cache/clear
  * Clear all LLM response cache
  */
-router.post("/cache/clear", async (req: Request, res: Response) => {
+router.post("/cache/clear", requireAuth, async (req: Request, res: Response) => {
   try {
     clearLLMCache();
     res.json({ success: true, message: "LLM cache cleared" });
@@ -576,7 +577,7 @@ router.post("/cache/clear", async (req: Request, res: Response) => {
  * POST /api/ai/cache/clear/:role
  * Clear LLM cache for a specific role
  */
-router.post("/cache/clear/:role", async (req: Request, res: Response) => {
+router.post("/cache/clear/:role", requireAuth, async (req: Request, res: Response) => {
   try {
     const { role } = req.params;
     clearLLMCacheForRole(role as any);
@@ -591,7 +592,7 @@ router.post("/cache/clear/:role", async (req: Request, res: Response) => {
  * POST /api/ai/cache/reset-stats
  * Reset LLM cache statistics
  */
-router.post("/cache/reset-stats", async (req: Request, res: Response) => {
+router.post("/cache/reset-stats", requireAuth, async (req: Request, res: Response) => {
   try {
     resetLLMCacheStats();
     res.json({ success: true, message: "Cache statistics reset" });
@@ -609,7 +610,7 @@ router.post("/cache/reset-stats", async (req: Request, res: Response) => {
  * GET /api/agent/status
  * Get current autonomous agent status
  */
-router.get("/agent/status", async (req: Request, res: Response) => {
+router.get("/agent/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = await storage.getAgentStatus();
     if (!status) {
@@ -631,7 +632,7 @@ router.get("/agent/status", async (req: Request, res: Response) => {
  * POST /api/agent/toggle
  * Toggle autonomous agent on/off
  */
-router.post("/agent/toggle", async (req: Request, res: Response) => {
+router.post("/agent/toggle", requireAuth, async (req: Request, res: Response) => {
   try {
     const currentStatus = await storage.getAgentStatus();
     const newIsRunning = !(currentStatus?.isRunning ?? false);
@@ -654,7 +655,7 @@ router.post("/agent/toggle", async (req: Request, res: Response) => {
  * GET /api/agent/market-analysis
  * Get current market condition analysis
  */
-router.get("/agent/market-analysis", async (req: Request, res: Response) => {
+router.get("/agent/market-analysis", requireAuth, async (req: Request, res: Response) => {
   try {
     const analyzerStatus = marketConditionAnalyzer.getStatus();
     const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
@@ -695,7 +696,7 @@ router.post(
  * GET /api/agent/dynamic-limits
  * Get dynamic order limits based on market conditions
  */
-router.get("/agent/dynamic-limits", async (req: Request, res: Response) => {
+router.get("/agent/dynamic-limits", requireAuth, async (req: Request, res: Response) => {
   try {
     const agentStatus = await storage.getAgentStatus();
     const analyzerStatus = marketConditionAnalyzer.getStatus();
@@ -725,7 +726,7 @@ router.get("/agent/dynamic-limits", async (req: Request, res: Response) => {
  * POST /api/agent/set-limits
  * Set minimum and maximum order limits
  */
-router.post("/agent/set-limits", async (req: Request, res: Response) => {
+router.post("/agent/set-limits", requireAuth, async (req: Request, res: Response) => {
   try {
     const { minOrderLimit, maxOrderLimit } = req.body;
 
@@ -774,7 +775,7 @@ router.post("/agent/set-limits", async (req: Request, res: Response) => {
  * GET /api/agent/health
  * Get agent health status
  */
-router.get("/agent/health", async (req: Request, res: Response) => {
+router.get("/agent/health", requireAuth, async (req: Request, res: Response) => {
   try {
     const healthStatus = orchestrator.getHealthStatus();
     const agentStatus = await storage.getAgentStatus();
@@ -794,7 +795,7 @@ router.get("/agent/health", async (req: Request, res: Response) => {
  * POST /api/agent/auto-start
  * Enable or disable agent auto-start on system restart
  */
-router.post("/agent/auto-start", async (req: Request, res: Response) => {
+router.post("/agent/auto-start", requireAuth, async (req: Request, res: Response) => {
   try {
     const { enabled } = req.body;
     if (typeof enabled !== "boolean") {

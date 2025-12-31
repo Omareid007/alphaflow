@@ -8,6 +8,7 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ const router = Router();
  * GET /api/positions/snapshot
  * Returns comprehensive portfolio snapshot with positions and performance metrics
  */
-router.get("/snapshot", async (req: Request, res: Response) => {
+router.get("/snapshot", requireAuth, async (req: Request, res: Response) => {
   try {
     // Get Alpaca account data
     const alpacaAccount = await alpaca.getAccount();

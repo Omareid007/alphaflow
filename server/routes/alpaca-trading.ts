@@ -7,11 +7,12 @@ import { Router, Request, Response } from "express";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/alpaca-trading/status - Get Alpaca trading engine status
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = alpacaTradingEngine.getStatus();
     const connected = await alpacaTradingEngine.isAlpacaConnected();
@@ -25,7 +26,7 @@ router.get("/status", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/execute - Execute a trade via Alpaca trading engine
-router.post("/execute", async (req: Request, res: Response) => {
+router.post("/execute", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } =
       req.body;
@@ -64,7 +65,7 @@ router.post("/execute", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/close/:symbol - Close a position for a symbol
-router.post("/close/:symbol", async (req: Request, res: Response) => {
+router.post("/close/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const { strategyId } = req.body;
@@ -90,7 +91,7 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/analyze - Analyze a symbol
-router.post("/analyze", async (req: Request, res: Response) => {
+router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, strategyId } = req.body;
 
@@ -107,7 +108,7 @@ router.post("/analyze", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/analyze-execute - Analyze and execute trade for a symbol
-router.post("/analyze-execute", async (req: Request, res: Response) => {
+router.post("/analyze-execute", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, strategyId } = req.body;
 
@@ -127,7 +128,7 @@ router.post("/analyze-execute", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/stop-all - Stop all running strategies
-router.post("/stop-all", async (req: Request, res: Response) => {
+router.post("/stop-all", requireAuth, async (req: Request, res: Response) => {
   try {
     await alpacaTradingEngine.stopAllStrategies();
     res.json({ success: true, message: "All strategies stopped" });

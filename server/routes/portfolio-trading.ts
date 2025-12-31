@@ -1,8 +1,20 @@
+/**
+ * Portfolio Trading Routes
+ *
+ * Provides API endpoints for portfolio-level operations:
+ * - Portfolio summary and allocation
+ * - Position management by strategy
+ * - Rebalancing utilities
+ * - Strategy configuration
+ */
+
 import type { Express, Request, Response, NextFunction } from "express";
 import { getSession } from "../lib/session";
 import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
+import { badRequest, serverError } from "../lib/standard-errors";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
@@ -53,11 +65,9 @@ export function registerPortfolioTradingRoutes(app: Express) {
       log.error("Routes", "Failed to normalize strategy config", {
         error: error,
       });
-      res
-        .status(500)
-        .json({
-          error: (error as Error).message || "Failed to normalize config",
-        });
+      res.status(500).json({
+        error: (error as Error).message || "Failed to normalize config",
+      });
     }
   });
 
@@ -80,11 +90,9 @@ export function registerPortfolioTradingRoutes(app: Express) {
       res.json(result);
     } catch (error) {
       log.error("Routes", "Failed to validate strategy", { error: error });
-      res
-        .status(500)
-        .json({
-          error: (error as Error).message || "Failed to validate strategy",
-        });
+      res.status(500).json({
+        error: (error as Error).message || "Failed to validate strategy",
+      });
     }
   });
 
@@ -165,4 +173,247 @@ export function registerPortfolioTradingRoutes(app: Express) {
       res.status(500).json({ error: "Failed to get trading candidates" });
     }
   });
+
+  // GET /api/portfolio/allocation - Current asset allocation with strategy links
+  app.get("/api/portfolio/allocation", authMiddleware, async (req, res) => {
+    try {
+      const [positions, account] = await Promise.all([
+        alpaca.getPositions(),
+        alpaca.getAccount(),
+      ]);
+
+      const portfolioValue = parseFloat(account.portfolio_value);
+      const cash = parseFloat(account.cash);
+
+      // Get database positions to link strategies
+      const dbPositions = await storage.getPositions(req.userId);
+      const positionStrategyMap = new Map(
+        dbPositions.map((p) => [p.symbol, p.strategyId])
+      );
+
+      const allocation = positions.map((p) => {
+        const marketValue = parseFloat(p.market_value);
+        return {
+          symbol: p.symbol,
+          value: marketValue,
+          percent: (marketValue / portfolioValue) * 100,
+          qty: parseFloat(p.qty),
+          currentPrice: parseFloat(p.current_price),
+          unrealizedPnl: parseFloat(p.unrealized_pl),
+          strategyId: positionStrategyMap.get(p.symbol) || null,
+        };
+      });
+
+      // Sort by allocation percentage descending
+      allocation.sort((a, b) => b.percent - a.percent);
+
+      res.json({
+        allocation,
+        cash: {
+          value: cash,
+          percent: (cash / portfolioValue) * 100,
+        },
+        portfolioValue,
+        totalPositions: positions.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("PortfolioAPI", "Failed to get allocation", { error });
+      return serverError(res, "Failed to get portfolio allocation");
+    }
+  });
+
+  // GET /api/portfolio/positions - Positions with optional strategy filter
+  app.get("/api/portfolio/positions", authMiddleware, async (req, res) => {
+    try {
+      const { strategyId } = req.query;
+
+      const [alpacaPositions, dbPositions] = await Promise.all([
+        alpaca.getPositions(),
+        storage.getPositions(req.userId),
+      ]);
+
+      // Create maps for quick lookup
+      const alpacaMap = new Map(alpacaPositions.map((p) => [p.symbol, p]));
+      const dbMap = new Map(dbPositions.map((p) => [p.symbol, p]));
+
+      // Merge data from both sources
+      const mergedPositions = alpacaPositions.map((ap) => {
+        const dbPos = dbMap.get(ap.symbol);
+        return {
+          symbol: ap.symbol,
+          qty: parseFloat(ap.qty),
+          marketValue: parseFloat(ap.market_value),
+          costBasis: parseFloat(ap.cost_basis),
+          currentPrice: parseFloat(ap.current_price),
+          unrealizedPnl: parseFloat(ap.unrealized_pl),
+          unrealizedPnlPercent: parseFloat(ap.unrealized_plpc) * 100,
+          avgEntryPrice: parseFloat(ap.avg_entry_price),
+          side: parseFloat(ap.qty) > 0 ? "long" : "short",
+          strategyId: dbPos?.strategyId || null,
+          openedAt: dbPos?.openedAt || null,
+          dbPositionId: dbPos?.id || null,
+        };
+      });
+
+      // Filter by strategy if specified
+      const filtered = strategyId
+        ? mergedPositions.filter((p) => p.strategyId === strategyId)
+        : mergedPositions;
+
+      res.json({
+        positions: filtered,
+        count: filtered.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("PortfolioAPI", "Failed to get positions", { error });
+      return serverError(res, "Failed to get positions");
+    }
+  });
+
+  // GET /api/portfolio/by-strategy - Portfolio breakdown by strategy
+  app.get("/api/portfolio/by-strategy", authMiddleware, async (req, res) => {
+    try {
+      const [strategies, dbPositions, trades] = await Promise.all([
+        storage.getStrategies(),
+        storage.getPositions(req.userId),
+        storage.getTrades(req.userId, 500),
+      ]);
+
+      const alpacaPositions = await alpaca.getPositions();
+      const alpacaMap = new Map(alpacaPositions.map((p) => [p.symbol, p]));
+
+      const strategyBreakdown = strategies.map((strategy) => {
+        const strategyPositions = dbPositions.filter(
+          (p) => p.strategyId === strategy.id
+        );
+        const strategyTrades = trades.filter(
+          (t) => t.strategyId === strategy.id
+        );
+        const closedTrades = strategyTrades.filter((t) => t.pnl !== null);
+
+        // Calculate market value from Alpaca positions
+        let totalMarketValue = 0;
+        let totalUnrealizedPnl = 0;
+        for (const pos of strategyPositions) {
+          const alpacaPos = alpacaMap.get(pos.symbol);
+          if (alpacaPos) {
+            totalMarketValue += parseFloat(alpacaPos.market_value);
+            totalUnrealizedPnl += parseFloat(alpacaPos.unrealized_pl);
+          }
+        }
+
+        const totalRealizedPnl = closedTrades.reduce(
+          (sum, t) => sum + parseFloat(t.pnl || "0"),
+          0
+        );
+        const winningTrades = closedTrades.filter(
+          (t) => parseFloat(t.pnl || "0") > 0
+        );
+
+        return {
+          strategyId: strategy.id,
+          strategyName: strategy.name,
+          strategyType: strategy.type,
+          isActive: strategy.isActive,
+          positionCount: strategyPositions.length,
+          totalMarketValue,
+          unrealizedPnl: totalUnrealizedPnl,
+          realizedPnl: totalRealizedPnl,
+          totalPnl: totalUnrealizedPnl + totalRealizedPnl,
+          totalTrades: strategyTrades.length,
+          closedTrades: closedTrades.length,
+          winRate:
+            closedTrades.length > 0
+              ? (winningTrades.length / closedTrades.length) * 100
+              : 0,
+          symbols: strategyPositions.map((p) => p.symbol),
+        };
+      });
+
+      res.json({
+        strategies: strategyBreakdown,
+        totalStrategies: strategies.length,
+        activeStrategies: strategies.filter((s) => s.isActive).length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("PortfolioAPI", "Failed to get strategy breakdown", { error });
+      return serverError(res, "Failed to get portfolio by strategy");
+    }
+  });
+
+  // POST /api/portfolio/rebalance/preview - Preview rebalance without executing
+  app.post("/api/portfolio/rebalance/preview", authMiddleware, async (req, res) => {
+    try {
+      const { targetAllocations } = req.body as {
+        targetAllocations: { symbol: string; targetPercent: number }[];
+      };
+
+      if (!targetAllocations || !Array.isArray(targetAllocations)) {
+        return badRequest(res, "targetAllocations array is required");
+      }
+
+      const totalTarget = targetAllocations.reduce(
+        (sum, a) => sum + a.targetPercent,
+        0
+      );
+      if (totalTarget > 100) {
+        return badRequest(res, `Total target allocation (${totalTarget}%) exceeds 100%`);
+      }
+
+      const [positions, account] = await Promise.all([
+        alpaca.getPositions(),
+        alpaca.getAccount(),
+      ]);
+
+      const portfolioValue = parseFloat(account.portfolio_value);
+      const positionMap = new Map(positions.map((p) => [p.symbol, p]));
+
+      const rebalanceActions = targetAllocations.map((target) => {
+        const position = positionMap.get(target.symbol);
+        const currentValue = position ? parseFloat(position.market_value) : 0;
+        const currentPercent = (currentValue / portfolioValue) * 100;
+        const targetValue = (target.targetPercent / 100) * portfolioValue;
+        const deltaValue = targetValue - currentValue;
+        const currentPrice = position ? parseFloat(position.current_price) : 0;
+
+        let action: "buy" | "sell" | "hold" = "hold";
+        if (deltaValue > 50) action = "buy";
+        else if (deltaValue < -50) action = "sell";
+
+        return {
+          symbol: target.symbol,
+          action,
+          currentPercent,
+          targetPercent: target.targetPercent,
+          currentValue,
+          targetValue,
+          deltaValue,
+          estimatedQty: currentPrice > 0 ? Math.abs(Math.floor(deltaValue / currentPrice)) : 0,
+        };
+      });
+
+      const buys = rebalanceActions.filter((a) => a.action === "buy");
+      const sells = rebalanceActions.filter((a) => a.action === "sell");
+
+      res.json({
+        preview: {
+          actions: rebalanceActions,
+          totalBuys: buys.length,
+          totalSells: sells.length,
+          totalBuyValue: buys.reduce((sum, a) => sum + a.deltaValue, 0),
+          totalSellValue: Math.abs(sells.reduce((sum, a) => sum + a.deltaValue, 0)),
+        },
+        portfolioValue,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("PortfolioAPI", "Failed to preview rebalance", { error });
+      return serverError(res, "Failed to preview rebalance");
+    }
+  });
+
+  log.info("Routes", "Portfolio trading routes registered");
 }

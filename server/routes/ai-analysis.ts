@@ -14,12 +14,14 @@ import {
   type NewsContext,
   type StrategyContext,
 } from "../ai/decision-engine";
+import { sentimentAggregator } from "../services/sentiment-aggregator";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // POST /api/ai/analyze
 // Analyze a trading opportunity using the AI decision engine
-router.post("/analyze", async (req: Request, res: Response) => {
+router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, marketData, newsContext, strategyId } = req.body;
 
@@ -83,7 +85,7 @@ router.post("/analyze", async (req: Request, res: Response) => {
 
 // GET /api/ai/status
 // Get the current status of the AI decision engine
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = aiDecisionEngine.getStatus();
     res.json(status);
@@ -94,7 +96,7 @@ router.get("/status", async (req: Request, res: Response) => {
 
 // GET /api/ai/events
 // AI Events endpoint - aggregates recent AI activity for dashboard
-router.get("/events", async (req: Request, res: Response) => {
+router.get("/events", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const type = req.query.type as string | undefined;
@@ -138,7 +140,7 @@ router.get("/events", async (req: Request, res: Response) => {
 
 // GET /api/ai/cache/stats
 // Get LLM response cache statistics
-router.get("/cache/stats", async (req: Request, res: Response) => {
+router.get("/cache/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = getLLMCacheStats();
     res.json(stats);
@@ -150,7 +152,7 @@ router.get("/cache/stats", async (req: Request, res: Response) => {
 
 // POST /api/ai/cache/clear
 // Clear all LLM response cache
-router.post("/cache/clear", async (req: Request, res: Response) => {
+router.post("/cache/clear", requireAuth, async (req: Request, res: Response) => {
   try {
     clearLLMCache();
     res.json({ success: true, message: "LLM cache cleared" });
@@ -162,7 +164,7 @@ router.post("/cache/clear", async (req: Request, res: Response) => {
 
 // POST /api/ai/cache/clear/:role
 // Clear LLM response cache for a specific role
-router.post("/cache/clear/:role", async (req: Request, res: Response) => {
+router.post("/cache/clear/:role", requireAuth, async (req: Request, res: Response) => {
   try {
     const { role } = req.params;
     clearLLMCacheForRole(role as any);
@@ -175,7 +177,7 @@ router.post("/cache/clear/:role", async (req: Request, res: Response) => {
 
 // POST /api/ai/cache/reset-stats
 // Reset LLM cache statistics
-router.post("/cache/reset-stats", async (req: Request, res: Response) => {
+router.post("/cache/reset-stats", requireAuth, async (req: Request, res: Response) => {
   try {
     resetLLMCacheStats();
     res.json({ success: true, message: "Cache statistics reset" });
@@ -187,7 +189,7 @@ router.post("/cache/reset-stats", async (req: Request, res: Response) => {
 
 // GET /api/ai/sentiment
 // Get sentiment signals for symbols
-router.get("/sentiment", async (req: Request, res: Response) => {
+router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols = (req.query.symbols as string)?.split(",") || [
       "SPY",
@@ -197,23 +199,28 @@ router.get("/sentiment", async (req: Request, res: Response) => {
       "NVDA",
     ];
 
-    // Generate sentiment signals based on available data
-    // In production, this would call the data fusion engine or sentiment analysis service
-    const sentiments = symbols.map((symbol) => ({
-      id: `sent-${symbol}-${Date.now()}`,
-      sourceId: "data-fusion",
-      sourceName: "Data Fusion Engine",
-      symbol,
-      score: Math.random() * 100 - 50, // -50 to +50
-      trend:
-        Math.random() > 0.5
-          ? ("up" as const)
-          : Math.random() > 0.5
-            ? ("down" as const)
-            : ("neutral" as const),
-      explanation: `Aggregate sentiment analysis for ${symbol} based on news, social media, and market data`,
-      timestamp: new Date().toISOString(),
-    }));
+    // Get sentiment from the aggregator service
+    const sentimentResults = await sentimentAggregator.batchGetSentiment(symbols);
+
+    // Transform to frontend-expected format
+    const sentiments = Array.from(sentimentResults.entries()).map(
+      ([symbol, result]) => ({
+        id: `sent-${symbol}-${Date.now()}`,
+        sourceId: "sentiment-aggregator",
+        sourceName: "Sentiment Aggregator",
+        symbol,
+        // Convert from -1 to 1 range to -100 to 100 range for frontend
+        score: Math.round(result.overallScore * 100),
+        trend:
+          result.recommendation === "bullish"
+            ? ("up" as const)
+            : result.recommendation === "bearish"
+              ? ("down" as const)
+              : ("neutral" as const),
+        explanation: `${result.recommendation.charAt(0).toUpperCase() + result.recommendation.slice(1)} sentiment based on ${result.sources.length} sources. Confidence: ${Math.round(result.overallConfidence * 100)}%${result.conflictDetected ? " (conflicting signals)" : ""}`,
+        timestamp: result.timestamp.toISOString(),
+      })
+    );
 
     res.json(sentiments);
   } catch (error) {

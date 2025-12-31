@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { log } from "../utils/logger";
 import { getAlpacaBaseUrl, tradingConfig } from "../config/trading-config";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -47,7 +48,7 @@ let budgets: Map<string, any> = new Map();
 let apiFunctions: Map<string, any[]> = new Map();
 
 // GET /api/admin/providers - List all providers
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     res.json(providers);
   } catch (error) {
@@ -59,7 +60,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/providers - Create new provider
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const provider = {
       id: randomUUID(),
@@ -78,7 +79,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id - Get single provider
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const provider = providers.find((p) => p.id === req.params.id);
     if (!provider) {
@@ -94,7 +95,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/providers/:id - Update provider
-router.patch("/:id", async (req: Request, res: Response) => {
+router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const index = providers.findIndex((p) => p.id === req.params.id);
     if (index === -1) {
@@ -115,7 +116,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/providers/:id - Delete provider
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const index = providers.findIndex((p) => p.id === req.params.id);
     if (index === -1) {
@@ -135,7 +136,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/providers/:id/test - Test provider connection
-router.post("/:id/test", async (req: Request, res: Response) => {
+router.post("/:id/test", requireAuth, async (req: Request, res: Response) => {
   try {
     const provider = providers.find((p) => p.id === req.params.id);
     if (!provider) {
@@ -165,7 +166,7 @@ router.post("/:id/test", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/credentials - Get provider credentials
-router.get("/:id/credentials", async (req: Request, res: Response) => {
+router.get("/:id/credentials", requireAuth, async (req: Request, res: Response) => {
   try {
     const creds = credentials.get(req.params.id) || [];
     // Mask credential values for security
@@ -183,7 +184,7 @@ router.get("/:id/credentials", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/providers/:id/credentials - Add credential
-router.post("/:id/credentials", async (req: Request, res: Response) => {
+router.post("/:id/credentials", requireAuth, async (req: Request, res: Response) => {
   try {
     const credential = {
       id: randomUUID(),
@@ -211,7 +212,7 @@ router.post("/:id/credentials", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/budget - Get provider budget
-router.get("/:id/budget", async (req: Request, res: Response) => {
+router.get("/:id/budget", requireAuth, async (req: Request, res: Response) => {
   try {
     let budget = budgets.get(req.params.id);
     if (!budget) {
@@ -239,7 +240,7 @@ router.get("/:id/budget", async (req: Request, res: Response) => {
 });
 
 // PUT /api/admin/providers/:id/budget - Update provider budget
-router.put("/:id/budget", async (req: Request, res: Response) => {
+router.put("/:id/budget", requireAuth, async (req: Request, res: Response) => {
   try {
     const existing = budgets.get(req.params.id) || {
       id: randomUUID(),
@@ -265,7 +266,7 @@ router.put("/:id/budget", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/usage - Get usage metrics
-router.get("/:id/usage", async (req: Request, res: Response) => {
+router.get("/:id/usage", requireAuth, async (req: Request, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     // Generate mock usage data
@@ -289,7 +290,7 @@ router.get("/:id/usage", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/functions - Get API functions
-router.get("/:id/functions", async (req: Request, res: Response) => {
+router.get("/:id/functions", requireAuth, async (req: Request, res: Response) => {
   try {
     const funcs = apiFunctions.get(req.params.id) || [];
     res.json(funcs);
@@ -302,7 +303,7 @@ router.get("/:id/functions", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/providers/:id/discover - Discover API endpoints
-router.post("/:id/discover", async (req: Request, res: Response) => {
+router.post("/:id/discover", requireAuth, async (req: Request, res: Response) => {
   try {
     const { documentUrl } = req.body;
     // Mock discovery - in production, parse OpenAPI spec
@@ -351,7 +352,7 @@ router.post("/:id/discover", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/providers/:id/functions/:funcId - Update API function
-router.patch("/:id/functions/:funcId", async (req: Request, res: Response) => {
+router.patch("/:id/functions/:funcId", requireAuth, async (req: Request, res: Response) => {
   try {
     const funcs = apiFunctions.get(req.params.id) || [];
     const index = funcs.findIndex((f) => f.id === req.params.funcId);
@@ -410,7 +411,7 @@ router.post(
 );
 
 // DELETE /api/admin/providers/:id/functions/:funcId - Delete API function
-router.delete("/:id/functions/:funcId", async (req: Request, res: Response) => {
+router.delete("/:id/functions/:funcId", requireAuth, async (req: Request, res: Response) => {
   try {
     const funcs = apiFunctions.get(req.params.id) || [];
     const index = funcs.findIndex((f) => f.id === req.params.funcId);

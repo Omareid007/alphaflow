@@ -6,10 +6,11 @@ import type {
   InsertCompetitionRun,
   InsertCompetitionScore,
 } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.get("/traders", async (req: Request, res: Response) => {
+router.get("/traders", requireAuth, async (req: Request, res: Response) => {
   try {
     const traders = await storage.getTraderProfiles();
     res.json({ traders, count: traders.length });
@@ -19,7 +20,7 @@ router.get("/traders", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/traders", async (req: Request, res: Response) => {
+router.post("/traders", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -53,7 +54,7 @@ router.post("/traders", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/traders/:id", async (req: Request, res: Response) => {
+router.get("/traders/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const trader = await storage.getTraderProfile(req.params.id);
     if (!trader) {
@@ -66,7 +67,7 @@ router.get("/traders/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/traders/:id", async (req: Request, res: Response) => {
+router.patch("/traders/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const trader = await storage.updateTraderProfile(req.params.id, req.body);
     if (!trader) {
@@ -81,7 +82,7 @@ router.patch("/traders/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/runs", async (req: Request, res: Response) => {
+router.get("/runs", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const runs = await storage.getCompetitionRuns(limit);
@@ -92,7 +93,7 @@ router.get("/runs", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/runs", async (req: Request, res: Response) => {
+router.post("/runs", requireAuth, async (req: Request, res: Response) => {
   try {
     const { name, mode, traderIds, universeSymbols, config } = req.body;
 
@@ -110,11 +111,9 @@ router.post("/runs", async (req: Request, res: Response) => {
 
     const validModes = ["paper", "backtest", "simulation"];
     if (!validModes.includes(mode)) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
+      });
     }
 
     const traceId = `competition-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -132,15 +131,13 @@ router.post("/runs", async (req: Request, res: Response) => {
     res.json(run);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to create competition run: ${error}`);
-    res
-      .status(500)
-      .json({
-        error: (error as Error).message || "Failed to create competition run",
-      });
+    res.status(500).json({
+      error: (error as Error).message || "Failed to create competition run",
+    });
   }
 });
 
-router.get("/runs/:id", async (req: Request, res: Response) => {
+router.get("/runs/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const run = await storage.getCompetitionRun(req.params.id);
     if (!run) {
@@ -155,7 +152,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/runs/:id", async (req: Request, res: Response) => {
+router.patch("/runs/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const run = await storage.updateCompetitionRun(req.params.id, req.body);
     if (!run) {
@@ -164,15 +161,13 @@ router.patch("/runs/:id", async (req: Request, res: Response) => {
     res.json(run);
   } catch (error) {
     log.error("CompetitionAPI", `Failed to update competition run: ${error}`);
-    res
-      .status(500)
-      .json({
-        error: (error as Error).message || "Failed to update competition run",
-      });
+    res.status(500).json({
+      error: (error as Error).message || "Failed to update competition run",
+    });
   }
 });
 
-router.post("/runs/:id/scores", async (req: Request, res: Response) => {
+router.post("/runs/:id/scores", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       traderId,

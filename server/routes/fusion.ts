@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { dataFusionEngine } from "../fusion/data-fusion-engine";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -8,7 +9,7 @@ const router = Router();
  * GET /api/fusion/intelligence
  * Get market intelligence from the data fusion engine
  */
-router.get("/intelligence", async (req: Request, res: Response) => {
+router.get("/intelligence", requireAuth, async (req: Request, res: Response) => {
   try {
     const intelligence = await dataFusionEngine.getMarketIntelligence();
     res.json(intelligence);
@@ -24,7 +25,7 @@ router.get("/intelligence", async (req: Request, res: Response) => {
  * GET /api/fusion/market-data
  * Get fused market data from multiple sources
  */
-router.get("/market-data", async (req: Request, res: Response) => {
+router.get("/market-data", requireAuth, async (req: Request, res: Response) => {
   try {
     const fusedData = await dataFusionEngine.getFusedMarketData();
     res.json(fusedData);
@@ -40,7 +41,7 @@ router.get("/market-data", async (req: Request, res: Response) => {
  * GET /api/fusion/status
  * Get status of the data fusion engine
  */
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = dataFusionEngine.getStatus();
     res.json(status);

@@ -15,6 +15,7 @@ import {
   rebalancerService,
 } from "../../universe";
 import { log } from "../../utils/logger";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
 
 const router = Router();
 
@@ -23,7 +24,7 @@ const router = Router();
 // ============================================================================
 
 // GET /api/admin/universe/stats - Get universe stats (requires admin:read)
-router.get("/universe/stats", async (req: Request, res: Response) => {
+router.get("/universe/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await alpacaUniverseService.getStats();
     res.json({
@@ -38,7 +39,7 @@ router.get("/universe/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/universe/assets - Get universe assets (requires admin:read)
-router.get("/universe/assets", async (req: Request, res: Response) => {
+router.get("/universe/assets", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { assetClass, tradable, limit, offset } = req.query;
     const assets = await storage.getBrokerAssets(
@@ -58,7 +59,7 @@ router.get("/universe/assets", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/universe/assets/:symbol - Get asset details (requires admin:read)
-router.get("/universe/assets/:symbol", async (req: Request, res: Response) => {
+router.get("/universe/assets/:symbol", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const asset = await storage.getBrokerAsset(symbol);
@@ -73,7 +74,7 @@ router.get("/universe/assets/:symbol", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/universe/refresh - Refresh universe (requires admin:write)
-router.post("/universe/refresh", async (req: Request, res: Response) => {
+router.post("/universe/refresh", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { assetClass } = req.body;
     const result = await alpacaUniverseService.refreshAssets({
@@ -110,7 +111,7 @@ router.post(
 );
 
 // GET /api/admin/universe/tradable - Get tradable symbols (requires admin:read)
-router.get("/universe/tradable", async (req: Request, res: Response) => {
+router.get("/universe/tradable", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const assets = await storage.getBrokerAssets(
@@ -133,7 +134,7 @@ router.get("/universe/tradable", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/liquidity/stats - Get liquidity stats (requires admin:read)
-router.get("/liquidity/stats", async (req: Request, res: Response) => {
+router.get("/liquidity/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await liquidityService.getTierStats();
     res.json({
@@ -166,7 +167,7 @@ router.get(
 );
 
 // GET /api/admin/liquidity/tier/:tier - Get symbols by tier (requires admin:read)
-router.get("/liquidity/tier/:tier", async (req: Request, res: Response) => {
+router.get("/liquidity/tier/:tier", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { tier } = req.params;
     const { limit } = req.query;
@@ -187,7 +188,7 @@ router.get("/liquidity/tier/:tier", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/liquidity/top - Get top liquid symbols (requires admin:read)
-router.get("/liquidity/top", async (req: Request, res: Response) => {
+router.get("/liquidity/top", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const symbols = await liquidityService.getTopLiquid(
@@ -201,7 +202,7 @@ router.get("/liquidity/top", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/liquidity/compute - Compute liquidity metrics (requires admin:write)
-router.post("/liquidity/compute", async (req: Request, res: Response) => {
+router.post("/liquidity/compute", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbols, traceId } = req.body;
     const result = await liquidityService.computeLiquidityMetrics({
@@ -223,7 +224,7 @@ router.post("/liquidity/compute", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/fundamentals/stats - Get fundamentals stats (requires admin:read)
-router.get("/fundamentals/stats", async (req: Request, res: Response) => {
+router.get("/fundamentals/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await fundamentalsService.getStats();
     res.json({
@@ -238,7 +239,7 @@ router.get("/fundamentals/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/fundamentals/:symbol - Get symbol fundamentals (requires admin:read)
-router.get("/fundamentals/:symbol", async (req: Request, res: Response) => {
+router.get("/fundamentals/:symbol", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const fundamentals =
@@ -254,7 +255,7 @@ router.get("/fundamentals/:symbol", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/fundamentals/top/scores - Get top scoring symbols (requires admin:read)
-router.get("/fundamentals/top/scores", async (req: Request, res: Response) => {
+router.get("/fundamentals/top/scores", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const symbols = await fundamentalsService.getTopByScore(
@@ -268,7 +269,7 @@ router.get("/fundamentals/top/scores", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/fundamentals/fetch - Fetch fundamentals (requires admin:write)
-router.post("/fundamentals/fetch", async (req: Request, res: Response) => {
+router.post("/fundamentals/fetch", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbols, traceId } = req.body;
     const result = await fundamentalsService.fetchAndStoreFundamentals({
@@ -290,7 +291,7 @@ router.post("/fundamentals/fetch", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/candidates/stats - Get candidates stats (requires admin:read)
-router.get("/candidates/stats", async (req: Request, res: Response) => {
+router.get("/candidates/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await candidatesService.getStats();
     res.json({
@@ -305,7 +306,7 @@ router.get("/candidates/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/candidates - Get candidates (requires admin:read)
-router.get("/candidates", async (req: Request, res: Response) => {
+router.get("/candidates", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { status, limit } = req.query;
 
@@ -332,7 +333,7 @@ router.get("/candidates", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/candidates/:symbol - Get specific candidate (requires admin:read)
-router.get("/candidates/:symbol", async (req: Request, res: Response) => {
+router.get("/candidates/:symbol", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const candidate = await candidatesService.getCandidateBySymbol(symbol);
@@ -349,7 +350,7 @@ router.get("/candidates/:symbol", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/candidates/generate - Generate candidates (requires admin:write)
-router.post("/candidates/generate", async (req: Request, res: Response) => {
+router.post("/candidates/generate", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { minLiquidityTier, minScore, limit, traceId } = req.body;
 
@@ -419,7 +420,7 @@ router.post(
 );
 
 // GET /api/admin/candidates/approved/list - Get approved symbols (requires admin:read)
-router.get("/candidates/approved/list", async (req: Request, res: Response) => {
+router.get("/candidates/approved/list", requireAdmin, async (req: Request, res: Response) => {
   try {
     const symbols = await candidatesService.getApprovedSymbols();
     res.json({ symbols, count: symbols.length });
@@ -434,7 +435,7 @@ router.get("/candidates/approved/list", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/enforcement/stats - Get enforcement stats (requires admin:read)
-router.get("/enforcement/stats", async (req: Request, res: Response) => {
+router.get("/enforcement/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await tradingEnforcementService.getStats();
     res.json({
@@ -449,7 +450,7 @@ router.get("/enforcement/stats", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/enforcement/check - Check trading eligibility (requires admin:read)
-router.post("/enforcement/check", async (req: Request, res: Response) => {
+router.post("/enforcement/check", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { symbol, symbols, traceId } = req.body;
 
@@ -475,7 +476,7 @@ router.post("/enforcement/check", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/enforcement/reset-stats - Reset stats (requires admin:write)
-router.post("/enforcement/reset-stats", async (req: Request, res: Response) => {
+router.post("/enforcement/reset-stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     tradingEnforcementService.resetStats();
     res.json({ success: true, message: "Enforcement stats reset" });
@@ -490,7 +491,7 @@ router.post("/enforcement/reset-stats", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/allocation/stats - Get allocation stats (requires admin:read)
-router.get("/allocation/stats", async (req: Request, res: Response) => {
+router.get("/allocation/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await allocationService.getStats();
     res.json({
@@ -505,7 +506,7 @@ router.get("/allocation/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/allocation/policies - List policies (requires admin:read)
-router.get("/allocation/policies", async (req: Request, res: Response) => {
+router.get("/allocation/policies", requireAdmin, async (req: Request, res: Response) => {
   try {
     const policies = await allocationService.listPolicies();
     res.json({ policies, count: policies.length });
@@ -533,7 +534,7 @@ router.get(
 );
 
 // GET /api/admin/allocation/policies/:id - Get policy by ID (requires admin:read)
-router.get("/allocation/policies/:id", async (req: Request, res: Response) => {
+router.get("/allocation/policies/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const policy = await allocationService.getPolicyById(id);
@@ -548,7 +549,7 @@ router.get("/allocation/policies/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/allocation/policies - Create policy (requires admin:write)
-router.post("/allocation/policies", async (req: Request, res: Response) => {
+router.post("/allocation/policies", requireAdmin, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     const policy = await allocationService.createPolicy({
@@ -617,7 +618,7 @@ router.post(
 );
 
 // POST /api/admin/allocation/analyze - Analyze rebalance (requires admin:read)
-router.post("/allocation/analyze", async (req: Request, res: Response) => {
+router.post("/allocation/analyze", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { traceId } = req.body;
     const analysis = await allocationService.analyzeRebalance(
@@ -639,7 +640,7 @@ router.post("/allocation/analyze", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/allocation/runs - Get rebalance runs (requires admin:read)
-router.get("/allocation/runs", async (req: Request, res: Response) => {
+router.get("/allocation/runs", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const runs = await allocationService.getRebalanceRuns(
@@ -653,7 +654,7 @@ router.get("/allocation/runs", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/allocation/runs/:id - Get rebalance run by ID (requires admin:read)
-router.get("/allocation/runs/:id", async (req: Request, res: Response) => {
+router.get("/allocation/runs/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const run = await allocationService.getRebalanceRunById(id);
@@ -672,7 +673,7 @@ router.get("/allocation/runs/:id", async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/admin/rebalancer/stats - Get rebalancer stats (requires admin:read)
-router.get("/rebalancer/stats", async (req: Request, res: Response) => {
+router.get("/rebalancer/stats", requireAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await rebalancerService.getStats();
     res.json({
@@ -687,7 +688,7 @@ router.get("/rebalancer/stats", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/rebalancer/dry-run - Execute dry run (requires admin:read)
-router.post("/rebalancer/dry-run", async (req: Request, res: Response) => {
+router.post("/rebalancer/dry-run", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { traceId } = req.body;
     const analysis = await rebalancerService.executeDryRun(
@@ -716,7 +717,7 @@ router.post("/rebalancer/dry-run", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/rebalancer/execute - Execute rebalance (requires admin:write)
-router.post("/rebalancer/execute", async (req: Request, res: Response) => {
+router.post("/rebalancer/execute", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { traceId, dryRun } = req.body;
     const result = await rebalancerService.executeRebalance(

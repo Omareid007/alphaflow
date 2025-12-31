@@ -9,6 +9,7 @@ import aiRouter from "./ai";
 import systemRouter from "./system";
 import tradingRouter from "./trading";
 import managementRouter from "./management";
+import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
 
 const router = Router();
 

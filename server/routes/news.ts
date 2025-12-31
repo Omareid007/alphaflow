@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { log } from "../utils/logger";
 import { badRequest, serverError } from "../lib/standard-errors";
 import { newsapi } from "../connectors/newsapi";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
 // ==============
 
 // Get top news headlines by category and country
-router.get("/headlines", async (req: Request, res: Response) => {
+router.get("/headlines", requireAuth, async (req: Request, res: Response) => {
   try {
     const category =
       (req.query.category as "business" | "technology" | "general") ||
@@ -29,7 +30,7 @@ router.get("/headlines", async (req: Request, res: Response) => {
 });
 
 // Search news articles by query
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = req.query.q as string;
     if (!query) {
@@ -48,7 +49,7 @@ router.get("/search", async (req: Request, res: Response) => {
 });
 
 // Get market-related news
-router.get("/market", async (req: Request, res: Response) => {
+router.get("/market", requireAuth, async (req: Request, res: Response) => {
   try {
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.getMarketNews(pageSize);
@@ -60,7 +61,7 @@ router.get("/market", async (req: Request, res: Response) => {
 });
 
 // Get cryptocurrency-related news
-router.get("/crypto", async (req: Request, res: Response) => {
+router.get("/crypto", requireAuth, async (req: Request, res: Response) => {
   try {
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const articles = await newsapi.getCryptoNews(pageSize);
@@ -72,7 +73,7 @@ router.get("/crypto", async (req: Request, res: Response) => {
 });
 
 // Get news for a specific stock symbol
-router.get("/stock/:symbol", async (req: Request, res: Response) => {
+router.get("/stock/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const pageSize = parseInt(req.query.pageSize as string) || 10;

@@ -20,10 +20,11 @@ import type {
   AgentProvider,
   DebateRole,
 } from "@shared/schema";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.post("/run", async (req: Request, res: Response) => {
+router.post("/run", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       symbols,
@@ -62,7 +63,7 @@ router.post("/run", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/runs", async (req: Request, res: Response) => {
+router.get("/runs", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const cursor = req.query.cursor as string | undefined;
@@ -100,7 +101,7 @@ router.get("/runs", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/runs/:id", async (req: Request, res: Response) => {
+router.get("/runs/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const run = await db.query.aiArenaRuns.findFirst({
       where: eq(aiArenaRuns.id, req.params.id),
@@ -148,7 +149,7 @@ router.get("/runs/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/leaderboard", async (req: Request, res: Response) => {
+router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
   try {
     const window = (req.query.window as string) || "30d";
     const days = parseInt(window.replace("d", "")) || 30;
@@ -166,7 +167,7 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/profiles", async (req: Request, res: Response) => {
+router.get("/profiles", requireAuth, async (req: Request, res: Response) => {
   try {
     const profiles = await db.query.aiAgentProfiles.findMany({
       orderBy: [desc(aiAgentProfiles.createdAt)],
@@ -179,7 +180,7 @@ router.get("/profiles", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/profiles", async (req: Request, res: Response) => {
+router.post("/profiles", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -203,20 +204,16 @@ router.post("/profiles", async (req: Request, res: Response) => {
 
     const validProviders = ["openai", "openrouter", "groq", "together"];
     if (!validProviders.includes(provider)) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid provider. Must be one of: ${validProviders.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Invalid provider. Must be one of: ${validProviders.join(", ")}`,
+      });
     }
 
     const validModes = ["cheap_first", "escalation_only", "always"];
     if (!validModes.includes(mode)) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
-        });
+      return res.status(400).json({
+        error: `Invalid mode. Must be one of: ${validModes.join(", ")}`,
+      });
     }
 
     const [profile] = await db
@@ -240,15 +237,13 @@ router.post("/profiles", async (req: Request, res: Response) => {
     res.json(profile);
   } catch (error) {
     log.error("ArenaAPI", `Failed to create agent profile: ${error}`);
-    res
-      .status(500)
-      .json({
-        error: (error as Error).message || "Failed to create agent profile",
-      });
+    res.status(500).json({
+      error: (error as Error).message || "Failed to create agent profile",
+    });
   }
 });
 
-router.get("/profiles/:id", async (req: Request, res: Response) => {
+router.get("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const profile = await db.query.aiAgentProfiles.findFirst({
       where: eq(aiAgentProfiles.id, req.params.id),
@@ -265,7 +260,7 @@ router.get("/profiles/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/profiles/:id", async (req: Request, res: Response) => {
+router.patch("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       status,
@@ -302,15 +297,13 @@ router.patch("/profiles/:id", async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error) {
     log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
-    res
-      .status(500)
-      .json({
-        error: (error as Error).message || "Failed to update agent profile",
-      });
+    res.status(500).json({
+      error: (error as Error).message || "Failed to update agent profile",
+    });
   }
 });
 
-router.delete("/profiles/:id", async (req: Request, res: Response) => {
+router.delete("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const [deleted] = await db
       .update(aiAgentProfiles)
@@ -329,7 +322,7 @@ router.delete("/profiles/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/stats", async (req: Request, res: Response) => {
+router.get("/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const today = new Date(new Date().setHours(0, 0, 0, 0));
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
  * Get real-time market quotes for symbols
  * Query params: { symbols: string } - comma-separated list of symbols
  */
-router.get("/quotes", async (req: Request, res: Response) => {
+router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbolsParam = req.query.symbols as string;
     if (!symbolsParam) {

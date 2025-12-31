@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { log } from "../utils/logger";
 import { serverError } from "../lib/standard-errors";
 import { uaeMarkets } from "../connectors/uae-markets";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
 // =====================
 
 // Get top stocks from UAE markets (ADX/DFM)
-router.get("/stocks", async (req: Request, res: Response) => {
+router.get("/stocks", requireAuth, async (req: Request, res: Response) => {
   try {
     const exchange = req.query.exchange as "ADX" | "DFM" | undefined;
     const stocks = await uaeMarkets.getTopStocks(exchange);
@@ -21,7 +22,7 @@ router.get("/stocks", async (req: Request, res: Response) => {
 });
 
 // Get market summary for UAE exchanges
-router.get("/summary", async (req: Request, res: Response) => {
+router.get("/summary", requireAuth, async (req: Request, res: Response) => {
   try {
     const exchange = req.query.exchange as "ADX" | "DFM" | undefined;
     const summary = await uaeMarkets.getMarketSummary(exchange);
@@ -33,7 +34,7 @@ router.get("/summary", async (req: Request, res: Response) => {
 });
 
 // Get UAE market info
-router.get("/info", async (req: Request, res: Response) => {
+router.get("/info", requireAuth, async (req: Request, res: Response) => {
   try {
     const info = uaeMarkets.getMarketInfo();
     res.json(info);
@@ -44,7 +45,7 @@ router.get("/info", async (req: Request, res: Response) => {
 });
 
 // Get UAE connector status
-router.get("/status", async (req: Request, res: Response) => {
+router.get("/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = uaeMarkets.getConnectionStatus();
     res.json(status);

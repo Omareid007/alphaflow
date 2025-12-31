@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { log } from "../utils/logger";
 import { badRequest, notFound, serverError } from "../lib/standard-errors";
 import { insertPositionSchema } from "@shared/schema";
-import { alpaca } from "../connectors/alpaca";
+import { alpaca, type AlpacaPosition } from "../connectors/alpaca";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import {
   mapAlpacaPositionToEnriched,
@@ -11,6 +11,24 @@ import {
   createUnavailableSourceMetadata,
   type EnrichedPosition,
 } from "@shared/position-mapper";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+
+/**
+ * Mapped position for snapshot response
+ */
+interface SnapshotPosition {
+  id: string;
+  symbol: string;
+  side: "long" | "short";
+  qty: number;
+  entryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  unrealizedPl: number;
+  unrealizedPlPct: number;
+  costBasis: number;
+  assetClass: "crypto" | "us_equity";
+}
 
 const router = Router();
 
@@ -20,7 +38,7 @@ const router = Router();
  * Returns comprehensive portfolio metrics including positions, P&L, and account data
  * MUST be before /api/positions/:id route
  */
-router.get("/snapshot", async (req: Request, res: Response) => {
+router.get("/snapshot", requireAuth, async (req: Request, res: Response) => {
   try {
     // Get Alpaca account and positions in parallel for faster response
     const [alpacaAccount, alpacaPositions] = await Promise.all([
@@ -40,23 +58,27 @@ router.get("/snapshot", async (req: Request, res: Response) => {
     const dailyPlPct = lastEquity > 0 ? (dailyPl / lastEquity) * 100 : 0;
 
     // Map positions to required format
-    const positions = alpacaPositions.map((pos: any) => ({
-      id: pos.asset_id,
-      symbol: pos.symbol,
-      side: pos.side === "long" ? "long" : "short",
-      qty: parseFloat(pos.qty),
-      entryPrice: parseFloat(pos.avg_entry_price),
-      currentPrice: parseFloat(pos.current_price),
-      marketValue: parseFloat(pos.market_value),
-      unrealizedPl: parseFloat(pos.unrealized_pl),
-      unrealizedPlPct: parseFloat(pos.unrealized_plpc) * 100,
-      costBasis: parseFloat(pos.cost_basis),
-      assetClass: pos.asset_class === "crypto" ? "crypto" : "us_equity",
-    }));
+    const positions: SnapshotPosition[] = alpacaPositions.map(
+      (pos: AlpacaPosition) => ({
+        id: pos.asset_id,
+        symbol: pos.symbol,
+        side: (pos.side === "long" ? "long" : "short") as "long" | "short",
+        qty: parseFloat(pos.qty),
+        entryPrice: parseFloat(pos.avg_entry_price),
+        currentPrice: parseFloat(pos.current_price),
+        marketValue: parseFloat(pos.market_value),
+        unrealizedPl: parseFloat(pos.unrealized_pl),
+        unrealizedPlPct: parseFloat(pos.unrealized_plpc) * 100,
+        costBasis: parseFloat(pos.cost_basis),
+        assetClass: (pos.asset_class === "crypto"
+          ? "crypto"
+          : "us_equity") as "crypto" | "us_equity",
+      })
+    );
 
     // Calculate total unrealized P&L from positions
     const totalUnrealizedPl = positions.reduce(
-      (sum: number, pos: any) => sum + pos.unrealizedPl,
+      (sum: number, pos: SnapshotPosition) => sum + pos.unrealizedPl,
       0
     );
 
@@ -83,8 +105,8 @@ router.get("/snapshot", async (req: Request, res: Response) => {
       positions,
       timestamp: new Date().toISOString(),
       positionCount: positions.length,
-      longPositions: positions.filter((p: any) => p.side === "long").length,
-      shortPositions: positions.filter((p: any) => p.side === "short").length,
+      longPositions: positions.filter((p) => p.side === "long").length,
+      shortPositions: positions.filter((p) => p.side === "short").length,
       totalRealizedPl,
       totalUnrealizedPl,
     };
@@ -105,7 +127,7 @@ router.get("/snapshot", async (req: Request, res: Response) => {
  * Database sync happens async - DB is cache/audit trail only
  * Filters out dust positions (< 0.0001 shares)
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   const DUST_THRESHOLD = 0.0001;
   try {
@@ -156,7 +178,7 @@ router.get("/", async (req: Request, res: Response) => {
  * Alias for /api/positions (backward compatibility)
  * Uses Alpaca source of truth
  */
-router.get("/broker", async (req: Request, res: Response) => {
+router.get("/broker", requireAuth, async (req: Request, res: Response) => {
   const fetchedAt = new Date();
   const DUST_THRESHOLD = 0.0001;
   try {
@@ -189,7 +211,7 @@ router.get("/broker", async (req: Request, res: Response) => {
  * GET /api/positions/:id
  * Get a specific position by ID from database
  */
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const position = await storage.getPosition(req.params.id);
     if (!position) {
@@ -206,7 +228,7 @@ router.get("/:id", async (req: Request, res: Response) => {
  * POST /api/positions
  * Create a new position in the database
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const parsed = insertPositionSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -224,7 +246,7 @@ router.post("/", async (req: Request, res: Response) => {
  * PATCH /api/positions/:id
  * Update an existing position
  */
-router.patch("/:id", async (req: Request, res: Response) => {
+router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const position = await storage.updatePosition(req.params.id, req.body);
     if (!position) {
@@ -241,7 +263,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
  * DELETE /api/positions/:id
  * Delete a position from database
  */
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const deleted = await storage.deletePosition(req.params.id);
     if (!deleted) {
@@ -258,7 +280,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
  * POST /api/positions/reconcile
  * Reconcile positions between database and Alpaca
  */
-router.post("/reconcile", async (req: Request, res: Response) => {
+router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
   try {
     const { positionReconciler } =
       await import("../services/position-reconciler");
@@ -275,7 +297,7 @@ router.post("/reconcile", async (req: Request, res: Response) => {
  * GET /api/positions/reconcile/status
  * Get the status of position reconciliation
  */
-router.get("/reconcile/status", async (req: Request, res: Response) => {
+router.get("/reconcile/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const { positionReconciler } =
       await import("../services/position-reconciler");
@@ -291,7 +313,7 @@ router.get("/reconcile/status", async (req: Request, res: Response) => {
  * POST /api/positions/close/:symbol
  * Close a specific position by symbol
  */
-router.post("/close/:symbol", async (req: Request, res: Response) => {
+router.post("/close/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     if (!symbol) {
@@ -329,7 +351,7 @@ router.post("/close/:symbol", async (req: Request, res: Response) => {
  * POST /api/positions/close-all
  * Close all open positions
  */
-router.post("/close-all", async (req: Request, res: Response) => {
+router.post("/close-all", requireAuth, async (req: Request, res: Response) => {
   try {
     // SECURITY: Mark as authorized since this is an admin-initiated emergency action
     const result = await alpacaTradingEngine.closeAllPositions({

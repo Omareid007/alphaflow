@@ -9,11 +9,12 @@ import { storage } from "../storage";
 import { workQueue } from "../lib/work-queue";
 import { log } from "../utils/logger";
 import { candidatesService } from "../universe";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
 // GET /api/universe/stats - Get universe statistics
-router.get("/stats", async (req: Request, res: Response) => {
+router.get("/stats", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = await tradabilityService.getUniverseStats();
     res.json(stats);
@@ -24,7 +25,7 @@ router.get("/stats", async (req: Request, res: Response) => {
 });
 
 // GET /api/universe/symbols - Get all tradable symbols
-router.get("/symbols", async (req: Request, res: Response) => {
+router.get("/symbols", requireAuth, async (req: Request, res: Response) => {
   try {
     const { assetClass, tradableOnly, limit } = req.query;
     const assets = await storage.getBrokerAssets(
@@ -43,7 +44,7 @@ router.get("/symbols", async (req: Request, res: Response) => {
 });
 
 // GET /api/universe/search - Search symbols
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const { q, limit } = req.query;
     if (!q || typeof q !== "string") {
@@ -61,7 +62,7 @@ router.get("/search", async (req: Request, res: Response) => {
 });
 
 // GET /api/universe/check/:symbol - Check if symbol is tradable
-router.get("/check/:symbol", async (req: Request, res: Response) => {
+router.get("/check/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const check = await tradabilityService.validateSymbolTradable(symbol);
@@ -73,7 +74,7 @@ router.get("/check/:symbol", async (req: Request, res: Response) => {
 });
 
 // POST /api/universe/sync - Sync universe (queued)
-router.post("/sync", async (req: Request, res: Response) => {
+router.post("/sync", requireAuth, async (req: Request, res: Response) => {
   try {
     const { assetClass } = req.body;
 
@@ -96,7 +97,7 @@ router.post("/sync", async (req: Request, res: Response) => {
 });
 
 // POST /api/universe/sync-now - Sync universe immediately
-router.post("/sync-now", async (req: Request, res: Response) => {
+router.post("/sync-now", requireAuth, async (req: Request, res: Response) => {
   try {
     const { assetClass } = req.body;
     const result = await tradabilityService.syncAssetUniverse(
@@ -111,7 +112,7 @@ router.post("/sync-now", async (req: Request, res: Response) => {
 });
 
 // GET /api/candidates - Get trading candidates
-router.get("/candidates", async (req: Request, res: Response) => {
+router.get("/candidates", requireAuth, async (req: Request, res: Response) => {
   try {
     const { status, limit } = req.query;
 
@@ -138,7 +139,7 @@ router.get("/candidates", async (req: Request, res: Response) => {
 });
 
 // GET /api/watchlist - Get watchlist candidates
-router.get("/watchlist", async (req: Request, res: Response) => {
+router.get("/watchlist", requireAuth, async (req: Request, res: Response) => {
   try {
     const candidates = await candidatesService.getCandidatesByStatus(
       "WATCHLIST",

@@ -7,6 +7,14 @@ import { Router, Request, Response } from "express";
 import { alpaca } from "../connectors/alpaca";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { log } from "../utils/logger";
+import { emitOrderUpdate, emitPositionUpdate } from "../lib/sse-emitter";
+import {
+  alpacaOrderSchema,
+  bracketOrderSchema,
+  trailingStopSchema,
+  validateRequest,
+} from "../validation/api-schemas";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 /** Order parameters for Alpaca API */
 interface AlpacaOrderParams {
@@ -28,7 +36,7 @@ interface ErrorWithMessage {
 const router = Router();
 
 // POST /api/alpaca/clear-cache - Clear Alpaca cache (admin only)
-router.post("/clear-cache", async (req: Request, res: Response) => {
+router.post("/clear-cache", requireAdmin, async (req: Request, res: Response) => {
   try {
     alpaca.clearCache();
     log.info("AlpacaAPI", "Cache cleared successfully");
@@ -40,7 +48,7 @@ router.post("/clear-cache", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/account - Get Alpaca account info
-router.get("/account", async (req: Request, res: Response) => {
+router.get("/account", requireAuth, async (req: Request, res: Response) => {
   try {
     const account = await alpaca.getAccount();
     res.json(account);
@@ -51,7 +59,7 @@ router.get("/account", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/positions - Get current positions
-router.get("/positions", async (req: Request, res: Response) => {
+router.get("/positions", requireAuth, async (req: Request, res: Response) => {
   try {
     const positions = await alpaca.getPositions();
     // Filter out dust positions (< 0.0001 shares)
@@ -68,7 +76,7 @@ router.get("/positions", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/assets - Get tradable assets
-router.get("/assets", async (req: Request, res: Response) => {
+router.get("/assets", requireAuth, async (req: Request, res: Response) => {
   try {
     const assetClass =
       (req.query.asset_class as "us_equity" | "crypto") || "us_equity";
@@ -81,7 +89,7 @@ router.get("/assets", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/assets/search - Search for assets
-router.get("/assets/search", async (req: Request, res: Response) => {
+router.get("/assets/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = ((req.query.query as string) || "").toUpperCase();
     if (!query) {
@@ -103,7 +111,7 @@ router.get("/assets/search", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/allocations - Get current portfolio allocations
-router.get("/allocations", async (req: Request, res: Response) => {
+router.get("/allocations", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await alpacaTradingEngine.getCurrentAllocations();
     res.json(result);
@@ -114,7 +122,7 @@ router.get("/allocations", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca/rebalance/preview - Preview rebalance trades
-router.post("/rebalance/preview", async (req: Request, res: Response) => {
+router.post("/rebalance/preview", requireAuth, async (req: Request, res: Response) => {
   try {
     const { targetAllocations } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
@@ -141,7 +149,7 @@ router.post("/rebalance/preview", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca/rebalance/execute - Execute rebalance trades
-router.post("/rebalance/execute", async (req: Request, res: Response) => {
+router.post("/rebalance/execute", requireAuth, async (req: Request, res: Response) => {
   try {
     const { targetAllocations, preview } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
@@ -162,7 +170,7 @@ router.post("/rebalance/execute", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/rebalance/suggestions - Get AI rebalance suggestions
-router.get("/rebalance/suggestions", async (req: Request, res: Response) => {
+router.get("/rebalance/suggestions", requireAuth, async (req: Request, res: Response) => {
   try {
     const suggestions = await alpacaTradingEngine.getRebalanceSuggestions();
     res.json(suggestions);
@@ -173,7 +181,7 @@ router.get("/rebalance/suggestions", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/bars - Get historical price bars
-router.get("/bars", async (req: Request, res: Response) => {
+router.get("/bars", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol, timeframe = "1Day", limit = 100 } = req.query;
     if (!symbol) {
@@ -197,7 +205,7 @@ router.get("/bars", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/snapshots - Get market snapshots for multiple symbols
-router.get("/snapshots", async (req: Request, res: Response) => {
+router.get("/snapshots", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbolsParam = req.query.symbols as string;
     if (!symbolsParam) {
@@ -234,7 +242,7 @@ router.get("/snapshots", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/health - Check Alpaca connection health
-router.get("/health", async (req: Request, res: Response) => {
+router.get("/health", requireAuth, async (req: Request, res: Response) => {
   try {
     const start = Date.now();
     const account = await alpaca.getAccount();
@@ -260,7 +268,7 @@ router.get("/health", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca/reset-circuit-breaker - Reset circuit breaker
-router.post("/reset-circuit-breaker", async (req: Request, res: Response) => {
+router.post("/reset-circuit-breaker", requireAdmin, async (req: Request, res: Response) => {
   try {
     alpaca.resetCircuitBreaker();
     log.info("AlpacaAPI", "Circuit breaker reset successfully via API");
@@ -275,7 +283,7 @@ router.post("/reset-circuit-breaker", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/orders - Get orders
-router.get("/orders", async (req: Request, res: Response) => {
+router.get("/orders", requireAuth, async (req: Request, res: Response) => {
   try {
     const statusParam = (req.query.status as string) || "all";
     const status: "open" | "closed" | "all" =
@@ -294,8 +302,14 @@ router.get("/orders", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca/orders - Create a new order
-router.post("/orders", async (req: Request, res: Response) => {
+router.post("/orders", requireAuth, async (req: Request, res: Response) => {
   try {
+    // Validate request body using Zod schema
+    const validation = validateRequest(alpacaOrderSchema, req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error });
+    }
+
     const {
       symbol,
       side,
@@ -305,11 +319,7 @@ router.post("/orders", async (req: Request, res: Response) => {
       time_in_force,
       limit_price,
       stop_price,
-    } = req.body;
-
-    if (!symbol || !side) {
-      return res.status(400).json({ error: "symbol and side are required" });
-    }
+    } = validation.data;
 
     const orderParams: AlpacaOrderParams = {
       symbol: symbol.toUpperCase(),
@@ -324,6 +334,21 @@ router.post("/orders", async (req: Request, res: Response) => {
     if (stop_price) orderParams.stop_price = String(stop_price);
 
     const order = await alpaca.createOrder(orderParams);
+
+    // Emit real-time order update to connected clients
+    const userId = (req as any).user?.id;
+    if (userId) {
+      emitOrderUpdate(order.id, {
+        status: order.status,
+        symbol: order.symbol,
+        side: order.side,
+        qty: order.qty,
+        filled_qty: order.filled_qty,
+        type: order.type,
+        created_at: order.created_at,
+      }, userId);
+    }
+
     res.json(order);
   } catch (error) {
     const err = error as ErrorWithMessage;
@@ -333,7 +358,7 @@ router.post("/orders", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/alpaca/orders/:orderId - Cancel an order
-router.delete("/orders/:orderId", async (req: Request, res: Response) => {
+router.delete("/orders/:orderId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
     await alpaca.cancelOrder(orderId);
@@ -346,7 +371,7 @@ router.delete("/orders/:orderId", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/alpaca/orders - Cancel all orders
-router.delete("/orders", async (req: Request, res: Response) => {
+router.delete("/orders", requireAuth, async (req: Request, res: Response) => {
   try {
     await alpaca.cancelAllOrders();
     res.json({ success: true, message: "All orders cancelled" });
@@ -360,7 +385,7 @@ router.delete("/orders", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/alpaca/positions/:symbol - Close a position
-router.delete("/positions/:symbol", async (req: Request, res: Response) => {
+router.delete("/positions/:symbol", requireAuth, async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
     const result = await alpaca.closePosition(symbol);
@@ -375,7 +400,7 @@ router.delete("/positions/:symbol", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/alpaca/positions - Close all positions
-router.delete("/positions", async (req: Request, res: Response) => {
+router.delete("/positions", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await alpaca.closeAllPositions();
     res.json(result);
@@ -389,7 +414,7 @@ router.delete("/positions", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/clock - Get market clock
-router.get("/clock", async (req: Request, res: Response) => {
+router.get("/clock", requireAuth, async (req: Request, res: Response) => {
   try {
     const { alpacaTradingEngine } =
       await import("../trading/alpaca-trading-engine");
@@ -402,7 +427,7 @@ router.get("/clock", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/market-status - Get market status
-router.get("/market-status", async (req: Request, res: Response) => {
+router.get("/market-status", requireAuth, async (req: Request, res: Response) => {
   try {
     const { alpacaTradingEngine } =
       await import("../trading/alpaca-trading-engine");
@@ -434,7 +459,7 @@ router.get(
 );
 
 // GET /api/alpaca/portfolio-history - Get portfolio history
-router.get("/portfolio-history", async (req: Request, res: Response) => {
+router.get("/portfolio-history", requireAuth, async (req: Request, res: Response) => {
   try {
     const period = (req.query.period as string) || "1M";
     const timeframe = (req.query.timeframe as string) || "1D";
@@ -447,7 +472,7 @@ router.get("/portfolio-history", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/top-stocks - Get top stocks by market cap
-router.get("/top-stocks", async (req: Request, res: Response) => {
+router.get("/top-stocks", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 25;
     const stocks = await alpaca.getTopStocks(limit);
@@ -459,7 +484,7 @@ router.get("/top-stocks", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/top-crypto - Get top crypto by market cap
-router.get("/top-crypto", async (req: Request, res: Response) => {
+router.get("/top-crypto", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 25;
     const crypto = await alpaca.getTopCrypto(limit);
@@ -471,7 +496,7 @@ router.get("/top-crypto", async (req: Request, res: Response) => {
 });
 
 // GET /api/alpaca/top-etfs - Get top ETFs by market cap
-router.get("/top-etfs", async (req: Request, res: Response) => {
+router.get("/top-etfs", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 25;
     const etfs = await alpaca.getTopETFs(limit);
@@ -483,7 +508,7 @@ router.get("/top-etfs", async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca/validate-order - Validate order parameters
-router.post("/validate-order", async (req: Request, res: Response) => {
+router.post("/validate-order", requireAuth, async (req: Request, res: Response) => {
   try {
     const validation = alpaca.validateOrder(req.body);
     res.json(validation);

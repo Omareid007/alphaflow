@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { log } from "../utils/logger";
 import { badRequest, serverError } from "../lib/standard-errors";
 import { coinmarketcap } from "../connectors/coinmarketcap";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
 // ========================
 
 // Get CoinMarketCap cryptocurrency listings
-router.get("/listings", async (req: Request, res: Response) => {
+router.get("/listings", requireAuth, async (req: Request, res: Response) => {
   try {
     const start = parseInt(req.query.start as string) || 1;
     const limit = parseInt(req.query.limit as string) || 100;
@@ -22,7 +23,7 @@ router.get("/listings", async (req: Request, res: Response) => {
 });
 
 // Get CoinMarketCap quotes for symbols
-router.get("/quotes", async (req: Request, res: Response) => {
+router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
   try {
     const symbols = (req.query.symbols as string)?.split(",") || ["BTC", "ETH"];
     const quotes = await coinmarketcap.getQuotesBySymbols(symbols);
@@ -34,7 +35,7 @@ router.get("/quotes", async (req: Request, res: Response) => {
 });
 
 // Get CoinMarketCap global metrics
-router.get("/global", async (req: Request, res: Response) => {
+router.get("/global", requireAuth, async (req: Request, res: Response) => {
   try {
     const metrics = await coinmarketcap.getGlobalMetrics();
     res.json(metrics);
@@ -47,7 +48,7 @@ router.get("/global", async (req: Request, res: Response) => {
 });
 
 // Search cryptocurrencies on CoinMarketCap
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const query = req.query.q as string;
     if (!query) {

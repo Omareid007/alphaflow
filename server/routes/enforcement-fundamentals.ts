@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { alertRules, universeFundamentals } from "@shared/schema";
 import { log } from "../utils/logger";
 import { getSession } from "../lib/session";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 

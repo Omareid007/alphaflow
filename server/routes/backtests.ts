@@ -13,10 +13,11 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { log } from "../utils/logger";
 import { sanitizeArray } from "../lib/sanitization";
+import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
-router.post("/run", async (req: Request, res: Response) => {
+router.post("/run", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       strategyId,
@@ -46,12 +47,10 @@ router.post("/run", async (req: Request, res: Response) => {
       universe && universe.length > 0 ? universe : defaultUniverse;
 
     if (backtestUniverse.length === 0) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "universe must contain at least one symbol. Default symbols: SPY, QQQ, AAPL",
-        });
+      return res.status(400).json({
+        error:
+          "universe must contain at least one symbol. Default symbols: SPY, QQQ, AAPL",
+      });
     }
     if (!startDate || !endDate) {
       return res
@@ -105,7 +104,7 @@ router.post("/run", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -117,7 +116,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const run = await getBacktestRun(req.params.id);
     if (!run) {
@@ -130,7 +129,7 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id/equity-curve", async (req: Request, res: Response) => {
+router.get("/:id/equity-curve", requireAuth, async (req: Request, res: Response) => {
   try {
     const points = await db
       .select()
@@ -152,7 +151,7 @@ router.get("/:id/equity-curve", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id/trades", async (req: Request, res: Response) => {
+router.get("/:id/trades", requireAuth, async (req: Request, res: Response) => {
   try {
     const trades = await db
       .select()
