@@ -2,7 +2,13 @@ import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
-import { tradingEnforcementService } from "../universe";
+import { withLock } from "./redis-cache";
+// Lazy import to break circular dependency with universe/index.ts
+// tradingEnforcementService -> rebalancerService -> work-queue
+const getTradingEnforcementService = async () => {
+  const { tradingEnforcementService } = await import("../universe");
+  return tradingEnforcementService;
+};
 import { tradingSessionManager } from "../services/trading-session-manager";
 import {
   transformOrderForExecution,
@@ -22,7 +28,12 @@ import crypto from "crypto";
 /**
  * Order types supported by Alpaca
  */
-type AlpacaOrderType = "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
+type AlpacaOrderType =
+  | "market"
+  | "limit"
+  | "stop"
+  | "stop_limit"
+  | "trailing_stop";
 
 /**
  * Time in force values for orders
@@ -110,6 +121,7 @@ const PERMANENT_ERROR_PATTERNS = [
   /market.*closed/i,
   /invalid.*quantity/i,
   /rejected/i,
+  /client_order_id.*unique/i, // 422 duplicate client_order_id
   /4[0-3]\d/,
 ];
 
@@ -192,7 +204,18 @@ class WorkQueueServiceImpl implements WorkQueueService {
   }
 
   async claimNext(types?: WorkItemType[]): Promise<WorkItem | null> {
-    return storage.claimNextWorkItem(types);
+    // TE-007 FIX: Use distributed lock to prevent concurrent claims
+    const lockKey = "work_queue:claim";
+    const result = await withLock(
+      lockKey,
+      async () => {
+        return storage.claimNextWorkItem(types);
+      },
+      10
+    ); // 10 second lock TTL (short to prevent blocking)
+
+    // If lock not acquired, return null (another worker is claiming)
+    return result;
   }
 
   async markSucceeded(id: string, result?: string): Promise<void> {
@@ -363,7 +386,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
     // For SELL orders, skip enforcement check - we must be able to close existing positions
     // even if the symbol is no longer in the approved candidates list
     if (side !== "sell") {
-      const enforcementCheck = await tradingEnforcementService.canTradeSymbol(
+      const enforcementService = await getTradingEnforcementService();
+      const enforcementCheck = await enforcementService.canTradeSymbol(
         symbol,
         traceId
       );
@@ -695,7 +719,8 @@ class WorkQueueServiceImpl implements WorkQueueService {
 
         validatedQty = finalQty.toString();
       } catch (posError: unknown) {
-        const errorMessage = posError instanceof Error ? posError.message : String(posError);
+        const errorMessage =
+          posError instanceof Error ? posError.message : String(posError);
         log.error(
           "work-queue",
           `Position validation failed for ${symbol}: ${errorMessage}`,
@@ -737,7 +762,10 @@ class WorkQueueServiceImpl implements WorkQueueService {
           return;
         }
       } catch (validationError: unknown) {
-        const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+        const errorMessage =
+          validationError instanceof Error
+            ? validationError.message
+            : String(validationError);
         log.warn(
           "work-queue",
           `Extended hours validation failed: ${errorMessage}`,

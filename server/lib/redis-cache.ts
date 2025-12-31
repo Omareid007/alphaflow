@@ -14,18 +14,18 @@
  * - Structured logging with pino
  */
 
-import Redis from 'ioredis';
-import { log } from '../utils/logger';
+import Redis from "ioredis";
+import { log } from "../utils/logger";
 
 // Redis client instance
 let redisClient: Redis | null = null;
 
 // Configuration from environment
 const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379", 10),
   password: process.env.REDIS_PASSWORD,
-  db: parseInt(process.env.REDIS_DB || '0', 10),
+  db: parseInt(process.env.REDIS_DB || "0", 10),
   retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
@@ -37,12 +37,12 @@ const REDIS_CONFIG = {
 
 // Default TTL values (seconds)
 export const CacheTTL = {
-  MARKET_QUOTE: 60,           // 1 minute for real-time quotes
-  MARKET_CANDLE: 300,          // 5 minutes for candle data
-  FUNDAMENTALS: 3600,          // 1 hour for fundamental data
-  API_RESPONSE: 120,           // 2 minutes for API responses
-  SESSION_DATA: 86400,         // 24 hours for session data
-  RATE_LIMIT: 900,             // 15 minutes for rate limit counters
+  MARKET_QUOTE: 60, // 1 minute for real-time quotes
+  MARKET_CANDLE: 300, // 5 minutes for candle data
+  FUNDAMENTALS: 3600, // 1 hour for fundamental data
+  API_RESPONSE: 120, // 2 minutes for API responses
+  SESSION_DATA: 86400, // 24 hours for session data
+  RATE_LIMIT: 900, // 15 minutes for rate limit counters
 } as const;
 
 /**
@@ -51,37 +51,37 @@ export const CacheTTL = {
 export async function initRedis(): Promise<boolean> {
   try {
     if (redisClient) {
-      log.info('Redis', 'Already connected', { host: REDIS_CONFIG.host });
+      log.info("Redis", "Already connected", { host: REDIS_CONFIG.host });
       return true;
     }
 
     redisClient = new Redis(REDIS_CONFIG);
 
     // Event handlers
-    redisClient.on('connect', () => {
-      log.info('Redis', 'Connection established', {
+    redisClient.on("connect", () => {
+      log.info("Redis", "Connection established", {
         host: REDIS_CONFIG.host,
         port: REDIS_CONFIG.port,
       });
     });
 
-    redisClient.on('ready', () => {
-      log.info('Redis', 'Ready for commands');
+    redisClient.on("ready", () => {
+      log.info("Redis", "Ready for commands");
     });
 
-    redisClient.on('error', (error) => {
-      log.error('Redis', 'Connection error', {
+    redisClient.on("error", (error) => {
+      log.error("Redis", "Connection error", {
         error: error.message,
         code: (error as NodeJS.ErrnoException).code,
       });
     });
 
-    redisClient.on('close', () => {
-      log.warn('Redis', 'Connection closed');
+    redisClient.on("close", () => {
+      log.warn("Redis", "Connection closed");
     });
 
-    redisClient.on('reconnecting', () => {
-      log.info('Redis', 'Reconnecting...');
+    redisClient.on("reconnecting", () => {
+      log.info("Redis", "Reconnecting...");
     });
 
     // Attempt connection
@@ -89,14 +89,14 @@ export async function initRedis(): Promise<boolean> {
 
     // Test connection with PING
     const pong = await redisClient.ping();
-    if (pong === 'PONG') {
-      log.info('Redis', 'Health check passed', { pong });
+    if (pong === "PONG") {
+      log.info("Redis", "Health check passed", { pong });
       return true;
     }
 
     return false;
   } catch (error) {
-    log.error('Redis', 'Failed to initialize', {
+    log.error("Redis", "Failed to initialize", {
       error: error instanceof Error ? error.message : String(error),
     });
     redisClient = null;
@@ -108,7 +108,7 @@ export async function initRedis(): Promise<boolean> {
  * Check if Redis is available
  */
 export function isRedisAvailable(): boolean {
-  return redisClient !== null && redisClient.status === 'ready';
+  return redisClient !== null && redisClient.status === "ready";
 }
 
 /**
@@ -116,7 +116,7 @@ export function isRedisAvailable(): boolean {
  */
 export async function getCache<T>(key: string): Promise<T | null> {
   if (!isRedisAvailable()) {
-    log.debug('Redis', 'Cache unavailable, returning null', { key });
+    log.debug("Redis", "Cache unavailable, returning null", { key });
     return null;
   }
 
@@ -128,7 +128,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
 
     return JSON.parse(value) as T;
   } catch (error) {
-    log.error('Redis', 'Get cache failed', {
+    log.error("Redis", "Get cache failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -145,7 +145,7 @@ export async function setCache(
   ttlSeconds: number = CacheTTL.API_RESPONSE
 ): Promise<boolean> {
   if (!isRedisAvailable()) {
-    log.debug('Redis', 'Cache unavailable, skipping set', { key });
+    log.debug("Redis", "Cache unavailable, skipping set", { key });
     return false;
   }
 
@@ -153,14 +153,14 @@ export async function setCache(
     const serialized = JSON.stringify(value);
     await redisClient!.setex(key, ttlSeconds, serialized);
 
-    log.debug('Redis', 'Cache set successfully', {
+    log.debug("Redis", "Cache set successfully", {
       key,
       ttl: ttlSeconds,
       size: serialized.length,
     });
     return true;
   } catch (error) {
-    log.error('Redis', 'Set cache failed', {
+    log.error("Redis", "Set cache failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -178,10 +178,10 @@ export async function delCache(key: string): Promise<boolean> {
 
   try {
     await redisClient!.del(key);
-    log.debug('Redis', 'Cache deleted', { key });
+    log.debug("Redis", "Cache deleted", { key });
     return true;
   } catch (error) {
-    log.error('Redis', 'Delete cache failed', {
+    log.error("Redis", "Delete cache failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -204,10 +204,10 @@ export async function invalidatePattern(pattern: string): Promise<number> {
     }
 
     await redisClient!.del(...keys);
-    log.info('Redis', 'Pattern invalidated', { pattern, count: keys.length });
+    log.info("Redis", "Pattern invalidated", { pattern, count: keys.length });
     return keys.length;
   } catch (error) {
-    log.error('Redis', 'Pattern invalidation failed', {
+    log.error("Redis", "Pattern invalidation failed", {
       pattern,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -236,7 +236,7 @@ export async function incrementCounter(
 
     return count;
   } catch (error) {
-    log.error('Redis', 'Increment counter failed', {
+    log.error("Redis", "Increment counter failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -251,10 +251,7 @@ export async function incrementCounter(
  * @param min - Minimum value (default: 0, won't go below this)
  * @returns New counter value
  */
-export async function decrementCounter(
-  key: string,
-  min = 0
-): Promise<number> {
+export async function decrementCounter(key: string, min = 0): Promise<number> {
   if (!isRedisAvailable()) {
     return 0;
   }
@@ -273,10 +270,10 @@ export async function decrementCounter(
       return redis.call('DECR', KEYS[1])
     `;
 
-    const count = await redisClient!.eval(script, 1, key, min) as number;
+    const count = (await redisClient!.eval(script, 1, key, min)) as number;
     return count;
   } catch (error) {
-    log.error('Redis', 'Decrement counter failed', {
+    log.error("Redis", "Decrement counter failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -302,7 +299,7 @@ export async function getCounter(key: string): Promise<number | null> {
     }
     return parseInt(value, 10);
   } catch (error) {
-    log.error('Redis', 'Get counter failed', {
+    log.error("Redis", "Get counter failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -335,7 +332,7 @@ export async function setCounter(
     }
     return true;
   } catch (error) {
-    log.error('Redis', 'Set counter failed', {
+    log.error("Redis", "Set counter failed", {
       key,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -357,9 +354,9 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await redisClient!.info('stats');
-    const keyspace = await redisClient!.info('keyspace');
-    const server = await redisClient!.info('server');
+    const info = await redisClient!.info("stats");
+    const keyspace = await redisClient!.info("keyspace");
+    const server = await redisClient!.info("server");
 
     // Parse key count
     const keyCountMatch = keyspace.match(/keys=(\d+)/);
@@ -367,7 +364,7 @@ export async function getCacheStats(): Promise<{
 
     // Parse memory usage
     const memoryMatch = info.match(/used_memory_human:(.+)/);
-    const memoryUsed = memoryMatch ? memoryMatch[1].trim() : 'unknown';
+    const memoryUsed = memoryMatch ? memoryMatch[1].trim() : "unknown";
 
     // Parse uptime
     const uptimeMatch = server.match(/uptime_in_seconds:(\d+)/);
@@ -380,7 +377,7 @@ export async function getCacheStats(): Promise<{
       uptimeSeconds,
     };
   } catch (error) {
-    log.error('Redis', 'Failed to get stats', {
+    log.error("Redis", "Failed to get stats", {
       error: error instanceof Error ? error.message : String(error),
     });
     return { isConnected: true };
@@ -394,7 +391,7 @@ export async function closeRedis(): Promise<void> {
   if (redisClient) {
     await redisClient.quit();
     redisClient = null;
-    log.info('Redis', 'Connection closed gracefully');
+    log.info("Redis", "Connection closed gracefully");
   }
 }
 
@@ -408,12 +405,161 @@ export async function healthCheck(): Promise<boolean> {
 
   try {
     const pong = await redisClient!.ping();
-    return pong === 'PONG';
+    return pong === "PONG";
   } catch (error) {
-    log.error('Redis', 'Health check failed', {
+    log.error("Redis", "Health check failed", {
       error: error instanceof Error ? error.message : String(error),
     });
     return false;
+  }
+}
+
+// ============================================================================
+// DISTRIBUTED LOCK OPERATIONS (for race condition prevention)
+// ============================================================================
+
+/**
+ * Acquire a distributed lock
+ *
+ * @param lockKey - Lock key (e.g., 'work_queue:claim')
+ * @param lockValue - Unique lock identifier (e.g., worker ID)
+ * @param ttlSeconds - Lock TTL in seconds (default: 30s)
+ * @returns True if lock acquired, false otherwise
+ */
+export async function acquireLock(
+  lockKey: string,
+  lockValue: string,
+  ttlSeconds: number = 30
+): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    return false;
+  }
+
+  try {
+    // SET NX EX - Set if Not eXists with EXpiry
+    const result = await redisClient!.set(
+      lockKey,
+      lockValue,
+      "EX",
+      ttlSeconds,
+      "NX"
+    );
+
+    const acquired = result === "OK";
+
+    if (acquired) {
+      log.debug("Redis", "Lock acquired", {
+        lockKey,
+        lockValue,
+        ttl: ttlSeconds,
+      });
+    } else {
+      log.debug("Redis", "Lock already held", { lockKey });
+    }
+
+    return acquired;
+  } catch (error) {
+    log.error("Redis", "Acquire lock failed", {
+      lockKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Release a distributed lock (atomic check-and-delete)
+ *
+ * @param lockKey - Lock key
+ * @param lockValue - Lock identifier to verify ownership
+ * @returns True if lock was released by this holder
+ */
+export async function releaseLock(
+  lockKey: string,
+  lockValue: string
+): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    return false;
+  }
+
+  try {
+    // Lua script for atomic check-and-delete
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+      else
+        return 0
+      end
+    `;
+
+    const result = (await redisClient!.eval(
+      script,
+      1,
+      lockKey,
+      lockValue
+    )) as number;
+
+    if (result === 1) {
+      log.debug("Redis", "Lock released", { lockKey, lockValue });
+      return true;
+    } else {
+      log.debug("Redis", "Lock not owned by this holder", {
+        lockKey,
+        lockValue,
+      });
+      return false;
+    }
+  } catch (error) {
+    log.error("Redis", "Release lock failed", {
+      lockKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Execute a function with automatic lock management
+ *
+ * @param lockKey - Lock key
+ * @param fn - Function to execute while holding lock
+ * @param ttlSeconds - Lock TTL in seconds (default: 30s)
+ * @returns Function result or null if lock not acquired
+ */
+export async function withLock<T>(
+  lockKey: string,
+  fn: () => Promise<T>,
+  ttlSeconds: number = 30
+): Promise<T | null> {
+  const lockValue = `lock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Try to acquire lock
+  const acquired = await acquireLock(lockKey, lockValue, ttlSeconds);
+  if (!acquired) {
+    log.debug("Redis", "Failed to acquire lock, skipping execution", {
+      lockKey,
+    });
+    return null;
+  }
+
+  try {
+    // Execute function while holding lock
+    const result = await fn();
+
+    // Release lock
+    await releaseLock(lockKey, lockValue);
+
+    return result;
+  } catch (error) {
+    // Ensure lock is released even on error
+    await releaseLock(lockKey, lockValue);
+
+    log.error("Redis", "Error while holding lock", {
+      lockKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    throw error;
   }
 }
 
@@ -449,14 +595,14 @@ export async function setHashField(
       await redisClient!.expire(hashKey, ttlSeconds);
     }
 
-    log.debug('Redis', 'Hash field set', {
+    log.debug("Redis", "Hash field set", {
       hashKey,
       field,
       size: serialized.length,
     });
     return true;
   } catch (error) {
-    log.error('Redis', 'Set hash field failed', {
+    log.error("Redis", "Set hash field failed", {
       hashKey,
       field,
       error: error instanceof Error ? error.message : String(error),
@@ -488,7 +634,7 @@ export async function getHashField<T>(
 
     return JSON.parse(value) as T;
   } catch (error) {
-    log.error('Redis', 'Get hash field failed', {
+    log.error("Redis", "Get hash field failed", {
       hashKey,
       field,
       error: error instanceof Error ? error.message : String(error),
@@ -519,17 +665,20 @@ export async function getAllHashFields<T>(
       try {
         result.set(field, JSON.parse(value) as T);
       } catch (parseError) {
-        log.warn('Redis', 'Failed to parse hash field', {
+        log.warn("Redis", "Failed to parse hash field", {
           hashKey,
           field,
-          error: parseError instanceof Error ? parseError.message : String(parseError),
+          error:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError),
         });
       }
     }
 
     return result;
   } catch (error) {
-    log.error('Redis', 'Get all hash fields failed', {
+    log.error("Redis", "Get all hash fields failed", {
       hashKey,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -554,14 +703,14 @@ export async function deleteHashField(
 
   try {
     const deleted = await redisClient!.hdel(hashKey, field);
-    log.debug('Redis', 'Hash field deleted', {
+    log.debug("Redis", "Hash field deleted", {
       hashKey,
       field,
       wasDeleted: deleted > 0,
     });
     return deleted > 0;
   } catch (error) {
-    log.error('Redis', 'Delete hash field failed', {
+    log.error("Redis", "Delete hash field failed", {
       hashKey,
       field,
       error: error instanceof Error ? error.message : String(error),
@@ -589,7 +738,7 @@ export async function hasHashField(
     const exists = await redisClient!.hexists(hashKey, field);
     return exists === 1;
   } catch (error) {
-    log.error('Redis', 'Check hash field failed', {
+    log.error("Redis", "Check hash field failed", {
       hashKey,
       field,
       error: error instanceof Error ? error.message : String(error),
