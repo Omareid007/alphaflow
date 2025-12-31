@@ -16,6 +16,13 @@
 import { log } from "../utils/logger";
 import { storage } from "../storage";
 import {
+  setHashField,
+  getHashField,
+  getAllHashFields,
+  deleteHashField,
+  isRedisAvailable,
+} from "../lib/redis-cache";
+import {
   parseStrategyContext,
   type StrategyExecutionContext,
 } from "./strategy-execution-context";
@@ -102,7 +109,9 @@ export interface PipelineStatistics {
 // ============================================================================
 
 class StrategySignalPipeline {
-  private pendingSignals = new Map<string, PendingSignal>();
+  // TE-005 FIX: Removed in-memory Map, now using Redis hash for persistence
+  private readonly PENDING_SIGNALS_HASH = "pending_signals";
+
   private runHistory: Array<{
     timestamp: Date;
     strategyId: string;
@@ -232,7 +241,7 @@ class StrategySignalPipeline {
         switch (config.executionMode) {
           case "manual": {
             // Queue signal for user approval
-            const pending = this.queueSignal(
+            const pending = await this.queueSignal(
               strategyId,
               signal,
               triggerResults[0],
@@ -244,7 +253,7 @@ class StrategySignalPipeline {
 
           case "semi_auto": {
             // Queue signal but mark as approved for later execution
-            const pending = this.queueSignal(
+            const pending = await this.queueSignal(
               strategyId,
               signal,
               triggerResults[0],
@@ -309,11 +318,15 @@ class StrategySignalPipeline {
         symbol,
       });
 
-      const bars = await alpacaClient.getBars(symbol, "1Day", {
-        limit: 100,
-        adjustment: "raw",
-      });
+      const barsResponse = await alpacaClient.getBars(
+        [symbol],
+        "1Day",
+        undefined,
+        undefined,
+        100
+      );
 
+      const bars = barsResponse.bars[symbol];
       if (!bars || bars.length < 20) {
         log.debug(
           "SignalPipeline",
@@ -327,7 +340,7 @@ class StrategySignalPipeline {
       }
 
       // Extract close prices for indicator calculations
-      const closePrices = bars.map((bar) => parseFloat(bar.c));
+      const closePrices = bars.map((bar: { c: string | number }) => parseFloat(String(bar.c)));
       const currentPrice = closePrices[closePrices.length - 1];
 
       // 2. Parse strategy config to get indicator settings
@@ -404,7 +417,7 @@ class StrategySignalPipeline {
             const signal = (params.signal as number) || 9;
 
             const macdResult = calculateMACD(closePrices, fast, slow, signal);
-            const currentMACD = macdResult.macd[macdResult.macd.length - 1];
+            const currentMACD = macdResult.line[macdResult.line.length - 1];
             const currentSignal =
               macdResult.signal[macdResult.signal.length - 1];
 
@@ -516,9 +529,9 @@ class StrategySignalPipeline {
       // Calculate stop loss and take profit based on volatility
       const recentPrices = closePrices.slice(-20);
       const avgPrice =
-        recentPrices.reduce((sum, p) => sum + p, 0) / recentPrices.length;
+        recentPrices.reduce((sum: number, p: number) => sum + p, 0) / recentPrices.length;
       const variance =
-        recentPrices.reduce((sum, p) => sum + Math.pow(p - avgPrice, 2), 0) /
+        recentPrices.reduce((sum: number, p: number) => sum + Math.pow(p - avgPrice, 2), 0) /
         recentPrices.length;
       const volatility = Math.sqrt(variance);
 
@@ -564,13 +577,14 @@ class StrategySignalPipeline {
 
   /**
    * Queue a signal for user review
+   * TE-005 FIX: Persists to Redis hash instead of in-memory Map
    */
-  private queueSignal(
+  private async queueSignal(
     strategyId: string,
     signal: ActionSignal,
     triggerResult?: TriggerEvaluationResult,
     guardResult?: GuardValidationResult
-  ): PendingSignal {
+  ): Promise<PendingSignal> {
     const id = `sig-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date();
 
@@ -585,19 +599,45 @@ class StrategySignalPipeline {
       guardResult,
     };
 
-    this.pendingSignals.set(id, pending);
+    // TE-005 FIX: Store in Redis hash for persistence across restarts
+    if (isRedisAvailable()) {
+      await setHashField(
+        this.PENDING_SIGNALS_HASH,
+        id,
+        pending,
+        this.SIGNAL_EXPIRY_MS / 1000 // TTL in seconds
+      );
+      log.debug("SignalPipeline", "Signal queued in Redis", {
+        id,
+        strategyId,
+        symbol: signal.symbol,
+      });
+    } else {
+      log.warn("SignalPipeline", "Redis unavailable - signal not persisted", {
+        id,
+        strategyId,
+      });
+    }
+
     return pending;
   }
 
   /**
    * Approve a pending signal for execution
+   * TE-005 FIX: Loads from Redis hash instead of in-memory Map
    */
   async approveSignal(
     signalId: string,
     options: ExecutionOptions = {}
   ): Promise<ActionResult | null> {
-    const pending = this.pendingSignals.get(signalId);
+    // TE-005 FIX: Load from Redis hash
+    const pending = await getHashField<PendingSignal>(
+      this.PENDING_SIGNALS_HASH,
+      signalId
+    );
+
     if (!pending) {
+      log.debug("SignalPipeline", "Signal not found", { signalId });
       return null;
     }
 
@@ -610,8 +650,10 @@ class StrategySignalPipeline {
     }
 
     // Check expiry
-    if (new Date() > pending.expiresAt) {
+    const expiresAt = new Date(pending.expiresAt);
+    if (new Date() > expiresAt) {
       pending.status = "expired";
+      await setHashField(this.PENDING_SIGNALS_HASH, signalId, pending);
       return null;
     }
 
@@ -630,38 +672,63 @@ class StrategySignalPipeline {
       options
     );
 
+    // Update status in Redis
     pending.status = result.success ? "approved" : "rejected";
+    await setHashField(this.PENDING_SIGNALS_HASH, signalId, pending);
 
     return result;
   }
 
   /**
    * Reject a pending signal
+   * TE-005 FIX: Updates Redis hash instead of in-memory Map
    */
-  rejectSignal(signalId: string): boolean {
-    const pending = this.pendingSignals.get(signalId);
+  async rejectSignal(signalId: string): Promise<boolean> {
+    // TE-005 FIX: Load from Redis hash
+    const pending = await getHashField<PendingSignal>(
+      this.PENDING_SIGNALS_HASH,
+      signalId
+    );
+
     if (!pending || pending.status !== "pending") {
       return false;
     }
 
+    // Update status in Redis
     pending.status = "rejected";
+    await setHashField(this.PENDING_SIGNALS_HASH, signalId, pending);
+
+    log.info("SignalPipeline", "Signal rejected", {
+      signalId,
+      strategyId: pending.strategyId,
+      symbol: pending.signal.symbol,
+    });
+
     return true;
   }
 
   /**
    * Get pending signals for a strategy
+   * TE-005 FIX: Loads from Redis hash instead of in-memory Map
    */
-  getPendingSignals(strategyId: string): PendingSignal[] {
+  async getPendingSignals(strategyId: string): Promise<PendingSignal[]> {
+    // TE-005 FIX: Load all signals from Redis hash
+    const allSignals = await getAllHashFields<PendingSignal>(
+      this.PENDING_SIGNALS_HASH
+    );
+
     const now = new Date();
     const pending: PendingSignal[] = [];
 
-    for (const signal of this.pendingSignals.values()) {
+    for (const [id, signal] of allSignals) {
       if (signal.strategyId !== strategyId) continue;
       if (signal.status !== "pending") continue;
 
       // Check and update expiry
-      if (now > signal.expiresAt) {
+      const expiresAt = new Date(signal.expiresAt);
+      if (now > expiresAt) {
         signal.status = "expired";
+        await setHashField(this.PENDING_SIGNALS_HASH, id, signal);
         continue;
       }
 
@@ -673,16 +740,24 @@ class StrategySignalPipeline {
 
   /**
    * Get all pending signals (for admin view)
+   * TE-005 FIX: Loads from Redis hash instead of in-memory Map
    */
-  getAllPendingSignals(): PendingSignal[] {
+  async getAllPendingSignals(): Promise<PendingSignal[]> {
+    // TE-005 FIX: Load all signals from Redis hash
+    const allSignals = await getAllHashFields<PendingSignal>(
+      this.PENDING_SIGNALS_HASH
+    );
+
     const now = new Date();
     const pending: PendingSignal[] = [];
 
-    for (const signal of this.pendingSignals.values()) {
+    for (const [id, signal] of allSignals) {
       if (signal.status !== "pending") continue;
 
-      if (now > signal.expiresAt) {
+      const expiresAt = new Date(signal.expiresAt);
+      if (now > expiresAt) {
         signal.status = "expired";
+        await setHashField(this.PENDING_SIGNALS_HASH, id, signal);
         continue;
       }
 
@@ -810,24 +885,45 @@ class StrategySignalPipeline {
 
   /**
    * Clean up expired signals and old history
+   * TE-005 FIX: Cleans up Redis hash instead of in-memory Map
    */
-  cleanup(): void {
+  async cleanup(): Promise<void> {
     const now = new Date();
 
-    // Remove expired signals
-    for (const [id, signal] of this.pendingSignals) {
-      if (signal.status === "pending" && now > signal.expiresAt) {
+    // TE-005 FIX: Load all signals from Redis hash
+    const allSignals = await getAllHashFields<PendingSignal>(
+      this.PENDING_SIGNALS_HASH
+    );
+
+    let expiredCount = 0;
+    let deletedCount = 0;
+
+    for (const [id, signal] of allSignals) {
+      const expiresAt = new Date(signal.expiresAt);
+      const generatedAt = new Date(signal.generatedAt);
+
+      // Mark expired signals
+      if (signal.status === "pending" && now > expiresAt) {
         signal.status = "expired";
+        await setHashField(this.PENDING_SIGNALS_HASH, id, signal);
+        expiredCount++;
       }
 
-      // Remove old non-pending signals
+      // Remove old non-pending signals (older than 24 hours)
       if (signal.status !== "pending") {
-        const age = now.getTime() - signal.generatedAt.getTime();
+        const age = now.getTime() - generatedAt.getTime();
         if (age > 24 * 60 * 60 * 1000) {
-          // 24 hours
-          this.pendingSignals.delete(id);
+          await deleteHashField(this.PENDING_SIGNALS_HASH, id);
+          deletedCount++;
         }
       }
+    }
+
+    if (expiredCount > 0 || deletedCount > 0) {
+      log.info("SignalPipeline", "Cleanup completed", {
+        expired: expiredCount,
+        deleted: deletedCount,
+      });
     }
   }
 }

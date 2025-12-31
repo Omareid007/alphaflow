@@ -416,3 +416,184 @@ export async function healthCheck(): Promise<boolean> {
     return false;
   }
 }
+
+// ============================================================================
+// HASH OPERATIONS (for complex objects)
+// ============================================================================
+
+/**
+ * Set value in a hash field
+ *
+ * @param hashKey - Hash key (e.g., 'pending_signals')
+ * @param field - Field name within the hash
+ * @param value - Value to store (will be JSON serialized)
+ * @param ttlSeconds - Optional TTL for the entire hash
+ * @returns True if successful
+ */
+export async function setHashField(
+  hashKey: string,
+  field: string,
+  value: unknown,
+  ttlSeconds?: number
+): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    return false;
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    await redisClient!.hset(hashKey, field, serialized);
+
+    // Set TTL on entire hash if specified
+    if (ttlSeconds) {
+      await redisClient!.expire(hashKey, ttlSeconds);
+    }
+
+    log.debug('Redis', 'Hash field set', {
+      hashKey,
+      field,
+      size: serialized.length,
+    });
+    return true;
+  } catch (error) {
+    log.error('Redis', 'Set hash field failed', {
+      hashKey,
+      field,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Get value from a hash field
+ *
+ * @param hashKey - Hash key
+ * @param field - Field name within the hash
+ * @returns Deserialized value or null if not found
+ */
+export async function getHashField<T>(
+  hashKey: string,
+  field: string
+): Promise<T | null> {
+  if (!isRedisAvailable()) {
+    return null;
+  }
+
+  try {
+    const value = await redisClient!.hget(hashKey, field);
+    if (!value) {
+      return null;
+    }
+
+    return JSON.parse(value) as T;
+  } catch (error) {
+    log.error('Redis', 'Get hash field failed', {
+      hashKey,
+      field,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * Get all fields and values from a hash
+ *
+ * @param hashKey - Hash key
+ * @returns Map of field names to deserialized values
+ */
+export async function getAllHashFields<T>(
+  hashKey: string
+): Promise<Map<string, T>> {
+  const result = new Map<string, T>();
+
+  if (!isRedisAvailable()) {
+    return result;
+  }
+
+  try {
+    const data = await redisClient!.hgetall(hashKey);
+
+    for (const [field, value] of Object.entries(data)) {
+      try {
+        result.set(field, JSON.parse(value) as T);
+      } catch (parseError) {
+        log.warn('Redis', 'Failed to parse hash field', {
+          hashKey,
+          field,
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+        });
+      }
+    }
+
+    return result;
+  } catch (error) {
+    log.error('Redis', 'Get all hash fields failed', {
+      hashKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return result;
+  }
+}
+
+/**
+ * Delete a field from a hash
+ *
+ * @param hashKey - Hash key
+ * @param field - Field name to delete
+ * @returns True if field was deleted
+ */
+export async function deleteHashField(
+  hashKey: string,
+  field: string
+): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    return false;
+  }
+
+  try {
+    const deleted = await redisClient!.hdel(hashKey, field);
+    log.debug('Redis', 'Hash field deleted', {
+      hashKey,
+      field,
+      wasDeleted: deleted > 0,
+    });
+    return deleted > 0;
+  } catch (error) {
+    log.error('Redis', 'Delete hash field failed', {
+      hashKey,
+      field,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Check if a field exists in a hash
+ *
+ * @param hashKey - Hash key
+ * @param field - Field name to check
+ * @returns True if field exists
+ */
+export async function hasHashField(
+  hashKey: string,
+  field: string
+): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    return false;
+  }
+
+  try {
+    const exists = await redisClient!.hexists(hashKey, field);
+    return exists === 1;
+  } catch (error) {
+    log.error('Redis', 'Check hash field failed', {
+      hashKey,
+      field,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
