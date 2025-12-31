@@ -19,10 +19,8 @@ import {
   normalizeCryptoSymbol,
 } from "./symbol-normalizer";
 import { checkSellLossProtection } from "./risk-validator";
-import type {
-  AlpacaTradeResult,
-  CurrentAllocation,
-} from "./alpaca-trading-engine";
+// Import from engine-types to break circular dependency with alpaca-trading-engine
+import type { AlpacaTradeResult, CurrentAllocation } from "./engine-types";
 
 /**
  * @file Position Manager Module
@@ -527,6 +525,180 @@ export class PositionManager {
     }
 
     return { created, updated, removed, errors };
+  }
+
+  /**
+   * Sync orders from Alpaca to database (fixes TE-003)
+   *
+   * Fetches recent orders from Alpaca and creates missing records in the database.
+   * This ensures order records persist across server restarts and aren't lost.
+   *
+   * TE-003 FIX: Bi-directional order sync
+   * - Problem: Orders placed in Alpaca but not in DB after restart
+   * - Solution: Poll Alpaca orders and sync to database
+   * - Run this on server startup to restore order state
+   *
+   * @param userId - Optional user ID (defaults to admin user for system-level sync)
+   * @param limit - Number of recent orders to sync (default: 100)
+   *
+   * @returns Promise resolving to sync report
+   * @returns result.created - Array of order IDs for newly created orders
+   * @returns result.skipped - Array of order IDs that already exist
+   * @returns result.errors - Array of errors encountered during sync
+   *
+   * @example System-level sync (uses admin user)
+   * ```typescript
+   * const result = await positionManager.syncOrdersFromAlpaca();
+   * console.log(`Created: ${result.created.length}, Skipped: ${result.skipped.length}`);
+   * ```
+   *
+   * @example Sync recent 50 orders
+   * ```typescript
+   * const result = await positionManager.syncOrdersFromAlpaca(undefined, 50);
+   * ```
+   *
+   * @note Run on server startup to restore order state from Alpaca
+   * @note Only syncs orders that don't already exist in database
+   * @note Uses broker_order_id (Alpaca's order.id) for deduplication
+   */
+  async syncOrdersFromAlpaca(
+    userId?: string,
+    limit = 100
+  ): Promise<{
+    created: string[];
+    skipped: string[];
+    errors: Array<{ orderId: string; error: string }>;
+  }> {
+    const created: string[] = [];
+    const skipped: string[] = [];
+    const errors: Array<{ orderId: string; error: string }> = [];
+
+    try {
+      // Fetch all orders from Alpaca (open, closed, filled, cancelled, etc.)
+      const alpacaOrders = await alpaca.getOrders("all", limit);
+
+      // Get admin user if no userId provided
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        const adminUser = await storage.getUserByUsername("admintest");
+        if (!adminUser) {
+          throw new Error("No admin user found for system-level order sync");
+        }
+        effectiveUserId = adminUser.id;
+        log.info("OrderSync", "Using admin user for system-level sync", {
+          username: adminUser.username,
+        });
+      }
+
+      log.info("OrderSync", "Starting order sync from Alpaca", {
+        orderCount: alpacaOrders.length,
+        userId: effectiveUserId,
+      });
+
+      for (const alpacaOrder of alpacaOrders) {
+        try {
+          // Check if order already exists in database by broker_order_id
+          const existingOrder = await storage.getOrderByBrokerOrderId(
+            alpacaOrder.id
+          );
+
+          if (existingOrder) {
+            skipped.push(alpacaOrder.id);
+            continue;
+          }
+
+          // Create new order record in database
+          await storage.createOrder({
+            userId: effectiveUserId,
+            broker: "alpaca",
+            symbol: alpacaOrder.symbol,
+            side: alpacaOrder.side as "buy" | "sell",
+            qty: alpacaOrder.qty,
+            limitPrice: alpacaOrder.limit_price || undefined,
+            stopPrice: alpacaOrder.stop_price || undefined,
+            type: alpacaOrder.order_type as
+              | "market"
+              | "limit"
+              | "stop"
+              | "stop_limit",
+            status: this.mapAlpacaOrderStatus(alpacaOrder.status),
+            brokerOrderId: alpacaOrder.id,
+            clientOrderId: alpacaOrder.client_order_id,
+            submittedAt: new Date(alpacaOrder.submitted_at),
+            updatedAt: new Date(
+              alpacaOrder.updated_at || alpacaOrder.submitted_at
+            ),
+            // Optional fields
+            filledQty: alpacaOrder.filled_qty || undefined,
+            filledAvgPrice: alpacaOrder.filled_avg_price || undefined,
+            timeInForce: alpacaOrder.time_in_force || undefined,
+            orderClass: alpacaOrder.order_class || undefined,
+            extendedHours: alpacaOrder.extended_hours || false,
+            strategyId: null, // Cannot determine strategy from Alpaca order alone
+          });
+
+          created.push(alpacaOrder.id);
+          log.debug("OrderSync", "Created order", {
+            orderId: alpacaOrder.id,
+            symbol: alpacaOrder.symbol,
+            status: alpacaOrder.status,
+          });
+        } catch (err) {
+          const errorMsg = (err as Error).message;
+          errors.push({ orderId: alpacaOrder.id, error: errorMsg });
+          log.error("OrderSync", "Failed to sync order", {
+            orderId: alpacaOrder.id,
+            error: errorMsg,
+          });
+        }
+      }
+
+      log.info("OrderSync", "Order sync completed", {
+        created: created.length,
+        skipped: skipped.length,
+        errors: errors.length,
+      });
+    } catch (err) {
+      log.error("OrderSync", "Failed to sync orders from Alpaca", {
+        error: (err as Error).message,
+      });
+      throw err;
+    }
+
+    return { created, skipped, errors };
+  }
+
+  /**
+   * Map Alpaca order status to our database status
+   *
+   * @private
+   */
+  private mapAlpacaOrderStatus(
+    alpacaStatus: string
+  ): "pending" | "open" | "filled" | "cancelled" | "rejected" {
+    const statusMap: Record<
+      string,
+      "pending" | "open" | "filled" | "cancelled" | "rejected"
+    > = {
+      new: "pending",
+      accepted: "pending",
+      pending_new: "pending",
+      accepted_for_bidding: "pending",
+      stopped: "pending",
+      rejected: "rejected",
+      pending_cancel: "open",
+      pending_replace: "open",
+      partially_filled: "open",
+      filled: "filled",
+      done_for_day: "filled",
+      canceled: "cancelled",
+      expired: "cancelled",
+      replaced: "cancelled",
+      suspended: "cancelled",
+      calculated: "filled",
+    };
+
+    return statusMap[alpacaStatus.toLowerCase()] || "pending";
   }
 
   /**

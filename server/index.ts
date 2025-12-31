@@ -13,11 +13,14 @@ import * as path from "path";
 import { log, createRequestLogger } from "./utils/logger";
 import { validateAndReportEnvironment } from "./config/env-validator";
 import { positionReconciliationJob } from "./jobs/position-reconciliation";
+import { exitRuleEnforcer } from "./autonomous/exit-rule-enforcer";
 import { alpaca } from "./connectors/alpaca";
+import { positionManager } from "./trading/position-manager";
 import { cleanupExpiredSessions } from "./lib/session";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { requestLogger, performanceLogger } from "./middleware/request-logger";
 import { wsServer } from "./lib/websocket-server";
+import { initRedis, closeRedis, isRedisAvailable } from "./lib/redis-cache";
 
 process.on("uncaughtException", (err) => {
   log.error("FATAL", "Uncaught exception", { error: err });
@@ -56,12 +59,19 @@ async function gracefulShutdown(signal: string) {
     // Stop background jobs
     log.info("SHUTDOWN", "Stopping background jobs...");
     positionReconciliationJob.stop();
+    exitRuleEnforcer.stop();
+    log.info("SHUTDOWN", "Background jobs stopped");
 
     // Drain work queue
     const { workQueue } = await import("./lib/work-queue");
     log.info("SHUTDOWN", "Draining work queue...");
     await workQueue.drain();
     log.info("SHUTDOWN", "Work queue drained");
+
+    // Disconnect Redis
+    log.info("SHUTDOWN", "Disconnecting Redis...");
+    await closeRedis();
+    log.info("SHUTDOWN", "Redis disconnected");
 
     // Close database connection
     const { db } = await import("./db");
@@ -307,24 +317,64 @@ async function verifyAlpacaAccount() {
     log.info("STARTUP", "Verifying Alpaca account...");
     await verifyAlpacaAccount();
 
+    // Sync orders from Alpaca (fixes TE-003: bi-directional order sync)
+    log.info("STARTUP", "Syncing orders from Alpaca...");
+    try {
+      const syncResult = await positionManager.syncOrdersFromAlpaca();
+      log.info("STARTUP", "Order sync completed", {
+        created: syncResult.created.length,
+        skipped: syncResult.skipped.length,
+        errors: syncResult.errors.length,
+      });
+    } catch (error) {
+      log.warn("STARTUP", "Order sync failed - will continue without sync", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Initialize Redis for caching (only if explicitly configured)
+    if (process.env.REDIS_HOST) {
+      log.info("STARTUP", "Initializing Redis connection...");
+      await initRedis();
+      if (isRedisAvailable()) {
+        log.info("STARTUP", "Redis connection established successfully");
+      } else {
+        log.warn(
+          "STARTUP",
+          "Redis unavailable - will continue without caching"
+        );
+      }
+    } else {
+      log.info(
+        "STARTUP",
+        "Redis not configured - skipping cache initialization"
+      );
+    }
+
     log.info("STARTUP", "Beginning server initialization...");
     setupCors(app);
 
     // Security headers via helmet
-    app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "https:", "blob:"],
-          connectSrc: ["'self'", "https:", "wss:"],
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: [
+              "'self'",
+              "'unsafe-inline'",
+              "https://fonts.googleapis.com",
+            ],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "https:", "wss:"],
+          },
         },
-      },
-      crossOriginEmbedderPolicy: false, // Required for some external resources
-      crossOriginResourcePolicy: { policy: "cross-origin" },
-    }));
+        crossOriginEmbedderPolicy: false, // Required for some external resources
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+      })
+    );
     log.info("STARTUP", "Security headers configured (helmet)");
 
     setupBodyParsing(app);
@@ -341,6 +391,11 @@ async function verifyAlpacaAccount() {
     log.info("STARTUP", "Starting position reconciliation job...");
     positionReconciliationJob.start();
     log.info("STARTUP", "Position reconciliation job started");
+
+    // Start exit rule enforcer for automated stop-loss/take-profit
+    log.info("STARTUP", "Starting exit rule enforcer...");
+    exitRuleEnforcer.start(30000); // 30-second check interval
+    log.info("STARTUP", "Exit rule enforcer started (30s interval)");
 
     // Start session cleanup job - runs every hour
     log.info("STARTUP", "Starting session cleanup job...");
