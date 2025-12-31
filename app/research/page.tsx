@@ -9,12 +9,17 @@ import {
 } from "@/lib/api/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ErrorCard } from "@/components/ui/error-card";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { SearchBar } from "./SearchBar";
 import { AddSymbolDialog } from "./AddSymbolDialog";
 import { WatchlistTable } from "./WatchlistTable";
 import { SummaryStatsCards } from "./SummaryStatsCards";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
+import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Symbol metadata (names only, prices fetched from API)
 const symbolMetadata: Record<string, string> = {
@@ -39,16 +44,50 @@ const symbolMetadata: Record<string, string> = {
 const defaultSymbols = Object.keys(symbolMetadata);
 
 export default function ResearchPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeWatchlist, setActiveWatchlist] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const { data: watchlists = [], isLoading: loading } = useWatchlists();
+  const {
+    data: watchlists = [],
+    isLoading: loading,
+    error: watchlistsError,
+    refetch: refetchWatchlists,
+  } = useWatchlists();
   const addToWatchlist = useAddToWatchlist();
   const removeFromWatchlist = useRemoveFromWatchlist();
 
   // Fetch real-time quotes for all default symbols
-  const { data: quotes = [] } = useMarketQuotes(defaultSymbols);
+  const {
+    data: quotes = [],
+    error: quotesError,
+    refetch: refetchQuotes,
+  } = useMarketQuotes(defaultSymbols);
+
+  // Real-time SSE connection for live price updates
+  const { isConnected, status } = useRealTimeTrading({
+    enabled: !!user?.id,
+    userId: user?.id,
+    onPriceUpdate: (data) => {
+      // Invalidate market quotes query to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ["marketQuotes"] });
+    },
+  });
+
+  // Combined error state
+  const hasError = watchlistsError || quotesError;
+  const errorMessage = watchlistsError
+    ? "Failed to load watchlists"
+    : quotesError
+      ? "Failed to load market quotes"
+      : null;
+
+  const handleRetry = () => {
+    if (watchlistsError) refetchWatchlists();
+    if (quotesError) refetchQuotes();
+  };
 
   // Build availableSymbols with real-time prices
   const availableSymbols = useMemo(() => {
@@ -115,6 +154,41 @@ export default function ResearchPage() {
     );
   }
 
+  if (hasError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Research</h1>
+            <p className="mt-1 text-muted-foreground">
+              Manage your watchlists and research universe
+            </p>
+          </div>
+          {user?.id && (
+            <ConnectionStatus
+              userId={user.id}
+              compact={false}
+              showStats={true}
+            />
+          )}
+        </div>
+
+        <ErrorCard
+          title="Error Loading Data"
+          message={errorMessage ?? "Failed to load data"}
+          details={
+            watchlistsError instanceof Error
+              ? watchlistsError.message
+              : quotesError instanceof Error
+                ? quotesError.message
+                : undefined
+          }
+          onRetry={handleRetry}
+        />
+      </div>
+    );
+  }
+
   const symbolsInWatchlist = currentWatchlist?.items.map((i) => i.symbol) || [];
   const availableToAdd = availableSymbols.filter(
     (s) => !symbolsInWatchlist.includes(s.symbol)
@@ -122,11 +196,16 @@ export default function ResearchPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Research</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your watchlists and research universe
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Research</h1>
+          <p className="mt-1 text-muted-foreground">
+            Manage your watchlists and research universe
+          </p>
+        </div>
+        {user?.id && (
+          <ConnectionStatus userId={user.id} compact={false} showStats={true} />
+        )}
       </div>
 
       <Tabs value={activeWatchlist || ""} onValueChange={setActiveWatchlist}>
