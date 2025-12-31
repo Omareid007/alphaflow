@@ -64,7 +64,14 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 
 router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
-    const strategy = await storage.updateStrategy(req.params.id, req.body);
+    // Validate partial update data
+    const updateSchema = insertStrategySchema.partial();
+    const parsed = updateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(res, parsed.error.message);
+    }
+
+    const strategy = await storage.updateStrategy(req.params.id, parsed.data);
     if (!strategy) {
       return notFound(res, "Strategy not found");
     }
@@ -77,7 +84,13 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
 
 router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
-    const strategy = await storage.updateStrategy(req.params.id, req.body);
+    // Validate full replacement data
+    const parsed = insertStrategySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(res, parsed.error.message);
+    }
+
+    const strategy = await storage.updateStrategy(req.params.id, parsed.data);
     if (!strategy) {
       return notFound(res, "Strategy not found");
     }
