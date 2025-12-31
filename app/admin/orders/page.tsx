@@ -13,9 +13,61 @@ import {
 } from "@/components/ui/table";
 import { ShoppingCart, Loader2 } from "lucide-react";
 import { useOrders } from "@/lib/api/hooks";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
+import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRef, useEffect } from "react";
 
 export default function OrdersPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const recentFillsRef = useRef<Set<string>>(new Set());
+
   const { data: orders = [], isLoading, error } = useOrders({ limit: 100 });
+
+  // Real-time SSE connection for live order updates
+  const { isConnected, status } = useRealTimeTrading({
+    enabled: !!user?.id,
+    userId: user?.id,
+    onOrderUpdate: (data) => {
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      // Show toast for important status changes
+      if (data.status === "rejected" || data.status === "canceled") {
+        toast({
+          title: "Order Update",
+          description: `${data.symbol} ${data.side} order ${data.status}`,
+          variant: "destructive",
+        });
+      }
+    },
+    onOrderFill: (data) => {
+      // Invalidate queries for fill updates
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      // Show toast notification for new fills (deduplicated)
+      const fillKey = `${data.orderId}-${data.timestamp}`;
+      if (!recentFillsRef.current.has(fillKey)) {
+        recentFillsRef.current.add(fillKey);
+
+        // Keep dedup set bounded
+        if (recentFillsRef.current.size > 50) {
+          const arr = Array.from(recentFillsRef.current);
+          recentFillsRef.current = new Set(arr.slice(25));
+        }
+
+        toast({
+          title: "Order Filled",
+          description: `${data.symbol} ${data.side} ${data.qty || data.filledQty} shares @ $${data.price}`,
+          variant: "default",
+        });
+      }
+    },
+  });
 
   const getStatusVariant = (status: string) => {
     const normalized = status.toLowerCase();
@@ -51,11 +103,16 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
-        <p className="mt-1 text-muted-foreground">
-          Admin view of all order activity
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
+          <p className="mt-1 text-muted-foreground">
+            Admin view of all order activity
+          </p>
+        </div>
+        {user?.id && (
+          <ConnectionStatus userId={user.id} compact={false} showStats={true} />
+        )}
       </div>
 
       <Card>
