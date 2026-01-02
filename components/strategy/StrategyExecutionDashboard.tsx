@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,12 +27,17 @@ import {
   DollarSign,
   AlertCircle,
   CheckCircle,
+  ArrowUp,
+  ArrowDown,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
 import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { Confetti } from "@/lib/animations/confetti";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ============================================================================
 // TYPES
@@ -52,23 +57,44 @@ function StatusBadge({ status }: { status: Strategy["status"] }) {
   const variants: Record<
     string,
     {
-      variant: "default" | "secondary" | "destructive" | "outline";
+      variant: BadgeProps["variant"];
       label: string;
+      animate?: BadgeProps["animate"];
+      icon?: React.ReactNode;
     }
   > = {
     draft: { variant: "secondary", label: "Draft" },
-    backtesting: { variant: "outline", label: "Backtesting" },
+    backtesting: { variant: "outline", label: "Backtesting", animate: "pulse" },
     backtested: { variant: "outline", label: "Backtested" },
-    paper: { variant: "default", label: "Paper Trading" },
-    live: { variant: "default", label: "Live" },
-    paused: { variant: "secondary", label: "Paused" },
-    stopped: { variant: "destructive", label: "Stopped" },
+    paper: {
+      variant: "gain-subtle",
+      label: "Paper Trading",
+      animate: "glow",
+      icon: <Zap className="h-3 w-3" />,
+    },
+    live: {
+      variant: "gain",
+      label: "Live",
+      animate: "glow",
+      icon: <Zap className="h-3 w-3" />,
+    },
+    paused: {
+      variant: "outline",
+      label: "Paused",
+      icon: <Pause className="h-3 w-3" />,
+    },
+    stopped: { variant: "loss-subtle", label: "Stopped" },
   };
 
   const config = variants[status] || { variant: "secondary", label: status };
 
   return (
-    <Badge variant={config.variant} className="capitalize">
+    <Badge
+      variant={config.variant}
+      animate={config.animate}
+      className="capitalize gap-1"
+    >
+      {config.icon}
       {config.label}
     </Badge>
   );
@@ -168,9 +194,11 @@ function ExecutionContextCard({
 function RecentOrdersTable({
   orders,
   isLoading,
+  flashOrderId,
 }: {
   orders: StrategyOrder[];
   isLoading: boolean;
+  flashOrderId?: string | null;
 }) {
   if (isLoading) {
     return (
@@ -190,32 +218,78 @@ function RecentOrdersTable({
     );
   }
 
+  const getStatusVariant = (status: string): BadgeProps["variant"] => {
+    const normalized = status.toLowerCase();
+    if (normalized === "filled") return "gain";
+    if (
+      normalized === "pending_new" ||
+      normalized === "new" ||
+      normalized === "accepted"
+    )
+      return "gain-subtle";
+    if (normalized === "canceled" || normalized === "expired") return "outline";
+    if (normalized === "rejected") return "loss-subtle";
+    return "secondary";
+  };
+
   return (
     <div className="space-y-1">
-      {orders.slice(0, 10).map((order) => (
-        <div
-          key={order.id}
-          className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
-        >
-          <div className="flex items-center gap-3">
-            <OrderStatusIcon status={order.status} />
-            <div>
-              <div className="font-medium text-sm">{order.symbol}</div>
-              <div className="text-xs text-muted-foreground">
-                {order.side.toUpperCase()} {order.qty} @ {order.type}
+      <AnimatePresence>
+        {orders.slice(0, 10).map((order, index) => (
+          <motion.div
+            key={order.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              backgroundColor:
+                flashOrderId === order.id
+                  ? "hsl(var(--gain) / 0.15)"
+                  : "transparent",
+            }}
+            transition={{ duration: 0.2, delay: index * 0.03 }}
+            className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-secondary/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <OrderStatusIcon status={order.status} />
+              <div>
+                <div className="font-medium text-sm">{order.symbol}</div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge
+                    variant={
+                      order.side === "buy" ? "gain-subtle" : "loss-subtle"
+                    }
+                    size="sm"
+                    className="gap-0.5"
+                  >
+                    {order.side === "buy" ? (
+                      <ArrowUp className="h-2.5 w-2.5" />
+                    ) : (
+                      <ArrowDown className="h-2.5 w-2.5" />
+                    )}
+                    {order.side.toUpperCase()}
+                  </Badge>
+                  <span>
+                    {order.qty} @ {order.type}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className="text-xs">
-              {order.status}
-            </Badge>
-            <div className="text-xs text-muted-foreground mt-1">
-              {new Date(order.createdAt).toLocaleTimeString()}
+            <div className="text-right">
+              <Badge
+                variant={getStatusVariant(order.status)}
+                size="sm"
+                className="text-xs"
+              >
+                {order.status}
+              </Badge>
+              <div className="text-xs text-muted-foreground mt-1">
+                {new Date(order.createdAt).toLocaleTimeString()}
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -232,6 +306,8 @@ export function StrategyExecutionDashboard({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [flashOrderId, setFlashOrderId] = useState<string | null>(null);
 
   const { data: strategy, isLoading: strategyLoading } =
     useStrategy(strategyId);
@@ -277,8 +353,16 @@ export function StrategyExecutionDashboard({
         queryKey: ["executionContext", strategyId],
       });
 
+      // Trigger confetti celebration!
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+
+      // Flash the filled order row
+      setFlashOrderId(data.orderId);
+      setTimeout(() => setFlashOrderId(null), 3000);
+
       toast({
-        title: "Order Filled",
+        title: "🎉 Order Filled!",
         description: `${data.symbol} ${data.side} ${data.qty || data.filledQty} shares @ $${data.price}`,
         variant: "default",
       });
@@ -340,6 +424,9 @@ export function StrategyExecutionDashboard({
 
   return (
     <div className="space-y-6">
+      {/* Confetti celebration for order fills */}
+      <Confetti active={showConfetti} count={50} spread={300} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -486,7 +573,11 @@ export function StrategyExecutionDashboard({
             </div>
           </CardHeader>
           <CardContent>
-            <RecentOrdersTable orders={orders} isLoading={ordersLoading} />
+            <RecentOrdersTable
+              orders={orders}
+              isLoading={ordersLoading}
+              flashOrderId={flashOrderId}
+            />
           </CardContent>
         </Card>
 

@@ -23,6 +23,8 @@ import {
   PieChart as PieIcon,
   AlertTriangle,
   Wallet,
+  Target,
+  Maximize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -30,11 +32,22 @@ import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
 import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useMemo, useCallback } from "react";
+import { useRef, useMemo, useCallback, useState } from "react";
 import {
   ChartSkeleton,
   BarChartSkeleton,
 } from "@/components/portfolio/ChartSkeleton";
+
+// Robinhood-style components
+import { HeroChart } from "@/components/charts/hero-chart";
+import {
+  AnimatedPortfolioValue,
+  AnimatedChange,
+} from "@/components/charts/animated-value";
+import { Sparkline } from "@/components/charts/sparkline";
+import { StaggerList, StaggerItem } from "@/lib/animations/stagger";
+import { MetricCardShimmer, ChartShimmer } from "@/lib/animations/shimmer";
+import { PageTransition } from "@/lib/animations/page-transitions";
 
 // Lazy load heavy chart components to reduce initial bundle size (~15-20% reduction)
 // recharts is a large library (~40KB gzipped) that doesn't need to block initial render
@@ -60,62 +73,107 @@ const PositionPnlChart = dynamic(
   }
 );
 
+// Generate mock portfolio history for hero chart
+function generatePortfolioHistory(currentValue: number, days = 30) {
+  const data = [];
+  let value = currentValue * 0.95;
+  const dailyReturn = (currentValue - value) / days;
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - (days - i));
+    const noise = (Math.random() - 0.5) * currentValue * 0.01;
+    value += dailyReturn + noise;
+    data.push({
+      time: date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      value: Math.max(0, value),
+    });
+  }
+  return data;
+}
+
 function MetricCard({
   title,
   value,
   change,
   icon: Icon,
   variant = "default",
+  sparklineData,
 }: {
   title: string;
   value: string;
   change?: number;
   icon: React.ElementType;
   variant?: "default" | "success" | "warning" | "danger";
+  sparklineData?: number[];
 }) {
   const variantStyles = {
     default: "text-foreground",
-    success: "text-success",
+    success: "text-gain",
     warning: "text-warning",
-    danger: "text-destructive",
+    danger: "text-loss",
   };
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
+    <Card variant="elevated" hover="lift" className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {title}
+            </p>
             <p
               className={cn(
-                "mt-2 text-3xl font-semibold",
+                "mt-1.5 text-2xl font-bold tracking-tight tabular-nums",
                 variantStyles[variant]
               )}
             >
               {value}
             </p>
             {change !== undefined && (
-              <div className="mt-2 flex items-center gap-1">
-                {change >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-success" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                )}
-                <span
-                  className={
-                    change >= 0
-                      ? "text-sm text-success"
-                      : "text-sm text-destructive"
-                  }
-                >
-                  {change >= 0 ? "+" : ""}
-                  {change.toFixed(2)}%
-                </span>
+              <div className="mt-1.5">
+                <AnimatedChange value={change} size="sm" />
               </div>
             )}
           </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
-            <Icon className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-end gap-2">
+            <div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-xl",
+                variant === "success"
+                  ? "bg-gain/10"
+                  : variant === "danger"
+                    ? "bg-loss/10"
+                    : variant === "warning"
+                      ? "bg-warning/10"
+                      : "bg-primary/10"
+              )}
+            >
+              <Icon
+                className={cn(
+                  "h-5 w-5",
+                  variant === "success"
+                    ? "text-gain"
+                    : variant === "danger"
+                      ? "text-loss"
+                      : variant === "warning"
+                        ? "text-warning"
+                        : "text-primary"
+                )}
+              />
+            </div>
+            {sparklineData && (
+              <Sparkline
+                data={sparklineData}
+                width={64}
+                height={24}
+                strokeWidth={1.5}
+                showArea={false}
+              />
+            )}
           </div>
         </div>
       </CardContent>
@@ -334,195 +392,276 @@ export default function PortfolioPage() {
     );
   }
 
+  // Memoized chart history
+  const portfolioChartData = useMemo(() => {
+    if (!portfolioSnapshot?.totalEquity) return [];
+    return generatePortfolioHistory(portfolioSnapshot.totalEquity, 30);
+  }, [portfolioSnapshot?.totalEquity]);
+
+  // Full-screen chart state
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Portfolio</h1>
-          <p className="mt-1 text-muted-foreground">
-            View your positions, allocations, and risk metrics
-          </p>
-        </div>
-        {user?.id && (
-          <ConnectionStatus userId={user.id} compact={false} showStats={true} />
-        )}
-      </div>
-
-      {(positionsError || strategiesError) && (
-        <div className="rounded-lg border border-warning/50 bg-warning/10 p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <div className="text-sm">
-              <p className="font-medium text-warning">
-                Some data could not be loaded
-              </p>
-              <p className="text-warning/80">
-                {positionsError && "Unable to load positions. "}
-                {strategiesError && "Unable to load strategies. "}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Equity"
-          value={`$${portfolioSnapshot.totalEquity.toLocaleString()}`}
-          change={portfolioSnapshot.dailyPlPct}
-          icon={DollarSign}
-        />
-        <MetricCard
-          title="Day P&L"
-          value={`$${portfolioSnapshot.dailyPl.toLocaleString()}`}
-          change={portfolioSnapshot.dailyPlPct}
-          icon={TrendingUp}
-          variant={portfolioSnapshot.dailyPl >= 0 ? "success" : "danger"}
-        />
-        <MetricCard
-          title="Exposure"
-          value={`${exposurePercent.toFixed(1)}%`}
-          icon={PieIcon}
-        />
-        <MetricCard
-          title="Drawdown"
-          value={`${drawdownPercent.toFixed(1)}%`}
-          icon={AlertTriangle}
-          variant={drawdownPercent > 10 ? "warning" : "default"}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Asset Allocation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AllocationChart data={pieData} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Position P&L</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PositionPnlChart data={pnlData} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Cash & Exposure</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Cash Available
-                </span>
-                <span className="font-medium">
-                  ${portfolioSnapshot.cash.toLocaleString()}
-                </span>
+    <PageTransition>
+      <div className="space-y-6">
+        {/* Hero Section with Portfolio Chart */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border">
+          <div className="absolute inset-0 bg-grid-white/[0.02]" />
+          <div className="relative p-6 pb-0">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <AnimatedPortfolioValue
+                  value={portfolioSnapshot.totalEquity}
+                  change={portfolioSnapshot.dailyPl}
+                  changePercent={portfolioSnapshot.dailyPlPct}
+                  label="Total Portfolio Value"
+                />
               </div>
-              <Progress value={cashPercent} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {cashPercent.toFixed(1)}% of portfolio
-              </p>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Invested</span>
-                <span className="font-medium">
-                  ${exposedAmount.toLocaleString()}
-                </span>
-              </div>
-              <Progress value={100 - cashPercent} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {(100 - cashPercent).toFixed(1)}% of portfolio
-              </p>
-            </div>
-          </div>
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Buying Power</span>
-              <span className="font-medium">
-                ${portfolioSnapshot.buyingPower.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Active Strategies</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {activeStrategies.length === 0 ? (
-              <p className="text-muted-foreground">No active strategies</p>
-            ) : (
-              activeStrategies.map((strategy) => (
-                <div
-                  key={strategy.id}
-                  className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
+              <div className="flex items-center gap-2">
+                {user?.id && (
+                  <ConnectionStatus
+                    userId={user.id}
+                    compact
+                    showStats={false}
+                  />
+                )}
+                <Button
+                  variant="glass"
+                  size="icon"
+                  onClick={() => setIsChartExpanded(!isChartExpanded)}
+                  className="h-9 w-9"
                 >
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{strategy.name}</p>
-                        <Badge
-                          variant={
-                            strategy.mode === "live" ? "default" : "secondary"
-                          }
-                        >
-                          {strategy.mode === "paper" ? "Paper" : "Live"}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {strategy.type || "Custom Strategy"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {strategy.performanceSummary && (
-                      <div className="text-right">
-                        <p
-                          className={cn(
-                            "font-semibold",
-                            (strategy.performanceSummary.totalReturn || 0) >= 0
-                              ? "text-success"
-                              : "text-destructive"
-                          )}
-                        >
-                          {(strategy.performanceSummary.totalReturn || 0) >= 0
-                            ? "+"
-                            : ""}
-                          {(
-                            strategy.performanceSummary.totalReturn || 0
-                          ).toFixed(2)}
-                          %
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {strategy.performanceSummary.totalTrades || 0} trades
-                        </p>
-                      </div>
-                    )}
-                    <Link href={`/strategies/${strategy.id}`}>
-                      <Button variant="outline" size="sm">
-                        View Strategy
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))
-            )}
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+
+          {/* Hero Chart */}
+          <HeroChart
+            data={portfolioChartData}
+            height={isChartExpanded ? 350 : 200}
+            showTooltip
+            showReferenceLine
+            showAxis={isChartExpanded}
+            className="px-0"
+          />
+        </div>
+
+        {(positionsError || strategiesError) && (
+          <div className="rounded-lg border border-warning/50 bg-warning/10 p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <div className="text-sm">
+                <p className="font-medium text-warning">
+                  Some data could not be loaded
+                </p>
+                <p className="text-warning/80">
+                  {positionsError && "Unable to load positions. "}
+                  {strategiesError && "Unable to load strategies. "}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Metric Cards Grid */}
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Day P&L"
+            value={`${portfolioSnapshot.dailyPl >= 0 ? "+" : ""}$${Math.abs(portfolioSnapshot.dailyPl).toLocaleString()}`}
+            change={portfolioSnapshot.dailyPlPct}
+            icon={portfolioSnapshot.dailyPl >= 0 ? TrendingUp : TrendingDown}
+            variant={portfolioSnapshot.dailyPl >= 0 ? "success" : "danger"}
+          />
+          <MetricCard
+            title="Exposure"
+            value={`${exposurePercent.toFixed(1)}%`}
+            icon={PieIcon}
+          />
+          <MetricCard
+            title="Cash Available"
+            value={`$${portfolioSnapshot.cash.toLocaleString()}`}
+            icon={Wallet}
+          />
+          <MetricCard
+            title="Drawdown"
+            value={`${drawdownPercent.toFixed(1)}%`}
+            icon={AlertTriangle}
+            variant={drawdownPercent > 10 ? "warning" : "default"}
+          />
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card variant="glass">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">
+                Asset Allocation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <AllocationChart data={pieData} />
+            </CardContent>
+          </Card>
+
+          <Card variant="glass">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">
+                Position P&L
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <PositionPnlChart data={pnlData} />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Cash & Exposure Card */}
+        <Card variant="glass">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">
+              Cash & Exposure
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Cash Available
+                  </span>
+                  <span className="font-semibold tabular-nums">
+                    ${portfolioSnapshot.cash.toLocaleString()}
+                  </span>
+                </div>
+                <Progress value={cashPercent} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {cashPercent.toFixed(1)}% of portfolio
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Invested
+                  </span>
+                  <span className="font-semibold tabular-nums">
+                    ${exposedAmount.toLocaleString()}
+                  </span>
+                </div>
+                <Progress value={100 - cashPercent} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {(100 - cashPercent).toFixed(1)}% of portfolio
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-border/50 pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Buying Power</span>
+                <span className="font-semibold tabular-nums text-primary">
+                  ${portfolioSnapshot.buyingPower.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Active Strategies Card */}
+        <Card variant="glass">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">
+              Active Strategies
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {activeStrategies.length === 0 ? (
+              <div className="py-8 text-center">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <Target className="h-6 w-6 text-primary" />
+                </div>
+                <p className="mt-3 text-muted-foreground">
+                  No active strategies
+                </p>
+                <Link href="/strategies">
+                  <Button variant="gain" size="pill" className="mt-4">
+                    View All Strategies
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <StaggerList className="space-y-3">
+                {activeStrategies.map((strategy) => (
+                  <StaggerItem key={strategy.id}>
+                    <Card variant="ghost" hover="lift" className="group">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">
+                                {strategy.name}
+                              </p>
+                              <Badge
+                                variant={
+                                  strategy.mode === "live"
+                                    ? "gain"
+                                    : "gain-subtle"
+                                }
+                                size="sm"
+                              >
+                                {strategy.mode === "paper" ? "Paper" : "Live"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {strategy.type || "Custom Strategy"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {strategy.performanceSummary && (
+                              <div className="text-right">
+                                <Badge
+                                  variant={
+                                    (strategy.performanceSummary.totalReturn ||
+                                      0) >= 0
+                                      ? "gain-subtle"
+                                      : "loss-subtle"
+                                  }
+                                  size="sm"
+                                >
+                                  {(strategy.performanceSummary.totalReturn ||
+                                    0) >= 0
+                                    ? "+"
+                                    : ""}
+                                  {(
+                                    strategy.performanceSummary.totalReturn || 0
+                                  ).toFixed(2)}
+                                  %
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {strategy.performanceSummary.totalTrades || 0}{" "}
+                                  trades
+                                </p>
+                              </div>
+                            )}
+                            <Link href={`/strategies/${strategy.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                View
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </StaggerItem>
+                ))}
+              </StaggerList>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </PageTransition>
   );
 }

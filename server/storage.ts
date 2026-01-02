@@ -85,6 +85,11 @@ import {
   type InsertAuditLog,
   insertAuditLogSchema,
   type PerformanceSummary,
+  userPreferences,
+  type SelectUserPreferences,
+  type InsertUserPreferences,
+  type UpdateUserPreferences,
+  defaultUserPreferences,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -1543,6 +1548,84 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log.error("Storage", "Failed to get recent audit logs", { error });
       return [];
+    }
+  }
+
+  // ========================================
+  // User Preferences Methods
+  // ========================================
+
+  async getUserPreferences(
+    userId: string
+  ): Promise<SelectUserPreferences | null> {
+    try {
+      const [prefs] = await db
+        .select()
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, userId));
+      return prefs || null;
+    } catch (error) {
+      log.error("Storage", "Failed to get user preferences", { error, userId });
+      return null;
+    }
+  }
+
+  async createUserPreferences(
+    userId: string,
+    prefs?: Partial<InsertUserPreferences>
+  ): Promise<SelectUserPreferences> {
+    const [created] = await db
+      .insert(userPreferences)
+      .values({
+        userId,
+        ...defaultUserPreferences,
+        ...prefs,
+      })
+      .returning();
+    return created;
+  }
+
+  async updateUserPreferences(
+    userId: string,
+    updates: UpdateUserPreferences
+  ): Promise<SelectUserPreferences | null> {
+    try {
+      const [updated] = await db
+        .update(userPreferences)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+      return updated || null;
+    } catch (error) {
+      log.error("Storage", "Failed to update user preferences", {
+        error,
+        userId,
+      });
+      return null;
+    }
+  }
+
+  async getOrCreateUserPreferences(
+    userId: string
+  ): Promise<SelectUserPreferences> {
+    const existing = await this.getUserPreferences(userId);
+    if (existing) return existing;
+    return this.createUserPreferences(userId);
+  }
+
+  async deleteUserPreferences(userId: string): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(userPreferences)
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      log.error("Storage", "Failed to delete user preferences", {
+        error,
+        userId,
+      });
+      return false;
     }
   }
 }

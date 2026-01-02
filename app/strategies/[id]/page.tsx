@@ -20,6 +20,11 @@ import {
   type Strategy,
   type BacktestRun,
 } from "@/lib/api/hooks";
+import {
+  PageTransition,
+  SectionTransition,
+} from "@/lib/animations/page-transitions";
+import { MetricCardShimmer, ChartShimmer } from "@/lib/animations/shimmer";
 
 export default function StrategyDetailPage() {
   const params = useParams();
@@ -95,27 +100,50 @@ export default function StrategyDetailPage() {
   // Handle loading state
   if (strategyLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <PageTransition>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-secondary/50 animate-pulse" />
+            <div className="flex-1">
+              <div className="h-8 w-48 rounded bg-secondary/50 animate-pulse" />
+              <div className="h-4 w-32 rounded bg-secondary/30 animate-pulse mt-2" />
+            </div>
+          </div>
+          {/* Metrics skeleton */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCardShimmer />
+            <MetricCardShimmer />
+            <MetricCardShimmer />
+            <MetricCardShimmer />
+          </div>
+          {/* Chart skeleton */}
+          <ChartShimmer height={320} />
+        </div>
+      </PageTransition>
     );
   }
 
   // Handle error state
   if (strategyError) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-destructive">
-            Failed to load strategy
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            {strategyError instanceof Error
-              ? strategyError.message
-              : "Unknown error"}
-          </p>
+      <PageTransition>
+        <div className="flex h-96 items-center justify-center">
+          <div className="text-center p-8 rounded-2xl bg-destructive/5 border border-destructive/20">
+            <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <p className="text-lg font-semibold text-destructive">
+              Failed to load strategy
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {strategyError instanceof Error
+                ? strategyError.message
+                : "Unknown error"}
+            </p>
+          </div>
         </div>
-      </div>
+      </PageTransition>
     );
   }
 
@@ -126,43 +154,49 @@ export default function StrategyDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <StrategyHeader
-        strategy={strategy}
-        template={template}
-        onPause={handlePause}
-        onResume={handleResume}
-        onStop={handleStop}
-        onDeploy={handleDeploy}
-      />
+    <PageTransition>
+      <div className="space-y-6">
+        <StrategyHeader
+          strategy={strategy}
+          template={template}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStop={handleStop}
+          onDeploy={handleDeploy}
+        />
 
-      <PerformanceMetricsGrid
-        performanceSummary={strategy.performanceSummary}
-      />
+        <SectionTransition delay={0.1}>
+          <PerformanceMetricsGrid
+            performanceSummary={strategy.performanceSummary}
+          />
+        </SectionTransition>
 
-      <Tabs defaultValue="performance">
-        <TabsList>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          {backtest && (
-            <TabsTrigger value="interpretation">AI Analysis</TabsTrigger>
-          )}
-        </TabsList>
+        <SectionTransition delay={0.2}>
+          <Tabs defaultValue="performance" className="w-full">
+            <TabsList className="glass">
+              <TabsTrigger value="performance">Performance</TabsTrigger>
+              <TabsTrigger value="config">Configuration</TabsTrigger>
+              {backtest && (
+                <TabsTrigger value="interpretation">AI Analysis</TabsTrigger>
+              )}
+            </TabsList>
 
-        <TabsContent value="performance" className="mt-4">
-          <PerformanceTab backtest={backtest} strategyId={id} />
-        </TabsContent>
+            <TabsContent value="performance" className="mt-4">
+              <PerformanceTab backtest={backtest} strategyId={id} />
+            </TabsContent>
 
-        <TabsContent value="config" className="mt-4">
-          <ConfigTab strategy={strategy} template={template} />
-        </TabsContent>
+            <TabsContent value="config" className="mt-4">
+              <ConfigTab strategy={strategy} template={template} />
+            </TabsContent>
 
-        {backtest && (
-          <TabsContent value="interpretation" className="mt-4">
-            <AIAnalysisTab backtest={backtest} />
-          </TabsContent>
-        )}
-      </Tabs>
-    </div>
+            {backtest && (
+              <TabsContent value="interpretation" className="mt-4">
+                <AIAnalysisTab backtest={backtest} />
+              </TabsContent>
+            )}
+          </Tabs>
+        </SectionTransition>
+      </div>
+    </PageTransition>
   );
 }

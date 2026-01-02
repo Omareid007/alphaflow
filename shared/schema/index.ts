@@ -33,3 +33,4 @@ export * from "./monitoring";
 
 // User Features
 export * from "./watchlist";
+export * from "./user-preferences";

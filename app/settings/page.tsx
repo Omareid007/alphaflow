@@ -7,6 +7,11 @@ import { AppearanceCard } from "./AppearanceCard";
 import { NotificationsCard } from "./NotificationsCard";
 import { RiskGuardrailsCard } from "./RiskGuardrailsCard";
 import { ConnectionsCard } from "./ConnectionsCard";
+import {
+  PageTransition,
+  SectionTransition,
+} from "@/lib/animations/page-transitions";
+import { Settings, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { data: settings, isLoading: loading } = useSettings();
@@ -48,34 +53,59 @@ export default function SettingsPage() {
 
   if (loading || !settings) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <PageTransition>
+        <div className="flex h-96 flex-col items-center justify-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading settings...</p>
+        </div>
+      </PageTransition>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your account and preferences
-        </p>
+    <PageTransition>
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+            <Settings className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+            <p className="mt-1 text-muted-foreground">
+              Manage your account and preferences
+            </p>
+          </div>
+        </div>
+
+        {/* Appearance Card (enhanced with theme preview) */}
+        <SectionTransition delay={0.1}>
+          <AppearanceCard />
+        </SectionTransition>
+
+        {/* Notifications Card */}
+        <SectionTransition delay={0.2}>
+          <NotificationsCard
+            settings={settings}
+            onNotificationChange={handleNotificationChange}
+          />
+        </SectionTransition>
+
+        {/* Risk Guardrails Card */}
+        <SectionTransition delay={0.3}>
+          <RiskGuardrailsCard
+            settings={settings}
+            onGuardrailChange={handleGuardrailChange}
+          />
+        </SectionTransition>
+
+        {/* Connections Card */}
+        <SectionTransition delay={0.4}>
+          <ConnectionsCard />
+        </SectionTransition>
       </div>
-
-      <AppearanceCard />
-
-      <NotificationsCard
-        settings={settings}
-        onNotificationChange={handleNotificationChange}
-      />
-
-      <RiskGuardrailsCard
-        settings={settings}
-        onGuardrailChange={handleGuardrailChange}
-      />
-
-      <ConnectionsCard />
-    </div>
+    </PageTransition>
   );
 }

@@ -4,76 +4,98 @@
 
 @layer base {
   :root {
+    /* Robinhood-inspired light theme */
     --background: 0 0% 100%;
-    --foreground: 220 14% 10%;
+    --foreground: 0 0% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 220 14% 10%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 10%;
-    --primary: 199 89% 48%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 142 100% 39%;           /* Robinhood neon green #00C805 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 14% 10%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 220 14% 10%;
-    --destructive: 0 84% 60%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 142 100% 39%;            /* Neon green accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 4 84% 60%;          /* Robinhood red */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 199 89% 48%;
-    --chart-1: 199 89% 48%;
-    --chart-2: 152 69% 40%;
-    --chart-3: 43 96% 56%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 220 14% 50%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 142 100% 39%;              /* Green focus ring */
+    --chart-1: 142 100% 39%;           /* Primary green */
+    --chart-2: 4 84% 60%;              /* Red */
+    --chart-3: 45 93% 47%;             /* Yellow/gold */
+    --chart-4: 199 89% 48%;            /* Blue */
+    --chart-5: 0 0% 50%;               /* Gray */
     --radius: 0.75rem;
-    --success: 152 69% 40%;
-    --warning: 43 96% 56%;
+    --radius-pill: 9999px;             /* Pill-shaped buttons */
+    --success: 142 100% 39%;
+    --warning: 45 93% 47%;
 
-    /* Trading semantic colors */
-    --gain: 142 71% 45%;        /* Green for profits */
-    --loss: 0 84% 60%;          /* Red for losses */
-    --market-open: 142 71% 45%; /* Green dot when market open */
-    --market-closed: 0 0% 30%;  /* Gray when market closed */
-    --market-extended: 45 93% 47%; /* Yellow for pre/after hours */
+    /* Robinhood trading semantic colors */
+    --gain: 142 100% 39%;              /* Robinhood neon green #00C805 */
+    --loss: 4 84% 60%;                 /* Robinhood red #FF5252 */
+    --market-open: 142 100% 39%;
+    --market-closed: 0 0% 30%;
+    --market-extended: 45 93% 47%;
+
+    /* Animation timing tokens */
+    --duration-instant: 50ms;
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+    --duration-slower: 600ms;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+    --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Glassmorphism tokens */
+    --glass-blur: 16px;
+    --glass-opacity: 0.8;
+    --glass-border-opacity: 0.1;
   }
 
   .dark {
-    --background: 220 16% 8%;
-    --foreground: 220 9% 94%;
-    --card: 220 16% 11%;
-    --card-foreground: 220 9% 94%;
-    --popover: 220 16% 11%;
-    --popover-foreground: 220 9% 94%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 16%;
-    --secondary-foreground: 220 9% 94%;
-    --muted: 220 14% 16%;
-    --muted-foreground: 220 9% 55%;
-    --accent: 220 14% 16%;
-    --accent-foreground: 220 9% 94%;
-    --destructive: 0 72% 51%;
+    /* Robinhood-inspired dark theme (default) */
+    --background: 0 0% 5%;             /* Near black #0D0D0D */
+    --foreground: 0 0% 95%;
+    --card: 0 0% 8%;                   /* Dark card #141414 */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 142 100% 39%;           /* Robinhood neon green #00C805 */
+    --primary-foreground: 0 0% 0%;     /* Black text on green */
+    --secondary: 0 0% 12%;             /* Subtle gray */
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 142 100% 39%;            /* Neon green */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 4 90% 58%;          /* Brighter red for dark mode */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 199 89% 48%;
-    --chart-1: 199 89% 48%;
-    --chart-2: 152 69% 45%;
-    --chart-3: 43 96% 56%;
-    --chart-4: 0 72% 51%;
-    --chart-5: 220 9% 55%;
-    --success: 152 69% 45%;
-    --warning: 43 96% 56%;
+    --border: 0 0% 15%;                /* Subtle borders #262626 */
+    --input: 0 0% 12%;
+    --ring: 142 100% 39%;              /* Green focus ring */
+    --chart-1: 142 100% 45%;           /* Bright green */
+    --chart-2: 4 90% 60%;              /* Bright red */
+    --chart-3: 45 93% 55%;             /* Yellow/gold */
+    --chart-4: 199 89% 55%;            /* Blue */
+    --chart-5: 0 0% 55%;               /* Gray */
+    --success: 142 100% 45%;
+    --warning: 45 93% 55%;
 
-    /* Trading semantic colors */
-    --gain: 142 71% 55%;        /* Brighter green for profits */
-    --loss: 0 84% 65%;          /* Brighter red for losses */
-    --market-open: 142 71% 55%; /* Green dot when market open */
-    --market-closed: 0 0% 50%;  /* Gray when market closed */
-    --market-extended: 45 93% 55%; /* Yellow for pre/after hours */
+    /* Robinhood trading semantic colors - brighter for dark mode */
+    --gain: 142 100% 45%;              /* Brighter neon green */
+    --loss: 4 90% 60%;                 /* Brighter red */
+    --market-open: 142 100% 45%;
+    --market-closed: 0 0% 45%;
+    --market-extended: 45 93% 55%;
+
+    /* Glassmorphism adjustments for dark */
+    --glass-opacity: 0.6;
+    --glass-border-opacity: 0.15;
   }
 }
 
@@ -145,6 +167,101 @@
   .bg-market-extended {
     background-color: hsl(var(--market-extended));
   }
+
+  /* Glassmorphism utilities */
+  .glass {
+    background: hsl(var(--card) / var(--glass-opacity));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--foreground) / var(--glass-border-opacity));
+  }
+
+  .glass-subtle {
+    background: hsl(var(--card) / 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(var(--foreground) / 0.05);
+  }
+
+  .glass-strong {
+    background: hsl(var(--card) / 0.9);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--foreground) / 0.2);
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  .glow-gain {
+    box-shadow: 0 0 20px hsl(var(--gain) / 0.3);
+  }
+
+  .glow-loss {
+    box-shadow: 0 0 20px hsl(var(--loss) / 0.3);
+  }
+
+  /* Animation utilities */
+  .animate-pulse-gain {
+    animation: pulse-gain 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-loss {
+    animation: pulse-loss 2s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow-green 2s ease-in-out infinite;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.3s var(--ease-out-expo) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s var(--ease-out-expo) forwards;
+  }
+
+  .animate-slide-in-bottom {
+    animation: slide-in-bottom 0.3s var(--ease-out-expo) forwards;
+  }
+
+  .animate-count-up {
+    animation: count-up 0.4s var(--ease-out-expo) forwards;
+  }
+
+  /* Value change flash effects */
+  .flash-gain {
+    animation: pulse-gain 0.5s ease-out;
+  }
+
+  .flash-loss {
+    animation: pulse-loss 0.5s ease-out;
+  }
+
+  /* Hover transitions with Robinhood feel */
+  .hover-lift {
+    transition: transform var(--duration-fast) var(--ease-out-expo),
+                box-shadow var(--duration-fast) var(--ease-out-expo);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(0 0% 0% / 0.12);
+  }
+
+  /* Focus ring with green glow */
+  .focus-ring-primary:focus-visible {
+    outline: none;
+    ring: 2px;
+    ring-offset: 2px;
+    ring-color: hsl(var(--primary));
+    box-shadow: 0 0 0 2px hsl(var(--background)),
+                0 0 0 4px hsl(var(--primary)),
+                0 0 20px hsl(var(--primary) / 0.3);
+  }
 }
 
 .recharts-cartesian-grid-horizontal line,
@@ -160,6 +277,83 @@
   }
   100% {
     transform: translateX(100%);
+  }
+}
+
+/* Robinhood-style value pulse animations */
+@keyframes pulse-gain {
+  0%, 100% {
+    color: hsl(var(--gain));
+  }
+  50% {
+    color: hsl(142 100% 60%);
+    text-shadow: 0 0 12px hsl(142 100% 50% / 0.5);
+  }
+}
+
+@keyframes pulse-loss {
+  0%, 100% {
+    color: hsl(var(--loss));
+  }
+  50% {
+    color: hsl(4 100% 70%);
+    text-shadow: 0 0 12px hsl(4 100% 60% / 0.5);
+  }
+}
+
+/* Glow effect for interactive elements */
+@keyframes glow-green {
+  0%, 100% {
+    box-shadow: 0 0 5px hsl(142 100% 39% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px hsl(142 100% 39% / 0.5), 0 0 40px hsl(142 100% 39% / 0.2);
+  }
+}
+
+/* Fade in up animation for cards/content */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale in animation for modals/popovers */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide in from bottom for mobile sheets */
+@keyframes slide-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Counter animation for value changes */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

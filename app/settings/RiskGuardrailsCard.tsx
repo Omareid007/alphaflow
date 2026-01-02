@@ -10,15 +10,18 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Shield,
   AlertTriangle,
   Wallet,
   TrendingDown,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { UserSettings } from "@/lib/types";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface RiskGuardrailsCardProps {
   settings: UserSettings;
@@ -28,33 +31,72 @@ interface RiskGuardrailsCardProps {
   ) => void;
 }
 
+// Risk level indicator based on settings
+function getRiskLevel(settings: UserSettings["riskGuardrails"]) {
+  const { maxPositionSize, maxDrawdown, maxDailyLoss } = settings;
+  const score = (maxPositionSize + maxDrawdown + maxDailyLoss) / 3;
+
+  if (score <= 15)
+    return { label: "Conservative", color: "text-gain", bg: "bg-gain/10" };
+  if (score <= 30)
+    return { label: "Moderate", color: "text-primary", bg: "bg-primary/10" };
+  return { label: "Aggressive", color: "text-loss", bg: "bg-loss/10" };
+}
+
 export function RiskGuardrailsCard({
   settings,
   onGuardrailChange,
 }: RiskGuardrailsCardProps) {
+  const riskLevel = getRiskLevel(settings.riskGuardrails);
+
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader>
         <div className="flex items-center gap-3">
-          <Shield className="h-5 w-5 text-muted-foreground" />
-          <div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+            <Shield className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1">
             <CardTitle className="text-lg">Risk Guardrails</CardTitle>
             <CardDescription>
               Set safety limits for your strategies
             </CardDescription>
           </div>
+          <Badge variant="secondary" className={cn("gap-1.5", riskLevel.color)}>
+            <ShieldCheck className="h-3 w-3" />
+            {riskLevel.label}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-8">
-        <div className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Max Position Size */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="space-y-4 rounded-xl border border-border/50 bg-secondary/20 p-4"
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <Label>Max Position Size</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                <Wallet className="h-4 w-4 text-blue-500" />
+              </div>
+              <Label className="text-base font-medium">Max Position Size</Label>
             </div>
-            <span className="rounded-md bg-secondary px-3 py-1 text-sm font-medium">
-              {settings.riskGuardrails.maxPositionSize}%
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-semibold tabular-nums",
+                  settings.riskGuardrails.maxPositionSize <= 15
+                    ? "bg-gain/10 text-gain"
+                    : settings.riskGuardrails.maxPositionSize <= 30
+                      ? "bg-primary/10 text-primary"
+                      : "bg-loss/10 text-loss"
+                )}
+              >
+                {settings.riskGuardrails.maxPositionSize}%
+              </span>
+            </div>
           </div>
           <Slider
             value={[settings.riskGuardrails.maxPositionSize]}
@@ -62,23 +104,41 @@ export function RiskGuardrailsCard({
             min={5}
             max={50}
             step={5}
+            className="py-2"
           />
           <p className="text-xs text-muted-foreground">
             Maximum size of any single position as a percentage of portfolio
           </p>
-        </div>
+        </motion.div>
 
-        <Separator />
-
-        <div className="space-y-4">
+        {/* Max Drawdown */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4 rounded-xl border border-border/50 bg-secondary/20 p-4"
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
-              <Label>Max Drawdown</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+                <TrendingDown className="h-4 w-4 text-amber-500" />
+              </div>
+              <Label className="text-base font-medium">Max Drawdown</Label>
             </div>
-            <span className="rounded-md bg-secondary px-3 py-1 text-sm font-medium">
-              {settings.riskGuardrails.maxDrawdown}%
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-semibold tabular-nums",
+                  settings.riskGuardrails.maxDrawdown <= 15
+                    ? "bg-gain/10 text-gain"
+                    : settings.riskGuardrails.maxDrawdown <= 30
+                      ? "bg-primary/10 text-primary"
+                      : "bg-loss/10 text-loss"
+                )}
+              >
+                {settings.riskGuardrails.maxDrawdown}%
+              </span>
+            </div>
           </div>
           <Slider
             value={[settings.riskGuardrails.maxDrawdown]}
@@ -86,23 +146,41 @@ export function RiskGuardrailsCard({
             min={5}
             max={50}
             step={5}
+            className="py-2"
           />
           <p className="text-xs text-muted-foreground">
             Pause strategy if portfolio drawdown exceeds this threshold
           </p>
-        </div>
+        </motion.div>
 
-        <Separator />
-
-        <div className="space-y-4">
+        {/* Max Daily Loss */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="space-y-4 rounded-xl border border-border/50 bg-secondary/20 p-4"
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              <Label>Max Daily Loss</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-loss/10">
+                <AlertTriangle className="h-4 w-4 text-loss" />
+              </div>
+              <Label className="text-base font-medium">Max Daily Loss</Label>
             </div>
-            <span className="rounded-md bg-secondary px-3 py-1 text-sm font-medium">
-              {settings.riskGuardrails.maxDailyLoss}%
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-semibold tabular-nums",
+                  settings.riskGuardrails.maxDailyLoss <= 5
+                    ? "bg-gain/10 text-gain"
+                    : settings.riskGuardrails.maxDailyLoss <= 10
+                      ? "bg-primary/10 text-primary"
+                      : "bg-loss/10 text-loss"
+                )}
+              >
+                {settings.riskGuardrails.maxDailyLoss}%
+              </span>
+            </div>
           </div>
           <Slider
             value={[settings.riskGuardrails.maxDailyLoss]}
@@ -110,29 +188,57 @@ export function RiskGuardrailsCard({
             min={1}
             max={20}
             step={1}
+            className="py-2"
           />
           <p className="text-xs text-muted-foreground">
             Halt all trading for the day if losses exceed this amount
           </p>
-        </div>
+        </motion.div>
 
-        <Separator />
-
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-muted-foreground" />
-              <Label>Require Confirmation</Label>
+        {/* Require Confirmation */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className={cn(
+            "flex items-center justify-between rounded-xl border p-4 transition-all",
+            settings.riskGuardrails.requireConfirmation
+              ? "border-gain/30 bg-gain/5"
+              : "border-border/50 bg-secondary/20"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                settings.riskGuardrails.requireConfirmation
+                  ? "bg-gain/10"
+                  : "bg-secondary/50"
+              )}
+            >
+              <Check
+                className={cn(
+                  "h-5 w-5 transition-colors",
+                  settings.riskGuardrails.requireConfirmation
+                    ? "text-gain"
+                    : "text-muted-foreground"
+                )}
+              />
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Require manual confirmation before executing large trades
-            </p>
+            <div>
+              <Label className="text-base font-medium">
+                Require Confirmation
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Require manual confirmation before executing large trades
+              </p>
+            </div>
           </div>
           <Switch
             checked={settings.riskGuardrails.requireConfirmation}
             onCheckedChange={(v) => onGuardrailChange("requireConfirmation", v)}
           />
-        </div>
+        </motion.div>
       </CardContent>
     </Card>
   );
