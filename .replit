@@ -1,5 +1,6 @@
-entrypoint = "README.md"
+entrypoint = "server/index.ts"
 modules = ["nodejs-22", "postgresql-16"]
+hidden = [".next", "node_modules", ".cache", "server_dist"]
 
 [nix]
 channel = "stable-24_05"
@@ -8,7 +9,7 @@ packages = ["jq"]
 [deployment]
 deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run build"]
-run = ["npm", "run", "start"]
+run = ["npm", "run", "start:server"]
 
 [[ports]]
 localPort = 3000
@@ -24,6 +25,8 @@ externalPort = 5000
 
 [env]
 PORT = "5000"
+NODE_OPTIONS = "--max-old-space-size=512"
+NEXT_TELEMETRY_DISABLED = "1"
 
 [agent]
 stack = "NEXTJS"
@@ -47,11 +50,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
-waitForPort = 3000
+args = "npm run dev:server"
+waitForPort = 5000
 
 [userenv]
 
 [userenv.shared]
 JINA_API_KEY = "jina_7e01e1a5c1514fdc9cb2a05361523595nieXo2SpZnNG1e0ixt2lKm5ZJUBe"
-

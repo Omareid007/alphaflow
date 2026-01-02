@@ -4,6 +4,9 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for smaller production builds
+  output: 'standalone',
+
   // TypeScript and ESLint strict mode enabled (all errors fixed 2025-12-27)
   eslint: {
     ignoreDuringBuilds: false,
@@ -12,10 +15,33 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: { unoptimized: true },
+
   // Optimize package imports for better tree-shaking
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion'],
   },
+
+  // Webpack configuration for memory optimization
+  webpack: (config, { dev }) => {
+    // Enable filesystem cache for faster rebuilds
+    config.cache = {
+      type: 'filesystem',
+      cacheDirectory: '.next/cache/webpack',
+    };
+
+    // Reduce memory usage during development
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/node_modules/**', '**/.git/**'],
+      };
+    }
+
+    return config;
+  },
+
   async rewrites() {
     // In production (Replit), backend and frontend are on same domain
     // In development, proxy API calls to Express server
