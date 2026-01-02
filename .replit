@@ -1,6 +1,16 @@
 entrypoint = "server/index.ts"
 modules = ["nodejs-22", "postgresql-16"]
 hidden = [".next", "node_modules", ".cache", "server_dist"]
+run = "npm run dev"
+
+[languages]
+[languages.typescript]
+pattern = "**/*.{ts,tsx}"
+syntax = "typescript"
+
+[languages.javascript]
+pattern = "**/*.{js,jsx}"
+syntax = "javascript"
 
 [nix]
 channel = "stable-24_05"
@@ -22,6 +32,10 @@ externalPort = 3001
 [[ports]]
 localPort = 5000
 externalPort = 5000
+
+[web]
+open = true
+port = 3000
 
 [env]
 PORT = "5000"
