@@ -18,6 +18,7 @@ import { workQueue } from "../lib/work-queue";
 import { tradabilityService } from "../services/tradability-service";
 import type { Fill } from "@shared/schema";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+import { asyncHandler, serverError, notFound } from "../lib/standard-errors";
 
 const router = Router();
 
@@ -29,27 +30,26 @@ const router = Router();
  * GET /api/orders/unreal
  * Identify orders that exist locally but not in the broker
  */
-router.get("/unreal", requireAuth, async (req: Request, res: Response) => {
-  try {
+router.get(
+  "/unreal",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const unrealOrders = await identifyUnrealOrders();
     res.json({
       count: unrealOrders.length,
       orders: unrealOrders,
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to identify unreal orders", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * POST /api/orders/cleanup
  * Clean up unreal orders (cancel them locally)
  */
-router.post("/cleanup", requireAuth, async (req: Request, res: Response) => {
-  try {
+router.post(
+  "/cleanup",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const result = await cleanupUnrealOrders();
     res.json({
       success: result.errors.length === 0,
@@ -57,20 +57,17 @@ router.post("/cleanup", requireAuth, async (req: Request, res: Response) => {
       canceled: result.canceled,
       errors: result.errors,
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to cleanup unreal orders", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * POST /api/orders/reconcile
  * Reconcile order book between local database and broker
  */
-router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
-  try {
+router.post(
+  "/reconcile",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const result = await reconcileOrderBook();
     res.json({
       success: true,
@@ -80,13 +77,8 @@ router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
       orphanedLocal: result.orphanedLocal,
       synced: result.synced,
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to reconcile order book", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * GET /api/orders/execution-engine/status
@@ -95,32 +87,25 @@ router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
 router.get(
   "/execution-engine/status",
   requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const activeExecutions = orderExecutionEngine.getActiveExecutions();
-      const executions = Array.from(activeExecutions.entries()).map(
-        ([id, state]) => ({
-          clientOrderId: id,
-          orderId: state.orderId,
-          symbol: state.symbol,
-          side: state.side,
-          status: state.status,
-          attempts: state.attempts,
-          createdAt: state.createdAt.toISOString(),
-          updatedAt: state.updatedAt.toISOString(),
-        })
-      );
-      res.json({
-        activeCount: executions.length,
-        executions,
-      });
-    } catch (error) {
-      log.error("OrdersRoutes", "Failed to get execution engine status", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      res.status(500).json({ error: String(error) });
-    }
-  }
+  asyncHandler(async (req: Request, res: Response) => {
+    const activeExecutions = orderExecutionEngine.getActiveExecutions();
+    const executions = Array.from(activeExecutions.entries()).map(
+      ([id, state]) => ({
+        clientOrderId: id,
+        orderId: state.orderId,
+        symbol: state.symbol,
+        side: state.side,
+        status: state.status,
+        attempts: state.attempts,
+        createdAt: state.createdAt.toISOString(),
+        updatedAt: state.updatedAt.toISOString(),
+      })
+    );
+    res.json({
+      activeCount: executions.length,
+      executions,
+    });
+  })
 );
 
 // ============================================================================
@@ -132,9 +117,11 @@ router.get(
  * Get orders from local database with optional status filter
  * Query params: { limit?: number, status?: string }
  */
-router.get("/", requireAuth, async (req: Request, res: Response) => {
-  const fetchedAt = new Date();
-  try {
+router.get(
+  "/",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const fetchedAt = new Date();
     const limit = parseInt(req.query.limit as string) || 50;
     const status = req.query.status as string;
 
@@ -154,20 +141,17 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         note: "Orders stored in local database, synced from broker",
       },
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch orders", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * POST /api/orders/sync
  * Manually trigger order sync with broker
  */
-router.post("/sync", requireAuth, async (req: Request, res: Response) => {
-  try {
+router.post(
+  "/sync",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const traceId = `api-sync-${Date.now()}`;
 
     // Enqueue an ORDER_SYNC work item
@@ -183,22 +167,19 @@ router.post("/sync", requireAuth, async (req: Request, res: Response) => {
       message: "Order sync enqueued",
       traceId,
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to enqueue order sync", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * GET /api/orders/recent
  * Get live orders from Alpaca (source of truth per SOURCE_OF_TRUTH_CONTRACT.md)
  * Query params: { limit?: number }
  */
-router.get("/recent", requireAuth, async (req: Request, res: Response) => {
-  const fetchedAt = new Date();
-  try {
+router.get(
+  "/recent",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const fetchedAt = new Date();
     const limit = parseInt(req.query.limit as string) || 50;
     const orders = await alpaca.getOrders("all", limit);
 
@@ -213,18 +194,8 @@ router.get("/recent", requireAuth, async (req: Request, res: Response) => {
       orders: enrichedOrders,
       _source: createLiveSourceMetadata(),
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch recent orders", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(503).json({
-      error: "Failed to fetch recent orders",
-      _source: createUnavailableSourceMetadata(),
-      message:
-        "Could not connect to Alpaca Paper Trading. Please try again shortly.",
-    });
-  }
-});
+  })
+);
 
 // ============================================================================
 // FILLS ENDPOINTS (must be before /:id to avoid being caught by it)
@@ -235,9 +206,11 @@ router.get("/recent", requireAuth, async (req: Request, res: Response) => {
  * Get recent fills from all orders
  * Query params: { limit?: number }
  */
-router.get("/fills", requireAuth, async (req: Request, res: Response) => {
-  const fetchedAt = new Date();
-  try {
+router.get(
+  "/fills",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const fetchedAt = new Date();
     const limit = parseInt(req.query.limit as string) || 50;
 
     // Get recent fills using batch query (100x faster than N+1)
@@ -258,13 +231,8 @@ router.get("/fills", requireAuth, async (req: Request, res: Response) => {
         fetchedAt: fetchedAt.toISOString(),
       },
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch fills", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 /**
  * GET /api/orders/fills/order/:orderId
@@ -273,33 +241,26 @@ router.get("/fills", requireAuth, async (req: Request, res: Response) => {
 router.get(
   "/fills/order/:orderId",
   requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const { orderId } = req.params;
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orderId } = req.params;
 
-      // Try by database order ID first
-      let fills = await storage.getFillsByOrderId(orderId);
+    // Try by database order ID first
+    let fills = await storage.getFillsByOrderId(orderId);
 
-      // If not found, try by brokerOrderId
-      if (fills.length === 0) {
-        fills = await storage.getFillsByBrokerOrderId(orderId);
-      }
-
-      res.json({
-        fills,
-        _source: {
-          type: "database",
-          table: "fills",
-          fetchedAt: new Date().toISOString(),
-        },
-      });
-    } catch (error) {
-      log.error("OrdersRoutes", "Failed to fetch fills for order", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      res.status(500).json({ error: String(error) });
+    // If not found, try by brokerOrderId
+    if (fills.length === 0) {
+      fills = await storage.getFillsByBrokerOrderId(orderId);
     }
-  }
+
+    res.json({
+      fills,
+      _source: {
+        type: "database",
+        table: "fills",
+        fetchedAt: new Date().toISOString(),
+      },
+    });
+  })
 );
 
 // ============================================================================
@@ -311,8 +272,10 @@ router.get(
  * Get a single order by ID with its associated fills
  * Supports both database ID and broker order ID
  */
-router.get("/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
+router.get(
+  "/:id",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Try by database ID first, then by brokerOrderId
@@ -324,7 +287,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     }
 
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+      throw notFound("Order not found");
     }
 
     // Fetch fills for this order
@@ -339,12 +302,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
         fetchedAt: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch order", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
-  }
-});
+  })
+);
 
 export default router;
