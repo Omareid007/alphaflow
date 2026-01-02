@@ -140,6 +140,13 @@
       "command": "npx",
       "args": ["-y", "@djankies/vitest-mcp"]
     },
+    "openspec": {
+      "command": "npx",
+      "args": ["-y", "openspec-mcp", "--with-dashboard"],
+      "env": {
+        "OPENSPEC_ROOT": "/home/runner/workspace"
+      }
+    },
     "openapi": {
       "command": "npx",
       "args": ["-y", "@ivotoby/openapi-mcp-server"],
@@ -150,6 +157,13 @@
     "yfinance": {
       "command": "npx",
       "args": ["-y", "@mokemokechicken/yfinance-mcp-server"]
+    },
+    "finnhub": {
+      "command": "uvx",
+      "args": ["mcp-finnhub"],
+      "env": {
+        "FINNHUB_API_KEY": "${FINNHUB_API_KEY}"
+      }
     },
     "redis": {
       "command": "npx",
