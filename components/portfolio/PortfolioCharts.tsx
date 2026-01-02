@@ -44,10 +44,11 @@ interface PositionPnlChartProps {
 
 /**
  * Pie chart showing asset allocation percentages
+ * Uses responsive height: 192px on mobile, 288px on desktop
  */
 export function AllocationChart({ data }: AllocationChartProps) {
   return (
-    <div className="h-72">
+    <div className="h-48 md:h-72">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -85,10 +86,11 @@ export function AllocationChart({ data }: AllocationChartProps) {
 
 /**
  * Bar chart showing position P&L
+ * Uses responsive height: 192px on mobile, 288px on desktop
  */
 export function PositionPnlChart({ data }: PositionPnlChartProps) {
   return (
-    <div className="h-72">
+    <div className="h-48 md:h-72">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />

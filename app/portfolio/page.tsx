@@ -30,7 +30,7 @@ import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
 import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useMemo, useCallback } from "react";
 import {
   ChartSkeleton,
   BarChartSkeleton,
@@ -153,11 +153,9 @@ export default function PortfolioPage() {
     refetch: refetchStrategies,
   } = useStrategies();
 
-  // Real-time SSE connection for live P&L updates
-  const { isConnected, status } = useRealTimeTrading({
-    enabled: !!user?.id,
-    userId: user?.id,
-    onPositionUpdate: (data) => {
+  // Memoized event handlers to prevent unnecessary re-renders
+  const handlePositionUpdate = useCallback(
+    (data: { totalPnL?: number }) => {
       // Invalidate queries to trigger refetch with new data
       queryClient.invalidateQueries({ queryKey: ["positions"] });
       queryClient.invalidateQueries({ queryKey: ["portfolioSnapshot"] });
@@ -177,14 +175,81 @@ export default function PortfolioPage() {
       }
       lastPnlRef.current = newPnl;
     },
-    onPriceUpdate: (data) => {
-      // Invalidate queries for real-time price updates
-      queryClient.invalidateQueries({ queryKey: ["positions"] });
-    },
+    [queryClient, toast]
+  );
+
+  const handlePriceUpdate = useCallback(() => {
+    // Invalidate queries for real-time price updates
+    queryClient.invalidateQueries({ queryKey: ["positions"] });
+  }, [queryClient]);
+
+  // Real-time SSE connection for live P&L updates
+  const { isConnected, status } = useRealTimeTrading({
+    enabled: !!user?.id,
+    userId: user?.id,
+    onPositionUpdate: handlePositionUpdate,
+    onPriceUpdate: handlePriceUpdate,
   });
 
   const isLoading = portfolioLoading || positionsLoading || strategiesLoading;
   const hasError = portfolioError || positionsError || strategiesError;
+
+  // Memoized retry handler (must be before early returns)
+  const handleRetryAll = useCallback(() => {
+    refetchPortfolio();
+    refetchPositions();
+    refetchStrategies();
+  }, [refetchPortfolio, refetchPositions, refetchStrategies]);
+
+  // Memoized filtered strategies (must be before early returns)
+  const activeStrategies = useMemo(
+    () => strategies.filter((s) => s.status === "live" || s.status === "paper"),
+    [strategies]
+  );
+
+  // Memoized chart data - uses fallbacks when data not available
+  const portfolioValue = portfolioSnapshot?.portfolioValue ?? 0;
+  const portfolioCash = portfolioSnapshot?.cash ?? 0;
+  const dailyPlPct = portfolioSnapshot?.dailyPlPct ?? 0;
+
+  const pieData = useMemo(
+    () =>
+      portfolioValue > 0
+        ? (positions || []).map((p) => ({
+            name: p.symbol,
+            value: (p.marketValue / portfolioValue) * 100,
+          }))
+        : [],
+    [positions, portfolioValue]
+  );
+
+  const pnlData = useMemo(
+    () =>
+      (positions || []).map((p) => ({
+        symbol: p.symbol,
+        pnl: p.unrealizedPl,
+        pnlPercent: p.unrealizedPlPct,
+      })),
+    [positions]
+  );
+
+  // Memoized computed metrics
+  const { exposedAmount, cashPercent, exposurePercent, drawdownPercent } =
+    useMemo(() => {
+      const exposed = portfolioValue - portfolioCash;
+      const cashPct =
+        portfolioValue > 0 ? (portfolioCash / portfolioValue) * 100 : 0;
+      const exposurePct =
+        portfolioValue > 0 ? (exposed / portfolioValue) * 100 : 0;
+      const drawdownPct = Math.abs(Math.min(0, dailyPlPct));
+
+      return {
+        exposedAmount: exposed,
+        cashPercent: cashPct,
+        exposurePercent: exposurePct,
+        drawdownPercent: drawdownPct,
+      };
+    }, [portfolioValue, portfolioCash, dailyPlPct]);
 
   if (
     isLoading &&
@@ -228,11 +293,7 @@ export default function PortfolioPage() {
         <ErrorState
           title="Unable to load portfolio data"
           error={portfolioError || positionsError}
-          onRetry={() => {
-            refetchPortfolio();
-            refetchPositions();
-            refetchStrategies();
-          }}
+          onRetry={handleRetryAll}
         />
       </div>
     );
@@ -272,34 +333,6 @@ export default function PortfolioPage() {
       </div>
     );
   }
-
-  // Transform positions data for charts
-  const pieData = (positions || []).map((p) => ({
-    name: p.symbol,
-    value: (p.marketValue / portfolioSnapshot.portfolioValue) * 100,
-  }));
-
-  const pnlData = (positions || []).map((p) => ({
-    symbol: p.symbol,
-    pnl: p.unrealizedPl,
-    pnlPercent: p.unrealizedPlPct,
-  }));
-
-  const exposedAmount =
-    portfolioSnapshot.portfolioValue - portfolioSnapshot.cash;
-  const cashPercent =
-    portfolioSnapshot.portfolioValue > 0
-      ? (portfolioSnapshot.cash / portfolioSnapshot.portfolioValue) * 100
-      : 0;
-
-  // Calculate exposure percentage
-  const exposurePercent =
-    portfolioSnapshot.portfolioValue > 0
-      ? (exposedAmount / portfolioSnapshot.portfolioValue) * 100
-      : 0;
-
-  // Calculate drawdown (using daily P&L as a proxy)
-  const drawdownPercent = Math.abs(Math.min(0, portfolioSnapshot.dailyPlPct));
 
   return (
     <div className="space-y-6">
@@ -429,69 +462,63 @@ export default function PortfolioPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {strategies.filter(
-              (s) => s.status === "live" || s.status === "paper"
-            ).length === 0 ? (
+            {activeStrategies.length === 0 ? (
               <p className="text-muted-foreground">No active strategies</p>
             ) : (
-              strategies
-                .filter((s) => s.status === "live" || s.status === "paper")
-                .map((strategy) => (
-                  <div
-                    key={strategy.id}
-                    className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{strategy.name}</p>
-                          <Badge
-                            variant={
-                              strategy.mode === "live" ? "default" : "secondary"
-                            }
-                          >
-                            {strategy.mode === "paper" ? "Paper" : "Live"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {strategy.type || "Custom Strategy"}
-                        </p>
+              activeStrategies.map((strategy) => (
+                <div
+                  key={strategy.id}
+                  className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{strategy.name}</p>
+                        <Badge
+                          variant={
+                            strategy.mode === "live" ? "default" : "secondary"
+                          }
+                        >
+                          {strategy.mode === "paper" ? "Paper" : "Live"}
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {strategy.performanceSummary && (
-                        <div className="text-right">
-                          <p
-                            className={cn(
-                              "font-semibold",
-                              (strategy.performanceSummary.totalReturn || 0) >=
-                                0
-                                ? "text-success"
-                                : "text-destructive"
-                            )}
-                          >
-                            {(strategy.performanceSummary.totalReturn || 0) >= 0
-                              ? "+"
-                              : ""}
-                            {(
-                              strategy.performanceSummary.totalReturn || 0
-                            ).toFixed(2)}
-                            %
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {strategy.performanceSummary.totalTrades || 0}{" "}
-                            trades
-                          </p>
-                        </div>
-                      )}
-                      <Link href={`/strategies/${strategy.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Strategy
-                        </Button>
-                      </Link>
+                      <p className="text-sm text-muted-foreground">
+                        {strategy.type || "Custom Strategy"}
+                      </p>
                     </div>
                   </div>
-                ))
+                  <div className="flex items-center gap-4">
+                    {strategy.performanceSummary && (
+                      <div className="text-right">
+                        <p
+                          className={cn(
+                            "font-semibold",
+                            (strategy.performanceSummary.totalReturn || 0) >= 0
+                              ? "text-success"
+                              : "text-destructive"
+                          )}
+                        >
+                          {(strategy.performanceSummary.totalReturn || 0) >= 0
+                            ? "+"
+                            : ""}
+                          {(
+                            strategy.performanceSummary.totalReturn || 0
+                          ).toFixed(2)}
+                          %
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {strategy.performanceSummary.totalTrades || 0} trades
+                        </p>
+                      </div>
+                    )}
+                    <Link href={`/strategies/${strategy.id}`}>
+                      <Button variant="outline" size="sm">
+                        View Strategy
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </CardContent>
