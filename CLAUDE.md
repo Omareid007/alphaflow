@@ -28,14 +28,15 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 ## Quick Status
 
-| Metric           | Value                   |
-| ---------------- | ----------------------- |
-| Lines of Code    | ~152,000                |
-| TypeScript Files | 485                     |
-| Dependencies     | 81                      |
-| MCP Servers      | 26                      |
-| Tests            | 43 files, ~21,600 lines |
-| Security Vulns   | 4 (moderate, dev-only)  |
+| Metric              | Value                   |
+| ------------------- | ----------------------- |
+| Lines of Code       | ~152,000                |
+| TypeScript Files    | 485                     |
+| Dependencies        | 81                      |
+| MCP Servers         | 26                      |
+| Tests               | 43 files, ~21,600 lines |
+| OpenSpec Scenarios  | 370+ (auto-generated)   |
+| Security Vulns      | 4 (moderate, dev-only)  |
 
 **Tools inventory**: Query `mcp__memory__search_nodes("inventory")` for current skills/agents/commands.
 
@@ -71,6 +72,9 @@ npm run build
 npm run lint
 npx tsc --noEmit
 npx vitest run
+
+# Generate tests from OpenSpec (370+ scenarios)
+npm run generate-tests
 
 # Security audit
 npm audit

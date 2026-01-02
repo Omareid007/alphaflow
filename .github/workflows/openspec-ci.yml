@@ -1,0 +1,632 @@
+#################################################
+# OpenSpec CI/CD Workflow
+#################################################
+# Purpose: Validates OpenSpec specifications, checks API coverage,
+#          generates metrics, and auto-generates OpenAPI documentation
+#
+# Triggers:
+#   - Push to main branch
+#   - Pull requests
+#   - Changes to openspec/** files
+#
+# Jobs:
+#   1. validate-specs: Validates OpenSpec specifications
+#   2. check-coverage: Analyzes API coverage
+#   3. generate-metrics: Creates coverage badges and metrics
+#   4. auto-generate-openapi: Generates and validates OpenAPI spec
+#
+# Documentation: https://github.com/bjsi/openspec
+#################################################
+
+name: OpenSpec CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'openspec/**'
+      - 'server/routes/**'
+      - '.github/workflows/openspec-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'openspec/**'
+      - 'server/routes/**'
+      - '.github/workflows/openspec-ci.yml'
+  workflow_dispatch:
+
+# Permissions for PR comments and commits
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  #################################################
+  # Job 1: Validate OpenSpec Specifications
+  #################################################
+  validate-specs:
+    name: Validate OpenSpec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for change detection
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install OpenSpec CLI
+        run: npm install -g @bjsi/openspec
+        continue-on-error: false
+
+      - name: Validate OpenSpec specifications (strict mode)
+        id: validate-specs
+        run: |
+          echo "::group::Validating OpenSpec specifications"
+
+          # Validate all specifications with strict mode
+          if openspec validate --specs --strict; then
+            echo "validation_status=success" >> $GITHUB_OUTPUT
+            echo "✅ All OpenSpec specifications are valid"
+          else
+            echo "validation_status=failure" >> $GITHUB_OUTPUT
+            echo "❌ OpenSpec validation failed"
+            exit 1
+          fi
+
+          echo "::endgroup::"
+
+      - name: Validate OpenSpec changes (strict mode)
+        id: validate-changes
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "::group::Validating OpenSpec changes"
+
+          # Validate only changed specifications
+          if openspec validate --changes --strict; then
+            echo "changes_validation_status=success" >> $GITHUB_OUTPUT
+            echo "✅ All OpenSpec changes are valid"
+          else
+            echo "changes_validation_status=failure" >> $GITHUB_OUTPUT
+            echo "❌ OpenSpec change validation failed"
+            exit 1
+          fi
+
+          echo "::endgroup::"
+        continue-on-error: false
+
+      - name: Generate validation report
+        if: always()
+        run: |
+          mkdir -p reports
+
+          cat > reports/validation-report.md << 'EOF'
+          # OpenSpec Validation Report
+
+          ## Validation Results
+
+          - **Specifications Validation:** ${{ steps.validate-specs.outputs.validation_status || 'skipped' }}
+          - **Changes Validation:** ${{ steps.validate-changes.outputs.changes_validation_status || 'skipped' }}
+          - **Workflow:** ${{ github.workflow }}
+          - **Commit:** ${{ github.sha }}
+          - **Triggered by:** ${{ github.event_name }}
+
+          ## Specification Files
+
+          EOF
+
+          # List all spec files
+          find openspec/specs -name "spec.md" -type f | while read file; do
+            echo "- \`$file\`" >> reports/validation-report.md
+          done
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: reports/validation-report.md
+          retention-days: 30
+
+  #################################################
+  # Job 2: Check API Coverage
+  #################################################
+  check-coverage:
+    name: Check API Coverage
+    runs-on: ubuntu-latest
+    needs: validate-specs
+
+    outputs:
+      coverage_percentage: ${{ steps.calculate-coverage.outputs.coverage_percentage }}
+      endpoints_total: ${{ steps.calculate-coverage.outputs.endpoints_total }}
+      endpoints_documented: ${{ steps.calculate-coverage.outputs.endpoints_documented }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Count OpenSpec endpoints
+        id: count-openspec
+        run: |
+          echo "::group::Counting OpenSpec endpoints"
+
+          # Count API endpoints defined in OpenSpec specifications
+          SPEC_COUNT=0
+
+          # Parse spec.md files for endpoint definitions
+          for spec_file in openspec/specs/*/spec.md; do
+            if [ -f "$spec_file" ]; then
+              # Count lines with HTTP methods (GET, POST, PUT, DELETE, PATCH)
+              count=$(grep -E "^\s*(GET|POST|PUT|DELETE|PATCH)\s+" "$spec_file" | wc -l)
+              SPEC_COUNT=$((SPEC_COUNT + count))
+            fi
+          done
+
+          echo "openspec_endpoints=$SPEC_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 OpenSpec endpoints: $SPEC_COUNT"
+          echo "::endgroup::"
+
+      - name: Count actual route endpoints
+        id: count-routes
+        run: |
+          echo "::group::Counting actual route endpoints"
+
+          # Count API endpoints in route files
+          ROUTE_COUNT=0
+
+          # Count endpoints in modular route files
+          if [ -d "server/routes" ]; then
+            count=$(grep -rh "router\.\(get\|post\|put\|delete\|patch\)" server/routes/*.ts 2>/dev/null | wc -l)
+            ROUTE_COUNT=$((ROUTE_COUNT + count))
+          fi
+
+          # Count endpoints in main routes.ts
+          if [ -f "server/routes.ts" ]; then
+            count=$(grep -h "app\.\(get\|post\|put\|delete\|patch\)" server/routes.ts 2>/dev/null | wc -l)
+            ROUTE_COUNT=$((ROUTE_COUNT + count))
+          fi
+
+          echo "route_endpoints=$ROUTE_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Route endpoints: $ROUTE_COUNT"
+          echo "::endgroup::"
+
+      - name: Calculate coverage percentage
+        id: calculate-coverage
+        run: |
+          SPEC_COUNT=${{ steps.count-openspec.outputs.openspec_endpoints }}
+          ROUTE_COUNT=${{ steps.count-routes.outputs.route_endpoints }}
+
+          # Calculate coverage percentage
+          if [ "$ROUTE_COUNT" -gt 0 ]; then
+            COVERAGE=$(awk "BEGIN {printf \"%.2f\", ($SPEC_COUNT / $ROUTE_COUNT) * 100}")
+          else
+            COVERAGE="0.00"
+          fi
+
+          echo "coverage_percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "endpoints_total=$ROUTE_COUNT" >> $GITHUB_OUTPUT
+          echo "endpoints_documented=$SPEC_COUNT" >> $GITHUB_OUTPUT
+
+          echo "📊 API Coverage: $COVERAGE% ($SPEC_COUNT/$ROUTE_COUNT endpoints documented)"
+
+      - name: Check coverage threshold
+        id: check-threshold
+        run: |
+          COVERAGE=${{ steps.calculate-coverage.outputs.coverage_percentage }}
+          THRESHOLD=60.0
+
+          # Compare coverage with threshold
+          if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
+            echo "threshold_status=passed" >> $GITHUB_OUTPUT
+            echo "✅ Coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
+          else
+            echo "threshold_status=warning" >> $GITHUB_OUTPUT
+            echo "⚠️  Coverage ($COVERAGE%) below threshold ($THRESHOLD%)"
+          fi
+
+      - name: Generate coverage report
+        if: always()
+        run: |
+          mkdir -p reports
+
+          cat > reports/coverage-report.md << EOF
+          # OpenSpec API Coverage Report
+
+          ## Coverage Summary
+
+          - **Coverage Percentage:** ${{ steps.calculate-coverage.outputs.coverage_percentage }}%
+          - **Endpoints Documented:** ${{ steps.count-openspec.outputs.openspec_endpoints }}
+          - **Total Endpoints:** ${{ steps.count-routes.outputs.route_endpoints }}
+          - **Threshold Status:** ${{ steps.check-threshold.outputs.threshold_status }}
+          - **Minimum Threshold:** 60%
+
+          ## Status
+
+          ${{ steps.check-threshold.outputs.threshold_status == 'passed' && '✅ Coverage meets minimum threshold' || '⚠️  Coverage below minimum threshold' }}
+
+          ## Breakdown by Module
+
+          EOF
+
+          # Count endpoints per module
+          for module_dir in openspec/specs/*/; do
+            module_name=$(basename "$module_dir")
+            spec_file="$module_dir/spec.md"
+
+            if [ -f "$spec_file" ]; then
+              endpoint_count=$(grep -E "^\s*(GET|POST|PUT|DELETE|PATCH)\s+" "$spec_file" | wc -l)
+              echo "- **$module_name:** $endpoint_count endpoints" >> reports/coverage-report.md
+            fi
+          done
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: reports/coverage-report.md
+          retention-days: 30
+
+      - name: Warning on low coverage
+        if: steps.check-threshold.outputs.threshold_status == 'warning'
+        run: |
+          echo "::warning::API coverage (${{ steps.calculate-coverage.outputs.coverage_percentage }}%) is below the 60% threshold"
+
+  #################################################
+  # Job 3: Generate Metrics and Badges
+  #################################################
+  generate-metrics:
+    name: Generate Metrics
+    runs-on: ubuntu-latest
+    needs: check-coverage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Count requirements and scenarios
+        id: count-metrics
+        run: |
+          echo "::group::Counting requirements and scenarios"
+
+          REQ_COUNT=0
+          SCENARIO_COUNT=0
+
+          # Count requirements (lines starting with "- " in Requirements sections)
+          for spec_file in openspec/specs/*/spec.md; do
+            if [ -f "$spec_file" ]; then
+              req=$(grep -A 100 "## Requirements" "$spec_file" | grep "^- " | wc -l)
+              REQ_COUNT=$((REQ_COUNT + req))
+            fi
+          done
+
+          # Count scenarios (lines starting with "- " in Scenarios sections)
+          for spec_file in openspec/specs/*/spec.md; do
+            if [ -f "$spec_file" ]; then
+              scen=$(grep -A 100 "## Scenarios" "$spec_file" | grep "^- " | wc -l)
+              SCENARIO_COUNT=$((SCENARIO_COUNT + scen))
+            fi
+          done
+
+          echo "requirements=$REQ_COUNT" >> $GITHUB_OUTPUT
+          echo "scenarios=$SCENARIO_COUNT" >> $GITHUB_OUTPUT
+
+          echo "📊 Requirements: $REQ_COUNT"
+          echo "📊 Scenarios: $SCENARIO_COUNT"
+          echo "::endgroup::"
+
+      - name: Generate coverage badge
+        id: generate-badge
+        run: |
+          COVERAGE=${{ needs.check-coverage.outputs.coverage_percentage }}
+
+          # Determine badge color based on coverage
+          if (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+            COLOR="yellow"
+          else
+            COLOR="red"
+          fi
+
+          # Generate badge URL
+          BADGE_URL="https://img.shields.io/badge/API%20Coverage-${COVERAGE}%25-${COLOR}"
+          echo "badge_url=$BADGE_URL" >> $GITHUB_OUTPUT
+          echo "badge_color=$COLOR" >> $GITHUB_OUTPUT
+
+          echo "🏷️  Badge URL: $BADGE_URL"
+
+      - name: Generate metrics summary
+        run: |
+          mkdir -p reports
+
+          cat > reports/metrics-summary.md << EOF
+          # OpenSpec Metrics Summary
+
+          ## Coverage Badge
+
+          ![API Coverage](https://img.shields.io/badge/API%20Coverage-${{ needs.check-coverage.outputs.coverage_percentage }}%25-${{ steps.generate-badge.outputs.badge_color }})
+
+          ## Metrics
+
+          | Metric | Value |
+          |--------|-------|
+          | API Coverage | ${{ needs.check-coverage.outputs.coverage_percentage }}% |
+          | Endpoints Documented | ${{ needs.check-coverage.outputs.endpoints_documented }} |
+          | Total Endpoints | ${{ needs.check-coverage.outputs.endpoints_total }} |
+          | Requirements | ${{ steps.count-metrics.outputs.requirements }} |
+          | Scenarios | ${{ steps.count-metrics.outputs.scenarios }} |
+          | Specification Files | 8 |
+
+          ## Badge Markdown
+
+          \`\`\`markdown
+          ![API Coverage](${{ steps.generate-badge.outputs.badge_url }})
+          \`\`\`
+
+          ## Badge HTML
+
+          \`\`\`html
+          <img src="${{ steps.generate-badge.outputs.badge_url }}" alt="API Coverage" />
+          \`\`\`
+
+          EOF
+
+      - name: Upload metrics summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-summary
+          path: reports/metrics-summary.md
+          retention-days: 30
+
+  #################################################
+  # Job 4: Post PR Comment
+  #################################################
+  post-pr-comment:
+    name: Post PR Comment
+    runs-on: ubuntu-latest
+    needs: [validate-specs, check-coverage, generate-metrics]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+
+      - name: Generate PR comment
+        id: generate-comment
+        run: |
+          cat > pr-comment.md << 'EOF'
+          ## OpenSpec Validation Report
+
+          ### Validation Status
+
+          ✅ All OpenSpec specifications validated successfully
+
+          ### API Coverage
+
+          | Metric | Value |
+          |--------|-------|
+          | Coverage | ${{ needs.check-coverage.outputs.coverage_percentage }}% |
+          | Documented Endpoints | ${{ needs.check-coverage.outputs.endpoints_documented }} |
+          | Total Endpoints | ${{ needs.check-coverage.outputs.endpoints_total }} |
+
+          ### Coverage Badge
+
+          ![API Coverage](https://img.shields.io/badge/API%20Coverage-${{ needs.check-coverage.outputs.coverage_percentage }}%25-${{ needs.check-coverage.outputs.coverage_percentage >= 80 && 'brightgreen' || needs.check-coverage.outputs.coverage_percentage >= 60 && 'yellow' || 'red' }})
+
+          ---
+
+          <details>
+          <summary>View detailed reports</summary>
+
+          - [Validation Report](validation-report)
+          - [Coverage Report](coverage-report)
+          - [Metrics Summary](metrics-summary)
+
+          </details>
+          EOF
+
+      - name: Post comment to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('pr-comment.md', 'utf8');
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('OpenSpec Validation Report')
+            );
+
+            // Update or create comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+  #################################################
+  # Job 5: Auto-generate OpenAPI
+  #################################################
+  auto-generate-openapi:
+    name: Auto-generate OpenAPI
+    runs-on: ubuntu-latest
+    needs: validate-specs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for OpenAPI generator script
+        id: check-generator
+        run: |
+          if [ -f "scripts/generate-openapi.ts" ] || [ -f "scripts/generate-openapi.js" ]; then
+            echo "generator_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ OpenAPI generator script found"
+          else
+            echo "generator_exists=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No OpenAPI generator script found, skipping auto-generation"
+          fi
+
+      - name: Generate OpenAPI specification
+        id: generate-openapi
+        if: steps.check-generator.outputs.generator_exists == 'true'
+        run: |
+          echo "::group::Generating OpenAPI specification"
+
+          # Run the generator script (adjust path as needed)
+          if [ -f "scripts/generate-openapi.ts" ]; then
+            npx tsx scripts/generate-openapi.ts
+          elif [ -f "scripts/generate-openapi.js" ]; then
+            node scripts/generate-openapi.js
+          fi
+
+          echo "generation_status=success" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Validate generated OpenAPI spec
+        id: validate-openapi
+        if: steps.check-generator.outputs.generator_exists == 'true'
+        run: |
+          echo "::group::Validating generated OpenAPI specification"
+
+          # Check if OpenAPI spec was generated
+          if [ -f "docs/api/openapi.json" ] || [ -f "docs/api/openapi.yaml" ]; then
+            # Install OpenAPI validator
+            npm install -g @ibm/openapi-validator
+
+            # Validate the spec
+            if openapi-validator docs/api/openapi.* 2>&1 | tee validation-output.txt; then
+              echo "validation_status=valid" >> $GITHUB_OUTPUT
+              echo "✅ OpenAPI specification is valid"
+            else
+              echo "validation_status=invalid" >> $GITHUB_OUTPUT
+              echo "⚠️  OpenAPI specification has validation warnings"
+            fi
+          else
+            echo "validation_status=not_generated" >> $GITHUB_OUTPUT
+            echo "ℹ️  No OpenAPI specification generated"
+          fi
+
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Commit generated OpenAPI spec
+        id: commit-openapi
+        if: steps.generate-openapi.outputs.generation_status == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Check if there are changes
+          if git diff --quiet docs/api/; then
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No changes to OpenAPI specification"
+          else
+            git add docs/api/
+            git commit -m "chore: auto-generate OpenAPI specification [skip ci]"
+            git push
+
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+            echo "✅ OpenAPI specification updated and committed"
+          fi
+        continue-on-error: true
+
+      - name: Upload OpenAPI artifacts
+        if: steps.check-generator.outputs.generator_exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: |
+            docs/api/openapi.*
+            validation-output.txt
+          retention-days: 90
+        continue-on-error: true
+
+  #################################################
+  # Job 6: Summary
+  #################################################
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [validate-specs, check-coverage, generate-metrics, auto-generate-openapi]
+    if: always()
+
+    steps:
+      - name: Generate workflow summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # OpenSpec CI Workflow Summary
+
+          ## Job Status
+
+          | Job | Status |
+          |-----|--------|
+          | Validate Specs | ${{ needs.validate-specs.result }} |
+          | Check Coverage | ${{ needs.check-coverage.result }} |
+          | Generate Metrics | ${{ needs.generate-metrics.result }} |
+          | Auto-generate OpenAPI | ${{ needs.auto-generate-openapi.result }} |
+
+          ## Coverage Metrics
+
+          - **Coverage:** ${{ needs.check-coverage.outputs.coverage_percentage }}%
+          - **Documented Endpoints:** ${{ needs.check-coverage.outputs.endpoints_documented }}
+          - **Total Endpoints:** ${{ needs.check-coverage.outputs.endpoints_total }}
+
+          ## Next Steps
+
+          - Review validation and coverage reports in artifacts
+          - Address any validation errors or warnings
+          - Improve API coverage if below threshold
+
+          EOF

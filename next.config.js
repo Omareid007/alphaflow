@@ -1,3 +1,7 @@
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // TypeScript and ESLint strict mode enabled (all errors fixed 2025-12-27)
@@ -8,6 +12,10 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: { unoptimized: true },
+  // Optimize package imports for better tree-shaking
+  experimental: {
+    optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion'],
+  },
   async rewrites() {
     // In production (Replit), backend and frontend are on same domain
     // In development, proxy API calls to Express server
@@ -38,4 +46,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import { Watchlist } from "@/lib/types";
+import { toast } from "sonner";
 
 export function useWatchlists() {
   return useQuery({
@@ -39,11 +40,79 @@ export function useAddToWatchlist() {
         symbol,
       });
     },
-    onSuccess: (_, variables) => {
+
+    onMutate: async ({ watchlistId, symbol }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["watchlists"] });
+      await queryClient.cancelQueries({ queryKey: ["watchlists", watchlistId] });
+
+      // Snapshot previous state
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", watchlistId]);
+
+      // Optimistically add symbol to watchlist (as WatchlistItem)
+      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
+        old?.map((w) =>
+          w.id === watchlistId
+            ? {
+                ...w,
+                items: [
+                  ...(w.items ?? []),
+                  {
+                    symbol,
+                    name: symbol,
+                    price: 0,
+                    change: 0,
+                    changePercent: 0,
+                    tags: [],
+                    eligible: true,
+                  },
+                ],
+              }
+            : w
+        ) ?? []
+      );
+
+      queryClient.setQueryData<Watchlist>(["watchlists", watchlistId], (old) =>
+        old
+          ? {
+              ...old,
+              items: [
+                ...(old.items ?? []),
+                {
+                  symbol,
+                  name: symbol,
+                  price: 0,
+                  change: 0,
+                  changePercent: 0,
+                  tags: [],
+                  eligible: true,
+                },
+              ],
+            }
+          : old
+      );
+
+      return { previousWatchlists, previousWatchlist };
+    },
+
+    onError: (err, { watchlistId }, context) => {
+      // Rollback on error
+      if (context?.previousWatchlists) {
+        queryClient.setQueryData(["watchlists"], context.previousWatchlists);
+      }
+      if (context?.previousWatchlist) {
+        queryClient.setQueryData(["watchlists", watchlistId], context.previousWatchlist);
+      }
+      toast.error("Failed to add symbol to watchlist");
+      console.error("Failed to add symbol to watchlist:", err);
+    },
+
+    onSuccess: (_, { watchlistId }) => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["watchlists"] });
-      queryClient.invalidateQueries({
-        queryKey: ["watchlists", variables.watchlistId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["watchlists", watchlistId] });
+      toast.success("Symbol added to watchlist");
     },
   });
 }
@@ -63,11 +132,49 @@ export function useRemoveFromWatchlist() {
         `/api/watchlists/${watchlistId}/symbols/${symbol}`
       );
     },
-    onSuccess: (_, variables) => {
+
+    onMutate: async ({ watchlistId, symbol }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["watchlists"] });
+      await queryClient.cancelQueries({ queryKey: ["watchlists", watchlistId] });
+
+      // Snapshot previous state
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", watchlistId]);
+
+      // Optimistically remove symbol from watchlist
+      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
+        old?.map((w) =>
+          w.id === watchlistId
+            ? { ...w, items: (w.items ?? []).filter((item) => item.symbol !== symbol) }
+            : w
+        ) ?? []
+      );
+
+      queryClient.setQueryData<Watchlist>(["watchlists", watchlistId], (old) =>
+        old ? { ...old, items: (old.items ?? []).filter((item) => item.symbol !== symbol) } : old
+      );
+
+      return { previousWatchlists, previousWatchlist };
+    },
+
+    onError: (err, { watchlistId }, context) => {
+      // Rollback on error
+      if (context?.previousWatchlists) {
+        queryClient.setQueryData(["watchlists"], context.previousWatchlists);
+      }
+      if (context?.previousWatchlist) {
+        queryClient.setQueryData(["watchlists", watchlistId], context.previousWatchlist);
+      }
+      toast.error("Failed to remove symbol from watchlist");
+      console.error("Failed to remove symbol from watchlist:", err);
+    },
+
+    onSuccess: (_, { watchlistId }) => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["watchlists"] });
-      queryClient.invalidateQueries({
-        queryKey: ["watchlists", variables.watchlistId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["watchlists", watchlistId] });
+      toast.success("Symbol removed from watchlist");
     },
   });
 }
@@ -78,8 +185,49 @@ export function useCreateWatchlist() {
   return useMutation({
     mutationFn: (data: { name: string; symbols?: string[] }) =>
       api.post<Watchlist>("/api/watchlists", data),
+
+    onMutate: async (newWatchlist) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["watchlists"] });
+
+      // Snapshot previous state
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
+
+      // Optimistically add new watchlist
+      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) => [
+        ...(old ?? []),
+        {
+          id: `temp-${Date.now()}`,
+          name: newWatchlist.name,
+          items: (newWatchlist.symbols ?? []).map((symbol) => ({
+            symbol,
+            name: symbol,
+            price: 0,
+            change: 0,
+            changePercent: 0,
+            tags: [],
+            eligible: true,
+          })),
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      return { previousWatchlists };
+    },
+
+    onError: (err, newWatchlist, context) => {
+      // Rollback on error
+      if (context?.previousWatchlists) {
+        queryClient.setQueryData(["watchlists"], context.previousWatchlists);
+      }
+      toast.error("Failed to create watchlist");
+      console.error("Failed to create watchlist:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["watchlists"] });
+      toast.success("Watchlist created successfully");
     },
   });
 }
@@ -89,8 +237,42 @@ export function useDeleteWatchlist() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/watchlists/${id}`),
+
+    onMutate: async (id) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["watchlists"] });
+      await queryClient.cancelQueries({ queryKey: ["watchlists", id] });
+
+      // Snapshot previous state
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", id]);
+
+      // Optimistically remove watchlist
+      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
+        old?.filter((w) => w.id !== id) ?? []
+      );
+
+      queryClient.removeQueries({ queryKey: ["watchlists", id] });
+
+      return { previousWatchlists, previousWatchlist };
+    },
+
+    onError: (err, id, context) => {
+      // Rollback on error
+      if (context?.previousWatchlists) {
+        queryClient.setQueryData(["watchlists"], context.previousWatchlists);
+      }
+      if (context?.previousWatchlist) {
+        queryClient.setQueryData(["watchlists", id], context.previousWatchlist);
+      }
+      toast.error("Failed to delete watchlist");
+      console.error("Failed to delete watchlist:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["watchlists"] });
+      toast.success("Watchlist deleted successfully");
     },
   });
 }

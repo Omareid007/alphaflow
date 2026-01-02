@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { toast } from "sonner";
 
 export interface BacktestConfig {
   strategyId: string;
@@ -111,11 +112,61 @@ export function useRunBacktest() {
   return useMutation({
     mutationFn: (config: BacktestConfig) =>
       api.post<BacktestRun>("/api/backtests/run", config),
-    onSuccess: (_, variables) => {
+
+    onMutate: async (config) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["backtests"] });
+      await queryClient.cancelQueries({ queryKey: ["backtests", config.strategyId] });
+
+      // Snapshot previous state
+      const previousBacktests = queryClient.getQueryData<BacktestRun[]>(["backtests"]);
+      const previousStrategyBacktests = queryClient.getQueryData<BacktestRun[]>([
+        "backtests",
+        config.strategyId,
+      ]);
+
+      // Optimistically add new backtest with pending status
+      const optimisticBacktest: BacktestRun = {
+        id: `temp-${Date.now()}`,
+        strategyId: config.strategyId,
+        status: "pending" as const,
+        config,
+        createdAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData<BacktestRun[]>(["backtests"], (old) => [
+        optimisticBacktest,
+        ...(old ?? []),
+      ]);
+
+      queryClient.setQueryData<BacktestRun[]>(["backtests", config.strategyId], (old) => [
+        optimisticBacktest,
+        ...(old ?? []),
+      ]);
+
+      return { previousBacktests, previousStrategyBacktests };
+    },
+
+    onError: (err, config, context) => {
+      // Rollback on error
+      if (context?.previousBacktests) {
+        queryClient.setQueryData(["backtests"], context.previousBacktests);
+      }
+      if (context?.previousStrategyBacktests) {
+        queryClient.setQueryData(
+          ["backtests", config.strategyId],
+          context.previousStrategyBacktests
+        );
+      }
+      toast.error("Failed to start backtest");
+      console.error("Failed to start backtest:", err);
+    },
+
+    onSuccess: (_, config) => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["backtests"] });
-      queryClient.invalidateQueries({
-        queryKey: ["backtests", variables.strategyId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["backtests", config.strategyId] });
+      toast.success("Backtest started successfully");
     },
   });
 }

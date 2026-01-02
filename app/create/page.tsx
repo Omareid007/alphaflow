@@ -1,8 +1,21 @@
 "use client";
 
 import { Suspense } from "react";
-import { StrategyWizard } from "@/components/wizard/strategy-wizard";
+import dynamic from "next/dynamic";
 import { LoadingSpinner } from "@/components/ui/loading-state";
+
+// Lazy load the heavy StrategyWizard component
+const StrategyWizard = dynamic(
+  () => import("@/components/wizard/strategy-wizard").then(mod => ({ default: mod.StrategyWizard })),
+  {
+    loading: () => (
+      <div className="flex h-96 items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    ),
+    ssr: false
+  }
+);
 
 export default function CreatePage() {
   return (

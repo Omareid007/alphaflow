@@ -1,0 +1,2 @@
+# This directory contains auto-generated tests from OpenSpec specifications
+# Files in this directory should be regenerated using: npm run generate-tests

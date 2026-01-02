@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { toast } from "sonner";
 
 // ============================================================================
 // ALLOCATION POLICIES
@@ -455,8 +456,41 @@ export function useCreateAdminUser() {
       password: string;
       isAdmin?: boolean;
     }) => api.post<AdminUser>("/api/admin/users", user),
+
+    onMutate: async (newUser) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
+
+      // Snapshot previous state
+      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+
+      // Optimistically add new user
+      queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) => [
+        ...(old ?? []),
+        {
+          id: `temp-${Date.now()}`,
+          username: newUser.username,
+          isAdmin: newUser.isAdmin ?? false,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      return { previousUsers };
+    },
+
+    onError: (err, newUser, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(["admin", "users"], context.previousUsers);
+      }
+      toast.error("Failed to create admin user");
+      console.error("Failed to create admin user:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("Admin user created successfully");
     },
   });
 }
@@ -473,8 +507,36 @@ export function useUpdateAdminUser() {
       password?: string;
       isAdmin?: boolean;
     }) => api.patch<AdminUser>(`/api/admin/users/${id}`, updates),
+
+    onMutate: async ({ id, ...updates }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
+
+      // Snapshot previous state
+      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+
+      // Optimistically update user (exclude password from optimistic update)
+      const { password, ...displayUpdates } = updates;
+      queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) =>
+        old?.map((u) => (u.id === id ? { ...u, ...displayUpdates } : u)) ?? []
+      );
+
+      return { previousUsers };
+    },
+
+    onError: (err, { id }, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(["admin", "users"], context.previousUsers);
+      }
+      toast.error("Failed to update admin user");
+      console.error("Failed to update admin user:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("Admin user updated successfully");
     },
   });
 }
@@ -483,8 +545,35 @@ export function useDeleteAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
+
+    onMutate: async (id) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
+
+      // Snapshot previous state
+      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+
+      // Optimistically remove user
+      queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) =>
+        old?.filter((u) => u.id !== id) ?? []
+      );
+
+      return { previousUsers };
+    },
+
+    onError: (err, id, context) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(["admin", "users"], context.previousUsers);
+      }
+      toast.error("Failed to delete admin user");
+      console.error("Failed to delete admin user:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("Admin user deleted successfully");
     },
   });
 }

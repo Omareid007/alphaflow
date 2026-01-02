@@ -143,6 +143,7 @@ export function StrategyWizard({
 
       // Create or update strategy
       if (!currentStrategy) {
+        toast.loading("Creating strategy...");
         const result = await createStrategyMutation.mutateAsync({
           name: strategyName,
           templateId: selectedTemplate.id,
@@ -152,16 +153,22 @@ export function StrategyWizard({
         });
         currentStrategy = result as unknown as Strategy;
         setStrategy(currentStrategy);
+        toast.dismiss();
+        toast.success("Strategy created");
       } else {
+        toast.loading("Updating strategy...");
         await updateStrategyMutation.mutateAsync({
           id: currentStrategy.id,
           config: configValues,
           name: strategyName,
           type: selectedTemplate.id, // Ensure type is always sent
         });
+        toast.dismiss();
+        toast.success("Strategy updated");
       }
 
       // Run backtest
+      toast.loading("Starting backtest...");
       const backtestResult = await runBacktestMutation.mutateAsync({
         strategyId: currentStrategy.id,
         startDate: new Date(
@@ -171,10 +178,14 @@ export function StrategyWizard({
         initialCapital: 100000,
       });
 
+      toast.dismiss();
+      toast.success("Backtest started");
+
       // Start polling for backtest completion
       setRunningBacktestId(backtestResult.id);
       setBacktestProgress(10);
     } catch (error) {
+      toast.dismiss();
       toast.error(error instanceof Error ? error.message : "Backtest failed");
       setBacktestProgress(0);
     }
@@ -197,13 +208,16 @@ export function StrategyWizard({
     if (!strategy) return;
 
     try {
+      toast.loading(`Deploying to ${mode} trading...`);
       await deployStrategyMutation.mutateAsync({
         id: strategy.id,
         mode,
       });
+      toast.dismiss();
       toast.success(`Strategy deployed to ${mode} trading`);
       router.push("/strategies");
     } catch (error) {
+      toast.dismiss();
       toast.error(error instanceof Error ? error.message : "Deployment failed");
     }
   };

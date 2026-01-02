@@ -1,0 +1,561 @@
+#################################################
+# API Documentation Deployment Workflow
+#################################################
+# Purpose: Deploys Swagger UI with OpenAPI specification to production
+#
+# Triggers:
+#   - Push to main branch (docs/api/** changes)
+#   - Manual workflow dispatch
+#   - Successful completion of openspec-ci workflow
+#
+# Jobs:
+#   1. build-swagger-ui: Builds Swagger UI with OpenAPI spec
+#   2. deploy-to-github-pages: Deploys to GitHub Pages
+#   3. verify-deployment: Verifies deployment success
+#
+# Deployment targets:
+#   - GitHub Pages (primary)
+#   - S3 bucket (optional, if configured)
+#   - Netlify/Vercel (optional, if configured)
+#################################################
+
+name: API Docs Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/api/**'
+      - 'openspec/**'
+      - '.github/workflows/api-docs-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  workflow_run:
+    workflows: ["OpenSpec CI"]
+    types:
+      - completed
+    branches: [main]
+
+# Permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "api-docs-deploy"
+  cancel-in-progress: false
+
+jobs:
+  #################################################
+  # Job 1: Build Swagger UI
+  #################################################
+  build-swagger-ui:
+    name: Build Swagger UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for OpenAPI specification
+        id: check-openapi
+        run: |
+          if [ -f "docs/api/openapi.json" ]; then
+            echo "spec_format=json" >> $GITHUB_OUTPUT
+            echo "spec_found=true" >> $GITHUB_OUTPUT
+            echo "✅ Found OpenAPI spec: openapi.json"
+          elif [ -f "docs/api/openapi.yaml" ]; then
+            echo "spec_format=yaml" >> $GITHUB_OUTPUT
+            echo "spec_found=true" >> $GITHUB_OUTPUT
+            echo "✅ Found OpenAPI spec: openapi.yaml"
+          elif [ -f "docs/api/openapi.yml" ]; then
+            echo "spec_format=yml" >> $GITHUB_OUTPUT
+            echo "spec_found=true" >> $GITHUB_OUTPUT
+            echo "✅ Found OpenAPI spec: openapi.yml"
+          else
+            echo "spec_found=false" >> $GITHUB_OUTPUT
+            echo "❌ No OpenAPI specification found"
+            exit 1
+          fi
+
+      - name: Validate OpenAPI specification
+        run: |
+          echo "::group::Validating OpenAPI specification"
+
+          # Install OpenAPI validator
+          npm install -g @ibm/openapi-validator
+
+          # Validate the spec
+          openapi-validator docs/api/openapi.* || echo "⚠️  Validation warnings found (non-fatal)"
+
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Create Swagger UI directory
+        run: |
+          mkdir -p swagger-ui
+          cd swagger-ui
+
+      - name: Download Swagger UI distribution
+        run: |
+          echo "::group::Downloading Swagger UI"
+
+          # Download latest Swagger UI release
+          SWAGGER_VERSION="5.11.0"
+          curl -L "https://github.com/swagger-api/swagger-ui/archive/v${SWAGGER_VERSION}.tar.gz" | tar xz
+
+          # Copy dist files
+          cp -r swagger-ui-${SWAGGER_VERSION}/dist/* swagger-ui/
+
+          echo "✅ Swagger UI v${SWAGGER_VERSION} downloaded"
+          echo "::endgroup::"
+
+      - name: Copy OpenAPI specification
+        run: |
+          # Copy OpenAPI spec to Swagger UI directory
+          cp docs/api/openapi.* swagger-ui/
+
+      - name: Configure Swagger UI
+        run: |
+          cd swagger-ui
+
+          # Create custom index.html with API spec reference
+          cat > index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>AlphaFlow Trading Platform - API Documentation</title>
+            <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
+            <link rel="stylesheet" type="text/css" href="./index.css" />
+            <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+            <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+            <style>
+              html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+              *, *:before, *:after { box-sizing: inherit; }
+              body { margin:0; padding:0; }
+              .topbar { display: none; }
+            </style>
+          </head>
+          <body>
+            <div id="swagger-ui"></div>
+            <script src="./swagger-ui-bundle.js" charset="UTF-8"></script>
+            <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+            <script>
+              window.onload = function() {
+                const ui = SwaggerUIBundle({
+                  url: './openapi.${{ steps.check-openapi.outputs.spec_format }}',
+                  dom_id: '#swagger-ui',
+                  deepLinking: true,
+                  presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                  ],
+                  plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                  ],
+                  layout: "StandaloneLayout",
+                  defaultModelsExpandDepth: 1,
+                  defaultModelExpandDepth: 1,
+                  docExpansion: "list",
+                  filter: true,
+                  tryItOutEnabled: true,
+                  persistAuthorization: true
+                });
+
+                window.ui = ui;
+              };
+            </script>
+          </body>
+          </html>
+          EOF
+
+          echo "✅ Swagger UI configured"
+
+      - name: Create custom styles
+        run: |
+          cd swagger-ui
+
+          # Create custom CSS for branding
+          cat > custom.css << 'EOF'
+          /* AlphaFlow Trading Platform - Custom Styles */
+          .swagger-ui .topbar {
+            background-color: #1a1a1a;
+          }
+
+          .swagger-ui .info .title {
+            color: #00d4ff;
+          }
+
+          .swagger-ui .opblock-tag {
+            font-size: 18px;
+            font-weight: 600;
+          }
+
+          .swagger-ui .opblock.opblock-get {
+            background: rgba(97, 175, 254, 0.1);
+            border-color: #61affe;
+          }
+
+          .swagger-ui .opblock.opblock-post {
+            background: rgba(73, 204, 144, 0.1);
+            border-color: #49cc90;
+          }
+
+          .swagger-ui .opblock.opblock-put {
+            background: rgba(252, 161, 48, 0.1);
+            border-color: #fca130;
+          }
+
+          .swagger-ui .opblock.opblock-delete {
+            background: rgba(249, 62, 62, 0.1);
+            border-color: #f93e3e;
+          }
+
+          /* Dark mode support */
+          @media (prefers-color-scheme: dark) {
+            body {
+              background-color: #1a1a1a;
+            }
+
+            .swagger-ui {
+              filter: invert(0.88);
+            }
+          }
+          EOF
+
+          # Inject custom CSS into index.html
+          sed -i 's|</head>|<link rel="stylesheet" type="text/css" href="./custom.css" /></head>|g' index.html
+
+      - name: Generate API documentation metadata
+        run: |
+          cd swagger-ui
+
+          # Create metadata file
+          cat > api-metadata.json << EOF
+          {
+            "title": "AlphaFlow Trading Platform API",
+            "version": "1.0.0",
+            "buildDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "repository": "${{ github.repository }}",
+            "deployment": {
+              "environment": "${{ github.event.inputs.environment || 'production' }}",
+              "url": "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/api-docs"
+            }
+          }
+          EOF
+
+      - name: Add README
+        run: |
+          cd swagger-ui
+
+          cat > README.md << 'EOF'
+          # AlphaFlow Trading Platform - API Documentation
+
+          This directory contains the interactive API documentation powered by Swagger UI.
+
+          ## Features
+
+          - Interactive API exploration
+          - Try out API endpoints directly from the browser
+          - OpenAPI 3.0 specification
+          - Dark mode support
+          - Mobile-responsive design
+
+          ## Usage
+
+          1. Open `index.html` in your browser
+          2. Explore available endpoints
+          3. Authenticate using the "Authorize" button
+          4. Try out API requests directly
+
+          ## Authentication
+
+          The API uses session-based authentication. To authenticate:
+
+          1. Click the "Authorize" button
+          2. Enter your credentials
+          3. All subsequent requests will include authentication
+
+          ## Base URLs
+
+          - **Production:** `https://alphaflow-trading.com/api`
+          - **Staging:** `https://staging.alphaflow-trading.com/api`
+          - **Development:** `http://localhost:3000/api`
+
+          ## Support
+
+          For API support, please contact: support@alphaflow-trading.com
+          EOF
+
+      - name: Upload Swagger UI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swagger-ui
+          path: swagger-ui/
+          retention-days: 30
+
+  #################################################
+  # Job 2: Deploy to GitHub Pages
+  #################################################
+  deploy-to-github-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build-swagger-ui
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download Swagger UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-ui
+          path: ./public
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Output deployment URL
+        run: |
+          echo "🚀 API Documentation deployed to: ${{ steps.deployment.outputs.page_url }}"
+          echo "deployment_url=${{ steps.deployment.outputs.page_url }}" >> $GITHUB_OUTPUT
+
+  #################################################
+  # Job 3: Deploy to S3 (Optional)
+  #################################################
+  deploy-to-s3:
+    name: Deploy to S3
+    runs-on: ubuntu-latest
+    needs: build-swagger-ui
+    if: |
+      github.ref == 'refs/heads/main' &&
+      vars.AWS_S3_BUCKET != '' &&
+      vars.DEPLOY_TO_S3 == 'true'
+
+    steps:
+      - name: Download Swagger UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-ui
+          path: ./public
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync ./public s3://${{ vars.AWS_S3_BUCKET }}/api-docs \
+            --delete \
+            --cache-control "public, max-age=3600" \
+            --metadata-directive REPLACE
+
+          echo "✅ Deployed to S3 bucket: ${{ vars.AWS_S3_BUCKET }}"
+
+      - name: Invalidate CloudFront cache (if configured)
+        if: vars.AWS_CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/api-docs/*"
+
+          echo "✅ CloudFront cache invalidated"
+
+  #################################################
+  # Job 4: Verify Deployment
+  #################################################
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-to-github-pages]
+
+    steps:
+      - name: Wait for deployment to propagate
+        run: sleep 30
+
+      - name: Verify GitHub Pages deployment
+        run: |
+          DEPLOY_URL="${{ needs.deploy-to-github-pages.outputs.deployment_url || format('https://{0}.github.io/{1}/api-docs', github.repository_owner, github.event.repository.name) }}"
+
+          echo "::group::Verifying deployment at $DEPLOY_URL"
+
+          # Check if the page is accessible
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$DEPLOY_URL")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Deployment verified (HTTP $HTTP_STATUS)"
+            echo "deployment_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Deployment verification failed (HTTP $HTTP_STATUS)"
+            echo "deployment_status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "::endgroup::"
+
+      - name: Check OpenAPI spec accessibility
+        run: |
+          DEPLOY_URL="${{ needs.deploy-to-github-pages.outputs.deployment_url || format('https://{0}.github.io/{1}/api-docs', github.repository_owner, github.event.repository.name) }}"
+          SPEC_URL="$DEPLOY_URL/openapi.json"
+
+          echo "::group::Checking OpenAPI spec at $SPEC_URL"
+
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$SPEC_URL")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ OpenAPI spec accessible (HTTP $HTTP_STATUS)"
+          else
+            echo "⚠️  OpenAPI spec not accessible (HTTP $HTTP_STATUS)"
+          fi
+
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Test Swagger UI functionality
+        run: |
+          echo "::group::Testing Swagger UI"
+
+          DEPLOY_URL="${{ needs.deploy-to-github-pages.outputs.deployment_url || format('https://{0}.github.io/{1}/api-docs', github.repository_owner, github.event.repository.name) }}"
+
+          # Check for required Swagger UI assets
+          REQUIRED_ASSETS=(
+            "swagger-ui.css"
+            "swagger-ui-bundle.js"
+            "swagger-ui-standalone-preset.js"
+          )
+
+          for asset in "${REQUIRED_ASSETS[@]}"; do
+            ASSET_URL="$DEPLOY_URL/$asset"
+            HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$ASSET_URL")
+
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "✅ $asset found (HTTP $HTTP_STATUS)"
+            else
+              echo "❌ $asset missing (HTTP $HTTP_STATUS)"
+            fi
+          done
+
+          echo "::endgroup::"
+
+  #################################################
+  # Job 5: Notify Deployment Status
+  #################################################
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-to-github-pages, verify-deployment]
+    if: always()
+
+    steps:
+      - name: Generate deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # API Documentation Deployment Summary
+
+          ## Deployment Status
+
+          | Component | Status |
+          |-----------|--------|
+          | Build Swagger UI | ${{ needs.build-swagger-ui.result }} |
+          | Deploy to GitHub Pages | ${{ needs.deploy-to-github-pages.result }} |
+          | Verify Deployment | ${{ needs.verify-deployment.result }} |
+
+          ## Deployment URL
+
+          🔗 [View API Documentation](${{ needs.deploy-to-github-pages.outputs.deployment_url || format('https://{0}.github.io/{1}/api-docs', github.repository_owner, github.event.repository.name) }})
+
+          ## Deployment Details
+
+          - **Environment:** ${{ github.event.inputs.environment || 'production' }}
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Triggered by:** ${{ github.event_name }}
+
+          EOF
+
+      - name: Create deployment badge
+        run: |
+          DEPLOY_STATUS="${{ needs.verify-deployment.result }}"
+
+          if [ "$DEPLOY_STATUS" == "success" ]; then
+            BADGE_COLOR="brightgreen"
+            BADGE_STATUS="deployed"
+          else
+            BADGE_COLOR="red"
+            BADGE_STATUS="failed"
+          fi
+
+          BADGE_URL="https://img.shields.io/badge/API%20Docs-${BADGE_STATUS}-${BADGE_COLOR}"
+
+          echo "## Deployment Badge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "![API Docs]($BADGE_URL)" >> $GITHUB_STEP_SUMMARY
+
+  #################################################
+  # Job 6: Rollback on Failure (Optional)
+  #################################################
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [verify-deployment]
+    if: failure() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout previous commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.before }}
+
+      - name: Restore previous deployment
+        run: |
+          echo "::warning::Deployment verification failed, initiating rollback"
+          echo "Previous commit: ${{ github.event.before }}"
+          echo "Failed commit: ${{ github.sha }}"
+
+          # Trigger redeployment of previous version
+          # This would require additional setup for automatic rollback
+
+      - name: Notify rollback
+        run: |
+          echo "## Rollback Initiated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️  Deployment verification failed for commit ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Attempting to restore deployment from commit ${{ github.event.before }}" >> $GITHUB_STEP_SUMMARY

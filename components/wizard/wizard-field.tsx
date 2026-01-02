@@ -44,6 +44,8 @@ export function WizardField({ field, value, onChange }: WizardFieldProps) {
             type="text"
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
+            debounceMs={300}
+            onDebouncedChange={onChange}
             className="w-full"
           />
         );

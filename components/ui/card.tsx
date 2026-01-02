@@ -1,20 +1,49 @@
+"use client";
+
 import * as React from "react";
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
+import { cardHoverVariants } from "@/lib/animations/presets";
+import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-));
+  React.HTMLAttributes<HTMLDivElement> & { disableAnimation?: boolean }
+>(({ className, disableAnimation = false, ...props }, ref) => {
+  const prefersReducedMotion = useReducedMotion();
+
+  const shouldAnimate = !disableAnimation && !prefersReducedMotion;
+  const variants = shouldAnimate ? cardHoverVariants : {};
+
+  if (!shouldAnimate) {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "rounded-lg border bg-card text-card-foreground shadow-sm",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      className={cn(
+        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        className
+      )}
+      variants={variants}
+      initial="initial"
+      whileHover="hover"
+      whileTap="tap"
+      {...props}
+    />
+  );
+});
 Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<

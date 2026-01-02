@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import { UserSettings } from "@/lib/types";
+import { toast } from "sonner";
 
 // Default settings when API is unavailable
 const defaultSettings: UserSettings = {
@@ -40,8 +41,36 @@ export function useUpdateSettings() {
     mutationFn: async (data: Partial<UserSettings>) => {
       return await api.put<UserSettings>("/api/settings", data);
     },
+
+    onMutate: async (updates) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["settings"] });
+
+      // Snapshot previous state
+      const previousSettings = queryClient.getQueryData<UserSettings>(["settings"]);
+
+      // Optimistically update settings
+      queryClient.setQueryData<UserSettings>(["settings"], (old) => ({
+        ...(old ?? defaultSettings),
+        ...updates,
+      }));
+
+      return { previousSettings };
+    },
+
+    onError: (err, updates, context) => {
+      // Rollback on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData(["settings"], context.previousSettings);
+      }
+      toast.error("Failed to update settings");
+      console.error("Failed to update settings:", err);
+    },
+
     onSuccess: () => {
+      // Refetch to ensure sync with server
       queryClient.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Settings updated successfully");
     },
   });
 }
