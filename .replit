@@ -50,8 +50,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev:server"
-waitForPort = 5000
+args = "npm run dev"
+waitForPort = 3000
 
 [userenv]
 
