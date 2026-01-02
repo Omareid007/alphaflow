@@ -84,6 +84,42 @@ export const CACHE_NAMESPACES: Record<string, CacheNamespaceConfig> = {
     maxL1Size: 100,
     compression: true,
   },
+
+  // Trading account data (5s fresh for real-time buying power)
+  tradingAccount: {
+    namespace: "trd-acct",
+    l1TTL: 5 * 1000,
+    l2TTL: 30 * 1000,
+    maxL1Size: 10,
+    compression: false,
+  },
+
+  // Trading positions (5s fresh for position tracking)
+  tradingPositions: {
+    namespace: "trd-pos",
+    l1TTL: 5 * 1000,
+    l2TTL: 30 * 1000,
+    maxL1Size: 100,
+    compression: false,
+  },
+
+  // Quick quotes for order validation (5s fresh)
+  tradingQuotes: {
+    namespace: "trd-qt",
+    l1TTL: 5 * 1000,
+    l2TTL: 30 * 1000,
+    maxL1Size: 500,
+    compression: false,
+  },
+
+  // Asset tradability info (5 min fresh)
+  tradingAssets: {
+    namespace: "trd-asset",
+    l1TTL: 5 * 60 * 1000,
+    l2TTL: 60 * 60 * 1000,
+    maxL1Size: 1000,
+    compression: false,
+  },
 };
 
 /**
