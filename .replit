@@ -19,7 +19,7 @@ packages = ["jq"]
 [deployment]
 deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run build"]
-run = ["npm", "run", "start:server"]
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 3000
@@ -39,7 +39,7 @@ port = 3000
 
 [env]
 PORT = "5000"
-NODE_OPTIONS = "--max-old-space-size=512"
+NODE_OPTIONS = "--max-old-space-size=768"
 NEXT_TELEMETRY_DISABLED = "1"
 
 [agent]

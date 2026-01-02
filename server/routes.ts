@@ -284,6 +284,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   initializeDefaultModules();
   log.info("Routes", "Admin module registry initialized");
 
+  // Unauthenticated health check endpoints for Replit/container readiness
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+  app.get("/__replit_ready", (_req, res) => {
+    res.status(200).send("ready");
+  });
+  log.info("Routes", "Health check endpoints registered");
+
   // Delay async initializations to let server start first
   setTimeout(() => {
     log.info("Routes", "Starting delayed initializations...");
