@@ -18,7 +18,7 @@ import { workQueue } from "../lib/work-queue";
 import { tradabilityService } from "../services/tradability-service";
 import type { Fill } from "@shared/schema";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
-import { asyncHandler, serverError, notFound } from "../lib/standard-errors";
+import { asyncHandler, notFoundError } from "../lib/standard-errors";
 
 const router = Router();
 
@@ -287,7 +287,7 @@ router.get(
     }
 
     if (!order) {
-      throw notFound("Order not found");
+      throw notFoundError("Order not found");
     }
 
     // Fetch fills for this order

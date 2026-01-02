@@ -209,11 +209,16 @@ function isHttpError(error: unknown): error is HttpError {
  * Wrap async route handlers with automatic error handling
  */
 export function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>
+  fn: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => Promise<Response | void>
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch((error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       const errorStack = error instanceof Error ? error.stack : undefined;
 
       log.error("AsyncHandler", "Error caught in async handler", {
@@ -256,4 +261,118 @@ export class AppError extends Error {
     this.name = "AppError";
     Error.captureStackTrace(this, this.constructor);
   }
+}
+
+// ============================================================================
+// THROWABLE HTTP ERRORS (for use with asyncHandler)
+// ============================================================================
+// These create AppError instances that can be thrown and caught by asyncHandler
+// Usage: throw badRequestError("Invalid symbol") or throw notFoundError("Order not found")
+
+/**
+ * Create a throwable 400 Bad Request error
+ */
+export function badRequestError(
+  message: string = "Invalid request parameters",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(400, message, details);
+  error.name = "Bad Request";
+  return error;
+}
+
+/**
+ * Create a throwable 401 Unauthorized error
+ */
+export function unauthorizedError(
+  message: string = "Authentication required",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(401, message, details);
+  error.name = "Unauthorized";
+  return error;
+}
+
+/**
+ * Create a throwable 403 Forbidden error
+ */
+export function forbiddenError(
+  message: string = "Access denied",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(403, message, details);
+  error.name = "Forbidden";
+  return error;
+}
+
+/**
+ * Create a throwable 404 Not Found error
+ */
+export function notFoundError(
+  message: string = "Resource not found",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(404, message, details);
+  error.name = "Not Found";
+  return error;
+}
+
+/**
+ * Create a throwable 409 Conflict error
+ */
+export function conflictError(
+  message: string = "Resource conflict",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(409, message, details);
+  error.name = "Conflict";
+  return error;
+}
+
+/**
+ * Create a throwable 422 Validation error
+ */
+export function validationErrorThrowable(
+  message: string = "Validation failed",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(422, message, details);
+  error.name = "Validation Error";
+  return error;
+}
+
+/**
+ * Create a throwable 429 Too Many Requests error
+ */
+export function tooManyRequestsError(
+  message: string = "Rate limit exceeded",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(429, message, details);
+  error.name = "Too Many Requests";
+  return error;
+}
+
+/**
+ * Create a throwable 500 Internal Server error
+ */
+export function serverErrorThrowable(
+  message: string = "An internal server error occurred",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(500, message, details);
+  error.name = "Internal Server Error";
+  return error;
+}
+
+/**
+ * Create a throwable 503 Service Unavailable error
+ */
+export function serviceUnavailableError(
+  message: string = "Service temporarily unavailable",
+  details?: ErrorDetails
+): AppError {
+  const error = new AppError(503, message, details);
+  error.name = "Service Unavailable";
+  return error;
 }

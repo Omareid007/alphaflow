@@ -15,7 +15,7 @@ import {
   validateRequest,
 } from "../validation/api-schemas";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
-import { asyncHandler, badRequest, serverError } from "../lib/standard-errors";
+import { asyncHandler, badRequestError } from "../lib/standard-errors";
 
 /** Order parameters for Alpaca API */
 interface AlpacaOrderParams {
@@ -123,12 +123,14 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { targetAllocations } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
-      throw badRequest("targetAllocations array required");
+      throw badRequestError("targetAllocations array required");
     }
 
     for (const alloc of targetAllocations) {
       if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
-        throw badRequest("Each allocation must have symbol and targetPercent");
+        throw badRequestError(
+          "Each allocation must have symbol and targetPercent"
+        );
       }
     }
 
@@ -145,7 +147,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { targetAllocations, preview } = req.body;
     if (!targetAllocations || !Array.isArray(targetAllocations)) {
-      throw badRequest("targetAllocations array required");
+      throw badRequestError("targetAllocations array required");
     }
 
     const result = await alpacaTradingEngine.executeRebalance(
@@ -173,7 +175,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { symbol, timeframe = "1Day", limit = 100 } = req.query;
     if (!symbol) {
-      throw badRequest("symbol parameter required");
+      throw badRequestError("symbol parameter required");
     }
     const symbolArr = (symbol as string)
       .split(",")
@@ -196,7 +198,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const symbolsParam = req.query.symbols as string;
     if (!symbolsParam) {
-      throw badRequest("symbols parameter required");
+      throw badRequestError("symbols parameter required");
     }
     const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
     const snapshots = await alpaca.getSnapshots(symbols);
@@ -286,7 +288,7 @@ router.post(
     // Validate request body using Zod schema
     const validation = validateRequest(alpacaOrderSchema, req.body);
     if (!validation.success) {
-      throw badRequest(validation.error);
+      throw badRequestError(validation.error);
     }
 
     const {
