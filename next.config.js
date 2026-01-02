@@ -1,3 +1,4 @@
+const path = require('path');
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
@@ -23,10 +24,10 @@ const nextConfig = {
 
   // Webpack configuration for memory optimization
   webpack: (config, { dev }) => {
-    // Enable filesystem cache for faster rebuilds
+    // Enable filesystem cache for faster rebuilds (must be absolute path)
     config.cache = {
       type: 'filesystem',
-      cacheDirectory: '.next/cache/webpack',
+      cacheDirectory: path.join(__dirname, '.next/cache/webpack'),
     };
 
     // Reduce memory usage during development
