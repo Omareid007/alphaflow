@@ -45,14 +45,15 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 Rules in `.claude/rules/` load only when editing matching files:
 
-| Rule File        | Scope                    | Purpose                  |
-| ---------------- | ------------------------ | ------------------------ |
-| `mcp-servers.md` | `.mcp.json`, `server/**` | 26 MCP servers reference |
-| `trading.md`     | `server/trading/**`      | Trading rules, Alpaca    |
-| `security.md`    | `server/**`, `shared/**` | CVEs, OWASP compliance   |
-| `logging.md`     | `server/**/*.ts`         | Pino structured logging  |
-| `typescript.md`  | `**/*.ts`, `**/*.tsx`    | Type safety patterns     |
-| `testing.md`     | `tests/**`               | Test conventions         |
+| Rule File         | Scope                       | Purpose                  |
+| ----------------- | --------------------------- | ------------------------ |
+| `mcp-servers.md`  | `.mcp.json`, `server/**`    | 26 MCP servers reference |
+| `trading.md`      | `server/trading/**`         | Trading rules, Alpaca    |
+| `security.md`     | `server/**`, `shared/**`    | CVEs, OWASP compliance   |
+| `logging.md`      | `server/**/*.ts`            | Pino structured logging  |
+| `typescript.md`   | `**/*.ts`, `**/*.tsx`       | Type safety patterns     |
+| `testing.md`      | `tests/**`                  | Test conventions         |
+| `openapi-docs.md` | `docs/api/**`, `server/routes/**` | OpenAPI 3.0.3 maintenance |
 
 ## Environment Configuration
 
