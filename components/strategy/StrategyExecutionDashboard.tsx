@@ -49,7 +49,13 @@ interface StrategyExecutionDashboardProps {
 // ============================================================================
 
 function StatusBadge({ status }: { status: Strategy["status"] }) {
-  const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+  const variants: Record<
+    string,
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      label: string;
+    }
+  > = {
     draft: { variant: "secondary", label: "Draft" },
     backtesting: { variant: "outline", label: "Backtesting" },
     backtested: { variant: "outline", label: "Backtested" },
@@ -88,13 +94,19 @@ function OrderStatusIcon({ status }: { status: string }) {
   }
 }
 
-function ExecutionContextCard({ context }: { context: StrategyExecutionContext }) {
+function ExecutionContextCard({
+  context,
+}: {
+  context: StrategyExecutionContext;
+}) {
   const { params } = context;
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Execution Settings</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          Execution Settings
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {/* Position Sizing */}
@@ -104,8 +116,8 @@ function ExecutionContextCard({ context }: { context: StrategyExecutionContext }
             {params.positionSizing.method === "percent"
               ? `${params.positionSizing.percentOfPortfolio || 5}% of portfolio`
               : params.positionSizing.method === "fixed"
-              ? `$${params.positionSizing.fixedAmount || 0} fixed`
-              : `${params.positionSizing.riskPerTradePercent || 1}% risk-based`}
+                ? `$${params.positionSizing.fixedAmount || 0} fixed`
+                : `${params.positionSizing.riskPerTradePercent || 1}% risk-based`}
           </div>
           <div className="text-muted-foreground text-xs">
             Max: {params.positionSizing.maxPositionPercent}% per position
@@ -116,7 +128,8 @@ function ExecutionContextCard({ context }: { context: StrategyExecutionContext }
         <div>
           <div className="text-muted-foreground text-xs">Entry Rules</div>
           <div className="font-medium">
-            Min confidence: {(params.entryRules.minConfidence * 100).toFixed(0)}%
+            Min confidence: {(params.entryRules.minConfidence * 100).toFixed(0)}
+            %
           </div>
           <div className="text-muted-foreground text-xs">
             Max positions: {params.entryRules.maxPositions}
@@ -130,7 +143,8 @@ function ExecutionContextCard({ context }: { context: StrategyExecutionContext }
             <>
               <div className="font-medium text-green-600">Enabled</div>
               <div className="text-muted-foreground text-xs">
-                TP: {params.bracketOrders.takeProfitPercent}% / SL: {params.bracketOrders.stopLossPercent}%
+                TP: {params.bracketOrders.takeProfitPercent}% / SL:{" "}
+                {params.bracketOrders.stopLossPercent}%
               </div>
             </>
           ) : (
@@ -142,7 +156,8 @@ function ExecutionContextCard({ context }: { context: StrategyExecutionContext }
         <div>
           <div className="text-muted-foreground text-xs">Order Type</div>
           <div className="font-medium capitalize">
-            {params.orderExecution.orderType} / {params.orderExecution.timeInForce.toUpperCase()}
+            {params.orderExecution.orderType} /{" "}
+            {params.orderExecution.timeInForce.toUpperCase()}
           </div>
         </div>
       </CardContent>
@@ -150,7 +165,13 @@ function ExecutionContextCard({ context }: { context: StrategyExecutionContext }
   );
 }
 
-function RecentOrdersTable({ orders, isLoading }: { orders: StrategyOrder[]; isLoading: boolean }) {
+function RecentOrdersTable({
+  orders,
+  isLoading,
+}: {
+  orders: StrategyOrder[];
+  isLoading: boolean;
+}) {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -212,9 +233,15 @@ export function StrategyExecutionDashboard({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: strategy, isLoading: strategyLoading } = useStrategy(strategyId);
-  const { data: ordersData, isLoading: ordersLoading, refetch: refetchOrders } = useStrategyOrders(strategyId);
-  const { data: context, isLoading: contextLoading } = useExecutionContext(strategyId);
+  const { data: strategy, isLoading: strategyLoading } =
+    useStrategy(strategyId);
+  const {
+    data: ordersData,
+    isLoading: ordersLoading,
+    refetch: refetchOrders,
+  } = useStrategyOrders(strategyId);
+  const { data: context, isLoading: contextLoading } =
+    useExecutionContext(strategyId);
 
   const pauseMutation = usePauseStrategy();
   const resumeMutation = useResumeStrategy();
@@ -227,7 +254,9 @@ export function StrategyExecutionDashboard({
     onOrderUpdate: (data) => {
       // Invalidate queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ["strategy", strategyId] });
-      queryClient.invalidateQueries({ queryKey: ["strategyOrders", strategyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["strategyOrders", strategyId],
+      });
 
       // Show toast for important status changes
       if (data.status === "rejected" || data.status === "canceled") {
@@ -241,8 +270,12 @@ export function StrategyExecutionDashboard({
     onOrderFill: (data) => {
       // Invalidate queries for fill updates
       queryClient.invalidateQueries({ queryKey: ["strategy", strategyId] });
-      queryClient.invalidateQueries({ queryKey: ["strategyOrders", strategyId] });
-      queryClient.invalidateQueries({ queryKey: ["executionContext", strategyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["strategyOrders", strategyId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["executionContext", strategyId],
+      });
 
       toast({
         title: "Order Filled",
@@ -253,12 +286,14 @@ export function StrategyExecutionDashboard({
     onPositionUpdate: (data) => {
       // Invalidate strategy and context queries for position count updates
       queryClient.invalidateQueries({ queryKey: ["strategy", strategyId] });
-      queryClient.invalidateQueries({ queryKey: ["executionContext", strategyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["executionContext", strategyId],
+      });
     },
   });
 
   const isLoading = strategyLoading || contextLoading;
-  const orders = ordersData?.orders || [];
+  const orders = ordersData || [];
   const isActive = strategy?.status === "paper" || strategy?.status === "live";
   const isPaused = strategy?.status === "paused";
 
@@ -320,7 +355,11 @@ export function StrategyExecutionDashboard({
         </div>
         <div className="flex items-center gap-3">
           {user?.id && (
-            <ConnectionStatus userId={user.id} compact={true} showStats={false} />
+            <ConnectionStatus
+              userId={user.id}
+              compact={true}
+              showStats={false}
+            />
           )}
           {showActions && (
             <div className="flex items-center gap-2">
@@ -330,42 +369,44 @@ export function StrategyExecutionDashboard({
                 onClick={() => refetchOrders()}
                 disabled={ordersLoading}
               >
-                <RefreshCw className={`h-4 w-4 mr-1 ${ordersLoading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-1 ${ordersLoading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
-            {isActive && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePause}
-                disabled={pauseMutation.isPending}
-              >
-                <Pause className="h-4 w-4 mr-1" />
-                Pause
-              </Button>
-            )}
-            {isPaused && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResume}
-                disabled={resumeMutation.isPending}
-              >
-                <Play className="h-4 w-4 mr-1" />
-                Resume
-              </Button>
-            )}
-            {(isActive || isPaused) && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleStop}
-                disabled={stopMutation.isPending}
-              >
-                <Square className="h-4 w-4 mr-1" />
-                Stop
-              </Button>
-            )}
+              {isActive && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePause}
+                  disabled={pauseMutation.isPending}
+                >
+                  <Pause className="h-4 w-4 mr-1" />
+                  Pause
+                </Button>
+              )}
+              {isPaused && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResume}
+                  disabled={resumeMutation.isPending}
+                >
+                  <Play className="h-4 w-4 mr-1" />
+                  Resume
+                </Button>
+              )}
+              {(isActive || isPaused) && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleStop}
+                  disabled={stopMutation.isPending}
+                >
+                  <Square className="h-4 w-4 mr-1" />
+                  Stop
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -373,11 +414,15 @@ export function StrategyExecutionDashboard({
 
       {/* Performance Summary */}
       {strategy.performanceSummary && (
-        <div className={`grid gap-4 ${compact ? "grid-cols-2" : "md:grid-cols-2 lg:grid-cols-4"}`}>
+        <div
+          className={`grid gap-4 ${compact ? "grid-cols-2" : "md:grid-cols-2 lg:grid-cols-4"}`}
+        >
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">Total Return</div>
+                <div className="text-sm text-muted-foreground">
+                  Total Return
+                </div>
                 {(strategy.performanceSummary.totalReturn ?? 0) >= 0 ? (
                   <TrendingUp className="h-4 w-4 text-green-500" />
                 ) : (
@@ -386,10 +431,15 @@ export function StrategyExecutionDashboard({
               </div>
               <div
                 className={`text-2xl font-bold ${
-                  (strategy.performanceSummary.totalReturn ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+                  (strategy.performanceSummary.totalReturn ?? 0) >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
                 }`}
               >
-                {((strategy.performanceSummary.totalReturn ?? 0) * 100).toFixed(2)}%
+                {((strategy.performanceSummary.totalReturn ?? 0) * 100).toFixed(
+                  2
+                )}
+                %
               </div>
             </CardContent>
           </Card>
@@ -429,7 +479,9 @@ export function StrategyExecutionDashboard({
         <Card className={compact ? "" : "lg:col-span-2"}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Recent Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Recent Orders
+              </CardTitle>
               <Badge variant="outline">{orders.length} orders</Badge>
             </div>
           </CardHeader>

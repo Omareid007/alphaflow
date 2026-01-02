@@ -8,7 +8,14 @@ export interface Strategy {
   description?: string;
   type: string;
   templateId: string;
-  status: "draft" | "backtesting" | "paper" | "live" | "paused" | "stopped";
+  status:
+    | "draft"
+    | "backtesting"
+    | "backtested"
+    | "paper"
+    | "live"
+    | "paused"
+    | "stopped";
   mode?: "paper" | "live";
   config: Record<string, unknown>;
   performanceSummary?: {
@@ -21,6 +28,57 @@ export interface Strategy {
   lastBacktestId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StrategyOrder {
+  id: string;
+  strategyId: string;
+  symbol: string;
+  side: "buy" | "sell";
+  qty: number;
+  type: "market" | "limit" | "stop" | "stop_limit";
+  status: "pending" | "filled" | "partial" | "cancelled" | "rejected";
+  filledQty?: number;
+  avgPrice?: number;
+  limitPrice?: number;
+  stopPrice?: number;
+  createdAt: string;
+  filledAt?: string;
+}
+
+export interface StrategyExecutionParams {
+  positionSizing: {
+    method: "percent" | "fixed" | "risk";
+    percentOfPortfolio?: number;
+    fixedAmount?: number;
+    riskPerTradePercent?: number;
+    maxPositionPercent: number;
+  };
+  entryRules: {
+    minConfidence: number;
+    maxPositions: number;
+  };
+  bracketOrders: {
+    enabled: boolean;
+    takeProfitPercent?: number;
+    stopLossPercent?: number;
+  };
+  orderExecution: {
+    orderType: "market" | "limit";
+    timeInForce: "day" | "gtc" | "ioc";
+  };
+}
+
+export interface StrategyExecutionContext {
+  strategyId: string;
+  isRunning: boolean;
+  lastSignalAt?: string;
+  lastOrderAt?: string;
+  currentPositions: number;
+  totalOrdersToday: number;
+  totalPnL: number;
+  riskLevel: "low" | "medium" | "high";
+  params: StrategyExecutionParams;
 }
 
 export function useStrategies() {
@@ -50,7 +108,9 @@ export function useCreateStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies"] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
 
       // Optimistically add new strategy with temporary ID
       queryClient.setQueryData<Strategy[]>(["strategies"], (old) => [
@@ -97,12 +157,23 @@ export function useUpdateStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically update strategy in list
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.map(s => s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) =>
+          old?.map((s) =>
+            s.id === id
+              ? { ...s, ...updates, updatedAt: new Date().toISOString() }
+              : s
+          ) ?? []
       );
 
       // Optimistically update single strategy
@@ -146,12 +217,18 @@ export function useDeleteStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically remove strategy from list
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.filter(s => s.id !== id) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) => old?.filter((s) => s.id !== id) ?? []
       );
 
       // Remove single strategy cache
@@ -193,12 +270,20 @@ export function useDeployStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically update strategy status
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.map(s => s.id === id ? { ...s, status: mode, mode } : s) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) =>
+          old?.map((s) => (s.id === id ? { ...s, status: mode, mode } : s)) ??
+          []
       );
 
       queryClient.setQueryData<Strategy>(["strategies", id], (old) =>
@@ -242,12 +327,21 @@ export function usePauseStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically update strategy status
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.map(s => s.id === id ? { ...s, status: "paused" as const } : s) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) =>
+          old?.map((s) =>
+            s.id === id ? { ...s, status: "paused" as const } : s
+          ) ?? []
       );
 
       queryClient.setQueryData<Strategy>(["strategies", id], (old) =>
@@ -291,12 +385,21 @@ export function useResumeStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically update strategy status (resume typically goes back to previous mode)
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.map(s => s.id === id ? { ...s, status: s.mode || "paper" } : s) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) =>
+          old?.map((s) =>
+            s.id === id ? { ...s, status: s.mode || "paper" } : s
+          ) ?? []
       );
 
       queryClient.setQueryData<Strategy>(["strategies", id], (old) =>
@@ -340,12 +443,21 @@ export function useStopStrategy() {
       await queryClient.cancelQueries({ queryKey: ["strategies", id] });
 
       // Snapshot previous state
-      const previousStrategies = queryClient.getQueryData<Strategy[]>(["strategies"]);
-      const previousStrategy = queryClient.getQueryData<Strategy>(["strategies", id]);
+      const previousStrategies = queryClient.getQueryData<Strategy[]>([
+        "strategies",
+      ]);
+      const previousStrategy = queryClient.getQueryData<Strategy>([
+        "strategies",
+        id,
+      ]);
 
       // Optimistically update strategy status
-      queryClient.setQueryData<Strategy[]>(["strategies"], (old) =>
-        old?.map(s => s.id === id ? { ...s, status: "stopped" as const } : s) ?? []
+      queryClient.setQueryData<Strategy[]>(
+        ["strategies"],
+        (old) =>
+          old?.map((s) =>
+            s.id === id ? { ...s, status: "stopped" as const } : s
+          ) ?? []
       );
 
       queryClient.setQueryData<Strategy>(["strategies", id], (old) =>
@@ -373,5 +485,27 @@ export function useStopStrategy() {
       queryClient.invalidateQueries({ queryKey: ["strategies", id] });
       toast.success("Strategy stopped successfully");
     },
+  });
+}
+
+export function useStrategyOrders(strategyId: string) {
+  return useQuery({
+    queryKey: ["strategyOrders", strategyId],
+    queryFn: () =>
+      api.get<StrategyOrder[]>(`/api/strategies/${strategyId}/orders`),
+    enabled: !!strategyId,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+}
+
+export function useExecutionContext(strategyId: string) {
+  return useQuery({
+    queryKey: ["executionContext", strategyId],
+    queryFn: () =>
+      api.get<StrategyExecutionContext>(
+        `/api/strategies/${strategyId}/execution-context`
+      ),
+    enabled: !!strategyId,
+    refetchInterval: 10000, // Refresh every 10 seconds for real-time status
   });
 }

@@ -31,6 +31,13 @@
     --radius: 0.75rem;
     --success: 152 69% 40%;
     --warning: 43 96% 56%;
+
+    /* Trading semantic colors */
+    --gain: 142 71% 45%;        /* Green for profits */
+    --loss: 0 84% 60%;          /* Red for losses */
+    --market-open: 142 71% 45%; /* Green dot when market open */
+    --market-closed: 0 0% 30%;  /* Gray when market closed */
+    --market-extended: 45 93% 47%; /* Yellow for pre/after hours */
   }
 
   .dark {
@@ -60,6 +67,13 @@
     --chart-5: 220 9% 55%;
     --success: 152 69% 45%;
     --warning: 43 96% 56%;
+
+    /* Trading semantic colors */
+    --gain: 142 71% 55%;        /* Brighter green for profits */
+    --loss: 0 84% 65%;          /* Brighter red for losses */
+    --market-open: 142 71% 55%; /* Green dot when market open */
+    --market-closed: 0 0% 50%;  /* Gray when market closed */
+    --market-extended: 45 93% 55%; /* Yellow for pre/after hours */
   }
 }
 
@@ -90,6 +104,46 @@
   }
   .border-warning {
     border-color: hsl(var(--warning));
+  }
+
+  /* Trading semantic utility classes */
+  .text-gain {
+    color: hsl(var(--gain));
+  }
+  .text-loss {
+    color: hsl(var(--loss));
+  }
+  .bg-gain {
+    background-color: hsl(var(--gain));
+  }
+  .bg-loss {
+    background-color: hsl(var(--loss));
+  }
+  .border-gain {
+    border-color: hsl(var(--gain));
+  }
+  .border-loss {
+    border-color: hsl(var(--loss));
+  }
+
+  /* Market status colors */
+  .text-market-open {
+    color: hsl(var(--market-open));
+  }
+  .text-market-closed {
+    color: hsl(var(--market-closed));
+  }
+  .text-market-extended {
+    color: hsl(var(--market-extended));
+  }
+  .bg-market-open {
+    background-color: hsl(var(--market-open));
+  }
+  .bg-market-closed {
+    background-color: hsl(var(--market-closed));
+  }
+  .bg-market-extended {
+    background-color: hsl(var(--market-extended));
   }
 }
 

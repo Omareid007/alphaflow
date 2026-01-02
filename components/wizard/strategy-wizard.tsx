@@ -106,34 +106,37 @@ export function StrategyWizard({
     return defaults;
   }, []);
 
-  const handleTemplateSelect = (template: AlgorithmTemplate) => {
-    setSelectedTemplate(template);
-    setConfigValues(initializeConfig(template));
-    setStrategyName(`My ${template.name}`);
-    setCurrentStep(1);
-  };
+  const handleTemplateSelect = useCallback(
+    (template: AlgorithmTemplate) => {
+      setSelectedTemplate(template);
+      setConfigValues(initializeConfig(template));
+      setStrategyName(`My ${template.name}`);
+      setCurrentStep(1);
+    },
+    [initializeConfig]
+  );
 
-  const handlePresetSelect = (preset: Preset) => {
+  const handlePresetSelect = useCallback((preset: Preset) => {
     setSelectedPreset(preset);
     if (preset.name !== "Custom") {
       setConfigValues((prev) => ({ ...prev, ...preset.valuesByFieldKey }));
     }
-  };
+  }, []);
 
-  const handleFieldChange = (
-    key: string,
-    value: string | number | boolean | string[]
-  ) => {
-    setConfigValues((prev) => ({ ...prev, [key]: value }));
-    if (selectedPreset?.name !== "Custom") {
-      const customPreset = selectedTemplate?.presets.find(
-        (p) => p.name === "Custom"
-      );
-      if (customPreset) setSelectedPreset(customPreset);
-    }
-  };
+  const handleFieldChange = useCallback(
+    (key: string, value: string | number | boolean | string[]) => {
+      setConfigValues((prev) => ({ ...prev, [key]: value }));
+      if (selectedPreset?.name !== "Custom") {
+        const customPreset = selectedTemplate?.presets.find(
+          (p) => p.name === "Custom"
+        );
+        if (customPreset) setSelectedPreset(customPreset);
+      }
+    },
+    [selectedPreset?.name, selectedTemplate?.presets]
+  );
 
-  const handleRunBacktest = async () => {
+  const handleRunBacktest = useCallback(async () => {
     if (!selectedTemplate) return;
 
     setBacktestProgress(0);
@@ -189,38 +192,71 @@ export function StrategyWizard({
       toast.error(error instanceof Error ? error.message : "Backtest failed");
       setBacktestProgress(0);
     }
-  };
+  }, [
+    selectedTemplate,
+    strategy,
+    strategyName,
+    configValues,
+    createStrategyMutation,
+    updateStrategyMutation,
+    runBacktestMutation,
+  ]);
 
-  const handleApplySuggestions = () => {
+  const handleApplySuggestions = useCallback(() => {
     // Interpretation is a string in the API, not an object with suggestedEdits
     // This feature requires backend enhancement to return structured interpretation
     toast.info("AI suggestions not yet available from backend");
-  };
+  }, []);
 
-  const handleRunAgain = () => {
+  const handleRunAgain = useCallback(() => {
     // Clear completed backtest to allow running a new one
     setCompletedBacktest(null);
     setRunningBacktestId(null);
     setBacktestProgress(0);
-  };
+  }, []);
 
-  const handleDeploy = async (mode: "paper" | "live") => {
-    if (!strategy) return;
+  const handleDeploy = useCallback(
+    async (mode: "paper" | "live") => {
+      if (!strategy) return;
 
-    try {
-      toast.loading(`Deploying to ${mode} trading...`);
-      await deployStrategyMutation.mutateAsync({
-        id: strategy.id,
-        mode,
-      });
-      toast.dismiss();
-      toast.success(`Strategy deployed to ${mode} trading`);
-      router.push("/strategies");
-    } catch (error) {
-      toast.dismiss();
-      toast.error(error instanceof Error ? error.message : "Deployment failed");
+      try {
+        toast.loading(`Deploying to ${mode} trading...`);
+        await deployStrategyMutation.mutateAsync({
+          id: strategy.id,
+          mode,
+        });
+        toast.dismiss();
+        toast.success(`Strategy deployed to ${mode} trading`);
+        router.push("/strategies");
+      } catch (error) {
+        toast.dismiss();
+        toast.error(
+          error instanceof Error ? error.message : "Deployment failed"
+        );
+      }
+    },
+    [strategy, deployStrategyMutation, router]
+  );
+
+  const handleBack = useCallback(() => {
+    if (currentStep === 1) {
+      setSelectedTemplate(null);
+      setSelectedPreset(null);
+      setRunningBacktestId(null);
+      setCompletedBacktest(null);
+    } else if (completedBacktest) {
+      // Go back to config step when viewing backtest results
+      setCompletedBacktest(null);
+      setRunningBacktestId(null);
+      setBacktestProgress(0);
+    } else {
+      setCurrentStep((prev) => prev - 1);
     }
-  };
+  }, [currentStep, completedBacktest]);
+
+  const handleNext = useCallback(() => {
+    setCurrentStep((prev) => prev + 1);
+  }, []);
 
   const totalSteps = selectedTemplate
     ? selectedTemplate.stepSchema.steps.length
@@ -303,22 +339,8 @@ export function StrategyWizard({
         currentStep={currentStep}
         totalSteps={totalSteps}
         hasBacktest={!!backtest}
-        onBack={() => {
-          if (currentStep === 1) {
-            setSelectedTemplate(null);
-            setSelectedPreset(null);
-            setRunningBacktestId(null);
-            setCompletedBacktest(null);
-          } else if (backtest) {
-            // Go back to config step when viewing backtest results
-            setCompletedBacktest(null);
-            setRunningBacktestId(null);
-            setBacktestProgress(0);
-          } else {
-            setCurrentStep((prev) => prev - 1);
-          }
-        }}
-        onNext={() => setCurrentStep((prev) => prev + 1)}
+        onBack={handleBack}
+        onNext={handleNext}
       />
     </div>
   );

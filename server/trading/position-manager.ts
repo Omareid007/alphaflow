@@ -634,7 +634,6 @@ export class PositionManager {
             timeInForce: alpacaOrder.time_in_force || undefined,
             orderClass: alpacaOrder.order_class || undefined,
             extendedHours: alpacaOrder.extended_hours || false,
-            strategyId: null, // Cannot determine strategy from Alpaca order alone
           });
 
           created.push(alpacaOrder.id);

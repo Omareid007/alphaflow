@@ -92,32 +92,36 @@ router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
  * GET /api/orders/execution-engine/status
  * Get status of active order executions
  */
-router.get("/execution-engine/status", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const activeExecutions = orderExecutionEngine.getActiveExecutions();
-    const executions = Array.from(activeExecutions.entries()).map(
-      ([id, state]) => ({
-        clientOrderId: id,
-        orderId: state.orderId,
-        symbol: state.symbol,
-        side: state.side,
-        status: state.status,
-        attempts: state.attempts,
-        createdAt: state.createdAt.toISOString(),
-        updatedAt: state.updatedAt.toISOString(),
-      })
-    );
-    res.json({
-      activeCount: executions.length,
-      executions,
-    });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to get execution engine status", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
+router.get(
+  "/execution-engine/status",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const activeExecutions = orderExecutionEngine.getActiveExecutions();
+      const executions = Array.from(activeExecutions.entries()).map(
+        ([id, state]) => ({
+          clientOrderId: id,
+          orderId: state.orderId,
+          symbol: state.symbol,
+          side: state.side,
+          status: state.status,
+          attempts: state.attempts,
+          createdAt: state.createdAt.toISOString(),
+          updatedAt: state.updatedAt.toISOString(),
+        })
+      );
+      res.json({
+        activeCount: executions.length,
+        executions,
+      });
+    } catch (error) {
+      log.error("OrdersRoutes", "Failed to get execution engine status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: String(error) });
+    }
   }
-});
+);
 
 // ============================================================================
 // ORDER RETRIEVAL & MANAGEMENT
@@ -236,21 +240,14 @@ router.get("/fills", requireAuth, async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
 
-    // Get recent fills - we'll need to add a method for this
+    // Get recent fills using batch query (100x faster than N+1)
     const orders = await storage.getRecentOrders(req.userId!, 100);
     const orderIds = orders.map((o) => o.id);
 
-    let allFills: Fill[] = [];
-    for (const orderId of orderIds) {
-      const fills = await storage.getFillsByOrderId(orderId);
-      allFills = allFills.concat(fills);
-    }
+    // Batch fetch all fills in a single query instead of N queries
+    let allFills = await storage.getFillsByOrderIds(orderIds);
 
-    // Sort by occurredAt descending and limit
-    allFills.sort(
-      (a, b) =>
-        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
-    );
+    // Sort by occurredAt descending and limit (already sorted by DB, but limit here)
     allFills = allFills.slice(0, limit);
 
     res.json({
@@ -273,33 +270,37 @@ router.get("/fills", requireAuth, async (req: Request, res: Response) => {
  * GET /api/orders/fills/order/:orderId
  * Get fills for a specific order
  */
-router.get("/fills/order/:orderId", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { orderId } = req.params;
+router.get(
+  "/fills/order/:orderId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
 
-    // Try by database order ID first
-    let fills = await storage.getFillsByOrderId(orderId);
+      // Try by database order ID first
+      let fills = await storage.getFillsByOrderId(orderId);
 
-    // If not found, try by brokerOrderId
-    if (fills.length === 0) {
-      fills = await storage.getFillsByBrokerOrderId(orderId);
+      // If not found, try by brokerOrderId
+      if (fills.length === 0) {
+        fills = await storage.getFillsByBrokerOrderId(orderId);
+      }
+
+      res.json({
+        fills,
+        _source: {
+          type: "database",
+          table: "fills",
+          fetchedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      log.error("OrdersRoutes", "Failed to fetch fills for order", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: String(error) });
     }
-
-    res.json({
-      fills,
-      _source: {
-        type: "database",
-        table: "fills",
-        fetchedAt: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    log.error("OrdersRoutes", "Failed to fetch fills for order", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: String(error) });
   }
-});
+);
 
 // ============================================================================
 // CATCH-ALL ORDER BY ID (must be LAST to not catch other routes)
@@ -315,12 +316,11 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Try by database ID first, then by brokerOrderId
-    let order = await storage.getOrderByBrokerOrderId(id);
+    let order = await storage.getOrderById(id);
 
     if (!order) {
-      // Could also try by ID if needed
-      const orders = await storage.getRecentOrders(undefined, 1000);
-      order = orders.find((o) => o.id === id);
+      // Fallback to broker order ID lookup
+      order = await storage.getOrderByBrokerOrderId(id);
     }
 
     if (!order) {

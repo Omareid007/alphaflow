@@ -2,14 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileHeader } from "@/components/layout/mobile-header";
+import { MobileNavProvider } from "@/components/layout/mobile-nav-context";
 import { AuthProvider, useAuth } from "@/components/providers/auth-provider";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
 
-// Skeleton sidebar for loading state
+// Skeleton sidebar for loading state (desktop only)
 function SidebarSkeleton() {
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-border bg-card md:block">
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center gap-3 border-b border-border px-6">
           <div className="h-9 w-9 animate-pulse rounded-xl bg-muted" />
@@ -31,6 +33,19 @@ function SidebarSkeleton() {
         </nav>
       </div>
     </aside>
+  );
+}
+
+// Mobile header skeleton
+function MobileHeaderSkeleton() {
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+        <div className="h-5 w-20 animate-pulse rounded bg-muted" />
+      </div>
+      <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+    </header>
   );
 }
 
@@ -72,10 +87,11 @@ function AppContent({ children }: { children: React.ReactNode }) {
     }
     // For authenticated pages, show skeleton layout
     return (
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen flex-col md:flex-row">
+        <MobileHeaderSkeleton />
         <SidebarSkeleton />
-        <main className="flex-1 pl-64">
-          <div className="min-h-screen p-6">
+        <main className="flex-1 pt-14 md:pt-0 md:pl-64 transition-[padding] duration-300">
+          <div className="min-h-screen p-4 md:p-6">
             <PageSkeleton />
           </div>
         </main>
@@ -88,12 +104,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Authenticated pages - with sidebar
+  // Authenticated pages - with responsive sidebar
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <MobileHeader />
       <Sidebar />
-      <main className="flex-1 pl-64">
-        <div className="min-h-screen p-6">{children}</div>
+      <main className="flex-1 pt-14 md:pt-0 md:pl-64 transition-[padding] duration-300">
+        <div className="min-h-screen p-4 md:p-6">{children}</div>
       </main>
     </div>
   );
@@ -102,7 +119,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <AppContent>{children}</AppContent>
+      <MobileNavProvider>
+        <AppContent>{children}</AppContent>
+      </MobileNavProvider>
     </AuthProvider>
   );
 }

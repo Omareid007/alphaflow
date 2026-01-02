@@ -170,10 +170,6 @@ class UAEMarketsConnector {
    * Fetch DFM index data from Dubai Pulse Open API
    */
   private async fetchDubaiPulseIndices(): Promise<UAEMarketSummary | null> {
-    if (USE_DEMO_DATA) {
-      return null;
-    }
-
     try {
       this.apiCallCount++;
       this.lastApiCallTime = new Date();

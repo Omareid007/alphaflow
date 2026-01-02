@@ -224,7 +224,7 @@ class StrategySignalPipeline {
           config.guards,
           context,
           signal.symbol,
-          signal.type === "buy" || signal.type === "scale_in" ? "buy" : "sell"
+          signal.action === "buy" ? "buy" : "sell"
         );
 
         if (!guardResult.allPassed) {
@@ -265,11 +265,7 @@ class StrategySignalPipeline {
 
           case "full_auto": {
             // Execute immediately
-            const result = await actionExecutor.execute(
-              signal,
-              context,
-              options
-            );
+            const result = await actionExecutor.execute(signal, options);
             results.push(result);
             break;
           }
@@ -340,7 +336,9 @@ class StrategySignalPipeline {
       }
 
       // Extract close prices for indicator calculations
-      const closePrices = bars.map((bar: { c: string | number }) => parseFloat(String(bar.c)));
+      const closePrices = bars.map((bar: { c: string | number }) =>
+        parseFloat(String(bar.c))
+      );
       const currentPrice = closePrices[closePrices.length - 1];
 
       // 2. Parse strategy config to get indicator settings
@@ -529,10 +527,13 @@ class StrategySignalPipeline {
       // Calculate stop loss and take profit based on volatility
       const recentPrices = closePrices.slice(-20);
       const avgPrice =
-        recentPrices.reduce((sum: number, p: number) => sum + p, 0) / recentPrices.length;
-      const variance =
-        recentPrices.reduce((sum: number, p: number) => sum + Math.pow(p - avgPrice, 2), 0) /
+        recentPrices.reduce((sum: number, p: number) => sum + p, 0) /
         recentPrices.length;
+      const variance =
+        recentPrices.reduce(
+          (sum: number, p: number) => sum + Math.pow(p - avgPrice, 2),
+          0
+        ) / recentPrices.length;
       const volatility = Math.sqrt(variance);
 
       const stopLoss =
@@ -546,13 +547,20 @@ class StrategySignalPipeline {
           : currentPrice - 3 * volatility;
 
       const signal: ActionSignal = {
-        type: actionType,
+        id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        strategyId,
         symbol,
+        action: actionType,
+        quantity: 1, // Default quantity, should be determined by position sizing
+        orderType: "market",
+        timeInForce: "day",
         confidence,
-        reasoning: reasoning.join("; "),
-        targetPrice: currentPrice,
-        stopLoss: Math.max(stopLoss, 0.01),
-        takeProfit: Math.max(takeProfit, 0.01),
+        reason: reasoning.join("; "),
+        metadata: {
+          targetPrice: currentPrice,
+          stopLoss: Math.max(stopLoss, 0.01),
+          takeProfit: Math.max(takeProfit, 0.01),
+        },
       };
 
       log.info("SignalPipeline", "Signal generated", {
@@ -666,11 +674,7 @@ class StrategySignalPipeline {
     const context = parseStrategyContext(strategy);
 
     // Execute the signal
-    const result = await actionExecutor.execute(
-      pending.signal,
-      context,
-      options
-    );
+    const result = await actionExecutor.execute(pending.signal, options);
 
     // Update status in Redis
     pending.status = result.success ? "approved" : "rejected";

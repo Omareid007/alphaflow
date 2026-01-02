@@ -294,7 +294,7 @@ class StrategyLifecycleService {
     const updated = await storage.updateStrategyStatus(
       strategyId,
       "stopped",
-      null
+      undefined
     );
 
     if (!updated) {
@@ -336,7 +336,7 @@ class StrategyLifecycleService {
     const updated = await storage.updateStrategyStatus(
       strategyId,
       "backtesting",
-      null
+      undefined
     );
 
     if (!updated) {
@@ -418,7 +418,7 @@ class StrategyLifecycleService {
     const updated = await storage.updateStrategyStatus(
       strategyId,
       "draft",
-      null
+      undefined
     );
 
     if (!updated) {

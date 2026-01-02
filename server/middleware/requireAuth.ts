@@ -1,6 +1,12 @@
-import { Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { unauthorized } from "../lib/standard-errors";
-import type { AuthenticatedRequest } from "./auth";
+
+/**
+ * Extended Request type with authentication properties
+ */
+export interface AuthenticatedRequest extends Request {
+  userId?: string;
+}
 
 /**
  * Middleware to require authentication for protected routes

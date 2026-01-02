@@ -17,13 +17,38 @@
  * - Metrics tracking
  */
 
-import { Router, Response } from "express";
-import { authMiddleware } from "../middleware/auth";
+import { Router, Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/error-handler";
 import { sseEmitter, type SSEEventType } from "../lib/sse-emitter";
 import { log } from "../utils/logger";
 import { storage } from "../storage";
+import { getSession } from "../lib/session";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+
+/**
+ * Local auth middleware for stream trading routes
+ */
+async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  try {
+    const sessionId = req.cookies?.session;
+    if (!sessionId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ error: "Invalid or expired session" });
+    }
+
+    // Add userId to request
+    (req as any).userId = session.userId;
+    (req as any).user = { id: session.userId };
+    next();
+  } catch (error) {
+    log.error("StreamAuth", "Auth error", { error });
+    res.status(500).json({ error: "Authentication failed" });
+  }
+}
 
 const router = Router();
 
@@ -39,7 +64,8 @@ function formatSSE(
   data: Record<string, unknown>,
   eventId?: string
 ): string {
-  const id = eventId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const id =
+    eventId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   return (
     `event: ${eventType}\n` +
     `data: ${JSON.stringify(data)}\n` +
@@ -165,7 +191,9 @@ router.get(
     try {
       const positions = await storage.getPositions(userId);
       const totalValue = positions.reduce(
-        (sum, p) => sum + parseFloat(p.quantity) * parseFloat(p.currentPrice || p.entryPrice),
+        (sum, p) =>
+          sum +
+          parseFloat(p.quantity) * parseFloat(p.currentPrice || p.entryPrice),
         0
       );
 
@@ -300,7 +328,9 @@ router.get(
       // Positions
       const positions = await storage.getPositions(userId);
       const totalValue = positions.reduce(
-        (sum, p) => sum + parseFloat(p.quantity) * parseFloat(p.currentPrice || p.entryPrice),
+        (sum, p) =>
+          sum +
+          parseFloat(p.quantity) * parseFloat(p.currentPrice || p.entryPrice),
         0
       );
       res.write(
@@ -334,7 +364,10 @@ router.get(
     res.on("close", () => {
       clearInterval(keepaliveInterval);
       sseEmitter.removeClient(clientId, userId);
-      log.info("Stream/Trading", "Combined stream disconnected", { clientId, userId });
+      log.info("Stream/Trading", "Combined stream disconnected", {
+        clientId,
+        userId,
+      });
     });
   })
 );

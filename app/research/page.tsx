@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   useWatchlists,
   useAddToWatchlist,
@@ -84,10 +84,10 @@ export default function ResearchPage() {
       ? "Failed to load market quotes"
       : null;
 
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     if (watchlistsError) refetchWatchlists();
     if (quotesError) refetchQuotes();
-  };
+  }, [watchlistsError, quotesError, refetchWatchlists, refetchQuotes]);
 
   // Build availableSymbols with real-time prices
   const availableSymbols = useMemo(() => {
@@ -110,41 +110,62 @@ export default function ResearchPage() {
     }
   }, [watchlists, activeWatchlist]);
 
-  const currentWatchlist = watchlists.find((w) => w.id === activeWatchlist);
+  const currentWatchlist = useMemo(
+    () => watchlists.find((w) => w.id === activeWatchlist),
+    [watchlists, activeWatchlist]
+  );
 
-  const filteredItems =
-    currentWatchlist?.items.filter(
-      (item) =>
-        item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+  const filteredItems = useMemo(
+    () =>
+      currentWatchlist?.items.filter(
+        (item) =>
+          item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ) || [],
+    [currentWatchlist?.items, searchQuery]
+  );
 
-  const handleAddSymbol = async (symbol: string) => {
-    if (!activeWatchlist) return;
-    try {
-      await addToWatchlist.mutateAsync({
-        watchlistId: activeWatchlist,
-        symbol,
-      });
-      toast.success(`${symbol} added to watchlist`);
-      setAddDialogOpen(false);
-    } catch (error) {
-      toast.error(`Failed to add ${symbol} to watchlist`);
-    }
-  };
+  const handleAddSymbol = useCallback(
+    async (symbol: string) => {
+      if (!activeWatchlist) return;
+      try {
+        await addToWatchlist.mutateAsync({
+          watchlistId: activeWatchlist,
+          symbol,
+        });
+        toast.success(`${symbol} added to watchlist`);
+        setAddDialogOpen(false);
+      } catch (error) {
+        toast.error(`Failed to add ${symbol} to watchlist`);
+      }
+    },
+    [activeWatchlist, addToWatchlist]
+  );
 
-  const handleRemoveSymbol = async (symbol: string) => {
-    if (!activeWatchlist) return;
-    try {
-      await removeFromWatchlist.mutateAsync({
-        watchlistId: activeWatchlist,
-        symbol,
-      });
-      toast.success(`${symbol} removed from watchlist`);
-    } catch (error) {
-      toast.error(`Failed to remove ${symbol} from watchlist`);
-    }
-  };
+  const handleRemoveSymbol = useCallback(
+    async (symbol: string) => {
+      if (!activeWatchlist) return;
+      try {
+        await removeFromWatchlist.mutateAsync({
+          watchlistId: activeWatchlist,
+          symbol,
+        });
+        toast.success(`${symbol} removed from watchlist`);
+      } catch (error) {
+        toast.error(`Failed to remove ${symbol} from watchlist`);
+      }
+    },
+    [activeWatchlist, removeFromWatchlist]
+  );
+
+  // Compute available symbols to add (must be before conditional returns for hooks rules)
+  const availableToAdd = useMemo(() => {
+    const symbolsInWatchlist =
+      currentWatchlist?.items.map((i) => i.symbol) || [];
+    return availableSymbols.filter(
+      (s) => !symbolsInWatchlist.includes(s.symbol)
+    );
+  }, [currentWatchlist?.items, availableSymbols]);
 
   if (loading) {
     return (
@@ -188,11 +209,6 @@ export default function ResearchPage() {
       </div>
     );
   }
-
-  const symbolsInWatchlist = currentWatchlist?.items.map((i) => i.symbol) || [];
-  const availableToAdd = availableSymbols.filter(
-    (s) => !symbolsInWatchlist.includes(s.symbol)
-  );
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { cardHoverVariants } from "@/lib/animations/presets";
@@ -29,6 +29,10 @@ const Card = React.forwardRef<
     );
   }
 
+  // Filter out conflicting event handlers that clash with framer-motion's types
+  const { onAnimationStart, onDrag, onDragEnd, onDragStart, ...safeProps } =
+    props as Record<string, unknown>;
+
   return (
     <motion.div
       ref={ref}
@@ -40,7 +44,7 @@ const Card = React.forwardRef<
       initial="initial"
       whileHover="hover"
       whileTap="tap"
-      {...props}
+      {...(safeProps as Omit<HTMLMotionProps<"div">, "ref">)}
     />
   );
 });

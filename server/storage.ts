@@ -1,4 +1,15 @@
-import { eq, desc, and, gte, lte, sql, like, or, type SQL } from "drizzle-orm";
+import {
+  eq,
+  desc,
+  and,
+  gte,
+  lte,
+  sql,
+  like,
+  or,
+  inArray,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "./db";
 import {
   sanitizeInput,
@@ -73,6 +84,7 @@ import {
   type AuditLog,
   type InsertAuditLog,
   insertAuditLogSchema,
+  type PerformanceSummary,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -104,20 +116,36 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
 
   // Password reset tokens
-  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
-  getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined>;
+  createPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<void>;
+  getPasswordResetToken(
+    token: string
+  ): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
   deleteExpiredPasswordResetTokens(): Promise<number>;
 
   getStrategies(): Promise<Strategy[]>;
+  getActiveStrategies(): Promise<Strategy[]>;
   getStrategy(id: string): Promise<Strategy | undefined>;
   createStrategy(strategy: InsertStrategy): Promise<Strategy>;
   updateStrategy(
     id: string,
     updates: Partial<InsertStrategy>
   ): Promise<Strategy | undefined>;
+  updateStrategyStatus(
+    id: string,
+    status: string,
+    mode?: string
+  ): Promise<Strategy | undefined>;
   toggleStrategy(id: string, isActive: boolean): Promise<Strategy | undefined>;
   deleteStrategy(id: string): Promise<boolean>;
+  updateStrategyPerformance(
+    id: string,
+    performanceSummary: PerformanceSummary
+  ): Promise<Strategy | undefined>;
 
   getTrades(userId?: string, limit?: number): Promise<Trade[]>;
   getTradesFiltered(
@@ -130,6 +158,7 @@ export interface IStorage {
     trade: Omit<InsertTrade, "userId"> & { userId?: string }
   ): Promise<Trade>;
   getDistinctSymbols(): Promise<string[]>;
+  getTradesByStrategy(strategyId: string, limit?: number): Promise<Trade[]>;
 
   getPositions(userId?: string): Promise<Position[]>;
   getPosition(id: string): Promise<Position | undefined>;
@@ -139,6 +168,7 @@ export interface IStorage {
     updates: Partial<InsertPosition>
   ): Promise<Position | undefined>;
   deletePosition(id: string): Promise<boolean>;
+  getPositionsByStrategy(strategyId: string): Promise<Position[]>;
 
   getAiDecisions(userId?: string, limit?: number): Promise<AiDecision[]>;
   createAiDecision(
@@ -170,14 +200,19 @@ export interface IStorage {
   ): Promise<Order>;
   getOrderByBrokerOrderId(brokerOrderId: string): Promise<Order | undefined>;
   getOrderByClientOrderId(clientOrderId: string): Promise<Order | undefined>;
+  getOrderById(id: string): Promise<Order | undefined>;
   getOrdersByStatus(
     userId: string,
     status: string,
     limit?: number
   ): Promise<Order[]>;
   getRecentOrders(userId?: string, limit?: number): Promise<Order[]>;
+  // Note: Strategy-order linking requires schema update (orders.strategyId column)
+  // This is a stub returning empty array until proper implementation
+  getOrdersByStrategy(strategyId: string, limit?: number): Promise<Order[]>;
   createFill(fill: InsertFill): Promise<Fill>;
   getFillsByOrderId(orderId: string): Promise<Fill[]>;
+  getFillsByOrderIds(orderIds: string[]): Promise<Fill[]>;
   getFillsByBrokerOrderId(brokerOrderId: string): Promise<Fill[]>;
 
   // Audit Logging
@@ -210,10 +245,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
@@ -257,7 +289,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Password reset token methods
-  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+  async createPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<void> {
     await db.insert(passwordResetTokens).values({
       userId,
       token,
@@ -266,7 +302,9 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined> {
+  async getPasswordResetToken(
+    token: string
+  ): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined> {
     const [result] = await db
       .select({
         userId: passwordResetTokens.userId,
@@ -295,6 +333,14 @@ export class DatabaseStorage implements IStorage {
 
   async getStrategies(): Promise<Strategy[]> {
     return db.select().from(strategies).orderBy(desc(strategies.createdAt));
+  }
+
+  async getActiveStrategies(): Promise<Strategy[]> {
+    return db
+      .select()
+      .from(strategies)
+      .where(inArray(strategies.status, ["paper", "live"]))
+      .orderBy(desc(strategies.createdAt));
   }
 
   async getStrategy(id: string): Promise<Strategy | undefined> {
@@ -333,6 +379,20 @@ export class DatabaseStorage implements IStorage {
     return strategy;
   }
 
+  async updateStrategyStatus(
+    id: string,
+    status: string,
+    mode?: string
+  ): Promise<Strategy | undefined> {
+    const updates: Partial<InsertStrategy> = {
+      status: status as InsertStrategy["status"],
+    };
+    if (mode) {
+      updates.mode = mode as InsertStrategy["mode"];
+    }
+    return this.updateStrategy(id, updates);
+  }
+
   async toggleStrategy(
     id: string,
     isActive: boolean
@@ -346,6 +406,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(strategies.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async updateStrategyPerformance(
+    id: string,
+    performanceSummary: PerformanceSummary
+  ): Promise<Strategy | undefined> {
+    const [strategy] = await db
+      .update(strategies)
+      .set({ performanceSummary, updatedAt: new Date() })
+      .where(eq(strategies.id, id))
+      .returning();
+    return strategy;
   }
 
   async getTrades(userId?: string, limit: number = 50): Promise<Trade[]> {
@@ -491,6 +563,18 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => r.symbol);
   }
 
+  async getTradesByStrategy(
+    strategyId: string,
+    limit = 1000
+  ): Promise<Trade[]> {
+    return db
+      .select()
+      .from(trades)
+      .where(eq(trades.strategyId, strategyId))
+      .orderBy(desc(trades.executedAt))
+      .limit(limit);
+  }
+
   async getPositions(userId?: string): Promise<Position[]> {
     if (userId) {
       return db
@@ -536,6 +620,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(positions.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getPositionsByStrategy(strategyId: string): Promise<Position[]> {
+    return db
+      .select()
+      .from(positions)
+      .where(eq(positions.strategyId, strategyId))
+      .orderBy(desc(positions.openedAt));
   }
 
   async deleteAllPositions(): Promise<number> {
@@ -974,6 +1066,15 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getOrderById(id: string): Promise<Order | undefined> {
+    const [result] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+    return result;
+  }
+
   async getOrdersByStatus(
     userId: string,
     status: string,
@@ -1003,6 +1104,20 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  /**
+   * Get orders by strategy ID
+   * NOTE: This is a stub implementation - orders table doesn't have strategyId column yet.
+   * TODO: Add strategyId column to orders schema and implement proper query
+   */
+  async getOrdersByStrategy(
+    _strategyId: string,
+    _limit = 50
+  ): Promise<Order[]> {
+    // Stub implementation - orders are not currently linked to strategies in the database
+    // This requires adding a strategyId column to the orders table
+    return [];
+  }
+
   async createFill(fill: InsertFill): Promise<Fill> {
     const [result] = await db.insert(fills).values(fill).returning();
     return result;
@@ -1013,6 +1128,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(fills)
       .where(eq(fills.orderId, orderId))
+      .orderBy(desc(fills.occurredAt));
+  }
+
+  async getFillsByOrderIds(orderIds: string[]): Promise<Fill[]> {
+    if (orderIds.length === 0) return [];
+    return db
+      .select()
+      .from(fills)
+      .where(inArray(fills.orderId, orderIds))
       .orderBy(desc(fills.occurredAt));
   }
 

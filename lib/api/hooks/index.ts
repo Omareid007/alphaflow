@@ -8,5 +8,6 @@ export * from "./useSettings";
 export * from "./useFeedSources";
 export * from "./useSentiment";
 export * from "./useMarketQuotes";
+export * from "./useMarketStatus";
 export * from "./useCandidates";
 export * from "./useAdmin";

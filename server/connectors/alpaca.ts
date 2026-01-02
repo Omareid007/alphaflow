@@ -196,7 +196,16 @@ interface CacheEntry<T> {
 
 class AlpacaConnector {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
-  private cacheDuration = 30 * 1000;
+  // Tiered cache TTLs for different data types (trading accuracy vs performance)
+  private readonly cacheTTL = {
+    account: 5 * 1000, // 5 seconds - critical for trading decisions
+    positions: 5 * 1000, // 5 seconds - positions change with fills
+    orders: 2 * 1000, // 2 seconds - order status is time-sensitive
+    assets: 15 * 60 * 1000, // 15 minutes - asset list rarely changes
+    clock: 10 * 1000, // 10 seconds - market hours check
+    marketData: 30 * 1000, // 30 seconds - general quotes/bars
+    default: 30 * 1000, // 30 seconds - fallback for other data
+  };
   private readonly providerName = "alpaca";
   private failureCount = 0;
   private readonly maxConsecutiveFailures = 5;
@@ -262,9 +271,23 @@ class AlpacaConnector {
     return true;
   }
 
+  private getCacheTTL(key: string): number {
+    // Determine appropriate TTL based on cache key prefix
+    if (key === "account") return this.cacheTTL.account;
+    if (key === "positions") return this.cacheTTL.positions;
+    if (key.startsWith("order")) return this.cacheTTL.orders;
+    if (key === "assets" || key.startsWith("asset-"))
+      return this.cacheTTL.assets;
+    if (key === "clock") return this.cacheTTL.clock;
+    if (key.startsWith("bars-") || key.startsWith("quote-"))
+      return this.cacheTTL.marketData;
+    return this.cacheTTL.default;
+  }
+
   private getCached<T>(key: string): T | null {
     const entry = this.cache.get(key) as CacheEntry<T> | undefined;
-    if (entry && Date.now() - entry.timestamp < this.cacheDuration) {
+    const ttl = this.getCacheTTL(key);
+    if (entry && Date.now() - entry.timestamp < ttl) {
       return entry.data;
     }
     return null;
@@ -370,8 +393,14 @@ class AlpacaConnector {
               const text = await response.text();
 
               // Only log in development mode to avoid exposing sensitive data in production
-              if (process.env.NODE_ENV === "development" && process.env.ALPACA_DEBUG === "true") {
-                log.debug("Alpaca", `Response for ${url}: ${text.substring(0, 150)}`);
+              if (
+                process.env.NODE_ENV === "development" &&
+                process.env.ALPACA_DEBUG === "true"
+              ) {
+                log.debug(
+                  "Alpaca",
+                  `Response for ${url}: ${text.substring(0, 150)}`
+                );
               }
 
               if (!text || text.trim() === "") {
@@ -438,26 +467,30 @@ class AlpacaConnector {
     const cacheKey = "positions";
     const cached = this.getCached<AlpacaPosition[]>(cacheKey);
     if (cached) {
-      log.debug('Alpaca', 'getPositions() returning cached data', {
-        type: Array.isArray(cached) ? 'array' : typeof cached
+      log.debug("Alpaca", "getPositions() returning cached data", {
+        type: Array.isArray(cached) ? "array" : typeof cached,
       });
       return cached;
     }
 
-    log.debug('Alpaca', 'getPositions() fetching fresh data from API');
+    log.debug("Alpaca", "getPositions() fetching fresh data from API");
     const url = `${ALPACA_BASE_URL}/v2/positions`;
-    log.debug('Alpaca', 'Positions request', { url });
+    log.debug("Alpaca", "Positions request", { url });
     const data = await this.fetchWithRetry<AlpacaPosition[]>(url);
-    log.debug('Alpaca', 'getPositions() received data', {
-      type: Array.isArray(data) ? 'array' : typeof data,
-      length: data?.length
+    log.debug("Alpaca", "getPositions() received data", {
+      type: Array.isArray(data) ? "array" : typeof data,
+      length: data?.length,
     });
 
     // FIX: If the API returned an object instead of array, wrap it or return empty array
     if (!Array.isArray(data)) {
-      log.warn('Alpaca', 'positions endpoint returned non-array, returning empty array', {
-        receivedType: typeof data
-      });
+      log.warn(
+        "Alpaca",
+        "positions endpoint returned non-array, returning empty array",
+        {
+          receivedType: typeof data,
+        }
+      );
       const emptyArray: AlpacaPosition[] = [];
       this.setCache(cacheKey, emptyArray);
       return emptyArray;

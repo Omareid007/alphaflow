@@ -27,11 +27,7 @@ const sizeMap = {
 export function LoadingDots({ className, size = "md" }: LoadingDotsProps) {
   const prefersReducedMotion = useReducedMotion();
 
-  const dotClassName = cn(
-    "rounded-full bg-current",
-    sizeMap[size],
-    className
-  );
+  const dotClassName = cn("rounded-full bg-current", sizeMap[size], className);
 
   if (prefersReducedMotion) {
     return (
@@ -46,7 +42,7 @@ export function LoadingDots({ className, size = "md" }: LoadingDotsProps) {
   const bounceTransition = {
     duration: 0.6,
     repeat: Infinity,
-    ease: "easeInOut",
+    ease: "easeInOut" as const,
   };
 
   return (

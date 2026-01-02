@@ -3,11 +3,23 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { buttonPressVariants } from "@/lib/animations/presets";
 import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
+
+// Exclude conflicting drag handlers from React's ButtonHTMLAttributes
+type SafeButtonProps = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  | "onDrag"
+  | "onDragEnd"
+  | "onDragStart"
+  | "onDragOver"
+  | "onDragEnter"
+  | "onDragLeave"
+  | "onDrop"
+>;
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -39,9 +51,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends SafeButtonProps, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
@@ -62,6 +72,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = prefersReducedMotion ? {} : buttonPressVariants;
 
+    // Filter out conflicting event handlers that clash with framer-motion's types
+    const { onAnimationStart, onDrag, onDragEnd, onDragStart, ...safeProps } =
+      props as Record<string, unknown>;
+
     return (
       <motion.button
         className={cn(buttonVariants({ variant, size, className }))}
@@ -70,7 +84,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         initial="initial"
         whileHover="hover"
         whileTap="tap"
-        {...props}
+        {...(safeProps as Omit<HTMLMotionProps<"button">, "ref">)}
       />
     );
   }
