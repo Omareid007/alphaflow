@@ -444,6 +444,8 @@ export function registerAutonomousRoutes(
               side: decision.action as "buy" | "sell",
               quantity,
               userId: req.userId!, // Required - from authenticated session
+              strategyId: decision.strategyId || undefined, // Link trade to originating strategy
+              notes: `AI Decision ${decision.id}: ${decision.reasoning?.substring(0, 100)}`,
               authorizedByOrchestrator: true,
             });
 
