@@ -48941,7 +48941,9 @@ router29.post(
     }
     for (const alloc of targetAllocations) {
       if (!alloc.symbol || typeof alloc.targetPercent !== "number") {
-        throw badRequestError("Each allocation must have symbol and targetPercent");
+        throw badRequestError(
+          "Each allocation must have symbol and targetPercent"
+        );
       }
     }
     const preview = await alpacaTradingEngine.previewRebalance(targetAllocations);

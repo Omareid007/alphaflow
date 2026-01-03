@@ -90,6 +90,11 @@ import {
   type InsertUserPreferences,
   type UpdateUserPreferences,
   defaultUserPreferences,
+  notificationPreferences,
+  type SelectNotificationPreferences,
+  type InsertNotificationPreferences,
+  type UpdateNotificationPreferences,
+  defaultNotificationPreferences,
 } from "@shared/schema";
 
 export interface TradeFilters {
@@ -1622,6 +1627,84 @@ export class DatabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       log.error("Storage", "Failed to delete user preferences", {
+        error,
+        userId,
+      });
+      return false;
+    }
+  }
+
+  // ========================================
+  // Notification Preferences Methods
+  // ========================================
+
+  async getNotificationPreferences(
+    userId: string
+  ): Promise<SelectNotificationPreferences | null> {
+    try {
+      const [prefs] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId));
+      return prefs || null;
+    } catch (error) {
+      log.error("Storage", "Failed to get notification preferences", { error, userId });
+      return null;
+    }
+  }
+
+  async createDefaultNotificationPreferences(
+    userId: string,
+    prefs?: Partial<InsertNotificationPreferences>
+  ): Promise<SelectNotificationPreferences> {
+    const [created] = await db
+      .insert(notificationPreferences)
+      .values({
+        userId,
+        ...defaultNotificationPreferences,
+        ...prefs,
+      })
+      .returning();
+    return created;
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    updates: UpdateNotificationPreferences
+  ): Promise<SelectNotificationPreferences | null> {
+    try {
+      const [updated] = await db
+        .update(notificationPreferences)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(notificationPreferences.userId, userId))
+        .returning();
+      return updated || null;
+    } catch (error) {
+      log.error("Storage", "Failed to update notification preferences", {
+        error,
+        userId,
+      });
+      return null;
+    }
+  }
+
+  async getOrCreateNotificationPreferences(
+    userId: string
+  ): Promise<SelectNotificationPreferences> {
+    const existing = await this.getNotificationPreferences(userId);
+    if (existing) return existing;
+    return this.createDefaultNotificationPreferences(userId);
+  }
+
+  async deleteNotificationPreferences(userId: string): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      log.error("Storage", "Failed to delete notification preferences", {
         error,
         userId,
       });

@@ -110,6 +110,7 @@ import alpacaTradingRouter from "./routes/alpaca-trading";
 import uaeMarketsRouter from "./routes/uae-markets";
 import newsRouter from "./routes/news";
 import userPreferencesRouter from "./routes/user-preferences";
+import notificationPreferencesRouter from "./routes/notification-preferences";
 import cmcRouter from "./routes/cmc";
 import tradingSessionsRouter from "./routes/trading-sessions";
 import feedsRouter from "./routes/feeds";
@@ -393,6 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Newly modularized routes
   app.use("/api/auth", authRouter); // auth routes: /api/auth/login, /api/auth/signup, /api/auth/logout, /api/auth/me
   app.use("/api/user/preferences", userPreferencesRouter); // user preferences routes
+  app.use("/api/notifications/preferences", notificationPreferencesRouter); // notification preferences routes
   app.use("/api/positions", authMiddleware, positionsRouter); // positions routes
   app.use("/api/orders", authMiddleware, ordersRouter); // orders routes
   app.use("/api/trades", authMiddleware, tradesRouter); // trades routes

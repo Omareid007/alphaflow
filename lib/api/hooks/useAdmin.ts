@@ -462,7 +462,10 @@ export function useCreateAdminUser() {
       await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
 
       // Snapshot previous state
-      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+      const previousUsers = queryClient.getQueryData<AdminUser[]>([
+        "admin",
+        "users",
+      ]);
 
       // Optimistically add new user
       queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) => [
@@ -513,12 +516,17 @@ export function useUpdateAdminUser() {
       await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
 
       // Snapshot previous state
-      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+      const previousUsers = queryClient.getQueryData<AdminUser[]>([
+        "admin",
+        "users",
+      ]);
 
       // Optimistically update user (exclude password from optimistic update)
       const { password, ...displayUpdates } = updates;
-      queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) =>
-        old?.map((u) => (u.id === id ? { ...u, ...displayUpdates } : u)) ?? []
+      queryClient.setQueryData<AdminUser[]>(
+        ["admin", "users"],
+        (old) =>
+          old?.map((u) => (u.id === id ? { ...u, ...displayUpdates } : u)) ?? []
       );
 
       return { previousUsers };
@@ -551,11 +559,15 @@ export function useDeleteAdminUser() {
       await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
 
       // Snapshot previous state
-      const previousUsers = queryClient.getQueryData<AdminUser[]>(["admin", "users"]);
+      const previousUsers = queryClient.getQueryData<AdminUser[]>([
+        "admin",
+        "users",
+      ]);
 
       // Optimistically remove user
-      queryClient.setQueryData<AdminUser[]>(["admin", "users"], (old) =>
-        old?.filter((u) => u.id !== id) ?? []
+      queryClient.setQueryData<AdminUser[]>(
+        ["admin", "users"],
+        (old) => old?.filter((u) => u.id !== id) ?? []
       );
 
       return { previousUsers };
@@ -764,5 +776,210 @@ export function useAdminDashboard(enabled = true) {
     queryFn: () => api.get<DashboardStats>("/api/admin/dashboard"),
     refetchInterval: 30000,
     enabled,
+  });
+}
+
+// ============================================================================
+// PROVIDER MANAGEMENT
+// ============================================================================
+
+export type ProviderType =
+  | "data"
+  | "llm"
+  | "broker"
+  | "news"
+  | "sentiment"
+  | "analytics"
+  | "other";
+
+export type ProviderStatus = "active" | "inactive" | "error" | "maintenance";
+
+export type AuthMethod =
+  | "header"
+  | "query"
+  | "body"
+  | "oauth2"
+  | "basic"
+  | "bearer";
+
+export interface Provider {
+  id: string;
+  type: ProviderType;
+  name: string;
+  baseUrl?: string;
+  apiVersion?: string;
+  authMethod?: AuthMethod;
+  status: ProviderStatus;
+  rateLimitRequests?: number;
+  rateLimitWindowSeconds?: number;
+  rateLimitPerKey?: boolean;
+  retryEnabled?: boolean;
+  retryMaxAttempts?: number;
+  retryBackoffMs?: number;
+  retryBackoffMultiplier?: number;
+  timeoutConnectMs?: number;
+  timeoutRequestMs?: number;
+  timeoutTotalMs?: number;
+  healthCheckEnabled?: boolean;
+  healthCheckEndpoint?: string;
+  healthCheckIntervalSeconds?: number;
+  healthCheckTimeoutMs?: number;
+  connectionPoolSize?: number;
+  connectionPoolTimeoutMs?: number;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  webhookEvents?: string[];
+  requestFormat?: string;
+  responseFormat?: string;
+  customHeaders?: Record<string, unknown>;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  lastHealthCheck?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function useProviders(enabled = true) {
+  return useQuery({
+    queryKey: ["providers"],
+    queryFn: () => api.get<Provider[]>("/api/admin/providers"),
+    enabled,
+  });
+}
+
+export function useCreateProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (provider: Partial<Provider>) =>
+      api.post<Provider>("/api/admin/providers", provider),
+
+    onMutate: async (newProvider) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["providers"] });
+
+      // Snapshot previous state
+      const previousProviders = queryClient.getQueryData<Provider[]>([
+        "providers",
+      ]);
+
+      // Optimistically add new provider
+      queryClient.setQueryData<Provider[]>(["providers"], (old) => [
+        ...(old ?? []),
+        {
+          id: `temp-${Date.now()}`,
+          type: newProvider.type ?? "other",
+          name: newProvider.name ?? "New Provider",
+          status: newProvider.status ?? "inactive",
+          tags: newProvider.tags ?? [],
+          metadata: newProvider.metadata ?? {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          ...newProvider,
+        } as Provider,
+      ]);
+
+      return { previousProviders };
+    },
+
+    onError: (err, newProvider, context) => {
+      // Rollback on error
+      if (context?.previousProviders) {
+        queryClient.setQueryData(["providers"], context.previousProviders);
+      }
+      toast.error("Failed to create provider");
+      console.error("Failed to create provider:", err);
+    },
+
+    onSuccess: () => {
+      // Refetch to ensure sync with server
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast.success("Provider created successfully");
+    },
+  });
+}
+
+export function useUpdateProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...updates }: { id: string } & Partial<Provider>) =>
+      api.patch<Provider>(`/api/admin/providers/${id}`, updates),
+
+    onMutate: async ({ id, ...updates }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["providers"] });
+
+      // Snapshot previous state
+      const previousProviders = queryClient.getQueryData<Provider[]>([
+        "providers",
+      ]);
+
+      // Optimistically update provider
+      queryClient.setQueryData<Provider[]>(
+        ["providers"],
+        (old) =>
+          old?.map((p) =>
+            p.id === id
+              ? { ...p, ...updates, updatedAt: new Date().toISOString() }
+              : p
+          ) ?? []
+      );
+
+      return { previousProviders };
+    },
+
+    onError: (err, { id }, context) => {
+      // Rollback on error
+      if (context?.previousProviders) {
+        queryClient.setQueryData(["providers"], context.previousProviders);
+      }
+      toast.error("Failed to update provider");
+      console.error("Failed to update provider:", err);
+    },
+
+    onSuccess: () => {
+      // Refetch to ensure sync with server
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast.success("Provider updated successfully");
+    },
+  });
+}
+
+export function useDeleteProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/admin/providers/${id}`),
+
+    onMutate: async (id) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["providers"] });
+
+      // Snapshot previous state
+      const previousProviders = queryClient.getQueryData<Provider[]>([
+        "providers",
+      ]);
+
+      // Optimistically remove provider
+      queryClient.setQueryData<Provider[]>(
+        ["providers"],
+        (old) => old?.filter((p) => p.id !== id) ?? []
+      );
+
+      return { previousProviders };
+    },
+
+    onError: (err, id, context) => {
+      // Rollback on error
+      if (context?.previousProviders) {
+        queryClient.setQueryData(["providers"], context.previousProviders);
+      }
+      toast.error("Failed to delete provider");
+      console.error("Failed to delete provider:", err);
+    },
+
+    onSuccess: () => {
+      // Refetch to ensure sync with server
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast.success("Provider deleted successfully");
+    },
   });
 }
