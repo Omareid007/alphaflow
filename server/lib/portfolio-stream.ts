@@ -29,11 +29,25 @@ import {
   createPongEvent,
   createBatchEvent,
   createErrorEvent,
+  createPositionUpdateEvent,
+  createOrderUpdateEvent,
+  createAccountUpdateEvent,
+  createTradeExecutedEvent,
   getChannelForEventType,
   serializeEvent,
+  calculatePnlPercent,
+  calculatePnlAmount,
+  calculateMarketValue,
   type BatchUpdate,
 } from "./portfolio-events";
 import { log } from "../utils/logger";
+import {
+  eventBus,
+  type TradingEvent,
+  type TradeExecutedEvent,
+} from "../orchestration/events";
+import { alpaca } from "../connectors/alpaca";
+import { storage } from "../storage";
 
 // ============================================================================
 // TYPES
@@ -126,6 +140,7 @@ export class PortfolioStreamManager {
   private batchBuffers: Map<string, BatchBuffer> = new Map(); // userId -> BatchBuffer
   private batchTimer: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private eventUnsubscribers: Array<() => void> = []; // Event bus cleanup functions
 
   // Configuration
   private readonly maxConnectionsPerUser = 5;
@@ -152,6 +167,7 @@ export class PortfolioStreamManager {
     this.setupWebSocketServer();
     this.setupBatchFlush();
     this.setupHeartbeat();
+    this.setupEventListeners();
 
     log.info("PortfolioStream", "Portfolio Stream Manager initialized", {
       batchWindow: this.batchWindowMs,
@@ -934,6 +950,233 @@ export class PortfolioStreamManager {
   }
 
   // ============================================================================
+  // EVENT BUS INTEGRATION
+  // ============================================================================
+
+  /**
+   * Setup event bus listeners for trading events
+   *
+   * Subscribes to eventBus to receive trade executions, order updates, and position changes.
+   * Broadcasts these events to connected WebSocket clients in real-time.
+   */
+  private setupEventListeners(): void {
+    // Listen for trade executions
+    const unsubTrade = eventBus.subscribe<TradeExecutedEvent>(
+      "trade:executed",
+      async (event) => {
+        try {
+          const { data } = event;
+
+          // Need to determine userId from the trade
+          // The trade execution should include userId in the event data
+          // For now, fetch from database using tradeId
+          const trade = await storage.getTrade(data.tradeId);
+          if (!trade) {
+            log.warn("PortfolioStream", "Trade not found for event", {
+              tradeId: data.tradeId,
+            });
+            return;
+          }
+
+          const userId = trade.userId;
+
+          // Broadcast trade executed event
+          const tradeExecutedEvent = createTradeExecutedEvent(userId, {
+            tradeId: data.tradeId,
+            symbol: data.symbol,
+            side: data.side,
+            quantity: data.quantity.toString(),
+            price: data.price.toString(),
+            pnl: null, // Calculate if closing position
+            executedAt: event.timestamp.toISOString(),
+            strategyId: data.strategyId,
+          });
+          this.broadcastEvent(userId, tradeExecutedEvent);
+
+          // Fetch and broadcast updated position
+          await this.broadcastPositionUpdate(userId, data.symbol);
+
+          // Fetch and broadcast updated account
+          await this.broadcastAccountUpdate(userId);
+
+          log.debug("PortfolioStream", "Processed trade:executed event", {
+            userId,
+            tradeId: data.tradeId,
+            symbol: data.symbol,
+          });
+        } catch (error) {
+          log.error(
+            "PortfolioStream",
+            "Failed to handle trade:executed event",
+            {
+              error,
+              tradeId: event.data.tradeId,
+            }
+          );
+        }
+      }
+    );
+    this.eventUnsubscribers.push(unsubTrade);
+
+    // Listen for position updates
+    const unsubPosition = eventBus.subscribe(
+      "position:updated",
+      async (event: TradingEvent<any>) => {
+        try {
+          const { symbol, userId } = event.data;
+          if (userId && symbol) {
+            await this.broadcastPositionUpdate(userId, symbol);
+          }
+        } catch (error) {
+          log.error(
+            "PortfolioStream",
+            "Failed to handle position:updated event",
+            {
+              error,
+            }
+          );
+        }
+      }
+    );
+    this.eventUnsubscribers.push(unsubPosition);
+
+    // Listen for position closures
+    const unsubClosed = eventBus.subscribe(
+      "position:closed",
+      async (event: TradingEvent<any>) => {
+        try {
+          const { symbol, userId } = event.data;
+          if (userId && symbol) {
+            // Position closed - broadcast account update (position already removed)
+            await this.broadcastAccountUpdate(userId);
+          }
+        } catch (error) {
+          log.error(
+            "PortfolioStream",
+            "Failed to handle position:closed event",
+            {
+              error,
+            }
+          );
+        }
+      }
+    );
+    this.eventUnsubscribers.push(unsubClosed);
+
+    log.info("PortfolioStream", "Event bus listeners registered", {
+      events: ["trade:executed", "position:updated", "position:closed"],
+    });
+  }
+
+  /**
+   * Fetch position from Alpaca and broadcast update to user's connections
+   *
+   * @param userId - User ID
+   * @param symbol - Stock symbol
+   */
+  private async broadcastPositionUpdate(
+    userId: string,
+    symbol: string
+  ): Promise<void> {
+    try {
+      // Fetch position from Alpaca
+      const alpacaPosition = await alpaca.getPosition(symbol);
+
+      if (!alpacaPosition) {
+        log.debug(
+          "PortfolioStream",
+          "Position not found on Alpaca (may be closed)",
+          {
+            userId,
+            symbol,
+          }
+        );
+        return;
+      }
+
+      // Calculate P&L percent
+      const pnlPercent = calculatePnlPercent(
+        alpacaPosition.current_price,
+        alpacaPosition.avg_entry_price
+      );
+
+      // Create position update event
+      const positionEvent = createPositionUpdateEvent(userId, {
+        symbol: alpacaPosition.symbol,
+        quantity: alpacaPosition.qty,
+        currentPrice: alpacaPosition.current_price,
+        entryPrice: alpacaPosition.avg_entry_price,
+        unrealizedPnl: alpacaPosition.unrealized_pl,
+        unrealizedPnlPercent: pnlPercent,
+        marketValue: alpacaPosition.market_value,
+        side: parseFloat(alpacaPosition.qty) >= 0 ? "long" : "short",
+        openedAt: new Date().toISOString(), // Alpaca doesn't provide openedAt, use current time
+      });
+
+      this.broadcastEvent(userId, positionEvent);
+
+      log.debug("PortfolioStream", "Broadcast position update", {
+        userId,
+        symbol,
+        unrealizedPnl: alpacaPosition.unrealized_pl,
+      });
+    } catch (error) {
+      // Position might not exist (fully closed) - this is normal
+      log.debug(
+        "PortfolioStream",
+        "Could not fetch position for update (may be closed)",
+        {
+          userId,
+          symbol,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
+    }
+  }
+
+  /**
+   * Fetch account from Alpaca and broadcast update to user's connections
+   *
+   * @param userId - User ID
+   */
+  private async broadcastAccountUpdate(userId: string): Promise<void> {
+    try {
+      // Fetch account from Alpaca
+      const account = await alpaca.getAccount();
+
+      // Calculate day P&L
+      const equity = parseFloat(account.equity);
+      const lastEquity = parseFloat(account.last_equity);
+      const dayPnl = equity - lastEquity;
+      const dayPnlPercent = lastEquity !== 0 ? (dayPnl / lastEquity) * 100 : 0;
+
+      // Create account update event
+      const accountEvent = createAccountUpdateEvent(userId, {
+        equity: account.equity,
+        buyingPower: account.buying_power,
+        cash: account.cash,
+        portfolioValue: account.portfolio_value,
+        dayPnl: dayPnl.toFixed(2),
+        dayPnlPercent: dayPnlPercent.toFixed(2),
+        timestamp: new Date().toISOString(),
+      });
+
+      this.broadcastEvent(userId, accountEvent);
+
+      log.debug("PortfolioStream", "Broadcast account update", {
+        userId,
+        equity: account.equity,
+        dayPnl: dayPnl.toFixed(2),
+      });
+    } catch (error) {
+      log.error("PortfolioStream", "Failed to fetch account for update", {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // ============================================================================
   // LIFECYCLE MANAGEMENT
   // ============================================================================
 
@@ -945,6 +1188,14 @@ export class PortfolioStreamManager {
    */
   public shutdown(): void {
     log.info("PortfolioStream", "Shutting down portfolio stream manager...");
+
+    // Unsubscribe from event bus
+    log.info("SHUTDOWN", "Removing event bus listeners...");
+    for (const unsubscribe of this.eventUnsubscribers) {
+      unsubscribe();
+    }
+    this.eventUnsubscribers = [];
+    log.info("SHUTDOWN", "Event bus listeners removed");
 
     // Clear timers
     if (this.batchTimer) {
