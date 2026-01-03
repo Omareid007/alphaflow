@@ -220,5 +220,5 @@
 ## 9. Documentation
 
 - [ ] 9.1 Update component storybook (if exists)
-- [ ] 9.2 Document new CSS variables
-- [ ] 9.3 Create theme customization guide
+- [x] 9.2 Document new CSS variables
+- [x] 9.3 Create theme customization guide
