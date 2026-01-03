@@ -20,6 +20,7 @@ import {
   type EmailOptions,
   type EmailResult,
 } from "./email-service";
+import { getCache, incrementCounter } from "./redis-cache";
 
 // Queue configuration
 const QUEUE_NAME = "email-notifications";
@@ -40,6 +41,98 @@ const DEFAULT_JOB_OPTIONS: Bull.JobOptions = {
   removeOnComplete: 100, // Keep last 100 successful jobs for audit
   removeOnFail: 200, // Keep last 200 failed jobs for debugging
 };
+
+// Rate limiting configuration
+const RATE_LIMITS = {
+  perUserPerHour: 10, // Max 10 emails per user per hour
+  perUserPerDay: 50, // Max 50 emails per user per day
+  globalPerDay: 300, // Max 300 emails total per day (Brevo free tier)
+};
+
+/**
+ * Get current hour key for rate limiting (format: YYYY-MM-DD-HH)
+ */
+function getHourKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}-${String(now.getUTCHours()).padStart(2, "0")}`;
+}
+
+/**
+ * Get current day key for rate limiting (format: YYYY-MM-DD)
+ */
+function getDayKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Check if user has exceeded rate limits
+ */
+async function checkRateLimits(
+  userId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  const hourKey = `email:rate:${userId}:${getHourKey()}`;
+  const dayKey = `email:rate:${userId}:${getDayKey()}`;
+  const globalKey = `email:rate:global:${getDayKey()}`;
+
+  try {
+    const [hourCount, dayCount, globalCount] = await Promise.all([
+      getCache<number>(hourKey),
+      getCache<number>(dayKey),
+      getCache<number>(globalKey),
+    ]);
+
+    if ((hourCount || 0) >= RATE_LIMITS.perUserPerHour) {
+      return {
+        allowed: false,
+        reason: `Hourly email limit reached (${RATE_LIMITS.perUserPerHour}/hour)`,
+      };
+    }
+
+    if ((dayCount || 0) >= RATE_LIMITS.perUserPerDay) {
+      return {
+        allowed: false,
+        reason: `Daily email limit reached (${RATE_LIMITS.perUserPerDay}/day)`,
+      };
+    }
+
+    if ((globalCount || 0) >= RATE_LIMITS.globalPerDay) {
+      return {
+        allowed: false,
+        reason: "System daily email limit reached (300/day)",
+      };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    log.error("EmailQueue", "Rate limit check failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    // Fail open - allow email if rate limit check fails
+    return { allowed: true };
+  }
+}
+
+/**
+ * Increment rate limit counters after successful queue
+ */
+async function incrementRateLimits(userId: string): Promise<void> {
+  const hourKey = `email:rate:${userId}:${getHourKey()}`;
+  const dayKey = `email:rate:${userId}:${getDayKey()}`;
+  const globalKey = `email:rate:global:${getDayKey()}`;
+
+  try {
+    await Promise.all([
+      incrementCounter(hourKey, 3600), // 1 hour TTL
+      incrementCounter(dayKey, 86400), // 24 hours TTL
+      incrementCounter(globalKey, 86400), // 24 hours TTL
+    ]);
+  } catch (error) {
+    log.error("EmailQueue", "Rate limit increment failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 // Initialize email queue
 let emailQueue: Queue<EmailOptions> | null = null;
@@ -144,24 +237,55 @@ export function initEmailQueue(): Queue<EmailOptions> {
 }
 
 /**
+ * Extended email options with rate limiting support
+ */
+export interface QueueEmailOptions extends EmailOptions {
+  /** User ID for rate limiting (if applicable) */
+  userId?: string;
+  /** Bypass rate limiting (for admin/system emails) */
+  bypassRateLimit?: boolean;
+}
+
+/**
  * Add email to background queue (non-blocking)
  * Returns immediately with job ID - email sent asynchronously
  *
- * @param options Email options (to, from, subject, html, text)
- * @returns Job ID for tracking
+ * @param options Email options with optional userId for rate limiting
+ * @returns Result with job ID or error message
  */
 export async function queueEmail(
-  options: EmailOptions
-): Promise<{ jobId: string; queued: boolean }> {
+  options: QueueEmailOptions
+): Promise<{ jobId?: string; queued: boolean; error?: string }> {
+  // Rate limit check (skip for system/admin emails)
+  if (options.userId && !options.bypassRateLimit) {
+    const rateCheck = await checkRateLimits(options.userId);
+    if (!rateCheck.allowed) {
+      log.warn("EmailQueue", "Rate limit exceeded", {
+        userId: options.userId,
+        reason: rateCheck.reason,
+      });
+      return {
+        queued: false,
+        error: rateCheck.reason,
+      };
+    }
+  }
+
   try {
     const queue = initEmailQueue();
     const job = await queue.add(options);
 
     log.debug("EmailQueue", "Email queued", {
       jobId: job.id,
+      userId: options.userId,
       to: Array.isArray(options.to) ? options.to.length : 1,
       subject: options.subject.substring(0, 50),
     });
+
+    // Increment rate limit counters after successful queue
+    if (options.userId && !options.bypassRateLimit) {
+      await incrementRateLimits(options.userId);
+    }
 
     return {
       jobId: job.id.toString(),
@@ -329,6 +453,58 @@ export async function shutdownQueue(): Promise<void> {
   await emailQueue.close();
   emailQueue = null;
   log.info("EmailQueue", "Email queue shut down gracefully");
+}
+
+/**
+ * Get rate limit status for a user
+ * @param userId User ID to check
+ * @returns Current usage vs limits
+ */
+export async function getRateLimitStatus(userId: string): Promise<{
+  userId: string;
+  hourly: { current: number; limit: number; remaining: number };
+  daily: { current: number; limit: number; remaining: number };
+  global: { current: number; limit: number; remaining: number };
+}> {
+  const hourKey = `email:rate:${userId}:${getHourKey()}`;
+  const dayKey = `email:rate:${userId}:${getDayKey()}`;
+  const globalKey = `email:rate:global:${getDayKey()}`;
+
+  try {
+    const [hourCount, dayCount, globalCount] = await Promise.all([
+      getCache<number>(hourKey),
+      getCache<number>(dayKey),
+      getCache<number>(globalKey),
+    ]);
+
+    const hourlyCurrent = hourCount || 0;
+    const dailyCurrent = dayCount || 0;
+    const globalCurrent = globalCount || 0;
+
+    return {
+      userId,
+      hourly: {
+        current: hourlyCurrent,
+        limit: RATE_LIMITS.perUserPerHour,
+        remaining: Math.max(0, RATE_LIMITS.perUserPerHour - hourlyCurrent),
+      },
+      daily: {
+        current: dailyCurrent,
+        limit: RATE_LIMITS.perUserPerDay,
+        remaining: Math.max(0, RATE_LIMITS.perUserPerDay - dailyCurrent),
+      },
+      global: {
+        current: globalCurrent,
+        limit: RATE_LIMITS.globalPerDay,
+        remaining: Math.max(0, RATE_LIMITS.globalPerDay - globalCurrent),
+      },
+    };
+  } catch (error) {
+    log.error("EmailQueue", "Failed to get rate limit status", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 // Export types

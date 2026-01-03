@@ -17,6 +17,7 @@ import {
   pauseQueue,
   resumeQueue,
   cleanQueue,
+  getRateLimitStatus,
 } from "../lib/email-queue";
 import { log } from "../utils/logger";
 
@@ -242,6 +243,43 @@ router.post(
       res.status(500).json({
         success: false,
         error: "Failed to clean queue",
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/admin/email-queue/rate-limits/:userId
+ * Get rate limit status for a specific user
+ */
+router.get(
+  "/rate-limits/:userId",
+  requireAdmin,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const status = await getRateLimitStatus(userId);
+
+      log.info("EmailQueueAdmin", "Rate limit status requested", {
+        admin: req.userId,
+        targetUserId: userId,
+      });
+
+      res.json({
+        success: true,
+        data: status,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      log.error("EmailQueueAdmin", "Failed to get rate limit status", {
+        error: errorMessage,
+        userId: req.params.userId,
+      });
+
+      res.status(500).json({
+        success: false,
+        error: "Failed to get rate limit status",
       });
     }
   }
