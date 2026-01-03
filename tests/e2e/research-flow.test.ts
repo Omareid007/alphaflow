@@ -111,10 +111,7 @@ describe("E2E: Research & Watchlist Flow", () => {
     it("should get symbol details", async () => {
       if (!serverAvailable || !sessionId) return;
 
-      const response = await authenticatedFetch(
-        "/api/symbols/AAPL",
-        sessionId
-      );
+      const response = await authenticatedFetch("/api/symbols/AAPL", sessionId);
 
       expect([200, 401, 403, 404]).toContain(response.status);
     });

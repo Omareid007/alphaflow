@@ -138,8 +138,8 @@ export function useCreateStrategy() {
     },
 
     onSuccess: () => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      // Only invalidate strategies list (not backtests, orders, etc.)
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
       toast.success("Strategy created successfully");
     },
   });
@@ -198,9 +198,12 @@ export function useUpdateStrategy() {
     },
 
     onSuccess: (_, { id }) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
+      // Only invalidate strategies list and specific strategy (not backtests, orders, etc.)
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["strategies", id],
+        exact: true,
+      });
       toast.success("Strategy updated successfully");
     },
   });
@@ -251,8 +254,8 @@ export function useDeleteStrategy() {
     },
 
     onSuccess: () => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
+      // Only invalidate strategies list (not backtests, orders, etc.)
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
       toast.success("Strategy deleted successfully");
     },
   });
@@ -307,9 +310,12 @@ export function useDeployStrategy() {
     },
 
     onSuccess: (_, { id }) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
+      // Only invalidate strategies list and specific strategy
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["strategies", id],
+        exact: true,
+      });
       toast.success("Strategy deployed successfully");
     },
   });
@@ -365,9 +371,12 @@ export function usePauseStrategy() {
     },
 
     onSuccess: (_, id) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
+      // Only invalidate strategies list and specific strategy
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["strategies", id],
+        exact: true,
+      });
       toast.success("Strategy paused successfully");
     },
   });
@@ -423,9 +432,12 @@ export function useResumeStrategy() {
     },
 
     onSuccess: (_, id) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
+      // Only invalidate strategies list and specific strategy
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["strategies", id],
+        exact: true,
+      });
       toast.success("Strategy resumed successfully");
     },
   });
@@ -481,9 +493,12 @@ export function useStopStrategy() {
     },
 
     onSuccess: (_, id) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      queryClient.invalidateQueries({ queryKey: ["strategies", id] });
+      // Only invalidate strategies list and specific strategy
+      queryClient.invalidateQueries({ queryKey: ["strategies"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["strategies", id],
+        exact: true,
+      });
       toast.success("Strategy stopped successfully");
     },
   });
@@ -495,7 +510,7 @@ export function useStrategyOrders(strategyId: string) {
     queryFn: () =>
       api.get<StrategyOrder[]>(`/api/strategies/${strategyId}/orders`),
     enabled: !!strategyId,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    // Inherits staleTime: 60s from QueryProvider defaults
     initialData: [] as StrategyOrder[],
   });
 }
@@ -508,6 +523,6 @@ export function useExecutionContext(strategyId: string) {
         `/api/strategies/${strategyId}/execution-context`
       ),
     enabled: !!strategyId,
-    refetchInterval: 10000, // Refresh every 10 seconds for real-time status
+    // Inherits staleTime: 10s, refetchInterval: 10s from QueryProvider defaults
   });
 }

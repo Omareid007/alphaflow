@@ -5,21 +5,21 @@
  * Tests complete user journeys from start to finish
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { randomBytes } from 'crypto';
+import axios, { AxiosInstance, AxiosError } from "axios";
+import { randomBytes } from "crypto";
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
 
 // Color codes for terminal output
 const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  magenta: "\x1b[35m",
+  cyan: "\x1b[36m",
 };
 
 interface TestResult {
@@ -35,14 +35,17 @@ interface TestResult {
 interface StepResult {
   step: number;
   name: string;
-  status: 'PASS' | 'FAIL' | 'SKIP';
+  status: "PASS" | "FAIL" | "SKIP";
   duration: number;
   error?: string;
   details?: any;
 }
 
 interface TestContext {
-  users: Map<string, { id: string; username: string; password: string; cookies: string[] }>;
+  users: Map<
+    string,
+    { id: string; username: string; password: string; cookies: string[] }
+  >;
   strategies: Map<string, any>;
   orders: Map<string, any>;
   positions: Map<string, any>;
@@ -62,22 +65,43 @@ class E2ETestRunner {
   };
 
   async run() {
-    console.log(`${colors.bright}${colors.cyan}========================================${colors.reset}`);
-    console.log(`${colors.bright}${colors.cyan}COMPREHENSIVE END-TO-END FLOW TESTING${colors.reset}`);
-    console.log(`${colors.bright}${colors.cyan}========================================${colors.reset}\n`);
+    console.log(
+      `${colors.bright}${colors.cyan}========================================${colors.reset}`
+    );
+    console.log(
+      `${colors.bright}${colors.cyan}COMPREHENSIVE END-TO-END FLOW TESTING${colors.reset}`
+    );
+    console.log(
+      `${colors.bright}${colors.cyan}========================================${colors.reset}\n`
+    );
     console.log(`Base URL: ${BASE_URL}\n`);
 
     const flows = [
-      { name: 'Flow 1: New User Onboarding', fn: this.testFlow1.bind(this) },
-      { name: 'Flow 2: Strategy Creation & Backtesting', fn: this.testFlow2.bind(this) },
-      { name: 'Flow 3: Live Trading Flow', fn: this.testFlow3.bind(this) },
-      { name: 'Flow 4: Autonomous Trading Flow', fn: this.testFlow4.bind(this) },
-      { name: 'Flow 5: Portfolio Management Flow', fn: this.testFlow5.bind(this) },
-      { name: 'Flow 6: AI Analysis Flow', fn: this.testFlow6.bind(this) },
-      { name: 'Flow 7: Admin Operations Flow', fn: this.testFlow7.bind(this) },
-      { name: 'Flow 8: Multi-User Isolation Flow', fn: this.testFlow8.bind(this) },
-      { name: 'Flow 9: Session Persistence Flow', fn: this.testFlow9.bind(this) },
-      { name: 'Flow 10: Error Recovery Flow', fn: this.testFlow10.bind(this) },
+      { name: "Flow 1: New User Onboarding", fn: this.testFlow1.bind(this) },
+      {
+        name: "Flow 2: Strategy Creation & Backtesting",
+        fn: this.testFlow2.bind(this),
+      },
+      { name: "Flow 3: Live Trading Flow", fn: this.testFlow3.bind(this) },
+      {
+        name: "Flow 4: Autonomous Trading Flow",
+        fn: this.testFlow4.bind(this),
+      },
+      {
+        name: "Flow 5: Portfolio Management Flow",
+        fn: this.testFlow5.bind(this),
+      },
+      { name: "Flow 6: AI Analysis Flow", fn: this.testFlow6.bind(this) },
+      { name: "Flow 7: Admin Operations Flow", fn: this.testFlow7.bind(this) },
+      {
+        name: "Flow 8: Multi-User Isolation Flow",
+        fn: this.testFlow8.bind(this),
+      },
+      {
+        name: "Flow 9: Session Persistence Flow",
+        fn: this.testFlow9.bind(this),
+      },
+      { name: "Flow 10: Error Recovery Flow", fn: this.testFlow10.bind(this) },
     ];
 
     for (const flow of flows) {
@@ -88,15 +112,21 @@ class E2ETestRunner {
   }
 
   private async runFlow(flowName: string, flowFn: () => Promise<TestResult>) {
-    console.log(`${colors.bright}${colors.blue}▶ Running: ${flowName}${colors.reset}`);
+    console.log(
+      `${colors.bright}${colors.blue}▶ Running: ${flowName}${colors.reset}`
+    );
     try {
       const result = await flowFn();
       this.results.push(result);
 
       if (result.passed) {
-        console.log(`${colors.green}✓ PASSED${colors.reset} - ${result.stepsPassed}/${result.totalSteps} steps in ${result.duration}ms\n`);
+        console.log(
+          `${colors.green}✓ PASSED${colors.reset} - ${result.stepsPassed}/${result.totalSteps} steps in ${result.duration}ms\n`
+        );
       } else {
-        console.log(`${colors.red}✗ FAILED${colors.reset} - ${result.stepsPassed}/${result.totalSteps} steps passed, ${result.stepsFailed} failed in ${result.duration}ms\n`);
+        console.log(
+          `${colors.red}✗ FAILED${colors.reset} - ${result.stepsPassed}/${result.totalSteps} steps passed, ${result.stepsFailed} failed in ${result.duration}ms\n`
+        );
       }
     } catch (error) {
       console.log(`${colors.red}✗ CRASHED${colors.reset} - ${error}\n`);
@@ -105,13 +135,15 @@ class E2ETestRunner {
         stepsPassed: 0,
         stepsFailed: 1,
         totalSteps: 1,
-        steps: [{
-          step: 0,
-          name: 'Flow execution',
-          status: 'FAIL',
-          duration: 0,
-          error: error instanceof Error ? error.message : String(error),
-        }],
+        steps: [
+          {
+            step: 0,
+            name: "Flow execution",
+            status: "FAIL",
+            duration: 0,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        ],
         duration: 0,
         passed: false,
       });
@@ -126,8 +158,8 @@ class E2ETestRunner {
     const steps: StepResult[] = [];
     let stepNum = 0;
 
-    const username = `testuser_${randomBytes(4).toString('hex')}`;
-    const password = 'TestPass123!';
+    const username = `testuser_${randomBytes(4).toString("hex")}`;
+    const password = "TestPass123!";
 
     // Step 1: Create new account
     stepNum++;
@@ -139,16 +171,16 @@ class E2ETestRunner {
       });
       steps.push({
         step: stepNum,
-        name: 'Create new account (POST /api/auth/signup)',
-        status: response.status === 201 ? 'PASS' : 'FAIL',
+        name: "Create new account (POST /api/auth/signup)",
+        status: response.status === 201 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, userId: response.data.user?.id },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Create new account (POST /api/auth/signup)',
-        status: 'FAIL',
+        name: "Create new account (POST /api/auth/signup)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -157,30 +189,39 @@ class E2ETestRunner {
     // Step 2: Login
     stepNum++;
     let cookies: string[] = [];
-    let userId: string = '';
+    let userId: string = "";
     try {
       const stepStart = Date.now();
       const response = await axios.post(`${BASE_URL}/api/auth/login`, {
         username,
         password,
       });
-      cookies = response.headers['set-cookie'] || [];
-      userId = response.data.user?.id || '';
+      cookies = response.headers["set-cookie"] || [];
+      userId = response.data.user?.id || "";
 
       steps.push({
         step: stepNum,
-        name: 'Login (POST /api/auth/login)',
-        status: response.status === 200 && cookies.length > 0 ? 'PASS' : 'FAIL',
+        name: "Login (POST /api/auth/login)",
+        status: response.status === 200 && cookies.length > 0 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, hasCookie: cookies.length > 0, userId },
+        details: {
+          status: response.status,
+          hasCookie: cookies.length > 0,
+          userId,
+        },
       });
 
-      this.context.users.set(username, { id: userId, username, password, cookies });
+      this.context.users.set(username, {
+        id: userId,
+        username,
+        password,
+        cookies,
+      });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Login (POST /api/auth/login)',
-        status: 'FAIL',
+        name: "Login (POST /api/auth/login)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -191,20 +232,26 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/auth/me`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
       steps.push({
         step: stepNum,
-        name: 'Verify authenticated (GET /api/auth/me)',
-        status: response.status === 200 && response.data.user?.username === username ? 'PASS' : 'FAIL',
+        name: "Verify authenticated (GET /api/auth/me)",
+        status:
+          response.status === 200 && response.data.user?.username === username
+            ? "PASS"
+            : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, username: response.data.user?.username },
+        details: {
+          status: response.status,
+          username: response.data.user?.username,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Verify authenticated (GET /api/auth/me)',
-        status: 'FAIL',
+        name: "Verify authenticated (GET /api/auth/me)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -215,20 +262,23 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/strategies`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
       steps.push({
         step: stepNum,
-        name: 'Access dashboard endpoints (GET /api/strategies)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Access dashboard endpoints (GET /api/strategies)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, strategiesCount: response.data.length },
+        details: {
+          status: response.status,
+          strategiesCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Access dashboard endpoints (GET /api/strategies)',
-        status: 'FAIL',
+        name: "Access dashboard endpoints (GET /api/strategies)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -238,21 +288,25 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/auth/logout`, {}, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/auth/logout`,
+        {},
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
       steps.push({
         step: stepNum,
-        name: 'Logout',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Logout",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Logout',
-        status: 'FAIL',
+        name: "Logout",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -263,33 +317,35 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/auth/me`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
       // Should fail (401) if logout worked
       steps.push({
         step: stepNum,
-        name: 'Verify session invalidated',
-        status: response.status === 401 ? 'PASS' : 'FAIL',
+        name: "Verify session invalidated",
+        status: response.status === 401 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, expectedStatus: 401 },
       });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
       steps.push({
         step: stepNum,
-        name: 'Verify session invalidated',
-        status: status === 401 ? 'PASS' : 'FAIL',
+        name: "Verify session invalidated",
+        status: status === 401 ? "PASS" : "FAIL",
         duration: 0,
         details: { status, expectedStatus: 401 },
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 1: New User Onboarding',
+      flowName: "Flow 1: New User Onboarding",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -312,38 +368,42 @@ class E2ETestRunner {
 
     // Step 1: Create new strategy
     stepNum++;
-    let strategyId = '';
+    let strategyId = "";
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/strategies`, {
-        name: `Test Strategy ${Date.now()}`,
-        type: 'momentum',
-        description: 'E2E Test Strategy',
-        assets: ['AAPL', 'MSFT', 'GOOGL'],
-        parameters: JSON.stringify({
-          lookbackPeriod: 20,
-          entryThreshold: 0.02,
-          exitThreshold: 0.01,
-        }),
-      }, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/strategies`,
+        {
+          name: `Test Strategy ${Date.now()}`,
+          type: "momentum",
+          description: "E2E Test Strategy",
+          assets: ["AAPL", "MSFT", "GOOGL"],
+          parameters: JSON.stringify({
+            lookbackPeriod: 20,
+            entryThreshold: 0.02,
+            exitThreshold: 0.01,
+          }),
+        },
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       strategyId = response.data.id;
       this.context.strategies.set(strategyId, response.data);
 
       steps.push({
         step: stepNum,
-        name: 'Create new strategy (POST /api/strategies)',
-        status: response.status === 201 && strategyId ? 'PASS' : 'FAIL',
+        name: "Create new strategy (POST /api/strategies)",
+        status: response.status === 201 && strategyId ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, strategyId },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Create new strategy (POST /api/strategies)',
-        status: 'FAIL',
+        name: "Create new strategy (POST /api/strategies)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -351,36 +411,44 @@ class E2ETestRunner {
 
     // Step 2: Run backtest
     stepNum++;
-    let backtestId = '';
+    let backtestId = "";
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/backtests/run`, {
-        strategyId,
-        startDate: '2024-01-01',
-        endDate: '2024-12-01',
-        initialCash: 100000,
-        universe: ['AAPL', 'MSFT', 'GOOGL'],
-        timeframe: '1Day',
-        broker: 'alpaca',
-      }, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/backtests/run`,
+        {
+          strategyId,
+          startDate: "2024-01-01",
+          endDate: "2024-12-01",
+          initialCash: 100000,
+          universe: ["AAPL", "MSFT", "GOOGL"],
+          timeframe: "1Day",
+          broker: "alpaca",
+        },
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       backtestId = response.data.id;
       this.context.backtests.set(backtestId, response.data);
 
       steps.push({
         step: stepNum,
-        name: 'Run backtest (POST /api/backtests/run)',
-        status: response.status === 201 && backtestId ? 'PASS' : 'FAIL',
+        name: "Run backtest (POST /api/backtests/run)",
+        status: response.status === 201 && backtestId ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, backtestId, backtestStatus: response.data.status },
+        details: {
+          status: response.status,
+          backtestId,
+          backtestStatus: response.data.status,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Run backtest (POST /api/backtests/run)',
-        status: 'FAIL',
+        name: "Run backtest (POST /api/backtests/run)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -390,31 +458,38 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      let backtestStatus = 'QUEUED';
+      let backtestStatus = "QUEUED";
       let attempts = 0;
       const maxAttempts = 30;
 
-      while (attempts < maxAttempts && backtestStatus !== 'DONE' && backtestStatus !== 'FAILED') {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const response = await axios.get(`${BASE_URL}/api/backtests/${backtestId}`, {
-          headers: { Cookie: cookies.join('; ') },
-        });
+      while (
+        attempts < maxAttempts &&
+        backtestStatus !== "DONE" &&
+        backtestStatus !== "FAILED"
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const response = await axios.get(
+          `${BASE_URL}/api/backtests/${backtestId}`,
+          {
+            headers: { Cookie: cookies.join("; ") },
+          }
+        );
         backtestStatus = response.data.status;
         attempts++;
       }
 
       steps.push({
         step: stepNum,
-        name: 'Poll for backtest completion',
-        status: backtestStatus === 'DONE' ? 'PASS' : 'FAIL',
+        name: "Poll for backtest completion",
+        status: backtestStatus === "DONE" ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { finalStatus: backtestStatus, attempts },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Poll for backtest completion',
-        status: 'FAIL',
+        name: "Poll for backtest completion",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -424,14 +499,17 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.get(`${BASE_URL}/api/backtests/${backtestId}`, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.get(
+        `${BASE_URL}/api/backtests/${backtestId}`,
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'Fetch backtest results (GET /api/backtests/:id)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Fetch backtest results (GET /api/backtests/:id)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: {
           status: response.status,
@@ -442,8 +520,8 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Fetch backtest results (GET /api/backtests/:id)',
-        status: 'FAIL',
+        name: "Fetch backtest results (GET /api/backtests/:id)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -453,22 +531,28 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.get(`${BASE_URL}/api/backtests/${backtestId}/equity`, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.get(
+        `${BASE_URL}/api/backtests/${backtestId}/equity`,
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'View equity curve',
-        status: response.status === 200 && Array.isArray(response.data) ? 'PASS' : 'FAIL',
+        name: "View equity curve",
+        status:
+          response.status === 200 && Array.isArray(response.data)
+            ? "PASS"
+            : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, dataPoints: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View equity curve',
-        status: 'FAIL',
+        name: "View equity curve",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -478,33 +562,39 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.get(`${BASE_URL}/api/backtests/${backtestId}/trades`, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.get(
+        `${BASE_URL}/api/backtests/${backtestId}/trades`,
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'View trade history',
-        status: response.status === 200 && Array.isArray(response.data) ? 'PASS' : 'FAIL',
+        name: "View trade history",
+        status:
+          response.status === 200 && Array.isArray(response.data)
+            ? "PASS"
+            : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, tradesCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trade history',
-        status: 'FAIL',
+        name: "View trade history",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 2: Strategy Creation & Backtesting',
+      flowName: "Flow 2: Strategy Creation & Backtesting",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -529,21 +619,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/alpaca/account`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get account info (GET /api/alpaca/account)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get account info (GET /api/alpaca/account)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, hasAccountData: !!response.data },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get account info (GET /api/alpaca/account)',
-        status: 'FAIL',
+        name: "Get account info (GET /api/alpaca/account)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -554,21 +644,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/positions`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get current positions (GET /api/positions)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get current positions (GET /api/positions)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, positionsCount: response.data.length },
+        details: {
+          status: response.status,
+          positionsCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get current positions (GET /api/positions)',
-        status: 'FAIL',
+        name: "Get current positions (GET /api/positions)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -579,21 +672,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/trading/candidates`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View trade candidates',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View trade candidates",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, candidatesCount: response.data.length },
+        details: {
+          status: response.status,
+          candidatesCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trade candidates',
-        status: 'FAIL',
+        name: "View trade candidates",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -601,33 +697,38 @@ class E2ETestRunner {
 
     // Step 4: Place order (paper trading)
     stepNum++;
-    let orderId = '';
+    let orderId = "";
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/alpaca/orders`, {
-        symbol: 'AAPL',
-        qty: 1,
-        side: 'buy',
-        type: 'market',
-        time_in_force: 'day',
-      }, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/alpaca/orders`,
+        {
+          symbol: "AAPL",
+          qty: 1,
+          side: "buy",
+          type: "market",
+          time_in_force: "day",
+        },
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       orderId = response.data.id;
 
       steps.push({
         step: stepNum,
-        name: 'Place order (POST /api/alpaca/orders)',
-        status: response.status === 201 || response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Place order (POST /api/alpaca/orders)",
+        status:
+          response.status === 201 || response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, orderId },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Place order (POST /api/alpaca/orders)',
-        status: 'FAIL',
+        name: "Place order (POST /api/alpaca/orders)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -638,22 +739,28 @@ class E2ETestRunner {
     if (orderId) {
       try {
         const stepStart = Date.now();
-        const response = await axios.get(`${BASE_URL}/api/alpaca/orders/${orderId}`, {
-          headers: { Cookie: cookies.join('; ') },
-        });
+        const response = await axios.get(
+          `${BASE_URL}/api/alpaca/orders/${orderId}`,
+          {
+            headers: { Cookie: cookies.join("; ") },
+          }
+        );
 
         steps.push({
           step: stepNum,
-          name: 'Monitor order status',
-          status: response.status === 200 ? 'PASS' : 'FAIL',
+          name: "Monitor order status",
+          status: response.status === 200 ? "PASS" : "FAIL",
           duration: Date.now() - stepStart,
-          details: { status: response.status, orderStatus: response.data.status },
+          details: {
+            status: response.status,
+            orderStatus: response.data.status,
+          },
         });
       } catch (error) {
         steps.push({
           step: stepNum,
-          name: 'Monitor order status',
-          status: 'FAIL',
+          name: "Monitor order status",
+          status: "FAIL",
           duration: 0,
           error: this.extractError(error),
         });
@@ -661,10 +768,10 @@ class E2ETestRunner {
     } else {
       steps.push({
         step: stepNum,
-        name: 'Monitor order status',
-        status: 'SKIP',
+        name: "Monitor order status",
+        status: "SKIP",
         duration: 0,
-        details: { reason: 'No order created in previous step' },
+        details: { reason: "No order created in previous step" },
       });
     }
 
@@ -673,21 +780,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/orders`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View orders (GET /api/orders)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View orders (GET /api/orders)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, ordersCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View orders (GET /api/orders)',
-        status: 'FAIL',
+        name: "View orders (GET /api/orders)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -698,32 +805,32 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/trades`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View trades (GET /api/trades)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View trades (GET /api/trades)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, tradesCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trades (GET /api/trades)',
-        status: 'FAIL',
+        name: "View trades (GET /api/trades)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 3: Live Trading Flow',
+      flowName: "Flow 3: Live Trading Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -748,21 +855,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/autonomous/status`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get orchestrator status',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get orchestrator status",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, isRunning: response.data.isRunning },
+        details: {
+          status: response.status,
+          isRunning: response.data.isRunning,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get orchestrator status',
-        status: 'FAIL',
+        name: "Get orchestrator status",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -772,22 +882,26 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/autonomous/start`, {}, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/autonomous/start`,
+        {},
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'Start autonomous mode (POST /api/autonomous/start)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Start autonomous mode (POST /api/autonomous/start)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, message: response.data.message },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Start autonomous mode (POST /api/autonomous/start)',
-        status: 'FAIL',
+        name: "Start autonomous mode (POST /api/autonomous/start)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -796,24 +910,28 @@ class E2ETestRunner {
     // Step 3: Wait and verify running
     stepNum++;
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/autonomous/status`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Verify autonomous mode running',
-        status: response.status === 200 && response.data.isRunning ? 'PASS' : 'FAIL',
+        name: "Verify autonomous mode running",
+        status:
+          response.status === 200 && response.data.isRunning ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, isRunning: response.data.isRunning },
+        details: {
+          status: response.status,
+          isRunning: response.data.isRunning,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Verify autonomous mode running',
-        status: 'FAIL',
+        name: "Verify autonomous mode running",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -824,21 +942,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/ai-decisions`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View AI decisions',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View AI decisions",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, decisionsCount: response.data.length },
+        details: {
+          status: response.status,
+          decisionsCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View AI decisions',
-        status: 'FAIL',
+        name: "View AI decisions",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -849,21 +970,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/trading/candidates`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View trading candidates',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View trading candidates",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, candidatesCount: response.data.length },
+        details: {
+          status: response.status,
+          candidatesCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trading candidates',
-        status: 'FAIL',
+        name: "View trading candidates",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -873,22 +997,26 @@ class E2ETestRunner {
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/autonomous/stop`, {}, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/autonomous/stop`,
+        {},
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'Stop autonomous mode (POST /api/autonomous/stop)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Stop autonomous mode (POST /api/autonomous/stop)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, message: response.data.message },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Stop autonomous mode (POST /api/autonomous/stop)',
-        status: 'FAIL',
+        name: "Stop autonomous mode (POST /api/autonomous/stop)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -897,35 +1025,39 @@ class E2ETestRunner {
     // Step 7: Verify stopped
     stepNum++;
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/autonomous/status`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Verify autonomous mode stopped',
-        status: response.status === 200 && !response.data.isRunning ? 'PASS' : 'FAIL',
+        name: "Verify autonomous mode stopped",
+        status:
+          response.status === 200 && !response.data.isRunning ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, isRunning: response.data.isRunning },
+        details: {
+          status: response.status,
+          isRunning: response.data.isRunning,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Verify autonomous mode stopped',
-        status: 'FAIL',
+        name: "Verify autonomous mode stopped",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 4: Autonomous Trading Flow',
+      flowName: "Flow 4: Autonomous Trading Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -950,21 +1082,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/portfolio/snapshot`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get portfolio snapshot (GET /api/portfolio/snapshot)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get portfolio snapshot (GET /api/portfolio/snapshot)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, hasSnapshot: !!response.data },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get portfolio snapshot (GET /api/portfolio/snapshot)',
-        status: 'FAIL',
+        name: "Get portfolio snapshot (GET /api/portfolio/snapshot)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -975,21 +1107,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/positions`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View positions (GET /api/positions)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View positions (GET /api/positions)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, positionsCount: response.data.length },
+        details: {
+          status: response.status,
+          positionsCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View positions (GET /api/positions)',
-        status: 'FAIL',
+        name: "View positions (GET /api/positions)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1000,21 +1135,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/orders`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View orders (GET /api/orders)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View orders (GET /api/orders)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, ordersCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View orders (GET /api/orders)',
-        status: 'FAIL',
+        name: "View orders (GET /api/orders)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1025,21 +1160,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/trades`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View trades (GET /api/trades)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View trades (GET /api/trades)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, tradesCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trades (GET /api/trades)',
-        status: 'FAIL',
+        name: "View trades (GET /api/trades)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1050,13 +1185,13 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/alpaca/account`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get account info',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get account info",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: {
           status: response.status,
@@ -1067,19 +1202,19 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get account info',
-        status: 'FAIL',
+        name: "Get account info",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 5: Portfolio Management Flow',
+      flowName: "Flow 5: Portfolio Management Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1104,21 +1239,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/ai-decisions`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get AI decisions (GET /api/ai-decisions)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get AI decisions (GET /api/ai-decisions)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, decisionsCount: response.data.length },
+        details: {
+          status: response.status,
+          decisionsCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get AI decisions (GET /api/ai-decisions)',
-        status: 'FAIL',
+        name: "Get AI decisions (GET /api/ai-decisions)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1129,21 +1267,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/feeds`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View feeds (GET /api/feeds)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View feeds (GET /api/feeds)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, feedsCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View feeds (GET /api/feeds)',
-        status: 'FAIL',
+        name: "View feeds (GET /api/feeds)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1154,21 +1292,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/ai/events`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Get AI events (GET /api/ai/events)',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Get AI events (GET /api/ai/events)",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, eventsCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Get AI events (GET /api/ai/events)',
-        status: 'FAIL',
+        name: "Get AI events (GET /api/ai/events)",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1179,32 +1317,35 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/trading/candidates`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View trading candidates',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View trading candidates",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, candidatesCount: response.data.length },
+        details: {
+          status: response.status,
+          candidatesCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View trading candidates',
-        status: 'FAIL',
+        name: "View trading candidates",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 6: AI Analysis Flow',
+      flowName: "Flow 6: AI Analysis Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1223,8 +1364,8 @@ class E2ETestRunner {
     let stepNum = 0;
 
     // Create admin user
-    const adminUsername = `admin_${randomBytes(4).toString('hex')}`;
-    const adminPassword = 'AdminPass123!';
+    const adminUsername = `admin_${randomBytes(4).toString("hex")}`;
+    const adminPassword = "AdminPass123!";
 
     try {
       await axios.post(`${BASE_URL}/api/auth/signup`, {
@@ -1243,7 +1384,7 @@ class E2ETestRunner {
         username: adminUsername,
         password: adminPassword,
       });
-      cookies = response.headers['set-cookie'] || [];
+      cookies = response.headers["set-cookie"] || [];
     } catch (error) {
       // Handle login failure
     }
@@ -1253,21 +1394,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/admin/status`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Access admin dashboard',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Access admin dashboard",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Access admin dashboard',
-        status: 'FAIL',
+        name: "Access admin dashboard",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1278,21 +1419,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/autonomous/status`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View system status',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View system status",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, isRunning: response.data.isRunning },
+        details: {
+          status: response.status,
+          isRunning: response.data.isRunning,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View system status',
-        status: 'FAIL',
+        name: "View system status",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1303,21 +1447,24 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/strategies`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'View all strategies',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "View all strategies",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
-        details: { status: response.status, strategiesCount: response.data.length },
+        details: {
+          status: response.status,
+          strategiesCount: response.data.length,
+        },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'View all strategies',
-        status: 'FAIL',
+        name: "View all strategies",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1328,32 +1475,32 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/admin/audit-logs`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Check audit logs',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Check audit logs",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, logsCount: response.data.length },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Check audit logs',
-        status: 'FAIL',
+        name: "Check audit logs",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 7: Admin Operations Flow',
+      flowName: "Flow 7: Admin Operations Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1372,8 +1519,8 @@ class E2ETestRunner {
     let stepNum = 0;
 
     // Create User A
-    const userAName = `userA_${randomBytes(4).toString('hex')}`;
-    const userAPass = 'UserAPass123!';
+    const userAName = `userA_${randomBytes(4).toString("hex")}`;
+    const userAPass = "UserAPass123!";
     let userACookies: string[] = [];
 
     stepNum++;
@@ -1387,28 +1534,28 @@ class E2ETestRunner {
         username: userAName,
         password: userAPass,
       });
-      userACookies = loginResponse.headers['set-cookie'] || [];
+      userACookies = loginResponse.headers["set-cookie"] || [];
 
       steps.push({
         step: stepNum,
-        name: 'Create User A',
-        status: userACookies.length > 0 ? 'PASS' : 'FAIL',
+        name: "Create User A",
+        status: userACookies.length > 0 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { username: userAName },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Create User A',
-        status: 'FAIL',
+        name: "Create User A",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     // Create User B
-    const userBName = `userB_${randomBytes(4).toString('hex')}`;
-    const userBPass = 'UserBPass123!';
+    const userBName = `userB_${randomBytes(4).toString("hex")}`;
+    const userBPass = "UserBPass123!";
     let userBCookies: string[] = [];
 
     stepNum++;
@@ -1422,82 +1569,90 @@ class E2ETestRunner {
         username: userBName,
         password: userBPass,
       });
-      userBCookies = loginResponse.headers['set-cookie'] || [];
+      userBCookies = loginResponse.headers["set-cookie"] || [];
 
       steps.push({
         step: stepNum,
-        name: 'Create User B',
-        status: userBCookies.length > 0 ? 'PASS' : 'FAIL',
+        name: "Create User B",
+        status: userBCookies.length > 0 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { username: userBName },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Create User B',
-        status: 'FAIL',
+        name: "Create User B",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     // User A creates strategy S1
-    let strategyS1Id = '';
+    let strategyS1Id = "";
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/strategies`, {
-        name: `UserA_Strategy_${Date.now()}`,
-        type: 'momentum',
-        description: 'User A Strategy',
-      }, {
-        headers: { Cookie: userACookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/strategies`,
+        {
+          name: `UserA_Strategy_${Date.now()}`,
+          type: "momentum",
+          description: "User A Strategy",
+        },
+        {
+          headers: { Cookie: userACookies.join("; ") },
+        }
+      );
       strategyS1Id = response.data.id;
 
       steps.push({
         step: stepNum,
-        name: 'User A creates strategy S1',
-        status: response.status === 201 && strategyS1Id ? 'PASS' : 'FAIL',
+        name: "User A creates strategy S1",
+        status: response.status === 201 && strategyS1Id ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { strategyId: strategyS1Id },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'User A creates strategy S1',
-        status: 'FAIL',
+        name: "User A creates strategy S1",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     // User B creates strategy S2
-    let strategyS2Id = '';
+    let strategyS2Id = "";
     stepNum++;
     try {
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/strategies`, {
-        name: `UserB_Strategy_${Date.now()}`,
-        type: 'mean_reversion',
-        description: 'User B Strategy',
-      }, {
-        headers: { Cookie: userBCookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/strategies`,
+        {
+          name: `UserB_Strategy_${Date.now()}`,
+          type: "mean_reversion",
+          description: "User B Strategy",
+        },
+        {
+          headers: { Cookie: userBCookies.join("; ") },
+        }
+      );
       strategyS2Id = response.data.id;
 
       steps.push({
         step: stepNum,
-        name: 'User B creates strategy S2',
-        status: response.status === 201 && strategyS2Id ? 'PASS' : 'FAIL',
+        name: "User B creates strategy S2",
+        status: response.status === 201 && strategyS2Id ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { strategyId: strategyS2Id },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'User B creates strategy S2',
-        status: 'FAIL',
+        name: "User B creates strategy S2",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1508,7 +1663,7 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/strategies`, {
-        headers: { Cookie: userACookies.join('; ') },
+        headers: { Cookie: userACookies.join("; ") },
       });
 
       const hasS1 = response.data.some((s: any) => s.id === strategyS1Id);
@@ -1516,8 +1671,8 @@ class E2ETestRunner {
 
       steps.push({
         step: stepNum,
-        name: 'User A queries strategies - isolation check',
-        status: hasS1 && !hasS2 ? 'PASS' : 'FAIL',
+        name: "User A queries strategies - isolation check",
+        status: hasS1 && !hasS2 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: {
           strategiesCount: response.data.length,
@@ -1528,8 +1683,8 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'User A queries strategies - isolation check',
-        status: 'FAIL',
+        name: "User A queries strategies - isolation check",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1540,7 +1695,7 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/strategies`, {
-        headers: { Cookie: userBCookies.join('; ') },
+        headers: { Cookie: userBCookies.join("; ") },
       });
 
       const hasS1 = response.data.some((s: any) => s.id === strategyS1Id);
@@ -1548,8 +1703,8 @@ class E2ETestRunner {
 
       steps.push({
         step: stepNum,
-        name: 'User B queries strategies - isolation check',
-        status: !hasS1 && hasS2 ? 'PASS' : 'FAIL',
+        name: "User B queries strategies - isolation check",
+        status: !hasS1 && hasS2 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: {
           strategiesCount: response.data.length,
@@ -1560,8 +1715,8 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'User B queries strategies - isolation check',
-        status: 'FAIL',
+        name: "User B queries strategies - isolation check",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1572,16 +1727,16 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const userAOrders = await axios.get(`${BASE_URL}/api/orders`, {
-        headers: { Cookie: userACookies.join('; ') },
+        headers: { Cookie: userACookies.join("; ") },
       });
       const userBOrders = await axios.get(`${BASE_URL}/api/orders`, {
-        headers: { Cookie: userBCookies.join('; ') },
+        headers: { Cookie: userBCookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Test orders isolation',
-        status: 'PASS',
+        name: "Test orders isolation",
+        status: "PASS",
         duration: Date.now() - stepStart,
         details: {
           userAOrdersCount: userAOrders.data.length,
@@ -1591,8 +1746,8 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Test orders isolation',
-        status: 'FAIL',
+        name: "Test orders isolation",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1603,16 +1758,16 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const userAPositions = await axios.get(`${BASE_URL}/api/positions`, {
-        headers: { Cookie: userACookies.join('; ') },
+        headers: { Cookie: userACookies.join("; ") },
       });
       const userBPositions = await axios.get(`${BASE_URL}/api/positions`, {
-        headers: { Cookie: userBCookies.join('; ') },
+        headers: { Cookie: userBCookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Test positions isolation',
-        status: 'PASS',
+        name: "Test positions isolation",
+        status: "PASS",
         duration: Date.now() - stepStart,
         details: {
           userAPositionsCount: userAPositions.data.length,
@@ -1622,8 +1777,8 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Test positions isolation',
-        status: 'FAIL',
+        name: "Test positions isolation",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1634,16 +1789,16 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const userADecisions = await axios.get(`${BASE_URL}/api/ai-decisions`, {
-        headers: { Cookie: userACookies.join('; ') },
+        headers: { Cookie: userACookies.join("; ") },
       });
       const userBDecisions = await axios.get(`${BASE_URL}/api/ai-decisions`, {
-        headers: { Cookie: userBCookies.join('; ') },
+        headers: { Cookie: userBCookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Test AI decisions isolation',
-        status: 'PASS',
+        name: "Test AI decisions isolation",
+        status: "PASS",
         duration: Date.now() - stepStart,
         details: {
           userADecisionsCount: userADecisions.data.length,
@@ -1653,19 +1808,19 @@ class E2ETestRunner {
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Test AI decisions isolation',
-        status: 'FAIL',
+        name: "Test AI decisions isolation",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 8: Multi-User Isolation Flow',
+      flowName: "Flow 8: Multi-User Isolation Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1690,21 +1845,21 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/auth/me`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Make authenticated request',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Make authenticated request",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Make authenticated request',
-        status: 'FAIL',
+        name: "Make authenticated request",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1716,22 +1871,22 @@ class E2ETestRunner {
       const stepStart = Date.now();
       for (let i = 0; i < 5; i++) {
         await axios.get(`${BASE_URL}/api/strategies`, {
-          headers: { Cookie: cookies.join('; ') },
+          headers: { Cookie: cookies.join("; ") },
         });
       }
 
       steps.push({
         step: stepNum,
-        name: 'Verify session persists across multiple requests',
-        status: 'PASS',
+        name: "Verify session persists across multiple requests",
+        status: "PASS",
         duration: Date.now() - stepStart,
         details: { requestCount: 5 },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Verify session persists across multiple requests',
-        status: 'FAIL',
+        name: "Verify session persists across multiple requests",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
@@ -1740,35 +1895,35 @@ class E2ETestRunner {
     // Step 3: Verify session still valid after delay
     stepNum++;
     try {
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/auth/me`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'Verify session valid after 5s delay',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "Verify session valid after 5s delay",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'Verify session valid after 5s delay',
-        status: 'FAIL',
+        name: "Verify session valid after 5s delay",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 9: Session Persistence Flow',
+      flowName: "Flow 9: Session Persistence Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1791,23 +1946,25 @@ class E2ETestRunner {
     try {
       const stepStart = Date.now();
       const response = await axios.post(`${BASE_URL}/api/auth/login`, {
-        username: 'nonexistent_user',
-        password: 'wrongpassword',
+        username: "nonexistent_user",
+        password: "wrongpassword",
       });
 
       steps.push({
         step: stepNum,
-        name: 'Invalid credentials error',
-        status: response.status === 401 ? 'PASS' : 'FAIL',
+        name: "Invalid credentials error",
+        status: response.status === 401 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, expectedStatus: 401 },
       });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
       steps.push({
         step: stepNum,
-        name: 'Invalid credentials error',
-        status: status === 401 ? 'PASS' : 'FAIL',
+        name: "Invalid credentials error",
+        status: status === 401 ? "PASS" : "FAIL",
         duration: 0,
         details: { status, expectedStatus: 401 },
       });
@@ -1819,22 +1976,25 @@ class E2ETestRunner {
       const stepStart = Date.now();
       const response = await axios.post(`${BASE_URL}/api/strategies`, {
         // Missing required fields
-        description: 'Missing name and type',
+        description: "Missing name and type",
       });
 
       steps.push({
         step: stepNum,
-        name: 'Missing required fields error',
-        status: response.status === 400 || response.status === 401 ? 'PASS' : 'FAIL',
+        name: "Missing required fields error",
+        status:
+          response.status === 400 || response.status === 401 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
       steps.push({
         step: stepNum,
-        name: 'Missing required fields error',
-        status: status === 400 || status === 401 ? 'PASS' : 'FAIL',
+        name: "Missing required fields error",
+        status: status === 400 || status === 401 ? "PASS" : "FAIL",
         duration: 0,
         details: { status },
       });
@@ -1845,28 +2005,35 @@ class E2ETestRunner {
     try {
       const { cookies } = await this.loginTestUser();
       const stepStart = Date.now();
-      const response = await axios.post(`${BASE_URL}/api/alpaca/orders`, {
-        symbol: 'INVALID_SYMBOL_THAT_DOES_NOT_EXIST',
-        qty: -100, // Invalid negative quantity
-        side: 'invalid_side',
-        type: 'market',
-      }, {
-        headers: { Cookie: cookies.join('; ') },
-      });
+      const response = await axios.post(
+        `${BASE_URL}/api/alpaca/orders`,
+        {
+          symbol: "INVALID_SYMBOL_THAT_DOES_NOT_EXIST",
+          qty: -100, // Invalid negative quantity
+          side: "invalid_side",
+          type: "market",
+        },
+        {
+          headers: { Cookie: cookies.join("; ") },
+        }
+      );
 
       steps.push({
         step: stepNum,
-        name: 'Invalid parameters error',
-        status: response.status === 400 || response.status === 422 ? 'PASS' : 'FAIL',
+        name: "Invalid parameters error",
+        status:
+          response.status === 400 || response.status === 422 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
       steps.push({
         step: stepNum,
-        name: 'Invalid parameters error',
-        status: status === 400 || status === 422 ? 'PASS' : 'FAIL',
+        name: "Invalid parameters error",
+        status: status === 400 || status === 422 ? "PASS" : "FAIL",
         duration: 0,
         details: { status },
       });
@@ -1880,17 +2047,19 @@ class E2ETestRunner {
 
       steps.push({
         step: stepNum,
-        name: 'Unauthenticated access error',
-        status: response.status === 401 ? 'PASS' : 'FAIL',
+        name: "Unauthenticated access error",
+        status: response.status === 401 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status, expectedStatus: 401 },
       });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
       steps.push({
         step: stepNum,
-        name: 'Unauthenticated access error',
-        status: status === 401 ? 'PASS' : 'FAIL',
+        name: "Unauthenticated access error",
+        status: status === 401 ? "PASS" : "FAIL",
         duration: 0,
         details: { status, expectedStatus: 401 },
       });
@@ -1902,32 +2071,32 @@ class E2ETestRunner {
       const { cookies } = await this.loginTestUser();
       const stepStart = Date.now();
       const response = await axios.get(`${BASE_URL}/api/strategies`, {
-        headers: { Cookie: cookies.join('; ') },
+        headers: { Cookie: cookies.join("; ") },
       });
 
       steps.push({
         step: stepNum,
-        name: 'System recovery - normal operation works',
-        status: response.status === 200 ? 'PASS' : 'FAIL',
+        name: "System recovery - normal operation works",
+        status: response.status === 200 ? "PASS" : "FAIL",
         duration: Date.now() - stepStart,
         details: { status: response.status },
       });
     } catch (error) {
       steps.push({
         step: stepNum,
-        name: 'System recovery - normal operation works',
-        status: 'FAIL',
+        name: "System recovery - normal operation works",
+        status: "FAIL",
         duration: 0,
         error: this.extractError(error),
       });
     }
 
     const duration = Date.now() - startTime;
-    const stepsPassed = steps.filter(s => s.status === 'PASS').length;
-    const stepsFailed = steps.filter(s => s.status === 'FAIL').length;
+    const stepsPassed = steps.filter((s) => s.status === "PASS").length;
+    const stepsFailed = steps.filter((s) => s.status === "FAIL").length;
 
     return {
-      flowName: 'Flow 10: Error Recovery Flow',
+      flowName: "Flow 10: Error Recovery Flow",
       stepsPassed,
       stepsFailed,
       totalSteps: steps.length,
@@ -1941,9 +2110,13 @@ class E2ETestRunner {
   // Helper Methods
   // ============================================================================
 
-  private async loginTestUser(): Promise<{ cookies: string[]; userId: string; username: string }> {
-    const username = `testuser_${randomBytes(4).toString('hex')}`;
-    const password = 'TestPass123!';
+  private async loginTestUser(): Promise<{
+    cookies: string[];
+    userId: string;
+    username: string;
+  }> {
+    const username = `testuser_${randomBytes(4).toString("hex")}`;
+    const password = "TestPass123!";
 
     try {
       await axios.post(`${BASE_URL}/api/auth/signup`, {
@@ -1959,10 +2132,15 @@ class E2ETestRunner {
       password,
     });
 
-    const cookies = response.headers['set-cookie'] || [];
-    const userId = response.data.user?.id || '';
+    const cookies = response.headers["set-cookie"] || [];
+    const userId = response.data.user?.id || "";
 
-    this.context.users.set(username, { id: userId, username, password, cookies });
+    this.context.users.set(username, {
+      id: userId,
+      username,
+      password,
+      cookies,
+    });
 
     return { cookies, userId, username };
   }
@@ -1970,7 +2148,10 @@ class E2ETestRunner {
   private extractError(error: unknown): string {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const message = error.response?.data?.message || error.response?.data?.error || error.message;
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message;
       return `[${status}] ${message}`;
     }
     return error instanceof Error ? error.message : String(error);
@@ -1981,12 +2162,18 @@ class E2ETestRunner {
   // ============================================================================
 
   private async generateReport() {
-    console.log(`\n${colors.bright}${colors.cyan}========================================${colors.reset}`);
-    console.log(`${colors.bright}${colors.cyan}COMPREHENSIVE E2E TEST RESULTS${colors.reset}`);
-    console.log(`${colors.bright}${colors.cyan}========================================${colors.reset}\n`);
+    console.log(
+      `\n${colors.bright}${colors.cyan}========================================${colors.reset}`
+    );
+    console.log(
+      `${colors.bright}${colors.cyan}COMPREHENSIVE E2E TEST RESULTS${colors.reset}`
+    );
+    console.log(
+      `${colors.bright}${colors.cyan}========================================${colors.reset}\n`
+    );
 
     const totalFlows = this.results.length;
-    const passedFlows = this.results.filter(r => r.passed).length;
+    const passedFlows = this.results.filter((r) => r.passed).length;
     const failedFlows = totalFlows - passedFlows;
     const totalSteps = this.results.reduce((sum, r) => sum + r.totalSteps, 0);
     const passedSteps = this.results.reduce((sum, r) => sum + r.stepsPassed, 0);
@@ -2004,21 +2191,27 @@ class E2ETestRunner {
     console.log(`  Total Duration: ${totalDuration}ms\n`);
 
     // Generate markdown report
-    const reportPath = '/home/runner/workspace/E2E_TEST_RESULTS.md';
+    const reportPath = "/home/runner/workspace/E2E_TEST_RESULTS.md";
     const reportContent = this.generateMarkdownReport();
 
-    const fs = await import('fs/promises');
-    await fs.writeFile(reportPath, reportContent, 'utf-8');
+    const fs = await import("fs/promises");
+    await fs.writeFile(reportPath, reportContent, "utf-8");
 
-    console.log(`${colors.green}Report saved to: ${reportPath}${colors.reset}\n`);
+    console.log(
+      `${colors.green}Report saved to: ${reportPath}${colors.reset}\n`
+    );
 
     // Overall result
     if (failedFlows === 0) {
-      console.log(`${colors.bright}${colors.green}========================================`);
+      console.log(
+        `${colors.bright}${colors.green}========================================`
+      );
       console.log(`ALL E2E TESTS PASSED!`);
       console.log(`========================================${colors.reset}\n`);
     } else {
-      console.log(`${colors.bright}${colors.red}========================================`);
+      console.log(
+        `${colors.bright}${colors.red}========================================`
+      );
       console.log(`SOME E2E TESTS FAILED`);
       console.log(`========================================${colors.reset}\n`);
     }
@@ -2027,7 +2220,7 @@ class E2ETestRunner {
   private generateMarkdownReport(): string {
     const timestamp = new Date().toISOString();
     const totalFlows = this.results.length;
-    const passedFlows = this.results.filter(r => r.passed).length;
+    const passedFlows = this.results.filter((r) => r.passed).length;
     const failedFlows = totalFlows - passedFlows;
     const totalSteps = this.results.reduce((sum, r) => sum + r.totalSteps, 0);
     const passedSteps = this.results.reduce((sum, r) => sum + r.stepsPassed, 0);
@@ -2053,7 +2246,7 @@ class E2ETestRunner {
     md += `## Flow Results\n\n`;
 
     for (const result of this.results) {
-      const status = result.passed ? '✅ PASS' : '❌ FAIL';
+      const status = result.passed ? "✅ PASS" : "❌ FAIL";
       md += `### ${status} - ${result.flowName}\n\n`;
       md += `- **Steps Passed:** ${result.stepsPassed}/${result.totalSteps}\n`;
       md += `- **Steps Failed:** ${result.stepsFailed}\n`;
@@ -2064,24 +2257,25 @@ class E2ETestRunner {
       md += `|------|------|--------|----------|--------|\n`;
 
       for (const step of result.steps) {
-        const statusIcon = step.status === 'PASS' ? '✅' : step.status === 'FAIL' ? '❌' : '⏭️';
+        const statusIcon =
+          step.status === "PASS" ? "✅" : step.status === "FAIL" ? "❌" : "⏭️";
         const details = step.error
           ? `Error: ${step.error}`
           : step.details
             ? JSON.stringify(step.details, null, 2).substring(0, 100)
-            : '';
+            : "";
         md += `| ${step.step} | ${step.name} | ${statusIcon} ${step.status} | ${step.duration}ms | ${details} |\n`;
       }
 
       md += `\n`;
 
       // Show failures in detail
-      const failures = result.steps.filter(s => s.status === 'FAIL');
+      const failures = result.steps.filter((s) => s.status === "FAIL");
       if (failures.length > 0) {
         md += `#### Failures\n\n`;
         for (const failure of failures) {
           md += `**Step ${failure.step}: ${failure.name}**\n`;
-          md += `\`\`\`\n${failure.error || 'Unknown error'}\n\`\`\`\n\n`;
+          md += `\`\`\`\n${failure.error || "Unknown error"}\n\`\`\`\n\n`;
           if (failure.details) {
             md += `Details:\n\`\`\`json\n${JSON.stringify(failure.details, null, 2)}\n\`\`\`\n\n`;
           }
@@ -2091,7 +2285,7 @@ class E2ETestRunner {
 
     md += `## Recommendations\n\n`;
 
-    const failedFlowsList = this.results.filter(r => !r.passed);
+    const failedFlowsList = this.results.filter((r) => !r.passed);
     if (failedFlowsList.length > 0) {
       md += `### Failed Flows\n\n`;
       for (const flow of failedFlowsList) {
@@ -2104,7 +2298,12 @@ class E2ETestRunner {
     md += `| Flow | Duration | Performance |\n`;
     md += `|------|----------|-------------|\n`;
     for (const result of this.results) {
-      const perfRating = result.duration < 5000 ? '🟢 Fast' : result.duration < 30000 ? '🟡 Moderate' : '🔴 Slow';
+      const perfRating =
+        result.duration < 5000
+          ? "🟢 Fast"
+          : result.duration < 30000
+            ? "🟡 Moderate"
+            : "🔴 Slow";
       md += `| ${result.flowName} | ${result.duration}ms | ${perfRating} |\n`;
     }
     md += `\n`;
@@ -2132,7 +2331,7 @@ class E2ETestRunner {
 // ============================================================================
 
 const runner = new E2ETestRunner();
-runner.run().catch(error => {
+runner.run().catch((error) => {
   console.error(`${colors.red}Fatal error:${colors.reset}`, error);
   process.exit(1);
 });

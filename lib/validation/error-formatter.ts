@@ -95,7 +95,10 @@ export function formatZodErrors(error: ZodError): FormErrors {
  * Format API error response to FormErrors
  */
 export function formatApiErrors(
-  apiError: { error?: string; details?: Array<{ field?: string; message?: string }> } | null
+  apiError: {
+    error?: string;
+    details?: Array<{ field?: string; message?: string }>;
+  } | null
 ): FormErrors {
   if (!apiError) {
     return {

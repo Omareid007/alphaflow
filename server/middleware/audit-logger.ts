@@ -228,7 +228,11 @@ export async function auditLogger(
           } catch {
             auditLog.errorMessage = responseBody.substring(0, 500);
           }
-        } else if (typeof responseBody === 'object' && responseBody !== null && !Buffer.isBuffer(responseBody)) {
+        } else if (
+          typeof responseBody === "object" &&
+          responseBody !== null &&
+          !Buffer.isBuffer(responseBody)
+        ) {
           const errBody = responseBody as ErrorResponseBody;
           if (errBody.error || errBody.message) {
             auditLog.errorMessage = errBody.error || errBody.message || null;
@@ -309,8 +313,12 @@ export async function getAuditStats() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const todayLogs = logs.filter((l: AuditLog) => new Date(l.timestamp) >= today);
-    const weekLogs = logs.filter((l: AuditLog) => new Date(l.timestamp) >= thisWeek);
+    const todayLogs = logs.filter(
+      (l: AuditLog) => new Date(l.timestamp) >= today
+    );
+    const weekLogs = logs.filter(
+      (l: AuditLog) => new Date(l.timestamp) >= thisWeek
+    );
 
     const errorLogs = logs.filter(
       (l: AuditLog) => l.responseStatus && l.responseStatus >= 400

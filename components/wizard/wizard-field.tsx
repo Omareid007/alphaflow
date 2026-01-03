@@ -27,7 +27,9 @@ interface WizardFieldProps {
   /**
    * Optional validation function that runs on debounced changes
    */
-  onValidate?: (value: string | number | boolean | string[]) => Promise<boolean> | boolean;
+  onValidate?: (
+    value: string | number | boolean | string[]
+  ) => Promise<boolean> | boolean;
   /**
    * Debounce delay for validation (ms)
    * @default 300
@@ -101,7 +103,8 @@ export function WizardField({
               step={field.constraints?.step || 1}
               className={cn(
                 "w-full pr-10",
-                validationState === "invalid" && "border-destructive focus-visible:ring-destructive"
+                validationState === "invalid" &&
+                  "border-destructive focus-visible:ring-destructive"
               )}
             />
             <ValidationIndicator state={validationState} />
@@ -117,7 +120,8 @@ export function WizardField({
               onChange={(e) => handleChange(e.target.value)}
               className={cn(
                 "w-full pr-10",
-                validationState === "invalid" && "border-destructive focus-visible:ring-destructive"
+                validationState === "invalid" &&
+                  "border-destructive focus-visible:ring-destructive"
               )}
             />
             <ValidationIndicator state={validationState} />
@@ -271,9 +275,7 @@ function ValidationIndicator({
       {state === "validating" && (
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       )}
-      {state === "valid" && (
-        <CheckCircle2 className="h-4 w-4 text-green-500" />
-      )}
+      {state === "valid" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
       {state === "invalid" && (
         <AlertCircle className="h-4 w-4 text-destructive" />
       )}

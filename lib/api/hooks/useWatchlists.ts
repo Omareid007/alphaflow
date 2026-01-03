@@ -44,33 +44,42 @@ export function useAddToWatchlist() {
     onMutate: async ({ watchlistId, symbol }) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ["watchlists"] });
-      await queryClient.cancelQueries({ queryKey: ["watchlists", watchlistId] });
+      await queryClient.cancelQueries({
+        queryKey: ["watchlists", watchlistId],
+      });
 
       // Snapshot previous state
-      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
-      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", watchlistId]);
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>([
+        "watchlists",
+      ]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>([
+        "watchlists",
+        watchlistId,
+      ]);
 
       // Optimistically add symbol to watchlist (as WatchlistItem)
-      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
-        old?.map((w) =>
-          w.id === watchlistId
-            ? {
-                ...w,
-                items: [
-                  ...(w.items ?? []),
-                  {
-                    symbol,
-                    name: symbol,
-                    price: 0,
-                    change: 0,
-                    changePercent: 0,
-                    tags: [],
-                    eligible: true,
-                  },
-                ],
-              }
-            : w
-        ) ?? []
+      queryClient.setQueryData<Watchlist[]>(
+        ["watchlists"],
+        (old) =>
+          old?.map((w) =>
+            w.id === watchlistId
+              ? {
+                  ...w,
+                  items: [
+                    ...(w.items ?? []),
+                    {
+                      symbol,
+                      name: symbol,
+                      price: 0,
+                      change: 0,
+                      changePercent: 0,
+                      tags: [],
+                      eligible: true,
+                    },
+                  ],
+                }
+              : w
+          ) ?? []
       );
 
       queryClient.setQueryData<Watchlist>(["watchlists", watchlistId], (old) =>
@@ -102,7 +111,10 @@ export function useAddToWatchlist() {
         queryClient.setQueryData(["watchlists"], context.previousWatchlists);
       }
       if (context?.previousWatchlist) {
-        queryClient.setQueryData(["watchlists", watchlistId], context.previousWatchlist);
+        queryClient.setQueryData(
+          ["watchlists", watchlistId],
+          context.previousWatchlist
+        );
       }
       toast.error("Failed to add symbol to watchlist");
       console.error("Failed to add symbol to watchlist:", err);
@@ -136,23 +148,42 @@ export function useRemoveFromWatchlist() {
     onMutate: async ({ watchlistId, symbol }) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ["watchlists"] });
-      await queryClient.cancelQueries({ queryKey: ["watchlists", watchlistId] });
+      await queryClient.cancelQueries({
+        queryKey: ["watchlists", watchlistId],
+      });
 
       // Snapshot previous state
-      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
-      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", watchlistId]);
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>([
+        "watchlists",
+      ]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>([
+        "watchlists",
+        watchlistId,
+      ]);
 
       // Optimistically remove symbol from watchlist
-      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
-        old?.map((w) =>
-          w.id === watchlistId
-            ? { ...w, items: (w.items ?? []).filter((item) => item.symbol !== symbol) }
-            : w
-        ) ?? []
+      queryClient.setQueryData<Watchlist[]>(
+        ["watchlists"],
+        (old) =>
+          old?.map((w) =>
+            w.id === watchlistId
+              ? {
+                  ...w,
+                  items: (w.items ?? []).filter(
+                    (item) => item.symbol !== symbol
+                  ),
+                }
+              : w
+          ) ?? []
       );
 
       queryClient.setQueryData<Watchlist>(["watchlists", watchlistId], (old) =>
-        old ? { ...old, items: (old.items ?? []).filter((item) => item.symbol !== symbol) } : old
+        old
+          ? {
+              ...old,
+              items: (old.items ?? []).filter((item) => item.symbol !== symbol),
+            }
+          : old
       );
 
       return { previousWatchlists, previousWatchlist };
@@ -164,7 +195,10 @@ export function useRemoveFromWatchlist() {
         queryClient.setQueryData(["watchlists"], context.previousWatchlists);
       }
       if (context?.previousWatchlist) {
-        queryClient.setQueryData(["watchlists", watchlistId], context.previousWatchlist);
+        queryClient.setQueryData(
+          ["watchlists", watchlistId],
+          context.previousWatchlist
+        );
       }
       toast.error("Failed to remove symbol from watchlist");
       console.error("Failed to remove symbol from watchlist:", err);
@@ -191,7 +225,9 @@ export function useCreateWatchlist() {
       await queryClient.cancelQueries({ queryKey: ["watchlists"] });
 
       // Snapshot previous state
-      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>([
+        "watchlists",
+      ]);
 
       // Optimistically add new watchlist
       queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) => [
@@ -244,12 +280,18 @@ export function useDeleteWatchlist() {
       await queryClient.cancelQueries({ queryKey: ["watchlists", id] });
 
       // Snapshot previous state
-      const previousWatchlists = queryClient.getQueryData<Watchlist[]>(["watchlists"]);
-      const previousWatchlist = queryClient.getQueryData<Watchlist>(["watchlists", id]);
+      const previousWatchlists = queryClient.getQueryData<Watchlist[]>([
+        "watchlists",
+      ]);
+      const previousWatchlist = queryClient.getQueryData<Watchlist>([
+        "watchlists",
+        id,
+      ]);
 
       // Optimistically remove watchlist
-      queryClient.setQueryData<Watchlist[]>(["watchlists"], (old) =>
-        old?.filter((w) => w.id !== id) ?? []
+      queryClient.setQueryData<Watchlist[]>(
+        ["watchlists"],
+        (old) => old?.filter((w) => w.id !== id) ?? []
       );
 
       queryClient.removeQueries({ queryKey: ["watchlists", id] });

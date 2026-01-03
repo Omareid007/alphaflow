@@ -8,7 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 // Skip tests that need window in environments without DOM
-const describeWithDOM = typeof window !== "undefined" ? describe : describe.skip;
+const describeWithDOM =
+  typeof window !== "undefined" ? describe : describe.skip;
 
 describe("Animation Level Support", () => {
   it("respects 'none' animation level", () => {
@@ -81,7 +82,11 @@ describe("CSS Animation Classes", () => {
   });
 
   it("verifies transition timing functions exist", () => {
-    const timingFunctions = ["ease-out-expo", "ease-in-out-expo", "ease-bounce"];
+    const timingFunctions = [
+      "ease-out-expo",
+      "ease-in-out-expo",
+      "ease-bounce",
+    ];
 
     timingFunctions.forEach((timing) => {
       expect(timing).toMatch(/^ease-/);

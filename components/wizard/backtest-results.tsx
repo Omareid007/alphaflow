@@ -8,10 +8,21 @@ import {
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import dynamic from "next/dynamic";
 import { MetricsGrid } from "./MetricsGrid";
-import { PerformanceCharts } from "./PerformanceCharts";
 import { AIInterpretation } from "./AIInterpretation";
 import { BacktestActions } from "./BacktestActions";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Dynamically load heavy Recharts component to reduce bundle size
+const PerformanceCharts = dynamic(() => import("./PerformanceCharts"), {
+  ssr: false, // Wizard doesn't need SSR
+  loading: () => (
+    <div className="h-80">
+      <Skeleton className="h-full w-full rounded-lg" />
+    </div>
+  ),
+});
 
 // API response shape (different from lib/types BacktestRun)
 interface ApiBacktestRun {

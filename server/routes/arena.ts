@@ -243,84 +243,96 @@ router.post("/profiles", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const profile = await db.query.aiAgentProfiles.findFirst({
-      where: eq(aiAgentProfiles.id, req.params.id),
-    });
+router.get(
+  "/profiles/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const profile = await db.query.aiAgentProfiles.findFirst({
+        where: eq(aiAgentProfiles.id, req.params.id),
+      });
 
-    if (!profile) {
-      return res.status(404).json({ error: "Agent profile not found" });
+      if (!profile) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to get agent profile: ${error}`);
+      res.status(500).json({ error: "Failed to get agent profile" });
     }
-
-    res.json(profile);
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to get agent profile: ${error}`);
-    res.status(500).json({ error: "Failed to get agent profile" });
   }
-});
+);
 
-router.patch("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const {
-      status,
-      description,
-      model,
-      mode,
-      temperature,
-      maxTokens,
-      budgetLimitPerDay,
-      priority,
-    } = req.body;
+router.patch(
+  "/profiles/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const {
+        status,
+        description,
+        model,
+        mode,
+        temperature,
+        maxTokens,
+        budgetLimitPerDay,
+        priority,
+      } = req.body;
 
-    const updates: Partial<AiAgentProfile> = { updatedAt: new Date() };
-    if (status !== undefined) updates.status = status;
-    if (description !== undefined) updates.description = description;
-    if (model !== undefined) updates.model = model;
-    if (mode !== undefined) updates.mode = mode;
-    if (temperature !== undefined) updates.temperature = String(temperature);
-    if (maxTokens !== undefined) updates.maxTokens = maxTokens;
-    if (budgetLimitPerDay !== undefined)
-      updates.budgetLimitPerDay = String(budgetLimitPerDay);
-    if (priority !== undefined) updates.priority = priority;
+      const updates: Partial<AiAgentProfile> = { updatedAt: new Date() };
+      if (status !== undefined) updates.status = status;
+      if (description !== undefined) updates.description = description;
+      if (model !== undefined) updates.model = model;
+      if (mode !== undefined) updates.mode = mode;
+      if (temperature !== undefined) updates.temperature = String(temperature);
+      if (maxTokens !== undefined) updates.maxTokens = maxTokens;
+      if (budgetLimitPerDay !== undefined)
+        updates.budgetLimitPerDay = String(budgetLimitPerDay);
+      if (priority !== undefined) updates.priority = priority;
 
-    const [updated] = await db
-      .update(aiAgentProfiles)
-      .set(updates)
-      .where(eq(aiAgentProfiles.id, req.params.id))
-      .returning();
+      const [updated] = await db
+        .update(aiAgentProfiles)
+        .set(updates)
+        .where(eq(aiAgentProfiles.id, req.params.id))
+        .returning();
 
-    if (!updated) {
-      return res.status(404).json({ error: "Agent profile not found" });
+      if (!updated) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
+      res.status(500).json({
+        error: (error as Error).message || "Failed to update agent profile",
+      });
     }
-
-    res.json(updated);
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
-    res.status(500).json({
-      error: (error as Error).message || "Failed to update agent profile",
-    });
   }
-});
+);
 
-router.delete("/profiles/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const [deleted] = await db
-      .update(aiAgentProfiles)
-      .set({ status: "disabled", updatedAt: new Date() })
-      .where(eq(aiAgentProfiles.id, req.params.id))
-      .returning();
+router.delete(
+  "/profiles/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const [deleted] = await db
+        .update(aiAgentProfiles)
+        .set({ status: "disabled", updatedAt: new Date() })
+        .where(eq(aiAgentProfiles.id, req.params.id))
+        .returning();
 
-    if (!deleted) {
-      return res.status(404).json({ error: "Agent profile not found" });
+      if (!deleted) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+
+      res.json({ success: true, message: "Agent profile disabled" });
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to delete agent profile: ${error}`);
+      res.status(500).json({ error: "Failed to delete agent profile" });
     }
-
-    res.json({ success: true, message: "Agent profile disabled" });
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to delete agent profile: ${error}`);
-    res.status(500).json({ error: "Failed to delete agent profile" });
   }
-});
+);
 
 router.get("/stats", requireAuth, async (req: Request, res: Response) => {
   try {

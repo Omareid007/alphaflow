@@ -372,9 +372,8 @@ describe("Animation Performance Audit", () => {
     it("stagger animations use incremental delays", () => {
       const staggerDelay = 0.05;
       const items = 5;
-      const delays = Array.from(
-        { length: items },
-        (_, i) => Number((i * staggerDelay).toFixed(2))
+      const delays = Array.from({ length: items }, (_, i) =>
+        Number((i * staggerDelay).toFixed(2))
       );
 
       expect(delays).toEqual([0, 0.05, 0.1, 0.15, 0.2]);

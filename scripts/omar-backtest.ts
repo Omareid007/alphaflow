@@ -20,7 +20,7 @@ import {
   type BacktestConfig,
   type BacktestResult,
   type Trade,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
 } from "./shared/index.js";
 
 // ============================================================================
@@ -44,7 +44,7 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.5,
     maxPositionPct: 0.05,
     stopLossPct: 0.03,
-    takeProfitPct: 0.06
+    takeProfitPct: 0.06,
   },
   // Iteration 2: Aggressive momentum
   {
@@ -62,7 +62,7 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.45,
     maxPositionPct: 0.08,
     stopLossPct: 0.04,
-    takeProfitPct: 0.08
+    takeProfitPct: 0.08,
   },
   // Iteration 3: Tight stops
   {
@@ -80,7 +80,7 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.55,
     maxPositionPct: 0.06,
     stopLossPct: 0.02,
-    takeProfitPct: 0.05
+    takeProfitPct: 0.05,
   },
   // Iteration 4: Wide targets
   {
@@ -98,7 +98,7 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.6,
     maxPositionPct: 0.05,
     stopLossPct: 0.05,
-    takeProfitPct: 0.10
+    takeProfitPct: 0.1,
   },
   // Iteration 5: High confidence only
   {
@@ -116,7 +116,7 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.65,
     maxPositionPct: 0.07,
     stopLossPct: 0.03,
-    takeProfitPct: 0.07
+    takeProfitPct: 0.07,
   },
   // Iteration 6: Balanced optimized
   {
@@ -134,8 +134,8 @@ const parameterSets: Partial<BacktestConfig>[] = [
     confidenceMinimum: 0.52,
     maxPositionPct: 0.065,
     stopLossPct: 0.028,
-    takeProfitPct: 0.065
-  }
+    takeProfitPct: 0.065,
+  },
 ];
 
 // ============================================================================
@@ -186,11 +186,14 @@ async function main() {
       emaPeriodFast: params.emaPeriodFast ?? DEFAULT_CONFIG.emaPeriodFast!,
       emaPeriodSlow: params.emaPeriodSlow ?? DEFAULT_CONFIG.emaPeriodSlow!,
       atrPeriod: params.atrPeriod ?? DEFAULT_CONFIG.atrPeriod!,
-      atrMultiplierStop: params.atrMultiplierStop ?? DEFAULT_CONFIG.atrMultiplierStop!,
-      atrMultiplierTarget: params.atrMultiplierTarget ?? DEFAULT_CONFIG.atrMultiplierTarget!,
+      atrMultiplierStop:
+        params.atrMultiplierStop ?? DEFAULT_CONFIG.atrMultiplierStop!,
+      atrMultiplierTarget:
+        params.atrMultiplierTarget ?? DEFAULT_CONFIG.atrMultiplierTarget!,
       buyThreshold: params.buyThreshold ?? DEFAULT_CONFIG.buyThreshold!,
       sellThreshold: params.sellThreshold ?? DEFAULT_CONFIG.sellThreshold!,
-      confidenceMinimum: params.confidenceMinimum ?? DEFAULT_CONFIG.confidenceMinimum!
+      confidenceMinimum:
+        params.confidenceMinimum ?? DEFAULT_CONFIG.confidenceMinimum!,
     };
 
     console.log(`\n${"=".repeat(60)}`);
@@ -205,13 +208,21 @@ async function main() {
       config,
       metrics: result.metrics,
       score,
-      sampleTrades: result.sampleTrades
+      sampleTrades: result.sampleTrades,
     });
 
-    console.log(`Trades: ${result.metrics.totalTrades} | Win Rate: ${result.metrics.winRate.toFixed(1)}%`);
-    console.log(`P&L: $${result.metrics.totalPnl.toFixed(0)} (${result.metrics.totalPnlPct.toFixed(1)}%)`);
-    console.log(`Profit Factor: ${result.metrics.profitFactor.toFixed(2)} | Sharpe: ${result.metrics.sharpeRatio.toFixed(2)}`);
-    console.log(`Max DD: ${result.metrics.maxDrawdown.toFixed(1)}% | CAGR: ${result.metrics.cagr.toFixed(1)}%`);
+    console.log(
+      `Trades: ${result.metrics.totalTrades} | Win Rate: ${result.metrics.winRate.toFixed(1)}%`
+    );
+    console.log(
+      `P&L: $${result.metrics.totalPnl.toFixed(0)} (${result.metrics.totalPnlPct.toFixed(1)}%)`
+    );
+    console.log(
+      `Profit Factor: ${result.metrics.profitFactor.toFixed(2)} | Sharpe: ${result.metrics.sharpeRatio.toFixed(2)}`
+    );
+    console.log(
+      `Max DD: ${result.metrics.maxDrawdown.toFixed(1)}% | CAGR: ${result.metrics.cagr.toFixed(1)}%`
+    );
     console.log(`Score: ${score.toFixed(2)}`);
   }
 

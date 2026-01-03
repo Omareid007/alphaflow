@@ -11,7 +11,7 @@ import type {
   BacktestResult,
   BacktestMetrics,
   EquityPoint,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
 } from "./types.js";
 
 import {
@@ -21,7 +21,7 @@ import {
   calculateATR,
   calculateStochastic,
   calculateMACD,
-  calculateBollingerBands
+  calculateBollingerBands,
 } from "./technical-indicators.js";
 
 import { extractOHLCV } from "./alpaca-api.js";
@@ -94,7 +94,7 @@ export function calculateIndicators(
     macdHistogram: macd.histogram,
     bbUpper: bb.upper,
     bbLower: bb.lower,
-    bbWidth: bb.width
+    bbWidth: bb.width,
   };
 }
 
@@ -194,7 +194,8 @@ export function generateSignal(
 
   // Momentum (weight: 8)
   if (index > 5) {
-    const momentum5d = ((currentPrice - prices[index - 5]) / prices[index - 5]) * 100;
+    const momentum5d =
+      ((currentPrice - prices[index - 5]) / prices[index - 5]) * 100;
     if (momentum5d > 3) {
       bullishScore += 8;
       reasoning.push(`5d momentum: +${momentum5d.toFixed(1)}%`);
@@ -217,12 +218,18 @@ export function generateSignal(
   const signalStrength = Math.abs(normalizedScore);
   let confidence = 0.35 + signalStrength * 0.45;
   confidence += Math.min(reasoning.length / 15, 0.15);
-  confidence = Math.max(0.30, Math.min(confidence, 0.90));
+  confidence = Math.max(0.3, Math.min(confidence, 0.9));
 
   let signal: "buy" | "sell" | "hold" = "hold";
-  if (normalizedScore > config.buyThreshold && confidence >= config.confidenceMinimum) {
+  if (
+    normalizedScore > config.buyThreshold &&
+    confidence >= config.confidenceMinimum
+  ) {
     signal = "buy";
-  } else if (normalizedScore < -config.sellThreshold && confidence >= config.confidenceMinimum) {
+  } else if (
+    normalizedScore < -config.sellThreshold &&
+    confidence >= config.confidenceMinimum
+  ) {
     signal = "sell";
   }
 
@@ -268,7 +275,7 @@ export function runBacktest(
     atrMultiplierTarget: config.atrMultiplierTarget,
     buyThreshold: config.buyThreshold,
     sellThreshold: config.sellThreshold,
-    confidenceMinimum: config.confidenceMinimum
+    confidenceMinimum: config.confidenceMinimum,
   };
 
   for (const symbol of config.symbols) {
@@ -308,7 +315,10 @@ export function runBacktest(
         } else if (dayHigh >= existingPosition.takeProfit) {
           exitPrice = existingPosition.takeProfit;
           exitReason = "take_profit";
-        } else if (signalResult.signal === "sell" && existingPosition.side === "buy") {
+        } else if (
+          signalResult.signal === "sell" &&
+          existingPosition.side === "buy"
+        ) {
           exitPrice = currentPrice;
           exitReason = "signal";
         }
@@ -318,11 +328,15 @@ export function runBacktest(
           existingPosition.exitPrice = exitPrice;
           existingPosition.exitReason = exitReason;
           existingPosition.pnl =
-            (exitPrice - existingPosition.entryPrice) * existingPosition.quantity;
+            (exitPrice - existingPosition.entryPrice) *
+            existingPosition.quantity;
           existingPosition.pnlPct =
-            ((exitPrice - existingPosition.entryPrice) / existingPosition.entryPrice) * 100;
+            ((exitPrice - existingPosition.entryPrice) /
+              existingPosition.entryPrice) *
+            100;
           existingPosition.holdingDays = Math.round(
-            (new Date(currentDate).getTime() - new Date(existingPosition.entryDate).getTime()) /
+            (new Date(currentDate).getTime() -
+              new Date(existingPosition.entryDate).getTime()) /
               (1000 * 60 * 60 * 24)
           );
 
@@ -348,9 +362,12 @@ export function runBacktest(
             entryPrice: nextDayOpen,
             quantity,
             side: "buy",
-            stopLoss: signalResult.stopLoss || nextDayOpen * (1 - config.stopLossPct),
-            takeProfit: signalResult.takeProfit || nextDayOpen * (1 + config.takeProfitPct),
-            reasoning: signalResult.reasoning
+            stopLoss:
+              signalResult.stopLoss || nextDayOpen * (1 - config.stopLossPct),
+            takeProfit:
+              signalResult.takeProfit ||
+              nextDayOpen * (1 + config.takeProfitPct),
+            reasoning: signalResult.reasoning,
           };
           openPositions.set(positionKey, trade);
         }
@@ -377,7 +394,8 @@ export function runBacktest(
         position.pnlPct =
           ((lastBar.c - position.entryPrice) / position.entryPrice) * 100;
         position.holdingDays = Math.round(
-          (new Date(lastBar.t).getTime() - new Date(position.entryDate).getTime()) /
+          (new Date(lastBar.t).getTime() -
+            new Date(position.entryDate).getTime()) /
             (1000 * 60 * 60 * 24)
         );
         equity += position.pnl;
@@ -391,14 +409,19 @@ export function runBacktest(
     }
   }
 
-  const metrics = calculateMetrics(trades, equityCurve, config.initialCapital, maxDrawdown);
+  const metrics = calculateMetrics(
+    trades,
+    equityCurve,
+    config.initialCapital,
+    maxDrawdown
+  );
 
   return {
     config: config as BacktestConfig,
     trades,
     metrics,
     equityCurve,
-    sampleTrades: trades.slice(0, 10)
+    sampleTrades: trades.slice(0, 10),
   };
 }
 
@@ -418,7 +441,9 @@ export function calculateMetrics(
   const winningTrades = trades.filter((t) => (t.pnl || 0) > 0);
   const losingTrades = trades.filter((t) => (t.pnl || 0) <= 0);
   const totalWins = winningTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0));
+  const totalLosses = Math.abs(
+    losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0)
+  );
   const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
   const avgHoldingDays =
     trades.length > 0
@@ -430,36 +455,48 @@ export function calculateMetrics(
     equityCurve.length > 1
       ? equityCurve
           .slice(1)
-          .map((e, i) => (e.equity - equityCurve[i].equity) / equityCurve[i].equity)
+          .map(
+            (e, i) => (e.equity - equityCurve[i].equity) / equityCurve[i].equity
+          )
       : [];
-  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
+  const avgReturn =
+    returns.length > 0
+      ? returns.reduce((a, b) => a + b, 0) / returns.length
+      : 0;
   const stdReturn =
     returns.length > 0
-      ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length)
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+            returns.length
+        )
       : 0;
-  const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
+  const sharpeRatio =
+    stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 
   // Calculate CAGR
   const finalEquity = initialCapital + totalPnl;
   const totalDays = equityCurve.length;
   const years = totalDays / 252;
-  const cagr = years > 0 ? Math.pow(finalEquity / initialCapital, 1 / years) - 1 : 0;
+  const cagr =
+    years > 0 ? Math.pow(finalEquity / initialCapital, 1 / years) - 1 : 0;
 
   return {
     totalTrades: trades.length,
     winningTrades: winningTrades.length,
     losingTrades: losingTrades.length,
-    winRate: trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
+    winRate:
+      trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
     totalPnl,
     totalPnlPct: (totalPnl / initialCapital) * 100,
     avgWin: winningTrades.length > 0 ? totalWins / winningTrades.length : 0,
     avgLoss: losingTrades.length > 0 ? totalLosses / losingTrades.length : 0,
-    profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
+    profitFactor:
+      totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
     maxDrawdown: maxDrawdown * 100,
     sharpeRatio,
     avgHoldingDays,
     finalEquity,
-    cagr: cagr * 100
+    cagr: cagr * 100,
   };
 }
 
@@ -472,13 +509,18 @@ export function calculateScore(metrics: BacktestMetrics): number {
   const sharpeScore = Math.max(0, metrics.sharpeRatio) * 10 * 0.25;
   const cagrScore = Math.max(0, metrics.cagr) * 2 * 0.15;
   const drawdownPenalty = Math.max(0, 20 - metrics.maxDrawdown) * 0.15;
-  return winRateScore + profitFactorScore + sharpeScore + cagrScore + drawdownPenalty;
+  return (
+    winRateScore + profitFactorScore + sharpeScore + cagrScore + drawdownPenalty
+  );
 }
 
 /**
  * Calculate Sortino ratio (downside deviation only)
  */
-export function calculateSortino(returns: number[], riskFreeRate: number = 0): number {
+export function calculateSortino(
+  returns: number[],
+  riskFreeRate: number = 0
+): number {
   if (returns.length === 0) return 0;
 
   const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
@@ -491,7 +533,9 @@ export function calculateSortino(returns: number[], riskFreeRate: number = 0): n
       negativeReturns.length
   );
 
-  return downsideDeviation > 0 ? ((avgReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(252) : 0;
+  return downsideDeviation > 0
+    ? ((avgReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(252)
+    : 0;
 }
 
 /**
@@ -512,7 +556,12 @@ export {
   calculateATR,
   calculateStochastic,
   calculateMACD,
-  calculateBollingerBands
+  calculateBollingerBands,
 } from "./technical-indicators.js";
 
-export { fetchAlpacaBars, fetchHistoricalData, extractOHLCV, SYMBOL_LISTS } from "./alpaca-api.js";
+export {
+  fetchAlpacaBars,
+  fetchHistoricalData,
+  extractOHLCV,
+  SYMBOL_LISTS,
+} from "./alpaca-api.js";

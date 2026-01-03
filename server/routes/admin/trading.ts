@@ -24,71 +24,87 @@ const router = Router();
 // ============================================================================
 
 // GET /api/admin/universe/stats - Get universe stats (requires admin:read)
-router.get("/universe/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await alpacaUniverseService.getStats();
-    res.json({
-      ...stats,
-      source: "alpaca_universe",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get universe stats", { error });
-    res.status(500).json({ error: "Failed to get universe stats" });
+router.get(
+  "/universe/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await alpacaUniverseService.getStats();
+      res.json({
+        ...stats,
+        source: "alpaca_universe",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get universe stats", { error });
+      res.status(500).json({ error: "Failed to get universe stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/universe/assets - Get universe assets (requires admin:read)
-router.get("/universe/assets", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { assetClass, tradable, limit, offset } = req.query;
-    const assets = await storage.getBrokerAssets(
-      assetClass as "us_equity" | "crypto" | undefined,
-      tradable === "true",
-      limit ? parseInt(limit as string) : 100
-    );
-    res.json({
-      assets,
-      count: assets.length,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get universe assets", { error });
-    res.status(500).json({ error: "Failed to get universe assets" });
+router.get(
+  "/universe/assets",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { assetClass, tradable, limit, offset } = req.query;
+      const assets = await storage.getBrokerAssets(
+        assetClass as "us_equity" | "crypto" | undefined,
+        tradable === "true",
+        limit ? parseInt(limit as string) : 100
+      );
+      res.json({
+        assets,
+        count: assets.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get universe assets", { error });
+      res.status(500).json({ error: "Failed to get universe assets" });
+    }
   }
-});
+);
 
 // GET /api/admin/universe/assets/:symbol - Get asset details (requires admin:read)
-router.get("/universe/assets/:symbol", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const asset = await storage.getBrokerAsset(symbol);
-    if (!asset) {
-      return res.status(404).json({ error: "Asset not found" });
+router.get(
+  "/universe/assets/:symbol",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const asset = await storage.getBrokerAsset(symbol);
+      if (!asset) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+      res.json(asset);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get asset", { error });
+      res.status(500).json({ error: "Failed to get asset" });
     }
-    res.json(asset);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get asset", { error });
-    res.status(500).json({ error: "Failed to get asset" });
   }
-});
+);
 
 // POST /api/admin/universe/refresh - Refresh universe (requires admin:write)
-router.post("/universe/refresh", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { assetClass } = req.body;
-    const result = await alpacaUniverseService.refreshAssets({
-      assetClass: assetClass || "us_equity",
-    });
-    res.json({
-      ...result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to refresh universe", { error });
-    res.status(500).json({ error: "Failed to refresh universe" });
+router.post(
+  "/universe/refresh",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { assetClass } = req.body;
+      const result = await alpacaUniverseService.refreshAssets({
+        assetClass: assetClass || "us_equity",
+      });
+      res.json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to refresh universe", { error });
+      res.status(500).json({ error: "Failed to refresh universe" });
+    }
   }
-});
+);
 
 // POST /api/admin/universe/exclude/:symbol - Exclude symbol (requires admin:write)
 router.post(
@@ -111,42 +127,50 @@ router.post(
 );
 
 // GET /api/admin/universe/tradable - Get tradable symbols (requires admin:read)
-router.get("/universe/tradable", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { limit } = req.query;
-    const assets = await storage.getBrokerAssets(
-      "us_equity",
-      true,
-      limit ? parseInt(limit as string) : 500
-    );
-    res.json({
-      symbols: assets.map((a) => a.symbol),
-      count: assets.length,
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get tradable symbols", { error });
-    res.status(500).json({ error: "Failed to get tradable symbols" });
+router.get(
+  "/universe/tradable",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { limit } = req.query;
+      const assets = await storage.getBrokerAssets(
+        "us_equity",
+        true,
+        limit ? parseInt(limit as string) : 500
+      );
+      res.json({
+        symbols: assets.map((a) => a.symbol),
+        count: assets.length,
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get tradable symbols", { error });
+      res.status(500).json({ error: "Failed to get tradable symbols" });
+    }
   }
-});
+);
 
 // ============================================================================
 // LIQUIDITY ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/liquidity/stats - Get liquidity stats (requires admin:read)
-router.get("/liquidity/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await liquidityService.getTierStats();
-    res.json({
-      ...stats,
-      source: "liquidity_metrics",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get liquidity stats", { error });
-    res.status(500).json({ error: "Failed to get liquidity stats" });
+router.get(
+  "/liquidity/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await liquidityService.getTierStats();
+      res.json({
+        ...stats,
+        source: "liquidity_metrics",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get liquidity stats", { error });
+      res.status(500).json({ error: "Failed to get liquidity stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/liquidity/metrics/:symbol - Get symbol liquidity (requires admin:read)
 router.get(
@@ -167,143 +191,175 @@ router.get(
 );
 
 // GET /api/admin/liquidity/tier/:tier - Get symbols by tier (requires admin:read)
-router.get("/liquidity/tier/:tier", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { tier } = req.params;
-    const { limit } = req.query;
-    if (!["A", "B", "C", "D"].includes(tier)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid tier. Must be A, B, C, or D" });
+router.get(
+  "/liquidity/tier/:tier",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { tier } = req.params;
+      const { limit } = req.query;
+      if (!["A", "B", "C", "D"].includes(tier)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid tier. Must be A, B, C, or D" });
+      }
+      const metrics = await liquidityService.getMetricsByTier(
+        tier as "A" | "B" | "C",
+        limit ? parseInt(limit as string) : 100
+      );
+      res.json({ tier, symbols: metrics, count: metrics.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get tier symbols", { error });
+      res.status(500).json({ error: "Failed to get tier symbols" });
     }
-    const metrics = await liquidityService.getMetricsByTier(
-      tier as "A" | "B" | "C",
-      limit ? parseInt(limit as string) : 100
-    );
-    res.json({ tier, symbols: metrics, count: metrics.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get tier symbols", { error });
-    res.status(500).json({ error: "Failed to get tier symbols" });
   }
-});
+);
 
 // GET /api/admin/liquidity/top - Get top liquid symbols (requires admin:read)
-router.get("/liquidity/top", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { limit } = req.query;
-    const symbols = await liquidityService.getTopLiquid(
-      limit ? parseInt(limit as string) : 50
-    );
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get top liquid symbols", { error });
-    res.status(500).json({ error: "Failed to get top liquid symbols" });
+router.get(
+  "/liquidity/top",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { limit } = req.query;
+      const symbols = await liquidityService.getTopLiquid(
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get top liquid symbols", { error });
+      res.status(500).json({ error: "Failed to get top liquid symbols" });
+    }
   }
-});
+);
 
 // POST /api/admin/liquidity/compute - Compute liquidity metrics (requires admin:write)
-router.post("/liquidity/compute", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbols, traceId } = req.body;
-    const result = await liquidityService.computeLiquidityMetrics({
-      symbols,
-      traceId: traceId || `liq-${Date.now()}`,
-    });
-    res.json({
-      ...result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to compute liquidity", { error });
-    res.status(500).json({ error: "Failed to compute liquidity metrics" });
+router.post(
+  "/liquidity/compute",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbols, traceId } = req.body;
+      const result = await liquidityService.computeLiquidityMetrics({
+        symbols,
+        traceId: traceId || `liq-${Date.now()}`,
+      });
+      res.json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to compute liquidity", { error });
+      res.status(500).json({ error: "Failed to compute liquidity metrics" });
+    }
   }
-});
+);
 
 // ============================================================================
 // FUNDAMENTALS ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/fundamentals/stats - Get fundamentals stats (requires admin:read)
-router.get("/fundamentals/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await fundamentalsService.getStats();
-    res.json({
-      ...stats,
-      source: "universe_fundamentals",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get fundamentals stats", { error });
-    res.status(500).json({ error: "Failed to get fundamentals stats" });
+router.get(
+  "/fundamentals/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await fundamentalsService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_fundamentals",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get fundamentals stats", { error });
+      res.status(500).json({ error: "Failed to get fundamentals stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/fundamentals/:symbol - Get symbol fundamentals (requires admin:read)
-router.get("/fundamentals/:symbol", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const fundamentals =
-      await fundamentalsService.getFundamentalsBySymbol(symbol);
-    if (!fundamentals) {
-      return res.status(404).json({ error: "Fundamentals not found" });
+router.get(
+  "/fundamentals/:symbol",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const fundamentals =
+        await fundamentalsService.getFundamentalsBySymbol(symbol);
+      if (!fundamentals) {
+        return res.status(404).json({ error: "Fundamentals not found" });
+      }
+      res.json(fundamentals);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get fundamentals", { error });
+      res.status(500).json({ error: "Failed to get fundamentals" });
     }
-    res.json(fundamentals);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get fundamentals", { error });
-    res.status(500).json({ error: "Failed to get fundamentals" });
   }
-});
+);
 
 // GET /api/admin/fundamentals/top/scores - Get top scoring symbols (requires admin:read)
-router.get("/fundamentals/top/scores", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { limit } = req.query;
-    const symbols = await fundamentalsService.getTopByScore(
-      limit ? parseInt(limit as string) : 50
-    );
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get top scores", { error });
-    res.status(500).json({ error: "Failed to get top scores" });
+router.get(
+  "/fundamentals/top/scores",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { limit } = req.query;
+      const symbols = await fundamentalsService.getTopByScore(
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get top scores", { error });
+      res.status(500).json({ error: "Failed to get top scores" });
+    }
   }
-});
+);
 
 // POST /api/admin/fundamentals/fetch - Fetch fundamentals (requires admin:write)
-router.post("/fundamentals/fetch", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbols, traceId } = req.body;
-    const result = await fundamentalsService.fetchAndStoreFundamentals({
-      symbols,
-      traceId: traceId || `fund-${Date.now()}`,
-    });
-    res.json({
-      ...result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to fetch fundamentals", { error });
-    res.status(500).json({ error: "Failed to fetch fundamentals" });
+router.post(
+  "/fundamentals/fetch",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbols, traceId } = req.body;
+      const result = await fundamentalsService.fetchAndStoreFundamentals({
+        symbols,
+        traceId: traceId || `fund-${Date.now()}`,
+      });
+      res.json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to fetch fundamentals", { error });
+      res.status(500).json({ error: "Failed to fetch fundamentals" });
+    }
   }
-});
+);
 
 // ============================================================================
 // CANDIDATES ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/candidates/stats - Get candidates stats (requires admin:read)
-router.get("/candidates/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await candidatesService.getStats();
-    res.json({
-      ...stats,
-      source: "universe_candidates",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get candidates stats", { error });
-    res.status(500).json({ error: "Failed to get candidates stats" });
+router.get(
+  "/candidates/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await candidatesService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_candidates",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get candidates stats", { error });
+      res.status(500).json({ error: "Failed to get candidates stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/candidates - Get candidates (requires admin:read)
 router.get("/candidates", requireAdmin, async (req: Request, res: Response) => {
@@ -333,40 +389,48 @@ router.get("/candidates", requireAdmin, async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/candidates/:symbol - Get specific candidate (requires admin:read)
-router.get("/candidates/:symbol", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const candidate = await candidatesService.getCandidateBySymbol(symbol);
+router.get(
+  "/candidates/:symbol",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const candidate = await candidatesService.getCandidateBySymbol(symbol);
 
-    if (!candidate) {
-      return res.status(404).json({ error: "Candidate not found" });
+      if (!candidate) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+
+      res.json(candidate);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get candidate", { error });
+      res.status(500).json({ error: "Failed to get candidate" });
     }
-
-    res.json(candidate);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get candidate", { error });
-    res.status(500).json({ error: "Failed to get candidate" });
   }
-});
+);
 
 // POST /api/admin/candidates/generate - Generate candidates (requires admin:write)
-router.post("/candidates/generate", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { minLiquidityTier, minScore, limit, traceId } = req.body;
+router.post(
+  "/candidates/generate",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { minLiquidityTier, minScore, limit, traceId } = req.body;
 
-    const result = await candidatesService.generateCandidates({
-      minLiquidityTier: minLiquidityTier as "A" | "B" | "C" | undefined,
-      minScore: minScore ? parseFloat(minScore) : 0.4,
-      limit: limit ? parseInt(limit) : 100,
-      traceId: traceId || `cand-${Date.now()}`,
-    });
+      const result = await candidatesService.generateCandidates({
+        minLiquidityTier: minLiquidityTier as "A" | "B" | "C" | undefined,
+        minScore: minScore ? parseFloat(minScore) : 0.4,
+        limit: limit ? parseInt(limit) : 100,
+        traceId: traceId || `cand-${Date.now()}`,
+      });
 
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to generate candidates", { error });
-    res.status(500).json({ error: "Failed to generate candidates" });
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to generate candidates", { error });
+      res.status(500).json({ error: "Failed to generate candidates" });
+    }
   }
-});
+);
 
 // POST /api/admin/candidates/:symbol/approve - Approve candidate (requires admin:write)
 router.post(
@@ -420,101 +484,127 @@ router.post(
 );
 
 // GET /api/admin/candidates/approved/list - Get approved symbols (requires admin:read)
-router.get("/candidates/approved/list", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const symbols = await candidatesService.getApprovedSymbols();
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get approved symbols", { error });
-    res.status(500).json({ error: "Failed to get approved symbols" });
+router.get(
+  "/candidates/approved/list",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const symbols = await candidatesService.getApprovedSymbols();
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get approved symbols", { error });
+      res.status(500).json({ error: "Failed to get approved symbols" });
+    }
   }
-});
+);
 
 // ============================================================================
 // ENFORCEMENT ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/enforcement/stats - Get enforcement stats (requires admin:read)
-router.get("/enforcement/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await tradingEnforcementService.getStats();
-    res.json({
-      ...stats,
-      source: "trading_enforcement",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get enforcement stats", { error });
-    res.status(500).json({ error: "Failed to get enforcement stats" });
+router.get(
+  "/enforcement/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await tradingEnforcementService.getStats();
+      res.json({
+        ...stats,
+        source: "trading_enforcement",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get enforcement stats", { error });
+      res.status(500).json({ error: "Failed to get enforcement stats" });
+    }
   }
-});
+);
 
 // POST /api/admin/enforcement/check - Check trading eligibility (requires admin:read)
-router.post("/enforcement/check", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { symbol, symbols, traceId } = req.body;
+router.post(
+  "/enforcement/check",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol, symbols, traceId } = req.body;
 
-    if (symbol) {
-      const result = await tradingEnforcementService.canTradeSymbol(
-        symbol,
-        traceId || `chk-${Date.now()}`
-      );
-      res.json(result);
-    } else if (symbols && Array.isArray(symbols)) {
-      const results = await tradingEnforcementService.canTradeMultiple(
-        symbols,
-        traceId || `chk-${Date.now()}`
-      );
-      res.json({ results: Object.fromEntries(results) });
-    } else {
-      res.status(400).json({ error: "Provide symbol or symbols array" });
+      if (symbol) {
+        const result = await tradingEnforcementService.canTradeSymbol(
+          symbol,
+          traceId || `chk-${Date.now()}`
+        );
+        res.json(result);
+      } else if (symbols && Array.isArray(symbols)) {
+        const results = await tradingEnforcementService.canTradeMultiple(
+          symbols,
+          traceId || `chk-${Date.now()}`
+        );
+        res.json({ results: Object.fromEntries(results) });
+      } else {
+        res.status(400).json({ error: "Provide symbol or symbols array" });
+      }
+    } catch (error) {
+      log.error("AdminTrading", "Failed to check trading eligibility", {
+        error,
+      });
+      res.status(500).json({ error: "Failed to check trading eligibility" });
     }
-  } catch (error) {
-    log.error("AdminTrading", "Failed to check trading eligibility", { error });
-    res.status(500).json({ error: "Failed to check trading eligibility" });
   }
-});
+);
 
 // POST /api/admin/enforcement/reset-stats - Reset stats (requires admin:write)
-router.post("/enforcement/reset-stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    tradingEnforcementService.resetStats();
-    res.json({ success: true, message: "Enforcement stats reset" });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to reset enforcement stats", { error });
-    res.status(500).json({ error: "Failed to reset enforcement stats" });
+router.post(
+  "/enforcement/reset-stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      tradingEnforcementService.resetStats();
+      res.json({ success: true, message: "Enforcement stats reset" });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to reset enforcement stats", { error });
+      res.status(500).json({ error: "Failed to reset enforcement stats" });
+    }
   }
-});
+);
 
 // ============================================================================
 // ALLOCATION ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/allocation/stats - Get allocation stats (requires admin:read)
-router.get("/allocation/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await allocationService.getStats();
-    res.json({
-      ...stats,
-      source: "allocation_policies",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get allocation stats", { error });
-    res.status(500).json({ error: "Failed to get allocation stats" });
+router.get(
+  "/allocation/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await allocationService.getStats();
+      res.json({
+        ...stats,
+        source: "allocation_policies",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get allocation stats", { error });
+      res.status(500).json({ error: "Failed to get allocation stats" });
+    }
   }
-});
+);
 
 // GET /api/admin/allocation/policies - List policies (requires admin:read)
-router.get("/allocation/policies", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const policies = await allocationService.listPolicies();
-    res.json({ policies, count: policies.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to list policies", { error });
-    res.status(500).json({ error: "Failed to list policies" });
+router.get(
+  "/allocation/policies",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const policies = await allocationService.listPolicies();
+      res.json({ policies, count: policies.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to list policies", { error });
+      res.status(500).json({ error: "Failed to list policies" });
+    }
   }
-});
+);
 
 // GET /api/admin/allocation/policies/active - Get active policy (requires admin:read)
 router.get(
@@ -534,34 +624,42 @@ router.get(
 );
 
 // GET /api/admin/allocation/policies/:id - Get policy by ID (requires admin:read)
-router.get("/allocation/policies/:id", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const policy = await allocationService.getPolicyById(id);
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+router.get(
+  "/allocation/policies/:id",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.getPolicyById(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get policy", { error });
+      res.status(500).json({ error: "Failed to get policy" });
     }
-    res.json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get policy", { error });
-    res.status(500).json({ error: "Failed to get policy" });
   }
-});
+);
 
 // POST /api/admin/allocation/policies - Create policy (requires admin:write)
-router.post("/allocation/policies", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    const policy = await allocationService.createPolicy({
-      ...req.body,
-      createdBy: userId,
-    });
-    res.status(201).json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to create policy", { error });
-    res.status(500).json({ error: "Failed to create policy" });
+router.post(
+  "/allocation/policies",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.userId;
+      const policy = await allocationService.createPolicy({
+        ...req.body,
+        createdBy: userId,
+      });
+      res.status(201).json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to create policy", { error });
+      res.status(500).json({ error: "Failed to create policy" });
+    }
   }
-});
+);
 
 // PATCH /api/admin/allocation/policies/:id - Update policy (requires admin:write)
 router.patch(
@@ -618,118 +716,142 @@ router.post(
 );
 
 // POST /api/admin/allocation/analyze - Analyze rebalance (requires admin:read)
-router.post("/allocation/analyze", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { traceId } = req.body;
-    const analysis = await allocationService.analyzeRebalance(
-      traceId || `analyze-${Date.now()}`
-    );
-    if (!analysis) {
-      return res
-        .status(400)
-        .json({ error: "No active allocation policy configured" });
+router.post(
+  "/allocation/analyze",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await allocationService.analyzeRebalance(
+        traceId || `analyze-${Date.now()}`
+      );
+      if (!analysis) {
+        return res
+          .status(400)
+          .json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        currentPositions: Object.fromEntries(analysis.currentPositions),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to analyze rebalance", { error });
+      res.status(500).json({ error: "Failed to analyze rebalance" });
     }
-    res.json({
-      ...analysis,
-      currentPositions: Object.fromEntries(analysis.currentPositions),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to analyze rebalance", { error });
-    res.status(500).json({ error: "Failed to analyze rebalance" });
   }
-});
+);
 
 // GET /api/admin/allocation/runs - Get rebalance runs (requires admin:read)
-router.get("/allocation/runs", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { limit } = req.query;
-    const runs = await allocationService.getRebalanceRuns(
-      limit ? parseInt(limit as string) : 20
-    );
-    res.json({ runs, count: runs.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalance runs", { error });
-    res.status(500).json({ error: "Failed to get rebalance runs" });
+router.get(
+  "/allocation/runs",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { limit } = req.query;
+      const runs = await allocationService.getRebalanceRuns(
+        limit ? parseInt(limit as string) : 20
+      );
+      res.json({ runs, count: runs.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalance runs", { error });
+      res.status(500).json({ error: "Failed to get rebalance runs" });
+    }
   }
-});
+);
 
 // GET /api/admin/allocation/runs/:id - Get rebalance run by ID (requires admin:read)
-router.get("/allocation/runs/:id", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const run = await allocationService.getRebalanceRunById(id);
-    if (!run) {
-      return res.status(404).json({ error: "Rebalance run not found" });
+router.get(
+  "/allocation/runs/:id",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const run = await allocationService.getRebalanceRunById(id);
+      if (!run) {
+        return res.status(404).json({ error: "Rebalance run not found" });
+      }
+      res.json(run);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalance run", { error });
+      res.status(500).json({ error: "Failed to get rebalance run" });
     }
-    res.json(run);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalance run", { error });
-    res.status(500).json({ error: "Failed to get rebalance run" });
   }
-});
+);
 
 // ============================================================================
 // REBALANCER ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/rebalancer/stats - Get rebalancer stats (requires admin:read)
-router.get("/rebalancer/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const stats = await rebalancerService.getStats();
-    res.json({
-      ...stats,
-      source: "rebalancer",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalancer stats", { error });
-    res.status(500).json({ error: "Failed to get rebalancer stats" });
+router.get(
+  "/rebalancer/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await rebalancerService.getStats();
+      res.json({
+        ...stats,
+        source: "rebalancer",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalancer stats", { error });
+      res.status(500).json({ error: "Failed to get rebalancer stats" });
+    }
   }
-});
+);
 
 // POST /api/admin/rebalancer/dry-run - Execute dry run (requires admin:read)
-router.post("/rebalancer/dry-run", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { traceId } = req.body;
-    const analysis = await rebalancerService.executeDryRun(
-      traceId || `dry-${Date.now()}`
-    );
-    if (!analysis) {
-      return res
-        .status(400)
-        .json({ error: "No active allocation policy configured" });
+router.post(
+  "/rebalancer/dry-run",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await rebalancerService.executeDryRun(
+        traceId || `dry-${Date.now()}`
+      );
+      if (!analysis) {
+        return res
+          .status(400)
+          .json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        analysis: analysis.analysis
+          ? {
+              ...analysis.analysis,
+              currentPositions: Object.fromEntries(
+                analysis.analysis.currentPositions
+              ),
+            }
+          : null,
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to execute dry run", { error });
+      res.status(500).json({ error: "Failed to execute dry run" });
     }
-    res.json({
-      ...analysis,
-      analysis: analysis.analysis
-        ? {
-            ...analysis.analysis,
-            currentPositions: Object.fromEntries(
-              analysis.analysis.currentPositions
-            ),
-          }
-        : null,
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to execute dry run", { error });
-    res.status(500).json({ error: "Failed to execute dry run" });
   }
-});
+);
 
 // POST /api/admin/rebalancer/execute - Execute rebalance (requires admin:write)
-router.post("/rebalancer/execute", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { traceId, dryRun } = req.body;
-    const result = await rebalancerService.executeRebalance(
-      traceId || `rebal-${Date.now()}`,
-      dryRun === true
-    );
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to execute rebalance", { error });
-    res.status(500).json({ error: "Failed to execute rebalance" });
+router.post(
+  "/rebalancer/execute",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { traceId, dryRun } = req.body;
+      const result = await rebalancerService.executeRebalance(
+        traceId || `rebal-${Date.now()}`,
+        dryRun === true
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to execute rebalance", { error });
+      res.status(500).json({ error: "Failed to execute rebalance" });
+    }
   }
-});
+);
 
 // POST /api/admin/rebalancer/profit-taking/analyze - Analyze profit-taking (requires admin:read)
 router.post(

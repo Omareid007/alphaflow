@@ -23,10 +23,10 @@ import type { Strategy, StrategyConfig } from "@shared/schema/trading";
  * Entry rules for strategy execution
  */
 export interface EntryRules {
-  minConfidence: number;       // 0-1, minimum confidence to enter (default 0.7)
-  maxPositions: number;        // Max concurrent positions (default 10)
-  excludeSymbols: string[];    // Never trade these symbols
-  includeSymbols: string[];    // Only trade these symbols (if set)
+  minConfidence: number; // 0-1, minimum confidence to enter (default 0.7)
+  maxPositions: number; // Max concurrent positions (default 10)
+  excludeSymbols: string[]; // Never trade these symbols
+  includeSymbols: string[]; // Only trade these symbols (if set)
 }
 
 /**
@@ -34,9 +34,9 @@ export interface EntryRules {
  */
 export interface PositionSizing {
   type: "percent" | "fixed" | "risk_based";
-  value: number;               // % of portfolio or fixed $ or risk %
-  maxNotional: number;         // Max $ per position (default 50000)
-  minNotional: number;         // Min $ per position (default 100)
+  value: number; // % of portfolio or fixed $ or risk %
+  maxNotional: number; // Max $ per position (default 50000)
+  minNotional: number; // Min $ per position (default 100)
 }
 
 /**
@@ -44,8 +44,8 @@ export interface PositionSizing {
  */
 export interface BracketOrderConfig {
   enabled: boolean;
-  takeProfitPercent: number;   // Default 10%
-  stopLossPercent: number;     // Default 5%
+  takeProfitPercent: number; // Default 10%
+  stopLossPercent: number; // Default 5%
   trailingStopPercent?: number;
   useTrailingStop: boolean;
 }
@@ -56,7 +56,7 @@ export interface BracketOrderConfig {
 export interface OrderExecutionConfig {
   timeInForce: "day" | "gtc" | "ioc" | "fok";
   orderType: "market" | "limit";
-  limitOffsetPercent: number;  // For limit orders, offset from current price
+  limitOffsetPercent: number; // For limit orders, offset from current price
   extendedHours: boolean;
 }
 
@@ -177,7 +177,9 @@ const DEFAULT_EXIT_RULES: ExitRules = {
 /**
  * Parse a Strategy object into execution parameters
  */
-export function parseStrategyParams(config?: StrategyConfig | null): StrategyExecutionParams {
+export function parseStrategyParams(
+  config?: StrategyConfig | null
+): StrategyExecutionParams {
   if (!config) {
     return {
       entryRules: DEFAULT_ENTRY_RULES,
@@ -190,29 +192,50 @@ export function parseStrategyParams(config?: StrategyConfig | null): StrategyExe
 
   return {
     entryRules: {
-      minConfidence: config.entryRules?.minConfidence ?? DEFAULT_ENTRY_RULES.minConfidence,
-      maxPositions: config.entryRules?.maxPositions ?? DEFAULT_ENTRY_RULES.maxPositions,
-      excludeSymbols: config.entryRules?.excludeSymbols ?? DEFAULT_ENTRY_RULES.excludeSymbols,
-      includeSymbols: config.entryRules?.includeSymbols ?? DEFAULT_ENTRY_RULES.includeSymbols,
+      minConfidence:
+        config.entryRules?.minConfidence ?? DEFAULT_ENTRY_RULES.minConfidence,
+      maxPositions:
+        config.entryRules?.maxPositions ?? DEFAULT_ENTRY_RULES.maxPositions,
+      excludeSymbols:
+        config.entryRules?.excludeSymbols ?? DEFAULT_ENTRY_RULES.excludeSymbols,
+      includeSymbols:
+        config.entryRules?.includeSymbols ?? DEFAULT_ENTRY_RULES.includeSymbols,
     },
     positionSizing: {
       type: config.positionSizing?.type ?? DEFAULT_POSITION_SIZING.type,
       value: config.positionSizing?.value ?? DEFAULT_POSITION_SIZING.value,
-      maxNotional: config.positionSizing?.maxNotional ?? DEFAULT_POSITION_SIZING.maxNotional,
-      minNotional: config.positionSizing?.minNotional ?? DEFAULT_POSITION_SIZING.minNotional,
+      maxNotional:
+        config.positionSizing?.maxNotional ??
+        DEFAULT_POSITION_SIZING.maxNotional,
+      minNotional:
+        config.positionSizing?.minNotional ??
+        DEFAULT_POSITION_SIZING.minNotional,
     },
     bracketOrders: {
       enabled: config.bracketOrders?.enabled ?? DEFAULT_BRACKET_ORDERS.enabled,
-      takeProfitPercent: config.bracketOrders?.takeProfitPercent ?? DEFAULT_BRACKET_ORDERS.takeProfitPercent,
-      stopLossPercent: config.bracketOrders?.stopLossPercent ?? DEFAULT_BRACKET_ORDERS.stopLossPercent,
+      takeProfitPercent:
+        config.bracketOrders?.takeProfitPercent ??
+        DEFAULT_BRACKET_ORDERS.takeProfitPercent,
+      stopLossPercent:
+        config.bracketOrders?.stopLossPercent ??
+        DEFAULT_BRACKET_ORDERS.stopLossPercent,
       trailingStopPercent: config.bracketOrders?.trailingStopPercent,
-      useTrailingStop: config.bracketOrders?.useTrailingStop ?? DEFAULT_BRACKET_ORDERS.useTrailingStop,
+      useTrailingStop:
+        config.bracketOrders?.useTrailingStop ??
+        DEFAULT_BRACKET_ORDERS.useTrailingStop,
     },
     orderExecution: {
-      timeInForce: config.orderExecution?.timeInForce ?? DEFAULT_ORDER_EXECUTION.timeInForce,
-      orderType: config.orderExecution?.orderType ?? DEFAULT_ORDER_EXECUTION.orderType,
-      limitOffsetPercent: config.orderExecution?.limitOffsetPercent ?? DEFAULT_ORDER_EXECUTION.limitOffsetPercent,
-      extendedHours: config.orderExecution?.extendedHours ?? DEFAULT_ORDER_EXECUTION.extendedHours,
+      timeInForce:
+        config.orderExecution?.timeInForce ??
+        DEFAULT_ORDER_EXECUTION.timeInForce,
+      orderType:
+        config.orderExecution?.orderType ?? DEFAULT_ORDER_EXECUTION.orderType,
+      limitOffsetPercent:
+        config.orderExecution?.limitOffsetPercent ??
+        DEFAULT_ORDER_EXECUTION.limitOffsetPercent,
+      extendedHours:
+        config.orderExecution?.extendedHours ??
+        DEFAULT_ORDER_EXECUTION.extendedHours,
     },
     exitRules: {
       maxHoldingPeriodHours: config.exitRules?.maxHoldingPeriodHours,
@@ -225,7 +248,9 @@ export function parseStrategyParams(config?: StrategyConfig | null): StrategyExe
 /**
  * Create a full execution context from a Strategy object
  */
-export function parseStrategyContext(strategy: Strategy): StrategyExecutionContext {
+export function parseStrategyContext(
+  strategy: Strategy
+): StrategyExecutionContext {
   const config = strategy.config as StrategyConfig | null;
 
   return {
@@ -253,7 +278,10 @@ export function validateDecision(
   const rules = context.params.entryRules;
 
   // Check exclude list
-  if (rules.excludeSymbols.length > 0 && rules.excludeSymbols.includes(decision.symbol)) {
+  if (
+    rules.excludeSymbols.length > 0 &&
+    rules.excludeSymbols.includes(decision.symbol)
+  ) {
     return {
       valid: false,
       reason: `Symbol ${decision.symbol} is in the exclude list`,
@@ -261,7 +289,10 @@ export function validateDecision(
   }
 
   // Check include list (if set)
-  if (rules.includeSymbols.length > 0 && !rules.includeSymbols.includes(decision.symbol)) {
+  if (
+    rules.includeSymbols.length > 0 &&
+    !rules.includeSymbols.includes(decision.symbol)
+  ) {
     return {
       valid: false,
       reason: `Symbol ${decision.symbol} is not in the include list`,
@@ -290,8 +321,13 @@ export function validateDecision(
   }
 
   // Warning for approaching max positions
-  if (decision.action === "buy" && currentPositionCount >= rules.maxPositions - 2) {
-    warnings.push(`Approaching maximum positions (${currentPositionCount}/${rules.maxPositions})`);
+  if (
+    decision.action === "buy" &&
+    currentPositionCount >= rules.maxPositions - 2
+  ) {
+    warnings.push(
+      `Approaching maximum positions (${currentPositionCount}/${rules.maxPositions})`
+    );
   }
 
   return {
@@ -328,7 +364,8 @@ export function calculatePositionSize(
       // Risk-based sizing: value is the % of portfolio to risk per trade
       // Assume 2% stop loss, so position size = risk / stop_loss_pct
       const riskAmount = portfolioValue * (sizing.value / 100);
-      const assumedStopLossPct = context.params.bracketOrders.stopLossPercent / 100;
+      const assumedStopLossPct =
+        context.params.bracketOrders.stopLossPercent / 100;
       notional = riskAmount / assumedStopLossPct;
       break;
     default:
@@ -398,7 +435,9 @@ export function calculateBracketOrderParams(
   return {
     takeProfitPrice: Math.round(takeProfitPrice * 100) / 100,
     stopLossPrice: Math.round(stopLossPrice * 100) / 100,
-    trailingStopPercent: bracket.useTrailingStop ? bracket.trailingStopPercent : undefined,
+    trailingStopPercent: bracket.useTrailingStop
+      ? bracket.trailingStopPercent
+      : undefined,
   };
 }
 
@@ -432,7 +471,9 @@ export function getTimeInForce(
 /**
  * Get the order type setting for a strategy
  */
-export function getOrderType(context: StrategyExecutionContext): "market" | "limit" {
+export function getOrderType(
+  context: StrategyExecutionContext
+): "market" | "limit" {
   return context.params.orderExecution.orderType;
 }
 

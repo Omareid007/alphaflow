@@ -8,13 +8,13 @@
 // ============================================================================
 
 export interface AlpacaBar {
-  t: string;  // timestamp
-  o: number;  // open
-  h: number;  // high
-  l: number;  // low
-  c: number;  // close
-  v: number;  // volume
-  n: number;  // number of trades
+  t: string; // timestamp
+  o: number; // open
+  h: number; // high
+  l: number; // low
+  c: number; // close
+  v: number; // volume
+  n: number; // number of trades
   vw: number; // volume-weighted average price
 }
 
@@ -72,7 +72,12 @@ export const DEFAULT_CONFIG: Partial<BacktestConfig> = {
 // ============================================================================
 
 export type TradeSide = "buy" | "sell";
-export type ExitReason = "stop_loss" | "take_profit" | "signal" | "end_of_period" | "trailing_stop";
+export type ExitReason =
+  | "stop_loss"
+  | "take_profit"
+  | "signal"
+  | "end_of_period"
+  | "trailing_stop";
 export type SignalType = "buy" | "sell" | "hold";
 
 export interface Trade {

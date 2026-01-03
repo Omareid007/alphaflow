@@ -75,7 +75,7 @@ export async function fetchAlpacaBars(
 
     // Rate limiting
     if (rateLimitMs > 0) {
-      await new Promise(resolve => setTimeout(resolve, rateLimitMs));
+      await new Promise((resolve) => setTimeout(resolve, rateLimitMs));
     }
   } while (pageToken);
 
@@ -97,7 +97,13 @@ export async function fetchHistoricalData(
   for (const symbol of symbols) {
     console.log(`Fetching ${symbol}...`);
     try {
-      const bars = await fetchAlpacaBars(symbol, startDate, endDate, "1Day", config);
+      const bars = await fetchAlpacaBars(
+        symbol,
+        startDate,
+        endDate,
+        "1Day",
+        config
+      );
       if (bars.length > 0) {
         dataMap.set(symbol, bars);
         if (onProgress) {
@@ -126,12 +132,12 @@ export function extractOHLCV(bars: AlpacaBar[]): {
   volumes: number[];
 } {
   return {
-    dates: bars.map(b => b.t.split("T")[0]),
-    opens: bars.map(b => b.o),
-    highs: bars.map(b => b.h),
-    lows: bars.map(b => b.l),
-    closes: bars.map(b => b.c),
-    volumes: bars.map(b => b.v),
+    dates: bars.map((b) => b.t.split("T")[0]),
+    opens: bars.map((b) => b.o),
+    highs: bars.map((b) => b.h),
+    lows: bars.map((b) => b.l),
+    closes: bars.map((b) => b.c),
+    volumes: bars.map((b) => b.v),
   };
 }
 
@@ -150,21 +156,83 @@ export const SYMBOL_LISTS = {
   etfs: ["SPY", "QQQ", "IWM", "DIA", "VOO", "VTI"],
 
   // Default backtest universe
-  default: ["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA", "META", "AMZN", "AMD", "SPY", "QQQ"],
+  default: [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "NVDA",
+    "TSLA",
+    "META",
+    "AMZN",
+    "AMD",
+    "SPY",
+    "QQQ",
+  ],
 
   // Extended universe
   extended: [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AMD",
-    "AVGO", "CRM", "ADBE", "ORCL", "INTC", "QCOM", "TXN",
-    "SPY", "QQQ", "IWM", "DIA"
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "NVDA",
+    "TSLA",
+    "AMD",
+    "AVGO",
+    "CRM",
+    "ADBE",
+    "ORCL",
+    "INTC",
+    "QCOM",
+    "TXN",
+    "SPY",
+    "QQQ",
+    "IWM",
+    "DIA",
   ],
 
   // Large universe for comprehensive testing
   large: [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AMD",
-    "AVGO", "CRM", "ADBE", "ORCL", "INTC", "QCOM", "TXN", "MU",
-    "AMAT", "LRCX", "KLAC", "SNPS", "CDNS", "NFLX", "PYPL", "SQ",
-    "SHOP", "COIN", "UBER", "ABNB", "DASH", "PLTR",
-    "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI", "XLK", "XLF", "XLE", "XLV"
-  ]
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "NVDA",
+    "TSLA",
+    "AMD",
+    "AVGO",
+    "CRM",
+    "ADBE",
+    "ORCL",
+    "INTC",
+    "QCOM",
+    "TXN",
+    "MU",
+    "AMAT",
+    "LRCX",
+    "KLAC",
+    "SNPS",
+    "CDNS",
+    "NFLX",
+    "PYPL",
+    "SQ",
+    "SHOP",
+    "COIN",
+    "UBER",
+    "ABNB",
+    "DASH",
+    "PLTR",
+    "SPY",
+    "QQQ",
+    "IWM",
+    "DIA",
+    "VOO",
+    "VTI",
+    "XLK",
+    "XLF",
+    "XLE",
+    "XLV",
+  ],
 };

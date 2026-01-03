@@ -105,7 +105,9 @@ export function StaggerList({
   as = "div",
 }: StaggerListProps) {
   const prefersReducedMotion = useReducedMotion();
-  const MotionComponent = motion[as as keyof typeof motion] as typeof motion.div;
+  const MotionComponent = motion[
+    as as keyof typeof motion
+  ] as typeof motion.div;
 
   const containerVariant = {
     fast: staggerContainerFast,
@@ -147,7 +149,9 @@ export function StaggerItem({
   variant = staggerItem,
 }: StaggerItemProps) {
   const prefersReducedMotion = useReducedMotion();
-  const MotionComponent = motion[as as keyof typeof motion] as typeof motion.div;
+  const MotionComponent = motion[
+    as as keyof typeof motion
+  ] as typeof motion.div;
 
   if (prefersReducedMotion) {
     const Component = as;

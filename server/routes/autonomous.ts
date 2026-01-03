@@ -23,7 +23,10 @@ import { log } from "../utils/logger";
 import type { RequestHandler } from "express";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
-export function registerAutonomousRoutes(app: Express, authMiddleware: RequestHandler) {
+export function registerAutonomousRoutes(
+  app: Express,
+  authMiddleware: RequestHandler
+) {
   // ==================== AUTONOMOUS STATE MANAGEMENT ====================
 
   /**

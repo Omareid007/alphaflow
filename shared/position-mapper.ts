@@ -1,7 +1,7 @@
-import type { AlpacaPosition, AlpacaOrder } from '../server/connectors/alpaca';
+import type { AlpacaPosition, AlpacaOrder } from "../server/connectors/alpaca";
 
 export interface DataSourceMetadata {
-  source: 'alpaca_live' | 'cache_stale' | 'unavailable';
+  source: "alpaca_live" | "cache_stale" | "unavailable";
   fetchedAt: string;
   cacheAge?: number;
   isStale: boolean;
@@ -21,7 +21,7 @@ export interface EnrichedPosition {
   // SYNC FIX: Use 'unrealizedPlPct' for consistency with frontend Position interface
   unrealizedPlPct: number;
   unrealizedPnlPercent: number; // Deprecated: kept for backward compatibility
-  side: 'long' | 'short';
+  side: "long" | "short";
   marketValue: number;
   costBasis: number;
   changeToday: number;
@@ -36,7 +36,7 @@ export interface EnrichedOrder {
   symbol: string;
   quantity: number;
   filledQuantity: number;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   type: string;
   status: string;
   limitPrice: number | null;
@@ -49,9 +49,12 @@ export interface EnrichedOrder {
   _source: DataSourceMetadata;
 }
 
-export function safeParseFloat(value: string | number | null | undefined, fallback: number = 0): number {
+export function safeParseFloat(
+  value: string | number | null | undefined,
+  fallback: number = 0
+): number {
   if (value === null || value === undefined) return fallback;
-  const parsed = typeof value === 'number' ? value : parseFloat(value);
+  const parsed = typeof value === "number" ? value : parseFloat(value);
   return isNaN(parsed) ? fallback : parsed;
 }
 
@@ -77,14 +80,14 @@ export function mapAlpacaPositionToEnriched(
     // SYNC FIX: Provide both field names for backward compatibility
     unrealizedPlPct: unrealizedPlPctValue,
     unrealizedPnlPercent: unrealizedPlPctValue, // Deprecated alias
-    side: qtyValue > 0 ? 'long' : 'short',
+    side: qtyValue > 0 ? "long" : "short",
     marketValue: safeParseFloat(position.market_value),
     costBasis: safeParseFloat(position.cost_basis),
     changeToday: safeParseFloat(position.change_today) * 100,
     assetClass: position.asset_class,
     exchange: position.exchange,
     _source: {
-      source: 'alpaca_live',
+      source: "alpaca_live",
       fetchedAt: fetchedAt.toISOString(),
       isStale: false,
     },
@@ -101,18 +104,20 @@ export function mapAlpacaOrderToEnriched(
     symbol: order.symbol,
     quantity: safeParseFloat(order.qty),
     filledQuantity: safeParseFloat(order.filled_qty),
-    side: order.side as 'buy' | 'sell',
+    side: order.side as "buy" | "sell",
     type: order.type,
     status: order.status,
     limitPrice: order.limit_price ? safeParseFloat(order.limit_price) : null,
     stopPrice: order.stop_price ? safeParseFloat(order.stop_price) : null,
-    filledAvgPrice: order.filled_avg_price ? safeParseFloat(order.filled_avg_price) : null,
+    filledAvgPrice: order.filled_avg_price
+      ? safeParseFloat(order.filled_avg_price)
+      : null,
     createdAt: order.created_at,
     filledAt: order.filled_at,
     timeInForce: order.time_in_force,
     extendedHours: order.extended_hours,
     _source: {
-      source: 'alpaca_live',
+      source: "alpaca_live",
       fetchedAt: fetchedAt.toISOString(),
       isStale: false,
     },
@@ -130,22 +135,26 @@ export interface DBPositionInsert {
   strategyId?: string | null;
 }
 
-export function mapAlpacaPositionToDBInsert(position: AlpacaPosition): DBPositionInsert {
+export function mapAlpacaPositionToDBInsert(
+  position: AlpacaPosition
+): DBPositionInsert {
   const qty = safeParseFloat(position.qty);
-  
+
   return {
     symbol: position.symbol,
     quantity: position.qty,
     entryPrice: position.avg_entry_price,
     currentPrice: position.current_price,
     unrealizedPnl: position.unrealized_pl,
-    side: qty > 0 ? 'long' : 'short',
+    side: qty > 0 ? "long" : "short",
   };
 }
 
-export function createUnavailableSourceMetadata(error?: string): DataSourceMetadata {
+export function createUnavailableSourceMetadata(
+  error?: string
+): DataSourceMetadata {
   return {
-    source: 'unavailable',
+    source: "unavailable",
     fetchedAt: new Date().toISOString(),
     isStale: true,
   };
@@ -154,7 +163,7 @@ export function createUnavailableSourceMetadata(error?: string): DataSourceMetad
 export function createStaleSourceMetadata(cachedAt: Date): DataSourceMetadata {
   const now = new Date();
   return {
-    source: 'cache_stale',
+    source: "cache_stale",
     fetchedAt: cachedAt.toISOString(),
     cacheAge: now.getTime() - cachedAt.getTime(),
     isStale: true,
@@ -163,7 +172,7 @@ export function createStaleSourceMetadata(cachedAt: Date): DataSourceMetadata {
 
 export function createLiveSourceMetadata(): DataSourceMetadata {
   return {
-    source: 'alpaca_live',
+    source: "alpaca_live",
     fetchedAt: new Date().toISOString(),
     isStale: false,
   };

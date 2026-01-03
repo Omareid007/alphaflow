@@ -13,7 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, TrendingUp, AlertCircle, CheckCircle2, ArrowLeft, Mail } from "lucide-react";
+import {
+  Loader2,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  ArrowLeft,
+  Mail,
+} from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -36,12 +43,16 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "Failed to send reset email");
+        throw new Error(
+          data.error || data.message || "Failed to send reset email"
+        );
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
+      setError(
+        err instanceof Error ? err.message : "Failed to send reset email"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +68,8 @@ export default function ForgotPasswordPage() {
             </div>
             <CardTitle className="text-2xl">Check Your Email</CardTitle>
             <CardDescription>
-              If an account exists for {email}, you will receive a password reset link shortly.
+              If an account exists for {email}, you will receive a password
+              reset link shortly.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -107,7 +119,8 @@ export default function ForgotPasswordPage() {
           </div>
           <CardTitle className="text-2xl">Forgot Password?</CardTitle>
           <CardDescription>
-            Enter your email address and we&apos;ll send you a link to reset your password.
+            Enter your email address and we&apos;ll send you a link to reset
+            your password.
           </CardDescription>
         </CardHeader>
         <CardContent>

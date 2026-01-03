@@ -117,7 +117,9 @@ function checkDependencies() {
 
   if (missingOptional.length > 0) {
     console.log("\n⚠️  Missing Optional Dependencies");
-    console.log("These are not required but recommended for full functionality:");
+    console.log(
+      "These are not required but recommended for full functionality:"
+    );
     console.log(`\nnpm install ${missingOptional.join(" ")}\n`);
   } else {
     console.log("✅ All optional dependencies are installed!");

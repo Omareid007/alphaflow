@@ -6,7 +6,16 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, numeric, integer, jsonb, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  timestamp,
+  numeric,
+  integer,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -20,24 +29,28 @@ import { z } from "zod";
  * change percentages for trend analysis. Indexed by indicator ID and category
  * for efficient lookups.
  */
-export const macroIndicators = pgTable("macro_indicators", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  indicatorId: text("indicator_id").notNull().unique(),
-  name: text("name").notNull(),
-  category: text("category").notNull(),
-  latestValue: numeric("latest_value"),
-  previousValue: numeric("previous_value"),
-  changePercent: numeric("change_percent"),
-  frequency: text("frequency"),
-  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
-  source: text("source").notNull().default("FRED"),
-  rawJson: jsonb("raw_json"),
-}, (table) => [
-  index("macro_indicators_category_idx").on(table.category),
-  index("macro_indicators_indicator_id_idx").on(table.indicatorId),
-]);
+export const macroIndicators = pgTable(
+  "macro_indicators",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    indicatorId: text("indicator_id").notNull().unique(),
+    name: text("name").notNull(),
+    category: text("category").notNull(),
+    latestValue: numeric("latest_value"),
+    previousValue: numeric("previous_value"),
+    changePercent: numeric("change_percent"),
+    frequency: text("frequency"),
+    lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+    source: text("source").notNull().default("FRED"),
+    rawJson: jsonb("raw_json"),
+  },
+  (table) => [
+    index("macro_indicators_category_idx").on(table.category),
+    index("macro_indicators_indicator_id_idx").on(table.indicatorId),
+  ]
+);
 
 /**
  * Generic cache for external API responses.
@@ -111,12 +124,16 @@ export const valyuRetrievalCounters = pgTable("valyu_retrieval_counters", {
 });
 
 // Insert schemas
-export const insertMacroIndicatorsSchema = createInsertSchema(macroIndicators).omit({
+export const insertMacroIndicatorsSchema = createInsertSchema(
+  macroIndicators
+).omit({
   id: true,
   lastUpdatedAt: true,
 });
 
-export const insertExternalApiCacheEntrySchema = createInsertSchema(externalApiCacheEntries).omit({
+export const insertExternalApiCacheEntrySchema = createInsertSchema(
+  externalApiCacheEntries
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -124,13 +141,17 @@ export const insertExternalApiCacheEntrySchema = createInsertSchema(externalApiC
   lastAccessedAt: true,
 });
 
-export const insertExternalApiUsageCounterSchema = createInsertSchema(externalApiUsageCounters).omit({
+export const insertExternalApiUsageCounterSchema = createInsertSchema(
+  externalApiUsageCounters
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertValyuRetrievalCounterSchema = createInsertSchema(valyuRetrievalCounters).omit({
+export const insertValyuRetrievalCounterSchema = createInsertSchema(
+  valyuRetrievalCounters
+).omit({
   id: true,
   lastUpdated: true,
 });
@@ -139,11 +160,15 @@ export const insertValyuRetrievalCounterSchema = createInsertSchema(valyuRetriev
 export type InsertMacroIndicators = z.infer<typeof insertMacroIndicatorsSchema>;
 export type MacroIndicators = typeof macroIndicators.$inferSelect;
 
-export type InsertExternalApiCacheEntry = typeof externalApiCacheEntries.$inferInsert;
+export type InsertExternalApiCacheEntry =
+  typeof externalApiCacheEntries.$inferInsert;
 export type ExternalApiCacheEntry = typeof externalApiCacheEntries.$inferSelect;
 
-export type InsertExternalApiUsageCounter = typeof externalApiUsageCounters.$inferInsert;
-export type ExternalApiUsageCounter = typeof externalApiUsageCounters.$inferSelect;
+export type InsertExternalApiUsageCounter =
+  typeof externalApiUsageCounters.$inferInsert;
+export type ExternalApiUsageCounter =
+  typeof externalApiUsageCounters.$inferSelect;
 
-export type InsertValyuRetrievalCounter = typeof valyuRetrievalCounters.$inferInsert;
+export type InsertValyuRetrievalCounter =
+  typeof valyuRetrievalCounters.$inferInsert;
 export type ValyuRetrievalCounter = typeof valyuRetrievalCounters.$inferSelect;

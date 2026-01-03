@@ -5,8 +5,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/lib/utils/useDebounce";
 
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /**
    * Optional debounce delay in milliseconds.
    * When set, the onChange event will be debounced.

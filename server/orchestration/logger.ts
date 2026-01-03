@@ -2,7 +2,7 @@ import { eventBus, type SystemEvent, type TradingEvent } from "./events";
 import { pinoLogger } from "../utils/logger";
 
 // Create a child logger for orchestration
-const orchestrationLogger = pinoLogger.child({ module: 'orchestration' });
+const orchestrationLogger = pinoLogger.child({ module: "orchestration" });
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical";
 

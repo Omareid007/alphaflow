@@ -11,16 +11,20 @@ import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 const router = Router();
 
 // GET /api/stock/quote/:symbol - Get stock quote
-router.get("/quote/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const quote = await finnhub.getQuote(symbol);
-    res.json(quote);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get stock quote", { error });
-    res.status(500).json({ error: "Failed to fetch stock quote" });
+router.get(
+  "/quote/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const quote = await finnhub.getQuote(symbol);
+      res.json(quote);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get stock quote", { error });
+      res.status(500).json({ error: "Failed to fetch stock quote" });
+    }
   }
-});
+);
 
 // GET /api/stock/quotes - Get multiple stock quotes
 router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
@@ -41,33 +45,41 @@ router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/stock/candles/:symbol - Get stock candles/chart data
-router.get("/candles/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const resolution = (req.query.resolution as string) || "D";
-    const from = req.query.from
-      ? parseInt(req.query.from as string)
-      : undefined;
-    const to = req.query.to ? parseInt(req.query.to as string) : undefined;
-    const candles = await finnhub.getCandles(symbol, resolution, from, to);
-    res.json(candles);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get stock candles", { error });
-    res.status(500).json({ error: "Failed to fetch stock candles" });
+router.get(
+  "/candles/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const resolution = (req.query.resolution as string) || "D";
+      const from = req.query.from
+        ? parseInt(req.query.from as string)
+        : undefined;
+      const to = req.query.to ? parseInt(req.query.to as string) : undefined;
+      const candles = await finnhub.getCandles(symbol, resolution, from, to);
+      res.json(candles);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get stock candles", { error });
+      res.status(500).json({ error: "Failed to fetch stock candles" });
+    }
   }
-});
+);
 
 // GET /api/stock/profile/:symbol - Get company profile
-router.get("/profile/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const profile = await finnhub.getCompanyProfile(symbol);
-    res.json(profile);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get company profile", { error });
-    res.status(500).json({ error: "Failed to fetch company profile" });
+router.get(
+  "/profile/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await finnhub.getCompanyProfile(symbol);
+      res.json(profile);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get company profile", { error });
+      res.status(500).json({ error: "Failed to fetch company profile" });
+    }
   }
-});
+);
 
 // GET /api/stock/search - Search for stocks
 router.get("/search", requireAuth, async (req: Request, res: Response) => {

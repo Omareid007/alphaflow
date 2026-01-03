@@ -5,13 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import {
-  Home,
-  Layers,
-  Plus,
-  PieChart,
-  Brain,
-} from "lucide-react";
+import { Home, Layers, Plus, PieChart, Brain } from "lucide-react";
 import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
 
 /**
@@ -118,8 +112,8 @@ function NavItem({
         isPrimary
           ? "text-primary-foreground"
           : isActive
-          ? "text-primary"
-          : "text-muted-foreground"
+            ? "text-primary"
+            : "text-muted-foreground"
       )}
       aria-current={isActive ? "page" : undefined}
     >
@@ -140,7 +134,9 @@ function NavItem({
               <motion.div
                 className="absolute -top-1 left-1/2 h-1 w-1 rounded-full bg-primary"
                 initial={prefersReducedMotion ? {} : { scale: 0, x: "-50%" }}
-                animate={prefersReducedMotion ? { x: "-50%" } : { scale: 1, x: "-50%" }}
+                animate={
+                  prefersReducedMotion ? { x: "-50%" } : { scale: 1, x: "-50%" }
+                }
                 exit={prefersReducedMotion ? {} : { scale: 0, x: "-50%" }}
                 transition={{ duration: 0.15 }}
               />

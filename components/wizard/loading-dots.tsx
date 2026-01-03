@@ -27,7 +27,11 @@ interface LoadingDotsProps {
  * Animated loading dots indicator
  * Shows three dots with a wave animation
  */
-export function LoadingDots({ size = "md", className, variant = "primary" }: LoadingDotsProps) {
+export function LoadingDots({
+  size = "md",
+  className,
+  variant = "primary",
+}: LoadingDotsProps) {
   const prefersReducedMotion = useReducedMotion();
 
   const sizeClasses = {
@@ -69,7 +73,11 @@ export function LoadingDots({ size = "md", className, variant = "primary" }: Loa
       {[0, 1, 2].map((index) => (
         <motion.div
           key={index}
-          className={cn("rounded-full", sizeClasses[size], variantClasses[variant])}
+          className={cn(
+            "rounded-full",
+            sizeClasses[size],
+            variantClasses[variant]
+          )}
           variants={dotVariants}
           animate="loading"
           transition={{

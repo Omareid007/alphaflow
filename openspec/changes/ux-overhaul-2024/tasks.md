@@ -176,16 +176,16 @@
 
 ### 6.2 Enhanced Form Components
 
-- [ ] components/ui/input.tsx (add debouncing)
-- [ ] components/ui/textarea.tsx (add debouncing)
+- [x] components/ui/input.tsx (add debouncing)
+- [x] components/ui/textarea.tsx (add debouncing)
 - [ ] components/ui/form-field.tsx (better error display)
 - [x] components/ui/form-error.tsx (accessible errors)
 
 ### 6.3 Wizard Enhancements
 
-- [ ] components/wizard/strategy-wizard.tsx (add loading states)
-- [ ] components/wizard/wizard-field.tsx (add debouncing)
-- [ ] components/wizard/wizard-navigation.tsx (add animations)
+- [x] components/wizard/strategy-wizard.tsx (add loading states)
+- [x] components/wizard/wizard-field.tsx (add debouncing)
+- [x] components/wizard/wizard-navigation.tsx (add animations)
 
 ## Phase 7: Bundle Optimization 📦
 

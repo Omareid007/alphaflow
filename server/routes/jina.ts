@@ -73,31 +73,35 @@ router.post("/rerank", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/semantic-search", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { query, corpus, topK } = req.body;
-    if (!query || !corpus || !Array.isArray(corpus)) {
-      return res
-        .status(400)
-        .json({ error: "query and corpus array are required" });
+router.post(
+  "/semantic-search",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { query, corpus, topK } = req.body;
+      if (!query || !corpus || !Array.isArray(corpus)) {
+        return res
+          .status(400)
+          .json({ error: "query and corpus array are required" });
+      }
+      if (corpus.length > 100) {
+        return res
+          .status(413)
+          .json({ error: "corpus exceeds maximum size of 100 documents" });
+      }
+      if (query.length > 10000) {
+        return res
+          .status(413)
+          .json({ error: "query exceeds maximum length of 10000 characters" });
+      }
+      const result = await jina.semanticSearch(query, corpus, { topK });
+      res.json(result);
+    } catch (error) {
+      log.error("JinaRoutes", `Semantic search error: ${error}`);
+      res.status(500).json({ error: String(error) });
     }
-    if (corpus.length > 100) {
-      return res
-        .status(413)
-        .json({ error: "corpus exceeds maximum size of 100 documents" });
-    }
-    if (query.length > 10000) {
-      return res
-        .status(413)
-        .json({ error: "query exceeds maximum length of 10000 characters" });
-    }
-    const result = await jina.semanticSearch(query, corpus, { topK });
-    res.json(result);
-  } catch (error) {
-    log.error("JinaRoutes", `Semantic search error: ${error}`);
-    res.status(500).json({ error: String(error) });
   }
-});
+);
 
 router.get("/health", requireAuth, async (_req: Request, res: Response) => {
   const hasKey = !!process.env.JINA_API_KEY;

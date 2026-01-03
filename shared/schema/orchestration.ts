@@ -6,7 +6,16 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, numeric, boolean, integer, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  timestamp,
+  numeric,
+  boolean,
+  integer,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { aiDecisions } from "./ai-decisions";
@@ -37,7 +46,7 @@ export const workItemTypes = [
   "ASSET_UNIVERSE_SYNC",
 ] as const;
 
-export type WorkItemType = typeof workItemTypes[number];
+export type WorkItemType = (typeof workItemTypes)[number];
 
 /**
  * Execution status of a work item.
@@ -57,7 +66,7 @@ export const workItemStatuses = [
   "DEAD_LETTER",
 ] as const;
 
-export type WorkItemStatus = typeof workItemStatuses[number];
+export type WorkItemStatus = (typeof workItemStatuses)[number];
 
 /**
  * Status of an AI arena run.
@@ -69,7 +78,12 @@ export type WorkItemStatus = typeof workItemStatuses[number];
  * @property {string} failed - Arena run failed with error
  * @property {string} cancelled - Arena run was cancelled
  */
-export type ArenaRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type ArenaRunStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 /**
  * Mode of operation for an AI arena run.
@@ -151,7 +165,9 @@ export const workItems = pgTable("work_items", {
   lastError: text("last_error"),
   payload: text("payload"),
   idempotencyKey: text("idempotency_key").unique(),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
+  decisionId: varchar("decision_id").references(() => aiDecisions.id, {
+    onDelete: "set null",
+  }),
   brokerOrderId: text("broker_order_id"),
   symbol: text("symbol"),
   result: text("result"),
@@ -188,7 +204,9 @@ export const workItemRuns = pgTable("work_item_runs", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "cascade" }).notNull(),
+  workItemId: varchar("work_item_id")
+    .references(() => workItems.id, { onDelete: "cascade" })
+    .notNull(),
   attemptNumber: integer("attempt_number").notNull(),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -223,41 +241,45 @@ export type WorkItemRun = typeof workItemRuns.$inferSelect;
  * @relation strategyVersions - Associated strategy version (database-level FK only)
  * Note: Foreign key left unresolved to avoid circular dependency
  */
-export const aiArenaRuns = pgTable("ai_arena_runs", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  traceId: text("trace_id").notNull(),
-  mode: text("mode").$type<ArenaMode>().default("debate").notNull(),
-  symbols: text("symbols").array().notNull(),
-  agentProfileIds: text("agent_profile_ids").array().notNull(),
-  marketSnapshotHash: text("market_snapshot_hash"),
-  portfolioSnapshotHash: text("portfolio_snapshot_hash"),
-  // Note: strategyVersionId references strategy_versions table but defined without .references() to avoid circular type dependency
-  // The foreign key constraint exists at database level via migration
-  strategyVersionId: varchar("strategy_version_id"),
-  status: text("status").$type<ArenaRunStatus>().default("pending").notNull(),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  durationMs: integer("duration_ms"),
-  totalTokensUsed: integer("total_tokens_used").default(0),
-  totalCostUsd: numeric("total_cost_usd").default("0"),
-  escalationTriggered: boolean("escalation_triggered").default(false),
-  escalationReason: text("escalation_reason"),
-  consensusReached: boolean("consensus_reached"),
-  finalDecision: text("final_decision"),
-  disagreementRate: numeric("disagreement_rate"),
-  avgConfidence: numeric("avg_confidence"),
-  triggeredBy: text("triggered_by"),
-  outcomeLinked: boolean("outcome_linked").default(false),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("ai_arena_runs_trace_id_idx").on(table.traceId),
-  index("ai_arena_runs_status_idx").on(table.status),
-  index("ai_arena_runs_mode_idx").on(table.mode),
-  index("ai_arena_runs_created_at_idx").on(table.createdAt),
-]);
+export const aiArenaRuns = pgTable(
+  "ai_arena_runs",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    traceId: text("trace_id").notNull(),
+    mode: text("mode").$type<ArenaMode>().default("debate").notNull(),
+    symbols: text("symbols").array().notNull(),
+    agentProfileIds: text("agent_profile_ids").array().notNull(),
+    marketSnapshotHash: text("market_snapshot_hash"),
+    portfolioSnapshotHash: text("portfolio_snapshot_hash"),
+    // Note: strategyVersionId references strategy_versions table but defined without .references() to avoid circular type dependency
+    // The foreign key constraint exists at database level via migration
+    strategyVersionId: varchar("strategy_version_id"),
+    status: text("status").$type<ArenaRunStatus>().default("pending").notNull(),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    durationMs: integer("duration_ms"),
+    totalTokensUsed: integer("total_tokens_used").default(0),
+    totalCostUsd: numeric("total_cost_usd").default("0"),
+    escalationTriggered: boolean("escalation_triggered").default(false),
+    escalationReason: text("escalation_reason"),
+    consensusReached: boolean("consensus_reached"),
+    finalDecision: text("final_decision"),
+    disagreementRate: numeric("disagreement_rate"),
+    avgConfidence: numeric("avg_confidence"),
+    triggeredBy: text("triggered_by"),
+    outcomeLinked: boolean("outcome_linked").default(false),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_arena_runs_trace_id_idx").on(table.traceId),
+    index("ai_arena_runs_status_idx").on(table.status),
+    index("ai_arena_runs_mode_idx").on(table.mode),
+    index("ai_arena_runs_created_at_idx").on(table.createdAt),
+  ]
+);
 
 export const insertAiArenaRunSchema = createInsertSchema(aiArenaRuns).omit({
   id: true,
@@ -286,42 +308,54 @@ import { DebateRole } from "./debate-arena";
  * @relation aiAgentProfiles - Agent profile (database-level FK only)
  * Note: agentProfileId foreign key left unresolved to avoid circular dependency
  */
-export const aiArenaAgentDecisions = pgTable("ai_arena_agent_decisions", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  arenaRunId: varchar("arena_run_id").references(() => aiArenaRuns.id, { onDelete: "cascade" }).notNull(),
-  // Note: agentProfileId references ai_agent_profiles table but defined without .references() to avoid circular type dependency
-  // The foreign key constraint exists at database level via migration
-  agentProfileId: varchar("agent_profile_id"),
-  role: text("role").$type<DebateRole>().notNull(),
-  action: text("action").notNull(),
-  symbols: text("symbols").array(),
-  confidence: numeric("confidence"),
-  stance: text("stance"),
-  rationale: text("rationale"),
-  keySignals: text("key_signals"),
-  risks: text("risks"),
-  proposedOrder: text("proposed_order"),
-  tokensUsed: integer("tokens_used"),
-  costUsd: numeric("cost_usd"),
-  latencyMs: integer("latency_ms"),
-  modelUsed: text("model_used"),
-  wasEscalation: boolean("was_escalation").default(false),
-  rawOutput: text("raw_output"),
-  toolCallsCount: integer("tool_calls_count").default(0),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("ai_arena_agent_decisions_run_id_idx").on(table.arenaRunId),
-  index("ai_arena_agent_decisions_agent_profile_id_idx").on(table.agentProfileId),
-  index("ai_arena_agent_decisions_role_idx").on(table.role),
-]);
+export const aiArenaAgentDecisions = pgTable(
+  "ai_arena_agent_decisions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    arenaRunId: varchar("arena_run_id")
+      .references(() => aiArenaRuns.id, { onDelete: "cascade" })
+      .notNull(),
+    // Note: agentProfileId references ai_agent_profiles table but defined without .references() to avoid circular type dependency
+    // The foreign key constraint exists at database level via migration
+    agentProfileId: varchar("agent_profile_id"),
+    role: text("role").$type<DebateRole>().notNull(),
+    action: text("action").notNull(),
+    symbols: text("symbols").array(),
+    confidence: numeric("confidence"),
+    stance: text("stance"),
+    rationale: text("rationale"),
+    keySignals: text("key_signals"),
+    risks: text("risks"),
+    proposedOrder: text("proposed_order"),
+    tokensUsed: integer("tokens_used"),
+    costUsd: numeric("cost_usd"),
+    latencyMs: integer("latency_ms"),
+    modelUsed: text("model_used"),
+    wasEscalation: boolean("was_escalation").default(false),
+    rawOutput: text("raw_output"),
+    toolCallsCount: integer("tool_calls_count").default(0),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_arena_agent_decisions_run_id_idx").on(table.arenaRunId),
+    index("ai_arena_agent_decisions_agent_profile_id_idx").on(
+      table.agentProfileId
+    ),
+    index("ai_arena_agent_decisions_role_idx").on(table.role),
+  ]
+);
 
-export const insertAiArenaAgentDecisionSchema = createInsertSchema(aiArenaAgentDecisions).omit({
+export const insertAiArenaAgentDecisionSchema = createInsertSchema(
+  aiArenaAgentDecisions
+).omit({
   id: true,
   createdAt: true,
 });
 
-export type InsertAiArenaAgentDecision = z.infer<typeof insertAiArenaAgentDecisionSchema>;
+export type InsertAiArenaAgentDecision = z.infer<
+  typeof insertAiArenaAgentDecisionSchema
+>;
 export type AiArenaAgentDecision = typeof aiArenaAgentDecisions.$inferSelect;

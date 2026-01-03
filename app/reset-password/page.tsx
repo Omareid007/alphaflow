@@ -42,7 +42,9 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     if (!token) {
-      setError("Invalid or missing reset token. Please request a new password reset.");
+      setError(
+        "Invalid or missing reset token. Please request a new password reset."
+      );
     }
   }, [token]);
 
@@ -95,7 +97,9 @@ function ResetPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "Failed to reset password");
+        throw new Error(
+          data.error || data.message || "Failed to reset password"
+        );
       }
 
       setSuccess(true);
@@ -114,16 +118,16 @@ function ResetPasswordForm() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-green-500">
               <CheckCircle2 className="h-6 w-6 text-white" />
             </div>
-            <CardTitle className="text-2xl">Password Reset Successful</CardTitle>
+            <CardTitle className="text-2xl">
+              Password Reset Successful
+            </CardTitle>
             <CardDescription>
-              Your password has been reset successfully. You can now log in with your new password.
+              Your password has been reset successfully. You can now log in with
+              your new password.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              className="w-full"
-              onClick={() => router.push("/login")}
-            >
+            <Button className="w-full" onClick={() => router.push("/login")}>
               Go to Login
             </Button>
           </CardContent>
@@ -142,14 +146,13 @@ function ResetPasswordForm() {
             </div>
             <CardTitle className="text-2xl">Invalid Reset Link</CardTitle>
             <CardDescription>
-              This password reset link is invalid or has expired. Please request a new one.
+              This password reset link is invalid or has expired. Please request
+              a new one.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Link href="/forgot-password" className="block">
-              <Button className="w-full">
-                Request New Reset Link
-              </Button>
+              <Button className="w-full">Request New Reset Link</Button>
             </Link>
             <Link href="/login" className="block">
               <Button variant="ghost" className="w-full">
@@ -171,9 +174,7 @@ function ResetPasswordForm() {
             <TrendingUp className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">Reset Your Password</CardTitle>
-          <CardDescription>
-            Enter your new password below.
-          </CardDescription>
+          <CardDescription>Enter your new password below.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -205,7 +206,11 @@ function ResetPasswordForm() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -219,7 +224,10 @@ function ResetPasswordForm() {
                   placeholder="Confirm your new password"
                   value={formData.confirmPassword}
                   onChange={(e) =>
-                    setFormData({ ...formData, confirmPassword: e.target.value })
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
                   }
                   required
                   disabled={isLoading}
@@ -231,24 +239,46 @@ function ResetPasswordForm() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Password requirements:</p>
+              <p className="font-medium text-foreground mb-1">
+                Password requirements:
+              </p>
               <ul className="list-disc list-inside space-y-0.5">
-                <li className={formData.password.length >= 8 ? "text-green-600" : ""}>
+                <li
+                  className={
+                    formData.password.length >= 8 ? "text-green-600" : ""
+                  }
+                >
                   At least 8 characters
                 </li>
-                <li className={/[A-Z]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[A-Z]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   One uppercase letter
                 </li>
-                <li className={/[a-z]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[a-z]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   One lowercase letter
                 </li>
-                <li className={/[0-9]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[0-9]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   One number
                 </li>
               </ul>
@@ -285,11 +315,13 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <ResetPasswordForm />
     </Suspense>
   );

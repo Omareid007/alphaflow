@@ -5,7 +5,11 @@
  * All indicators return arrays where null indicates insufficient data
  */
 
-import type { StochasticResult, MACDResult, BollingerBandsResult } from "./types.js";
+import type {
+  StochasticResult,
+  MACDResult,
+  BollingerBandsResult,
+} from "./types.js";
 
 // ============================================================================
 // MOVING AVERAGES
@@ -14,7 +18,10 @@ import type { StochasticResult, MACDResult, BollingerBandsResult } from "./types
 /**
  * Simple Moving Average
  */
-export function calculateSMA(prices: number[], period: number): (number | null)[] {
+export function calculateSMA(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const sma: (number | null)[] = new Array(prices.length).fill(null);
   if (prices.length < period) return sma;
 
@@ -31,7 +38,10 @@ export function calculateSMA(prices: number[], period: number): (number | null)[
 /**
  * Exponential Moving Average
  */
-export function calculateEMA(prices: number[], period: number): (number | null)[] {
+export function calculateEMA(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const ema: (number | null)[] = new Array(prices.length).fill(null);
   if (prices.length < period) return ema;
 
@@ -55,7 +65,10 @@ export function calculateEMA(prices: number[], period: number): (number | null)[
 /**
  * Weighted Moving Average
  */
-export function calculateWMA(prices: number[], period: number): (number | null)[] {
+export function calculateWMA(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const wma: (number | null)[] = new Array(prices.length).fill(null);
   if (prices.length < period) return wma;
 
@@ -78,7 +91,10 @@ export function calculateWMA(prices: number[], period: number): (number | null)[
 /**
  * Relative Strength Index
  */
-export function calculateRSI(prices: number[], period: number): (number | null)[] {
+export function calculateRSI(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const rsi: (number | null)[] = new Array(prices.length).fill(null);
   if (prices.length < period + 1) return rsi;
 
@@ -94,7 +110,7 @@ export function calculateRSI(prices: number[], period: number): (number | null)[
   avgGain /= period;
   avgLoss /= period;
 
-  rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  rsi[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
 
   // Subsequent RSI values using smoothed averages
   for (let i = period + 1; i < prices.length; i++) {
@@ -105,7 +121,7 @@ export function calculateRSI(prices: number[], period: number): (number | null)[
     avgGain = (avgGain * (period - 1) + gain) / period;
     avgLoss = (avgLoss * (period - 1) + loss) / period;
 
-    rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+    rsi[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
   }
 
   return rsi;
@@ -133,9 +149,10 @@ export function calculateStochastic(
       highestHigh = Math.max(highestHigh, highs[i - j]);
       lowestLow = Math.min(lowestLow, lows[i - j]);
     }
-    k[i] = highestHigh === lowestLow
-      ? 50
-      : ((closes[i] - lowestLow) / (highestHigh - lowestLow)) * 100;
+    k[i] =
+      highestHigh === lowestLow
+        ? 50
+        : ((closes[i] - lowestLow) / (highestHigh - lowestLow)) * 100;
   }
 
   // Calculate %D (SMA of %K)
@@ -157,7 +174,10 @@ export function calculateStochastic(
 /**
  * Rate of Change
  */
-export function calculateROC(prices: number[], period: number): (number | null)[] {
+export function calculateROC(
+  prices: number[],
+  period: number
+): (number | null)[] {
   const roc: (number | null)[] = new Array(prices.length).fill(null);
   for (let i = period; i < prices.length; i++) {
     roc[i] = ((prices[i] - prices[i - period]) / prices[i - period]) * 100;
@@ -183,9 +203,10 @@ export function calculateWilliamsR(
       highestHigh = Math.max(highestHigh, highs[i - j]);
       lowestLow = Math.min(lowestLow, lows[i - j]);
     }
-    wr[i] = highestHigh === lowestLow
-      ? -50
-      : ((highestHigh - closes[i]) / (highestHigh - lowestLow)) * -100;
+    wr[i] =
+      highestHigh === lowestLow
+        ? -50
+        : ((highestHigh - closes[i]) / (highestHigh - lowestLow)) * -100;
   }
   return wr;
 }
@@ -215,7 +236,8 @@ export function calculateCCI(
     }
     meanDeviation /= period;
 
-    cci[i] = meanDeviation === 0 ? 0 : (tp[i] - smaTP) / (0.015 * meanDeviation);
+    cci[i] =
+      meanDeviation === 0 ? 0 : (tp[i] - smaTP) / (0.015 * meanDeviation);
   }
   return cci;
 }
@@ -252,7 +274,11 @@ export function calculateMACD(
 
   let signalIdx = 0;
   for (let i = slowPeriod - 1; i < prices.length; i++) {
-    if (line[i] !== null && signalIdx < signalEMA.length && signalEMA[signalIdx] !== null) {
+    if (
+      line[i] !== null &&
+      signalIdx < signalEMA.length &&
+      signalEMA[signalIdx] !== null
+    ) {
       signal[i] = signalEMA[signalIdx]!;
       histogram[i] = line[i]! - signal[i]!;
       signalIdx++;
@@ -399,7 +425,11 @@ export function calculateKeltnerChannels(
   emaPeriod: number = 20,
   atrPeriod: number = 10,
   multiplier: number = 2
-): { upper: (number | null)[]; middle: (number | null)[]; lower: (number | null)[] } {
+): {
+  upper: (number | null)[];
+  middle: (number | null)[];
+  lower: (number | null)[];
+} {
   const middle = calculateEMA(closes, emaPeriod);
   const atr = calculateATR(highs, lows, closes, atrPeriod);
 
@@ -468,7 +498,7 @@ export function calculateMFI(
     }
 
     const moneyRatio = negativeFlow === 0 ? 100 : positiveFlow / negativeFlow;
-    mfi[i] = 100 - (100 / (1 + moneyRatio));
+    mfi[i] = 100 - 100 / (1 + moneyRatio);
   }
 
   return mfi;
@@ -491,7 +521,9 @@ export function calculateVWAP(
     const typicalPrice = (highs[i] + lows[i] + closes[i]) / 3;
     cumulativeTPV += typicalPrice * volumes[i];
     cumulativeVolume += volumes[i];
-    vwap.push(cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice);
+    vwap.push(
+      cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice
+    );
   }
 
   return vwap;

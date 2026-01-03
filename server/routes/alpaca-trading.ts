@@ -65,30 +65,34 @@ router.post("/execute", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/close/:symbol - Close a position for a symbol
-router.post("/close/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const { strategyId } = req.body;
+router.post(
+  "/close/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const { strategyId } = req.body;
 
-    // SECURITY: Mark as authorized since this is an admin-initiated action
-    const result = await alpacaTradingEngine.closeAlpacaPosition(
-      symbol,
-      strategyId,
-      {
-        authorizedByOrchestrator: true,
+      // SECURITY: Mark as authorized since this is an admin-initiated action
+      const result = await alpacaTradingEngine.closeAlpacaPosition(
+        symbol,
+        strategyId,
+        {
+          authorizedByOrchestrator: true,
+        }
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
       }
-    );
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaTradingAPI", "Close Alpaca position error", { error });
+      res.status(500).json({ error: "Failed to close Alpaca position" });
     }
-
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaTradingAPI", "Close Alpaca position error", { error });
-    res.status(500).json({ error: "Failed to close Alpaca position" });
   }
-});
+);
 
 // POST /api/alpaca-trading/analyze - Analyze a symbol
 router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
@@ -108,24 +112,28 @@ router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/analyze-execute - Analyze and execute trade for a symbol
-router.post("/analyze-execute", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol, strategyId } = req.body;
+router.post(
+  "/analyze-execute",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol, strategyId } = req.body;
 
-    if (!symbol) {
-      return res.status(400).json({ error: "Symbol is required" });
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      const result = await alpacaTradingEngine.analyzeAndExecute(
+        symbol,
+        strategyId
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaTradingAPI", "Analyze and execute error", { error });
+      res.status(500).json({ error: "Failed to analyze and execute trade" });
     }
-
-    const result = await alpacaTradingEngine.analyzeAndExecute(
-      symbol,
-      strategyId
-    );
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaTradingAPI", "Analyze and execute error", { error });
-    res.status(500).json({ error: "Failed to analyze and execute trade" });
   }
-});
+);
 
 // POST /api/alpaca-trading/stop-all - Stop all running strategies
 router.post("/stop-all", requireAuth, async (req: Request, res: Response) => {

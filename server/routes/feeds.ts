@@ -100,7 +100,8 @@ function determineStatus(
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     // Get connector summary from metrics service
-    const connectorSummaries = await connectorMetricsService.getConnectorSummary();
+    const connectorSummaries =
+      await connectorMetricsService.getConnectorSummary();
     const summaryByConnector = new Map(
       connectorSummaries.map((s) => [s.connector.toLowerCase(), s])
     );
@@ -132,7 +133,8 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
           : null,
         lastError: latest?.lastError || null,
         lastErrorAt: latest?.lastErrorAt?.toISOString() || null,
-        lastUpdate: latest?.updatedAt?.toISOString() || new Date().toISOString(),
+        lastUpdate:
+          latest?.updatedAt?.toISOString() || new Date().toISOString(),
       };
     });
 
@@ -189,7 +191,8 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
       p95LatencyMs: Math.round(parseFloat(m.p95LatencyMs || "0")),
       cacheHitRate:
         m.cacheHits + m.cacheMisses > 0
-          ? Math.round((m.cacheHits / (m.cacheHits + m.cacheMisses)) * 1000) / 10
+          ? Math.round((m.cacheHits / (m.cacheHits + m.cacheMisses)) * 1000) /
+            10
           : 0,
       rateLimitHits: m.rateLimitHits,
       fallbackUsed: m.fallbackUsed,
@@ -207,7 +210,8 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
       category: config.category,
       description: config.description,
       status: determineStatus({
-        successRate: totalRequests > 0 ? (totalSuccess / totalRequests) * 100 : 100,
+        successRate:
+          totalRequests > 0 ? (totalSuccess / totalRequests) * 100 : 100,
         totalRequests,
       }),
       aggregate: {

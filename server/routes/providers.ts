@@ -166,50 +166,58 @@ router.post("/:id/test", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/credentials - Get provider credentials
-router.get("/:id/credentials", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const creds = credentials.get(req.params.id) || [];
-    // Mask credential values for security
-    const maskedCreds = creds.map((c) => ({
-      ...c,
-      encryptedValue: "********",
-    }));
-    res.json(maskedCreds);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to get credentials", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: "Failed to get credentials" });
+router.get(
+  "/:id/credentials",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const creds = credentials.get(req.params.id) || [];
+      // Mask credential values for security
+      const maskedCreds = creds.map((c) => ({
+        ...c,
+        encryptedValue: "********",
+      }));
+      res.json(maskedCreds);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to get credentials", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: "Failed to get credentials" });
+    }
   }
-});
+);
 
 // POST /api/admin/providers/:id/credentials - Add credential
-router.post("/:id/credentials", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const credential = {
-      id: randomUUID(),
-      providerId: req.params.id,
-      kind: req.body.kind,
-      encryptedValue: req.body.value, // In production, encrypt this
-      lastRotatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+router.post(
+  "/:id/credentials",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const credential = {
+        id: randomUUID(),
+        providerId: req.params.id,
+        kind: req.body.kind,
+        encryptedValue: req.body.value, // In production, encrypt this
+        lastRotatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
 
-    const existing = credentials.get(req.params.id) || [];
-    existing.push(credential);
-    credentials.set(req.params.id, existing);
+      const existing = credentials.get(req.params.id) || [];
+      existing.push(credential);
+      credentials.set(req.params.id, existing);
 
-    res.status(201).json({
-      ...credential,
-      encryptedValue: "********",
-    });
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to add credential", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: "Failed to add credential" });
+      res.status(201).json({
+        ...credential,
+        encryptedValue: "********",
+      });
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to add credential", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: "Failed to add credential" });
+    }
   }
-});
+);
 
 // GET /api/admin/providers/:id/budget - Get provider budget
 router.get("/:id/budget", requireAuth, async (req: Request, res: Response) => {
@@ -290,89 +298,101 @@ router.get("/:id/usage", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/providers/:id/functions - Get API functions
-router.get("/:id/functions", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    res.json(funcs);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to get API functions", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: "Failed to get API functions" });
+router.get(
+  "/:id/functions",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      res.json(funcs);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to get API functions", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: "Failed to get API functions" });
+    }
   }
-});
+);
 
 // POST /api/admin/providers/:id/discover - Discover API endpoints
-router.post("/:id/discover", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { documentUrl } = req.body;
-    // Mock discovery - in production, parse OpenAPI spec
-    const discovered = [
-      {
-        id: randomUUID(),
-        providerId: req.params.id,
-        name: "getAccount",
-        method: "GET",
-        path: "/account",
-        summary: "Get account information",
-        tags: ["account"],
-        parameters: [],
-        responses: {},
-        security: [],
-        authRequired: true,
-        costPerCall: 0.001,
-        isEnabled: true,
-        isDeprecated: false,
-        metadata: {},
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
+router.post(
+  "/:id/discover",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { documentUrl } = req.body;
+      // Mock discovery - in production, parse OpenAPI spec
+      const discovered = [
+        {
+          id: randomUUID(),
+          providerId: req.params.id,
+          name: "getAccount",
+          method: "GET",
+          path: "/account",
+          summary: "Get account information",
+          tags: ["account"],
+          parameters: [],
+          responses: {},
+          security: [],
+          authRequired: true,
+          costPerCall: 0.001,
+          isEnabled: true,
+          isDeprecated: false,
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
 
-    const existing = apiFunctions.get(req.params.id) || [];
-    existing.push(...discovered);
-    apiFunctions.set(req.params.id, existing);
+      const existing = apiFunctions.get(req.params.id) || [];
+      existing.push(...discovered);
+      apiFunctions.set(req.params.id, existing);
 
-    res.json({
-      success: true,
-      functionsDiscovered: discovered.length,
-      schemasDiscovered: 0,
-      functions: discovered,
-      schemas: [],
-    });
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to discover APIs", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({
-      success: false,
-      error: "API discovery failed",
-    });
+      res.json({
+        success: true,
+        functionsDiscovered: discovered.length,
+        schemasDiscovered: 0,
+        functions: discovered,
+        schemas: [],
+      });
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to discover APIs", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({
+        success: false,
+        error: "API discovery failed",
+      });
+    }
   }
-});
+);
 
 // PATCH /api/admin/providers/:id/functions/:funcId - Update API function
-router.patch("/:id/functions/:funcId", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    const index = funcs.findIndex((f) => f.id === req.params.funcId);
-    if (index === -1) {
-      return res.status(404).json({ error: "Function not found" });
+router.patch(
+  "/:id/functions/:funcId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      const index = funcs.findIndex((f) => f.id === req.params.funcId);
+      if (index === -1) {
+        return res.status(404).json({ error: "Function not found" });
+      }
+      funcs[index] = {
+        ...funcs[index],
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+      };
+      apiFunctions.set(req.params.id, funcs);
+      res.json(funcs[index]);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to update function", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: "Failed to update function" });
     }
-    funcs[index] = {
-      ...funcs[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    apiFunctions.set(req.params.id, funcs);
-    res.json(funcs[index]);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to update function", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: "Failed to update function" });
   }
-});
+);
 
 // POST /api/admin/providers/:id/functions/:funcId/test - Test API function
 router.post(
@@ -411,22 +431,26 @@ router.post(
 );
 
 // DELETE /api/admin/providers/:id/functions/:funcId - Delete API function
-router.delete("/:id/functions/:funcId", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    const index = funcs.findIndex((f) => f.id === req.params.funcId);
-    if (index === -1) {
-      return res.status(404).json({ error: "Function not found" });
+router.delete(
+  "/:id/functions/:funcId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      const index = funcs.findIndex((f) => f.id === req.params.funcId);
+      if (index === -1) {
+        return res.status(404).json({ error: "Function not found" });
+      }
+      funcs.splice(index, 1);
+      apiFunctions.set(req.params.id, funcs);
+      res.status(204).send();
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to delete function", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: "Failed to delete function" });
     }
-    funcs.splice(index, 1);
-    apiFunctions.set(req.params.id, funcs);
-    res.status(204).send();
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to delete function", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({ error: "Failed to delete function" });
   }
-});
+);
 
 export default router;

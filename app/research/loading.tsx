@@ -2,7 +2,7 @@ import {
   HeaderSkeleton,
   ChartSkeleton,
   TableSkeleton,
-  TabsSkeleton
+  TabsSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

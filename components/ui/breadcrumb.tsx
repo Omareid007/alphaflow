@@ -204,18 +204,24 @@ export function AnimatedBreadcrumb({
                       <BreadcrumbEllipsis />
                     ) : isLast ? (
                       <BreadcrumbPage className="flex items-center gap-1.5">
-                        {item.icon && (
-                          <item.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {'icon' in item && item.icon && (
+                          <item.icon
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
                         )}
                         {item.label}
                       </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink
-                        href={item.href}
+                        href={'href' in item ? item.href : undefined}
                         className="flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md hover:bg-secondary"
                       >
-                        {item.icon && (
-                          <item.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {'icon' in item && item.icon && (
+                          <item.icon
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
                         )}
                         {item.label}
                       </BreadcrumbLink>

@@ -118,9 +118,15 @@ export function BacktestProgress({ progress }: BacktestProgressProps) {
               className="mt-4 text-xs text-muted-foreground"
             >
               {progress < 25 && "Initializing backtest environment..."}
-              {progress >= 25 && progress < 50 && "Processing historical data..."}
-              {progress >= 50 && progress < 75 && "Executing strategy signals..."}
-              {progress >= 75 && progress < 100 && "Calculating performance metrics..."}
+              {progress >= 25 &&
+                progress < 50 &&
+                "Processing historical data..."}
+              {progress >= 50 &&
+                progress < 75 &&
+                "Executing strategy signals..."}
+              {progress >= 75 &&
+                progress < 100 &&
+                "Calculating performance metrics..."}
               {progress === 100 && "Backtest complete!"}
             </motion.p>
           </div>

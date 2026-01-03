@@ -38,17 +38,21 @@ router.get("/prices", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/crypto/chart/:coinId - Get price chart data
-router.get("/chart/:coinId", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { coinId } = req.params;
-    const days = (req.query.days as string) || "7";
-    const chart = await coingecko.getMarketChart(coinId, "usd", days);
-    res.json(chart);
-  } catch (error) {
-    log.error("CryptoAPI", "Failed to get crypto chart", { error });
-    res.status(500).json({ error: "Failed to fetch crypto chart data" });
+router.get(
+  "/chart/:coinId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { coinId } = req.params;
+      const days = (req.query.days as string) || "7";
+      const chart = await coingecko.getMarketChart(coinId, "usd", days);
+      res.json(chart);
+    } catch (error) {
+      log.error("CryptoAPI", "Failed to get crypto chart", { error });
+      res.status(500).json({ error: "Failed to fetch crypto chart data" });
+    }
   }
-});
+);
 
 // GET /api/crypto/trending - Get trending cryptocurrencies
 router.get("/trending", requireAuth, async (req: Request, res: Response) => {

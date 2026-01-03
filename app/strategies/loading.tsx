@@ -1,7 +1,7 @@
 import {
   HeaderSkeleton,
   StrategyCardSkeleton,
-  TabsSkeleton
+  TabsSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

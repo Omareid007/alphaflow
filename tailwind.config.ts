@@ -14,11 +14,16 @@ const config: Config = {
         "gradient-conic":
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
         // Robinhood-style gradients
-        "gradient-gain": "linear-gradient(135deg, hsl(var(--gain)) 0%, hsl(142 100% 30%) 100%)",
-        "gradient-loss": "linear-gradient(135deg, hsl(var(--loss)) 0%, hsl(4 90% 40%) 100%)",
-        "gradient-primary": "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(142 100% 30%) 100%)",
-        "gradient-dark": "linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(0 0% 5%) 100%)",
-        "gradient-glass": "linear-gradient(135deg, hsl(var(--card) / 0.8) 0%, hsl(var(--card) / 0.4) 100%)",
+        "gradient-gain":
+          "linear-gradient(135deg, hsl(var(--gain)) 0%, hsl(142 100% 30%) 100%)",
+        "gradient-loss":
+          "linear-gradient(135deg, hsl(var(--loss)) 0%, hsl(4 90% 40%) 100%)",
+        "gradient-primary":
+          "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(142 100% 30%) 100%)",
+        "gradient-dark":
+          "linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(0 0% 5%) 100%)",
+        "gradient-glass":
+          "linear-gradient(135deg, hsl(var(--card) / 0.8) 0%, hsl(var(--card) / 0.4) 100%)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -108,9 +113,12 @@ const config: Config = {
             textShadow: "0 0 12px hsl(4 100% 60% / 0.5)",
           },
         },
-        "glow": {
+        glow: {
           "0%, 100%": { boxShadow: "0 0 5px hsl(var(--primary) / 0.3)" },
-          "50%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2)" },
+          "50%": {
+            boxShadow:
+              "0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2)",
+          },
         },
         "fade-in-up": {
           from: { opacity: "0", transform: "translateY(10px)" },
@@ -142,7 +150,7 @@ const config: Config = {
           "70%": { transform: "scale(0.9)" },
           "100%": { transform: "scale(1)" },
         },
-        "shimmer": {
+        shimmer: {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
         },
@@ -150,9 +158,12 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        "confetti": {
+        confetti: {
           "0%": { transform: "translateY(0) rotate(0deg)", opacity: "1" },
-          "100%": { transform: "translateY(-500px) rotate(720deg)", opacity: "0" },
+          "100%": {
+            transform: "translateY(-500px) rotate(720deg)",
+            opacity: "0",
+          },
         },
       },
       animation: {
@@ -161,29 +172,34 @@ const config: Config = {
         // Robinhood-style animations
         "pulse-gain": "pulse-gain 2s ease-in-out infinite",
         "pulse-loss": "pulse-loss 2s ease-in-out infinite",
-        "glow": "glow 2s ease-in-out infinite",
+        glow: "glow 2s ease-in-out infinite",
         "fade-in-up": "fade-in-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "fade-in-down": "fade-in-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "fade-in-down":
+          "fade-in-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "scale-in": "scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "slide-in-right": "slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "slide-in-left": "slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "slide-in-bottom": "slide-in-bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "bounce-in": "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-        "shimmer": "shimmer 2s infinite",
+        "slide-in-right":
+          "slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "slide-in-left":
+          "slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "slide-in-bottom":
+          "slide-in-bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "bounce-in":
+          "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        shimmer: "shimmer 2s infinite",
         "count-up": "count-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "confetti": "confetti 1s ease-out forwards",
+        confetti: "confetti 1s ease-out forwards",
       },
       transitionTimingFunction: {
         "out-expo": "cubic-bezier(0.16, 1, 0.3, 1)",
         "in-out-expo": "cubic-bezier(0.87, 0, 0.13, 1)",
-        "bounce": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        bounce: "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       transitionDuration: {
-        "instant": "50ms",
-        "fast": "150ms",
-        "normal": "250ms",
-        "slow": "400ms",
-        "slower": "600ms",
+        instant: "50ms",
+        fast: "150ms",
+        normal: "250ms",
+        slow: "400ms",
+        slower: "600ms",
       },
       boxShadow: {
         "glow-sm": "0 0 10px hsl(var(--primary) / 0.2)",
@@ -192,7 +208,7 @@ const config: Config = {
         "glow-gain": "0 0 20px hsl(var(--gain) / 0.3)",
         "glow-loss": "0 0 20px hsl(var(--loss) / 0.3)",
         "card-hover": "0 8px 30px hsl(0 0% 0% / 0.12)",
-        "glass": "0 8px 32px hsl(0 0% 0% / 0.1)",
+        glass: "0 8px 32px hsl(0 0% 0% / 0.1)",
       },
       backdropBlur: {
         xs: "2px",

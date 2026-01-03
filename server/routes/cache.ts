@@ -49,32 +49,40 @@ router.post("/llm/clear", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/cache/llm/clear/:role - Clear LLM cache for specific role
-router.post("/llm/clear/:role", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { role } = req.params;
+router.post(
+  "/llm/clear/:role",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { role } = req.params;
 
-    if (!role) {
-      return badRequest(res, "Role parameter is required");
+      if (!role) {
+        return badRequest(res, "Role parameter is required");
+      }
+
+      clearLLMCacheForRole(role as any);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error("CacheAPI", `Failed to clear LLM cache for role: ${error}`);
+      res.status(500).json({ error: "Failed to clear cache for role" });
     }
-
-    clearLLMCacheForRole(role as any);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("CacheAPI", `Failed to clear LLM cache for role: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache for role" });
   }
-});
+);
 
 // POST /api/cache/llm/reset-stats - Reset LLM cache statistics
-router.post("/llm/reset-stats", requireAuth, async (req: Request, res: Response) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("CacheAPI", `Failed to reset LLM cache stats: ${error}`);
-    res.status(500).json({ error: "Failed to reset cache stats" });
+router.post(
+  "/llm/reset-stats",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("CacheAPI", `Failed to reset LLM cache stats: ${error}`);
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
+);
 
 /**
  * API Cache Management Endpoints

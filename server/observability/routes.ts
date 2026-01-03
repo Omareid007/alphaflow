@@ -460,12 +460,10 @@ observabilityRouter.post(
       } = req.body;
 
       if (!name || !ruleType || !condition || threshold === undefined) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Missing required fields: name, ruleType, condition, threshold",
-          });
+        return res.status(400).json({
+          error:
+            "Missing required fields: name, ruleType, condition, threshold",
+        });
       }
 
       const rule = await alertService.createRule({

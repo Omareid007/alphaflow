@@ -1,46 +1,46 @@
-'use client'
+"use client";
 
-import { Component, ReactNode } from 'react'
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
+import { Component, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface Props {
-  children: ReactNode
+  children: ReactNode;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
-  errorInfo: React.ErrorInfo | null
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
 export class RootErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false, error: null, errorInfo: null }
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error details
-    console.error('Root error boundary caught:', error, errorInfo)
+    console.error("Root error boundary caught:", error, errorInfo);
 
     // In production, send to error tracking service
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       // Sentry integration placeholder
       // Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } })
     }
 
-    this.setState({ errorInfo })
+    this.setState({ errorInfo });
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null })
-  }
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -54,11 +54,13 @@ export class RootErrorBoundary extends Component<Props, State> {
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-foreground">Application Error</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                Application Error
+              </h1>
               <p className="text-muted-foreground">
                 Something went wrong. Our team has been notified.
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {process.env.NODE_ENV === "development" && this.state.error && (
                 <details className="text-left mt-4 p-4 bg-muted rounded-lg">
                   <summary className="cursor-pointer font-medium text-sm">
                     Error Details (Dev Only)
@@ -89,11 +91,11 @@ export class RootErrorBoundary extends Component<Props, State> {
             </div>
           </div>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
-export default RootErrorBoundary
+export default RootErrorBoundary;

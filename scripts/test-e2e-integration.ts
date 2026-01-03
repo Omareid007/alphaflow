@@ -47,7 +47,11 @@ const results: FlowResult[] = [];
 let sessionCookie: string | undefined;
 
 // Utilities
-function log(level: "INFO" | "PASS" | "FAIL" | "WARN", message: string, data?: any) {
+function log(
+  level: "INFO" | "PASS" | "FAIL" | "WARN",
+  message: string,
+  data?: any
+) {
   const colors = {
     INFO: "\x1b[36m",
     PASS: "\x1b[32m",
@@ -190,12 +194,9 @@ async function testAuthenticationFlow(): Promise<FlowResult> {
   // Test 1.2: Duplicate Signup Prevention
   tests.push(
     await runTest(flowName, "Duplicate Signup Prevention", async () => {
-      const response = await apiRequest(
-        "POST",
-        "/api/auth/signup",
-        TEST_USER,
-        { expectError: true }
-      );
+      const response = await apiRequest("POST", "/api/auth/signup", TEST_USER, {
+        expectError: true,
+      });
 
       const passed = response.status === 400;
       if (!passed) {
@@ -236,7 +237,9 @@ async function testAuthenticationFlow(): Promise<FlowResult> {
         requireAuth: true,
       });
 
-      const passed = response.status === 200 && response.data.username === TEST_USER.username;
+      const passed =
+        response.status === 200 &&
+        response.data.username === TEST_USER.username;
       if (!passed) {
         issues.push("Session validation failed");
       }
@@ -394,7 +397,8 @@ async function testStrategyManagementFlow(): Promise<FlowResult> {
         { requireAuth: true }
       );
 
-      const passed = response.status === 200 && response.data.id === createdStrategyId;
+      const passed =
+        response.status === 200 && response.data.id === createdStrategyId;
       if (!passed) {
         issues.push("Strategy read failed");
       }
@@ -510,7 +514,9 @@ async function testStrategyManagementFlow(): Promise<FlowResult> {
       const passed = response.status === 400;
       if (!passed) {
         issues.push("Invalid strategy data was accepted");
-        recommendations.push("Strengthen input validation on strategy creation");
+        recommendations.push(
+          "Strengthen input validation on strategy creation"
+        );
       }
 
       return { passed };
@@ -604,7 +610,11 @@ async function testBacktestFlow(): Promise<FlowResult> {
       const maxAttempts = 30;
       let status = "QUEUED";
 
-      while (attempts < maxAttempts && status !== "DONE" && status !== "FAILED") {
+      while (
+        attempts < maxAttempts &&
+        status !== "DONE" &&
+        status !== "FAILED"
+      ) {
         const response = await apiRequest(
           "GET",
           `/api/backtests/${backtestRunId}`,
@@ -912,12 +922,9 @@ async function testAIAutonomousFlow(): Promise<FlowResult> {
   // Test 5.1: Fetch AI Decisions
   tests.push(
     await runTest(flowName, "Fetch AI Decisions", async () => {
-      const response = await apiRequest(
-        "GET",
-        "/api/ai/decisions",
-        undefined,
-        { requireAuth: true }
-      );
+      const response = await apiRequest("GET", "/api/ai/decisions", undefined, {
+        requireAuth: true,
+      });
 
       const passed = response.status === 200 && Array.isArray(response.data);
       if (!passed) {
@@ -942,8 +949,7 @@ async function testAIAutonomousFlow(): Promise<FlowResult> {
       );
 
       const passed =
-        response.status === 200 &&
-        response.data.isRunning !== undefined;
+        response.status === 200 && response.data.isRunning !== undefined;
 
       if (!passed) {
         issues.push("Failed to fetch agent status");
@@ -959,12 +965,9 @@ async function testAIAutonomousFlow(): Promise<FlowResult> {
   // Test 5.3: Fetch Trade Candidates
   tests.push(
     await runTest(flowName, "Fetch Trade Candidates", async () => {
-      const response = await apiRequest(
-        "GET",
-        "/api/candidates",
-        undefined,
-        { requireAuth: true }
-      );
+      const response = await apiRequest("GET", "/api/candidates", undefined, {
+        requireAuth: true,
+      });
 
       const passed = response.status === 200 && Array.isArray(response.data);
       if (!passed) {
@@ -995,12 +998,9 @@ async function testAIAutonomousFlow(): Promise<FlowResult> {
 
       // Stop it immediately
       if (passed) {
-        await apiRequest(
-          "POST",
-          "/api/autonomous/stop",
-          undefined,
-          { requireAuth: true }
-        );
+        await apiRequest("POST", "/api/autonomous/stop", undefined, {
+          requireAuth: true,
+        });
       }
 
       return { passed };
@@ -1010,12 +1010,9 @@ async function testAIAutonomousFlow(): Promise<FlowResult> {
   // Test 5.5: LLM Gateway Status
   tests.push(
     await runTest(flowName, "LLM Gateway Status", async () => {
-      const response = await apiRequest(
-        "GET",
-        "/api/ai/llm/stats",
-        undefined,
-        { requireAuth: true }
-      );
+      const response = await apiRequest("GET", "/api/ai/llm/stats", undefined, {
+        requireAuth: true,
+      });
 
       const passed = response.status === 200;
       if (!passed) {

@@ -2,7 +2,7 @@ import {
   HeaderSkeleton,
   MetricCardSkeleton,
   StrategyCardSkeleton,
-  TabsSkeleton
+  TabsSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

@@ -431,7 +431,8 @@ router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
     ];
 
     // Use the real sentiment aggregator service
-    const sentimentResults = await sentimentAggregator.batchGetSentiment(symbols);
+    const sentimentResults =
+      await sentimentAggregator.batchGetSentiment(symbols);
 
     // Transform aggregated sentiment to API response format
     const sentiments = symbols.map((symbol) => {
@@ -489,7 +490,13 @@ router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
   } catch (error) {
     log.error("AiDecisionsAPI", `Failed to get sentiment signals: ${error}`);
     // Return fallback data to prevent UI breaking
-    const symbols = (req.query.symbols as string)?.split(",") || ["SPY", "QQQ", "AAPL", "TSLA", "NVDA"];
+    const symbols = (req.query.symbols as string)?.split(",") || [
+      "SPY",
+      "QQQ",
+      "AAPL",
+      "TSLA",
+      "NVDA",
+    ];
     const fallback = symbols.map((symbol) => ({
       id: `sent-${symbol}-${Date.now()}`,
       sourceId: "fallback",
@@ -510,7 +517,9 @@ router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
  * Helper to generate explanation text from aggregated sentiment
  */
 function generateExplanation(result: AggregatedSentiment): string {
-  const validSources = result.sources.filter((s) => !s.error && s.confidence > 0);
+  const validSources = result.sources.filter(
+    (s) => !s.error && s.confidence > 0
+  );
   const sourceNames = validSources.map((s) => s.name).join(", ");
 
   if (validSources.length === 0) {
@@ -563,44 +572,59 @@ router.get("/cache/stats", requireAuth, async (req: Request, res: Response) => {
  * POST /api/ai/cache/clear
  * Clear all LLM response cache
  */
-router.post("/cache/clear", requireAuth, async (req: Request, res: Response) => {
-  try {
-    clearLLMCache();
-    res.json({ success: true, message: "LLM cache cleared" });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error clearing LLM cache: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache" });
+router.post(
+  "/cache/clear",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      clearLLMCache();
+      res.json({ success: true, message: "LLM cache cleared" });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Error clearing LLM cache: ${error}`);
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
   }
-});
+);
 
 /**
  * POST /api/ai/cache/clear/:role
  * Clear LLM cache for a specific role
  */
-router.post("/cache/clear/:role", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { role } = req.params;
-    clearLLMCacheForRole(role as any);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error clearing LLM cache for role: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache for role" });
+router.post(
+  "/cache/clear/:role",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { role } = req.params;
+      clearLLMCacheForRole(role as any);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error(
+        "AiDecisionsAPI",
+        `Error clearing LLM cache for role: ${error}`
+      );
+      res.status(500).json({ error: "Failed to clear cache for role" });
+    }
   }
-});
+);
 
 /**
  * POST /api/ai/cache/reset-stats
  * Reset LLM cache statistics
  */
-router.post("/cache/reset-stats", requireAuth, async (req: Request, res: Response) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error resetting LLM cache stats: ${error}`);
-    res.status(500).json({ error: "Failed to reset cache stats" });
+router.post(
+  "/cache/reset-stats",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Error resetting LLM cache stats: ${error}`);
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
+);
 
 // ============================================================================
 // AGENT ENDPOINTS
@@ -610,67 +634,79 @@ router.post("/cache/reset-stats", requireAuth, async (req: Request, res: Respons
  * GET /api/agent/status
  * Get current autonomous agent status
  */
-router.get("/agent/status", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const status = await storage.getAgentStatus();
-    if (!status) {
-      const defaultStatus = await storage.updateAgentStatus({
-        isRunning: false,
-        totalTrades: 0,
-        totalPnl: "0",
-      });
-      return res.json(defaultStatus);
+router.get(
+  "/agent/status",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const status = await storage.getAgentStatus();
+      if (!status) {
+        const defaultStatus = await storage.updateAgentStatus({
+          isRunning: false,
+          totalTrades: 0,
+          totalPnl: "0",
+        });
+        return res.json(defaultStatus);
+      }
+      res.json(status);
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get agent status: ${error}`);
+      res.status(500).json({ error: "Failed to get agent status" });
     }
-    res.json(status);
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get agent status: ${error}`);
-    res.status(500).json({ error: "Failed to get agent status" });
   }
-});
+);
 
 /**
  * POST /api/agent/toggle
  * Toggle autonomous agent on/off
  */
-router.post("/agent/toggle", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const currentStatus = await storage.getAgentStatus();
-    const newIsRunning = !(currentStatus?.isRunning ?? false);
+router.post(
+  "/agent/toggle",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const currentStatus = await storage.getAgentStatus();
+      const newIsRunning = !(currentStatus?.isRunning ?? false);
 
-    if (newIsRunning) {
-      await alpacaTradingEngine.resumeAgent();
-    } else {
-      await alpacaTradingEngine.stopAllStrategies();
+      if (newIsRunning) {
+        await alpacaTradingEngine.resumeAgent();
+      } else {
+        await alpacaTradingEngine.stopAllStrategies();
+      }
+
+      const status = await storage.getAgentStatus();
+      res.json(status);
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to toggle agent: ${error}`);
+      res.status(500).json({ error: "Failed to toggle agent" });
     }
-
-    const status = await storage.getAgentStatus();
-    res.json(status);
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to toggle agent: ${error}`);
-    res.status(500).json({ error: "Failed to toggle agent" });
   }
-});
+);
 
 /**
  * GET /api/agent/market-analysis
  * Get current market condition analysis
  */
-router.get("/agent/market-analysis", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const analyzerStatus = marketConditionAnalyzer.getStatus();
-    const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
+router.get(
+  "/agent/market-analysis",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
+      const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
 
-    res.json({
-      isRunning: analyzerStatus.isRunning,
-      lastAnalysis,
-      lastAnalysisTime: analyzerStatus.lastAnalysisTime,
-      currentOrderLimit: analyzerStatus.currentOrderLimit,
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get market analysis: ${error}`);
-    res.status(500).json({ error: "Failed to get market analysis" });
+      res.json({
+        isRunning: analyzerStatus.isRunning,
+        lastAnalysis,
+        lastAnalysisTime: analyzerStatus.lastAnalysisTime,
+        currentOrderLimit: analyzerStatus.currentOrderLimit,
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get market analysis: ${error}`);
+      res.status(500).json({ error: "Failed to get market analysis" });
+    }
   }
-});
+);
 
 /**
  * POST /api/agent/market-analysis/refresh
@@ -696,120 +732,138 @@ router.post(
  * GET /api/agent/dynamic-limits
  * Get dynamic order limits based on market conditions
  */
-router.get("/agent/dynamic-limits", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const agentStatus = await storage.getAgentStatus();
-    const analyzerStatus = marketConditionAnalyzer.getStatus();
+router.get(
+  "/agent/dynamic-limits",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const agentStatus = await storage.getAgentStatus();
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
 
-    const minLimit = agentStatus?.minOrderLimit ?? 10;
-    const maxLimit = agentStatus?.maxOrderLimit ?? 50;
+      const minLimit = agentStatus?.minOrderLimit ?? 10;
+      const maxLimit = agentStatus?.maxOrderLimit ?? 50;
 
-    let currentLimit =
-      agentStatus?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
-    currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
+      let currentLimit =
+        agentStatus?.dynamicOrderLimit ??
+        analyzerStatus.currentOrderLimit ??
+        25;
+      currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
 
-    res.json({
-      currentDynamicLimit: currentLimit,
-      minOrderLimit: minLimit,
-      maxOrderLimit: maxLimit,
-      marketCondition: agentStatus?.marketCondition || "neutral",
-      aiConfidenceScore: agentStatus?.aiConfidenceScore || "0.5",
-      lastMarketAnalysis: agentStatus?.lastMarketAnalysis,
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get dynamic limits: ${error}`);
-    res.status(500).json({ error: "Failed to get dynamic limits" });
+      res.json({
+        currentDynamicLimit: currentLimit,
+        minOrderLimit: minLimit,
+        maxOrderLimit: maxLimit,
+        marketCondition: agentStatus?.marketCondition || "neutral",
+        aiConfidenceScore: agentStatus?.aiConfidenceScore || "0.5",
+        lastMarketAnalysis: agentStatus?.lastMarketAnalysis,
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get dynamic limits: ${error}`);
+      res.status(500).json({ error: "Failed to get dynamic limits" });
+    }
   }
-});
+);
 
 /**
  * POST /api/agent/set-limits
  * Set minimum and maximum order limits
  */
-router.post("/agent/set-limits", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { minOrderLimit, maxOrderLimit } = req.body;
+router.post(
+  "/agent/set-limits",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { minOrderLimit, maxOrderLimit } = req.body;
 
-    const updates: { minOrderLimit?: number; maxOrderLimit?: number } = {};
+      const updates: { minOrderLimit?: number; maxOrderLimit?: number } = {};
 
-    if (minOrderLimit !== undefined) {
-      if (minOrderLimit < 1 || minOrderLimit > 100) {
-        return badRequest(res, "minOrderLimit must be between 1 and 100");
+      if (minOrderLimit !== undefined) {
+        if (minOrderLimit < 1 || minOrderLimit > 100) {
+          return badRequest(res, "minOrderLimit must be between 1 and 100");
+        }
+        updates.minOrderLimit = minOrderLimit;
       }
-      updates.minOrderLimit = minOrderLimit;
-    }
 
-    if (maxOrderLimit !== undefined) {
-      if (maxOrderLimit < 1 || maxOrderLimit > 100) {
-        return badRequest(res, "maxOrderLimit must be between 1 and 100");
+      if (maxOrderLimit !== undefined) {
+        if (maxOrderLimit < 1 || maxOrderLimit > 100) {
+          return badRequest(res, "maxOrderLimit must be between 1 and 100");
+        }
+        updates.maxOrderLimit = maxOrderLimit;
       }
-      updates.maxOrderLimit = maxOrderLimit;
+
+      if (
+        updates.minOrderLimit &&
+        updates.maxOrderLimit &&
+        updates.minOrderLimit > updates.maxOrderLimit
+      ) {
+        return badRequest(
+          res,
+          "minOrderLimit cannot be greater than maxOrderLimit"
+        );
+      }
+
+      await storage.updateAgentStatus(updates);
+      const updatedStatus = await storage.getAgentStatus();
+
+      res.json({
+        success: true,
+        minOrderLimit: updatedStatus?.minOrderLimit,
+        maxOrderLimit: updatedStatus?.maxOrderLimit,
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to set limits: ${error}`);
+      res.status(500).json({ error: "Failed to set limits" });
     }
-
-    if (
-      updates.minOrderLimit &&
-      updates.maxOrderLimit &&
-      updates.minOrderLimit > updates.maxOrderLimit
-    ) {
-      return badRequest(
-        res,
-        "minOrderLimit cannot be greater than maxOrderLimit"
-      );
-    }
-
-    await storage.updateAgentStatus(updates);
-    const updatedStatus = await storage.getAgentStatus();
-
-    res.json({
-      success: true,
-      minOrderLimit: updatedStatus?.minOrderLimit,
-      maxOrderLimit: updatedStatus?.maxOrderLimit,
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to set limits: ${error}`);
-    res.status(500).json({ error: "Failed to set limits" });
   }
-});
+);
 
 /**
  * GET /api/agent/health
  * Get agent health status
  */
-router.get("/agent/health", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const healthStatus = orchestrator.getHealthStatus();
-    const agentStatus = await storage.getAgentStatus();
+router.get(
+  "/agent/health",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const healthStatus = orchestrator.getHealthStatus();
+      const agentStatus = await storage.getAgentStatus();
 
-    res.json({
-      ...healthStatus,
-      autoStartEnabled: agentStatus?.autoStartEnabled ?? true,
-      lastHeartbeatFromDb: agentStatus?.lastHeartbeat,
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get agent health: ${error}`);
-    res.status(500).json({ error: "Failed to get agent health" });
+      res.json({
+        ...healthStatus,
+        autoStartEnabled: agentStatus?.autoStartEnabled ?? true,
+        lastHeartbeatFromDb: agentStatus?.lastHeartbeat,
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get agent health: ${error}`);
+      res.status(500).json({ error: "Failed to get agent health" });
+    }
   }
-});
+);
 
 /**
  * POST /api/agent/auto-start
  * Enable or disable agent auto-start on system restart
  */
-router.post("/agent/auto-start", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { enabled } = req.body;
-    if (typeof enabled !== "boolean") {
-      return badRequest(res, "enabled must be a boolean");
+router.post(
+  "/agent/auto-start",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return badRequest(res, "enabled must be a boolean");
+      }
+
+      await orchestrator.setAutoStartEnabled(enabled);
+
+      res.json({ success: true, autoStartEnabled: enabled });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to set auto-start: ${error}`);
+      res.status(500).json({ error: "Failed to set auto-start" });
     }
-
-    await orchestrator.setAutoStartEnabled(enabled);
-
-    res.json({ success: true, autoStartEnabled: enabled });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to set auto-start: ${error}`);
-    res.status(500).json({ error: "Failed to set auto-start" });
   }
-});
+);
 
 /**
  * POST /api/autonomous/execute-trades

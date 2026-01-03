@@ -32,10 +32,7 @@ describe("E2E: AI Features Flow", () => {
     it("should get AI decisions list", async () => {
       if (!serverAvailable || !sessionId) return;
 
-      const response = await authenticatedFetch(
-        "/api/ai-decisions",
-        sessionId
-      );
+      const response = await authenticatedFetch("/api/ai-decisions", sessionId);
 
       expect([200, 401, 403, 404]).toContain(response.status);
 
@@ -183,10 +180,7 @@ describe("E2E: AI Features Flow", () => {
     it("should get agent status", async () => {
       if (!serverAvailable || !sessionId) return;
 
-      const response = await authenticatedFetch(
-        "/api/agent/status",
-        sessionId
-      );
+      const response = await authenticatedFetch("/api/agent/status", sessionId);
 
       expect([200, 401, 403, 404]).toContain(response.status);
     });
@@ -266,10 +260,7 @@ describe("E2E: AI Features Flow", () => {
     it("should get LLM usage statistics", async () => {
       if (!serverAvailable || !sessionId) return;
 
-      const response = await authenticatedFetch(
-        "/api/llm/stats",
-        sessionId
-      );
+      const response = await authenticatedFetch("/api/llm/stats", sessionId);
 
       expect([200, 401, 403, 404]).toContain(response.status);
     });

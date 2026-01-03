@@ -3,7 +3,12 @@
  * Consolidated from omar-*optimizer*.ts scripts
  */
 
-import type { GAConfig, Genome, ParamRange, DEFAULT_GA_CONFIG } from "./types.js";
+import type {
+  GAConfig,
+  Genome,
+  ParamRange,
+  DEFAULT_GA_CONFIG,
+} from "./types.js";
 
 // ============================================================================
 // CONFIGURATION
@@ -18,22 +23,22 @@ export const DEFAULT_PARAM_RANGES: Record<string, ParamRange> = {
   // Risk management
   atrMultStop: { min: 0.5, max: 3.0, step: 0.1 },
   atrMultTarget: { min: 1.5, max: 8.0, step: 0.25 },
-  maxDailyLoss: { min: 0.02, max: 0.10, step: 0.01 },
+  maxDailyLoss: { min: 0.02, max: 0.1, step: 0.01 },
   stopLossPct: { min: 0.01, max: 0.08, step: 0.005 },
   takeProfitPct: { min: 0.02, max: 0.15, step: 0.01 },
 
   // Signal thresholds
-  buyThreshold: { min: 0.05, max: 0.40, step: 0.01 },
-  sellThreshold: { min: 0.05, max: 0.40, step: 0.01 },
+  buyThreshold: { min: 0.05, max: 0.4, step: 0.01 },
+  sellThreshold: { min: 0.05, max: 0.4, step: 0.01 },
   confidenceMin: { min: 0.15, max: 0.65, step: 0.01 },
 
   // Signal weights
   technicalWeight: { min: 0.05, max: 0.35, step: 0.01 },
   momentumWeight: { min: 0.05, max: 0.35, step: 0.01 },
-  volatilityWeight: { min: 0.02, max: 0.20, step: 0.01 },
+  volatilityWeight: { min: 0.02, max: 0.2, step: 0.01 },
   volumeWeight: { min: 0.05, max: 0.25, step: 0.01 },
   sentimentWeight: { min: 0.05, max: 0.25, step: 0.01 },
-  patternWeight: { min: 0.02, max: 0.20, step: 0.01 },
+  patternWeight: { min: 0.02, max: 0.2, step: 0.01 },
 
   // Technical indicator periods
   rsiPeriod: { min: 7, max: 21, step: 1, integer: true },
@@ -51,7 +56,7 @@ export const DEFAULT_PARAM_RANGES: Record<string, ParamRange> = {
 
   // Strategy modifiers
   momentumLookback: { min: 5, max: 30, step: 1, integer: true },
-  volatilityLookback: { min: 10, max: 30, step: 1, integer: true }
+  volatilityLookback: { min: 10, max: 30, step: 1, integer: true },
 };
 
 // Weight keys that should be normalized to sum to 1
@@ -61,7 +66,7 @@ const WEIGHT_KEYS = [
   "volatilityWeight",
   "volumeWeight",
   "sentimentWeight",
-  "patternWeight"
+  "patternWeight",
 ];
 
 // ============================================================================
@@ -71,7 +76,10 @@ const WEIGHT_KEYS = [
 /**
  * Generate a unique genome ID
  */
-export function generateGenomeId(generation: number, island: number = 0): string {
+export function generateGenomeId(
+  generation: number,
+  island: number = 0
+): string {
   return `gen${generation}-isl${island}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
@@ -107,11 +115,13 @@ export function generateRandomGenome(
       genes[param] = Math.random() < 0.5 ? 0 : 1;
     } else if (range.integer) {
       const numSteps = Math.floor((range.max - range.min) / range.step);
-      genes[param] = range.min + Math.floor(Math.random() * (numSteps + 1)) * range.step;
+      genes[param] =
+        range.min + Math.floor(Math.random() * (numSteps + 1)) * range.step;
     } else {
       const numSteps = Math.round((range.max - range.min) / range.step);
       genes[param] =
-        Math.round((range.min + Math.random() * numSteps * range.step) * 1000) / 1000;
+        Math.round((range.min + Math.random() * numSteps * range.step) * 1000) /
+        1000;
     }
     // Clamp to range
     genes[param] = Math.max(range.min, Math.min(range.max, genes[param]));
@@ -133,7 +143,7 @@ export function generateRandomGenome(
     generation,
     island,
     parentIds: [],
-    mutations: []
+    mutations: [],
   };
 }
 
@@ -162,9 +172,14 @@ export function crossover(
     } else {
       // Blend (BLX-alpha crossover)
       const alpha = Math.random();
-      childGenes[param] = alpha * parent1.genes[param] + (1 - alpha) * parent2.genes[param];
-      childGenes[param] = Math.round(childGenes[param] / range.step) * range.step;
-      childGenes[param] = Math.max(range.min, Math.min(range.max, childGenes[param]));
+      childGenes[param] =
+        alpha * parent1.genes[param] + (1 - alpha) * parent2.genes[param];
+      childGenes[param] =
+        Math.round(childGenes[param] / range.step) * range.step;
+      childGenes[param] = Math.max(
+        range.min,
+        Math.min(range.max, childGenes[param])
+      );
       if (range.integer) {
         childGenes[param] = Math.round(childGenes[param]);
       }
@@ -187,7 +202,7 @@ export function crossover(
     generation,
     island,
     parentIds: [parent1.id, parent2.id],
-    mutations: []
+    mutations: [],
   };
 }
 
@@ -222,7 +237,9 @@ export function mutate(
 
         if (newVal !== currentVal) {
           mutatedGenes[param] = newVal;
-          mutations.push(`${param}: ${currentVal.toFixed(3)} -> ${newVal.toFixed(3)}`);
+          mutations.push(
+            `${param}: ${currentVal.toFixed(3)} -> ${newVal.toFixed(3)}`
+          );
         }
       }
     }
@@ -234,14 +251,17 @@ export function mutate(
     ...genome,
     genes: mutatedGenes,
     mutations,
-    fitness: 0 // Reset fitness for re-evaluation
+    fitness: 0, // Reset fitness for re-evaluation
   };
 }
 
 /**
  * Tournament selection - select best from random subset
  */
-export function tournamentSelect(population: Genome[], tournamentSize: number = 5): Genome {
+export function tournamentSelect(
+  population: Genome[],
+  tournamentSize: number = 5
+): Genome {
   let best: Genome | null = null;
 
   for (let i = 0; i < tournamentSize; i++) {
@@ -258,7 +278,10 @@ export function tournamentSelect(population: Genome[], tournamentSize: number = 
  * Roulette wheel selection - probability proportional to fitness
  */
 export function rouletteSelect(population: Genome[]): Genome {
-  const totalFitness = population.reduce((sum, g) => sum + Math.max(0, g.fitness), 0);
+  const totalFitness = population.reduce(
+    (sum, g) => sum + Math.max(0, g.fitness),
+    0
+  );
 
   if (totalFitness === 0) {
     return population[Math.floor(Math.random() * population.length)];
@@ -317,8 +340,13 @@ export function initializePopulation(
 /**
  * Select elite individuals (top performers)
  */
-export function selectElites(population: Genome[], eliteCount: number): Genome[] {
-  return [...population].sort((a, b) => b.fitness - a.fitness).slice(0, eliteCount);
+export function selectElites(
+  population: Genome[],
+  eliteCount: number
+): Genome[] {
+  return [...population]
+    .sort((a, b) => b.fitness - a.fitness)
+    .slice(0, eliteCount);
 }
 
 /**
@@ -380,13 +408,19 @@ export function evolveGeneration(
 
     // Crossover
     if (Math.random() < config.crossoverRate) {
-      offspring = crossover(parent1, parent2, generation, parent1.island, paramRanges);
+      offspring = crossover(
+        parent1,
+        parent2,
+        generation,
+        parent1.island,
+        paramRanges
+      );
     } else {
       // Clone better parent
       offspring = {
-        ...parent1.fitness > parent2.fitness ? parent1 : parent2,
+        ...(parent1.fitness > parent2.fitness ? parent1 : parent2),
         id: generateGenomeId(generation, parent1.island),
-        generation
+        generation,
       };
     }
 
@@ -423,7 +457,7 @@ export function calculateFitness(
     calmar: calmarWeight = 0.1,
     winRate: winRateWeight = 0.15,
     returnWeight = 0.15,
-    drawdownPenalty = 0.15
+    drawdownPenalty = 0.15,
   } = weights;
 
   // Normalize metrics
@@ -435,7 +469,8 @@ export function calculateFitness(
   const drawdownScore = Math.max(0, 1 - genome.maxDrawdown / 50);
 
   // Trade count penalty (avoid overfitting with too few trades)
-  const tradePenalty = genome.trades < 10 ? 0.5 : genome.trades < 20 ? 0.8 : 1.0;
+  const tradePenalty =
+    genome.trades < 10 ? 0.5 : genome.trades < 20 ? 0.8 : 1.0;
 
   const fitness =
     (sharpeScore * sharpeWeight +
@@ -488,7 +523,8 @@ export function getAdaptiveMutationRate(
   const fitnesses = population.map((g) => g.fitness);
   const avgFitness = fitnesses.reduce((a, b) => a + b, 0) / fitnesses.length;
   const variance =
-    fitnesses.reduce((sum, f) => sum + Math.pow(f - avgFitness, 2), 0) / fitnesses.length;
+    fitnesses.reduce((sum, f) => sum + Math.pow(f - avgFitness, 2), 0) /
+    fitnesses.length;
   const diversity = Math.sqrt(variance) / (avgFitness + 0.001);
 
   // Increase mutation when diversity is low
@@ -531,9 +567,11 @@ export function minePatterns(
 
   for (const param of allParams) {
     const topAvg =
-      topGenomes.reduce((sum, g) => sum + g.genes[param], 0) / topGenomes.length;
+      topGenomes.reduce((sum, g) => sum + g.genes[param], 0) /
+      topGenomes.length;
     const bottomAvg =
-      bottomGenomes.reduce((sum, g) => sum + g.genes[param], 0) / bottomGenomes.length;
+      bottomGenomes.reduce((sum, g) => sum + g.genes[param], 0) /
+      bottomGenomes.length;
 
     const difference = topAvg - bottomAvg;
     const avgValue = (topAvg + bottomAvg) / 2;
@@ -544,7 +582,7 @@ export function minePatterns(
         pattern: `${param}: top avg=${topAvg.toFixed(3)}, bottom avg=${bottomAvg.toFixed(3)}`,
         correlation: difference > 0 ? 1 : -1,
         sampleSize: topCount,
-        avgImprovement: relDiff * 100
+        avgImprovement: relDiff * 100,
       });
     }
   }

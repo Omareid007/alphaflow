@@ -18,10 +18,13 @@ import {
   TrendingDown,
   Check,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { UserSettings } from "@/lib/types";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useDebouncedCallback } from "@/lib/utils/useDebounce";
+import { useState } from "react";
 
 interface RiskGuardrailsCardProps {
   settings: UserSettings;
@@ -48,6 +51,36 @@ export function RiskGuardrailsCard({
   onGuardrailChange,
 }: RiskGuardrailsCardProps) {
   const riskLevel = getRiskLevel(settings.riskGuardrails);
+  const [pendingChanges, setPendingChanges] = useState<Set<string>>(new Set());
+
+  // Debounced callback for slider changes (500ms for number inputs)
+  const debouncedGuardrailChange = useDebouncedCallback(
+    (key: keyof UserSettings["riskGuardrails"], value: number | boolean) => {
+      onGuardrailChange(key, value);
+      setPendingChanges((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    },
+    500
+  );
+
+  const handleSliderChange = (
+    key: keyof UserSettings["riskGuardrails"],
+    value: number
+  ) => {
+    setPendingChanges((prev) => new Set(prev).add(key));
+    debouncedGuardrailChange(key, value);
+  };
+
+  const handleSwitchChange = (
+    key: keyof UserSettings["riskGuardrails"],
+    value: boolean
+  ) => {
+    // Switches don't need debouncing - immediate feedback is expected
+    onGuardrailChange(key, value);
+  };
 
   return (
     <Card variant="glass">
@@ -62,10 +95,26 @@ export function RiskGuardrailsCard({
               Set safety limits for your strategies
             </CardDescription>
           </div>
-          <Badge variant="secondary" className={cn("gap-1.5", riskLevel.color)}>
-            <ShieldCheck className="h-3 w-3" />
-            {riskLevel.label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {pendingChanges.size > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving...
+              </motion.div>
+            )}
+            <Badge
+              variant="secondary"
+              className={cn("gap-1.5", riskLevel.color)}
+            >
+              <ShieldCheck className="h-3 w-3" />
+              {riskLevel.label}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -100,7 +149,7 @@ export function RiskGuardrailsCard({
           </div>
           <Slider
             value={[settings.riskGuardrails.maxPositionSize]}
-            onValueChange={([v]) => onGuardrailChange("maxPositionSize", v)}
+            onValueChange={([v]) => handleSliderChange("maxPositionSize", v)}
             min={5}
             max={50}
             step={5}
@@ -142,7 +191,7 @@ export function RiskGuardrailsCard({
           </div>
           <Slider
             value={[settings.riskGuardrails.maxDrawdown]}
-            onValueChange={([v]) => onGuardrailChange("maxDrawdown", v)}
+            onValueChange={([v]) => handleSliderChange("maxDrawdown", v)}
             min={5}
             max={50}
             step={5}
@@ -184,7 +233,7 @@ export function RiskGuardrailsCard({
           </div>
           <Slider
             value={[settings.riskGuardrails.maxDailyLoss]}
-            onValueChange={([v]) => onGuardrailChange("maxDailyLoss", v)}
+            onValueChange={([v]) => handleSliderChange("maxDailyLoss", v)}
             min={1}
             max={20}
             step={1}
@@ -236,7 +285,9 @@ export function RiskGuardrailsCard({
           </div>
           <Switch
             checked={settings.riskGuardrails.requireConfirmation}
-            onCheckedChange={(v) => onGuardrailChange("requireConfirmation", v)}
+            onCheckedChange={(v) =>
+              handleSwitchChange("requireConfirmation", v)
+            }
           />
         </motion.div>
       </CardContent>

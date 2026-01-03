@@ -2,16 +2,16 @@
  * Detailed Alpaca Order Analysis with Raw JSON Inspection
  */
 
-const { Pool } = require('@neondatabase/serverless');
+const { Pool } = require("@neondatabase/serverless");
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: process.env.DATABASE_URL,
 });
 
 async function detailedAnalysis() {
-  console.log('='.repeat(80));
-  console.log('DETAILED ORDER ANALYSIS - RAW JSON INSPECTION');
-  console.log('='.repeat(80));
+  console.log("=".repeat(80));
+  console.log("DETAILED ORDER ANALYSIS - RAW JSON INSPECTION");
+  console.log("=".repeat(80));
 
   try {
     // Get all failed orders with raw JSON
@@ -45,49 +45,51 @@ async function detailedAnalysis() {
     const result = await pool.query(query);
     const orders = result.rows;
 
-    console.log(`\nFound ${orders.length} orders to inspect (showing first 20)\n`);
+    console.log(
+      `\nFound ${orders.length} orders to inspect (showing first 20)\n`
+    );
 
     // Inspect each order in detail
     orders.forEach((order, idx) => {
-      console.log('─'.repeat(80));
+      console.log("─".repeat(80));
       console.log(`ORDER ${idx + 1}: ${order.symbol}`);
-      console.log('─'.repeat(80));
+      console.log("─".repeat(80));
       console.log(`Status:          ${order.status}`);
       console.log(`Order ID:        ${order.broker_order_id}`);
       console.log(`Type:            ${order.type} / ${order.time_in_force}`);
       console.log(`Side:            ${order.side}`);
-      console.log(`Quantity:        ${order.qty || 'N/A'}`);
-      console.log(`Notional:        ${order.notional || 'N/A'}`);
-      console.log(`Limit Price:     ${order.limit_price || 'N/A'}`);
-      console.log(`Stop Price:      ${order.stop_price || 'N/A'}`);
+      console.log(`Quantity:        ${order.qty || "N/A"}`);
+      console.log(`Notional:        ${order.notional || "N/A"}`);
+      console.log(`Limit Price:     ${order.limit_price || "N/A"}`);
+      console.log(`Stop Price:      ${order.stop_price || "N/A"}`);
       console.log(`Extended Hours:  ${order.extended_hours}`);
-      console.log(`Order Class:     ${order.order_class || 'simple'}`);
+      console.log(`Order Class:     ${order.order_class || "simple"}`);
       console.log(`Submitted At:    ${order.submitted_at}`);
-      console.log(`Failed At:       ${order.failed_at || 'N/A'}`);
-      console.log(`Canceled At:     ${order.canceled_at || 'N/A'}`);
+      console.log(`Failed At:       ${order.failed_at || "N/A"}`);
+      console.log(`Canceled At:     ${order.canceled_at || "N/A"}`);
 
       if (order.raw_json) {
-        console.log('\nRaw JSON Fields:');
+        console.log("\nRaw JSON Fields:");
         // Pretty print key fields from raw JSON
         const keys = Object.keys(order.raw_json);
-        keys.forEach(key => {
+        keys.forEach((key) => {
           const value = order.raw_json[key];
-          if (typeof value === 'object' && value !== null) {
+          if (typeof value === "object" && value !== null) {
             console.log(`  ${key}: ${JSON.stringify(value)}`);
-          } else if (value !== null && value !== undefined && value !== '') {
+          } else if (value !== null && value !== undefined && value !== "") {
             console.log(`  ${key}: ${value}`);
           }
         });
       } else {
-        console.log('\nNo raw JSON available');
+        console.log("\nNo raw JSON available");
       }
-      console.log('');
+      console.log("");
     });
 
     // Now check for any rejected orders specifically
-    console.log('\n\n' + '='.repeat(80));
-    console.log('CHECKING FOR ACTUAL REJECTIONS (status = rejected)');
-    console.log('='.repeat(80));
+    console.log("\n\n" + "=".repeat(80));
+    console.log("CHECKING FOR ACTUAL REJECTIONS (status = rejected)");
+    console.log("=".repeat(80));
 
     const rejectedQuery = `
       SELECT
@@ -100,15 +102,15 @@ async function detailedAnalysis() {
     `;
 
     const statusResult = await pool.query(rejectedQuery);
-    console.log('\nOrder Status Distribution (Last 7 Days):\n');
-    statusResult.rows.forEach(row => {
+    console.log("\nOrder Status Distribution (Last 7 Days):\n");
+    statusResult.rows.forEach((row) => {
       console.log(`  ${row.status.padEnd(20)} - ${row.total} orders`);
     });
 
     // Check work items for order failures
-    console.log('\n\n' + '='.repeat(80));
-    console.log('CHECKING WORK ITEMS FOR ORDER SUBMISSION ERRORS');
-    console.log('='.repeat(80));
+    console.log("\n\n" + "=".repeat(80));
+    console.log("CHECKING WORK ITEMS FOR ORDER SUBMISSION ERRORS");
+    console.log("=".repeat(80));
 
     const workItemQuery = `
       SELECT
@@ -134,24 +136,29 @@ async function detailedAnalysis() {
 
     workItemResult.rows.forEach((wi, idx) => {
       console.log(`[${idx + 1}] ${wi.type} - ${wi.status}`);
-      console.log(`    Symbol: ${wi.symbol || 'N/A'}`);
+      console.log(`    Symbol: ${wi.symbol || "N/A"}`);
       console.log(`    Created: ${wi.created_at}`);
-      console.log(`    Error: ${wi.last_error || 'No error message'}`);
+      console.log(`    Error: ${wi.last_error || "No error message"}`);
       if (wi.payload) {
         try {
-          const payload = typeof wi.payload === 'string' ? JSON.parse(wi.payload) : wi.payload;
-          console.log(`    Payload: ${JSON.stringify(payload, null, 2).substring(0, 200)}...`);
+          const payload =
+            typeof wi.payload === "string"
+              ? JSON.parse(wi.payload)
+              : wi.payload;
+          console.log(
+            `    Payload: ${JSON.stringify(payload, null, 2).substring(0, 200)}...`
+          );
         } catch (e) {
           console.log(`    Payload: ${wi.payload.substring(0, 100)}...`);
         }
       }
-      console.log('');
+      console.log("");
     });
 
     // Check for orders with error patterns in raw_json
-    console.log('\n\n' + '='.repeat(80));
-    console.log('CHECKING FOR ERROR PATTERNS IN RAW JSON');
-    console.log('='.repeat(80));
+    console.log("\n\n" + "=".repeat(80));
+    console.log("CHECKING FOR ERROR PATTERNS IN RAW JSON");
+    console.log("=".repeat(80));
 
     const errorPatternQuery = `
       SELECT
@@ -184,17 +191,16 @@ async function detailedAnalysis() {
         console.log(`    Status: ${row.status}`);
         console.log(`    Order Type: ${row.type}/${row.time_in_force}`);
         console.log(`    Extended Hours: ${row.extended_hours}`);
-        console.log(`    Order Class: ${row.order_class || 'simple'}`);
-        console.log(`    Error Code: ${row.error_code || 'N/A'}`);
-        console.log(`    Error Message: ${row.error_message || 'N/A'}`);
-        console.log('');
+        console.log(`    Order Class: ${row.order_class || "simple"}`);
+        console.log(`    Error Code: ${row.error_code || "N/A"}`);
+        console.log(`    Error Message: ${row.error_message || "N/A"}`);
+        console.log("");
       });
     } else {
-      console.log('No error patterns found in raw JSON');
+      console.log("No error patterns found in raw JSON");
     }
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     throw error;
   } finally {
     await pool.end();
@@ -203,12 +209,12 @@ async function detailedAnalysis() {
 
 detailedAnalysis()
   .then(() => {
-    console.log('\n' + '='.repeat(80));
-    console.log('ANALYSIS COMPLETE');
-    console.log('='.repeat(80));
+    console.log("\n" + "=".repeat(80));
+    console.log("ANALYSIS COMPLETE");
+    console.log("=".repeat(80));
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Analysis failed:', error);
+    console.error("Analysis failed:", error);
     process.exit(1);
   });

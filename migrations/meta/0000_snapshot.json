@@ -111,12 +111,8 @@
           "name": "admin_settings_updated_by_users_id_fk",
           "tableFrom": "admin_settings",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -126,10 +122,7 @@
         "admin_settings_namespace_key_unique": {
           "name": "admin_settings_namespace_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "namespace",
-            "key"
-          ]
+          "columns": ["namespace", "key"]
         }
       },
       "policies": {},
@@ -501,9 +494,7 @@
         "ai_agent_profiles_name_unique": {
           "name": "ai_agent_profiles_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -697,12 +688,8 @@
           "name": "ai_arena_agent_decisions_arena_run_id_ai_arena_runs_id_fk",
           "tableFrom": "ai_arena_agent_decisions",
           "tableTo": "ai_arena_runs",
-          "columnsFrom": [
-            "arena_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["arena_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -710,12 +697,8 @@
           "name": "ai_arena_agent_decisions_agent_profile_id_ai_agent_profiles_id_fk",
           "tableFrom": "ai_arena_agent_decisions",
           "tableTo": "ai_agent_profiles",
-          "columnsFrom": [
-            "agent_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -950,12 +933,8 @@
           "name": "ai_arena_runs_strategy_version_id_strategy_versions_id_fk",
           "tableFrom": "ai_arena_runs",
           "tableTo": "strategy_versions",
-          "columnsFrom": [
-            "strategy_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1193,12 +1172,8 @@
           "name": "ai_decision_features_decision_id_ai_decisions_id_fk",
           "tableFrom": "ai_decision_features",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1353,12 +1328,8 @@
           "name": "ai_decisions_user_id_users_id_fk",
           "tableFrom": "ai_decisions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1366,12 +1337,8 @@
           "name": "ai_decisions_strategy_id_strategies_id_fk",
           "tableFrom": "ai_decisions",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1379,12 +1346,8 @@
           "name": "ai_decisions_executed_trade_id_trades_id_fk",
           "tableFrom": "ai_decisions",
           "tableTo": "trades",
-          "columnsFrom": [
-            "executed_trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["executed_trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1661,12 +1624,8 @@
           "name": "ai_outcome_links_consensus_id_debate_consensus_id_fk",
           "tableFrom": "ai_outcome_links",
           "tableTo": "debate_consensus",
-          "columnsFrom": [
-            "consensus_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["consensus_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1674,12 +1633,8 @@
           "name": "ai_outcome_links_debate_session_id_debate_sessions_id_fk",
           "tableFrom": "ai_outcome_links",
           "tableTo": "debate_sessions",
-          "columnsFrom": [
-            "debate_session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["debate_session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1687,12 +1642,8 @@
           "name": "ai_outcome_links_decision_id_ai_decisions_id_fk",
           "tableFrom": "ai_outcome_links",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1700,12 +1651,8 @@
           "name": "ai_outcome_links_work_item_id_work_items_id_fk",
           "tableFrom": "ai_outcome_links",
           "tableTo": "work_items",
-          "columnsFrom": [
-            "work_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1873,12 +1820,8 @@
           "name": "ai_trade_outcomes_decision_id_ai_decisions_id_fk",
           "tableFrom": "ai_trade_outcomes",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1886,12 +1829,8 @@
           "name": "ai_trade_outcomes_trade_id_trades_id_fk",
           "tableFrom": "ai_trade_outcomes",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1899,12 +1838,8 @@
           "name": "ai_trade_outcomes_strategy_id_strategies_id_fk",
           "tableFrom": "ai_trade_outcomes",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2021,12 +1956,8 @@
           "name": "alert_events_rule_id_alert_rules_id_fk",
           "tableFrom": "alert_events",
           "tableTo": "alert_rules",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2156,9 +2087,7 @@
         "alert_rules_name_unique": {
           "name": "alert_rules_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -2287,12 +2216,8 @@
           "name": "allocation_policies_created_by_users_id_fk",
           "tableFrom": "allocation_policies",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2302,9 +2227,7 @@
         "allocation_policies_name_unique": {
           "name": "allocation_policies_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -2442,12 +2365,8 @@
           "name": "analysis_feedback_data_source_analysis_id_data_source_analysis_id_fk",
           "tableFrom": "analysis_feedback",
           "tableTo": "data_source_analysis",
-          "columnsFrom": [
-            "data_source_analysis_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["data_source_analysis_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2455,12 +2374,8 @@
           "name": "analysis_feedback_trade_outcome_id_ai_trade_outcomes_id_fk",
           "tableFrom": "analysis_feedback",
           "tableTo": "ai_trade_outcomes",
-          "columnsFrom": [
-            "trade_outcome_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_outcome_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2609,9 +2524,7 @@
         "asset_classifications_symbol_unique": {
           "name": "asset_classifications_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -2776,12 +2689,8 @@
           "name": "audit_logs_user_id_users_id_fk",
           "tableFrom": "audit_logs",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2871,12 +2780,8 @@
           "name": "backtest_equity_curve_run_id_backtest_runs_id_fk",
           "tableFrom": "backtest_equity_curve",
           "tableTo": "backtest_runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3074,12 +2979,8 @@
           "name": "backtest_runs_strategy_id_strategies_id_fk",
           "tableFrom": "backtest_runs",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3226,12 +3127,8 @@
           "name": "backtest_trade_events_run_id_backtest_runs_id_fk",
           "tableFrom": "backtest_trade_events",
           "tableTo": "backtest_runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3371,16 +3268,12 @@
         "broker_assets_alpaca_id_unique": {
           "name": "broker_assets_alpaca_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "alpaca_id"
-          ]
+          "columns": ["alpaca_id"]
         },
         "broker_assets_symbol_unique": {
           "name": "broker_assets_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -3662,12 +3555,8 @@
           "name": "competition_scores_run_id_competition_runs_id_fk",
           "tableFrom": "competition_scores",
           "tableTo": "competition_runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3675,12 +3564,8 @@
           "name": "competition_scores_trader_profile_id_trader_profiles_id_fk",
           "tableFrom": "competition_scores",
           "tableTo": "trader_profiles",
-          "columnsFrom": [
-            "trader_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trader_profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3859,11 +3744,7 @@
         "connector_metrics_connector_endpoint_date_unique": {
           "name": "connector_metrics_connector_endpoint_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "connector",
-            "endpoint",
-            "date"
-          ]
+          "columns": ["connector", "endpoint", "date"]
         }
       },
       "policies": {},
@@ -4010,12 +3891,8 @@
           "name": "data_source_analysis_decision_id_ai_decisions_id_fk",
           "tableFrom": "data_source_analysis",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4136,12 +4013,8 @@
           "name": "debate_consensus_session_id_debate_sessions_id_fk",
           "tableFrom": "debate_consensus",
           "tableTo": "debate_sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4149,12 +4022,8 @@
           "name": "debate_consensus_work_item_id_work_items_id_fk",
           "tableFrom": "debate_consensus",
           "tableTo": "work_items",
-          "columnsFrom": [
-            "work_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4164,9 +4033,7 @@
         "debate_consensus_session_id_unique": {
           "name": "debate_consensus_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_id"
-          ]
+          "columns": ["session_id"]
         }
       },
       "policies": {},
@@ -4325,12 +4192,8 @@
           "name": "debate_messages_session_id_debate_sessions_id_fk",
           "tableFrom": "debate_messages",
           "tableTo": "debate_sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4817,12 +4680,8 @@
           "name": "fills_order_id_orders_id_fk",
           "tableFrom": "fills",
           "tableTo": "orders",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4832,9 +4691,7 @@
         "fills_broker_fill_id_unique": {
           "name": "fills_broker_fill_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "broker_fill_id"
-          ]
+          "columns": ["broker_fill_id"]
         }
       },
       "policies": {},
@@ -4963,10 +4820,7 @@
         "insider_activity_symbol_date_unique": {
           "name": "insider_activity_symbol_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol",
-            "analysis_date"
-          ]
+          "columns": ["symbol", "analysis_date"]
         }
       },
       "policies": {},
@@ -5202,9 +5056,7 @@
         "llm_role_configs_role_unique": {
           "name": "llm_role_configs_role_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "role"
-          ]
+          "columns": ["role"]
         }
       },
       "policies": {},
@@ -5301,9 +5153,7 @@
         "macro_analysis_date_unique": {
           "name": "macro_analysis_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "analysis_date"
-          ]
+          "columns": ["analysis_date"]
         }
       },
       "policies": {},
@@ -5422,9 +5272,7 @@
         "macro_indicators_indicator_id_unique": {
           "name": "macro_indicators_indicator_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "indicator_id"
-          ]
+          "columns": ["indicator_id"]
         }
       },
       "policies": {},
@@ -5731,12 +5579,8 @@
           "name": "orders_user_id_users_id_fk",
           "tableFrom": "orders",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5744,12 +5588,8 @@
           "name": "orders_decision_id_ai_decisions_id_fk",
           "tableFrom": "orders",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5757,12 +5597,8 @@
           "name": "orders_trade_intent_id_trades_id_fk",
           "tableFrom": "orders",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_intent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_intent_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5770,12 +5606,8 @@
           "name": "orders_work_item_id_work_items_id_fk",
           "tableFrom": "orders",
           "tableTo": "work_items",
-          "columnsFrom": [
-            "work_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5785,16 +5617,12 @@
         "orders_broker_order_id_unique": {
           "name": "orders_broker_order_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "broker_order_id"
-          ]
+          "columns": ["broker_order_id"]
         },
         "orders_client_order_id_unique": {
           "name": "orders_client_order_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "client_order_id"
-          ]
+          "columns": ["client_order_id"]
         }
       },
       "policies": {},
@@ -5890,12 +5718,8 @@
           "name": "positions_user_id_users_id_fk",
           "tableFrom": "positions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5903,12 +5727,8 @@
           "name": "positions_strategy_id_strategies_id_fk",
           "tableFrom": "positions",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6030,12 +5850,8 @@
           "name": "rebalance_runs_policy_id_allocation_policies_id_fk",
           "tableFrom": "rebalance_runs",
           "tableTo": "allocation_policies",
-          "columnsFrom": [
-            "policy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["policy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6113,12 +5929,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6240,10 +6052,7 @@
         "short_interest_symbol_date_unique": {
           "name": "short_interest_symbol_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol",
-            "analysis_date"
-          ]
+          "columns": ["symbol", "analysis_date"]
         }
       },
       "policies": {},
@@ -6462,12 +6271,8 @@
           "name": "strategy_versions_strategy_id_strategies_id_fk",
           "tableFrom": "strategy_versions",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6477,10 +6282,7 @@
         "strategy_versions_unique": {
           "name": "strategy_versions_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "strategy_id",
-            "version"
-          ]
+          "columns": ["strategy_id", "version"]
         }
       },
       "policies": {},
@@ -6641,12 +6443,8 @@
           "name": "tool_invocations_debate_session_id_debate_sessions_id_fk",
           "tableFrom": "tool_invocations",
           "tableTo": "debate_sessions",
-          "columnsFrom": [
-            "debate_session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["debate_session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6771,9 +6569,7 @@
         "trader_profiles_name_unique": {
           "name": "trader_profiles_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -6888,12 +6684,8 @@
           "name": "trades_user_id_users_id_fk",
           "tableFrom": "trades",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -6901,12 +6693,8 @@
           "name": "trades_strategy_id_strategies_id_fk",
           "tableFrom": "trades",
           "tableTo": "strategies",
-          "columnsFrom": [
-            "strategy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -6914,12 +6702,8 @@
           "name": "trades_order_id_orders_id_fk",
           "tableFrom": "trades",
           "tableTo": "orders",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -7107,9 +6891,7 @@
         "universe_assets_symbol_unique": {
           "name": "universe_assets_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -7282,12 +7064,8 @@
           "name": "universe_candidates_approved_by_users_id_fk",
           "tableFrom": "universe_candidates",
           "tableTo": "users",
-          "columnsFrom": [
-            "approved_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["approved_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -7297,9 +7075,7 @@
         "universe_candidates_symbol_unique": {
           "name": "universe_candidates_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -7483,9 +7259,7 @@
         "universe_fundamentals_symbol_unique": {
           "name": "universe_fundamentals_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -7604,9 +7378,7 @@
         "universe_liquidity_metrics_symbol_unique": {
           "name": "universe_liquidity_metrics_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -7832,10 +7604,7 @@
         "universe_technicals_symbol_date_unique": {
           "name": "universe_technicals_symbol_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol",
-            "date"
-          ]
+          "columns": ["symbol", "date"]
         }
       },
       "policies": {},
@@ -7880,9 +7649,7 @@
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         }
       },
       "policies": {},
@@ -8004,12 +7771,8 @@
           "name": "work_item_runs_work_item_id_work_items_id_fk",
           "tableFrom": "work_item_runs",
           "tableTo": "work_items",
-          "columnsFrom": [
-            "work_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8128,12 +7891,8 @@
           "name": "work_items_decision_id_ai_decisions_id_fk",
           "tableFrom": "work_items",
           "tableTo": "ai_decisions",
-          "columnsFrom": [
-            "decision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decision_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -8143,9 +7902,7 @@
         "work_items_idempotency_key_unique": {
           "name": "work_items_idempotency_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
+          "columns": ["idempotency_key"]
         }
       },
       "policies": {},
@@ -8226,12 +7983,8 @@
           "name": "messages_conversation_id_conversations_id_fk",
           "tableFrom": "messages",
           "tableTo": "conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

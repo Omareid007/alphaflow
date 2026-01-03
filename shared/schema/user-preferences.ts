@@ -1,4 +1,12 @@
-import { pgTable, varchar, text, timestamp, jsonb, index, unique } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  timestamp,
+  jsonb,
+  index,
+  unique,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -33,9 +41,15 @@ export const userPreferences = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     theme: varchar("theme", { length: 10 }).default("dark").notNull(),
-    accentColor: varchar("accent_color", { length: 7 }).default("#00C805").notNull(),
-    animationLevel: varchar("animation_level", { length: 10 }).default("full").notNull(),
-    chartStyle: varchar("chart_style", { length: 10 }).default("area").notNull(),
+    accentColor: varchar("accent_color", { length: 7 })
+      .default("#00C805")
+      .notNull(),
+    animationLevel: varchar("animation_level", { length: 10 })
+      .default("full")
+      .notNull(),
+    chartStyle: varchar("chart_style", { length: 10 })
+      .default("area")
+      .notNull(),
     // Extensible JSON column for future preferences
     extras: jsonb("extras").default({}).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -67,9 +81,11 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences, {
 
 export const selectUserPreferencesSchema = createSelectSchema(userPreferences);
 
-export const updateUserPreferencesSchema = insertUserPreferencesSchema.partial().omit({
-  userId: true,
-});
+export const updateUserPreferencesSchema = insertUserPreferencesSchema
+  .partial()
+  .omit({
+    userId: true,
+  });
 
 // TypeScript types
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;

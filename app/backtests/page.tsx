@@ -33,14 +33,17 @@ import {
 import { cn } from "@/lib/utils";
 
 // Lazy load chart component wrapper
-const BacktestChart = dynamic(() => import("@/components/charts/backtest-chart"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-64 flex items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-    </div>
-  ),
-});
+const BacktestChart = dynamic(
+  () => import("@/components/charts/backtest-chart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+  }
+);
 
 export default function BacktestsPage() {
   const {

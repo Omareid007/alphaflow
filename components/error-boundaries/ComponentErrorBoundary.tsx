@@ -1,45 +1,49 @@
-'use client'
+"use client";
 
-import { Component, ReactNode } from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Component, ReactNode } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 interface Props {
-  children: ReactNode
-  fallback?: ReactNode
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void
-  componentName?: string
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  componentName?: string;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
+  hasError: boolean;
+  error: Error | null;
 }
 
 export class ComponentErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false, error: null }
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`Component error in ${this.props.componentName || 'unknown'}:`, error, errorInfo)
-    this.props.onError?.(error, errorInfo)
+    console.error(
+      `Component error in ${this.props.componentName || "unknown"}:`,
+      error,
+      errorInfo
+    );
+    this.props.onError?.(error, errorInfo);
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null })
-  }
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback
+        return this.props.fallback;
       }
 
       return (
@@ -50,8 +54,7 @@ export class ComponentErrorBoundary extends Component<Props, State> {
             <span>
               {this.props.componentName
                 ? `The ${this.props.componentName} component failed to load.`
-                : 'This component failed to load.'
-              }
+                : "This component failed to load."}
             </span>
             <Button
               variant="outline"
@@ -64,11 +67,11 @@ export class ComponentErrorBoundary extends Component<Props, State> {
             </Button>
           </AlertDescription>
         </Alert>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
-export default ComponentErrorBoundary
+export default ComponentErrorBoundary;

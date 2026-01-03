@@ -25,7 +25,11 @@ const COLORS = [
 
 const SHAPES = ["circle", "square", "triangle"] as const;
 
-function generateParticles(count: number, originX: number, originY: number): Particle[] {
+function generateParticles(
+  count: number,
+  originX: number,
+  originY: number
+): Particle[] {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
     x: originX + (Math.random() - 0.5) * 20,
@@ -118,14 +122,23 @@ export function Confetti({
                 position: "absolute",
                 width: particle.shape === "triangle" ? 0 : 8,
                 height: particle.shape === "triangle" ? 0 : 8,
-                backgroundColor: particle.shape === "triangle" ? "transparent" : particle.color,
+                backgroundColor:
+                  particle.shape === "triangle"
+                    ? "transparent"
+                    : particle.color,
                 borderRadius: particle.shape === "circle" ? "50%" : 0,
                 borderLeft:
-                  particle.shape === "triangle" ? "4px solid transparent" : undefined,
+                  particle.shape === "triangle"
+                    ? "4px solid transparent"
+                    : undefined,
                 borderRight:
-                  particle.shape === "triangle" ? "4px solid transparent" : undefined,
+                  particle.shape === "triangle"
+                    ? "4px solid transparent"
+                    : undefined,
                 borderBottom:
-                  particle.shape === "triangle" ? `8px solid ${particle.color}` : undefined,
+                  particle.shape === "triangle"
+                    ? `8px solid ${particle.color}`
+                    : undefined,
               }}
             />
           );

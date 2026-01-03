@@ -11,7 +11,7 @@ process.env.GOOGLE_GEMINI_API_KEY = "AIzaSyDL---2oL3ROM5d9hZWjg1wvqDGMBnh1G0";
 import { geminiClient } from "../server/ai/geminiClient";
 
 async function testGemini() {
-  console.log("=" .repeat(80));
+  console.log("=".repeat(80));
   console.log("GOOGLE GEMINI API TEST");
   console.log("=".repeat(80));
   console.log("");
@@ -51,8 +51,10 @@ async function testGemini() {
   console.log("\n3. Testing with trading analysis prompt...");
   try {
     const response = await geminiClient.call({
-      systemPrompt: "You are a financial analyst. Analyze market conditions and provide a brief assessment.",
-      userPrompt: "What is the current market sentiment for tech stocks? Respond in 2-3 sentences.",
+      systemPrompt:
+        "You are a financial analyst. Analyze market conditions and provide a brief assessment.",
+      userPrompt:
+        "What is the current market sentiment for tech stocks? Respond in 2-3 sentences.",
       temperature: 0.3,
       maxTokens: 200,
     } as any);
@@ -89,7 +91,9 @@ async function testGemini() {
   console.log("Context window: Up to 1M tokens");
   console.log("\nNext steps:");
   console.log("1. Add GOOGLE_GEMINI_API_KEY to your .env file");
-  console.log("2. Gemini will be used for low-criticality tasks (news, sentiment, reporting)");
+  console.log(
+    "2. Gemini will be used for low-criticality tasks (news, sentiment, reporting)"
+  );
   console.log("3. Monitor usage in admin panel");
   console.log("");
 }

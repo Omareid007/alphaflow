@@ -14,7 +14,7 @@ export {
   fetchHistoricalData,
   extractOHLCV,
   SYMBOL_LISTS,
-  type AlpacaConfig
+  type AlpacaConfig,
 } from "./alpaca-api.js";
 
 // Technical indicators
@@ -34,7 +34,7 @@ export {
   calculateADX,
   calculateROC,
   calculateWilliamsR,
-  calculateCCI
+  calculateCCI,
 } from "./technical-indicators.js";
 
 // Backtest engine
@@ -48,7 +48,7 @@ export {
   calculateCalmar,
   type SignalGeneratorOptions,
   type IndicatorData,
-  type BacktestEngineOptions
+  type BacktestEngineOptions,
 } from "./backtest-engine.js";
 
 // Genetic algorithm
@@ -69,5 +69,5 @@ export {
   minePatterns,
   normalizeWeights,
   DEFAULT_PARAM_RANGES,
-  type LearningInsight
+  type LearningInsight,
 } from "./genetic-algorithm.js";

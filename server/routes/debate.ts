@@ -50,17 +50,21 @@ router.get("/sessions", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/sessions/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const details = await getDebateDetails(req.params.id);
-    if (!details) {
-      return res.status(404).json({ error: "Debate session not found" });
+router.get(
+  "/sessions/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const details = await getDebateDetails(req.params.id);
+      if (!details) {
+        return res.status(404).json({ error: "Debate session not found" });
+      }
+      res.json(details);
+    } catch (error) {
+      log.error("DebateAPI", `Failed to get debate session: ${error}`);
+      res.status(500).json({ error: "Failed to get debate session" });
     }
-    res.json(details);
-  } catch (error) {
-    log.error("DebateAPI", `Failed to get debate session: ${error}`);
-    res.status(500).json({ error: "Failed to get debate session" });
   }
-});
+);
 
 export default router;

@@ -65,10 +65,19 @@ async function testFINRAConnector() {
 
         console.log("\n📊 Short Interest Summary:");
         console.log("  Symbol:", summary.symbol);
-        console.log("  Latest Short Ratio:", formatPercent(summary.latestShortRatio));
-        console.log("  Average Short Ratio:", formatPercent(summary.averageShortRatio));
+        console.log(
+          "  Latest Short Ratio:",
+          formatPercent(summary.latestShortRatio)
+        );
+        console.log(
+          "  Average Short Ratio:",
+          formatPercent(summary.averageShortRatio)
+        );
         console.log("  Short Ratio Trend:", summary.shortRatioTrend);
-        console.log("  Days to Cover:", summary.daysTocover?.toFixed(2) || "N/A");
+        console.log(
+          "  Days to Cover:",
+          summary.daysTocover?.toFixed(2) || "N/A"
+        );
         console.log("  Last Updated:", summary.lastUpdated.toLocaleString());
         console.log("  Historical Data Points:", summary.historicalData.length);
 
@@ -105,7 +114,6 @@ async function testFINRAConnector() {
         }
 
         console.log(`✅ Short squeeze analysis test passed for ${symbol}`);
-
       } catch (error) {
         console.error(`❌ Error testing ${symbol}:`, error);
         if (error instanceof Error) {
@@ -122,12 +130,19 @@ async function testFINRAConnector() {
     const regShoSymbol = "AAPL";
 
     try {
-      console.log(`Fetching ${daysToFetch} days of RegSHO data for ${regShoSymbol}...`);
+      console.log(
+        `Fetching ${daysToFetch} days of RegSHO data for ${regShoSymbol}...`
+      );
       const startTime = Date.now();
-      const regShoData = await finra.getRegSHOShortVolume(regShoSymbol, daysToFetch);
+      const regShoData = await finra.getRegSHOShortVolume(
+        regShoSymbol,
+        daysToFetch
+      );
       const duration = Date.now() - startTime;
 
-      console.log(`\n📅 RegSHO Data Retrieved: ${regShoData.length} trading days`);
+      console.log(
+        `\n📅 RegSHO Data Retrieved: ${regShoData.length} trading days`
+      );
 
       if (regShoData.length === 0) {
         console.log("⚠️  No RegSHO data available");
@@ -137,26 +152,37 @@ async function testFINRAConnector() {
           console.log(`\n  Day ${index + 1} - ${data.settlementDate}:`);
           console.log(`    Symbol: ${data.symbol}`);
           console.log(`    Short Volume: ${formatNumber(data.shortVolume)}`);
-          console.log(`    Short Exempt Volume: ${formatNumber(data.shortExemptVolume)}`);
+          console.log(
+            `    Short Exempt Volume: ${formatNumber(data.shortExemptVolume)}`
+          );
           console.log(`    Total Volume: ${formatNumber(data.totalVolume)}`);
           console.log(`    Short Ratio: ${formatPercent(data.shortRatio)}`);
           console.log(`    Market: ${data.market}`);
         });
 
         // Calculate statistics
-        const avgShortRatio = regShoData.reduce((sum, d) => sum + d.shortRatio, 0) / regShoData.length;
-        const avgVolume = regShoData.reduce((sum, d) => sum + d.totalVolume, 0) / regShoData.length;
-        const avgShortVolume = regShoData.reduce((sum, d) => sum + d.shortVolume, 0) / regShoData.length;
+        const avgShortRatio =
+          regShoData.reduce((sum, d) => sum + d.shortRatio, 0) /
+          regShoData.length;
+        const avgVolume =
+          regShoData.reduce((sum, d) => sum + d.totalVolume, 0) /
+          regShoData.length;
+        const avgShortVolume =
+          regShoData.reduce((sum, d) => sum + d.shortVolume, 0) /
+          regShoData.length;
 
         console.log("\n📈 Statistics:");
         console.log(`  Average Short Ratio: ${formatPercent(avgShortRatio)}`);
-        console.log(`  Average Total Volume: ${formatNumber(Math.round(avgVolume))}`);
-        console.log(`  Average Short Volume: ${formatNumber(Math.round(avgShortVolume))}`);
+        console.log(
+          `  Average Total Volume: ${formatNumber(Math.round(avgVolume))}`
+        );
+        console.log(
+          `  Average Short Volume: ${formatNumber(Math.round(avgShortVolume))}`
+        );
       }
 
       console.log(`\n⏱️  Request completed in ${duration}ms`);
       console.log("✅ RegSHO short volume test passed");
-
     } catch (error) {
       console.error("❌ Error fetching RegSHO data:", error);
       if (error instanceof Error) {
@@ -182,7 +208,6 @@ async function testFINRAConnector() {
     console.log("  - Data Retrieval: Working");
     console.log("  - Analysis Functions: Operational");
     console.log("  - Cache System: Functional");
-
   } catch (error) {
     console.error("\n❌ Test suite failed with error:", error);
     if (error instanceof Error) {

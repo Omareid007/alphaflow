@@ -6,14 +6,17 @@ import { LoadingSpinner } from "@/components/ui/loading-state";
 
 // Lazy load the heavy StrategyWizard component
 const StrategyWizard = dynamic(
-  () => import("@/components/wizard/strategy-wizard").then(mod => ({ default: mod.StrategyWizard })),
+  () =>
+    import("@/components/wizard/strategy-wizard").then((mod) => ({
+      default: mod.StrategyWizard,
+    })),
   {
     loading: () => (
       <div className="flex h-96 items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     ),
-    ssr: false
+    ssr: false,
   }
 );
 

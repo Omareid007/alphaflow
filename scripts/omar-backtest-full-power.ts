@@ -40,27 +40,107 @@ import {
 
 const MEGA_UNIVERSE = [
   // US Mega-Cap Tech
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "NVDA",
+  "META",
+  "TSLA",
   // US Large-Cap Tech
-  "AMD", "INTC", "CRM", "NFLX", "ADBE", "ORCL", "CSCO", "QCOM", "AVGO", "TXN", "MU", "AMAT", "NOW", "PANW",
+  "AMD",
+  "INTC",
+  "CRM",
+  "NFLX",
+  "ADBE",
+  "ORCL",
+  "CSCO",
+  "QCOM",
+  "AVGO",
+  "TXN",
+  "MU",
+  "AMAT",
+  "NOW",
+  "PANW",
   // Finance - Banks & Payments
-  "JPM", "BAC", "GS", "MS", "C", "WFC", "V", "MA", "PYPL", "AXP", "BLK",
+  "JPM",
+  "BAC",
+  "GS",
+  "MS",
+  "C",
+  "WFC",
+  "V",
+  "MA",
+  "PYPL",
+  "AXP",
+  "BLK",
   // Healthcare - Pharma & Biotech
-  "JNJ", "UNH", "PFE", "MRK", "ABBV", "LLY", "BMY", "AMGN", "GILD", "VRTX", "REGN",
+  "JNJ",
+  "UNH",
+  "PFE",
+  "MRK",
+  "ABBV",
+  "LLY",
+  "BMY",
+  "AMGN",
+  "GILD",
+  "VRTX",
+  "REGN",
   // Consumer - Retail & Services
-  "WMT", "COST", "HD", "LOW", "TGT", "NKE", "MCD", "SBUX", "DIS", "BKNG",
+  "WMT",
+  "COST",
+  "HD",
+  "LOW",
+  "TGT",
+  "NKE",
+  "MCD",
+  "SBUX",
+  "DIS",
+  "BKNG",
   // Energy & Utilities
-  "XOM", "CVX", "COP", "SLB", "NEE", "DUK",
+  "XOM",
+  "CVX",
+  "COP",
+  "SLB",
+  "NEE",
+  "DUK",
   // Industrial & Transport
-  "BA", "CAT", "HON", "UPS", "FDX", "DE", "GE", "RTX", "LMT",
+  "BA",
+  "CAT",
+  "HON",
+  "UPS",
+  "FDX",
+  "DE",
+  "GE",
+  "RTX",
+  "LMT",
   // Communication
-  "T", "VZ", "CMCSA", "TMUS",
+  "T",
+  "VZ",
+  "CMCSA",
+  "TMUS",
   // ETFs - Broad Market
-  "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO",
+  "SPY",
+  "QQQ",
+  "IWM",
+  "DIA",
+  "VTI",
+  "VOO",
   // ETFs - Sector
-  "XLF", "XLK", "XLE", "XLV", "XLI", "XLY", "XLP", "XLU", "XLRE",
+  "XLF",
+  "XLK",
+  "XLE",
+  "XLV",
+  "XLI",
+  "XLY",
+  "XLP",
+  "XLU",
+  "XLRE",
   // ETFs - Volatility & Leverage
-  "TQQQ", "SQQQ", "UVXY", "VXX",
+  "TQQQ",
+  "SQQQ",
+  "UVXY",
+  "VXX",
 ];
 
 // ============================================================================
@@ -95,7 +175,12 @@ interface AdvancedIndicators {
   // Trend
   macdHist: (number | null)[];
   parabolicSar: (number | null)[];
-  ichimokuCloud: { tenkan: (number | null)[]; kijun: (number | null)[]; senkouA: (number | null)[]; senkouB: (number | null)[] };
+  ichimokuCloud: {
+    tenkan: (number | null)[];
+    kijun: (number | null)[];
+    senkouA: (number | null)[];
+    senkouB: (number | null)[];
+  };
 }
 
 interface ChartPattern {
@@ -210,10 +295,10 @@ interface BacktestConfig {
 // ============================================================================
 
 function calculateAllIndicators(bars: AlpacaBar[]): AdvancedIndicators {
-  const closes = bars.map(b => b.c);
-  const highs = bars.map(b => b.h);
-  const lows = bars.map(b => b.l);
-  const volumes = bars.map(b => b.v);
+  const closes = bars.map((b) => b.c);
+  const highs = bars.map((b) => b.h);
+  const lows = bars.map((b) => b.l);
+  const volumes = bars.map((b) => b.v);
 
   const bb = calculateBollingerBands(closes, 20, 2);
   const macd = calculateMACD(closes, 12, 26, 9);
@@ -237,11 +322,20 @@ function calculateAllIndicators(bars: AlpacaBar[]): AdvancedIndicators {
     keltnerUpper: bb.upper, // Simplified
     keltnerLower: bb.lower,
     obv: calculateOBV(closes, volumes),
-    vwap: closes.map((c, i) => bars.slice(0, i + 1).reduce((sum, b) => sum + b.c * b.v, 0) / bars.slice(0, i + 1).reduce((sum, b) => sum + b.v, 0)),
+    vwap: closes.map(
+      (c, i) =>
+        bars.slice(0, i + 1).reduce((sum, b) => sum + b.c * b.v, 0) /
+        bars.slice(0, i + 1).reduce((sum, b) => sum + b.v, 0)
+    ),
     mfi: calculateMFI(highs, lows, closes, volumes, 14),
     macdHist: macd.histogram,
     parabolicSar: closes, // Placeholder
-    ichimokuCloud: { tenkan: calculateSMA(closes, 9), kijun: calculateSMA(closes, 26), senkouA: closes, senkouB: closes },
+    ichimokuCloud: {
+      tenkan: calculateSMA(closes, 9),
+      kijun: calculateSMA(closes, 26),
+      senkouA: closes,
+      senkouB: closes,
+    },
   };
 }
 
@@ -249,7 +343,10 @@ function calculateAllIndicators(bars: AlpacaBar[]): AdvancedIndicators {
 // ADVANCED PATTERN RECOGNITION
 // ============================================================================
 
-function findExtrema(prices: number[], windowSize: number = 5): { peaks: number[]; troughs: number[] } {
+function findExtrema(
+  prices: number[],
+  windowSize: number = 5
+): { peaks: number[]; troughs: number[] } {
   const peaks: number[] = [];
   const troughs: number[] = [];
 
@@ -262,7 +359,12 @@ function findExtrema(prices: number[], windowSize: number = 5): { peaks: number[
   return { peaks, troughs };
 }
 
-function detectAllPatterns(prices: number[], highs: number[], lows: number[], index: number): ChartPattern[] {
+function detectAllPatterns(
+  prices: number[],
+  highs: number[],
+  lows: number[],
+  index: number
+): ChartPattern[] {
   const patterns: ChartPattern[] = [];
   if (index < 50) return patterns;
 
@@ -271,58 +373,104 @@ function detectAllPatterns(prices: number[], highs: number[], lows: number[], in
   // Double Top
   if (peaks.length >= 2) {
     const [i1, i2] = peaks.slice(-2);
-    const p1 = highs[i1], p2 = highs[i2];
-    if (Math.abs(p1 - p2) / p1 < 0.02 && (i2 - i1) > 5 && (i2 - i1) < 50) {
-      patterns.push({ type: "double_top", confidence: 0.65, priceTarget: p1 * 0.95, direction: "bearish", startIndex: i1, endIndex: index });
+    const p1 = highs[i1],
+      p2 = highs[i2];
+    if (Math.abs(p1 - p2) / p1 < 0.02 && i2 - i1 > 5 && i2 - i1 < 50) {
+      patterns.push({
+        type: "double_top",
+        confidence: 0.65,
+        priceTarget: p1 * 0.95,
+        direction: "bearish",
+        startIndex: i1,
+        endIndex: index,
+      });
     }
   }
 
   // Double Bottom
   if (troughs.length >= 2) {
     const [i1, i2] = troughs.slice(-2);
-    const t1 = lows[i1], t2 = lows[i2];
-    if (Math.abs(t1 - t2) / t1 < 0.02 && (i2 - i1) > 5 && (i2 - i1) < 50) {
-      patterns.push({ type: "double_bottom", confidence: 0.65, priceTarget: t1 * 1.05, direction: "bullish", startIndex: i1, endIndex: index });
+    const t1 = lows[i1],
+      t2 = lows[i2];
+    if (Math.abs(t1 - t2) / t1 < 0.02 && i2 - i1 > 5 && i2 - i1 < 50) {
+      patterns.push({
+        type: "double_bottom",
+        confidence: 0.65,
+        priceTarget: t1 * 1.05,
+        direction: "bullish",
+        startIndex: i1,
+        endIndex: index,
+      });
     }
   }
 
   // Head and Shoulders
   if (peaks.length >= 5) {
     const recent = peaks.slice(-5);
-    const p = recent.map(i => highs[i]);
+    const p = recent.map((i) => highs[i]);
     if (p[2] > p[1] && p[2] > p[3] && Math.abs(p[1] - p[3]) / p[1] < 0.05) {
-      patterns.push({ type: "head_shoulders", confidence: 0.7, priceTarget: prices[index] * 0.9, direction: "bearish", startIndex: recent[0], endIndex: index });
+      patterns.push({
+        type: "head_shoulders",
+        confidence: 0.7,
+        priceTarget: prices[index] * 0.9,
+        direction: "bearish",
+        startIndex: recent[0],
+        endIndex: index,
+      });
     }
   }
 
   // Inverse Head and Shoulders
   if (troughs.length >= 5) {
     const recent = troughs.slice(-5);
-    const t = recent.map(i => lows[i]);
+    const t = recent.map((i) => lows[i]);
     if (t[2] < t[1] && t[2] < t[3] && Math.abs(t[1] - t[3]) / t[1] < 0.05) {
-      patterns.push({ type: "inv_head_shoulders", confidence: 0.7, priceTarget: prices[index] * 1.1, direction: "bullish", startIndex: recent[0], endIndex: index });
+      patterns.push({
+        type: "inv_head_shoulders",
+        confidence: 0.7,
+        priceTarget: prices[index] * 1.1,
+        direction: "bullish",
+        startIndex: recent[0],
+        endIndex: index,
+      });
     }
   }
 
   // Ascending Triangle
   if (peaks.length >= 3 && troughs.length >= 3) {
-    const recentPeaks = peaks.slice(-3).map(i => highs[i]);
-    const recentTroughs = troughs.slice(-3).map(i => lows[i]);
-    const flatTop = Math.abs(recentPeaks[0] - recentPeaks[2]) / recentPeaks[0] < 0.02;
+    const recentPeaks = peaks.slice(-3).map((i) => highs[i]);
+    const recentTroughs = troughs.slice(-3).map((i) => lows[i]);
+    const flatTop =
+      Math.abs(recentPeaks[0] - recentPeaks[2]) / recentPeaks[0] < 0.02;
     const risingBottom = recentTroughs[2] > recentTroughs[0] * 1.02;
     if (flatTop && risingBottom) {
-      patterns.push({ type: "ascending_triangle", confidence: 0.6, priceTarget: prices[index] * 1.08, direction: "bullish", startIndex: peaks.slice(-3)[0], endIndex: index });
+      patterns.push({
+        type: "ascending_triangle",
+        confidence: 0.6,
+        priceTarget: prices[index] * 1.08,
+        direction: "bullish",
+        startIndex: peaks.slice(-3)[0],
+        endIndex: index,
+      });
     }
   }
 
   // Descending Triangle
   if (peaks.length >= 3 && troughs.length >= 3) {
-    const recentPeaks = peaks.slice(-3).map(i => highs[i]);
-    const recentTroughs = troughs.slice(-3).map(i => lows[i]);
-    const flatBottom = Math.abs(recentTroughs[0] - recentTroughs[2]) / recentTroughs[0] < 0.02;
+    const recentPeaks = peaks.slice(-3).map((i) => highs[i]);
+    const recentTroughs = troughs.slice(-3).map((i) => lows[i]);
+    const flatBottom =
+      Math.abs(recentTroughs[0] - recentTroughs[2]) / recentTroughs[0] < 0.02;
     const fallingTop = recentPeaks[2] < recentPeaks[0] * 0.98;
     if (flatBottom && fallingTop) {
-      patterns.push({ type: "descending_triangle", confidence: 0.6, priceTarget: prices[index] * 0.92, direction: "bearish", startIndex: troughs.slice(-3)[0], endIndex: index });
+      patterns.push({
+        type: "descending_triangle",
+        confidence: 0.6,
+        priceTarget: prices[index] * 0.92,
+        direction: "bearish",
+        startIndex: troughs.slice(-3)[0],
+        endIndex: index,
+      });
     }
   }
 
@@ -336,7 +484,14 @@ function detectAllPatterns(prices: number[], highs: number[], lows: number[], in
     const flagPullback = (prices[poleEnd] - prices[flagEnd]) / prices[poleEnd];
 
     if (poleGain > 0.1 && flagPullback > 0.02 && flagPullback < 0.08) {
-      patterns.push({ type: "bull_flag", confidence: 0.55, priceTarget: prices[index] * (1 + poleGain), direction: "bullish", startIndex: poleStart, endIndex: index });
+      patterns.push({
+        type: "bull_flag",
+        confidence: 0.55,
+        priceTarget: prices[index] * (1 + poleGain),
+        direction: "bullish",
+        startIndex: poleStart,
+        endIndex: index,
+      });
     }
   }
 
@@ -350,7 +505,14 @@ function detectAllPatterns(prices: number[], highs: number[], lows: number[], in
     const flagRebound = (prices[flagEnd] - prices[poleEnd]) / prices[poleEnd];
 
     if (poleLoss > 0.1 && flagRebound > 0.02 && flagRebound < 0.08) {
-      patterns.push({ type: "bear_flag", confidence: 0.55, priceTarget: prices[index] * (1 - poleLoss), direction: "bearish", startIndex: poleStart, endIndex: index });
+      patterns.push({
+        type: "bear_flag",
+        confidence: 0.55,
+        priceTarget: prices[index] * (1 - poleLoss),
+        direction: "bearish",
+        startIndex: poleStart,
+        endIndex: index,
+      });
     }
   }
 
@@ -371,7 +533,9 @@ function calculateCorrelation(x: number[], y: number[]): number {
   const xMean = xSlice.reduce((a, b) => a + b, 0) / n;
   const yMean = ySlice.reduce((a, b) => a + b, 0) / n;
 
-  let num = 0, xDen = 0, yDen = 0;
+  let num = 0,
+    xDen = 0,
+    yDen = 0;
   for (let i = 0; i < n; i++) {
     const xDiff = xSlice[i] - xMean;
     const yDiff = ySlice[i] - yMean;
@@ -401,9 +565,11 @@ function detectMarketRegime(
   const trending = adx !== null && adx > 25;
   const highVol = volatility > 0.02;
 
-  if (aboveSma20 && aboveSma50 && aboveSma200 && sma20Above50 && trending) return "strong_bull";
+  if (aboveSma20 && aboveSma50 && aboveSma200 && sma20Above50 && trending)
+    return "strong_bull";
   if (aboveSma20 && aboveSma50 && sma20Above50) return "bull";
-  if (!aboveSma20 && !aboveSma50 && !aboveSma200 && !sma20Above50 && trending) return "strong_bear";
+  if (!aboveSma20 && !aboveSma50 && !aboveSma200 && !sma20Above50 && trending)
+    return "strong_bear";
   if (!aboveSma20 && !aboveSma50) return "bear";
   if (highVol && !trending) return "volatile_range";
   return "ranging";
@@ -419,15 +585,22 @@ function generateFullPowerSignal(
   indicators: AdvancedIndicators,
   spyReturns: number[]
 ): FullPowerSignal {
-  const prices = bars.map(b => b.c);
-  const volumes = bars.map(b => b.v);
+  const prices = bars.map((b) => b.c);
+  const volumes = bars.map((b) => b.v);
   const price = prices[index];
-  const highs = bars.map(b => b.h);
-  const lows = bars.map(b => b.l);
+  const highs = bars.map((b) => b.h);
+  const lows = bars.map((b) => b.l);
 
   // Volatility for regime
-  const returns = index >= 20 ? prices.slice(index - 20, index + 1).map((p, i, arr) => i > 0 ? (p - arr[i - 1]) / arr[i - 1] : 0) : [0];
-  const volatility = Math.sqrt(returns.reduce((sum, r) => sum + r * r, 0) / returns.length);
+  const returns =
+    index >= 20
+      ? prices
+          .slice(index - 20, index + 1)
+          .map((p, i, arr) => (i > 0 ? (p - arr[i - 1]) / arr[i - 1] : 0))
+      : [0];
+  const volatility = Math.sqrt(
+    returns.reduce((sum, r) => sum + r * r, 0) / returns.length
+  );
 
   const regime = detectMarketRegime(
     price,
@@ -486,7 +659,7 @@ function generateFullPowerSignal(
   const emaFast = indicators.emaFast[index];
   const emaSlow = indicators.emaSlow[index];
   if (emaFast !== null && emaSlow !== null) {
-    const emaDiff = (emaFast - emaSlow) / emaSlow * 100;
+    const emaDiff = ((emaFast - emaSlow) / emaSlow) * 100;
     if (emaDiff > 3) momentum += 0.9;
     else if (emaDiff > 1) momentum += 0.5;
     else if (emaDiff < -3) momentum -= 0.9;
@@ -523,7 +696,8 @@ function generateFullPowerSignal(
   // ============== VOLUME SCORE ==============
   let volume = 0;
   if (index >= 20) {
-    const avgVol = volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
+    const avgVol =
+      volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
     const volRatio = volumes[index] / avgVol;
     if (volRatio > 2.5) volume = 0.6;
     else if (volRatio > 1.5) volume = 0.4;
@@ -541,8 +715,10 @@ function generateFullPowerSignal(
 
   // ============== SENTIMENT SCORE ==============
   let sentiment = 0;
-  const return5d = index >= 5 ? (price - prices[index - 5]) / prices[index - 5] : 0;
-  const return20d = index >= 20 ? (price - prices[index - 20]) / prices[index - 20] : 0;
+  const return5d =
+    index >= 5 ? (price - prices[index - 5]) / prices[index - 5] : 0;
+  const return20d =
+    index >= 20 ? (price - prices[index - 20]) / prices[index - 20] : 0;
 
   if (return20d > 0.05 && return5d < 0) sentiment += 0.5;
   if (return20d < -0.05 && return5d > 0) sentiment -= 0.5;
@@ -571,7 +747,9 @@ function generateFullPowerSignal(
   // ============== CORRELATION SCORE ==============
   let correlation = 0;
   if (spyReturns.length > 20 && index >= 20) {
-    const stockReturns = prices.slice(index - 20, index + 1).map((p, i, arr) => i > 0 ? (p - arr[i - 1]) / arr[i - 1] : 0);
+    const stockReturns = prices
+      .slice(index - 20, index + 1)
+      .map((p, i, arr) => (i > 0 ? (p - arr[i - 1]) / arr[i - 1] : 0));
     const corr = calculateCorrelation(stockReturns, spyReturns.slice(-21));
     if (corr > 0.8) correlation = 0.2;
     else if (corr < 0.3) correlation = -0.1;
@@ -581,27 +759,35 @@ function generateFullPowerSignal(
   let vwapDev = 0;
   const vwap = indicators.vwap[index];
   if (vwap !== null) {
-    const deviation = (price - vwap) / vwap * 100;
+    const deviation = ((price - vwap) / vwap) * 100;
     if (deviation < -2) vwapDev = 0.4;
     else if (deviation > 2) vwapDev = -0.4;
   }
 
   // ============== COMPOSITE ==============
   const composite =
-    technical * 0.20 +
-    momentum * 0.20 +
+    technical * 0.2 +
+    momentum * 0.2 +
     vol * 0.08 +
     volume * 0.12 +
     sentiment * 0.12 +
-    pattern * 0.10 +
+    pattern * 0.1 +
     breadth * 0.08 +
     correlation * 0.05 +
     vwapDev * 0.05;
 
   // ============== CONFIDENCE ==============
-  const scores = [technical, momentum, vol, volume, sentiment, pattern, breadth];
-  const posCount = scores.filter(s => s > 0.2).length;
-  const negCount = scores.filter(s => s < -0.2).length;
+  const scores = [
+    technical,
+    momentum,
+    vol,
+    volume,
+    sentiment,
+    pattern,
+    breadth,
+  ];
+  const posCount = scores.filter((s) => s > 0.2).length;
+  const negCount = scores.filter((s) => s < -0.2).length;
   const alignment = Math.max(posCount, negCount) / scores.length;
   const confidence = Math.min(1, alignment * Math.abs(composite) * 2.5);
 
@@ -646,13 +832,24 @@ function calculateRiskParitySize(
 // MONTE CARLO SIMULATION
 // ============================================================================
 
-function runMonteCarloSimulation(trades: ExtendedTrade[], numTrials: number): MonteCarloResult {
-  const returns = trades.map(t => t.pnlPct / 100);
+function runMonteCarloSimulation(
+  trades: ExtendedTrade[],
+  numTrials: number
+): MonteCarloResult {
+  const returns = trades.map((t) => t.pnlPct / 100);
   if (returns.length === 0) {
     return {
-      trials: 0, medianReturn: 0, meanReturn: 0, stdDev: 0,
-      percentile5: 0, percentile25: 0, percentile75: 0, percentile95: 0,
-      maxDrawdownMedian: 0, sharpeMedian: 0, probabilityOfProfit: 0
+      trials: 0,
+      medianReturn: 0,
+      meanReturn: 0,
+      stdDev: 0,
+      percentile5: 0,
+      percentile25: 0,
+      percentile75: 0,
+      percentile95: 0,
+      maxDrawdownMedian: 0,
+      sharpeMedian: 0,
+      probabilityOfProfit: 0,
     };
   }
 
@@ -674,7 +871,7 @@ function runMonteCarloSimulation(trades: ExtendedTrade[], numTrials: number): Mo
     let maxDD = 0;
 
     for (const r of sampledReturns) {
-      cumReturn *= (1 + r);
+      cumReturn *= 1 + r;
       if (cumReturn > peak) peak = cumReturn;
       const dd = (peak - cumReturn) / peak;
       if (dd > maxDD) maxDD = dd;
@@ -684,9 +881,13 @@ function runMonteCarloSimulation(trades: ExtendedTrade[], numTrials: number): Mo
     simulatedDrawdowns.push(maxDD * 100);
 
     // Sharpe
-    const avgR = sampledReturns.reduce((a, b) => a + b, 0) / sampledReturns.length;
-    const stdR = Math.sqrt(sampledReturns.reduce((sum, r) => sum + Math.pow(r - avgR, 2), 0) / sampledReturns.length);
-    simulatedSharpes.push(stdR !== 0 ? avgR / stdR * Math.sqrt(252) : 0);
+    const avgR =
+      sampledReturns.reduce((a, b) => a + b, 0) / sampledReturns.length;
+    const stdR = Math.sqrt(
+      sampledReturns.reduce((sum, r) => sum + Math.pow(r - avgR, 2), 0) /
+        sampledReturns.length
+    );
+    simulatedSharpes.push(stdR !== 0 ? (avgR / stdR) * Math.sqrt(252) : 0);
   }
 
   simulatedReturns.sort((a, b) => a - b);
@@ -695,7 +896,10 @@ function runMonteCarloSimulation(trades: ExtendedTrade[], numTrials: number): Mo
 
   const median = simulatedReturns[Math.floor(numTrials / 2)];
   const mean = simulatedReturns.reduce((a, b) => a + b, 0) / numTrials;
-  const stdDev = Math.sqrt(simulatedReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / numTrials);
+  const stdDev = Math.sqrt(
+    simulatedReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) /
+      numTrials
+  );
 
   return {
     trials: numTrials,
@@ -708,7 +912,8 @@ function runMonteCarloSimulation(trades: ExtendedTrade[], numTrials: number): Mo
     percentile95: simulatedReturns[Math.floor(numTrials * 0.95)],
     maxDrawdownMedian: simulatedDrawdowns[Math.floor(numTrials / 2)],
     sharpeMedian: simulatedSharpes[Math.floor(numTrials / 2)],
-    probabilityOfProfit: simulatedReturns.filter(r => r > 0).length / numTrials * 100,
+    probabilityOfProfit:
+      (simulatedReturns.filter((r) => r > 0).length / numTrials) * 100,
   };
 }
 
@@ -729,17 +934,97 @@ interface Position {
 }
 
 const SECTOR_MAP: Record<string, string> = {
-  AAPL: "Tech", MSFT: "Tech", GOOGL: "Tech", AMZN: "Tech", NVDA: "Tech", META: "Tech", TSLA: "Tech",
-  AMD: "Tech", INTC: "Tech", CRM: "Tech", NFLX: "Tech", ADBE: "Tech", ORCL: "Tech", CSCO: "Tech", QCOM: "Tech", AVGO: "Tech", TXN: "Tech", MU: "Tech", AMAT: "Tech", NOW: "Tech", PANW: "Tech",
-  JPM: "Finance", BAC: "Finance", GS: "Finance", MS: "Finance", C: "Finance", WFC: "Finance", V: "Finance", MA: "Finance", PYPL: "Finance", AXP: "Finance", BLK: "Finance",
-  JNJ: "Healthcare", UNH: "Healthcare", PFE: "Healthcare", MRK: "Healthcare", ABBV: "Healthcare", LLY: "Healthcare", BMY: "Healthcare", AMGN: "Healthcare", GILD: "Healthcare", VRTX: "Healthcare", REGN: "Healthcare",
-  WMT: "Consumer", COST: "Consumer", HD: "Consumer", LOW: "Consumer", TGT: "Consumer", NKE: "Consumer", MCD: "Consumer", SBUX: "Consumer", DIS: "Consumer", BKNG: "Consumer",
-  XOM: "Energy", CVX: "Energy", COP: "Energy", SLB: "Energy", NEE: "Utility", DUK: "Utility",
-  BA: "Industrial", CAT: "Industrial", HON: "Industrial", UPS: "Industrial", FDX: "Industrial", DE: "Industrial", GE: "Industrial", RTX: "Defense", LMT: "Defense",
-  T: "Telecom", VZ: "Telecom", CMCSA: "Telecom", TMUS: "Telecom",
-  SPY: "ETF", QQQ: "ETF", IWM: "ETF", DIA: "ETF", VTI: "ETF", VOO: "ETF",
-  XLF: "ETF", XLK: "ETF", XLE: "ETF", XLV: "ETF", XLI: "ETF", XLY: "ETF", XLP: "ETF", XLU: "ETF", XLRE: "ETF",
-  TQQQ: "Leveraged", SQQQ: "Leveraged", UVXY: "Leveraged", VXX: "Leveraged",
+  AAPL: "Tech",
+  MSFT: "Tech",
+  GOOGL: "Tech",
+  AMZN: "Tech",
+  NVDA: "Tech",
+  META: "Tech",
+  TSLA: "Tech",
+  AMD: "Tech",
+  INTC: "Tech",
+  CRM: "Tech",
+  NFLX: "Tech",
+  ADBE: "Tech",
+  ORCL: "Tech",
+  CSCO: "Tech",
+  QCOM: "Tech",
+  AVGO: "Tech",
+  TXN: "Tech",
+  MU: "Tech",
+  AMAT: "Tech",
+  NOW: "Tech",
+  PANW: "Tech",
+  JPM: "Finance",
+  BAC: "Finance",
+  GS: "Finance",
+  MS: "Finance",
+  C: "Finance",
+  WFC: "Finance",
+  V: "Finance",
+  MA: "Finance",
+  PYPL: "Finance",
+  AXP: "Finance",
+  BLK: "Finance",
+  JNJ: "Healthcare",
+  UNH: "Healthcare",
+  PFE: "Healthcare",
+  MRK: "Healthcare",
+  ABBV: "Healthcare",
+  LLY: "Healthcare",
+  BMY: "Healthcare",
+  AMGN: "Healthcare",
+  GILD: "Healthcare",
+  VRTX: "Healthcare",
+  REGN: "Healthcare",
+  WMT: "Consumer",
+  COST: "Consumer",
+  HD: "Consumer",
+  LOW: "Consumer",
+  TGT: "Consumer",
+  NKE: "Consumer",
+  MCD: "Consumer",
+  SBUX: "Consumer",
+  DIS: "Consumer",
+  BKNG: "Consumer",
+  XOM: "Energy",
+  CVX: "Energy",
+  COP: "Energy",
+  SLB: "Energy",
+  NEE: "Utility",
+  DUK: "Utility",
+  BA: "Industrial",
+  CAT: "Industrial",
+  HON: "Industrial",
+  UPS: "Industrial",
+  FDX: "Industrial",
+  DE: "Industrial",
+  GE: "Industrial",
+  RTX: "Defense",
+  LMT: "Defense",
+  T: "Telecom",
+  VZ: "Telecom",
+  CMCSA: "Telecom",
+  TMUS: "Telecom",
+  SPY: "ETF",
+  QQQ: "ETF",
+  IWM: "ETF",
+  DIA: "ETF",
+  VTI: "ETF",
+  VOO: "ETF",
+  XLF: "ETF",
+  XLK: "ETF",
+  XLE: "ETF",
+  XLV: "ETF",
+  XLI: "ETF",
+  XLY: "ETF",
+  XLP: "ETF",
+  XLU: "ETF",
+  XLRE: "ETF",
+  TQQQ: "Leveraged",
+  SQQQ: "Leveraged",
+  UVXY: "Leveraged",
+  VXX: "Leveraged",
 };
 
 function runFullPowerBacktest(
@@ -761,7 +1046,9 @@ function runFullPowerBacktest(
   }
 
   // SPY returns for correlation
-  const spyReturns = spyBars.map((b, i, arr) => i > 0 ? (b.c - arr[i - 1].c) / arr[i - 1].c : 0);
+  const spyReturns = spyBars.map((b, i, arr) =>
+    i > 0 ? (b.c - arr[i - 1].c) / arr[i - 1].c : 0
+  );
 
   // Get all dates
   const allDates = new Set<string>();
@@ -775,15 +1062,24 @@ function runFullPowerBacktest(
 
     for (const [symbol, bars] of dataMap) {
       const indicators = indicatorsMap.get(symbol)!;
-      const dateIndex = bars.findIndex(b => b.t.split("T")[0] === date);
+      const dateIndex = bars.findIndex((b) => b.t.split("T")[0] === date);
       if (dateIndex < 100) continue; // Need more data for comprehensive analysis
 
       const bar = bars[dateIndex];
-      const signals = generateFullPowerSignal(dateIndex, bars, indicators, spyReturns);
+      const signals = generateFullPowerSignal(
+        dateIndex,
+        bars,
+        indicators,
+        spyReturns
+      );
       const sector = SECTOR_MAP[symbol] || "Other";
 
       // Skip leveraged ETFs if regime filter enabled
-      if (config.regimeFilter && sector === "Leveraged" && signals.regime !== "strong_bull") {
+      if (
+        config.regimeFilter &&
+        sector === "Leveraged" &&
+        signals.regime !== "strong_bull"
+      ) {
         continue;
       }
 
@@ -804,13 +1100,20 @@ function runFullPowerBacktest(
         } else if (bar.c > position.entryPrice * 1.02) {
           const atr = indicators.atr[dateIndex];
           if (atr !== null) {
-            position.stopLoss = Math.max(position.stopLoss, bar.c - atr * config.atrMultStop);
+            position.stopLoss = Math.max(
+              position.stopLoss,
+              bar.c - atr * config.atrMultStop
+            );
           }
         }
 
         if (exitReason) {
           const pnl = (exitPrice - position.entryPrice) * position.shares;
-          const holdingDays = Math.floor((new Date(date).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24));
+          const holdingDays = Math.floor(
+            (new Date(date).getTime() -
+              new Date(position.entryDate).getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
 
           trades.push({
             symbol,
@@ -822,7 +1125,8 @@ function runFullPowerBacktest(
             shares: position.shares,
             side: "long",
             pnl,
-            pnlPct: (exitPrice - position.entryPrice) / position.entryPrice * 100,
+            pnlPct:
+              ((exitPrice - position.entryPrice) / position.entryPrice) * 100,
             exitReason,
             holdingDays,
             signals: position.signals,
@@ -854,7 +1158,12 @@ function runFullPowerBacktest(
 
             if (config.useRiskParity) {
               const symbolVol = atr / bar.c;
-              positionSize = calculateRiskParitySize(equity, 0.02, symbolVol, equity * config.maxPositionPct);
+              positionSize = calculateRiskParitySize(
+                equity,
+                0.02,
+                symbolVol,
+                equity * config.maxPositionPct
+              );
             } else {
               positionSize = equity * config.maxPositionPct;
             }
@@ -884,7 +1193,7 @@ function runFullPowerBacktest(
     if (dailyPnl < -equity * config.maxDailyLoss) {
       for (const [symbol, position] of positions) {
         const bars = dataMap.get(symbol)!;
-        const bar = bars.find(b => b.t.split("T")[0] === date);
+        const bar = bars.find((b) => b.t.split("T")[0] === date);
         if (bar) {
           const pnl = (bar.c - position.entryPrice) * position.shares;
           trades.push({
@@ -897,7 +1206,7 @@ function runFullPowerBacktest(
             shares: position.shares,
             side: "long",
             pnl,
-            pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+            pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
             exitReason: "daily_loss_limit",
             holdingDays: 0,
             signals: position.signals,
@@ -913,14 +1222,17 @@ function runFullPowerBacktest(
 
     // Track drawdown
     if (equity > peakEquity) peakEquity = equity;
-    maxDrawdown = Math.max(maxDrawdown, (peakEquity - equity) / peakEquity * 100);
+    maxDrawdown = Math.max(
+      maxDrawdown,
+      ((peakEquity - equity) / peakEquity) * 100
+    );
   }
 
   // Close remaining positions
   const lastDate = sortedDates[sortedDates.length - 1];
   for (const [symbol, position] of positions) {
     const bars = dataMap.get(symbol)!;
-    const bar = bars.find(b => b.t.split("T")[0] === lastDate);
+    const bar = bars.find((b) => b.t.split("T")[0] === lastDate);
     if (bar) {
       const pnl = (bar.c - position.entryPrice) * position.shares;
       trades.push({
@@ -933,9 +1245,13 @@ function runFullPowerBacktest(
         shares: position.shares,
         side: "long",
         pnl,
-        pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+        pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
         exitReason: "end_of_backtest",
-        holdingDays: Math.floor((new Date(lastDate).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24)),
+        holdingDays: Math.floor(
+          (new Date(lastDate).getTime() -
+            new Date(position.entryDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ),
         signals: position.signals,
         regimeAtEntry: position.signals.regime,
         atrAtEntry: position.atr,
@@ -946,38 +1262,66 @@ function runFullPowerBacktest(
   }
 
   // Calculate comprehensive metrics
-  const winningTrades = trades.filter(t => t.pnl > 0);
-  const losingTrades = trades.filter(t => t.pnl <= 0);
+  const winningTrades = trades.filter((t) => t.pnl > 0);
+  const losingTrades = trades.filter((t) => t.pnl <= 0);
   const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
   const totalWins = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
 
-  const returns = trades.map(t => t.pnlPct / 100);
-  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-  const stdDev = returns.length > 1 ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length) : 0;
-  const downReturns = returns.filter(r => r < 0);
-  const downStdDev = downReturns.length > 1 ? Math.sqrt(downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downReturns.length) : 1;
+  const returns = trades.map((t) => t.pnlPct / 100);
+  const avgReturn =
+    returns.length > 0
+      ? returns.reduce((a, b) => a + b, 0) / returns.length
+      : 0;
+  const stdDev =
+    returns.length > 1
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+            returns.length
+        )
+      : 0;
+  const downReturns = returns.filter((r) => r < 0);
+  const downStdDev =
+    downReturns.length > 1
+      ? Math.sqrt(
+          downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) /
+            downReturns.length
+        )
+      : 1;
 
   const sharpeRatio = stdDev !== 0 ? (avgReturn * Math.sqrt(252)) / stdDev : 0;
-  const sortinoRatio = downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
+  const sortinoRatio =
+    downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
   const years = 2.95;
-  const cagr = years > 0 ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100 : 0;
+  const cagr =
+    years > 0
+      ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100
+      : 0;
   const calmarRatio = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
 
   // Sector breakdown
-  const sectorPerf: Record<string, { trades: number; pnl: number; winRate: number }> = {};
+  const sectorPerf: Record<
+    string,
+    { trades: number; pnl: number; winRate: number }
+  > = {};
   for (const trade of trades) {
-    if (!sectorPerf[trade.sector]) sectorPerf[trade.sector] = { trades: 0, pnl: 0, winRate: 0 };
+    if (!sectorPerf[trade.sector])
+      sectorPerf[trade.sector] = { trades: 0, pnl: 0, winRate: 0 };
     sectorPerf[trade.sector].trades++;
     sectorPerf[trade.sector].pnl += trade.pnl;
   }
   for (const sector of Object.keys(sectorPerf)) {
-    const sectorTrades = trades.filter(t => t.sector === sector);
-    sectorPerf[sector].winRate = sectorTrades.filter(t => t.pnl > 0).length / sectorTrades.length * 100;
+    const sectorTrades = trades.filter((t) => t.sector === sector);
+    sectorPerf[sector].winRate =
+      (sectorTrades.filter((t) => t.pnl > 0).length / sectorTrades.length) *
+      100;
   }
 
   // Regime breakdown
-  const regimePerf: Record<string, { trades: number; pnl: number; winRate: number }> = {};
+  const regimePerf: Record<
+    string,
+    { trades: number; pnl: number; winRate: number }
+  > = {};
   for (const trade of trades) {
     const r = trade.regimeAtEntry;
     if (!regimePerf[r]) regimePerf[r] = { trades: 0, pnl: 0, winRate: 0 };
@@ -985,8 +1329,10 @@ function runFullPowerBacktest(
     regimePerf[r].pnl += trade.pnl;
   }
   for (const regime of Object.keys(regimePerf)) {
-    const regimeTrades = trades.filter(t => t.regimeAtEntry === regime);
-    regimePerf[regime].winRate = regimeTrades.filter(t => t.pnl > 0).length / regimeTrades.length * 100;
+    const regimeTrades = trades.filter((t) => t.regimeAtEntry === regime);
+    regimePerf[regime].winRate =
+      (regimeTrades.filter((t) => t.pnl > 0).length / regimeTrades.length) *
+      100;
   }
 
   return {
@@ -995,7 +1341,8 @@ function runFullPowerBacktest(
       totalTrades: trades.length,
       winningTrades: winningTrades.length,
       losingTrades: losingTrades.length,
-      winRate: trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
+      winRate:
+        trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
       totalPnl,
       totalPnlPct: (totalPnl / config.initialCapital) * 100,
       avgWin: winningTrades.length > 0 ? totalWins / winningTrades.length : 0,
@@ -1005,7 +1352,10 @@ function runFullPowerBacktest(
       sharpeRatio,
       sortinoRatio,
       calmarRatio,
-      avgHoldingDays: trades.length > 0 ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length : 0,
+      avgHoldingDays:
+        trades.length > 0
+          ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length
+          : 0,
       finalEquity: equity,
       cagr,
       sectorPerformance: sectorPerf,
@@ -1024,7 +1374,9 @@ async function main() {
   console.log("=".repeat(100));
   console.log(`Universe: ${MEGA_UNIVERSE.length} symbols`);
   console.log(`Period: 2022-01-01 to 2025-12-20 (3 years)`);
-  console.log(`Features: Walk-Forward | Monte Carlo | Risk Parity | Regime Detection | 15+ Patterns`);
+  console.log(
+    `Features: Walk-Forward | Monte Carlo | Risk Parity | Regime Detection | 15+ Patterns`
+  );
   console.log("=".repeat(100));
 
   const startDate = "2022-01-01";
@@ -1048,7 +1400,7 @@ async function main() {
   }
 
   // Fetch rest of universe
-  for (const symbol of MEGA_UNIVERSE.filter(s => s !== "SPY")) {
+  for (const symbol of MEGA_UNIVERSE.filter((s) => s !== "SPY")) {
     process.stdout.write(`${symbol}... `);
     try {
       const bars = await fetchAlpacaBars(symbol, startDate, endDate);
@@ -1062,7 +1414,7 @@ async function main() {
     } catch (error) {
       console.log(`ERROR`);
     }
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
 
   console.log(`\nLoaded ${successCount}/${MEGA_UNIVERSE.length} symbols`);
@@ -1078,14 +1430,14 @@ async function main() {
     buyThreshold: 0.12,
     confidenceMin: 0.28,
     maxDailyLoss: 0.05,
-    technicalWeight: 0.20,
-    momentumWeight: 0.20,
+    technicalWeight: 0.2,
+    momentumWeight: 0.2,
     volatilityWeight: 0.08,
     volumeWeight: 0.12,
     sentimentWeight: 0.12,
-    patternWeight: 0.10,
+    patternWeight: 0.1,
     breadthWeight: 0.08,
-    correlationWeight: 0.10,
+    correlationWeight: 0.1,
     useRiskParity: true,
     regimeFilter: true,
     sectorRotation: true,
@@ -1097,29 +1449,49 @@ async function main() {
   console.log(`\n${"=".repeat(100)}`);
   console.log("FULL POWER RESULTS");
   console.log(`${"=".repeat(100)}`);
-  console.log(`Trades: ${metrics.totalTrades} | Win Rate: ${metrics.winRate.toFixed(1)}%`);
-  console.log(`P&L: $${metrics.totalPnl.toFixed(0)} (${metrics.totalPnlPct.toFixed(1)}%)`);
-  console.log(`Profit Factor: ${metrics.profitFactor.toFixed(2)} | Sharpe: ${metrics.sharpeRatio.toFixed(2)} | Sortino: ${metrics.sortinoRatio.toFixed(2)}`);
-  console.log(`Max DD: ${metrics.maxDrawdown.toFixed(1)}% | CAGR: ${metrics.cagr.toFixed(1)}% | Calmar: ${metrics.calmarRatio.toFixed(2)}`);
-  console.log(`Avg Holding: ${metrics.avgHoldingDays.toFixed(1)} days | Final Equity: $${metrics.finalEquity.toFixed(0)}`);
+  console.log(
+    `Trades: ${metrics.totalTrades} | Win Rate: ${metrics.winRate.toFixed(1)}%`
+  );
+  console.log(
+    `P&L: $${metrics.totalPnl.toFixed(0)} (${metrics.totalPnlPct.toFixed(1)}%)`
+  );
+  console.log(
+    `Profit Factor: ${metrics.profitFactor.toFixed(2)} | Sharpe: ${metrics.sharpeRatio.toFixed(2)} | Sortino: ${metrics.sortinoRatio.toFixed(2)}`
+  );
+  console.log(
+    `Max DD: ${metrics.maxDrawdown.toFixed(1)}% | CAGR: ${metrics.cagr.toFixed(1)}% | Calmar: ${metrics.calmarRatio.toFixed(2)}`
+  );
+  console.log(
+    `Avg Holding: ${metrics.avgHoldingDays.toFixed(1)} days | Final Equity: $${metrics.finalEquity.toFixed(0)}`
+  );
 
   console.log(`\n--- SECTOR PERFORMANCE ---`);
-  for (const [sector, perf] of Object.entries(metrics.sectorPerformance).sort((a: any, b: any) => b[1].pnl - a[1].pnl)) {
+  for (const [sector, perf] of Object.entries(metrics.sectorPerformance).sort(
+    (a: any, b: any) => b[1].pnl - a[1].pnl
+  )) {
     const p = perf as { trades: number; pnl: number; winRate: number };
-    console.log(`  ${sector.padEnd(12)}: ${String(p.trades).padStart(4)} trades | $${p.pnl.toFixed(0).padStart(8)} | ${p.winRate.toFixed(1)}% win rate`);
+    console.log(
+      `  ${sector.padEnd(12)}: ${String(p.trades).padStart(4)} trades | $${p.pnl.toFixed(0).padStart(8)} | ${p.winRate.toFixed(1)}% win rate`
+    );
   }
 
   console.log(`\n--- REGIME PERFORMANCE ---`);
-  for (const [regime, perf] of Object.entries(metrics.regimePerformance).sort((a: any, b: any) => b[1].pnl - a[1].pnl)) {
+  for (const [regime, perf] of Object.entries(metrics.regimePerformance).sort(
+    (a: any, b: any) => b[1].pnl - a[1].pnl
+  )) {
     const p = perf as { trades: number; pnl: number; winRate: number };
-    console.log(`  ${regime.padEnd(15)}: ${String(p.trades).padStart(4)} trades | $${p.pnl.toFixed(0).padStart(8)} | ${p.winRate.toFixed(1)}% win rate`);
+    console.log(
+      `  ${regime.padEnd(15)}: ${String(p.trades).padStart(4)} trades | $${p.pnl.toFixed(0).padStart(8)} | ${p.winRate.toFixed(1)}% win rate`
+    );
   }
 
   // Monte Carlo Simulation
   console.log(`\n--- MONTE CARLO SIMULATION (1000 trials) ---`);
   const mc = runMonteCarloSimulation(trades, 1000);
   console.log(`  Median Return: ${mc.medianReturn.toFixed(1)}%`);
-  console.log(`  Mean Return: ${mc.meanReturn.toFixed(1)}% (std: ${mc.stdDev.toFixed(1)}%)`);
+  console.log(
+    `  Mean Return: ${mc.meanReturn.toFixed(1)}% (std: ${mc.stdDev.toFixed(1)}%)`
+  );
   console.log(`  5th Percentile: ${mc.percentile5.toFixed(1)}%`);
   console.log(`  25th Percentile: ${mc.percentile25.toFixed(1)}%`);
   console.log(`  75th Percentile: ${mc.percentile75.toFixed(1)}%`);
@@ -1130,29 +1502,44 @@ async function main() {
 
   // Top trades
   console.log(`\n--- TOP 15 WINNING TRADES ---`);
-  const topWins = trades.filter(t => t.pnl > 0).sort((a, b) => b.pnl - a.pnl).slice(0, 15);
+  const topWins = trades
+    .filter((t) => t.pnl > 0)
+    .sort((a, b) => b.pnl - a.pnl)
+    .slice(0, 15);
   for (const t of topWins) {
-    console.log(`  ${t.symbol.padEnd(6)} (${t.sector.padEnd(10)}): $${t.pnl.toFixed(0).padStart(6)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason} | Regime: ${t.regimeAtEntry}`);
+    console.log(
+      `  ${t.symbol.padEnd(6)} (${t.sector.padEnd(10)}): $${t.pnl.toFixed(0).padStart(6)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason} | Regime: ${t.regimeAtEntry}`
+    );
   }
 
   console.log(`\n--- TOP 15 LOSING TRADES ---`);
-  const topLosses = trades.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl).slice(0, 15);
+  const topLosses = trades
+    .filter((t) => t.pnl < 0)
+    .sort((a, b) => a.pnl - b.pnl)
+    .slice(0, 15);
   for (const t of topLosses) {
-    console.log(`  ${t.symbol.padEnd(6)} (${t.sector.padEnd(10)}): $${t.pnl.toFixed(0).padStart(6)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason} | Regime: ${t.regimeAtEntry}`);
+    console.log(
+      `  ${t.symbol.padEnd(6)} (${t.sector.padEnd(10)}): $${t.pnl.toFixed(0).padStart(6)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason} | Regime: ${t.regimeAtEntry}`
+    );
   }
 
   // Pattern analysis
   console.log(`\n--- PATTERN ANALYSIS (in winning trades) ---`);
   const patternCounts: Record<string, { count: number; totalPnl: number }> = {};
-  for (const trade of trades.filter(t => t.pnl > 0)) {
+  for (const trade of trades.filter((t) => t.pnl > 0)) {
     for (const p of trade.signals.patterns) {
-      if (!patternCounts[p.type]) patternCounts[p.type] = { count: 0, totalPnl: 0 };
+      if (!patternCounts[p.type])
+        patternCounts[p.type] = { count: 0, totalPnl: 0 };
       patternCounts[p.type].count++;
       patternCounts[p.type].totalPnl += trade.pnl;
     }
   }
-  for (const [pattern, stats] of Object.entries(patternCounts).sort((a: any, b: any) => b[1].totalPnl - a[1].totalPnl)) {
-    console.log(`  ${pattern.padEnd(20)}: ${String(stats.count).padStart(4)} occurrences | $${stats.totalPnl.toFixed(0).padStart(8)} total P&L`);
+  for (const [pattern, stats] of Object.entries(patternCounts).sort(
+    (a: any, b: any) => b[1].totalPnl - a[1].totalPnl
+  )) {
+    console.log(
+      `  ${pattern.padEnd(20)}: ${String(stats.count).padStart(4)} occurrences | $${stats.totalPnl.toFixed(0).padStart(8)} total P&L`
+    );
   }
 
   console.log(`\n${"=".repeat(100)}`);

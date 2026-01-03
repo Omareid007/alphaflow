@@ -152,40 +152,54 @@ router.get("/cache/stats", requireAuth, async (req: Request, res: Response) => {
 
 // POST /api/ai/cache/clear
 // Clear all LLM response cache
-router.post("/cache/clear", requireAuth, async (req: Request, res: Response) => {
-  try {
-    clearLLMCache();
-    res.json({ success: true, message: "LLM cache cleared" });
-  } catch (error) {
-    log.error("Routes", "Error clearing LLM cache", { error: error });
-    res.status(500).json({ error: "Failed to clear cache" });
+router.post(
+  "/cache/clear",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      clearLLMCache();
+      res.json({ success: true, message: "LLM cache cleared" });
+    } catch (error) {
+      log.error("Routes", "Error clearing LLM cache", { error: error });
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
   }
-});
+);
 
 // POST /api/ai/cache/clear/:role
 // Clear LLM response cache for a specific role
-router.post("/cache/clear/:role", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { role } = req.params;
-    clearLLMCacheForRole(role as any);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("Routes", "Error clearing LLM cache for role", { error: error });
-    res.status(500).json({ error: "Failed to clear cache for role" });
+router.post(
+  "/cache/clear/:role",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { role } = req.params;
+      clearLLMCacheForRole(role as any);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error("Routes", "Error clearing LLM cache for role", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to clear cache for role" });
+    }
   }
-});
+);
 
 // POST /api/ai/cache/reset-stats
 // Reset LLM cache statistics
-router.post("/cache/reset-stats", requireAuth, async (req: Request, res: Response) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("Routes", "Error resetting LLM cache stats", { error: error });
-    res.status(500).json({ error: "Failed to reset cache stats" });
+router.post(
+  "/cache/reset-stats",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("Routes", "Error resetting LLM cache stats", { error: error });
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
+);
 
 // GET /api/ai/sentiment
 // Get sentiment signals for symbols
@@ -200,7 +214,8 @@ router.get("/sentiment", requireAuth, async (req: Request, res: Response) => {
     ];
 
     // Get sentiment from the aggregator service
-    const sentimentResults = await sentimentAggregator.batchGetSentiment(symbols);
+    const sentimentResults =
+      await sentimentAggregator.batchGetSentiment(symbols);
 
     // Transform to frontend-expected format
     const sentiments = Array.from(sentimentResults.entries()).map(

@@ -345,75 +345,89 @@ export function registerPortfolioTradingRoutes(app: Express) {
   });
 
   // POST /api/portfolio/rebalance/preview - Preview rebalance without executing
-  app.post("/api/portfolio/rebalance/preview", authMiddleware, async (req, res) => {
-    try {
-      const { targetAllocations } = req.body as {
-        targetAllocations: { symbol: string; targetPercent: number }[];
-      };
-
-      if (!targetAllocations || !Array.isArray(targetAllocations)) {
-        return badRequest(res, "targetAllocations array is required");
-      }
-
-      const totalTarget = targetAllocations.reduce(
-        (sum, a) => sum + a.targetPercent,
-        0
-      );
-      if (totalTarget > 100) {
-        return badRequest(res, `Total target allocation (${totalTarget}%) exceeds 100%`);
-      }
-
-      const [positions, account] = await Promise.all([
-        alpaca.getPositions(),
-        alpaca.getAccount(),
-      ]);
-
-      const portfolioValue = parseFloat(account.portfolio_value);
-      const positionMap = new Map(positions.map((p) => [p.symbol, p]));
-
-      const rebalanceActions = targetAllocations.map((target) => {
-        const position = positionMap.get(target.symbol);
-        const currentValue = position ? parseFloat(position.market_value) : 0;
-        const currentPercent = (currentValue / portfolioValue) * 100;
-        const targetValue = (target.targetPercent / 100) * portfolioValue;
-        const deltaValue = targetValue - currentValue;
-        const currentPrice = position ? parseFloat(position.current_price) : 0;
-
-        let action: "buy" | "sell" | "hold" = "hold";
-        if (deltaValue > 50) action = "buy";
-        else if (deltaValue < -50) action = "sell";
-
-        return {
-          symbol: target.symbol,
-          action,
-          currentPercent,
-          targetPercent: target.targetPercent,
-          currentValue,
-          targetValue,
-          deltaValue,
-          estimatedQty: currentPrice > 0 ? Math.abs(Math.floor(deltaValue / currentPrice)) : 0,
+  app.post(
+    "/api/portfolio/rebalance/preview",
+    authMiddleware,
+    async (req, res) => {
+      try {
+        const { targetAllocations } = req.body as {
+          targetAllocations: { symbol: string; targetPercent: number }[];
         };
-      });
 
-      const buys = rebalanceActions.filter((a) => a.action === "buy");
-      const sells = rebalanceActions.filter((a) => a.action === "sell");
+        if (!targetAllocations || !Array.isArray(targetAllocations)) {
+          return badRequest(res, "targetAllocations array is required");
+        }
 
-      res.json({
-        preview: {
-          actions: rebalanceActions,
-          totalBuys: buys.length,
-          totalSells: sells.length,
-          totalBuyValue: buys.reduce((sum, a) => sum + a.deltaValue, 0),
-          totalSellValue: Math.abs(sells.reduce((sum, a) => sum + a.deltaValue, 0)),
-        },
-        portfolioValue,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      log.error("PortfolioAPI", "Failed to preview rebalance", { error });
-      return serverError(res, "Failed to preview rebalance");
+        const totalTarget = targetAllocations.reduce(
+          (sum, a) => sum + a.targetPercent,
+          0
+        );
+        if (totalTarget > 100) {
+          return badRequest(
+            res,
+            `Total target allocation (${totalTarget}%) exceeds 100%`
+          );
+        }
+
+        const [positions, account] = await Promise.all([
+          alpaca.getPositions(),
+          alpaca.getAccount(),
+        ]);
+
+        const portfolioValue = parseFloat(account.portfolio_value);
+        const positionMap = new Map(positions.map((p) => [p.symbol, p]));
+
+        const rebalanceActions = targetAllocations.map((target) => {
+          const position = positionMap.get(target.symbol);
+          const currentValue = position ? parseFloat(position.market_value) : 0;
+          const currentPercent = (currentValue / portfolioValue) * 100;
+          const targetValue = (target.targetPercent / 100) * portfolioValue;
+          const deltaValue = targetValue - currentValue;
+          const currentPrice = position
+            ? parseFloat(position.current_price)
+            : 0;
+
+          let action: "buy" | "sell" | "hold" = "hold";
+          if (deltaValue > 50) action = "buy";
+          else if (deltaValue < -50) action = "sell";
+
+          return {
+            symbol: target.symbol,
+            action,
+            currentPercent,
+            targetPercent: target.targetPercent,
+            currentValue,
+            targetValue,
+            deltaValue,
+            estimatedQty:
+              currentPrice > 0
+                ? Math.abs(Math.floor(deltaValue / currentPrice))
+                : 0,
+          };
+        });
+
+        const buys = rebalanceActions.filter((a) => a.action === "buy");
+        const sells = rebalanceActions.filter((a) => a.action === "sell");
+
+        res.json({
+          preview: {
+            actions: rebalanceActions,
+            totalBuys: buys.length,
+            totalSells: sells.length,
+            totalBuyValue: buys.reduce((sum, a) => sum + a.deltaValue, 0),
+            totalSellValue: Math.abs(
+              sells.reduce((sum, a) => sum + a.deltaValue, 0)
+            ),
+          },
+          portfolioValue,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        log.error("PortfolioAPI", "Failed to preview rebalance", { error });
+        return serverError(res, "Failed to preview rebalance");
+      }
     }
-  });
+  );
 
   log.info("Routes", "Portfolio trading routes registered");
 }

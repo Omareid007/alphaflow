@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 /**
  * Integration tests for Trading Engine Fixes
@@ -10,94 +10,96 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  * 4. Stuck order detection timing (alpaca-trading-engine.ts)
  */
 
-describe('Trading Engine Fixes', () => {
-  describe('Bracket Order TIF Validation', () => {
-    it('should correct GTC to DAY for bracket orders', () => {
+describe("Trading Engine Fixes", () => {
+  describe("Bracket Order TIF Validation", () => {
+    it("should correct GTC to DAY for bracket orders", () => {
       // Test the TIF correction logic
-      const order_class = 'bracket';
-      const time_in_force = 'gtc';
+      const order_class = "bracket";
+      const time_in_force = "gtc";
 
       // Apply the fix logic
-      let correctedTif = time_in_force || 'day';
-      if (order_class === 'bracket' && correctedTif !== 'day') {
-        correctedTif = 'day';
+      let correctedTif = time_in_force || "day";
+      if (order_class === "bracket" && correctedTif !== "day") {
+        correctedTif = "day";
       }
 
-      expect(correctedTif).toBe('day');
+      expect(correctedTif).toBe("day");
     });
 
-    it('should preserve DAY for bracket orders', () => {
-      const order_class = 'bracket';
-      const time_in_force = 'day';
+    it("should preserve DAY for bracket orders", () => {
+      const order_class = "bracket";
+      const time_in_force = "day";
 
-      let correctedTif = time_in_force || 'day';
-      if (order_class === 'bracket' && correctedTif !== 'day') {
-        correctedTif = 'day';
+      let correctedTif = time_in_force || "day";
+      if (order_class === "bracket" && correctedTif !== "day") {
+        correctedTif = "day";
       }
 
-      expect(correctedTif).toBe('day');
+      expect(correctedTif).toBe("day");
     });
 
-    it('should allow GTC for non-bracket orders', () => {
+    it("should allow GTC for non-bracket orders", () => {
       const order_class = undefined;
-      const time_in_force = 'gtc';
+      const time_in_force = "gtc";
 
-      let correctedTif = time_in_force || 'day';
-      if (order_class === 'bracket' && correctedTif !== 'day') {
-        correctedTif = 'day';
+      let correctedTif = time_in_force || "day";
+      if (order_class === "bracket" && correctedTif !== "day") {
+        correctedTif = "day";
       }
 
-      expect(correctedTif).toBe('gtc');
+      expect(correctedTif).toBe("gtc");
     });
 
-    it('should default to DAY when no TIF specified', () => {
+    it("should default to DAY when no TIF specified", () => {
       const order_class = undefined;
       const time_in_force = undefined;
 
-      let correctedTif = time_in_force || 'day';
+      let correctedTif = time_in_force || "day";
 
-      expect(correctedTif).toBe('day');
+      expect(correctedTif).toBe("day");
     });
   });
 
-  describe('Position Reinforcement Threshold', () => {
-    it('should reinforce position at 50% confidence', () => {
-      const confidence = 0.50;
-      const threshold = 0.50;
+  describe("Position Reinforcement Threshold", () => {
+    it("should reinforce position at 50% confidence", () => {
+      const confidence = 0.5;
+      const threshold = 0.5;
 
       const shouldReinforce = confidence >= threshold;
 
       expect(shouldReinforce).toBe(true);
     });
 
-    it('should reinforce position at 70% confidence', () => {
-      const confidence = 0.70;
-      const threshold = 0.50;
+    it("should reinforce position at 70% confidence", () => {
+      const confidence = 0.7;
+      const threshold = 0.5;
 
       const shouldReinforce = confidence >= threshold;
 
       expect(shouldReinforce).toBe(true);
     });
 
-    it('should NOT reinforce position at 45% confidence', () => {
+    it("should NOT reinforce position at 45% confidence", () => {
       const confidence = 0.45;
-      const threshold = 0.50;
+      const threshold = 0.5;
 
       const shouldReinforce = confidence >= threshold;
 
       expect(shouldReinforce).toBe(false);
     });
 
-    it('should generate correct skip reason for low confidence', () => {
+    it("should generate correct skip reason for low confidence", () => {
       const confidence = 0.45;
       const reason = `Already have position, confidence ${(confidence * 100).toFixed(1)}% below 50% threshold`;
 
-      expect(reason).toBe('Already have position, confidence 45.0% below 50% threshold');
+      expect(reason).toBe(
+        "Already have position, confidence 45.0% below 50% threshold"
+      );
     });
   });
 
-  describe('Pyramid-Up Logic', () => {
-    it('should trigger pyramid-up at 5% profit', () => {
+  describe("Pyramid-Up Logic", () => {
+    it("should trigger pyramid-up at 5% profit", () => {
       const unrealizedPnlPercent = 5;
       const pyramidMinProfitPercent = 5;
       const pyramidMaxProfitPercent = 20;
@@ -109,7 +111,7 @@ describe('Trading Engine Fixes', () => {
       expect(shouldPyramid).toBe(true);
     });
 
-    it('should trigger pyramid-up at 15% profit', () => {
+    it("should trigger pyramid-up at 15% profit", () => {
       const unrealizedPnlPercent = 15;
       const pyramidMinProfitPercent = 5;
       const pyramidMaxProfitPercent = 20;
@@ -121,7 +123,7 @@ describe('Trading Engine Fixes', () => {
       expect(shouldPyramid).toBe(true);
     });
 
-    it('should NOT trigger pyramid-up at 3% profit (below minimum)', () => {
+    it("should NOT trigger pyramid-up at 3% profit (below minimum)", () => {
       const unrealizedPnlPercent = 3;
       const pyramidMinProfitPercent = 5;
       const pyramidMaxProfitPercent = 20;
@@ -133,7 +135,7 @@ describe('Trading Engine Fixes', () => {
       expect(shouldPyramid).toBe(false);
     });
 
-    it('should NOT trigger pyramid-up at 25% profit (above maximum)', () => {
+    it("should NOT trigger pyramid-up at 25% profit (above maximum)", () => {
       const unrealizedPnlPercent = 25;
       const pyramidMinProfitPercent = 5;
       const pyramidMaxProfitPercent = 20;
@@ -145,7 +147,7 @@ describe('Trading Engine Fixes', () => {
       expect(shouldPyramid).toBe(false);
     });
 
-    it('should calculate correct pyramid value (50% of original)', () => {
+    it("should calculate correct pyramid value (50% of original)", () => {
       const quantity = 100;
       const entryPrice = 50;
       const portfolioValue = 100000;
@@ -161,7 +163,7 @@ describe('Trading Engine Fixes', () => {
       expect(pyramidValue).toBe(2500);
     });
 
-    it('should cap pyramid value at available cash', () => {
+    it("should cap pyramid value at available cash", () => {
       const quantity = 100;
       const entryPrice = 100;
       const portfolioValue = 100000;
@@ -178,14 +180,14 @@ describe('Trading Engine Fixes', () => {
     });
   });
 
-  describe('Stuck Order Detection', () => {
-    it('should use 10 minute threshold for pending orders', () => {
-      const status = 'pending';
+  describe("Stuck Order Detection", () => {
+    it("should use 10 minute threshold for pending orders", () => {
+      const status = "pending";
       const PENDING_ORDER_MAX_AGE_MINUTES = 10;
       const DEFAULT_ORDER_MAX_AGE_MINUTES = 60;
 
       const isPendingOrder =
-        status === 'pending' || status === 'new' || status === 'pending_new';
+        status === "pending" || status === "new" || status === "pending_new";
 
       const effectiveMaxAge = isPendingOrder
         ? PENDING_ORDER_MAX_AGE_MINUTES
@@ -194,13 +196,13 @@ describe('Trading Engine Fixes', () => {
       expect(effectiveMaxAge).toBe(10);
     });
 
-    it('should use 10 minute threshold for new orders', () => {
-      const status = 'new';
+    it("should use 10 minute threshold for new orders", () => {
+      const status = "new";
       const PENDING_ORDER_MAX_AGE_MINUTES = 10;
       const DEFAULT_ORDER_MAX_AGE_MINUTES = 60;
 
       const isPendingOrder =
-        status === 'pending' || status === 'new' || status === 'pending_new';
+        status === "pending" || status === "new" || status === "pending_new";
 
       const effectiveMaxAge = isPendingOrder
         ? PENDING_ORDER_MAX_AGE_MINUTES
@@ -209,13 +211,13 @@ describe('Trading Engine Fixes', () => {
       expect(effectiveMaxAge).toBe(10);
     });
 
-    it('should use 60 minute threshold for accepted orders', () => {
-      const status = 'accepted';
+    it("should use 60 minute threshold for accepted orders", () => {
+      const status = "accepted";
       const PENDING_ORDER_MAX_AGE_MINUTES = 10;
       const DEFAULT_ORDER_MAX_AGE_MINUTES = 60;
 
       const isPendingOrder =
-        status === 'pending' || status === 'new' || status === 'pending_new';
+        status === "pending" || status === "new" || status === "pending_new";
 
       const effectiveMaxAge = isPendingOrder
         ? PENDING_ORDER_MAX_AGE_MINUTES
@@ -224,25 +226,25 @@ describe('Trading Engine Fixes', () => {
       expect(effectiveMaxAge).toBe(60);
     });
 
-    it('should skip filled orders in stale detection', () => {
-      const status = 'filled';
+    it("should skip filled orders in stale detection", () => {
+      const status = "filled";
 
-      const shouldSkip = status === 'filled' || status === 'partially_filled';
+      const shouldSkip = status === "filled" || status === "partially_filled";
 
       expect(shouldSkip).toBe(true);
     });
 
-    it('should skip partially_filled orders in stale detection', () => {
-      const status = 'partially_filled';
+    it("should skip partially_filled orders in stale detection", () => {
+      const status = "partially_filled";
 
-      const shouldSkip = status === 'filled' || status === 'partially_filled';
+      const shouldSkip = status === "filled" || status === "partially_filled";
 
       expect(shouldSkip).toBe(true);
     });
   });
 
-  describe('Quantity Calculation Fix', () => {
-    it('should use suggestedQuantity when available', () => {
+  describe("Quantity Calculation Fix", () => {
+    it("should use suggestedQuantity when available", () => {
       const suggestedQuantityFromMetadata = 0.08;
       const defaultPct = 0.05;
 
@@ -253,7 +255,7 @@ describe('Trading Engine Fixes', () => {
       expect(suggestedPct).toBe(0.08);
     });
 
-    it('should default to 5% when no suggestedQuantity', () => {
+    it("should default to 5% when no suggestedQuantity", () => {
       const suggestedQuantityFromMetadata = null;
       const defaultPct = 0.05;
 
@@ -264,15 +266,15 @@ describe('Trading Engine Fixes', () => {
       expect(suggestedPct).toBe(0.05);
     });
 
-    it('should cap position size between 1% and 10%', () => {
-      const suggestedPct = 0.20; // 20% - too high
+    it("should cap position size between 1% and 10%", () => {
+      const suggestedPct = 0.2; // 20% - too high
 
       const cappedPct = Math.min(Math.max(suggestedPct * 100, 1), 10);
 
       expect(cappedPct).toBe(10);
     });
 
-    it('should enforce minimum 1% position size', () => {
+    it("should enforce minimum 1% position size", () => {
       const suggestedPct = 0.005; // 0.5% - too low
 
       const cappedPct = Math.min(Math.max(suggestedPct * 100, 1), 10);

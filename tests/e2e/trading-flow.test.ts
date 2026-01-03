@@ -261,10 +261,7 @@ describe("E2E: Trading Flow", () => {
     it("should check market clock", async () => {
       if (!serverAvailable || !sessionId) return;
 
-      const response = await authenticatedFetch(
-        "/api/alpaca/clock",
-        sessionId
-      );
+      const response = await authenticatedFetch("/api/alpaca/clock", sessionId);
 
       expect([200, 401, 403, 503]).toContain(response.status);
 

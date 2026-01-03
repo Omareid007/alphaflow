@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
+import { toast } from "sonner";
 
 export interface Position {
   id: string;
@@ -60,7 +61,7 @@ export function usePortfolioSnapshot() {
   return useQuery({
     queryKey: ["portfolio", "snapshot"],
     queryFn: () => api.get<PortfolioSnapshot>("/api/positions/snapshot"),
-    refetchInterval: 60000, // Refresh every 60 seconds - reduced from 30s
+    // Inherits staleTime: 5s, refetchInterval: 30s from QueryProvider defaults
     initialData: EMPTY_PORTFOLIO_SNAPSHOT,
   });
 }
@@ -102,7 +103,7 @@ export function usePositions() {
         })
       );
     },
-    refetchInterval: 60000, // Reduced from 30s
+    // Inherits staleTime: 5s, refetchInterval: 30s from QueryProvider defaults
   });
 }
 
@@ -159,6 +160,41 @@ export function useAccountInfo() {
         tradingBlocked: boolean;
         accountBlocked: boolean;
       }>("/api/alpaca/account"),
-    refetchInterval: 60000,
+    // Inherits staleTime: 5s, refetchInterval: 30s from QueryProvider defaults
+  });
+}
+
+/**
+ * Hook to execute a trade order
+ * Automatically invalidates portfolio, positions, and account data after successful execution
+ */
+export function useExecuteTrade() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (orderData: {
+      symbol: string;
+      qty: number;
+      side: "buy" | "sell";
+      type?: "market" | "limit";
+      limitPrice?: number;
+    }) => api.post<Trade>("/api/orders", orderData),
+
+    onSuccess: () => {
+      // Smart invalidation: Only invalidate portfolio-related queries
+      // This ensures fresh data after trade execution without over-fetching
+      queryClient.invalidateQueries({ queryKey: ["portfolio"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["positions"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["account"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["trades"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["orders"], exact: false });
+
+      toast.success("Trade executed successfully");
+    },
+
+    onError: (error) => {
+      toast.error("Failed to execute trade");
+      console.error("Trade execution error:", error);
+    },
   });
 }

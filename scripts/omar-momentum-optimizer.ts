@@ -19,7 +19,7 @@ import {
   calculateATR,
   calculateADX,
   calculateROC,
-  type AlpacaBar
+  type AlpacaBar,
 } from "./shared/index.js";
 
 // ============================================================================
@@ -28,11 +28,11 @@ import {
 
 interface MomentumConfig {
   // Momentum-specific parameters
-  momentumLookback: number;      // 5-30 days
-  momentumWeight: number;         // 0.20-0.35
-  rsiPeriod: number;              // 7-12
-  atrMultStop: number;            // 1.0-1.5
-  atrMultTarget: number;          // 4-6
+  momentumLookback: number; // 5-30 days
+  momentumWeight: number; // 0.20-0.35
+  rsiPeriod: number; // 7-12
+  atrMultStop: number; // 1.0-1.5
+  atrMultTarget: number; // 4-6
 
   // Core trading parameters
   initialCapital: number;
@@ -75,15 +75,32 @@ interface MomentumResult {
 
 const MOMENTUM_UNIVERSE = [
   // High Beta Tech
-  "NVDA", "AMD", "TSLA", "META", "NFLX",
+  "NVDA",
+  "AMD",
+  "TSLA",
+  "META",
+  "NFLX",
   // Growth Tech
-  "MSFT", "GOOGL", "AAPL", "AMZN", "CRM",
+  "MSFT",
+  "GOOGL",
+  "AAPL",
+  "AMZN",
+  "CRM",
   // Momentum ETFs
-  "QQQ", "TQQQ", "SPY",
+  "QQQ",
+  "TQQQ",
+  "SPY",
   // High Momentum Stocks
-  "AVGO", "NOW", "PANW", "MU", "AMAT",
+  "AVGO",
+  "NOW",
+  "PANW",
+  "MU",
+  "AMAT",
   // Sector Movers
-  "XLK", "XLF", "XLE", "XLV",
+  "XLK",
+  "XLF",
+  "XLE",
+  "XLV",
 ];
 
 // ============================================================================
@@ -151,7 +168,7 @@ function generateMomentumSignal(
   const emaF = emaFast[index];
   const emaS = emaSlow[index];
   if (emaF !== null && emaS !== null) {
-    const emaDiff = (emaF - emaS) / emaS * 100;
+    const emaDiff = ((emaF - emaS) / emaS) * 100;
     if (emaDiff > 4) momentum += 0.9;
     else if (emaDiff > 2) momentum += 0.6;
     else if (emaDiff < -4) momentum -= 0.9;
@@ -201,7 +218,8 @@ function generateMomentumSignal(
   // ============ VOLUME SCORE ============
   let volume = 0;
   if (index >= 20) {
-    const avgVol = volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
+    const avgVol =
+      volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
     const volRatio = volumes[index] / avgVol;
     if (volRatio > 2.0) volume = 0.8;
     else if (volRatio > 1.5) volume = 0.5;
@@ -210,8 +228,10 @@ function generateMomentumSignal(
 
   // ============ SENTIMENT SCORE ============
   let sentiment = 0;
-  const return5d = index >= 5 ? (price - closes[index - 5]) / closes[index - 5] : 0;
-  const return20d = index >= 20 ? (price - closes[index - 20]) / closes[index - 20] : 0;
+  const return5d =
+    index >= 5 ? (price - closes[index - 5]) / closes[index - 5] : 0;
+  const return20d =
+    index >= 20 ? (price - closes[index - 20]) / closes[index - 20] : 0;
 
   if (return20d > 0.08) sentiment += 0.6;
   else if (return20d > 0.04) sentiment += 0.3;
@@ -231,7 +251,7 @@ function generateMomentumSignal(
 
   // ============ CONFIDENCE ============
   const scores = [technical, momentum, volatility, volume, sentiment];
-  const posCount = scores.filter(s => s > 0.2).length;
+  const posCount = scores.filter((s) => s > 0.2).length;
   const alignment = posCount / scores.length;
   const confidence = Math.min(1, alignment * Math.abs(composite) * 2.5);
 
@@ -264,16 +284,23 @@ function runMomentumBacktest(
     let dailyPnl = 0;
 
     for (const [symbol, bars] of dataMap) {
-      const dateIndex = bars.findIndex(b => b.t.split("T")[0] === date);
+      const dateIndex = bars.findIndex((b) => b.t.split("T")[0] === date);
       if (dateIndex < 50) continue;
 
       const bar = bars[dateIndex];
-      const closes = bars.map(b => b.c);
-      const highs = bars.map(b => b.h);
-      const lows = bars.map(b => b.l);
-      const volumes = bars.map(b => b.v);
+      const closes = bars.map((b) => b.c);
+      const highs = bars.map((b) => b.h);
+      const lows = bars.map((b) => b.l);
+      const volumes = bars.map((b) => b.v);
 
-      const signals = generateMomentumSignal(dateIndex, closes, highs, lows, volumes, config);
+      const signals = generateMomentumSignal(
+        dateIndex,
+        closes,
+        highs,
+        lows,
+        volumes,
+        config
+      );
       const atr = calculateATR(highs, lows, closes, 14)[dateIndex];
 
       // Check existing position
@@ -292,12 +319,19 @@ function runMomentumBacktest(
           exitReason = "signal_reversal";
         } else if (bar.c > position.entryPrice * 1.03 && atr !== null) {
           // Trailing stop for momentum
-          position.stopLoss = Math.max(position.stopLoss, bar.c - atr * config.atrMultStop);
+          position.stopLoss = Math.max(
+            position.stopLoss,
+            bar.c - atr * config.atrMultStop
+          );
         }
 
         if (exitReason) {
           const pnl = (exitPrice - position.entryPrice) * position.shares;
-          const holdingDays = Math.floor((new Date(date).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24));
+          const holdingDays = Math.floor(
+            (new Date(date).getTime() -
+              new Date(position.entryDate).getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
 
           trades.push({
             symbol,
@@ -307,7 +341,8 @@ function runMomentumBacktest(
             exitPrice,
             shares: position.shares,
             pnl,
-            pnlPct: (exitPrice - position.entryPrice) / position.entryPrice * 100,
+            pnlPct:
+              ((exitPrice - position.entryPrice) / position.entryPrice) * 100,
             exitReason,
             holdingDays,
           });
@@ -345,7 +380,7 @@ function runMomentumBacktest(
     if (dailyPnl < -equity * config.maxDailyLoss) {
       for (const [symbol, position] of positions) {
         const bars = dataMap.get(symbol)!;
-        const bar = bars.find(b => b.t.split("T")[0] === date);
+        const bar = bars.find((b) => b.t.split("T")[0] === date);
         if (bar) {
           const pnl = (bar.c - position.entryPrice) * position.shares;
           trades.push({
@@ -356,7 +391,7 @@ function runMomentumBacktest(
             exitPrice: bar.c,
             shares: position.shares,
             pnl,
-            pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+            pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
             exitReason: "daily_loss_limit",
             holdingDays: 0,
           });
@@ -368,14 +403,17 @@ function runMomentumBacktest(
 
     // Track drawdown
     if (equity > peakEquity) peakEquity = equity;
-    maxDrawdown = Math.max(maxDrawdown, (peakEquity - equity) / peakEquity * 100);
+    maxDrawdown = Math.max(
+      maxDrawdown,
+      ((peakEquity - equity) / peakEquity) * 100
+    );
   }
 
   // Close remaining positions
   const lastDate = sortedDates[sortedDates.length - 1];
   for (const [symbol, position] of positions) {
     const bars = dataMap.get(symbol)!;
-    const bar = bars.find(b => b.t.split("T")[0] === lastDate);
+    const bar = bars.find((b) => b.t.split("T")[0] === lastDate);
     if (bar) {
       const pnl = (bar.c - position.entryPrice) * position.shares;
       trades.push({
@@ -386,42 +424,70 @@ function runMomentumBacktest(
         exitPrice: bar.c,
         shares: position.shares,
         pnl,
-        pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+        pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
         exitReason: "end_of_backtest",
-        holdingDays: Math.floor((new Date(lastDate).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24)),
+        holdingDays: Math.floor(
+          (new Date(lastDate).getTime() -
+            new Date(position.entryDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ),
       });
       equity += pnl;
     }
   }
 
   // Calculate metrics
-  const winningTrades = trades.filter(t => t.pnl > 0);
-  const losingTrades = trades.filter(t => t.pnl <= 0);
+  const winningTrades = trades.filter((t) => t.pnl > 0);
+  const losingTrades = trades.filter((t) => t.pnl <= 0);
   const totalWins = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
 
-  const returns = trades.map(t => t.pnlPct / 100);
-  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-  const stdDev = returns.length > 1 ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length) : 0;
-  const downReturns = returns.filter(r => r < 0);
-  const downStdDev = downReturns.length > 1 ? Math.sqrt(downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downReturns.length) : 1;
+  const returns = trades.map((t) => t.pnlPct / 100);
+  const avgReturn =
+    returns.length > 0
+      ? returns.reduce((a, b) => a + b, 0) / returns.length
+      : 0;
+  const stdDev =
+    returns.length > 1
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+            returns.length
+        )
+      : 0;
+  const downReturns = returns.filter((r) => r < 0);
+  const downStdDev =
+    downReturns.length > 1
+      ? Math.sqrt(
+          downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) /
+            downReturns.length
+        )
+      : 1;
 
   const sharpeRatio = stdDev !== 0 ? (avgReturn * Math.sqrt(252)) / stdDev : 0;
-  const sortinoRatio = downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
+  const sortinoRatio =
+    downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
   const years = 2.95;
-  const cagr = years > 0 ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100 : 0;
+  const cagr =
+    years > 0
+      ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100
+      : 0;
   const calmarRatio = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
 
   return {
     totalTrades: trades.length,
-    winRate: trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
-    totalReturn: (equity - config.initialCapital) / config.initialCapital * 100,
+    winRate:
+      trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
+    totalReturn:
+      ((equity - config.initialCapital) / config.initialCapital) * 100,
     sharpeRatio,
     sortinoRatio,
     calmarRatio,
     maxDrawdown,
     profitFactor: totalLosses > 0 ? totalWins / totalLosses : 0,
-    avgHoldingDays: trades.length > 0 ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length : 0,
+    avgHoldingDays:
+      trades.length > 0
+        ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length
+        : 0,
     finalEquity: equity,
     cagr,
   };
@@ -455,7 +521,7 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
     } catch {
       console.log(`${symbol}: ERROR`);
     }
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
 
   console.log(`\nLoaded ${dataMap.size}/${MOMENTUM_UNIVERSE.length} symbols`);
@@ -466,7 +532,8 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
   for (let i = 5; i <= 30; i += 2) momentumLookbacks.push(i);
 
   const momentumWeights = [];
-  for (let w = 0.20; w <= 0.35; w += 0.02) momentumWeights.push(Math.round(w * 100) / 100);
+  for (let w = 0.2; w <= 0.35; w += 0.02)
+    momentumWeights.push(Math.round(w * 100) / 100);
 
   const rsiPeriods = [7, 8, 9, 10, 11, 12];
 
@@ -474,10 +541,11 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
   for (let s = 1.0; s <= 1.5; s += 0.1) atrStops.push(Math.round(s * 10) / 10);
 
   const atrTargets = [];
-  for (let t = 4.0; t <= 6.0; t += 0.5) atrTargets.push(Math.round(t * 10) / 10);
+  for (let t = 4.0; t <= 6.0; t += 0.5)
+    atrTargets.push(Math.round(t * 10) / 10);
 
-  const buyThresholds = [0.10, 0.12, 0.14, 0.16];
-  const confidenceMins = [0.22, 0.25, 0.28, 0.30];
+  const buyThresholds = [0.1, 0.12, 0.14, 0.16];
+  const confidenceMins = [0.22, 0.25, 0.28, 0.3];
 
   // Calculate total iterations
   const totalIterations =
@@ -491,13 +559,27 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
 
   console.log(`Total parameter combinations: ${totalIterations}`);
   console.log(`\nParameter ranges:`);
-  console.log(`  Momentum Lookback: ${momentumLookbacks[0]}-${momentumLookbacks[momentumLookbacks.length - 1]} (${momentumLookbacks.length} values)`);
-  console.log(`  Momentum Weight: ${momentumWeights[0]}-${momentumWeights[momentumWeights.length - 1]} (${momentumWeights.length} values)`);
-  console.log(`  RSI Period: ${rsiPeriods[0]}-${rsiPeriods[rsiPeriods.length - 1]} (${rsiPeriods.length} values)`);
-  console.log(`  ATR Stop: ${atrStops[0]}-${atrStops[atrStops.length - 1]} (${atrStops.length} values)`);
-  console.log(`  ATR Target: ${atrTargets[0]}-${atrTargets[atrTargets.length - 1]} (${atrTargets.length} values)`);
-  console.log(`  Buy Threshold: ${buyThresholds[0]}-${buyThresholds[buyThresholds.length - 1]} (${buyThresholds.length} values)`);
-  console.log(`  Confidence Min: ${confidenceMins[0]}-${confidenceMins[confidenceMins.length - 1]} (${confidenceMins.length} values)`);
+  console.log(
+    `  Momentum Lookback: ${momentumLookbacks[0]}-${momentumLookbacks[momentumLookbacks.length - 1]} (${momentumLookbacks.length} values)`
+  );
+  console.log(
+    `  Momentum Weight: ${momentumWeights[0]}-${momentumWeights[momentumWeights.length - 1]} (${momentumWeights.length} values)`
+  );
+  console.log(
+    `  RSI Period: ${rsiPeriods[0]}-${rsiPeriods[rsiPeriods.length - 1]} (${rsiPeriods.length} values)`
+  );
+  console.log(
+    `  ATR Stop: ${atrStops[0]}-${atrStops[atrStops.length - 1]} (${atrStops.length} values)`
+  );
+  console.log(
+    `  ATR Target: ${atrTargets[0]}-${atrTargets[atrTargets.length - 1]} (${atrTargets.length} values)`
+  );
+  console.log(
+    `  Buy Threshold: ${buyThresholds[0]}-${buyThresholds[buyThresholds.length - 1]} (${buyThresholds.length} values)`
+  );
+  console.log(
+    `  Confidence Min: ${confidenceMins[0]}-${confidenceMins[confidenceMins.length - 1]} (${confidenceMins.length} values)`
+  );
   console.log("\n");
 
   const results: MomentumResult[] = [];
@@ -528,9 +610,9 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
                   buyThreshold,
                   confidenceMin,
                   maxDailyLoss: 0.05,
-                  technicalWeight: remainingWeight * 0.30,
+                  technicalWeight: remainingWeight * 0.3,
                   volatilityWeight: remainingWeight * 0.15,
-                  volumeWeight: remainingWeight * 0.30,
+                  volumeWeight: remainingWeight * 0.3,
                   sentimentWeight: remainingWeight * 0.25,
                 };
 
@@ -542,7 +624,7 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
                   metrics.sortinoRatio * 25 +
                   metrics.calmarRatio * 20 +
                   metrics.winRate * 0.15 +
-                  metrics.totalReturn * 0.10;
+                  metrics.totalReturn * 0.1;
 
                 results.push({ config, metrics, score });
 
@@ -554,11 +636,11 @@ async function optimizeMomentumStrategy(): Promise<MomentumResult[]> {
 
                   console.log(
                     `[${iteration}/${totalIterations}] ` +
-                    `MomLB=${momentumLookback} MomW=${momentumWeight.toFixed(2)} RSI=${rsiPeriod} ` +
-                    `Stop=${atrStop.toFixed(1)} Tgt=${atrTarget.toFixed(1)} | ` +
-                    `Sharpe=${metrics.sharpeRatio.toFixed(2)} Sortino=${metrics.sortinoRatio.toFixed(2)} ` +
-                    `Win=${metrics.winRate.toFixed(1)}% Ret=${metrics.totalReturn.toFixed(1)}% | ` +
-                    `ETA=${Math.floor(eta)}s`
+                      `MomLB=${momentumLookback} MomW=${momentumWeight.toFixed(2)} RSI=${rsiPeriod} ` +
+                      `Stop=${atrStop.toFixed(1)} Tgt=${atrTarget.toFixed(1)} | ` +
+                      `Sharpe=${metrics.sharpeRatio.toFixed(2)} Sortino=${metrics.sortinoRatio.toFixed(2)} ` +
+                      `Win=${metrics.winRate.toFixed(1)}% Ret=${metrics.totalReturn.toFixed(1)}% | ` +
+                      `ETA=${Math.floor(eta)}s`
                   );
                 }
               }
@@ -623,7 +705,9 @@ async function main() {
   console.log(`Momentum Weight: ${best.config.momentumWeight.toFixed(3)}`);
   console.log(`RSI Period: ${best.config.rsiPeriod}`);
   console.log(`ATR Stop Multiplier: ${best.config.atrMultStop.toFixed(2)}x`);
-  console.log(`ATR Target Multiplier: ${best.config.atrMultTarget.toFixed(2)}x`);
+  console.log(
+    `ATR Target Multiplier: ${best.config.atrMultTarget.toFixed(2)}x`
+  );
   console.log(`Buy Threshold: ${best.config.buyThreshold.toFixed(3)}`);
   console.log(`Confidence Minimum: ${best.config.confidenceMin.toFixed(3)}`);
   console.log(`\nPerformance:`);
@@ -643,25 +727,55 @@ async function main() {
   // Statistics
   console.log("\nOPTIMIZATION STATISTICS:");
   console.log(`Total configurations tested: ${results.length}`);
-  console.log(`Configurations with positive return: ${results.filter(r => r.metrics.totalReturn > 0).length}`);
-  console.log(`Configurations with Sharpe > 1.0: ${results.filter(r => r.metrics.sharpeRatio > 1.0).length}`);
-  console.log(`Configurations with Sharpe > 1.5: ${results.filter(r => r.metrics.sharpeRatio > 1.5).length}`);
-  console.log(`Configurations with win rate > 55%: ${results.filter(r => r.metrics.winRate > 55).length}`);
-  console.log(`Configurations with max DD < 15%: ${results.filter(r => r.metrics.maxDrawdown < 15).length}`);
+  console.log(
+    `Configurations with positive return: ${results.filter((r) => r.metrics.totalReturn > 0).length}`
+  );
+  console.log(
+    `Configurations with Sharpe > 1.0: ${results.filter((r) => r.metrics.sharpeRatio > 1.0).length}`
+  );
+  console.log(
+    `Configurations with Sharpe > 1.5: ${results.filter((r) => r.metrics.sharpeRatio > 1.5).length}`
+  );
+  console.log(
+    `Configurations with win rate > 55%: ${results.filter((r) => r.metrics.winRate > 55).length}`
+  );
+  console.log(
+    `Configurations with max DD < 15%: ${results.filter((r) => r.metrics.maxDrawdown < 15).length}`
+  );
 
   // Best by individual metrics
-  const bestSharpe = results.reduce((a, b) => a.metrics.sharpeRatio > b.metrics.sharpeRatio ? a : b);
-  const bestSortino = results.reduce((a, b) => a.metrics.sortinoRatio > b.metrics.sortinoRatio ? a : b);
-  const bestCalmar = results.reduce((a, b) => a.metrics.calmarRatio > b.metrics.calmarRatio ? a : b);
-  const bestWinRate = results.reduce((a, b) => a.metrics.winRate > b.metrics.winRate ? a : b);
-  const bestReturn = results.reduce((a, b) => a.metrics.totalReturn > b.metrics.totalReturn ? a : b);
+  const bestSharpe = results.reduce((a, b) =>
+    a.metrics.sharpeRatio > b.metrics.sharpeRatio ? a : b
+  );
+  const bestSortino = results.reduce((a, b) =>
+    a.metrics.sortinoRatio > b.metrics.sortinoRatio ? a : b
+  );
+  const bestCalmar = results.reduce((a, b) =>
+    a.metrics.calmarRatio > b.metrics.calmarRatio ? a : b
+  );
+  const bestWinRate = results.reduce((a, b) =>
+    a.metrics.winRate > b.metrics.winRate ? a : b
+  );
+  const bestReturn = results.reduce((a, b) =>
+    a.metrics.totalReturn > b.metrics.totalReturn ? a : b
+  );
 
   console.log(`\nBEST BY METRIC:`);
-  console.log(`  Best Sharpe: ${bestSharpe.metrics.sharpeRatio.toFixed(3)} (MomLB=${bestSharpe.config.momentumLookback}, MomW=${bestSharpe.config.momentumWeight.toFixed(2)})`);
-  console.log(`  Best Sortino: ${bestSortino.metrics.sortinoRatio.toFixed(3)} (MomLB=${bestSortino.config.momentumLookback}, MomW=${bestSortino.config.momentumWeight.toFixed(2)})`);
-  console.log(`  Best Calmar: ${bestCalmar.metrics.calmarRatio.toFixed(3)} (MomLB=${bestCalmar.config.momentumLookback}, MomW=${bestCalmar.config.momentumWeight.toFixed(2)})`);
-  console.log(`  Best Win Rate: ${bestWinRate.metrics.winRate.toFixed(2)}% (MomLB=${bestWinRate.config.momentumLookback}, MomW=${bestWinRate.config.momentumWeight.toFixed(2)})`);
-  console.log(`  Best Return: ${bestReturn.metrics.totalReturn.toFixed(2)}% (MomLB=${bestReturn.config.momentumLookback}, MomW=${bestReturn.config.momentumWeight.toFixed(2)})`);
+  console.log(
+    `  Best Sharpe: ${bestSharpe.metrics.sharpeRatio.toFixed(3)} (MomLB=${bestSharpe.config.momentumLookback}, MomW=${bestSharpe.config.momentumWeight.toFixed(2)})`
+  );
+  console.log(
+    `  Best Sortino: ${bestSortino.metrics.sortinoRatio.toFixed(3)} (MomLB=${bestSortino.config.momentumLookback}, MomW=${bestSortino.config.momentumWeight.toFixed(2)})`
+  );
+  console.log(
+    `  Best Calmar: ${bestCalmar.metrics.calmarRatio.toFixed(3)} (MomLB=${bestCalmar.config.momentumLookback}, MomW=${bestCalmar.config.momentumWeight.toFixed(2)})`
+  );
+  console.log(
+    `  Best Win Rate: ${bestWinRate.metrics.winRate.toFixed(2)}% (MomLB=${bestWinRate.config.momentumLookback}, MomW=${bestWinRate.config.momentumWeight.toFixed(2)})`
+  );
+  console.log(
+    `  Best Return: ${bestReturn.metrics.totalReturn.toFixed(2)}% (MomLB=${bestReturn.config.momentumLookback}, MomW=${bestReturn.config.momentumWeight.toFixed(2)})`
+  );
 
   console.log("\n" + "=".repeat(100));
 }

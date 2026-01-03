@@ -102,33 +102,37 @@ router.post("/settings", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/kill-switch - Toggle kill switch
-router.post("/kill-switch", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { activate } = req.body;
-    const shouldActivate = activate === true || activate === "true";
+router.post(
+  "/kill-switch",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { activate } = req.body;
+      const shouldActivate = activate === true || activate === "true";
 
-    const updateData: { killSwitchActive: boolean; isRunning?: boolean } = {
-      killSwitchActive: shouldActivate,
-    };
+      const updateData: { killSwitchActive: boolean; isRunning?: boolean } = {
+        killSwitchActive: shouldActivate,
+      };
 
-    if (shouldActivate) {
-      updateData.isRunning = false;
+      if (shouldActivate) {
+        updateData.isRunning = false;
+      }
+
+      const status = await storage.updateAgentStatus(updateData);
+
+      res.json({
+        killSwitchActive: status?.killSwitchActive ?? shouldActivate,
+        isRunning: status?.isRunning ?? false,
+        message: shouldActivate
+          ? "Kill switch activated - all trading halted"
+          : "Kill switch deactivated",
+      });
+    } catch (error) {
+      log.error("RiskAPI", "Failed to toggle kill switch", { error });
+      res.status(500).json({ error: "Failed to toggle kill switch" });
     }
-
-    const status = await storage.updateAgentStatus(updateData);
-
-    res.json({
-      killSwitchActive: status?.killSwitchActive ?? shouldActivate,
-      isRunning: status?.isRunning ?? false,
-      message: shouldActivate
-        ? "Kill switch activated - all trading halted"
-        : "Kill switch deactivated",
-    });
-  } catch (error) {
-    log.error("RiskAPI", "Failed to toggle kill switch", { error });
-    res.status(500).json({ error: "Failed to toggle kill switch" });
   }
-});
+);
 
 // POST /api/risk/close-all - Close all positions
 router.post("/close-all", requireAuth, async (req: Request, res: Response) => {
@@ -150,72 +154,76 @@ router.post("/close-all", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/risk/emergency-liquidate - Emergency liquidation
-router.post("/emergency-liquidate", requireAuth, async (req: Request, res: Response) => {
-  try {
-    log.info("EMERGENCY", "Initiating full portfolio liquidation...");
+router.post(
+  "/emergency-liquidate",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      log.info("EMERGENCY", "Initiating full portfolio liquidation...");
 
-    // Import alpaca here to avoid circular dependency
-    const { alpaca } = await import("../connectors/alpaca");
-    type OrderResult = {
-      symbol: string;
-      qty: string | null;
-      status: string;
-      type: string;
-    };
+      // Import alpaca here to avoid circular dependency
+      const { alpaca } = await import("../connectors/alpaca");
+      type OrderResult = {
+        symbol: string;
+        qty: string | null;
+        status: string;
+        type: string;
+      };
 
-    // Step 1: Activate kill switch to prevent new trades
-    await storage.updateAgentStatus({
-      killSwitchActive: true,
-      isRunning: false,
-    });
-    log.info("EMERGENCY", "Kill switch activated");
+      // Step 1: Activate kill switch to prevent new trades
+      await storage.updateAgentStatus({
+        killSwitchActive: true,
+        isRunning: false,
+      });
+      log.info("EMERGENCY", "Kill switch activated");
 
-    // Step 2: Get count of open orders before cancelling
-    const openOrders = await alpaca.getOrders("open", 100);
-    const orderCount = openOrders.length;
+      // Step 2: Get count of open orders before cancelling
+      const openOrders = await alpaca.getOrders("open", 100);
+      const orderCount = openOrders.length;
 
-    // Step 3: Cancel all open orders
-    await alpaca.cancelAllOrders();
-    log.info("EMERGENCY", `Cancelled ${orderCount} orders`);
+      // Step 3: Cancel all open orders
+      await alpaca.cancelAllOrders();
+      log.info("EMERGENCY", `Cancelled ${orderCount} orders`);
 
-    // Step 4: Close all positions using Alpaca's DELETE with cancel_orders=true
-    const closeResult = await alpaca.closeAllPositions();
-    log.info(
-      "EMERGENCY",
-      `Submitted close orders for ${closeResult.length} positions`
-    );
+      // Step 4: Close all positions using Alpaca's DELETE with cancel_orders=true
+      const closeResult = await alpaca.closeAllPositions();
+      log.info(
+        "EMERGENCY",
+        `Submitted close orders for ${closeResult.length} positions`
+      );
 
-    // Step 5: Wait briefly for Alpaca to process close orders
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Step 5: Wait briefly for Alpaca to process close orders
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Step 6: Sync database with Alpaca state
-    const userId = req.userId!;
-    await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
-    const account = await alpaca.getAccount();
-    log.info(
-      "EMERGENCY",
-      `Synced positions from Alpaca. Account equity: $${account.equity}`
-    );
+      // Step 6: Sync database with Alpaca state
+      const userId = req.userId!;
+      await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
+      const account = await alpaca.getAccount();
+      log.info(
+        "EMERGENCY",
+        `Synced positions from Alpaca. Account equity: $${account.equity}`
+      );
 
-    res.json({
-      success: true,
-      killSwitchActivated: true,
-      ordersCancelled: orderCount,
-      positionsClosing: closeResult.length,
-      closeOrders: closeResult.map((order: OrderResult) => ({
-        symbol: order.symbol,
-        qty: order.qty,
-        status: order.status,
-        type: order.type,
-      })),
-      message: `Emergency liquidation initiated: ${orderCount} orders cancelled, ${closeResult.length} positions closing`,
-    });
-  } catch (error) {
-    log.error("EMERGENCY", "Liquidation failed", { error });
-    res
-      .status(500)
-      .json({ error: "Emergency liquidation failed: " + String(error) });
+      res.json({
+        success: true,
+        killSwitchActivated: true,
+        ordersCancelled: orderCount,
+        positionsClosing: closeResult.length,
+        closeOrders: closeResult.map((order: OrderResult) => ({
+          symbol: order.symbol,
+          qty: order.qty,
+          status: order.status,
+          type: order.type,
+        })),
+        message: `Emergency liquidation initiated: ${orderCount} orders cancelled, ${closeResult.length} positions closing`,
+      });
+    } catch (error) {
+      log.error("EMERGENCY", "Liquidation failed", { error });
+      res
+        .status(500)
+        .json({ error: "Emergency liquidation failed: " + String(error) });
+    }
   }
-});
+);
 
 export default router;

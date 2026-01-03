@@ -117,14 +117,17 @@ export function useRunBacktest() {
     onMutate: async (config) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ["backtests"] });
-      await queryClient.cancelQueries({ queryKey: ["backtests", config.strategyId] });
+      await queryClient.cancelQueries({
+        queryKey: ["backtests", config.strategyId],
+      });
 
       // Snapshot previous state
-      const previousBacktests = queryClient.getQueryData<BacktestRun[]>(["backtests"]);
-      const previousStrategyBacktests = queryClient.getQueryData<BacktestRun[]>([
+      const previousBacktests = queryClient.getQueryData<BacktestRun[]>([
         "backtests",
-        config.strategyId,
       ]);
+      const previousStrategyBacktests = queryClient.getQueryData<BacktestRun[]>(
+        ["backtests", config.strategyId]
+      );
 
       // Optimistically add new backtest with pending status
       const optimisticBacktest: BacktestRun = {
@@ -140,10 +143,10 @@ export function useRunBacktest() {
         ...(old ?? []),
       ]);
 
-      queryClient.setQueryData<BacktestRun[]>(["backtests", config.strategyId], (old) => [
-        optimisticBacktest,
-        ...(old ?? []),
-      ]);
+      queryClient.setQueryData<BacktestRun[]>(
+        ["backtests", config.strategyId],
+        (old) => [optimisticBacktest, ...(old ?? [])]
+      );
 
       return { previousBacktests, previousStrategyBacktests };
     },
@@ -164,9 +167,13 @@ export function useRunBacktest() {
     },
 
     onSuccess: (_, config) => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["backtests"] });
-      queryClient.invalidateQueries({ queryKey: ["backtests", config.strategyId] });
+      // Only invalidate backtests list (not strategies, orders, etc.)
+      queryClient.invalidateQueries({ queryKey: ["backtests"], exact: false });
+      // Also invalidate strategy-specific backtests
+      queryClient.invalidateQueries({
+        queryKey: ["backtests", config.strategyId],
+        exact: true,
+      });
       toast.success("Backtest started successfully");
     },
   });

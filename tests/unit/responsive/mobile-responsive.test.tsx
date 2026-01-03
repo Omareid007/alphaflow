@@ -8,7 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 // Skip tests that need window in environments without DOM
-const describeWithDOM = typeof window !== "undefined" ? describe : describe.skip;
+const describeWithDOM =
+  typeof window !== "undefined" ? describe : describe.skip;
 
 describe("Tailwind Breakpoints", () => {
   it("defines standard breakpoints", () => {

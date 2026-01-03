@@ -31,7 +31,16 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, numeric, integer, boolean, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  timestamp,
+  numeric,
+  integer,
+  boolean,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { users } from "./auth";
 import { strategies, trades } from "./trading";
@@ -65,32 +74,40 @@ import { strategies, trades } from "./trading";
  * @see aiDecisionFeatures - Feature vectors for ML training
  * @see aiTradeOutcomes - Trade performance metrics
  */
-export const aiDecisions = pgTable("ai_decisions", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
-  symbol: text("symbol").notNull(),
-  action: text("action").notNull(),
-  confidence: numeric("confidence"),
-  reasoning: text("reasoning"),
-  marketContext: text("market_context"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  // Note: executedTradeId references trades table - foreign key defined at database level
-  executedTradeId: varchar("executed_trade_id"),
-  status: text("status").default("pending").notNull(),
-  stopLoss: numeric("stop_loss"),
-  takeProfit: numeric("take_profit"),
-  entryPrice: numeric("entry_price"),
-  filledPrice: numeric("filled_price"),
-  filledAt: timestamp("filled_at"),
-  skipReason: text("skip_reason"),
-  traceId: text("trace_id"),
-  metadata: text("metadata"),
-}, (table) => ({
-  userIdIdx: index("ai_decisions_user_id_idx").on(table.userId),
-}));
+export const aiDecisions = pgTable(
+  "ai_decisions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    strategyId: varchar("strategy_id").references(() => strategies.id, {
+      onDelete: "set null",
+    }),
+    symbol: text("symbol").notNull(),
+    action: text("action").notNull(),
+    confidence: numeric("confidence"),
+    reasoning: text("reasoning"),
+    marketContext: text("market_context"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Note: executedTradeId references trades table - foreign key defined at database level
+    executedTradeId: varchar("executed_trade_id"),
+    status: text("status").default("pending").notNull(),
+    stopLoss: numeric("stop_loss"),
+    takeProfit: numeric("take_profit"),
+    entryPrice: numeric("entry_price"),
+    filledPrice: numeric("filled_price"),
+    filledAt: timestamp("filled_at"),
+    skipReason: text("skip_reason"),
+    traceId: text("trace_id"),
+    metadata: text("metadata"),
+  },
+  (table) => ({
+    userIdIdx: index("ai_decisions_user_id_idx").on(table.userId),
+  })
+);
 
 /**
  * Feature vectors for machine learning training.
@@ -126,7 +143,9 @@ export const aiDecisionFeatures = pgTable("ai_decision_features", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
+  decisionId: varchar("decision_id")
+    .references(() => aiDecisions.id, { onDelete: "cascade" })
+    .notNull(),
   symbol: text("symbol").notNull(),
   volatility: numeric("volatility"),
   trendStrength: numeric("trend_strength"),
@@ -189,8 +208,12 @@ export const aiTradeOutcomes = pgTable("ai_trade_outcomes", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
-  tradeId: varchar("trade_id").references(() => trades.id, { onDelete: "set null" }),
+  decisionId: varchar("decision_id")
+    .references(() => aiDecisions.id, { onDelete: "cascade" })
+    .notNull(),
+  tradeId: varchar("trade_id").references(() => trades.id, {
+    onDelete: "set null",
+  }),
   symbol: text("symbol").notNull(),
   action: text("action").notNull(),
   predictionConfidence: numeric("prediction_confidence"),
@@ -208,7 +231,9 @@ export const aiTradeOutcomes = pgTable("ai_trade_outcomes", {
   maxGain: numeric("max_gain"),
   marketSessionAtEntry: text("market_session_at_entry"),
   marketSessionAtExit: text("market_session_at_exit"),
-  strategyId: varchar("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
+  strategyId: varchar("strategy_id").references(() => strategies.id, {
+    onDelete: "set null",
+  }),
   exitReason: text("exit_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   closedAt: timestamp("closed_at"),
@@ -288,17 +313,23 @@ export const insertAiDecisionSchema = createInsertSchema(aiDecisions).omit({
   createdAt: true,
 });
 
-export const insertAiDecisionFeaturesSchema = createInsertSchema(aiDecisionFeatures).omit({
+export const insertAiDecisionFeaturesSchema = createInsertSchema(
+  aiDecisionFeatures
+).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertAiTradeOutcomesSchema = createInsertSchema(aiTradeOutcomes).omit({
+export const insertAiTradeOutcomesSchema = createInsertSchema(
+  aiTradeOutcomes
+).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertAiCalibrationLogSchema = createInsertSchema(aiCalibrationLog).omit({
+export const insertAiCalibrationLogSchema = createInsertSchema(
+  aiCalibrationLog
+).omit({
   id: true,
   createdAt: true,
 });

@@ -9,4 +9,4 @@
  * @see /shared/schema/index.ts for module organization
  */
 
-export * from './schema/index';
+export * from "./schema/index";

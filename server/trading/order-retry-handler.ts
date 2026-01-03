@@ -17,16 +17,37 @@ import {
 } from "../utils/money";
 
 // Type definitions for Alpaca order parameters
-export type OrderType = "market" | "limit" | "stop" | "stop_limit" | "trailing_stop";
+export type OrderType =
+  | "market"
+  | "limit"
+  | "stop"
+  | "stop_limit"
+  | "trailing_stop";
 export type TimeInForce = "day" | "gtc" | "opg" | "cls" | "ioc" | "fok";
 
-const VALID_ORDER_TYPES: OrderType[] = ["market", "limit", "stop", "stop_limit", "trailing_stop"];
-const VALID_TIME_IN_FORCE: TimeInForce[] = ["day", "gtc", "opg", "cls", "ioc", "fok"];
+const VALID_ORDER_TYPES: OrderType[] = [
+  "market",
+  "limit",
+  "stop",
+  "stop_limit",
+  "trailing_stop",
+];
+const VALID_TIME_IN_FORCE: TimeInForce[] = [
+  "day",
+  "gtc",
+  "opg",
+  "cls",
+  "ioc",
+  "fok",
+];
 
 /**
  * Safely convert string to OrderType with fallback
  */
-function toOrderType(value: string | undefined, fallback: OrderType = "limit"): OrderType {
+function toOrderType(
+  value: string | undefined,
+  fallback: OrderType = "limit"
+): OrderType {
   if (value && VALID_ORDER_TYPES.includes(value as OrderType)) {
     return value as OrderType;
   }
@@ -36,7 +57,10 @@ function toOrderType(value: string | undefined, fallback: OrderType = "limit"): 
 /**
  * Safely convert string to TimeInForce with fallback
  */
-function toTimeInForce(value: string | undefined, fallback: TimeInForce = "day"): TimeInForce {
+function toTimeInForce(
+  value: string | undefined,
+  fallback: TimeInForce = "day"
+): TimeInForce {
   if (value && VALID_TIME_IN_FORCE.includes(value as TimeInForce)) {
     return value as TimeInForce;
   }
@@ -667,7 +691,9 @@ const rejectionHandlers: RejectionHandler[] = [
                   side: "sell",
                   qty: availableQty.toString(),
                   type: toOrderType(order.order.type || "limit"),
-                  time_in_force: toTimeInForce(order.order.time_in_force || "day"),
+                  time_in_force: toTimeInForce(
+                    order.order.time_in_force || "day"
+                  ),
                   limit_price: order.order.limit_price || undefined,
                   extended_hours: order.order.extended_hours,
                 },

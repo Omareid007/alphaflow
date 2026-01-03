@@ -82,20 +82,24 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/trades/:id/enriched - Get enriched trade by ID with additional metadata
-router.get("/:id/enriched", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const trade = await storage.getEnrichedTrade(req.params.id);
-    if (!trade) {
-      return notFound(res, "Trade not found");
+router.get(
+  "/:id/enriched",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const trade = await storage.getEnrichedTrade(req.params.id);
+      if (!trade) {
+        return notFound(res, "Trade not found");
+      }
+      res.json(trade);
+    } catch (error) {
+      log.error("TradesAPI", "Failed to get enriched trade", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return serverError(res, "Failed to get enriched trade");
     }
-    res.json(trade);
-  } catch (error) {
-    log.error("TradesAPI", "Failed to get enriched trade", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return serverError(res, "Failed to get enriched trade");
   }
-});
+);
 
 // POST /api/trades - Create a new trade
 router.post("/", requireAuth, async (req: Request, res: Response) => {
@@ -115,63 +119,67 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/trades/backfill-prices - Backfill trade prices from Alpaca order history
-router.post("/backfill-prices", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const trades = await storage.getTrades(undefined, 500);
-    const zeroTrades = trades.filter((t) => safeParseFloat(t.price, 0) === 0);
-
-    if (zeroTrades.length === 0) {
-      return res.json({ message: "No trades need backfilling", updated: 0 });
-    }
-
-    let orders: any[] = [];
+router.post(
+  "/backfill-prices",
+  requireAuth,
+  async (req: Request, res: Response) => {
     try {
-      orders = await alpaca.getOrders("all", 500);
-    } catch (e) {
-      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", {
-        error: e instanceof Error ? e.message : String(e),
-      });
-      return serverError(res, "Failed to fetch order history from broker");
-    }
+      const trades = await storage.getTrades(undefined, 500);
+      const zeroTrades = trades.filter((t) => safeParseFloat(t.price, 0) === 0);
 
-    let updated = 0;
-    for (const trade of zeroTrades) {
-      const matchingOrder = orders.find(
-        (o) =>
-          o.symbol === trade.symbol &&
-          o.side === trade.side &&
-          o.status === "filled" &&
-          safeParseFloat(o.filled_avg_price, 0) > 0 &&
-          Math.abs(
-            new Date(o.filled_at).getTime() -
-              new Date(trade.executedAt).getTime()
-          ) < 60000
-      );
-
-      if (matchingOrder) {
-        const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
-        const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
-
-        await storage.updateTrade(trade.id, {
-          price: filledPrice.toString(),
-          quantity: filledQty.toString(),
-          status: "filled",
-        });
-        updated++;
+      if (zeroTrades.length === 0) {
+        return res.json({ message: "No trades need backfilling", updated: 0 });
       }
-    }
 
-    res.json({
-      message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
-      updated,
-      remaining: zeroTrades.length - updated,
-    });
-  } catch (error) {
-    log.error("TradesAPI", "Trade backfill error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return serverError(res, "Failed to backfill trade prices");
+      let orders: any[] = [];
+      try {
+        orders = await alpaca.getOrders("all", 500);
+      } catch (e) {
+        log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", {
+          error: e instanceof Error ? e.message : String(e),
+        });
+        return serverError(res, "Failed to fetch order history from broker");
+      }
+
+      let updated = 0;
+      for (const trade of zeroTrades) {
+        const matchingOrder = orders.find(
+          (o) =>
+            o.symbol === trade.symbol &&
+            o.side === trade.side &&
+            o.status === "filled" &&
+            safeParseFloat(o.filled_avg_price, 0) > 0 &&
+            Math.abs(
+              new Date(o.filled_at).getTime() -
+                new Date(trade.executedAt).getTime()
+            ) < 60000
+        );
+
+        if (matchingOrder) {
+          const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
+          const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
+
+          await storage.updateTrade(trade.id, {
+            price: filledPrice.toString(),
+            quantity: filledQty.toString(),
+            status: "filled",
+          });
+          updated++;
+        }
+      }
+
+      res.json({
+        message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
+        updated,
+        remaining: zeroTrades.length - updated,
+      });
+    } catch (error) {
+      log.error("TradesAPI", "Trade backfill error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return serverError(res, "Failed to backfill trade prices");
+    }
   }
-});
+);
 
 export default router;

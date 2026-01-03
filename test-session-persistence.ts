@@ -10,7 +10,12 @@
  * 5. Cleaning up expired sessions
  */
 
-import { createSession, getSession, deleteSession, cleanupExpiredSessions } from "./server/lib/session";
+import {
+  createSession,
+  getSession,
+  deleteSession,
+  cleanupExpiredSessions,
+} from "./server/lib/session";
 import { db } from "./server/db";
 import { sessions, users } from "./shared/schema";
 import { eq } from "drizzle-orm";
@@ -51,7 +56,9 @@ async function testSessionPersistence() {
     }
     console.log(`✓ Session retrieved successfully`);
     console.log(`  User ID: ${retrievedSession.userId}`);
-    console.log(`  Expires at: ${new Date(retrievedSession.expiresAt).toISOString()}`);
+    console.log(
+      `  Expires at: ${new Date(retrievedSession.expiresAt).toISOString()}`
+    );
 
     // Test 3: Verify session exists in database directly
     console.log("\nTest 3: Verifying session in database...");
@@ -76,7 +83,9 @@ async function testSessionPersistence() {
       .update(sessions)
       .set({ expiresAt: new Date(Date.now() - 1000) }) // 1 second ago
       .where(eq(sessions.id, expiredSessionId));
-    console.log(`✓ Expired session created with ID: ${expiredSessionId.substring(0, 16)}...`);
+    console.log(
+      `✓ Expired session created with ID: ${expiredSessionId.substring(0, 16)}...`
+    );
 
     // Test 5: Verify expired session is null when retrieved
     console.log("\nTest 5: Verifying expired session returns null...");
@@ -127,8 +136,9 @@ async function testSessionPersistence() {
     console.log("- Sessions persist across server restarts");
     console.log("- Expired sessions are automatically cleaned up");
     console.log("- Session cleanup job runs every hour");
-    console.log("\n✓ Database-backed session implementation is working correctly!\n");
-
+    console.log(
+      "\n✓ Database-backed session implementation is working correctly!\n"
+    );
   } catch (error) {
     console.error("\n❌ Test failed:", error);
     throw error;

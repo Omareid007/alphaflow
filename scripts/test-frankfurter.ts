@@ -25,12 +25,16 @@ async function runTests() {
       console.log(`  Base: ${usdRates.base}`);
       console.log(`  Date: ${usdRates.date}`);
       console.log(`  Amount: ${usdRates.amount}`);
-      console.log(`  Number of currencies: ${Object.keys(usdRates.rates).length}`);
+      console.log(
+        `  Number of currencies: ${Object.keys(usdRates.rates).length}`
+      );
       console.log(`  Sample rates:`);
       const sampleCurrencies = ["EUR", "GBP", "JPY", "CHF", "CAD"];
-      sampleCurrencies.forEach(currency => {
+      sampleCurrencies.forEach((currency) => {
         if (usdRates.rates[currency]) {
-          console.log(`    ${currency}: ${usdRates.rates[currency].toFixed(4)}`);
+          console.log(
+            `    ${currency}: ${usdRates.rates[currency].toFixed(4)}`
+          );
         }
       });
       passedTests++;
@@ -85,7 +89,7 @@ async function runTests() {
       console.log(`  Index: ${usdIndex.index.toFixed(2)}`);
       console.log(`  Trend: ${usdIndex.trend.toUpperCase()}`);
       console.log(`  Components:`);
-      usdIndex.components.forEach(component => {
+      usdIndex.components.forEach((component) => {
         console.log(`    ${component.currency}:`);
         console.log(`      Weight: ${(component.weight * 100).toFixed(1)}%`);
         console.log(`      Rate: ${component.rate.toFixed(4)}`);
@@ -114,7 +118,9 @@ async function runTests() {
       console.log(`  Amount: ${conversion.amount.toFixed(2)} EUR`);
       console.log(`  Rate: ${conversion.rate.toFixed(6)}`);
       console.log(`  Date: ${conversion.date}`);
-      console.log(`  Calculation: 100 USD × ${conversion.rate.toFixed(6)} = ${conversion.amount.toFixed(2)} EUR`);
+      console.log(
+        `  Calculation: 100 USD × ${conversion.rate.toFixed(6)} = ${conversion.amount.toFixed(2)} EUR`
+      );
       passedTests++;
     } else {
       console.log("✗ Failed: Returned null");
@@ -136,7 +142,7 @@ async function runTests() {
     if (currencies && currencies.length > 0) {
       console.log(`✓ Successfully fetched ${currencies.length} currencies`);
       console.log(`  Sample currencies:`);
-      currencies.slice(0, 10).forEach(currency => {
+      currencies.slice(0, 10).forEach((currency) => {
         console.log(`    ${currency.code}: ${currency.name}`);
       });
       passedTests++;
@@ -195,7 +201,7 @@ async function runTests() {
 }
 
 // Run the tests
-runTests().catch(error => {
+runTests().catch((error) => {
   console.error("Fatal error running tests:", error);
   process.exit(1);
 });

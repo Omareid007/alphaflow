@@ -31,33 +31,37 @@ router.get("/configs", requireAuth, async (req: Request, res: Response) => {
 });
 
 // PUT /api/llm/configs/:role - Update role-based router configuration
-router.put("/configs/:role", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { role } = req.params;
-    const validRoles = [
-      "market_news_summarizer",
-      "technical_analyst",
-      "risk_manager",
-      "execution_planner",
-      "post_trade_reporter",
-    ];
+router.put(
+  "/configs/:role",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { role } = req.params;
+      const validRoles = [
+        "market_news_summarizer",
+        "technical_analyst",
+        "risk_manager",
+        "execution_planner",
+        "post_trade_reporter",
+      ];
 
-    if (!validRoles.includes(role)) {
-      return badRequest(
-        res,
-        `Invalid role. Must be one of: ${validRoles.join(", ")}`
-      );
+      if (!validRoles.includes(role)) {
+        return badRequest(
+          res,
+          `Invalid role. Must be one of: ${validRoles.join(", ")}`
+        );
+      }
+
+      const updates = req.body as Partial<RoleConfig>;
+      const updated = await updateRoleConfig(role as any, updates);
+
+      res.json({ success: true, config: updated });
+    } catch (error) {
+      log.error("LLMAPI", `Failed to update role config: ${error}`);
+      res.status(500).json({ error: "Failed to update role configuration" });
     }
-
-    const updates = req.body as Partial<RoleConfig>;
-    const updated = await updateRoleConfig(role as any, updates);
-
-    res.json({ success: true, config: updated });
-  } catch (error) {
-    log.error("LLMAPI", `Failed to update role config: ${error}`);
-    res.status(500).json({ error: "Failed to update role configuration" });
   }
-});
+);
 
 /**
  * LLM Call History and Statistics Endpoints

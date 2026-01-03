@@ -33,21 +33,63 @@ import {
 
 const FULL_UNIVERSE = [
   // Mega-cap Tech
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "NVDA",
+  "META",
+  "TSLA",
   // Large-cap Tech
-  "AMD", "INTC", "CRM", "NFLX", "ADBE", "ORCL", "CSCO", "QCOM", "AVGO",
+  "AMD",
+  "INTC",
+  "CRM",
+  "NFLX",
+  "ADBE",
+  "ORCL",
+  "CSCO",
+  "QCOM",
+  "AVGO",
   // Finance
-  "JPM", "BAC", "GS", "MS", "V", "MA", "PYPL",
+  "JPM",
+  "BAC",
+  "GS",
+  "MS",
+  "V",
+  "MA",
+  "PYPL",
   // Healthcare
-  "JNJ", "UNH", "PFE", "MRK", "ABBV", "LLY",
+  "JNJ",
+  "UNH",
+  "PFE",
+  "MRK",
+  "ABBV",
+  "LLY",
   // Consumer
-  "WMT", "COST", "HD", "NKE", "MCD", "SBUX", "DIS",
+  "WMT",
+  "COST",
+  "HD",
+  "NKE",
+  "MCD",
+  "SBUX",
+  "DIS",
   // Energy
-  "XOM", "CVX",
+  "XOM",
+  "CVX",
   // Industrial
-  "BA", "CAT", "HON", "UPS",
+  "BA",
+  "CAT",
+  "HON",
+  "UPS",
   // ETFs
-  "SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLE", "XLV",
+  "SPY",
+  "QQQ",
+  "IWM",
+  "DIA",
+  "XLF",
+  "XLK",
+  "XLE",
+  "XLV",
 ];
 
 // ============================================================================
@@ -69,7 +111,13 @@ interface SentimentData {
 }
 
 interface ChartPattern {
-  type: "head_shoulders" | "inv_head_shoulders" | "double_top" | "double_bottom" | "ascending_triangle" | "descending_triangle";
+  type:
+    | "head_shoulders"
+    | "inv_head_shoulders"
+    | "double_top"
+    | "double_bottom"
+    | "ascending_triangle"
+    | "descending_triangle";
   confidence: number;
   priceTarget: number;
   direction: "bullish" | "bearish";
@@ -130,14 +178,20 @@ interface ComprehensiveMetrics {
   patternContribution: number;
   technicalContribution: number;
   // By sector
-  sectorPerformance: Record<string, { trades: number; pnl: number; winRate: number }>;
+  sectorPerformance: Record<
+    string,
+    { trades: number; pnl: number; winRate: number }
+  >;
 }
 
 // ============================================================================
 // CHART PATTERN RECOGNITION
 // ============================================================================
 
-function findLocalExtrema(prices: number[], windowSize: number = 5): { peaks: number[]; troughs: number[] } {
+function findLocalExtrema(
+  prices: number[],
+  windowSize: number = 5
+): { peaks: number[]; troughs: number[] } {
   const peaks: number[] = [];
   const troughs: number[] = [];
 
@@ -167,16 +221,17 @@ function detectHeadAndShoulders(
   const recentPeaks = peaks.slice(-5);
   if (recentPeaks.length < 5) return null;
 
-  const [p1, p2, p3, p4, p5] = recentPeaks.map(i => highs[i]);
+  const [p1, p2, p3, p4, p5] = recentPeaks.map((i) => highs[i]);
 
   // Head and Shoulders: peak2 < peak3 > peak4, peak1 ≈ peak5
   const head = p3;
   const leftShoulder = p2;
   const rightShoulder = p4;
 
-  const isHS = head > leftShoulder * 1.02 &&
-               head > rightShoulder * 1.02 &&
-               Math.abs(leftShoulder - rightShoulder) / leftShoulder < 0.05;
+  const isHS =
+    head > leftShoulder * 1.02 &&
+    head > rightShoulder * 1.02 &&
+    Math.abs(leftShoulder - rightShoulder) / leftShoulder < 0.05;
 
   if (isHS) {
     const neckline = Math.min(lows[recentPeaks[1]], lows[recentPeaks[3]]);
@@ -213,8 +268,8 @@ function detectDoubleTop(
 
   // Double top: two peaks at similar levels
   const tolerance = peak1 * 0.02;
-  const isDoubleTop = Math.abs(peak1 - peak2) < tolerance &&
-                      (i2 - i1) > 5 && (i2 - i1) < 40;
+  const isDoubleTop =
+    Math.abs(peak1 - peak2) < tolerance && i2 - i1 > 5 && i2 - i1 < 40;
 
   if (isDoubleTop) {
     const trough = Math.min(...prices.slice(i1, i2 + 1));
@@ -250,8 +305,8 @@ function detectDoubleBottom(
   const trough2 = lows[i2];
 
   const tolerance = trough1 * 0.02;
-  const isDoubleBottom = Math.abs(trough1 - trough2) < tolerance &&
-                         (i2 - i1) > 5 && (i2 - i1) < 40;
+  const isDoubleBottom =
+    Math.abs(trough1 - trough2) < tolerance && i2 - i1 > 5 && i2 - i1 < 40;
 
   if (isDoubleBottom) {
     const peak = Math.max(...prices.slice(i1, i2 + 1));
@@ -303,9 +358,14 @@ function simulateSentiment(
   // Simulate sentiment based on price action and volume patterns
   // This proxies what GDELT/NewsAPI/Social would show
 
-  const return5d = index >= 5 ? (prices[index] - prices[index - 5]) / prices[index - 5] : 0;
-  const return20d = index >= 20 ? (prices[index] - prices[index - 20]) / prices[index - 20] : 0;
-  const avgVol = index >= 20 ? volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20 : volumes[index];
+  const return5d =
+    index >= 5 ? (prices[index] - prices[index - 5]) / prices[index - 5] : 0;
+  const return20d =
+    index >= 20 ? (prices[index] - prices[index - 20]) / prices[index - 20] : 0;
+  const avgVol =
+    index >= 20
+      ? volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20
+      : volumes[index];
   const volRatio = volumes[index] / avgVol;
 
   // GDELT tone simulation: range [-10, 10]
@@ -328,13 +388,24 @@ function simulateSentiment(
   // Social sentiment simulation
   const socialBullish = return5d > 0 ? 55 + return5d * 500 : 40;
   const socialBearish = return5d < 0 ? 55 + Math.abs(return5d) * 500 : 40;
-  const socialBuzzScore = Math.min(100, Math.floor(volRatio * 30 + Math.abs(return5d) * 1000));
+  const socialBuzzScore = Math.min(
+    100,
+    Math.floor(volRatio * 30 + Math.abs(return5d) * 1000)
+  );
 
   // Overall sentiment
   let overallSentiment: "bullish" | "bearish" | "neutral" = "neutral";
-  if (gdeltTone > 3 && newsSentiment > 0.2 && socialBullish > socialBearish * 1.2) {
+  if (
+    gdeltTone > 3 &&
+    newsSentiment > 0.2 &&
+    socialBullish > socialBearish * 1.2
+  ) {
     overallSentiment = "bullish";
-  } else if (gdeltTone < -3 && newsSentiment < -0.2 && socialBearish > socialBullish * 1.2) {
+  } else if (
+    gdeltTone < -3 &&
+    newsSentiment < -0.2 &&
+    socialBearish > socialBullish * 1.2
+  ) {
     overallSentiment = "bearish";
   }
 
@@ -357,7 +428,12 @@ function simulateSentiment(
 // COMPREHENSIVE SIGNAL GENERATION
 // ============================================================================
 
-function detectRegime(price: number, sma20: number | null, sma50: number | null, adx: number | null): string {
+function detectRegime(
+  price: number,
+  sma20: number | null,
+  sma50: number | null,
+  adx: number | null
+): string {
   if (sma20 === null || sma50 === null) return "unknown";
 
   const priceAboveSma20 = price > sma20;
@@ -365,9 +441,11 @@ function detectRegime(price: number, sma20: number | null, sma50: number | null,
   const sma20AboveSma50 = sma20 > sma50;
   const isTrending = adx !== null && adx > 25;
 
-  if (priceAboveSma20 && priceAboveSma50 && sma20AboveSma50 && isTrending) return "strong_uptrend";
+  if (priceAboveSma20 && priceAboveSma50 && sma20AboveSma50 && isTrending)
+    return "strong_uptrend";
   if (priceAboveSma20 && priceAboveSma50) return "uptrend";
-  if (!priceAboveSma20 && !priceAboveSma50 && !sma20AboveSma50 && isTrending) return "strong_downtrend";
+  if (!priceAboveSma20 && !priceAboveSma50 && !sma20AboveSma50 && isTrending)
+    return "strong_downtrend";
   if (!priceAboveSma20 && !priceAboveSma50) return "downtrend";
   return "ranging";
 }
@@ -379,11 +457,16 @@ function generateComprehensiveSignal(
   sentiment: SentimentData,
   patterns: ChartPattern[]
 ): ComprehensiveSignal {
-  const prices = bars.map(b => b.c);
-  const volumes = bars.map(b => b.v);
+  const prices = bars.map((b) => b.c);
+  const volumes = bars.map((b) => b.v);
   const price = prices[index];
 
-  const regime = detectRegime(price, indicators.sma20[index], indicators.sma50[index], indicators.adx[index]);
+  const regime = detectRegime(
+    price,
+    indicators.sma20[index],
+    indicators.sma50[index],
+    indicators.adx[index]
+  );
 
   // Technical score
   let technical = 0;
@@ -414,7 +497,7 @@ function generateComprehensiveSignal(
   const emaFast = indicators.emaFast[index];
   const emaSlow = indicators.emaSlow[index];
   if (emaFast !== null && emaSlow !== null) {
-    const emaDiff = (emaFast - emaSlow) / emaSlow * 100;
+    const emaDiff = ((emaFast - emaSlow) / emaSlow) * 100;
     if (emaDiff > 2) momentum += 0.8;
     else if (emaDiff > 0.5) momentum += 0.4;
     else if (emaDiff < -2) momentum -= 0.8;
@@ -422,7 +505,7 @@ function generateComprehensiveSignal(
   }
 
   if (index >= 10) {
-    const ret10d = (price - prices[index - 10]) / prices[index - 10] * 100;
+    const ret10d = ((price - prices[index - 10]) / prices[index - 10]) * 100;
     if (ret10d > 5) momentum += 0.6;
     else if (ret10d > 2) momentum += 0.3;
     else if (ret10d < -5) momentum -= 0.6;
@@ -443,7 +526,8 @@ function generateComprehensiveSignal(
   // Volume score
   let volume = 0;
   if (index >= 20) {
-    const avgVol = volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
+    const avgVol =
+      volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
     const volRatio = volumes[index] / avgVol;
     if (volRatio > 2) volume = 0.5;
     else if (volRatio > 1.5) volume = 0.3;
@@ -454,7 +538,8 @@ function generateComprehensiveSignal(
   let sentimentScore = 0;
   if (sentiment.gdeltTone > 3) sentimentScore += 0.4;
   else if (sentiment.gdeltTone < -3) sentimentScore -= 0.4;
-  if (sentiment.gdeltSpike) sentimentScore += sentiment.newsSentiment > 0 ? 0.3 : -0.3;
+  if (sentiment.gdeltSpike)
+    sentimentScore += sentiment.newsSentiment > 0 ? 0.3 : -0.3;
   if (sentiment.overallSentiment === "bullish") sentimentScore += 0.2;
   else if (sentiment.overallSentiment === "bearish") sentimentScore -= 0.2;
   sentimentScore = Math.max(-1, Math.min(1, sentimentScore));
@@ -468,28 +553,42 @@ function generateComprehensiveSignal(
   patternScore = Math.max(-1, Math.min(1, patternScore));
 
   // News impact (from sentiment volume)
-  const newsImpact = sentiment.gdeltSpike ? (sentiment.newsSentiment > 0 ? 0.5 : -0.5) : 0;
+  const newsImpact = sentiment.gdeltSpike
+    ? sentiment.newsSentiment > 0
+      ? 0.5
+      : -0.5
+    : 0;
 
   // Social buzz
-  const socialBuzz = sentiment.socialBuzzScore > 50
-    ? (sentiment.socialBullish > sentiment.socialBearish ? 0.3 : -0.3)
-    : 0;
+  const socialBuzz =
+    sentiment.socialBuzzScore > 50
+      ? sentiment.socialBullish > sentiment.socialBearish
+        ? 0.3
+        : -0.3
+      : 0;
 
   // Composite with weights
   const composite =
-    technical * 0.30 +
+    technical * 0.3 +
     momentum * 0.25 +
-    volatility * 0.10 +
-    volume * 0.10 +
-    sentimentScore * 0.10 +
+    volatility * 0.1 +
+    volume * 0.1 +
+    sentimentScore * 0.1 +
     patternScore * 0.05 +
     newsImpact * 0.05 +
     socialBuzz * 0.05;
 
   // Confidence
-  const scores = [technical, momentum, volatility, volume, sentimentScore, patternScore];
-  const positiveCount = scores.filter(s => s > 0.2).length;
-  const negativeCount = scores.filter(s => s < -0.2).length;
+  const scores = [
+    technical,
+    momentum,
+    volatility,
+    volume,
+    sentimentScore,
+    patternScore,
+  ];
+  const positiveCount = scores.filter((s) => s > 0.2).length;
+  const negativeCount = scores.filter((s) => s < -0.2).length;
   const alignment = Math.max(positiveCount, negativeCount) / scores.length;
   const confidence = Math.min(1, alignment * Math.abs(composite) * 2);
 
@@ -550,9 +649,9 @@ function runComprehensiveBacktest(
   // Pre-calculate indicators for all symbols
   const indicatorsMap = new Map<string, any>();
   for (const [symbol, bars] of dataMap) {
-    const closes = bars.map(b => b.c);
-    const highs = bars.map(b => b.h);
-    const lows = bars.map(b => b.l);
+    const closes = bars.map((b) => b.c);
+    const highs = bars.map((b) => b.h);
+    const lows = bars.map((b) => b.l);
 
     indicatorsMap.set(symbol, {
       rsi: calculateRSI(closes, 10),
@@ -582,19 +681,36 @@ function runComprehensiveBacktest(
 
     for (const [symbol, bars] of dataMap) {
       const indicators = indicatorsMap.get(symbol)!;
-      const dateIndex = bars.findIndex(b => b.t.split("T")[0] === date);
+      const dateIndex = bars.findIndex((b) => b.t.split("T")[0] === date);
       if (dateIndex < 50) continue;
 
       const bar = bars[dateIndex];
-      const prices = bars.map(b => b.c);
-      const highs = bars.map(b => b.h);
-      const lows = bars.map(b => b.l);
-      const volumes = bars.map(b => b.v);
+      const prices = bars.map((b) => b.c);
+      const highs = bars.map((b) => b.h);
+      const lows = bars.map((b) => b.l);
+      const volumes = bars.map((b) => b.v);
 
-      const regime = detectRegime(bar.c, indicators.sma20[dateIndex], indicators.sma50[dateIndex], indicators.adx[dateIndex]);
-      const sentiment = simulateSentiment(symbol, prices, volumes, dateIndex, regime);
+      const regime = detectRegime(
+        bar.c,
+        indicators.sma20[dateIndex],
+        indicators.sma50[dateIndex],
+        indicators.adx[dateIndex]
+      );
+      const sentiment = simulateSentiment(
+        symbol,
+        prices,
+        volumes,
+        dateIndex,
+        regime
+      );
       const patterns = detectPatterns(prices, highs, lows, dateIndex);
-      const signals = generateComprehensiveSignal(dateIndex, bars, indicators, sentiment, patterns);
+      const signals = generateComprehensiveSignal(
+        dateIndex,
+        bars,
+        indicators,
+        sentiment,
+        patterns
+      );
 
       // Check existing position
       const position = positions.get(symbol);
@@ -613,14 +729,19 @@ function runComprehensiveBacktest(
         } else if (bar.c > position.entryPrice * 1.02) {
           const atr = indicators.atr[dateIndex];
           if (atr !== null) {
-            position.stopLoss = Math.max(position.stopLoss, bar.c - atr * config.atrMultStop);
+            position.stopLoss = Math.max(
+              position.stopLoss,
+              bar.c - atr * config.atrMultStop
+            );
           }
         }
 
         if (exitReason) {
           const pnl = (exitPrice - position.entryPrice) * position.shares;
           const holdingDays = Math.floor(
-            (new Date(date).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24)
+            (new Date(date).getTime() -
+              new Date(position.entryDate).getTime()) /
+              (1000 * 60 * 60 * 24)
           );
 
           trades.push({
@@ -632,7 +753,8 @@ function runComprehensiveBacktest(
             shares: position.shares,
             side: "long",
             pnl,
-            pnlPct: (exitPrice - position.entryPrice) / position.entryPrice * 100,
+            pnlPct:
+              ((exitPrice - position.entryPrice) / position.entryPrice) * 100,
             exitReason,
             holdingDays,
             signals: position.signals,
@@ -649,12 +771,17 @@ function runComprehensiveBacktest(
           signals.composite > config.buyThreshold &&
           signals.confidence > config.confidenceMin &&
           positions.size < config.maxPositions &&
-          (regime === "strong_uptrend" || regime === "uptrend" || regime === "ranging");
+          (regime === "strong_uptrend" ||
+            regime === "uptrend" ||
+            regime === "ranging");
 
         if (canEnter) {
           const atr = indicators.atr[dateIndex];
           if (atr !== null) {
-            const positionSize = Math.min(equity * config.maxPositionPct, equity * 0.5);
+            const positionSize = Math.min(
+              equity * config.maxPositionPct,
+              equity * 0.5
+            );
             const shares = Math.floor(positionSize / bar.c);
 
             if (shares > 0) {
@@ -678,7 +805,7 @@ function runComprehensiveBacktest(
     if (dailyPnl < -equity * config.maxDailyLoss) {
       for (const [symbol, position] of positions) {
         const bars = dataMap.get(symbol)!;
-        const bar = bars.find(b => b.t.split("T")[0] === date);
+        const bar = bars.find((b) => b.t.split("T")[0] === date);
         if (bar) {
           const pnl = (bar.c - position.entryPrice) * position.shares;
           trades.push({
@@ -690,7 +817,7 @@ function runComprehensiveBacktest(
             shares: position.shares,
             side: "long",
             pnl,
-            pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+            pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
             exitReason: "daily_loss_limit",
             holdingDays: 0,
             signals: position.signals,
@@ -704,14 +831,17 @@ function runComprehensiveBacktest(
 
     // Track drawdown
     if (equity > peakEquity) peakEquity = equity;
-    maxDrawdown = Math.max(maxDrawdown, (peakEquity - equity) / peakEquity * 100);
+    maxDrawdown = Math.max(
+      maxDrawdown,
+      ((peakEquity - equity) / peakEquity) * 100
+    );
   }
 
   // Close remaining positions
   const lastDate = sortedDates[sortedDates.length - 1];
   for (const [symbol, position] of positions) {
     const bars = dataMap.get(symbol)!;
-    const bar = bars.find(b => b.t.split("T")[0] === lastDate);
+    const bar = bars.find((b) => b.t.split("T")[0] === lastDate);
     if (bar) {
       const pnl = (bar.c - position.entryPrice) * position.shares;
       trades.push({
@@ -723,9 +853,13 @@ function runComprehensiveBacktest(
         shares: position.shares,
         side: "long",
         pnl,
-        pnlPct: (bar.c - position.entryPrice) / position.entryPrice * 100,
+        pnlPct: ((bar.c - position.entryPrice) / position.entryPrice) * 100,
         exitReason: "end_of_backtest",
-        holdingDays: Math.floor((new Date(lastDate).getTime() - new Date(position.entryDate).getTime()) / (1000 * 60 * 60 * 24)),
+        holdingDays: Math.floor(
+          (new Date(lastDate).getTime() -
+            new Date(position.entryDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ),
         signals: position.signals,
         sentimentAtEntry: position.sentiment,
       });
@@ -734,7 +868,12 @@ function runComprehensiveBacktest(
   }
 
   // Calculate metrics
-  const metrics = calculateComprehensiveMetrics(trades, config.initialCapital, equity, maxDrawdown);
+  const metrics = calculateComprehensiveMetrics(
+    trades,
+    config.initialCapital,
+    equity,
+    maxDrawdown
+  );
 
   return { trades, metrics };
 }
@@ -745,28 +884,46 @@ function calculateComprehensiveMetrics(
   finalEquity: number,
   maxDrawdown: number
 ): ComprehensiveMetrics {
-  const winningTrades = trades.filter(t => t.pnl > 0);
-  const losingTrades = trades.filter(t => t.pnl <= 0);
+  const winningTrades = trades.filter((t) => t.pnl > 0);
+  const losingTrades = trades.filter((t) => t.pnl <= 0);
 
   const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
   const totalWins = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
 
-  const returns = trades.map(t => t.pnlPct / 100);
-  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-  const stdDev = returns.length > 1
-    ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length)
-    : 0;
-  const downReturns = returns.filter(r => r < 0);
-  const downStdDev = downReturns.length > 1
-    ? Math.sqrt(downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downReturns.length)
-    : 1;
+  const returns = trades.map((t) => t.pnlPct / 100);
+  const avgReturn =
+    returns.length > 0
+      ? returns.reduce((a, b) => a + b, 0) / returns.length
+      : 0;
+  const stdDev =
+    returns.length > 1
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+            returns.length
+        )
+      : 0;
+  const downReturns = returns.filter((r) => r < 0);
+  const downStdDev =
+    downReturns.length > 1
+      ? Math.sqrt(
+          downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) /
+            downReturns.length
+        )
+      : 1;
 
-  const sharpeRatio = stdDev !== 0 ? (avgReturn * Math.sqrt(252)) / (stdDev * Math.sqrt(252)) : 0;
-  const sortinoRatio = downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / (downStdDev * Math.sqrt(252)) : 0;
+  const sharpeRatio =
+    stdDev !== 0 ? (avgReturn * Math.sqrt(252)) / (stdDev * Math.sqrt(252)) : 0;
+  const sortinoRatio =
+    downStdDev !== 0
+      ? (avgReturn * Math.sqrt(252)) / (downStdDev * Math.sqrt(252))
+      : 0;
 
   const years = 1.95; // Approx backtest period
-  const cagr = years > 0 ? (Math.pow(finalEquity / initialCapital, 1 / years) - 1) * 100 : 0;
+  const cagr =
+    years > 0
+      ? (Math.pow(finalEquity / initialCapital, 1 / years) - 1) * 100
+      : 0;
   const calmarRatio = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
 
   // Attribution
@@ -776,25 +933,73 @@ function calculateComprehensiveMetrics(
 
   for (const trade of trades) {
     if (trade.pnl > 0) {
-      sentimentContribution += trade.signals.sentiment > 0.2 ? trade.pnl * 0.3 : 0;
-      patternContribution += trade.signals.patternScore > 0.3 ? trade.pnl * 0.2 : 0;
-      technicalContribution += trade.signals.technical > 0.2 ? trade.pnl * 0.5 : 0;
+      sentimentContribution +=
+        trade.signals.sentiment > 0.2 ? trade.pnl * 0.3 : 0;
+      patternContribution +=
+        trade.signals.patternScore > 0.3 ? trade.pnl * 0.2 : 0;
+      technicalContribution +=
+        trade.signals.technical > 0.2 ? trade.pnl * 0.5 : 0;
     }
   }
 
   // Sector performance
   const sectorMap: Record<string, string> = {
-    AAPL: "Tech", MSFT: "Tech", GOOGL: "Tech", AMZN: "Tech", NVDA: "Tech", META: "Tech", TSLA: "Tech",
-    AMD: "Tech", INTC: "Tech", CRM: "Tech", NFLX: "Tech", ADBE: "Tech", ORCL: "Tech", CSCO: "Tech", QCOM: "Tech", AVGO: "Tech",
-    JPM: "Finance", BAC: "Finance", GS: "Finance", MS: "Finance", V: "Finance", MA: "Finance", PYPL: "Finance",
-    JNJ: "Healthcare", UNH: "Healthcare", PFE: "Healthcare", MRK: "Healthcare", ABBV: "Healthcare", LLY: "Healthcare",
-    WMT: "Consumer", COST: "Consumer", HD: "Consumer", NKE: "Consumer", MCD: "Consumer", SBUX: "Consumer", DIS: "Consumer",
-    XOM: "Energy", CVX: "Energy",
-    BA: "Industrial", CAT: "Industrial", HON: "Industrial", UPS: "Industrial",
-    SPY: "ETF", QQQ: "ETF", IWM: "ETF", DIA: "ETF", XLF: "ETF", XLK: "ETF", XLE: "ETF", XLV: "ETF",
+    AAPL: "Tech",
+    MSFT: "Tech",
+    GOOGL: "Tech",
+    AMZN: "Tech",
+    NVDA: "Tech",
+    META: "Tech",
+    TSLA: "Tech",
+    AMD: "Tech",
+    INTC: "Tech",
+    CRM: "Tech",
+    NFLX: "Tech",
+    ADBE: "Tech",
+    ORCL: "Tech",
+    CSCO: "Tech",
+    QCOM: "Tech",
+    AVGO: "Tech",
+    JPM: "Finance",
+    BAC: "Finance",
+    GS: "Finance",
+    MS: "Finance",
+    V: "Finance",
+    MA: "Finance",
+    PYPL: "Finance",
+    JNJ: "Healthcare",
+    UNH: "Healthcare",
+    PFE: "Healthcare",
+    MRK: "Healthcare",
+    ABBV: "Healthcare",
+    LLY: "Healthcare",
+    WMT: "Consumer",
+    COST: "Consumer",
+    HD: "Consumer",
+    NKE: "Consumer",
+    MCD: "Consumer",
+    SBUX: "Consumer",
+    DIS: "Consumer",
+    XOM: "Energy",
+    CVX: "Energy",
+    BA: "Industrial",
+    CAT: "Industrial",
+    HON: "Industrial",
+    UPS: "Industrial",
+    SPY: "ETF",
+    QQQ: "ETF",
+    IWM: "ETF",
+    DIA: "ETF",
+    XLF: "ETF",
+    XLK: "ETF",
+    XLE: "ETF",
+    XLV: "ETF",
   };
 
-  const sectorPerformance: Record<string, { trades: number; pnl: number; winRate: number }> = {};
+  const sectorPerformance: Record<
+    string,
+    { trades: number; pnl: number; winRate: number }
+  > = {};
   for (const trade of trades) {
     const sector = sectorMap[trade.symbol] || "Other";
     if (!sectorPerformance[sector]) {
@@ -805,26 +1010,34 @@ function calculateComprehensiveMetrics(
   }
 
   for (const sector of Object.keys(sectorPerformance)) {
-    const sectorTrades = trades.filter(t => (sectorMap[t.symbol] || "Other") === sector);
-    const sectorWins = sectorTrades.filter(t => t.pnl > 0).length;
-    sectorPerformance[sector].winRate = sectorTrades.length > 0 ? (sectorWins / sectorTrades.length) * 100 : 0;
+    const sectorTrades = trades.filter(
+      (t) => (sectorMap[t.symbol] || "Other") === sector
+    );
+    const sectorWins = sectorTrades.filter((t) => t.pnl > 0).length;
+    sectorPerformance[sector].winRate =
+      sectorTrades.length > 0 ? (sectorWins / sectorTrades.length) * 100 : 0;
   }
 
   return {
     totalTrades: trades.length,
     winningTrades: winningTrades.length,
     losingTrades: losingTrades.length,
-    winRate: trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
+    winRate:
+      trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
     totalPnl,
     totalPnlPct: (totalPnl / initialCapital) * 100,
     avgWin: winningTrades.length > 0 ? totalWins / winningTrades.length : 0,
     avgLoss: losingTrades.length > 0 ? totalLosses / losingTrades.length : 0,
-    profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
+    profitFactor:
+      totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
     maxDrawdown,
     sharpeRatio,
     sortinoRatio,
     calmarRatio,
-    avgHoldingDays: trades.length > 0 ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length : 0,
+    avgHoldingDays:
+      trades.length > 0
+        ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length
+        : 0,
     finalEquity,
     cagr,
     sentimentContribution,
@@ -867,20 +1080,64 @@ async function main() {
     } catch (error) {
       console.log(`ERROR`);
     }
-    await new Promise(r => setTimeout(r, 150)); // Rate limit
+    await new Promise((r) => setTimeout(r, 150)); // Rate limit
   }
 
   console.log(`\nLoaded ${successCount}/${FULL_UNIVERSE.length} symbols`);
 
   // Run multiple configurations
   const configs: BacktestConfig[] = [
-    { initialCapital: 100000, maxPositionPct: 0.05, maxPortfolioExposure: 0.6, maxPositions: 15, atrMultStop: 1.5, atrMultTarget: 4, buyThreshold: 0.15, confidenceMin: 0.3, maxDailyLoss: 0.05 },
-    { initialCapital: 100000, maxPositionPct: 0.08, maxPortfolioExposure: 0.8, maxPositions: 12, atrMultStop: 1.5, atrMultTarget: 4, buyThreshold: 0.12, confidenceMin: 0.25, maxDailyLoss: 0.06 },
-    { initialCapital: 100000, maxPositionPct: 0.04, maxPortfolioExposure: 0.5, maxPositions: 20, atrMultStop: 2.0, atrMultTarget: 3, buyThreshold: 0.20, confidenceMin: 0.35, maxDailyLoss: 0.04 },
-    { initialCapital: 100000, maxPositionPct: 0.06, maxPortfolioExposure: 0.7, maxPositions: 15, atrMultStop: 1.8, atrMultTarget: 3.5, buyThreshold: 0.18, confidenceMin: 0.32, maxDailyLoss: 0.05 },
+    {
+      initialCapital: 100000,
+      maxPositionPct: 0.05,
+      maxPortfolioExposure: 0.6,
+      maxPositions: 15,
+      atrMultStop: 1.5,
+      atrMultTarget: 4,
+      buyThreshold: 0.15,
+      confidenceMin: 0.3,
+      maxDailyLoss: 0.05,
+    },
+    {
+      initialCapital: 100000,
+      maxPositionPct: 0.08,
+      maxPortfolioExposure: 0.8,
+      maxPositions: 12,
+      atrMultStop: 1.5,
+      atrMultTarget: 4,
+      buyThreshold: 0.12,
+      confidenceMin: 0.25,
+      maxDailyLoss: 0.06,
+    },
+    {
+      initialCapital: 100000,
+      maxPositionPct: 0.04,
+      maxPortfolioExposure: 0.5,
+      maxPositions: 20,
+      atrMultStop: 2.0,
+      atrMultTarget: 3,
+      buyThreshold: 0.2,
+      confidenceMin: 0.35,
+      maxDailyLoss: 0.04,
+    },
+    {
+      initialCapital: 100000,
+      maxPositionPct: 0.06,
+      maxPortfolioExposure: 0.7,
+      maxPositions: 15,
+      atrMultStop: 1.8,
+      atrMultTarget: 3.5,
+      buyThreshold: 0.18,
+      confidenceMin: 0.32,
+      maxDailyLoss: 0.05,
+    },
   ];
 
-  const results: { config: BacktestConfig; trades: ExtendedTrade[]; metrics: ComprehensiveMetrics }[] = [];
+  const results: {
+    config: BacktestConfig;
+    trades: ExtendedTrade[];
+    metrics: ComprehensiveMetrics;
+  }[] = [];
 
   for (let i = 0; i < configs.length; i++) {
     console.log(`\n${"=".repeat(60)}`);
@@ -889,14 +1146,24 @@ async function main() {
 
     const { trades, metrics } = runComprehensiveBacktest(dataMap, configs[i]);
 
-    console.log(`Trades: ${metrics.totalTrades} | Win Rate: ${metrics.winRate.toFixed(1)}%`);
-    console.log(`P&L: $${metrics.totalPnl.toFixed(0)} (${metrics.totalPnlPct.toFixed(1)}%)`);
-    console.log(`Profit Factor: ${metrics.profitFactor.toFixed(2)} | Sharpe: ${metrics.sharpeRatio.toFixed(2)} | Sortino: ${metrics.sortinoRatio.toFixed(2)}`);
-    console.log(`Max DD: ${metrics.maxDrawdown.toFixed(1)}% | CAGR: ${metrics.cagr.toFixed(1)}% | Calmar: ${metrics.calmarRatio.toFixed(2)}`);
+    console.log(
+      `Trades: ${metrics.totalTrades} | Win Rate: ${metrics.winRate.toFixed(1)}%`
+    );
+    console.log(
+      `P&L: $${metrics.totalPnl.toFixed(0)} (${metrics.totalPnlPct.toFixed(1)}%)`
+    );
+    console.log(
+      `Profit Factor: ${metrics.profitFactor.toFixed(2)} | Sharpe: ${metrics.sharpeRatio.toFixed(2)} | Sortino: ${metrics.sortinoRatio.toFixed(2)}`
+    );
+    console.log(
+      `Max DD: ${metrics.maxDrawdown.toFixed(1)}% | CAGR: ${metrics.cagr.toFixed(1)}% | Calmar: ${metrics.calmarRatio.toFixed(2)}`
+    );
 
     console.log(`\nSector Performance:`);
     for (const [sector, perf] of Object.entries(metrics.sectorPerformance)) {
-      console.log(`  ${sector}: ${perf.trades} trades, $${perf.pnl.toFixed(0)}, ${perf.winRate.toFixed(1)}% win rate`);
+      console.log(
+        `  ${sector}: ${perf.trades} trades, $${perf.pnl.toFixed(0)}, ${perf.winRate.toFixed(1)}% win rate`
+      );
     }
 
     console.log(`\nAttribution:`);
@@ -909,8 +1176,14 @@ async function main() {
 
   // Find best
   results.sort((a, b) => {
-    const scoreA = (a.metrics.winRate / 100 * 25) + (Math.min(a.metrics.profitFactor, 3) / 3 * 25) + (Math.min(a.metrics.sharpeRatio, 2) / 2 * 20);
-    const scoreB = (b.metrics.winRate / 100 * 25) + (Math.min(b.metrics.profitFactor, 3) / 3 * 25) + (Math.min(b.metrics.sharpeRatio, 2) / 2 * 20);
+    const scoreA =
+      (a.metrics.winRate / 100) * 25 +
+      (Math.min(a.metrics.profitFactor, 3) / 3) * 25 +
+      (Math.min(a.metrics.sharpeRatio, 2) / 2) * 20;
+    const scoreB =
+      (b.metrics.winRate / 100) * 25 +
+      (Math.min(b.metrics.profitFactor, 3) / 3) * 25 +
+      (Math.min(b.metrics.sharpeRatio, 2) / 2) * 20;
     return scoreB - scoreA;
   });
 
@@ -922,20 +1195,30 @@ async function main() {
   console.log(JSON.stringify(best.metrics, null, 2));
 
   console.log(`\nTop Winning Trades:`);
-  const topWins = best.trades.filter(t => t.pnl > 0).sort((a, b) => b.pnl - a.pnl).slice(0, 10);
+  const topWins = best.trades
+    .filter((t) => t.pnl > 0)
+    .sort((a, b) => b.pnl - a.pnl)
+    .slice(0, 10);
   for (const t of topWins) {
-    console.log(`  ${t.symbol}: $${t.pnl.toFixed(0)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason}`);
+    console.log(
+      `  ${t.symbol}: $${t.pnl.toFixed(0)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason}`
+    );
   }
 
   console.log(`\nWorst Losing Trades:`);
-  const topLosses = best.trades.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl).slice(0, 10);
+  const topLosses = best.trades
+    .filter((t) => t.pnl < 0)
+    .sort((a, b) => a.pnl - b.pnl)
+    .slice(0, 10);
   for (const t of topLosses) {
-    console.log(`  ${t.symbol}: $${t.pnl.toFixed(0)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason}`);
+    console.log(
+      `  ${t.symbol}: $${t.pnl.toFixed(0)} | ${t.entryDate} -> ${t.exitDate} | ${t.exitReason}`
+    );
   }
 
   console.log(`\nPatterns Detected in Winning Trades:`);
   const patternCounts: Record<string, number> = {};
-  for (const trade of best.trades.filter(t => t.pnl > 0)) {
+  for (const trade of best.trades.filter((t) => t.pnl > 0)) {
     for (const p of trade.signals.patterns) {
       patternCounts[p.type] = (patternCounts[p.type] || 0) + 1;
     }

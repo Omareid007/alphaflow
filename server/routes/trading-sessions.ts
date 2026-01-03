@@ -56,76 +56,92 @@ router.get("/:exchange", requireAuth, async (req: Request, res: Response) => {
  * GET /api/trading-sessions/:exchange/is-open
  * Check if market is currently open for an exchange
  */
-router.get("/:exchange/is-open", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { exchange } = req.params;
-    const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
+router.get(
+  "/:exchange/is-open",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { exchange } = req.params;
+      const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
 
-    res.json({
-      exchange: exchange.toUpperCase(),
-      isOpen,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to check if market is open", {
-      error: error,
-    });
-    res.status(500).json({ error: "Failed to check market status" });
+      res.json({
+        exchange: exchange.toUpperCase(),
+        isOpen,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("TradingSessionsRoutes", "Failed to check if market is open", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to check market status" });
+    }
   }
-});
+);
 
 /**
  * GET /api/trading-sessions/:exchange/next-open
  * Get next market open time for an exchange
  */
-router.get("/:exchange/next-open", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { exchange } = req.params;
-    const nextOpen = tradingSessionManager.getNextMarketOpen(
-      exchange.toUpperCase()
-    );
+router.get(
+  "/:exchange/next-open",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { exchange } = req.params;
+      const nextOpen = tradingSessionManager.getNextMarketOpen(
+        exchange.toUpperCase()
+      );
 
-    res.json({
-      exchange: exchange.toUpperCase(),
-      nextOpen: nextOpen?.toISOString() || null,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get next market open", {
-      error: error,
-    });
-    res.status(500).json({ error: "Failed to get next market open" });
+      res.json({
+        exchange: exchange.toUpperCase(),
+        nextOpen: nextOpen?.toISOString() || null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("TradingSessionsRoutes", "Failed to get next market open", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to get next market open" });
+    }
   }
-});
+);
 
 /**
  * GET /api/trading-sessions/:exchange/volatility
  * Get volatility multiplier for current session
  */
-router.get("/:exchange/volatility", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { exchange } = req.params;
-    const session = tradingSessionManager.getCurrentSession(
-      exchange.toUpperCase()
-    );
-    const volatilityMultiplier =
-      tradingSessionManager.getSessionVolatilityMultiplier(
-        exchange.toUpperCase(),
-        session.session
+router.get(
+  "/:exchange/volatility",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { exchange } = req.params;
+      const session = tradingSessionManager.getCurrentSession(
+        exchange.toUpperCase()
       );
+      const volatilityMultiplier =
+        tradingSessionManager.getSessionVolatilityMultiplier(
+          exchange.toUpperCase(),
+          session.session
+        );
 
-    res.json({
-      exchange: exchange.toUpperCase(),
-      session: session.session,
-      volatilityMultiplier,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get volatility multiplier", {
-      error: error,
-    });
-    res.status(500).json({ error: "Failed to get volatility multiplier" });
+      res.json({
+        exchange: exchange.toUpperCase(),
+        session: session.session,
+        volatilityMultiplier,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error(
+        "TradingSessionsRoutes",
+        "Failed to get volatility multiplier",
+        {
+          error: error,
+        }
+      );
+      res.status(500).json({ error: "Failed to get volatility multiplier" });
+    }
   }
-});
+);
 
 export default router;

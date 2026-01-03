@@ -19,10 +19,7 @@ export {
 } from "./animated-value";
 
 // Touch Chart Tooltip - Touch-friendly tooltip with gesture support
-export {
-  TouchChartTooltip,
-  useTouchChart,
-} from "./touch-chart-tooltip";
+export { TouchChartTooltip, useTouchChart } from "./touch-chart-tooltip";
 
 // Error Boundary - Graceful chart failure handling
 export {

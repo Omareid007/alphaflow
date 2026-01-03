@@ -12,6 +12,7 @@ import {
   type EnrichedPosition,
 } from "@shared/position-mapper";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+import { checkPositionForLargeLoss } from "../trading/order-execution-flow";
 
 /**
  * Mapped position for snapshot response
@@ -70,9 +71,9 @@ router.get("/snapshot", requireAuth, async (req: Request, res: Response) => {
         unrealizedPl: parseFloat(pos.unrealized_pl),
         unrealizedPlPct: parseFloat(pos.unrealized_plpc) * 100,
         costBasis: parseFloat(pos.cost_basis),
-        assetClass: (pos.asset_class === "crypto"
-          ? "crypto"
-          : "us_equity") as "crypto" | "us_equity",
+        assetClass: (pos.asset_class === "crypto" ? "crypto" : "us_equity") as
+          | "crypto"
+          | "us_equity",
       })
     );
 
@@ -81,6 +82,24 @@ router.get("/snapshot", requireAuth, async (req: Request, res: Response) => {
       (sum: number, pos: SnapshotPosition) => sum + pos.unrealizedPl,
       0
     );
+
+    // Check each position for large losses and send email alerts if needed
+    for (const position of positions) {
+      if (position.unrealizedPlPct < -5) {
+        // Position has lost more than 5%
+        checkPositionForLargeLoss(position.symbol, position.currentPrice).catch(
+          (err) =>
+            log.error(
+              "PositionsAPI",
+              "Failed to check position for loss alert",
+              {
+                error: (err as Error).message,
+                symbol: position.symbol,
+              }
+            )
+        );
+      }
+    }
 
     // Get trades from database for realized P&L
     const trades = await storage.getTrades(undefined, 100);
@@ -297,55 +316,66 @@ router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
  * GET /api/positions/reconcile/status
  * Get the status of position reconciliation
  */
-router.get("/reconcile/status", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { positionReconciler } =
-      await import("../services/position-reconciler");
-    const status = positionReconciler.getStatus();
-    res.json(status);
-  } catch (error) {
-    log.error("PositionsAPI", `Failed to get reconciliation status: ${error}`);
-    res.status(500).json({ error: "Failed to get reconciliation status" });
+router.get(
+  "/reconcile/status",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { positionReconciler } =
+        await import("../services/position-reconciler");
+      const status = positionReconciler.getStatus();
+      res.json(status);
+    } catch (error) {
+      log.error(
+        "PositionsAPI",
+        `Failed to get reconciliation status: ${error}`
+      );
+      res.status(500).json({ error: "Failed to get reconciliation status" });
+    }
   }
-});
+);
 
 /**
  * POST /api/positions/close/:symbol
  * Close a specific position by symbol
  */
-router.post("/close/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
-    }
-
-    // SECURITY: Mark as authorized since this is an admin-initiated action
-    const result = await alpacaTradingEngine.closeAlpacaPosition(
-      symbol,
-      undefined,
-      {
-        authorizedByOrchestrator: true,
+router.post(
+  "/close/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
       }
-    );
 
-    if (result.success) {
-      res.json({
-        success: true,
-        message: `Position ${symbol} closed successfully`,
-        result,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error || "Failed to close position",
-      });
+      // SECURITY: Mark as authorized since this is an admin-initiated action
+      const result = await alpacaTradingEngine.closeAlpacaPosition(
+        symbol,
+        undefined,
+        {
+          authorizedByOrchestrator: true,
+        }
+      );
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Position ${symbol} closed successfully`,
+          result,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error || "Failed to close position",
+        });
+      }
+    } catch (error) {
+      log.error("PositionsAPI", `Failed to close position: ${error}`);
+      res.status(500).json({ error: String(error) });
     }
-  } catch (error) {
-    log.error("PositionsAPI", `Failed to close position: ${error}`);
-    res.status(500).json({ error: String(error) });
   }
-});
+);
 
 /**
  * POST /api/positions/close-all

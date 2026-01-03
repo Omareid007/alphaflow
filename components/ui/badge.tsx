@@ -23,9 +23,11 @@ const badgeVariants = cva(
         "gain-subtle": "border-gain/30 bg-gain/10 text-gain",
         "loss-subtle": "border-loss/30 bg-loss/10 text-loss",
         // Market status badges
-        "market-open": "border-transparent bg-market-open text-primary-foreground",
+        "market-open":
+          "border-transparent bg-market-open text-primary-foreground",
         "market-closed": "border-transparent bg-market-closed text-white",
-        "market-extended": "border-transparent bg-market-extended text-primary-foreground",
+        "market-extended":
+          "border-transparent bg-market-extended text-primary-foreground",
         // Glass style
         glass: "glass border-white/10 text-foreground",
       },
@@ -71,7 +73,8 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, size, animate, ...props }: BadgeProps) {

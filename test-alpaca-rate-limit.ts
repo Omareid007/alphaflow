@@ -8,25 +8,27 @@
  * 3. Requests are queued when limit is reached
  */
 
-import { alpaca } from './server/connectors/alpaca';
+import { alpaca } from "./server/connectors/alpaca";
 
 async function testRateLimiting() {
-  console.log('\n=== Testing Alpaca Rate Limiting and Circuit Breaker ===\n');
+  console.log("\n=== Testing Alpaca Rate Limiting and Circuit Breaker ===\n");
 
   // Test 1: Check initial status
-  console.log('Test 1: Initial Status');
+  console.log("Test 1: Initial Status");
   const initialStatus = alpaca.getConnectionStatus();
-  console.log('Connection Status:', initialStatus);
+  console.log("Connection Status:", initialStatus);
 
   try {
     const rateLimitStatus = await alpaca.getRateLimitStatus();
-    console.log('Rate Limit Status:', rateLimitStatus);
+    console.log("Rate Limit Status:", rateLimitStatus);
   } catch (error) {
-    console.log('Rate limit status not available (expected if no requests made yet)');
+    console.log(
+      "Rate limit status not available (expected if no requests made yet)"
+    );
   }
 
   // Test 2: Make multiple requests to test rate limiting
-  console.log('\n\nTest 2: Making Multiple Requests (testing rate limiter)');
+  console.log("\n\nTest 2: Making Multiple Requests (testing rate limiter)");
   const startTime = Date.now();
 
   try {
@@ -41,7 +43,7 @@ async function testRateLimiting() {
   // Check rate limit status after request
   try {
     const status = await alpaca.getRateLimitStatus();
-    console.log('\nRate Limit Status After Request:');
+    console.log("\nRate Limit Status After Request:");
     console.log(`  Provider: ${status.provider}`);
     console.log(`  Running: ${status.running}`);
     console.log(`  Queued: ${status.queued}`);
@@ -53,30 +55,32 @@ async function testRateLimiting() {
   }
 
   // Test 3: Test cache
-  console.log('\n\nTest 3: Testing Cache (should return instantly)');
+  console.log("\n\nTest 3: Testing Cache (should return instantly)");
   const cacheStartTime = Date.now();
   try {
     await alpaca.getAccount();
-    console.log(`✓ Cached request completed in ${Date.now() - cacheStartTime}ms`);
+    console.log(
+      `✓ Cached request completed in ${Date.now() - cacheStartTime}ms`
+    );
   } catch (error) {
     console.log(`✗ Cached request failed: ${(error as Error).message}`);
   }
 
   // Test 4: Connection status
-  console.log('\n\nTest 4: Final Connection Status');
+  console.log("\n\nTest 4: Final Connection Status");
   const finalStatus = alpaca.getConnectionStatus();
-  console.log('Connection Status:', finalStatus);
+  console.log("Connection Status:", finalStatus);
 
-  console.log('\n=== Tests Complete ===\n');
+  console.log("\n=== Tests Complete ===\n");
 }
 
 // Run tests
 testRateLimiting()
   .then(() => {
-    console.log('All tests completed successfully');
+    console.log("All tests completed successfully");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Test failed:', error);
+    console.error("Test failed:", error);
     process.exit(1);
   });

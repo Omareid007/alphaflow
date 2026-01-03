@@ -87,9 +87,21 @@ export function TouchChartTooltip({
             top: position.y,
             transform: "translate(-50%, 0)",
           }}
-          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 10, scale: 0.95 }}
-          animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
+          initial={
+            prefersReducedMotion
+              ? { opacity: 1 }
+              : { opacity: 0, y: 10, scale: 0.95 }
+          }
+          animate={
+            prefersReducedMotion
+              ? { opacity: 1 }
+              : { opacity: 1, y: 0, scale: 1 }
+          }
+          exit={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, y: 10, scale: 0.95 }
+          }
           transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
         >
           {/* Tooltip arrow */}
@@ -115,12 +127,16 @@ export function TouchChartTooltip({
             >
               {change !== undefined && (
                 <span>
-                  {isPositive ? "+" : ""}${Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {isPositive ? "+" : ""}$
+                  {Math.abs(change).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
                 </span>
               )}
               {changePercent !== undefined && (
                 <span className="ml-1">
-                  ({isPositive ? "+" : ""}{changePercent.toFixed(2)}%)
+                  ({isPositive ? "+" : ""}
+                  {changePercent.toFixed(2)}%)
                 </span>
               )}
             </p>

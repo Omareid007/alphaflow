@@ -78,9 +78,12 @@ export function WizardProgress({
               <motion.div
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors",
-                  isCompleted && "border-primary bg-primary text-primary-foreground",
+                  isCompleted &&
+                    "border-primary bg-primary text-primary-foreground",
                   isCurrent && "border-primary bg-background text-primary",
-                  !isCompleted && !isCurrent && "border-muted bg-background text-muted-foreground"
+                  !isCompleted &&
+                    !isCurrent &&
+                    "border-muted bg-background text-muted-foreground"
                 )}
                 initial={false}
                 animate={
@@ -102,7 +105,9 @@ export function WizardProgress({
                 <span
                   className={cn(
                     "text-xs transition-colors",
-                    isCurrent ? "font-medium text-foreground" : "text-muted-foreground"
+                    isCurrent
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground"
                   )}
                 >
                   {labels[i]}

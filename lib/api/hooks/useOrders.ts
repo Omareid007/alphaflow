@@ -52,7 +52,7 @@ export function useOrders(options?: { limit?: number; status?: string }) {
       });
       return response.orders || [];
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    // Inherits staleTime: 60s, refetchInterval: 30s from QueryProvider defaults
   });
 }
 
@@ -73,6 +73,6 @@ export function useRecentOrders(limit: number = 50) {
       });
       return response.orders || [];
     },
-    refetchInterval: 30000,
+    // Inherits staleTime: 60s, refetchInterval: 30s from QueryProvider defaults
   });
 }

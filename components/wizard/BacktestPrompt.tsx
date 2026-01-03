@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Play, Loader2 } from "lucide-react";
+import { useDebouncedCallback } from "@/lib/utils/useDebounce";
+import { cn } from "@/lib/utils";
 
 interface BacktestPromptProps {
   strategyName: string;
@@ -15,6 +18,22 @@ export function BacktestPrompt({
   onStrategyNameChange,
   onRunBacktest,
 }: BacktestPromptProps) {
+  const [isValidating, setIsValidating] = useState(false);
+  const [localValue, setLocalValue] = useState(strategyName);
+
+  // Debounced callback for updating strategy name (300ms for text input)
+  const debouncedUpdate = useDebouncedCallback((value: string) => {
+    setIsValidating(false);
+    onStrategyNameChange(value);
+  }, 300);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalValue(value);
+    setIsValidating(true);
+    debouncedUpdate(value);
+  };
+
   return (
     <Card>
       <CardContent className="py-12">
@@ -27,14 +46,22 @@ export function BacktestPrompt({
             Your strategy is configured. Run a backtest to see historical
             performance and get AI-powered insights.
           </p>
-          <div className="mt-2 mb-6">
+          <div className="mt-2 mb-6 relative">
             <input
               type="text"
-              value={strategyName}
-              onChange={(e) => onStrategyNameChange(e.target.value)}
-              className="mx-auto block w-full max-w-xs rounded-lg border border-border bg-background px-4 py-2 text-center"
+              value={localValue}
+              onChange={handleChange}
+              className={cn(
+                "mx-auto block w-full max-w-xs rounded-lg border border-border bg-background px-4 py-2 text-center pr-10",
+                "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              )}
               placeholder="Strategy Name"
             />
+            {isValidating && (
+              <div className="absolute right-[calc(50%-10rem)] top-1/2 -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </div>
           <Button size="lg" onClick={onRunBacktest}>
             <Play className="mr-2 h-5 w-5" />

@@ -1,6 +1,14 @@
 import crypto from "crypto";
 import { log } from "../utils/logger";
 import { sendEmail, isEmailConfigured } from "./email-service";
+import {
+  getOrderFilledTemplate,
+  getLargeLossAlertTemplate,
+  getCircuitBreakerTemplate,
+  type OrderFilledParams,
+  type LargeLossAlertParams,
+  type CircuitBreakerParams,
+} from "./email-templates";
 
 export interface NotificationChannel {
   id: string;
@@ -201,9 +209,9 @@ async function sendToChannel(
         const emailResult = await sendEmail({
           to: emailConfig.to,
           from: emailConfig.from,
-          subject: message.substring(0, 100).replace(/<[^>]*>/g, ''),
-          text: message.replace(/<[^>]*>/g, ''),
-          html: message.replace(/\n/g, '<br>'),
+          subject: message.substring(0, 100).replace(/<[^>]*>/g, ""),
+          text: message.replace(/<[^>]*>/g, ""),
+          html: message.replace(/\n/g, "<br>"),
           replyTo: emailConfig.replyTo,
         });
         if (emailResult.success) {
@@ -354,3 +362,148 @@ export function createDefaultTemplates(): void {
 }
 
 createDefaultTemplates();
+
+// ============================================================================
+// EMAIL TEMPLATE INTEGRATION
+// ============================================================================
+
+/**
+ * Send order filled email notification using professional template
+ */
+export async function sendOrderFilledEmail(
+  to: string | string[],
+  params: OrderFilledParams
+): Promise<void> {
+  if (!isEmailConfigured()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping order filled email",
+      {
+        symbol: params.symbol,
+      }
+    );
+    return;
+  }
+
+  try {
+    const template = getOrderFilledTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+
+    if (result.success) {
+      log.info("Notification", "Order filled email sent", {
+        symbol: params.symbol,
+        side: params.side,
+        qty: params.qty,
+      });
+    } else {
+      log.error("Notification", "Order filled email failed", {
+        error: result.error,
+        symbol: params.symbol,
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending order filled email", {
+      error: (error as Error).message,
+      symbol: params.symbol,
+    });
+  }
+}
+
+/**
+ * Send large loss alert email notification using professional template
+ */
+export async function sendLossAlertEmail(
+  to: string | string[],
+  params: LargeLossAlertParams
+): Promise<void> {
+  if (!isEmailConfigured()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping loss alert email",
+      {
+        symbol: params.symbol,
+      }
+    );
+    return;
+  }
+
+  try {
+    const template = getLargeLossAlertTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+
+    if (result.success) {
+      log.info("Notification", "Loss alert email sent", {
+        symbol: params.symbol,
+        percentLoss: params.percentLoss,
+      });
+    } else {
+      log.error("Notification", "Loss alert email failed", {
+        error: result.error,
+        symbol: params.symbol,
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending loss alert email", {
+      error: (error as Error).message,
+      symbol: params.symbol,
+    });
+  }
+}
+
+/**
+ * Send circuit breaker alert email notification using professional template
+ */
+export async function sendCircuitBreakerEmail(
+  to: string | string[],
+  params: CircuitBreakerParams
+): Promise<void> {
+  if (!isEmailConfigured()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping circuit breaker email",
+      {
+        reason: params.reason,
+      }
+    );
+    return;
+  }
+
+  try {
+    const template = getCircuitBreakerTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+
+    if (result.success) {
+      log.info("Notification", "Circuit breaker email sent", {
+        reason: params.reason,
+      });
+    } else {
+      log.error("Notification", "Circuit breaker email failed", {
+        error: result.error,
+        reason: params.reason,
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending circuit breaker email", {
+      error: (error as Error).message,
+      reason: params.reason,
+    });
+  }
+}

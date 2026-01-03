@@ -23,12 +23,12 @@ interface State {
  */
 export class ChartErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false, error: null }
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -40,8 +40,8 @@ export class ChartErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null })
-  }
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -87,7 +87,9 @@ export function withChartErrorBoundary<P extends object>(
   WrappedComponent: React.ComponentType<P>,
   chartName?: string
 ) {
-  return function ChartWithErrorBoundary(props: P & { height?: number | string; className?: string }) {
+  return function ChartWithErrorBoundary(
+    props: P & { height?: number | string; className?: string }
+  ) {
     return (
       <ChartErrorBoundary
         height={props.height}

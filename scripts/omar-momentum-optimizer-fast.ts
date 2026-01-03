@@ -63,11 +63,28 @@ interface OptimizationResult {
 // ============================================================================
 
 const MOMENTUM_UNIVERSE = [
-  "NVDA", "AMD", "TSLA", "META", "NFLX",
-  "MSFT", "GOOGL", "AAPL", "AMZN", "CRM",
-  "QQQ", "TQQQ", "SPY",
-  "AVGO", "NOW", "PANW", "MU", "AMAT",
-  "XLK", "XLF", "XLE", "XLV",
+  "NVDA",
+  "AMD",
+  "TSLA",
+  "META",
+  "NFLX",
+  "MSFT",
+  "GOOGL",
+  "AAPL",
+  "AMZN",
+  "CRM",
+  "QQQ",
+  "TQQQ",
+  "SPY",
+  "AVGO",
+  "NOW",
+  "PANW",
+  "MU",
+  "AMAT",
+  "XLK",
+  "XLF",
+  "XLE",
+  "XLV",
 ];
 
 // ============================================================================
@@ -78,7 +95,10 @@ function calculateSMA(prices: number[], period: number): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
     if (i < period - 1) result.push(null);
-    else result.push(prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period);
+    else
+      result.push(
+        prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period
+      );
   }
   return result;
 }
@@ -88,7 +108,8 @@ function calculateEMA(prices: number[], period: number): (number | null)[] {
   const k = 2 / (period + 1);
   for (let i = 0; i < prices.length; i++) {
     if (i < period - 1) result.push(null);
-    else if (i === period - 1) result.push(prices.slice(0, period).reduce((a, b) => a + b, 0) / period);
+    else if (i === period - 1)
+      result.push(prices.slice(0, period).reduce((a, b) => a + b, 0) / period);
     else result.push((prices[i] - result[i - 1]!) * k + result[i - 1]!);
   }
   return result;
@@ -100,7 +121,8 @@ function calculateRSI(prices: number[], period: number): (number | null)[] {
     if (i < period) {
       result.push(null);
     } else {
-      let gains = 0, losses = 0;
+      let gains = 0,
+        losses = 0;
       for (let j = i - period + 1; j <= i; j++) {
         const change = prices[j] - prices[j - 1];
         if (change > 0) gains += change;
@@ -109,22 +131,37 @@ function calculateRSI(prices: number[], period: number): (number | null)[] {
       const avgGain = gains / period;
       const avgLoss = losses / period;
       const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      result.push(100 - (100 / (1 + rs)));
+      result.push(100 - 100 / (1 + rs));
     }
   }
   return result;
 }
 
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number): (number | null)[] {
+function calculateATR(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number
+): (number | null)[] {
   const result: (number | null)[] = [];
   const tr: number[] = [];
   for (let i = 0; i < highs.length; i++) {
     if (i === 0) tr.push(highs[i] - lows[i]);
-    else tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+    else
+      tr.push(
+        Math.max(
+          highs[i] - lows[i],
+          Math.abs(highs[i] - closes[i - 1]),
+          Math.abs(lows[i] - closes[i - 1])
+        )
+      );
   }
   for (let i = 0; i < tr.length; i++) {
     if (i < period - 1) result.push(null);
-    else result.push(tr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period);
+    else
+      result.push(
+        tr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period
+      );
   }
   return result;
 }
@@ -133,7 +170,10 @@ function calculateROC(prices: number[], period: number): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < prices.length; i++) {
     if (i < period) result.push(null);
-    else result.push(((prices[i] - prices[i - period]) / prices[i - period]) * 100);
+    else
+      result.push(
+        ((prices[i] - prices[i - period]) / prices[i - period]) * 100
+      );
   }
   return result;
 }
@@ -156,10 +196,10 @@ interface CachedIndicators {
 }
 
 function precalculateIndicators(bars: AlpacaBar[]): CachedIndicators {
-  const closes = bars.map(b => b.c);
-  const highs = bars.map(b => b.h);
-  const lows = bars.map(b => b.l);
-  const volumes = bars.map(b => b.v);
+  const closes = bars.map((b) => b.c);
+  const highs = bars.map((b) => b.h);
+  const lows = bars.map((b) => b.l);
+  const volumes = bars.map((b) => b.v);
 
   return {
     closes,
@@ -204,7 +244,7 @@ function generateMomentumSignal(
   const emaF = cached.ema8[index];
   const emaS = cached.ema21[index];
   if (emaF !== null && emaS !== null) {
-    const emaDiff = (emaF - emaS) / emaS * 100;
+    const emaDiff = ((emaF - emaS) / emaS) * 100;
     if (emaDiff > 4) momentum += 0.9;
     else if (emaDiff > 2) momentum += 0.6;
     else if (emaDiff < -4) momentum -= 0.9;
@@ -238,7 +278,8 @@ function generateMomentumSignal(
   // VOLUME SCORE
   let volume = 0;
   if (index >= 20) {
-    const avgVol = cached.volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
+    const avgVol =
+      cached.volumes.slice(index - 20, index).reduce((a, b) => a + b, 0) / 20;
     const volRatio = cached.volumes[index] / avgVol;
     if (volRatio > 2.0) volume = 0.8;
     else if (volRatio > 1.5) volume = 0.5;
@@ -247,7 +288,10 @@ function generateMomentumSignal(
 
   // SENTIMENT
   let sentiment = 0;
-  const return20d = index >= 20 ? (price - cached.closes[index - 20]) / cached.closes[index - 20] : 0;
+  const return20d =
+    index >= 20
+      ? (price - cached.closes[index - 20]) / cached.closes[index - 20]
+      : 0;
   if (return20d > 0.08) sentiment += 0.6;
   else if (return20d > 0.04) sentiment += 0.3;
   else if (return20d < -0.08) sentiment -= 0.6;
@@ -263,7 +307,7 @@ function generateMomentumSignal(
 
   // CONFIDENCE
   const scores = [technical, momentum, volume, sentiment];
-  const posCount = scores.filter(s => s > 0.2).length;
+  const posCount = scores.filter((s) => s > 0.2).length;
   const alignment = posCount / scores.length;
   const confidence = Math.min(1, alignment * Math.abs(composite) * 2.5);
 
@@ -325,7 +369,13 @@ function runMomentumBacktest(
       const rsi = rsiCache.get(symbol)!;
       const roc = rocCache.get(symbol)!;
 
-      const signals = generateMomentumSignal(dateIndex, cached, config, rsi, roc);
+      const signals = generateMomentumSignal(
+        dateIndex,
+        cached,
+        config,
+        rsi,
+        roc
+      );
       const atr = cached.atr14[dateIndex];
 
       // Check existing position
@@ -343,16 +393,24 @@ function runMomentumBacktest(
         } else if (signals.composite < -0.15) {
           exitReason = "signal_reversal";
         } else if (close > position.entryPrice * 1.03 && atr !== null) {
-          position.stopLoss = Math.max(position.stopLoss, close - atr * config.atrMultStop);
+          position.stopLoss = Math.max(
+            position.stopLoss,
+            close - atr * config.atrMultStop
+          );
         }
 
         if (exitReason) {
           const pnl = (exitPrice - position.entryPrice) * position.shares;
-          const holdingDays = Math.floor((new Date(date).getTime() - new Date(position.entryDate).getTime()) / 86400000);
+          const holdingDays = Math.floor(
+            (new Date(date).getTime() -
+              new Date(position.entryDate).getTime()) /
+              86400000
+          );
 
           trades.push({
             pnl,
-            pnlPct: (exitPrice - position.entryPrice) / position.entryPrice * 100,
+            pnlPct:
+              ((exitPrice - position.entryPrice) / position.entryPrice) * 100,
             holdingDays,
           });
 
@@ -389,13 +447,15 @@ function runMomentumBacktest(
     if (dailyPnl < -equity * config.maxDailyLoss) {
       for (const [symbol, position] of positions) {
         const cached = cachedData.get(symbol)!;
-        const dateIndex = cached.closes.findIndex((_, i) => i < allDates.length && allDates[i] === date);
+        const dateIndex = cached.closes.findIndex(
+          (_, i) => i < allDates.length && allDates[i] === date
+        );
         if (dateIndex >= 0) {
           const close = cached.closes[dateIndex];
           const pnl = (close - position.entryPrice) * position.shares;
           trades.push({
             pnl,
-            pnlPct: (close - position.entryPrice) / position.entryPrice * 100,
+            pnlPct: ((close - position.entryPrice) / position.entryPrice) * 100,
             holdingDays: 0,
           });
           equity += pnl;
@@ -406,7 +466,10 @@ function runMomentumBacktest(
 
     // Track drawdown
     if (equity > peakEquity) peakEquity = equity;
-    maxDrawdown = Math.max(maxDrawdown, (peakEquity - equity) / peakEquity * 100);
+    maxDrawdown = Math.max(
+      maxDrawdown,
+      ((peakEquity - equity) / peakEquity) * 100
+    );
   }
 
   // Close remaining positions
@@ -417,40 +480,68 @@ function runMomentumBacktest(
     const pnl = (lastPrice - position.entryPrice) * position.shares;
     trades.push({
       pnl,
-      pnlPct: (lastPrice - position.entryPrice) / position.entryPrice * 100,
-      holdingDays: Math.floor((new Date(lastDate).getTime() - new Date(position.entryDate).getTime()) / 86400000),
+      pnlPct: ((lastPrice - position.entryPrice) / position.entryPrice) * 100,
+      holdingDays: Math.floor(
+        (new Date(lastDate).getTime() -
+          new Date(position.entryDate).getTime()) /
+          86400000
+      ),
     });
     equity += pnl;
   }
 
   // Calculate metrics
-  const winningTrades = trades.filter(t => t.pnl > 0);
-  const losingTrades = trades.filter(t => t.pnl <= 0);
+  const winningTrades = trades.filter((t) => t.pnl > 0);
+  const losingTrades = trades.filter((t) => t.pnl <= 0);
   const totalWins = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
   const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
 
-  const returns = trades.map(t => t.pnlPct / 100);
-  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-  const stdDev = returns.length > 1 ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length) : 0;
-  const downReturns = returns.filter(r => r < 0);
-  const downStdDev = downReturns.length > 1 ? Math.sqrt(downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downReturns.length) : 1;
+  const returns = trades.map((t) => t.pnlPct / 100);
+  const avgReturn =
+    returns.length > 0
+      ? returns.reduce((a, b) => a + b, 0) / returns.length
+      : 0;
+  const stdDev =
+    returns.length > 1
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+            returns.length
+        )
+      : 0;
+  const downReturns = returns.filter((r) => r < 0);
+  const downStdDev =
+    downReturns.length > 1
+      ? Math.sqrt(
+          downReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) /
+            downReturns.length
+        )
+      : 1;
 
   const sharpeRatio = stdDev !== 0 ? (avgReturn * Math.sqrt(252)) / stdDev : 0;
-  const sortinoRatio = downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
+  const sortinoRatio =
+    downStdDev !== 0 ? (avgReturn * Math.sqrt(252)) / downStdDev : 0;
   const years = 2.95;
-  const cagr = years > 0 ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100 : 0;
+  const cagr =
+    years > 0
+      ? (Math.pow(equity / config.initialCapital, 1 / years) - 1) * 100
+      : 0;
   const calmarRatio = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
 
   return {
     totalTrades: trades.length,
-    winRate: trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
-    totalReturn: (equity - config.initialCapital) / config.initialCapital * 100,
+    winRate:
+      trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0,
+    totalReturn:
+      ((equity - config.initialCapital) / config.initialCapital) * 100,
     sharpeRatio,
     sortinoRatio,
     calmarRatio,
     maxDrawdown,
     profitFactor: totalLosses > 0 ? totalWins / totalLosses : 0,
-    avgHoldingDays: trades.length > 0 ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length : 0,
+    avgHoldingDays:
+      trades.length > 0
+        ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length
+        : 0,
     finalEquity: equity,
     cagr,
   };
@@ -460,7 +551,11 @@ function runMomentumBacktest(
 // DATA FETCHING
 // ============================================================================
 
-async function fetchAlpacaBars(symbol: string, startDate: string, endDate: string): Promise<AlpacaBar[]> {
+async function fetchAlpacaBars(
+  symbol: string,
+  startDate: string,
+  endDate: string
+): Promise<AlpacaBar[]> {
   const ALPACA_KEY = process.env.ALPACA_API_KEY;
   const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY;
 
@@ -527,7 +622,7 @@ async function main() {
     } catch (error) {
       console.log(`${symbol}: ERROR`);
     }
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
 
   console.log(`\nPre-calculating indicators for ${rawData.size} symbols...`);
@@ -544,7 +639,7 @@ async function main() {
 
   // Parameter grid (optimized for 1000+ combinations)
   const momentumLookbacks = [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]; // 13 values
-  const momentumWeights = [0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.32, 0.34]; // 8 values
+  const momentumWeights = [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34]; // 8 values
   const rsiPeriods = [7, 8, 9, 10, 11, 12]; // 6 values
   const atrStops = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]; // 6 values
   const atrTargets = [4.0, 4.5, 5.0, 5.5, 6.0]; // 5 values
@@ -553,7 +648,12 @@ async function main() {
   const buyThreshold = 0.12;
   const confidenceMin = 0.25;
 
-  const totalIterations = momentumLookbacks.length * momentumWeights.length * rsiPeriods.length * atrStops.length * atrTargets.length;
+  const totalIterations =
+    momentumLookbacks.length *
+    momentumWeights.length *
+    rsiPeriods.length *
+    atrStops.length *
+    atrTargets.length;
   console.log(`\nTotal iterations: ${totalIterations}`);
   console.log("Starting optimization...\n");
 
@@ -581,20 +681,24 @@ async function main() {
               maxPositionPct: 0.08,
               maxPositions: 12,
               maxDailyLoss: 0.05,
-              technicalWeight: remainingWeight * 0.30,
+              technicalWeight: remainingWeight * 0.3,
               volatilityWeight: remainingWeight * 0.15,
-              volumeWeight: remainingWeight * 0.30,
+              volumeWeight: remainingWeight * 0.3,
               sentimentWeight: remainingWeight * 0.25,
             };
 
-            const metrics = runMomentumBacktest(cachedData, sortedDates, config);
+            const metrics = runMomentumBacktest(
+              cachedData,
+              sortedDates,
+              config
+            );
 
             const score =
               metrics.sharpeRatio * 30 +
               metrics.sortinoRatio * 25 +
               metrics.calmarRatio * 20 +
               metrics.winRate * 0.15 +
-              metrics.totalReturn * 0.10;
+              metrics.totalReturn * 0.1;
 
             results.push({ config, metrics, score });
 
@@ -605,10 +709,10 @@ async function main() {
 
               console.log(
                 `[${iteration}/${totalIterations}] ` +
-                `MomLB=${momentumLookback} MomW=${momentumWeight.toFixed(2)} RSI=${rsiPeriod} ` +
-                `Stop=${atrStop.toFixed(1)} Tgt=${atrTarget.toFixed(1)} | ` +
-                `Sharpe=${metrics.sharpeRatio.toFixed(2)} Win=${metrics.winRate.toFixed(1)}% ` +
-                `Ret=${metrics.totalReturn.toFixed(1)}% | ETA=${Math.floor(eta)}s`
+                  `MomLB=${momentumLookback} MomW=${momentumWeight.toFixed(2)} RSI=${rsiPeriod} ` +
+                  `Stop=${atrStop.toFixed(1)} Tgt=${atrTarget.toFixed(1)} | ` +
+                  `Sharpe=${metrics.sharpeRatio.toFixed(2)} Win=${metrics.winRate.toFixed(1)}% ` +
+                  `Ret=${metrics.totalReturn.toFixed(1)}% | ETA=${Math.floor(eta)}s`
               );
             }
           }
@@ -628,8 +732,12 @@ async function main() {
   for (let i = 0; i < Math.min(20, results.length); i++) {
     const r = results[i];
     console.log(`\n--- RANK ${i + 1} (Score: ${r.score.toFixed(2)}) ---`);
-    console.log(`Parameters: MomLB=${r.config.momentumLookback} MomW=${r.config.momentumWeight.toFixed(2)} RSI=${r.config.rsiPeriod} Stop=${r.config.atrMultStop.toFixed(1)}x Target=${r.config.atrMultTarget.toFixed(1)}x`);
-    console.log(`Metrics: Trades=${r.metrics.totalTrades} Win=${r.metrics.winRate.toFixed(1)}% Ret=${r.metrics.totalReturn.toFixed(1)}% Sharpe=${r.metrics.sharpeRatio.toFixed(2)} Sortino=${r.metrics.sortinoRatio.toFixed(2)} Calmar=${r.metrics.calmarRatio.toFixed(2)} MaxDD=${r.metrics.maxDrawdown.toFixed(1)}%`);
+    console.log(
+      `Parameters: MomLB=${r.config.momentumLookback} MomW=${r.config.momentumWeight.toFixed(2)} RSI=${r.config.rsiPeriod} Stop=${r.config.atrMultStop.toFixed(1)}x Target=${r.config.atrMultTarget.toFixed(1)}x`
+    );
+    console.log(
+      `Metrics: Trades=${r.metrics.totalTrades} Win=${r.metrics.winRate.toFixed(1)}% Ret=${r.metrics.totalReturn.toFixed(1)}% Sharpe=${r.metrics.sharpeRatio.toFixed(2)} Sortino=${r.metrics.sortinoRatio.toFixed(2)} Calmar=${r.metrics.calmarRatio.toFixed(2)} MaxDD=${r.metrics.maxDrawdown.toFixed(1)}%`
+    );
   }
 
   const best = results[0];
@@ -656,12 +764,22 @@ async function main() {
 
   // Statistics
   console.log("\nSTATISTICS:");
-  console.log(`Positive return configs: ${results.filter(r => r.metrics.totalReturn > 0).length}`);
-  console.log(`Sharpe > 1.0: ${results.filter(r => r.metrics.sharpeRatio > 1.0).length}`);
-  console.log(`Win rate > 55%: ${results.filter(r => r.metrics.winRate > 55).length}`);
+  console.log(
+    `Positive return configs: ${results.filter((r) => r.metrics.totalReturn > 0).length}`
+  );
+  console.log(
+    `Sharpe > 1.0: ${results.filter((r) => r.metrics.sharpeRatio > 1.0).length}`
+  );
+  console.log(
+    `Win rate > 55%: ${results.filter((r) => r.metrics.winRate > 55).length}`
+  );
 
-  const bestSharpe = results.reduce((a, b) => a.metrics.sharpeRatio > b.metrics.sharpeRatio ? a : b);
-  console.log(`\nBest Sharpe: ${bestSharpe.metrics.sharpeRatio.toFixed(3)} (MomLB=${bestSharpe.config.momentumLookback}, MomW=${bestSharpe.config.momentumWeight.toFixed(2)})`);
+  const bestSharpe = results.reduce((a, b) =>
+    a.metrics.sharpeRatio > b.metrics.sharpeRatio ? a : b
+  );
+  console.log(
+    `\nBest Sharpe: ${bestSharpe.metrics.sharpeRatio.toFixed(3)} (MomLB=${bestSharpe.config.momentumLookback}, MomW=${bestSharpe.config.momentumWeight.toFixed(2)})`
+  );
 }
 
 main().catch(console.error);

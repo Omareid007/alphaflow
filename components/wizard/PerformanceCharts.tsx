@@ -23,6 +23,7 @@ interface PerformanceChartsProps {
   metrics: BacktestMetrics;
 }
 
+// Named export for direct use
 export function PerformanceCharts({
   chartSeries,
   metrics,
@@ -199,3 +200,6 @@ export function PerformanceCharts({
     </Tabs>
   );
 }
+
+// Default export for dynamic imports
+export default PerformanceCharts;

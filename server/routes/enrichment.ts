@@ -19,30 +19,42 @@ router.get("/status", requireAuth, async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/status/:jobName", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const status = enrichmentScheduler.getJobStatus(req.params.jobName);
-    if (!status) {
-      return res.status(404).json({ success: false, error: "Job not found" });
+router.get(
+  "/status/:jobName",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const status = enrichmentScheduler.getJobStatus(req.params.jobName);
+      if (!status) {
+        return res.status(404).json({ success: false, error: "Job not found" });
+      }
+      res.json({ success: true, data: status });
+    } catch (error) {
+      log.error("EnrichmentRoutes", "Failed to get job status", { error });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to get job status" });
     }
-    res.json({ success: true, data: status });
-  } catch (error) {
-    log.error("EnrichmentRoutes", "Failed to get job status", { error });
-    res.status(500).json({ success: false, error: "Failed to get job status" });
   }
-});
+);
 
-router.post("/run/:jobName", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const result = await enrichmentScheduler.runJobManually(req.params.jobName);
-    res
-      .status(result.statusCode)
-      .json({ success: result.success, message: result.message });
-  } catch (error) {
-    log.error("EnrichmentRoutes", "Failed to run job", { error });
-    res.status(500).json({ success: false, error: "Failed to run job" });
+router.post(
+  "/run/:jobName",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await enrichmentScheduler.runJobManually(
+        req.params.jobName
+      );
+      res
+        .status(result.statusCode)
+        .json({ success: result.success, message: result.message });
+    } catch (error) {
+      log.error("EnrichmentRoutes", "Failed to run job", { error });
+      res.status(500).json({ success: false, error: "Failed to run job" });
+    }
   }
-});
+);
 
 router.get("/stats", requireAuth, async (_req: Request, res: Response) => {
   try {

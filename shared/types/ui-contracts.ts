@@ -1,9 +1,9 @@
 /**
  * CANONICAL UI DATA CONTRACTS
- * 
+ *
  * These types define the data structures used by the UI layer.
  * They map internal database state + broker state to display-ready view models.
- * 
+ *
  * CRITICAL: Status enums must map to real Alpaca order statuses.
  * See: https://docs.alpaca.markets/docs/orders#order-status
  */
@@ -13,33 +13,33 @@
  * These are the actual statuses returned by Alpaca API
  */
 export type AlpacaOrderStatus =
-  | "new"              // Order submitted, not yet accepted
-  | "accepted"         // Broker accepted, awaiting fill
-  | "pending_new"      // Order queued for submission
+  | "new" // Order submitted, not yet accepted
+  | "accepted" // Broker accepted, awaiting fill
+  | "pending_new" // Order queued for submission
   | "partially_filled" // Some qty filled
-  | "filled"           // Complete fill
-  | "done_for_day"     // No more fills today
-  | "canceled"         // User canceled
-  | "expired"          // Time expired
-  | "replaced"         // Replaced by another order
-  | "pending_cancel"   // Cancel request pending
-  | "pending_replace"  // Replace request pending
-  | "stopped"          // Order stopped
-  | "rejected"         // Broker rejected
-  | "suspended"        // Order suspended
-  | "calculated";      // Calculated (rare)
+  | "filled" // Complete fill
+  | "done_for_day" // No more fills today
+  | "canceled" // User canceled
+  | "expired" // Time expired
+  | "replaced" // Replaced by another order
+  | "pending_cancel" // Cancel request pending
+  | "pending_replace" // Replace request pending
+  | "stopped" // Order stopped
+  | "rejected" // Broker rejected
+  | "suspended" // Order suspended
+  | "calculated"; // Calculated (rare)
 
 /**
  * Timeline Event Categories
  * Maps to different event sources in the system
  */
 export type TimelineEventCategory =
-  | "decision"    // AI decision generated
-  | "order"       // Order submitted/updated
-  | "fill"        // Trade executed/filled
-  | "position"    // Position opened/closed
-  | "risk"        // Risk control events (kill switch, limits)
-  | "system"      // System events (budget exhausted, errors)
+  | "decision" // AI decision generated
+  | "order" // Order submitted/updated
+  | "fill" // Trade executed/filled
+  | "position" // Position opened/closed
+  | "risk" // Risk control events (kill switch, limits)
+  | "system" // System events (budget exhausted, errors)
   | "data_fetch"; // External data fetch events
 
 /**
@@ -47,11 +47,11 @@ export type TimelineEventCategory =
  * Unified status for timeline display
  */
 export type TimelineEventStatus =
-  | "success"   // Completed successfully
-  | "pending"   // In progress/waiting
-  | "warning"   // Needs attention
-  | "error"     // Failed
-  | "info";     // Informational
+  | "success" // Completed successfully
+  | "pending" // In progress/waiting
+  | "warning" // Needs attention
+  | "error" // Failed
+  | "info"; // Informational
 
 /**
  * TimelineEvent - Unified activity event for timeline display
@@ -71,7 +71,7 @@ export interface TimelineEvent {
     tradeId?: string;
   };
   provenance: {
-    provider: string;      // "alpaca" | "openai" | "finnhub" | etc.
+    provider: string; // "alpaca" | "openai" | "finnhub" | etc.
     cacheStatus: "fresh" | "stale" | "miss" | "unknown";
     latencyMs?: number;
   };
@@ -82,16 +82,16 @@ export interface TimelineEvent {
  * DecisionStatus - Maps internal decision state to broker lifecycle
  */
 export type DecisionStatus =
-  | "proposed"           // AI suggested but not approved
-  | "approved"           // Approved for execution
-  | "submitted"          // Submitted to broker (pending_new/new)
-  | "accepted"           // Broker accepted, awaiting fill
-  | "partially_filled"   // Some quantity filled
-  | "filled"             // Fully filled
-  | "canceled"           // Canceled
-  | "rejected"           // Broker rejected
-  | "skipped"            // Skipped due to risk/limits
-  | "expired";           // Time expired
+  | "proposed" // AI suggested but not approved
+  | "approved" // Approved for execution
+  | "submitted" // Submitted to broker (pending_new/new)
+  | "accepted" // Broker accepted, awaiting fill
+  | "partially_filled" // Some quantity filled
+  | "filled" // Fully filled
+  | "canceled" // Canceled
+  | "rejected" // Broker rejected
+  | "skipped" // Skipped due to risk/limits
+  | "expired"; // Time expired
 
 /**
  * DecisionViewModel - AI decision with broker status
@@ -118,12 +118,12 @@ export interface DecisionViewModel {
  * LedgerItemStatus - Status for trade ledger entries
  */
 export type LedgerItemStatus =
-  | "pending"         // Order pending (not yet filled)
-  | "filled"          // Fully executed
-  | "partial"         // Partially filled
-  | "canceled"        // Canceled
-  | "rejected"        // Rejected by broker
-  | "expired";        // Order expired
+  | "pending" // Order pending (not yet filled)
+  | "filled" // Fully executed
+  | "partial" // Partially filled
+  | "canceled" // Canceled
+  | "rejected" // Rejected by broker
+  | "expired"; // Order expired
 
 /**
  * LedgerItem - Trade ledger entry
@@ -210,8 +210,10 @@ export function mapBrokerStatusToDecisionStatus(
 ): DecisionStatus {
   if (!brokerStatus) {
     if (internalStatus === "skipped") return "skipped";
-    if (internalStatus === "pending" || internalStatus === "pending_execution") return "proposed";
-    if (internalStatus === "executed" || internalStatus === "filled") return "filled";
+    if (internalStatus === "pending" || internalStatus === "pending_execution")
+      return "proposed";
+    if (internalStatus === "executed" || internalStatus === "filled")
+      return "filled";
     return "proposed";
   }
 
@@ -268,7 +270,9 @@ export function mapBrokerStatusToLedgerStatus(
 /**
  * Maps timeline event status to display color category
  */
-export function getTimelineStatusColor(status: TimelineEventStatus): "success" | "warning" | "error" | "neutral" {
+export function getTimelineStatusColor(
+  status: TimelineEventStatus
+): "success" | "warning" | "error" | "neutral" {
   switch (status) {
     case "success":
       return "success";

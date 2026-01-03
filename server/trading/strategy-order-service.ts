@@ -17,7 +17,11 @@ import { storage } from "../storage";
 import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { getCounter, setCounter, isRedisAvailable } from "../lib/redis-cache";
-import { unifiedOrderExecutor, type UnifiedOrderRequest, type UnifiedOrderResult } from "./unified-order-executor";
+import {
+  unifiedOrderExecutor,
+  type UnifiedOrderRequest,
+  type UnifiedOrderResult,
+} from "./unified-order-executor";
 import {
   parseStrategyContext,
   validateDecision,
@@ -87,8 +91,19 @@ class StrategyOrderService {
    * It loads the strategy, validates the decision, calculates position size,
    * and submits the order with all strategy parameters applied.
    */
-  async executeWithStrategy(request: StrategyOrderRequest): Promise<StrategyOrderResult> {
-    const { strategyId, symbol, side, decision, overrideQty, overrideNotional, traceId, bypassQueue } = request;
+  async executeWithStrategy(
+    request: StrategyOrderRequest
+  ): Promise<StrategyOrderResult> {
+    const {
+      strategyId,
+      symbol,
+      side,
+      decision,
+      overrideQty,
+      overrideNotional,
+      traceId,
+      bypassQueue,
+    } = request;
 
     try {
       // 1. Load strategy and parse context
@@ -178,18 +193,26 @@ class StrategyOrderService {
         quantity = Math.floor(overrideNotional / quote.price);
         notional = overrideNotional;
       } else {
-        positionSizeResult = calculatePositionSize(context, portfolioValue, quote.price);
+        positionSizeResult = calculatePositionSize(
+          context,
+          portfolioValue,
+          quote.price
+        );
         if (positionSizeResult.quantity < 1) {
           return {
             success: false,
-            error: positionSizeResult.warnings?.[0] || "Position size too small",
+            error:
+              positionSizeResult.warnings?.[0] || "Position size too small",
             positionSize: positionSizeResult,
           };
         }
         quantity = positionSizeResult.quantity;
         notional = positionSizeResult.notional;
 
-        if (positionSizeResult.warnings && positionSizeResult.warnings.length > 0) {
+        if (
+          positionSizeResult.warnings &&
+          positionSizeResult.warnings.length > 0
+        ) {
           log.info("StrategyOrderService", "Position sizing warnings", {
             strategyId,
             symbol,
@@ -199,12 +222,19 @@ class StrategyOrderService {
       }
 
       // 7. Calculate bracket order params if enabled
-      const bracketParams = calculateBracketOrderParams(context, quote.price, side);
+      const bracketParams = calculateBracketOrderParams(
+        context,
+        quote.price,
+        side
+      );
 
       // 8. Determine order type and parameters
       const orderType = getOrderType(context);
       const timeInForce = getTimeInForce(context);
-      const limitPrice = orderType === "limit" ? calculateLimitPrice(context, quote.price, side) : undefined;
+      const limitPrice =
+        orderType === "limit"
+          ? calculateLimitPrice(context, quote.price, side)
+          : undefined;
 
       // 9. Build unified order request
       const orderRequest: UnifiedOrderRequest = {
@@ -215,7 +245,9 @@ class StrategyOrderService {
         timeInForce,
         limitPrice: limitPrice?.toString(),
         strategyId,
-        decisionId: decision ? (decision as AIDecision & { id?: string }).id : undefined,
+        decisionId: decision
+          ? (decision as AIDecision & { id?: string }).id
+          : undefined,
         traceId,
         bypassQueue,
         extendedHours: context.params.orderExecution.extendedHours,
@@ -224,10 +256,13 @@ class StrategyOrderService {
       // Add bracket order parameters if enabled
       if (bracketParams) {
         orderRequest.orderClass = "bracket";
-        orderRequest.takeProfitLimitPrice = bracketParams.takeProfitPrice?.toString();
-        orderRequest.stopLossStopPrice = bracketParams.stopLossPrice?.toString();
+        orderRequest.takeProfitLimitPrice =
+          bracketParams.takeProfitPrice?.toString();
+        orderRequest.stopLossStopPrice =
+          bracketParams.stopLossPrice?.toString();
         if (bracketParams.trailingStopPercent) {
-          orderRequest.trailPercent = bracketParams.trailingStopPercent.toString();
+          orderRequest.trailPercent =
+            bracketParams.trailingStopPercent.toString();
         }
       }
 
@@ -247,11 +282,15 @@ class StrategyOrderService {
       const result = await unifiedOrderExecutor.submitOrder(orderRequest);
 
       if (result.success) {
-        log.info("StrategyOrderService", "Strategy order submitted successfully", {
-          strategyId,
-          orderId: result.orderId,
-          clientOrderId: result.clientOrderId,
-        });
+        log.info(
+          "StrategyOrderService",
+          "Strategy order submitted successfully",
+          {
+            strategyId,
+            orderId: result.orderId,
+            clientOrderId: result.clientOrderId,
+          }
+        );
 
         // No cache invalidation needed - Redis atomic counters are source of truth
       } else {
@@ -276,12 +315,17 @@ class StrategyOrderService {
         },
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error("StrategyOrderService", "Unexpected error executing strategy order", {
-        strategyId,
-        symbol,
-        error: errorMessage,
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      log.error(
+        "StrategyOrderService",
+        "Unexpected error executing strategy order",
+        {
+          strategyId,
+          symbol,
+          error: errorMessage,
+        }
+      );
       return {
         success: false,
         error: `Unexpected error: ${errorMessage}`,
@@ -322,10 +366,14 @@ class StrategyOrderService {
         const count = positions.length;
         await setCounter(cacheKey, count);
 
-        log.debug("StrategyOrderService", "Initialized position count in Redis", {
-          strategyId,
-          count,
-        });
+        log.debug(
+          "StrategyOrderService",
+          "Initialized position count in Redis",
+          {
+            strategyId,
+            count,
+          }
+        );
 
         return count;
       }
@@ -334,10 +382,14 @@ class StrategyOrderService {
       const positions = await storage.getPositionsByStrategy(strategyId);
       return positions.length;
     } catch (error) {
-      log.warn("StrategyOrderService", "Failed to get position count, using 0", {
-        strategyId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      log.warn(
+        "StrategyOrderService",
+        "Failed to get position count, using 0",
+        {
+          strategyId,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
       return 0;
     }
   }
@@ -345,18 +397,26 @@ class StrategyOrderService {
   /**
    * Get current price for a symbol
    */
-  private async getCurrentPrice(symbol: string): Promise<{ price: number | null; bid?: number; ask?: number }> {
+  private async getCurrentPrice(
+    symbol: string
+  ): Promise<{ price: number | null; bid?: number; ask?: number }> {
     try {
       const snapshots = await alpaca.getSnapshots([symbol]);
       const snapshot = snapshots[symbol];
 
       if (!snapshot) {
-        log.warn("StrategyOrderService", "No snapshot returned for symbol", { symbol });
+        log.warn("StrategyOrderService", "No snapshot returned for symbol", {
+          symbol,
+        });
         return { price: null };
       }
 
       // Prefer quote mid-price, fall back to latest trade
-      if (snapshot.latestQuote && snapshot.latestQuote.bp > 0 && snapshot.latestQuote.ap > 0) {
+      if (
+        snapshot.latestQuote &&
+        snapshot.latestQuote.bp > 0 &&
+        snapshot.latestQuote.ap > 0
+      ) {
         const price = (snapshot.latestQuote.bp + snapshot.latestQuote.ap) / 2;
         return {
           price,
@@ -369,7 +429,9 @@ class StrategyOrderService {
         return { price: snapshot.latestTrade.p };
       }
 
-      log.warn("StrategyOrderService", "Snapshot has no valid price data", { symbol });
+      log.warn("StrategyOrderService", "Snapshot has no valid price data", {
+        symbol,
+      });
       return { price: null };
     } catch (error) {
       log.error("StrategyOrderService", "Failed to get price data", {
@@ -466,7 +528,9 @@ class StrategyOrderService {
   /**
    * Get strategy execution context for a strategy
    */
-  async getExecutionContext(strategyId: string): Promise<StrategyExecutionContext | null> {
+  async getExecutionContext(
+    strategyId: string
+  ): Promise<StrategyExecutionContext | null> {
     const strategy = await storage.getStrategy(strategyId);
     if (!strategy) {
       return null;
@@ -500,7 +564,9 @@ class StrategyOrderService {
   async previewPositionSize(
     strategyId: string,
     symbol: string
-  ): Promise<PositionSizeResult & { portfolioValue?: number; currentPrice?: number }> {
+  ): Promise<
+    PositionSizeResult & { portfolioValue?: number; currentPrice?: number }
+  > {
     const strategy = await storage.getStrategy(strategyId);
     if (!strategy) {
       return {

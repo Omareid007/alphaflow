@@ -63,16 +63,20 @@ router.get("/audit-logs", requireAdmin, async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/audit-logs/stats - Get audit log statistics
-router.get("/audit-logs/stats", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { getAuditStats } = await import("../../middleware/audit-logger");
-    const stats = await getAuditStats();
-    res.json(stats);
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get audit stats", { error });
-    res.status(500).json({ error: "Failed to get audit stats" });
+router.get(
+  "/audit-logs/stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { getAuditStats } = await import("../../middleware/audit-logger");
+      const stats = await getAuditStats();
+      res.json(stats);
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get audit stats", { error });
+      res.status(500).json({ error: "Failed to get audit stats" });
+    }
   }
-});
+);
 
 // ============================================================================
 // DASHBOARD ENDPOINT
@@ -192,184 +196,206 @@ router.post("/users", requireAdmin, async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/users/:id - Update user (requires admin:write)
-router.patch("/users/:id", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { username, password, isAdmin } = req.body;
+router.patch(
+  "/users/:id",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { username, password, isAdmin } = req.body;
 
-    const updates: UserUpdateData = {};
-    if (username !== undefined) updates.username = username;
-    if (isAdmin !== undefined) updates.isAdmin = isAdmin;
+      const updates: UserUpdateData = {};
+      if (username !== undefined) updates.username = username;
+      if (isAdmin !== undefined) updates.isAdmin = isAdmin;
 
-    if (password) {
-      updates.password = await bcrypt.hash(password, 10);
+      if (password) {
+        updates.password = await bcrypt.hash(password, 10);
+      }
+
+      const user = await storage.updateUser(id, updates);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password: _, ...sanitizedUser } = user;
+      res.json(sanitizedUser);
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to update user", { error });
+      res.status(500).json({ error: "Failed to update user" });
     }
-
-    const user = await storage.updateUser(id, updates);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const { password: _, ...sanitizedUser } = user;
-    res.json(sanitizedUser);
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to update user", { error });
-    res.status(500).json({ error: "Failed to update user" });
   }
-});
+);
 
 // DELETE /api/admin/users/:id - Delete user (requires admin:danger)
-router.delete("/users/:id", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.delete(
+  "/users/:id",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    // Prevent deleting yourself
-    if (id === req.userId) {
-      return res.status(400).json({ error: "Cannot delete your own account" });
+      // Prevent deleting yourself
+      if (id === req.userId) {
+        return res
+          .status(400)
+          .json({ error: "Cannot delete your own account" });
+      }
+
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to delete user", { error });
+      res.status(500).json({ error: "Failed to delete user" });
     }
-
-    const deleted = await storage.deleteUser(id);
-    if (!deleted) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to delete user", { error });
-    res.status(500).json({ error: "Failed to delete user" });
   }
-});
+);
 
 // ============================================================================
 // OBSERVABILITY ENDPOINTS
 // ============================================================================
 
 // GET /api/admin/observability/metrics - Get system metrics (requires admin:read)
-router.get("/observability/metrics", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    // System metrics
-    const memUsage = process.memoryUsage();
-    const uptime = process.uptime();
+router.get(
+  "/observability/metrics",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      // System metrics
+      const memUsage = process.memoryUsage();
+      const uptime = process.uptime();
 
-    // Work queue stats
-    const pendingJobs = await storage.getWorkItemCount("PENDING");
-    const runningJobs = await storage.getWorkItemCount("RUNNING");
-    const failedJobs = await storage.getWorkItemCount("FAILED");
-    const completedJobs = await storage.getWorkItemCount("SUCCEEDED");
+      // Work queue stats
+      const pendingJobs = await storage.getWorkItemCount("PENDING");
+      const runningJobs = await storage.getWorkItemCount("RUNNING");
+      const failedJobs = await storage.getWorkItemCount("FAILED");
+      const completedJobs = await storage.getWorkItemCount("SUCCEEDED");
 
-    // Database stats (via audit logs as proxy for activity)
-    const recentLogs = await storage.getRecentAuditLogs(100);
-    const logsLast24h = recentLogs.filter((auditLog: AuditLog) => {
-      const logTime = new Date(auditLog.timestamp).getTime();
-      return Date.now() - logTime < 24 * 60 * 60 * 1000;
-    }).length;
+      // Database stats (via audit logs as proxy for activity)
+      const recentLogs = await storage.getRecentAuditLogs(100);
+      const logsLast24h = recentLogs.filter((auditLog: AuditLog) => {
+        const logTime = new Date(auditLog.timestamp).getTime();
+        return Date.now() - logTime < 24 * 60 * 60 * 1000;
+      }).length;
 
-    res.json({
-      system: {
-        memoryUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
-        memoryTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
-        uptimeHours: Math.round((uptime / 3600) * 10) / 10,
-        nodeVersion: process.version,
-      },
-      workQueue: {
-        pending: pendingJobs,
-        running: runningJobs,
-        failed: failedJobs,
-        completed: completedJobs,
-      },
-      activity: {
-        logsLast24h,
-        totalRecentLogs: recentLogs.length,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get observability metrics", { error });
-    res.status(500).json({ error: "Failed to get observability metrics" });
+      res.json({
+        system: {
+          memoryUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+          memoryTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+          uptimeHours: Math.round((uptime / 3600) * 10) / 10,
+          nodeVersion: process.version,
+        },
+        workQueue: {
+          pending: pendingJobs,
+          running: runningJobs,
+          failed: failedJobs,
+          completed: completedJobs,
+        },
+        activity: {
+          logsLast24h,
+          totalRecentLogs: recentLogs.length,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get observability metrics", { error });
+      res.status(500).json({ error: "Failed to get observability metrics" });
+    }
   }
-});
+);
 
 // GET /api/admin/observability/logs - Get logs (requires admin:read)
-router.get("/observability/logs", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { limit, offset, action } = req.query;
-    const limitNum = parseInt(limit as string) || 50;
-    const offsetNum = parseInt(offset as string) || 0;
+router.get(
+  "/observability/logs",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { limit, offset, action } = req.query;
+      const limitNum = parseInt(limit as string) || 50;
+      const offsetNum = parseInt(offset as string) || 0;
 
-    const logs = await storage.getRecentAuditLogs(limitNum, offsetNum);
+      const logs = await storage.getRecentAuditLogs(limitNum, offsetNum);
 
-    // Filter by action if specified (audit logs track actions, not levels)
-    const filteredLogs = action
-      ? logs.filter((auditLog: AuditLog) => auditLog.action === action)
-      : logs;
+      // Filter by action if specified (audit logs track actions, not levels)
+      const filteredLogs = action
+        ? logs.filter((auditLog: AuditLog) => auditLog.action === action)
+        : logs;
 
-    res.json({
-      logs: filteredLogs,
-      count: filteredLogs.length,
-      offset: offsetNum,
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get logs", { error });
-    res.status(500).json({ error: "Failed to get logs" });
+      res.json({
+        logs: filteredLogs,
+        count: filteredLogs.length,
+        offset: offsetNum,
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get logs", { error });
+      res.status(500).json({ error: "Failed to get logs" });
+    }
   }
-});
+);
 
 // GET /api/admin/observability/health - Get health status (requires admin:read)
-router.get("/observability/health", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { getAllProviderStatuses } = await import("../../lib/callExternal");
-
-    // Check database health
-    let dbHealthy = true;
+router.get(
+  "/observability/health",
+  requireAdmin,
+  async (req: Request, res: Response) => {
     try {
-      await storage.getAgentStatus();
-    } catch {
-      dbHealthy = false;
+      const { getAllProviderStatuses } = await import("../../lib/callExternal");
+
+      // Check database health
+      let dbHealthy = true;
+      try {
+        await storage.getAgentStatus();
+      } catch {
+        dbHealthy = false;
+      }
+
+      // Check API providers
+      const providerStatuses = await getAllProviderStatuses();
+      const providersHealthy = Object.values(providerStatuses).some(
+        (s: ProviderStatusInfo) => s.enabled && s.budgetStatus.allowed
+      );
+
+      // Check Alpaca
+      let alpacaHealthy = false;
+      try {
+        const alpaca = await import("../../connectors/alpaca");
+        const account = await alpaca.alpacaClient.getAccount();
+        alpacaHealthy = account?.status === "ACTIVE";
+      } catch {
+        alpacaHealthy = false;
+      }
+
+      res.json({
+        services: [
+          {
+            name: "Database",
+            status: dbHealthy ? "healthy" : "unhealthy",
+            message: dbHealthy ? "Connected" : "Connection failed",
+          },
+          { name: "API Endpoints", status: "healthy", message: "Operational" },
+          {
+            name: "LLM Providers",
+            status: providersHealthy ? "healthy" : "degraded",
+            message: providersHealthy ? "Available" : "No providers",
+          },
+          {
+            name: "Alpaca Trading",
+            status: alpacaHealthy ? "healthy" : "unhealthy",
+            message: alpacaHealthy ? "Connected" : "Disconnected",
+          },
+          { name: "Background Jobs", status: "healthy", message: "Running" },
+        ],
+        overall: dbHealthy && alpacaHealthy ? "healthy" : "degraded",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get health status", { error });
+      res.status(500).json({ error: "Failed to get health status" });
     }
-
-    // Check API providers
-    const providerStatuses = await getAllProviderStatuses();
-    const providersHealthy = Object.values(providerStatuses).some(
-      (s: ProviderStatusInfo) => s.enabled && s.budgetStatus.allowed
-    );
-
-    // Check Alpaca
-    let alpacaHealthy = false;
-    try {
-      const alpaca = await import("../../connectors/alpaca");
-      const account = await alpaca.alpacaClient.getAccount();
-      alpacaHealthy = account?.status === "ACTIVE";
-    } catch {
-      alpacaHealthy = false;
-    }
-
-    res.json({
-      services: [
-        {
-          name: "Database",
-          status: dbHealthy ? "healthy" : "unhealthy",
-          message: dbHealthy ? "Connected" : "Connection failed",
-        },
-        { name: "API Endpoints", status: "healthy", message: "Operational" },
-        {
-          name: "LLM Providers",
-          status: providersHealthy ? "healthy" : "degraded",
-          message: providersHealthy ? "Available" : "No providers",
-        },
-        {
-          name: "Alpaca Trading",
-          status: alpacaHealthy ? "healthy" : "unhealthy",
-          message: alpacaHealthy ? "Connected" : "Disconnected",
-        },
-        { name: "Background Jobs", status: "healthy", message: "Running" },
-      ],
-      overall: dbHealthy && alpacaHealthy ? "healthy" : "degraded",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get health status", { error });
-    res.status(500).json({ error: "Failed to get health status" });
   }
-});
+);
 
 export default router;

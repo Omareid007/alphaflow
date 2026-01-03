@@ -31,7 +31,12 @@ import {
   getTradability,
 } from "../lib/order-execution-cache";
 import { emitEvent } from "../lib/webhook-emitter";
-import { sendNotification } from "../lib/notification-service";
+import {
+  sendNotification,
+  sendOrderFilledEmail,
+  sendLossAlertEmail,
+  sendCircuitBreakerEmail,
+} from "../lib/notification-service";
 import { tradabilityService } from "../services/tradability-service";
 import { log } from "../utils/logger";
 import {
@@ -484,7 +489,8 @@ class OrderExecutionEngine {
 
       if (isFailedStatus(monitoredOrder.status)) {
         // Map Alpaca status to our execution state (canceled/expired/rejected → canceled or failed)
-        state.status = monitoredOrder.status === "canceled" ? "canceled" : "failed";
+        state.status =
+          monitoredOrder.status === "canceled" ? "canceled" : "failed";
         return {
           success: false,
           state,
@@ -524,6 +530,25 @@ class OrderExecutionEngine {
           error: (err as Error).message,
         })
       );
+
+      // Send email notification with professional template
+      const userEmail = await getUserEmailForNotifications();
+      if (userEmail) {
+        const filledPrice = parseFloat(monitoredOrder.filled_avg_price || "0");
+        const filledQty = parseFloat(monitoredOrder.filled_qty);
+        sendOrderFilledEmail(userEmail, {
+          symbol: monitoredOrder.symbol,
+          side: monitoredOrder.side as "buy" | "sell",
+          qty: filledQty,
+          price: filledPrice,
+          totalValue: filledPrice * filledQty,
+          timestamp: new Date(),
+        }).catch((err) =>
+          log.error("Notification", "Order filled email failed", {
+            error: (err as Error).message,
+          })
+        );
+      }
 
       return {
         success: true,
@@ -1396,4 +1421,101 @@ export async function cancelExpiredOrders(
     });
   }
   return canceledCount;
+}
+
+// ============================================================================
+// EMAIL NOTIFICATION HELPERS
+// ============================================================================
+
+/**
+ * Get user email for notifications
+ * TODO: This should accept userId parameter from request session context
+ * For now, returns null - email notifications disabled until user context implemented
+ */
+async function getUserEmailForNotifications(): Promise<string | null> {
+  // TODO: Implement proper user context
+  // const user = await storage.getUser(userId);
+  // return user?.email || null;
+  return null;
+}
+
+/**
+ * Check position for large losses and send email alert if threshold exceeded
+ * Threshold: 5% loss triggers email notification
+ */
+export async function checkPositionForLargeLoss(
+  symbol: string,
+  currentPrice: number
+): Promise<void> {
+  try {
+    const positions = await alpaca.getPositions();
+    const position = positions.find((p) => p.symbol === symbol);
+
+    if (!position) {
+      return;
+    }
+
+    const unrealizedPL = parseFloat(position.unrealized_pl || "0");
+    const avgEntryPrice = parseFloat(position.avg_entry_price);
+    const marketValue = parseFloat(position.market_value || "0");
+
+    // Use Decimal.js for precise percentage calculation
+    const percentLoss =
+      marketValue > 0
+        ? percentChange(unrealizedPL, Math.abs(marketValue)).toNumber()
+        : 0;
+
+    // Trigger email if loss exceeds 5%
+    if (percentLoss < -5) {
+      const userEmail = await getUserEmailForNotifications();
+      if (userEmail) {
+        sendLossAlertEmail(userEmail, {
+          symbol,
+          unrealizedPL,
+          percentLoss,
+          currentPrice,
+          avgEntryPrice,
+        }).catch((err) =>
+          log.error("Notification", "Loss alert email failed", {
+            error: (err as Error).message,
+            symbol,
+          })
+        );
+      }
+    }
+  } catch (error) {
+    log.error("OrderExecution", "Error checking position for large loss", {
+      error: (error as Error).message,
+      symbol,
+    });
+  }
+}
+
+/**
+ * Send circuit breaker email notification
+ */
+export async function notifyCircuitBreakerTriggered(
+  reason: string,
+  estimatedRecovery?: Date
+): Promise<void> {
+  try {
+    const userEmail = await getUserEmailForNotifications();
+    if (userEmail) {
+      sendCircuitBreakerEmail(userEmail, {
+        reason,
+        triggeredAt: new Date(),
+        estimatedRecovery,
+      }).catch((err) =>
+        log.error("Notification", "Circuit breaker email failed", {
+          error: (err as Error).message,
+          reason,
+        })
+      );
+    }
+  } catch (error) {
+    log.error("OrderExecution", "Error sending circuit breaker notification", {
+      error: (error as Error).message,
+      reason,
+    });
+  }
 }

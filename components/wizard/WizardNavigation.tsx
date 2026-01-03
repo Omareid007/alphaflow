@@ -47,7 +47,8 @@ export function WizardNavigation({
         hover: { scale: 1.02 },
       };
 
-  const defaultNextLabel = currentStep === totalSteps ? "Review & Backtest" : "Continue";
+  const defaultNextLabel =
+    currentStep === totalSteps ? "Review & Backtest" : "Continue";
 
   return (
     <div className="flex items-center justify-between">

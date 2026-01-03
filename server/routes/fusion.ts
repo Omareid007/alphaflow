@@ -9,17 +9,21 @@ const router = Router();
  * GET /api/fusion/intelligence
  * Get market intelligence from the data fusion engine
  */
-router.get("/intelligence", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const intelligence = await dataFusionEngine.getMarketIntelligence();
-    res.json(intelligence);
-  } catch (error) {
-    log.error("FusionRoutes", "Failed to get market intelligence", {
-      error: error,
-    });
-    res.status(500).json({ error: "Failed to get market intelligence" });
+router.get(
+  "/intelligence",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const intelligence = await dataFusionEngine.getMarketIntelligence();
+      res.json(intelligence);
+    } catch (error) {
+      log.error("FusionRoutes", "Failed to get market intelligence", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to get market intelligence" });
+    }
   }
-});
+);
 
 /**
  * GET /api/fusion/market-data

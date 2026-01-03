@@ -35,7 +35,8 @@ const inputVariants = cva(
 );
 
 export interface InputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
+  extends
+    Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
     VariantProps<typeof inputVariants> {
   debounceMs?: number;
   onDebouncedChange?: (value: string) => void;
@@ -116,7 +117,9 @@ interface FloatingInputProps extends InputProps {
 
 const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
   ({ label, id, className, ...props }, ref) => {
-    const inputId = id || React.useId();
+    // Always call useId hook (React hooks rules)
+    const generatedId = React.useId();
+    const inputId = id || generatedId;
     const [isFocused, setIsFocused] = React.useState(false);
     const [hasValue, setHasValue] = React.useState(
       Boolean(props.value || props.defaultValue)

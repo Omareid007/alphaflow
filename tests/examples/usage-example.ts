@@ -12,7 +12,7 @@ import {
   getAlpacaBaseUrl,
   getConfigSummary,
   validateTradingConfig,
-} from './trading-config';
+} from "./trading-config";
 
 // ============================================================================
 // EXAMPLE 1: Startup Validation
@@ -25,14 +25,14 @@ function exampleStartupValidation(): void {
   try {
     // Validate configuration
     validateTradingConfig();
-    console.log('✓ Trading configuration is valid');
+    console.log("✓ Trading configuration is valid");
 
     // Log configuration summary
     const summary = getConfigSummary();
-    console.log('Trading Configuration Summary:');
+    console.log("Trading Configuration Summary:");
     console.log(JSON.stringify(summary, null, 2));
   } catch (error) {
-    console.error('✗ Configuration validation failed:', error);
+    console.error("✗ Configuration validation failed:", error);
     process.exit(1);
   }
 }
@@ -54,8 +54,8 @@ function exampleAlpacaClientInit(): void {
   console.log(`Stream URL: ${tradingConfig.alpaca.streamUrl}`);
 
   // Warning for live trading
-  if (tradingMode === 'live') {
-    console.warn('⚠️  WARNING: Using LIVE trading mode with REAL MONEY!');
+  if (tradingMode === "live") {
+    console.warn("⚠️  WARNING: Using LIVE trading mode with REAL MONEY!");
   }
 }
 
@@ -76,7 +76,9 @@ async function exampleOrderRetryHandler(
 
   for (let attempt = 1; attempt <= maxRetriesPerOrder; attempt++) {
     try {
-      console.log(`Attempt ${attempt}/${maxRetriesPerOrder} for order ${orderId}`);
+      console.log(
+        `Attempt ${attempt}/${maxRetriesPerOrder} for order ${orderId}`
+      );
       return await orderFn();
     } catch (error) {
       lastError = error as Error;
@@ -114,7 +116,7 @@ class OrderCircuitBreaker {
 
     // Check if circuit breaker needs reset
     if (this.resetTime && Date.now() >= this.resetTime.getTime()) {
-      console.log('Circuit breaker auto-reset');
+      console.log("Circuit breaker auto-reset");
       this.reset();
     }
 
@@ -183,12 +185,12 @@ async function exampleWaitForOrderFill(orderId: string): Promise<any> {
     // Mock order status check
     const order = await mockGetOrder(orderId);
 
-    if (order.status === 'filled') {
+    if (order.status === "filled") {
       console.log(`Order ${orderId} filled after ${Date.now() - startTime}ms`);
       return order;
     }
 
-    if (['canceled', 'rejected', 'expired'].includes(order.status)) {
+    if (["canceled", "rejected", "expired"].includes(order.status)) {
       throw new Error(`Order ${orderId} ended with status: ${order.status}`);
     }
 
@@ -228,14 +230,18 @@ function exampleRiskManagement(portfolioValue: number, entryPrice: number) {
   // Calculate maximum portfolio exposure
   const maxExposureValue = portfolioValue * (defaultMaxExposurePercent / 100);
 
-  console.log('Risk Management Parameters:');
+  console.log("Risk Management Parameters:");
   console.log(`  Portfolio Value: $${portfolioValue.toFixed(2)}`);
   console.log(`  Entry Price: $${entryPrice.toFixed(2)}`);
   console.log(`  Max Position Size: ${defaultMaxPositionSizePercent}%`);
   console.log(`  Max Position Value: $${maxPositionValue.toFixed(2)}`);
   console.log(`  Max Shares: ${maxShares}`);
-  console.log(`  Stop Loss: $${stopLossPrice.toFixed(2)} (-${defaultHardStopLossPercent}%)`);
-  console.log(`  Take Profit: $${takeProfitPrice.toFixed(2)} (+${defaultTakeProfitPercent}%)`);
+  console.log(
+    `  Stop Loss: $${stopLossPrice.toFixed(2)} (-${defaultHardStopLossPercent}%)`
+  );
+  console.log(
+    `  Take Profit: $${takeProfitPrice.toFixed(2)} (+${defaultTakeProfitPercent}%)`
+  );
   console.log(`  Max Exposure: ${defaultMaxExposurePercent}%`);
   console.log(`  Max Exposure Value: $${maxExposureValue.toFixed(2)}`);
 
@@ -281,7 +287,7 @@ function exampleUniverseSelection(
   const selectedStocks = qualifiedStocks.slice(0, maxStockSymbolsPerCycle);
   const selectedCrypto = qualifiedCrypto.slice(0, maxCryptoSymbolsPerCycle);
 
-  console.log('Universe Selection:');
+  console.log("Universe Selection:");
   console.log(
     `  Stock Candidates: ${stockCandidates.length} → Qualified: ${qualifiedStocks.length} → Selected: ${selectedStocks.length}`
   );
@@ -311,7 +317,7 @@ async function exampleStaleOrderCleanup(orders: Array<any>): Promise<number> {
   for (const order of orders) {
     const orderAge = now - new Date(order.created_at).getTime();
 
-    if (orderAge > staleOrderTimeoutMs && order.status === 'pending') {
+    if (orderAge > staleOrderTimeoutMs && order.status === "pending") {
       try {
         await mockCancelOrder(order.id);
         canceledCount++;
@@ -338,7 +344,9 @@ async function exampleStaleOrderCleanup(orders: Array<any>): Promise<number> {
 function exampleWorkQueuePoller(): void {
   const { queuePollIntervalMs, queuePollTimeoutMs } = tradingConfig.queue;
 
-  console.log(`Starting work queue poller (interval: ${queuePollIntervalMs}ms)`);
+  console.log(
+    `Starting work queue poller (interval: ${queuePollIntervalMs}ms)`
+  );
 
   setInterval(async () => {
     try {
@@ -361,7 +369,7 @@ function exampleWorkQueuePoller(): void {
         }
       }
     } catch (error) {
-      console.error('Queue polling error:', error);
+      console.error("Queue polling error:", error);
     }
   }, queuePollIntervalMs);
 }
@@ -374,21 +382,21 @@ function exampleWorkQueuePoller(): void {
  * Complete example showing configuration usage across trading flow
  */
 async function exampleCompleteTradingFlow(): Promise<void> {
-  console.log('=== Complete Trading Flow Example ===\n');
+  console.log("=== Complete Trading Flow Example ===\n");
 
   // 1. Validate configuration
   validateTradingConfig();
-  console.log('✓ Configuration validated\n');
+  console.log("✓ Configuration validated\n");
 
   // 2. Log configuration summary
   const summary = getConfigSummary();
-  console.log('Configuration:', summary, '\n');
+  console.log("Configuration:", summary, "\n");
 
   // 3. Risk calculations
   const portfolioValue = 100000;
   const entryPrice = 150.0;
   const risk = exampleRiskManagement(portfolioValue, entryPrice);
-  console.log('');
+  console.log("");
 
   // 4. Place order with retry
   const circuitBreaker = new OrderCircuitBreaker();
@@ -396,18 +404,18 @@ async function exampleCompleteTradingFlow(): Promise<void> {
   try {
     const order = await circuitBreaker.execute(async () => {
       return await exampleOrderRetryHandler(
-        async () => mockPlaceOrder('AAPL', risk.maxShares),
-        'order-123'
+        async () => mockPlaceOrder("AAPL", risk.maxShares),
+        "order-123"
       );
     });
 
-    console.log('✓ Order placed:', order, '\n');
+    console.log("✓ Order placed:", order, "\n");
 
     // 5. Wait for fill
     const filledOrder = await exampleWaitForOrderFill(order.id);
-    console.log('✓ Order filled:', filledOrder, '\n');
+    console.log("✓ Order filled:", filledOrder, "\n");
   } catch (error) {
-    console.error('✗ Order failed:', error, '\n');
+    console.error("✗ Order failed:", error, "\n");
   }
 
   // 6. Clean up stale orders
@@ -427,15 +435,15 @@ async function mockGetOrder(orderId: string): Promise<any> {
   await sleep(100);
   return {
     id: orderId,
-    status: Math.random() > 0.5 ? 'filled' : 'pending',
-    filled_qty: '10',
-    filled_avg_price: '150.00',
+    status: Math.random() > 0.5 ? "filled" : "pending",
+    filled_qty: "10",
+    filled_avg_price: "150.00",
   };
 }
 
 async function mockPlaceOrder(symbol: string, qty: number): Promise<any> {
   await sleep(100);
-  return { id: `order-${Date.now()}`, symbol, qty, status: 'pending' };
+  return { id: `order-${Date.now()}`, symbol, qty, status: "pending" };
 }
 
 async function mockCancelOrder(orderId: string): Promise<void> {
@@ -445,15 +453,15 @@ async function mockCancelOrder(orderId: string): Promise<void> {
 async function mockGetOrders(): Promise<any[]> {
   return [
     {
-      id: 'order-1',
-      status: 'pending',
+      id: "order-1",
+      status: "pending",
       created_at: new Date(Date.now() - 600000).toISOString(),
     },
   ];
 }
 
 async function mockGetWorkItems(): Promise<any[]> {
-  return [{ id: 'work-1', type: 'order' }];
+  return [{ id: "work-1", type: "order" }];
 }
 
 async function mockProcessWorkItem(item: any): Promise<void> {
@@ -465,29 +473,29 @@ async function mockProcessWorkItem(item: any): Promise<void> {
 // ============================================================================
 
 if (require.main === module) {
-  console.log('Running trading configuration examples...\n');
+  console.log("Running trading configuration examples...\n");
 
   // Run examples
   exampleStartupValidation();
-  console.log('\n' + '='.repeat(60) + '\n');
+  console.log("\n" + "=".repeat(60) + "\n");
 
   exampleAlpacaClientInit();
-  console.log('\n' + '='.repeat(60) + '\n');
+  console.log("\n" + "=".repeat(60) + "\n");
 
   exampleRiskManagement(100000, 150);
-  console.log('\n' + '='.repeat(60) + '\n');
+  console.log("\n" + "=".repeat(60) + "\n");
 
   const mockStocks = [
-    { symbol: 'AAPL', confidence: 0.8 },
-    { symbol: 'MSFT', confidence: 0.6 },
-    { symbol: 'GOOGL', confidence: 0.4 },
+    { symbol: "AAPL", confidence: 0.8 },
+    { symbol: "MSFT", confidence: 0.6 },
+    { symbol: "GOOGL", confidence: 0.4 },
   ];
   const mockCrypto = [
-    { symbol: 'BTC', confidence: 0.7 },
-    { symbol: 'ETH', confidence: 0.5 },
+    { symbol: "BTC", confidence: 0.7 },
+    { symbol: "ETH", confidence: 0.5 },
   ];
   exampleUniverseSelection(mockStocks, mockCrypto);
 
-  console.log('\n' + '='.repeat(60) + '\n');
-  console.log('Examples completed!');
+  console.log("\n" + "=".repeat(60) + "\n");
+  console.log("Examples completed!");
 }

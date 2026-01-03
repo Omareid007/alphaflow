@@ -174,9 +174,7 @@ export async function getLatestOhlc(
   };
 }
 
-export async function getNewsList(
-  params: NewsListParams = {}
-): Promise<{
+export async function getNewsList(params: NewsListParams = {}): Promise<{
   raw: NewsListResponse;
   normalized: NormalizedNewsData[];
   provenance: unknown;

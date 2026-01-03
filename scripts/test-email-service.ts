@@ -12,6 +12,11 @@ import {
   getEmailServiceStatus,
   sendEmail,
 } from "../server/lib/email-service";
+import {
+  sendOrderFilledEmail,
+  sendLossAlertEmail,
+  sendCircuitBreakerEmail,
+} from "../server/lib/notification-service";
 
 async function main() {
   console.log("=== Email Service Test ===\n");
@@ -64,6 +69,49 @@ async function main() {
     console.log("\n❌ Email failed to send");
     process.exit(1);
   }
+
+  // Test template integration
+  console.log("\n=== Testing Email Templates ===\n");
+
+  // Test 1: Order Filled Email
+  console.log("1. Testing Order Filled Email...");
+  await sendOrderFilledEmail(testEmail, {
+    symbol: "AAPL",
+    side: "buy",
+    qty: 10,
+    price: 175.5,
+    totalValue: 1755.0,
+    timestamp: new Date(),
+  });
+  console.log("   ✅ Order filled email sent\n");
+
+  // Test 2: Large Loss Alert Email
+  console.log("2. Testing Large Loss Alert Email...");
+  await sendLossAlertEmail(testEmail, {
+    symbol: "TSLA",
+    unrealizedPL: -250.0,
+    percentLoss: -7.5,
+    currentPrice: 245.0,
+    avgEntryPrice: 265.0,
+  });
+  console.log("   ✅ Loss alert email sent\n");
+
+  // Test 3: Circuit Breaker Email
+  console.log("3. Testing Circuit Breaker Email...");
+  await sendCircuitBreakerEmail(testEmail, {
+    reason: "Portfolio loss exceeded 10% threshold",
+    triggeredAt: new Date(),
+    estimatedRecovery: new Date(Date.now() + 3600000), // 1 hour from now
+  });
+  console.log("   ✅ Circuit breaker email sent\n");
+
+  console.log("=== All Template Tests Complete ===");
+  console.log("\nCheck your inbox at:", testEmail);
+  console.log("You should have received 4 emails:");
+  console.log("  1. Basic test email");
+  console.log("  2. Order filled notification (AAPL purchase)");
+  console.log("  3. Large loss alert (TSLA position)");
+  console.log("  4. Circuit breaker alert");
 }
 
 main().catch(console.error);

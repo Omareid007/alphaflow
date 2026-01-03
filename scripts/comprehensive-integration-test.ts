@@ -24,7 +24,11 @@ import { orchestrator } from "../server/autonomous/orchestrator";
 import { aiDecisionEngine } from "../server/ai/decision-engine";
 import { dataFusionEngine } from "../server/ai/data-fusion-engine";
 import { llmGateway } from "../server/ai/llmGateway";
-import { createSession, getSession, deleteSession } from "../server/lib/session";
+import {
+  createSession,
+  getSession,
+  deleteSession,
+} from "../server/lib/session";
 import { positionReconciliationJob } from "../server/jobs/position-reconciliation";
 import { alpacaStream } from "../server/trading/alpaca-stream";
 import { sql } from "drizzle-orm";
@@ -93,7 +97,11 @@ async function runTest(
   }
 }
 
-async function skipTest(category: string, testName: string, reason: string): Promise<void> {
+async function skipTest(
+  category: string,
+  testName: string,
+  reason: string
+): Promise<void> {
   totalTests++;
   skippedTests++;
 
@@ -233,7 +241,7 @@ async function testDatabaseIntegration() {
         symbol: "AAPL",
         side: "buy",
         quantity: 10,
-        price: 150.50,
+        price: 150.5,
         status: "filled",
         brokerOrderId: `broker-${Date.now()}`,
         timestamp: new Date(),
@@ -244,7 +252,7 @@ async function testDatabaseIntegration() {
       }
 
       const trades = await storage.getTrades(testUserId, 10);
-      const foundTrade = trades.find(t => t.id === trade.id);
+      const foundTrade = trades.find((t) => t.id === trade.id);
       if (!foundTrade) {
         throw new Error("Failed to retrieve created trade");
       }
@@ -332,7 +340,7 @@ async function testDatabaseIntegration() {
       // Note: Actual cascade delete would require delete method
       // This test verifies the relation exists
       const trades = await storage.getTrades(testUserId, 100);
-      const relatedTrade = trades.find(t => t.strategyId === testStrategy.id);
+      const relatedTrade = trades.find((t) => t.strategyId === testStrategy.id);
       if (!relatedTrade) {
         throw new Error("Failed to create related trade for cascade test");
       }
@@ -425,7 +433,9 @@ async function testAlpacaIntegration() {
       } catch (error) {
         // Market might be closed or API limitations
         if (error instanceof Error && error.message.includes("market")) {
-          console.log("  ℹ️  Market data unavailable (market closed or API limit)");
+          console.log(
+            "  ℹ️  Market data unavailable (market closed or API limit)"
+          );
         } else {
           throw error;
         }
@@ -529,7 +539,9 @@ async function testExternalAPIsIntegration() {
         }
       } catch (error) {
         if (error instanceof Error && error.message.includes("rate limit")) {
-          console.log("  ℹ️  SEC Edgar rate limited - acceptable for integration test");
+          console.log(
+            "  ℹ️  SEC Edgar rate limited - acceptable for integration test"
+          );
         } else {
           throw error;
         }
@@ -571,11 +583,15 @@ async function testExternalAPIsIntegration() {
         if (data && typeof data === "object") {
           // Successfully retrieved data
         } else {
-          console.log("  ℹ️  FINRA data not available (expected for some tickers)");
+          console.log(
+            "  ℹ️  FINRA data not available (expected for some tickers)"
+          );
         }
       } catch (error) {
         if (error instanceof Error && error.message.includes("rate")) {
-          console.log("  ℹ️  FINRA rate limited - acceptable for integration test");
+          console.log(
+            "  ℹ️  FINRA rate limited - acceptable for integration test"
+          );
         } else {
           throw error;
         }
@@ -589,7 +605,8 @@ async function testExternalAPIsIntegration() {
     "API rate limiting and response caching",
     ["API Cache", "Rate Limiter", "Bottleneck"],
     async () => {
-      const { getCacheStats } = await import("../server/lib/persistentApiCache");
+      const { getCacheStats } =
+        await import("../server/lib/persistentApiCache");
 
       const cacheStats = await getCacheStats();
 
@@ -655,7 +672,8 @@ async function testAIIntegration() {
         throw new Error("AI Decision Engine not initialized");
       }
 
-      const hasGenerate = typeof aiDecisionEngine.generateDecision === "function";
+      const hasGenerate =
+        typeof aiDecisionEngine.generateDecision === "function";
       if (!hasGenerate) {
         throw new Error("Decision Engine missing generateDecision method");
       }
@@ -669,7 +687,8 @@ async function testAIIntegration() {
     ["LLM Gateway", "Fallback Logic", "Error Recovery"],
     async () => {
       // Verify fallback configuration exists
-      const config = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+      const config =
+        process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
       if (!config) {
         throw new Error("No LLM provider configured for fallback test");
       }
@@ -872,7 +891,9 @@ async function testAuthIntegration() {
       });
 
       const user1Strategies = await storage.getStrategies();
-      const hasOtherUserStrategy = user1Strategies.some(s => s.userId === user2);
+      const hasOtherUserStrategy = user1Strategies.some(
+        (s) => s.userId === user2
+      );
 
       // Note: getStrategies returns all strategies
       // In production, this would be filtered by userId in the route handler
@@ -984,7 +1005,8 @@ async function testBackgroundJobsIntegration() {
     "Alert service evaluation and triggering",
     ["Alert Service", "Monitoring", "Notifications"],
     async () => {
-      const { alertService } = await import("../server/observability/alertService");
+      const { alertService } =
+        await import("../server/observability/alertService");
 
       if (!alertService) {
         throw new Error("Alert service not initialized");
@@ -1070,14 +1092,20 @@ async function testRealtimeDataFlow() {
     ["Stream Aggregator", "Data Processing", "Real-time Analysis"],
     async () => {
       try {
-        const { streamAggregator } = await import("../server/trading/stream-aggregator");
+        const { streamAggregator } =
+          await import("../server/trading/stream-aggregator");
 
         if (!streamAggregator) {
           throw new Error("Stream aggregator not initialized");
         }
       } catch (error) {
-        if (error instanceof Error && error.message.includes("Cannot find module")) {
-          console.log("  ℹ️  Stream aggregator module not found - may not be implemented");
+        if (
+          error instanceof Error &&
+          error.message.includes("Cannot find module")
+        ) {
+          console.log(
+            "  ℹ️  Stream aggregator module not found - may not be implemented"
+          );
         } else {
           throw error;
         }
@@ -1107,7 +1135,8 @@ async function testMultiServiceIntegration() {
 
       // Verify both services can be accessed
       const orchestratorReady = typeof orchestrator.start === "function";
-      const engineReady = typeof aiDecisionEngine.generateDecision === "function";
+      const engineReady =
+        typeof aiDecisionEngine.generateDecision === "function";
 
       if (!orchestratorReady || !engineReady) {
         throw new Error("Services not properly initialized");
@@ -1229,7 +1258,8 @@ async function testCrossCuttingConcerns() {
     "Standard error handling across system",
     ["Error Handler", "Standard Errors", "Error Propagation"],
     async () => {
-      const { badRequest, unauthorized, serverError } = await import("../server/lib/standard-errors");
+      const { badRequest, unauthorized, serverError } =
+        await import("../server/lib/standard-errors");
 
       const badReq = badRequest("Test error");
       if (badReq.status !== 400) {
@@ -1249,7 +1279,8 @@ async function testCrossCuttingConcerns() {
     "Input sanitization across all endpoints",
     ["Sanitization", "XSS Prevention", "Security"],
     async () => {
-      const { sanitizeInput, sanitizeUserInput } = await import("../server/lib/sanitization");
+      const { sanitizeInput, sanitizeUserInput } =
+        await import("../server/lib/sanitization");
 
       const dirty = "<script>alert('xss')</script>Hello";
       const clean = sanitizeInput(dirty);
@@ -1272,7 +1303,8 @@ async function testCrossCuttingConcerns() {
     ["Observability", "Metrics", "Tracing"],
     async () => {
       // Verify observability router exists
-      const { observabilityRouter } = await import("../server/observability/routes");
+      const { observabilityRouter } =
+        await import("../server/observability/routes");
 
       if (!observabilityRouter) {
         throw new Error("Observability router not initialized");
@@ -1305,7 +1337,8 @@ async function testCrossCuttingConcerns() {
     "RBAC authorization across admin endpoints",
     ["RBAC", "Authorization", "Capability Checks"],
     async () => {
-      const { createRBACContext, hasCapability } = await import("../server/admin/rbac");
+      const { createRBACContext, hasCapability } =
+        await import("../server/admin/rbac");
 
       const context = createRBACContext("testuser", "viewer");
       const canView = hasCapability(context, "view_dashboard");
@@ -1484,7 +1517,10 @@ async function testFailureScenarios() {
         throw new Error("Should have failed for invalid order");
       } catch (error) {
         // Error should be caught and handled
-        if (error instanceof Error && !error.message.includes("Should have failed")) {
+        if (
+          error instanceof Error &&
+          !error.message.includes("Should have failed")
+        ) {
           // Expected error - handled gracefully
         } else {
           throw error;
@@ -1509,7 +1545,9 @@ async function testFailureScenarios() {
       const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
 
       if (!hasOpenAI && !hasAnthropic) {
-        console.log("  ⚠️  No LLM providers configured - fallback not possible");
+        console.log(
+          "  ⚠️  No LLM providers configured - fallback not possible"
+        );
       }
     }
   );
@@ -1531,7 +1569,10 @@ async function testFailureScenarios() {
       } catch (error) {
         if (error instanceof Error && error.message.includes("timeout")) {
           // Timeout was properly handled
-        } else if (error instanceof Error && error.message.includes("rate limit")) {
+        } else if (
+          error instanceof Error &&
+          error.message.includes("rate limit")
+        ) {
           console.log("  ℹ️  Rate limit encountered - acceptable");
         } else {
           throw error;
@@ -1585,7 +1626,6 @@ async function main() {
     await testCrossCuttingConcerns();
     await testCompleteScenarios();
     await testFailureScenarios();
-
   } catch (error) {
     console.error("\n❌ Test suite encountered fatal error:", error);
   }
@@ -1597,10 +1637,18 @@ async function main() {
   console.log("TEST SUMMARY");
   console.log("═".repeat(80));
   console.log(`Total Tests:    ${totalTests}`);
-  console.log(`✅ Passed:      ${passedTests} (${((passedTests / totalTests) * 100).toFixed(1)}%)`);
-  console.log(`❌ Failed:      ${failedTests} (${((failedTests / totalTests) * 100).toFixed(1)}%)`);
-  console.log(`⏭️  Skipped:     ${skippedTests} (${((skippedTests / totalTests) * 100).toFixed(1)}%)`);
-  console.log(`⚠️  Warnings:    ${warnings} (${((warnings / totalTests) * 100).toFixed(1)}%)`);
+  console.log(
+    `✅ Passed:      ${passedTests} (${((passedTests / totalTests) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `❌ Failed:      ${failedTests} (${((failedTests / totalTests) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `⏭️  Skipped:     ${skippedTests} (${((skippedTests / totalTests) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `⚠️  Warnings:    ${warnings} (${((warnings / totalTests) * 100).toFixed(1)}%)`
+  );
   console.log(`⏱️  Duration:    ${(duration / 1000).toFixed(2)}s`);
   console.log("═".repeat(80));
 
@@ -1692,11 +1740,26 @@ ${generateIntegrationMatrix()}
 }
 
 function generateCategoryBreakdown(): string {
-  const categories = new Map<string, { total: number; passed: number; failed: number; skipped: number; warnings: number }>();
+  const categories = new Map<
+    string,
+    {
+      total: number;
+      passed: number;
+      failed: number;
+      skipped: number;
+      warnings: number;
+    }
+  >();
 
-  results.forEach(result => {
+  results.forEach((result) => {
     if (!categories.has(result.category)) {
-      categories.set(result.category, { total: 0, passed: 0, failed: 0, skipped: 0, warnings: 0 });
+      categories.set(result.category, {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        warnings: 0,
+      });
     }
 
     const cat = categories.get(result.category)!;
@@ -1721,15 +1784,22 @@ function generateCategoryBreakdown(): string {
 function generateDetailedResults(): string {
   let output = "";
 
-  const categories = [...new Set(results.map(r => r.category))];
+  const categories = [...new Set(results.map((r) => r.category))];
 
-  categories.forEach(category => {
+  categories.forEach((category) => {
     output += `\n### ${category}\n\n`;
 
-    const categoryResults = results.filter(r => r.category === category);
+    const categoryResults = results.filter((r) => r.category === category);
 
-    categoryResults.forEach(result => {
-      const icon = result.status === "PASS" ? "✅" : result.status === "FAIL" ? "❌" : result.status === "SKIP" ? "⏭️" : "⚠️";
+    categoryResults.forEach((result) => {
+      const icon =
+        result.status === "PASS"
+          ? "✅"
+          : result.status === "FAIL"
+            ? "❌"
+            : result.status === "SKIP"
+              ? "⏭️"
+              : "⚠️";
       output += `${icon} **${result.testName}**\n`;
       output += `- Status: ${result.status}\n`;
       output += `- Duration: ${result.duration}ms\n`;
@@ -1748,14 +1818,14 @@ function generateDetailedResults(): string {
 }
 
 function generateCriticalFailures(): string {
-  const failures = results.filter(r => r.status === "FAIL");
+  const failures = results.filter((r) => r.status === "FAIL");
 
   if (failures.length === 0) {
     return "✅ No critical failures detected!\n";
   }
 
   let output = "";
-  failures.forEach(failure => {
+  failures.forEach((failure) => {
     output += `\n#### ${failure.testName}\n`;
     output += `- **Category:** ${failure.category}\n`;
     output += `- **Components:** ${failure.componentsInvolved.join(", ")}\n`;
@@ -1768,14 +1838,14 @@ function generateCriticalFailures(): string {
 }
 
 function generateWarnings(): string {
-  const warns = results.filter(r => r.status === "WARN");
+  const warns = results.filter((r) => r.status === "WARN");
 
   if (warns.length === 0) {
     return "✅ No warnings!\n";
   }
 
   let output = "";
-  warns.forEach(warn => {
+  warns.forEach((warn) => {
     output += `\n#### ${warn.testName}\n`;
     output += `- **Category:** ${warn.category}\n`;
     output += `- **Details:** ${warn.details}\n`;
@@ -1786,14 +1856,15 @@ function generateWarnings(): string {
 }
 
 function generateGapsAnalysis(): string {
-  const skipped = results.filter(r => r.status === "SKIP");
+  const skipped = results.filter((r) => r.status === "SKIP");
 
   if (skipped.length === 0) {
     return "✅ No integration gaps identified!\n";
   }
 
-  let output = "The following integration points were skipped and may represent gaps:\n\n";
-  skipped.forEach(skip => {
+  let output =
+    "The following integration points were skipped and may represent gaps:\n\n";
+  skipped.forEach((skip) => {
     output += `- **${skip.testName}**: ${skip.details}\n`;
   });
 
@@ -1803,28 +1874,31 @@ function generateGapsAnalysis(): string {
 function generateDataFlowAnalysis(): string {
   return `
 ### Frontend → Backend → Database
-${results.find(r => r.testName.includes("CRUD operations"))?.status === "PASS" ? "✅" : "❌"} Data flows correctly through the stack
+${results.find((r) => r.testName.includes("CRUD operations"))?.status === "PASS" ? "✅" : "❌"} Data flows correctly through the stack
 
 ### Backend → Alpaca API
-${results.find(r => r.testName.includes("Alpaca account"))?.status === "PASS" ? "✅" : "❌"} External API integration working
+${results.find((r) => r.testName.includes("Alpaca account"))?.status === "PASS" ? "✅" : "❌"} External API integration working
 
 ### Multi-Service Communication
-${results.find(r => r.category === "Multi-Service")?.status === "PASS" ? "✅" : "❌"} Services communicate properly
+${results.find((r) => r.category === "Multi-Service")?.status === "PASS" ? "✅" : "❌"} Services communicate properly
 
 ### Real-time Data Streaming
-${results.find(r => r.category === "Real-time Data")?.status === "PASS" ? "✅" : "❌"} Streaming data flows correctly
+${results.find((r) => r.category === "Real-time Data")?.status === "PASS" ? "✅" : "❌"} Streaming data flows correctly
 `;
 }
 
 function generatePerformanceMetrics(): string {
-  const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
-  const slowTests = results.filter(r => r.duration > 1000).sort((a, b) => b.duration - a.duration);
+  const avgDuration =
+    results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+  const slowTests = results
+    .filter((r) => r.duration > 1000)
+    .sort((a, b) => b.duration - a.duration);
 
   let output = `\n**Average Test Duration:** ${avgDuration.toFixed(2)}ms\n\n`;
 
   if (slowTests.length > 0) {
     output += "**Slowest Integration Points:**\n\n";
-    slowTests.slice(0, 5).forEach(test => {
+    slowTests.slice(0, 5).forEach((test) => {
       output += `- ${test.testName}: ${test.duration}ms\n`;
     });
   }
@@ -1847,7 +1921,8 @@ function generateRecommendations(): string {
     recs.push("📝 Implement tests for skipped integration points");
   }
 
-  const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+  const avgDuration =
+    results.reduce((sum, r) => sum + r.duration, 0) / results.length;
   if (avgDuration > 500) {
     recs.push("⚡ Optimize slow integration points to improve performance");
   }
@@ -1860,7 +1935,7 @@ function generateRecommendations(): string {
   recs.push("📊 Monitor integration health in production");
   recs.push("🔍 Add integration tests for new features before deployment");
 
-  return recs.map(r => `- ${r}`).join("\n");
+  return recs.map((r) => `- ${r}`).join("\n");
 }
 
 function generateIntegrationMatrix(): string {
@@ -1875,9 +1950,14 @@ function generateIntegrationMatrix(): string {
 
 function getMatrixStatus(comp1: string, comp2: string): string {
   // Find test that involves both components
-  const test = results.find(r =>
-    r.componentsInvolved.some(c => c.toLowerCase().includes(comp1.toLowerCase())) &&
-    r.componentsInvolved.some(c => c.toLowerCase().includes(comp2.toLowerCase()))
+  const test = results.find(
+    (r) =>
+      r.componentsInvolved.some((c) =>
+        c.toLowerCase().includes(comp1.toLowerCase())
+      ) &&
+      r.componentsInvolved.some((c) =>
+        c.toLowerCase().includes(comp2.toLowerCase())
+      )
   );
 
   if (!test) return "⚪";

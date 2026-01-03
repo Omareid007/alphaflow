@@ -41,7 +41,9 @@ interface RedactedChannelResponse {
  * Redacts sensitive fields from a notification channel config for API responses.
  * Handles all channel types: telegram, slack, discord, email.
  */
-const redactChannelConfig = (channel: NotificationChannel): RedactedChannelResponse => {
+const redactChannelConfig = (
+  channel: NotificationChannel
+): RedactedChannelResponse => {
   // Shallow copy the config as a plain object
   const config: Record<string, unknown> = { ...channel.config };
 
@@ -50,7 +52,10 @@ const redactChannelConfig = (channel: NotificationChannel): RedactedChannelRespo
     config.botToken = "***REDACTED***";
   }
   if ("webhookUrl" in config && typeof config.webhookUrl === "string") {
-    config.webhookUrl = config.webhookUrl.replace(/\/[^/]+$/, "/***REDACTED***");
+    config.webhookUrl = config.webhookUrl.replace(
+      /\/[^/]+$/,
+      "/***REDACTED***"
+    );
   }
   if ("password" in config && typeof config.password === "string") {
     config.password = "***REDACTED***";
@@ -126,22 +131,28 @@ router.delete("/channels/:id", (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.post("/channels/:id/test", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { message } = req.body;
-    const result = await sendDirectNotification(
-      req.params.id,
-      message || "Test notification from AI Active Trader"
-    );
-    if (!result) {
-      return res.status(404).json({ error: "Channel not found" });
+router.post(
+  "/channels/:id/test",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { message } = req.body;
+      const result = await sendDirectNotification(
+        req.params.id,
+        message || "Test notification from AI Active Trader"
+      );
+      if (!result) {
+        return res.status(404).json({ error: "Channel not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      log.error("NotificationsAPI", "Notification test error", {
+        error: error,
+      });
+      res.status(500).json({ error: "Failed to send test notification" });
     }
-    res.json(result);
-  } catch (error) {
-    log.error("NotificationsAPI", "Notification test error", { error: error });
-    res.status(500).json({ error: "Failed to send test notification" });
   }
-});
+);
 
 // ============================================================================
 // TEMPLATE ROUTES

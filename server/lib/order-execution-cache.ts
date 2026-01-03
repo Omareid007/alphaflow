@@ -90,9 +90,7 @@ export function preloadOrderValidationData(
   getQuote: (
     symbol: string
   ) => Promise<{ price: number; bid: number; ask: number }>,
-  getAsset: (
-    symbol: string
-  ) => Promise<{
+  getAsset: (symbol: string) => Promise<{
     tradable: boolean;
     fractionable: boolean;
     shortable: boolean;

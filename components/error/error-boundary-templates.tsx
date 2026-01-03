@@ -2,7 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, RefreshCw, ArrowLeft, Database, Wifi } from "lucide-react";
+import {
+  AlertTriangle,
+  RefreshCw,
+  ArrowLeft,
+  Database,
+  Wifi,
+} from "lucide-react";
 import Link from "next/link";
 
 interface ErrorTemplateProps {
@@ -114,10 +120,12 @@ export function DataLoadError({
   description = "We couldn't load the requested data. This might be due to a network issue or server problem.",
   showHomeButton = true,
 }: ErrorTemplateProps) {
-  const isNetworkError = error.message?.toLowerCase().includes('network') ||
-                         error.message?.toLowerCase().includes('fetch');
-  const isServerError = error.message?.toLowerCase().includes('500') ||
-                        error.message?.toLowerCase().includes('server');
+  const isNetworkError =
+    error.message?.toLowerCase().includes("network") ||
+    error.message?.toLowerCase().includes("fetch");
+  const isServerError =
+    error.message?.toLowerCase().includes("500") ||
+    error.message?.toLowerCase().includes("server");
 
   return (
     <div className="flex h-[50vh] items-center justify-center p-4">
@@ -140,7 +148,8 @@ export function DataLoadError({
             )}
             {isServerError && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Our servers are experiencing issues. Please try again in a moment.
+                Our servers are experiencing issues. Please try again in a
+                moment.
               </p>
             )}
           </div>

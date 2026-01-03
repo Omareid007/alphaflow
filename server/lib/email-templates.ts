@@ -17,7 +17,7 @@ export interface EmailTemplate {
 
 export interface OrderFilledParams {
   symbol: string;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   qty: number;
   price: number;
   totalValue: number;
@@ -69,10 +69,10 @@ export interface WeeklyReportParams {
 // Constants
 // ============================================================================
 
-const ALPHAFLOW_GREEN = '#22c55e';
-const ALPHAFLOW_RED = '#ef4444';
-const ALPHAFLOW_BLUE = '#3b82f6';
-const ALPHAFLOW_ORANGE = '#f97316';
+const ALPHAFLOW_GREEN = "#22c55e";
+const ALPHAFLOW_RED = "#ef4444";
+const ALPHAFLOW_BLUE = "#3b82f6";
+const ALPHAFLOW_ORANGE = "#f97316";
 
 // Base styles for mobile-responsive emails
 const BASE_STYLES = `
@@ -92,24 +92,26 @@ const BASE_STYLES = `
  * Professional notification sent when an order is successfully filled.
  * Includes order summary, pricing info, and portfolio link.
  */
-export function getOrderFilledTemplate(params: OrderFilledParams): EmailTemplate {
+export function getOrderFilledTemplate(
+  params: OrderFilledParams
+): EmailTemplate {
   const { symbol, side, qty, price, totalValue, timestamp } = params;
 
-  const sideColor = side === 'buy' ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
-  const sideText = side === 'buy' ? 'BUY' : 'SELL';
-  const sideIcon = side === 'buy' ? '📈' : '📉';
+  const sideColor = side === "buy" ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
+  const sideText = side === "buy" ? "BUY" : "SELL";
+  const sideIcon = side === "buy" ? "📈" : "📉";
 
-  const formattedDate = timestamp.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const formattedDate = timestamp.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-  const formattedTime = timestamp.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZoneName: 'short',
+  const formattedTime = timestamp.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
   });
 
   const subject = `Order Filled: ${sideText} ${qty} ${symbol} @ $${price.toFixed(2)}`;
@@ -152,7 +154,7 @@ AlphaFlow Trading Platform
 <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
   <div style="${BASE_STYLES}">
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, ${sideColor} 0%, ${side === 'buy' ? '#16a34a' : '#dc2626'} 100%); padding: 32px 24px; border-radius: 8px 8px 0 0; text-align: center; color: white;">
+    <div style="background: linear-gradient(135deg, ${sideColor} 0%, ${side === "buy" ? "#16a34a" : "#dc2626"} 100%); padding: 32px 24px; border-radius: 8px 8px 0 0; text-align: center; color: white;">
       <div style="font-size: 48px; margin-bottom: 8px;">${sideIcon}</div>
       <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Order Filled!</h1>
       <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.95;">${sideText} ${qty} shares of ${symbol}</p>
@@ -241,11 +243,14 @@ AlphaFlow Trading Platform
  * Triggered when a position's unrealized loss exceeds a threshold (typically 5%).
  * Includes position details and suggested actions.
  */
-export function getLargeLossAlertTemplate(params: LargeLossAlertParams): EmailTemplate {
-  const { symbol, unrealizedPL, percentLoss, currentPrice, avgEntryPrice } = params;
+export function getLargeLossAlertTemplate(
+  params: LargeLossAlertParams
+): EmailTemplate {
+  const { symbol, unrealizedPL, percentLoss, currentPrice, avgEntryPrice } =
+    params;
 
   const priceChange = currentPrice - avgEntryPrice;
-  const priceChangePercent = ((priceChange / avgEntryPrice) * 100);
+  const priceChangePercent = (priceChange / avgEntryPrice) * 100;
 
   const subject = `⚠️ Large Loss Alert: ${symbol} down ${Math.abs(percentLoss).toFixed(2)}%`;
 
@@ -391,29 +396,31 @@ AlphaFlow Trading Platform
  * Sent when trading is automatically paused due to abnormal market conditions
  * or risk thresholds. Explains the situation and recovery timeline.
  */
-export function getCircuitBreakerTemplate(params: CircuitBreakerParams): EmailTemplate {
+export function getCircuitBreakerTemplate(
+  params: CircuitBreakerParams
+): EmailTemplate {
   const { reason, triggeredAt, estimatedRecovery } = params;
 
-  const formattedTriggerTime = triggeredAt.toLocaleString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
+  const formattedTriggerTime = triggeredAt.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
   });
 
   const recoveryText = estimatedRecovery
-    ? estimatedRecovery.toLocaleString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short',
+    ? estimatedRecovery.toLocaleString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
       })
-    : 'Manual review required - no automatic resume scheduled';
+    : "Manual review required - no automatic resume scheduled";
 
   const subject = `🚨 Circuit Breaker Triggered - Trading Halted`;
 
@@ -585,30 +592,52 @@ AlphaFlow Trading Platform
  * Comprehensive summary of the day's trading activity including P&L,
  * top performers, and trade count. Sent at end of trading day.
  */
-export function getDailySummaryTemplate(params: DailySummaryParams): EmailTemplate {
-  const { date, portfolioValue, dailyPL, dailyPLPercent, topGainers, topLosers, tradesExecuted } = params;
+export function getDailySummaryTemplate(
+  params: DailySummaryParams
+): EmailTemplate {
+  const {
+    date,
+    portfolioValue,
+    dailyPL,
+    dailyPLPercent,
+    topGainers,
+    topLosers,
+    tradesExecuted,
+  } = params;
 
-  const formattedDate = date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const formattedDate = date.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   const plColor = dailyPL >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
-  const plSign = dailyPL >= 0 ? '+' : '';
-  const plIcon = dailyPL >= 0 ? '📈' : '📉';
+  const plSign = dailyPL >= 0 ? "+" : "";
+  const plIcon = dailyPL >= 0 ? "📈" : "📉";
 
-  const subject = `Daily Summary - ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} | ${plSign}${dailyPLPercent.toFixed(2)}%`;
+  const subject = `Daily Summary - ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} | ${plSign}${dailyPLPercent.toFixed(2)}%`;
 
   // Generate plain text
-  const topGainersText = topGainers.length > 0
-    ? topGainers.map(g => `  • ${g.symbol}: +$${g.change.toFixed(2)} (+${g.changePercent.toFixed(2)}%)`).join('\n')
-    : '  None';
+  const topGainersText =
+    topGainers.length > 0
+      ? topGainers
+          .map(
+            (g) =>
+              `  • ${g.symbol}: +$${g.change.toFixed(2)} (+${g.changePercent.toFixed(2)}%)`
+          )
+          .join("\n")
+      : "  None";
 
-  const topLosersText = topLosers.length > 0
-    ? topLosers.map(l => `  • ${l.symbol}: -$${Math.abs(l.change).toFixed(2)} (${l.changePercent.toFixed(2)}%)`).join('\n')
-    : '  None';
+  const topLosersText =
+    topLosers.length > 0
+      ? topLosers
+          .map(
+            (l) =>
+              `  • ${l.symbol}: -$${Math.abs(l.change).toFixed(2)} (${l.changePercent.toFixed(2)}%)`
+          )
+          .join("\n")
+      : "  None";
 
   const text = `
 DAILY PORTFOLIO SUMMARY
@@ -625,7 +654,7 @@ ${topGainersText}
 TOP LOSERS
 ${topLosersText}
 
-${dailyPL >= 0 ? '🎉 Great day! Keep up the momentum.' : '💪 Stay disciplined. Tomorrow is a new opportunity.'}
+${dailyPL >= 0 ? "🎉 Great day! Keep up the momentum." : "💪 Stay disciplined. Tomorrow is a new opportunity."}
 
 View Full Report: https://alphaflow.app/reports/daily
 
@@ -634,25 +663,35 @@ AlphaFlow Trading Platform
   `.trim();
 
   // Generate HTML
-  const topGainersHtml = topGainers.length > 0
-    ? topGainers.map(g => `
+  const topGainersHtml =
+    topGainers.length > 0
+      ? topGainers
+          .map(
+            (g) => `
         <tr>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-weight: 600; color: #1f2937;">${g.symbol}</td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; color: ${ALPHAFLOW_GREEN}; font-weight: bold;">+$${g.change.toFixed(2)}</td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; color: ${ALPHAFLOW_GREEN}; font-weight: 600;">+${g.changePercent.toFixed(2)}%</td>
         </tr>
-      `).join('')
-    : '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #9ca3af; font-style: italic;">No gainers today</td></tr>';
+      `
+          )
+          .join("")
+      : '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #9ca3af; font-style: italic;">No gainers today</td></tr>';
 
-  const topLosersHtml = topLosers.length > 0
-    ? topLosers.map(l => `
+  const topLosersHtml =
+    topLosers.length > 0
+      ? topLosers
+          .map(
+            (l) => `
         <tr>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-weight: 600; color: #1f2937;">${l.symbol}</td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; color: ${ALPHAFLOW_RED}; font-weight: bold;">-$${Math.abs(l.change).toFixed(2)}</td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; color: ${ALPHAFLOW_RED}; font-weight: 600;">${l.changePercent.toFixed(2)}%</td>
         </tr>
-      `).join('')
-    : '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #9ca3af; font-style: italic;">No losers today</td></tr>';
+      `
+          )
+          .join("")
+      : '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #9ca3af; font-style: italic;">No losers today</td></tr>';
 
   const html = `
 <!DOCTYPE html>
@@ -678,10 +717,10 @@ AlphaFlow Trading Platform
     <!-- Content -->
     <div style="background-color: white; padding: 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
       <!-- Performance Overview -->
-      <div style="background: linear-gradient(135deg, ${dailyPL >= 0 ? '#f0fdf4' : '#fef2f2'} 0%, ${dailyPL >= 0 ? '#dcfce7' : '#fee2e2'} 100%); border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+      <div style="background: linear-gradient(135deg, ${dailyPL >= 0 ? "#f0fdf4" : "#fef2f2"} 0%, ${dailyPL >= 0 ? "#dcfce7" : "#fee2e2"} 100%); border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
         <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Portfolio Value</p>
         <p style="margin: 0; color: #1f2937; font-size: 36px; font-weight: bold;">$${portfolioValue.toFixed(2)}</p>
-        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid ${dailyPL >= 0 ? '#bbf7d0' : '#fecaca'};">
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid ${dailyPL >= 0 ? "#bbf7d0" : "#fecaca"};">
           <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 13px; font-weight: 600;">Daily P&L</p>
           <p style="margin: 0; color: ${plColor}; font-size: 28px; font-weight: bold;">
             ${plSign}$${dailyPL.toFixed(2)}
@@ -735,9 +774,9 @@ AlphaFlow Trading Platform
       </div>
 
       <!-- Motivational Message -->
-      <div style="background-color: ${dailyPL >= 0 ? '#f0fdf4' : '#fef3c7'}; border-left: 4px solid ${dailyPL >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_ORANGE}; padding: 16px; margin: 24px 0; border-radius: 4px; text-align: center;">
-        <p style="margin: 0; color: ${dailyPL >= 0 ? '#15803d' : '#92400e'}; font-size: 15px; font-weight: 600;">
-          ${dailyPL >= 0 ? '🎉 Great day! Keep up the momentum.' : '💪 Stay disciplined. Tomorrow is a new opportunity.'}
+      <div style="background-color: ${dailyPL >= 0 ? "#f0fdf4" : "#fef3c7"}; border-left: 4px solid ${dailyPL >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_ORANGE}; padding: 16px; margin: 24px 0; border-radius: 4px; text-align: center;">
+        <p style="margin: 0; color: ${dailyPL >= 0 ? "#15803d" : "#92400e"}; font-size: 15px; font-weight: 600;">
+          ${dailyPL >= 0 ? "🎉 Great day! Keep up the momentum." : "💪 Stay disciplined. Tomorrow is a new opportunity."}
         </p>
       </div>
 
@@ -769,33 +808,55 @@ AlphaFlow Trading Platform
  * Comprehensive weekly report including portfolio performance, strategy breakdown,
  * and key metrics. Sent at end of each trading week.
  */
-export function getWeeklyReportTemplate(params: WeeklyReportParams): EmailTemplate {
-  const { weekStart, weekEnd, portfolioValue, weeklyPL, weeklyPLPercent, strategies } = params;
+export function getWeeklyReportTemplate(
+  params: WeeklyReportParams
+): EmailTemplate {
+  const {
+    weekStart,
+    weekEnd,
+    portfolioValue,
+    weeklyPL,
+    weeklyPLPercent,
+    strategies,
+  } = params;
 
-  const weekStartStr = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const weekEndStr = weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const weekStartStr = weekStart.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const weekEndStr = weekEnd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const plColor = weeklyPL >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
-  const plSign = weeklyPL >= 0 ? '+' : '';
-  const plIcon = weeklyPL >= 0 ? '📈' : '📉';
+  const plSign = weeklyPL >= 0 ? "+" : "";
+  const plIcon = weeklyPL >= 0 ? "📈" : "📉";
 
   const subject = `Weekly Report: ${weekStartStr} - ${weekEndStr} | ${plSign}${weeklyPLPercent.toFixed(2)}%`;
 
   // Calculate aggregate stats
   const totalTrades = strategies.reduce((sum, s) => sum + s.tradesExecuted, 0);
-  const avgWinRate = strategies.length > 0
-    ? strategies.reduce((sum, s) => sum + s.winRate, 0) / strategies.length
-    : 0;
+  const avgWinRate =
+    strategies.length > 0
+      ? strategies.reduce((sum, s) => sum + s.winRate, 0) / strategies.length
+      : 0;
 
   // Generate plain text
-  const strategiesText = strategies.length > 0
-    ? strategies.map(s => `
+  const strategiesText =
+    strategies.length > 0
+      ? strategies
+          .map(
+            (s) => `
   ${s.strategyName}
-  • Return: ${s.weeklyReturn >= 0 ? '+' : ''}$${s.weeklyReturn.toFixed(2)} (${s.weeklyReturnPercent >= 0 ? '+' : ''}${s.weeklyReturnPercent.toFixed(2)}%)
+  • Return: ${s.weeklyReturn >= 0 ? "+" : ""}$${s.weeklyReturn.toFixed(2)} (${s.weeklyReturnPercent >= 0 ? "+" : ""}${s.weeklyReturnPercent.toFixed(2)}%)
   • Trades: ${s.tradesExecuted}
   • Win Rate: ${s.winRate.toFixed(1)}%
-    `).join('\n')
-    : '  No active strategies this week';
+    `
+          )
+          .join("\n")
+      : "  No active strategies this week";
 
   const text = `
 WEEKLY PERFORMANCE REPORT
@@ -812,7 +873,7 @@ Average Win Rate: ${avgWinRate.toFixed(1)}%
 STRATEGY PERFORMANCE
 ${strategiesText}
 
-${weeklyPL >= 0 ? '🎯 Excellent week! Your strategies are performing well.' : '📊 Review your strategies and adjust as needed.'}
+${weeklyPL >= 0 ? "🎯 Excellent week! Your strategies are performing well." : "📊 Review your strategies and adjust as needed."}
 
 View Detailed Report: https://alphaflow.app/reports/weekly
 
@@ -821,11 +882,14 @@ AlphaFlow Trading Platform
   `.trim();
 
   // Generate HTML
-  const strategiesHtml = strategies.length > 0
-    ? strategies.map(s => {
-        const stratColor = s.weeklyReturn >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
-        const stratSign = s.weeklyReturn >= 0 ? '+' : '';
-        return `
+  const strategiesHtml =
+    strategies.length > 0
+      ? strategies
+          .map((s) => {
+            const stratColor =
+              s.weeklyReturn >= 0 ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
+            const stratSign = s.weeklyReturn >= 0 ? "+" : "";
+            return `
         <tr>
           <td style="padding: 14px 12px; border-bottom: 1px solid #e5e7eb;">
             <strong style="color: #1f2937; font-size: 15px;">${s.strategyName}</strong>
@@ -844,8 +908,9 @@ AlphaFlow Trading Platform
           </td>
         </tr>
         `;
-      }).join('')
-    : '<tr><td colspan="4" style="padding: 24px; text-align: center; color: #9ca3af; font-style: italic;">No active strategies this week</td></tr>';
+          })
+          .join("")
+      : '<tr><td colspan="4" style="padding: 24px; text-align: center; color: #9ca3af; font-style: italic;">No active strategies this week</td></tr>';
 
   const html = `
 <!DOCTYPE html>
@@ -867,10 +932,10 @@ AlphaFlow Trading Platform
     <!-- Content -->
     <div style="background-color: white; padding: 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
       <!-- Portfolio Summary -->
-      <div style="background: linear-gradient(135deg, ${weeklyPL >= 0 ? '#ecfdf5' : '#fef2f2'} 0%, ${weeklyPL >= 0 ? '#d1fae5' : '#fee2e2'} 100%); border-radius: 12px; padding: 28px; margin-bottom: 28px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="background: linear-gradient(135deg, ${weeklyPL >= 0 ? "#ecfdf5" : "#fef2f2"} 0%, ${weeklyPL >= 0 ? "#d1fae5" : "#fee2e2"} 100%); border-radius: 12px; padding: 28px; margin-bottom: 28px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Portfolio Value</p>
         <p style="margin: 0; color: #1f2937; font-size: 42px; font-weight: bold; line-height: 1;">$${portfolioValue.toFixed(2)}</p>
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid ${weeklyPL >= 0 ? '#a7f3d0' : '#fecaca'};">
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid ${weeklyPL >= 0 ? "#a7f3d0" : "#fecaca"};">
           <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px; font-weight: 700;">Weekly Performance</p>
           <p style="margin: 0; color: ${plColor}; font-size: 32px; font-weight: bold;">
             ${plSign}$${weeklyPL.toFixed(2)}
@@ -924,9 +989,11 @@ AlphaFlow Trading Platform
           <h3 style="margin: 0; color: #92400e; font-size: 18px; font-weight: bold;">Weekly Insights</h3>
         </div>
         <p style="margin: 0; color: #78350f; font-size: 15px; line-height: 1.6;">
-          ${weeklyPL >= 0
-            ? '🎯 Excellent week! Your strategies are performing well. Continue monitoring market conditions and consider scaling successful strategies.'
-            : '📊 Review your strategies and adjust as needed. Consider analyzing losing trades to identify patterns and improve decision-making.'}
+          ${
+            weeklyPL >= 0
+              ? "🎯 Excellent week! Your strategies are performing well. Continue monitoring market conditions and consider scaling successful strategies."
+              : "📊 Review your strategies and adjust as needed. Consider analyzing losing trades to identify patterns and improve decision-making."
+          }
         </p>
       </div>
 

@@ -73,7 +73,7 @@ async function test_get_short_interest(symbol: string) {
       squeezePotential: analysis.potential,
       squeezeScore: analysis.score,
       factors: analysis.factors,
-      dataSource: "FINRA RegSHO"
+      dataSource: "FINRA RegSHO",
     };
 
     logResult({
@@ -124,15 +124,18 @@ async function test_get_sec_insider_activity(symbol: string) {
       totalSells: summary.totalInsiderSells,
       netActivity: summary.netInsiderActivity,
       netValue: summary.netInsiderValue,
-      buyToSellRatio: summary.buyToSellRatio === Infinity ? "All buys" : summary.buyToSellRatio.toFixed(2),
+      buyToSellRatio:
+        summary.buyToSellRatio === Infinity
+          ? "All buys"
+          : summary.buyToSellRatio.toFixed(2),
       sentiment: summary.sentiment,
-      recentTransactions: summary.recentTransactions.slice(0, 5).map(t => ({
+      recentTransactions: summary.recentTransactions.slice(0, 5).map((t) => ({
         owner: t.reportingOwner,
         type: t.transactionType,
         shares: t.sharesTransacted,
-        date: t.transactionDate.toISOString().split('T')[0]
+        date: t.transactionDate.toISOString().split("T")[0],
       })),
-      dataSource: "SEC EDGAR Form 4"
+      dataSource: "SEC EDGAR Form 4",
     };
 
     logResult({
@@ -167,11 +170,11 @@ async function test_get_macro_indicators() {
     const indicators = await fred.getCriticalIndicators();
     const executionTime = Date.now() - startTime;
 
-    const vix = indicators.find(i => i.indicatorId === "VIXCLS");
-    const fedFunds = indicators.find(i => i.indicatorId === "FEDFUNDS");
-    const yieldCurve = indicators.find(i => i.indicatorId === "T10Y2Y");
-    const unemployment = indicators.find(i => i.indicatorId === "UNRATE");
-    const cpi = indicators.find(i => i.indicatorId === "CPIAUCSL");
+    const vix = indicators.find((i) => i.indicatorId === "VIXCLS");
+    const fedFunds = indicators.find((i) => i.indicatorId === "FEDFUNDS");
+    const yieldCurve = indicators.find((i) => i.indicatorId === "T10Y2Y");
+    const unemployment = indicators.find((i) => i.indicatorId === "UNRATE");
+    const cpi = indicators.find((i) => i.indicatorId === "CPIAUCSL");
 
     let marketRegime = "neutral";
     if (vix && vix.latestValue !== null) {
@@ -187,13 +190,13 @@ async function test_get_macro_indicators() {
       inflation: cpi?.changePercent?.toFixed(1) + "% (YoY change)" || "N/A",
       marketRegime,
       dataSource: "FRED (Federal Reserve)",
-      rawIndicators: indicators.map(i => ({
+      rawIndicators: indicators.map((i) => ({
         id: i.indicatorId,
         name: i.name,
         latestValue: i.latestValue,
         lastUpdatedAt: i.lastUpdatedAt,
-        changePercent: i.changePercent
-      }))
+        changePercent: i.changePercent,
+      })),
     };
 
     logResult({
@@ -247,7 +250,7 @@ async function test_get_forex_rate(base: string, quote: string) {
       high30d: summary.high30d.toFixed(4),
       low30d: summary.low30d.toFixed(4),
       trend: summary.trend,
-      dataSource: "Frankfurter (ECB)"
+      dataSource: "Frankfurter (ECB)",
     };
 
     logResult({
@@ -296,12 +299,12 @@ async function test_get_usd_strength() {
     const data = {
       index: strength.index.toFixed(2),
       trend: strength.trend,
-      components: strength.components.map(c => ({
+      components: strength.components.map((c) => ({
         currency: c.currency,
         weight: (c.weight * 100).toFixed(1) + "%",
-        rate: c.rate.toFixed(4)
+        rate: c.rate.toFixed(4),
       })),
-      dataSource: "Frankfurter (ECB)"
+      dataSource: "Frankfurter (ECB)",
     };
 
     logResult({
@@ -328,8 +331,8 @@ async function printSummary() {
   console.log(`TEST SUMMARY`);
   console.log(`========================================\n`);
 
-  const passed = results.filter(r => r.success).length;
-  const failed = results.filter(r => !r.success).length;
+  const passed = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success).length;
   const total = results.length;
 
   console.log(`Total tests: ${total}`);
@@ -340,17 +343,19 @@ async function printSummary() {
   if (failed > 0) {
     console.log(`Failed tests:`);
     results
-      .filter(r => !r.success)
-      .forEach(r => {
+      .filter((r) => !r.success)
+      .forEach((r) => {
         console.log(`  - ${r.toolName} (${r.testCase}): ${r.error}`);
       });
   }
 
   console.log(`\nDetailed Results:`);
   console.log(`-----------------`);
-  results.forEach(r => {
+  results.forEach((r) => {
     const status = r.success ? "✓" : "✗";
-    console.log(`${status} ${r.toolName} - ${r.testCase} (${r.executionTime}ms)`);
+    console.log(
+      `${status} ${r.toolName} - ${r.testCase} (${r.executionTime}ms)`
+    );
   });
 }
 
@@ -381,7 +386,7 @@ async function main() {
   await printSummary();
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("\nFATAL ERROR:", error);
   process.exit(1);
 });

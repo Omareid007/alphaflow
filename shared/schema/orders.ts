@@ -18,7 +18,16 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, numeric, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  numeric,
+  boolean,
+  timestamp,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./auth";
@@ -55,27 +64,27 @@ import { debateConsensus } from "./debate-arena";
  * @property {string} done_for_day - Order is done for the trading day
  */
 export const orderStatuses = [
-  'new',
-  'accepted',
-  'pending_new',
-  'partially_filled',
-  'filled',
-  'canceled',
-  'rejected',
-  'expired',
-  'replaced',
-  'pending_cancel',
-  'pending_replace',
-  'stopped',
-  'suspended',
-  'calculated',
-  'done_for_day',
+  "new",
+  "accepted",
+  "pending_new",
+  "partially_filled",
+  "filled",
+  "canceled",
+  "rejected",
+  "expired",
+  "replaced",
+  "pending_cancel",
+  "pending_replace",
+  "stopped",
+  "suspended",
+  "calculated",
+  "done_for_day",
 ] as const;
 
 /**
  * TypeScript type derived from orderStatuses array
  */
-export type OrderStatus = typeof orderStatuses[number];
+export type OrderStatus = (typeof orderStatuses)[number];
 
 /**
  * Order type values
@@ -88,12 +97,12 @@ export type OrderStatus = typeof orderStatuses[number];
  * @property {string} stop - Market order triggered when stop price is reached
  * @property {string} stop_limit - Limit order triggered when stop price is reached
  */
-export const orderTypes = ['market', 'limit', 'stop', 'stop_limit'] as const;
+export const orderTypes = ["market", "limit", "stop", "stop_limit"] as const;
 
 /**
  * TypeScript type derived from orderTypes array
  */
-export type OrderType = typeof orderTypes[number];
+export type OrderType = (typeof orderTypes)[number];
 
 /**
  * Time in force values
@@ -108,12 +117,19 @@ export type OrderType = typeof orderTypes[number];
  * @property {string} ioc - Immediate or cancel (fill immediately or cancel unfilled portion)
  * @property {string} fok - Fill or kill (fill entire order immediately or cancel)
  */
-export const timeInForceValues = ['day', 'gtc', 'opg', 'cls', 'ioc', 'fok'] as const;
+export const timeInForceValues = [
+  "day",
+  "gtc",
+  "opg",
+  "cls",
+  "ioc",
+  "fok",
+] as const;
 
 /**
  * TypeScript type derived from timeInForceValues array
  */
-export type TimeInForce = typeof timeInForceValues[number];
+export type TimeInForce = (typeof timeInForceValues)[number];
 
 /**
  * Asset class values
@@ -129,7 +145,7 @@ export const assetClasses = ["us_equity", "crypto"] as const;
 /**
  * TypeScript type derived from assetClasses array
  */
-export type AssetClass = typeof assetClasses[number];
+export type AssetClass = (typeof assetClasses)[number];
 
 // ============================================================================
 // TABLES
@@ -241,49 +257,61 @@ export const brokerAssets = pgTable("broker_assets", {
  * - limitPrice required for limit/stop_limit orders
  * - stopPrice required for stop/stop_limit orders
  */
-export const orders = pgTable("orders", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  broker: text("broker").notNull(),
-  brokerOrderId: text("broker_order_id").notNull().unique(),
-  clientOrderId: text("client_order_id").unique(),
-  symbol: text("symbol").notNull(),
-  side: text("side").notNull(),
-  type: text("type").notNull(),
-  timeInForce: text("time_in_force"),
-  qty: numeric("qty"),
-  notional: numeric("notional"),
-  limitPrice: numeric("limit_price"),
-  stopPrice: numeric("stop_price"),
-  status: text("status").notNull(),
-  // ADDED: Missing Alpaca order fields for complete tracking
-  extendedHours: boolean("extended_hours").default(false),
-  orderClass: text("order_class"),  // simple, bracket, oco, oto
-  submittedAt: timestamp("submitted_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-  filledAt: timestamp("filled_at"),
-  expiredAt: timestamp("expired_at"),
-  canceledAt: timestamp("canceled_at"),
-  failedAt: timestamp("failed_at"),
-  filledQty: numeric("filled_qty"),
-  filledAvgPrice: numeric("filled_avg_price"),
-  traceId: text("trace_id"),
-  decisionId: varchar("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
-  tradeIntentId: varchar("trade_intent_id").references(() => trades.id, { onDelete: "set null" }),
-  workItemId: varchar("work_item_id").references(() => workItems.id, { onDelete: "set null" }),
-  rawJson: jsonb("raw_json"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("orders_user_id_idx").on(table.userId),
-  index("orders_broker_order_id_idx").on(table.brokerOrderId),
-  index("orders_client_order_id_idx").on(table.clientOrderId),
-  index("orders_symbol_idx").on(table.symbol),
-  index("orders_status_idx").on(table.status),
-  index("orders_trace_id_idx").on(table.traceId),
-  index("orders_decision_id_idx").on(table.decisionId),
-]);
+export const orders = pgTable(
+  "orders",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    broker: text("broker").notNull(),
+    brokerOrderId: text("broker_order_id").notNull().unique(),
+    clientOrderId: text("client_order_id").unique(),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(),
+    type: text("type").notNull(),
+    timeInForce: text("time_in_force"),
+    qty: numeric("qty"),
+    notional: numeric("notional"),
+    limitPrice: numeric("limit_price"),
+    stopPrice: numeric("stop_price"),
+    status: text("status").notNull(),
+    // ADDED: Missing Alpaca order fields for complete tracking
+    extendedHours: boolean("extended_hours").default(false),
+    orderClass: text("order_class"), // simple, bracket, oco, oto
+    submittedAt: timestamp("submitted_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+    filledAt: timestamp("filled_at"),
+    expiredAt: timestamp("expired_at"),
+    canceledAt: timestamp("canceled_at"),
+    failedAt: timestamp("failed_at"),
+    filledQty: numeric("filled_qty"),
+    filledAvgPrice: numeric("filled_avg_price"),
+    traceId: text("trace_id"),
+    decisionId: varchar("decision_id").references(() => aiDecisions.id, {
+      onDelete: "set null",
+    }),
+    tradeIntentId: varchar("trade_intent_id").references(() => trades.id, {
+      onDelete: "set null",
+    }),
+    workItemId: varchar("work_item_id").references(() => workItems.id, {
+      onDelete: "set null",
+    }),
+    rawJson: jsonb("raw_json"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("orders_user_id_idx").on(table.userId),
+    index("orders_broker_order_id_idx").on(table.brokerOrderId),
+    index("orders_client_order_id_idx").on(table.clientOrderId),
+    index("orders_symbol_idx").on(table.symbol),
+    index("orders_status_idx").on(table.status),
+    index("orders_trace_id_idx").on(table.traceId),
+    index("orders_decision_id_idx").on(table.decisionId),
+  ]
+);
 
 /**
  * Fills table
@@ -320,28 +348,34 @@ export const orders = pgTable("orders", {
  * - Multiple fills for the same order should aggregate to match order.filledQty
  * - Average fill price can be calculated from all fills
  */
-export const fills = pgTable("fills", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  broker: text("broker").notNull(),
-  brokerOrderId: text("broker_order_id").notNull(),
-  brokerFillId: text("broker_fill_id").unique(),
-  orderId: varchar("order_id").references(() => orders.id, { onDelete: "cascade" }),
-  symbol: text("symbol").notNull(),
-  side: text("side").notNull(),
-  qty: numeric("qty").notNull(),
-  price: numeric("price").notNull(),
-  occurredAt: timestamp("occurred_at").notNull(),
-  traceId: text("trace_id"),
-  rawJson: jsonb("raw_json"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("fills_broker_order_id_idx").on(table.brokerOrderId),
-  index("fills_order_id_idx").on(table.orderId),
-  index("fills_symbol_idx").on(table.symbol),
-  index("fills_trace_id_idx").on(table.traceId),
-]);
+export const fills = pgTable(
+  "fills",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    broker: text("broker").notNull(),
+    brokerOrderId: text("broker_order_id").notNull(),
+    brokerFillId: text("broker_fill_id").unique(),
+    orderId: varchar("order_id").references(() => orders.id, {
+      onDelete: "cascade",
+    }),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(),
+    qty: numeric("qty").notNull(),
+    price: numeric("price").notNull(),
+    occurredAt: timestamp("occurred_at").notNull(),
+    traceId: text("trace_id"),
+    rawJson: jsonb("raw_json"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("fills_broker_order_id_idx").on(table.brokerOrderId),
+    index("fills_order_id_idx").on(table.orderId),
+    index("fills_symbol_idx").on(table.symbol),
+    index("fills_trace_id_idx").on(table.traceId),
+  ]
+);
 
 // ============================================================================
 // INSERT SCHEMAS

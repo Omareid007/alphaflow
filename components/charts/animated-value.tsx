@@ -44,7 +44,9 @@ export function AnimatedValue({
   suffix = "",
 }: AnimatedValueProps) {
   const prefersReducedMotion = useReducedMotion();
-  const [flashDirection, setFlashDirection] = React.useState<"up" | "down" | null>(null);
+  const [flashDirection, setFlashDirection] = React.useState<
+    "up" | "down" | null
+  >(null);
   const prevValueRef = React.useRef(previousValue ?? value);
 
   // Spring animation for smooth counting
@@ -82,7 +84,12 @@ export function AnimatedValue({
   }, [value, flash, prefersReducedMotion, motionValue]);
 
   // Calculate trend
-  const trend = value > prevValueRef.current ? "up" : value < prevValueRef.current ? "down" : "neutral";
+  const trend =
+    value > prevValueRef.current
+      ? "up"
+      : value < prevValueRef.current
+        ? "down"
+        : "neutral";
 
   // For reduced motion, just show the value
   if (prefersReducedMotion) {
@@ -168,9 +175,7 @@ export function AnimatedChange({
     <motion.span
       className={cn(
         "inline-flex items-center rounded-full font-medium tabular-nums",
-        isPositive
-          ? "bg-gain/10 text-gain"
-          : "bg-loss/10 text-loss",
+        isPositive ? "bg-gain/10 text-gain" : "bg-loss/10 text-loss",
         sizeClasses[size],
         className
       )}
@@ -180,7 +185,9 @@ export function AnimatedChange({
     >
       <motion.span
         className="mr-1"
-        initial={prefersReducedMotion ? undefined : { rotate: isPositive ? -90 : 90 }}
+        initial={
+          prefersReducedMotion ? undefined : { rotate: isPositive ? -90 : 90 }
+        }
         animate={prefersReducedMotion ? undefined : { rotate: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
@@ -215,9 +222,7 @@ export function AnimatedPortfolioValue({
 
   return (
     <div className={cn("space-y-1", className)}>
-      {label && (
-        <p className="text-sm text-muted-foreground">{label}</p>
-      )}
+      {label && <p className="text-sm text-muted-foreground">{label}</p>}
       <AnimatedValue
         value={value}
         previousValue={previousValue}
@@ -235,7 +240,10 @@ export function AnimatedPortfolioValue({
                 isPositive ? "text-gain" : "text-loss"
               )}
             >
-              {isPositive ? "+" : ""}${Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {isPositive ? "+" : ""}$
+              {Math.abs(change).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+              })}
             </span>
           )}
           {changePercent !== undefined && (

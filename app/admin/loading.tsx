@@ -1,7 +1,7 @@
 import {
   MetricCardSkeleton,
   ChartSkeleton,
-  TableSkeleton
+  TableSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

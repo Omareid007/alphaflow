@@ -1,4 +1,11 @@
-import { pgTable, varchar, boolean, timestamp, index, unique } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  boolean,
+  timestamp,
+  index,
+  unique,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -29,7 +36,9 @@ export const notificationPreferences = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     emailOrderFills: boolean("email_order_fills").default(true).notNull(),
     emailLargeLosses: boolean("email_large_losses").default(true).notNull(),
-    emailCircuitBreaker: boolean("email_circuit_breaker").default(true).notNull(),
+    emailCircuitBreaker: boolean("email_circuit_breaker")
+      .default(true)
+      .notNull(),
     emailDailySummary: boolean("email_daily_summary").default(false).notNull(),
     emailWeeklyReport: boolean("email_weekly_report").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -44,31 +53,46 @@ export const notificationPreferences = pgTable(
 );
 
 // Zod schemas for validation
-export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences, {
-  emailOrderFills: z.boolean().default(true),
-  emailLargeLosses: z.boolean().default(true),
-  emailCircuitBreaker: z.boolean().default(true),
-  emailDailySummary: z.boolean().default(false),
-  emailWeeklyReport: z.boolean().default(true),
-}).omit({
+export const insertNotificationPreferencesSchema = createInsertSchema(
+  notificationPreferences,
+  {
+    emailOrderFills: z.boolean().default(true),
+    emailLargeLosses: z.boolean().default(true),
+    emailCircuitBreaker: z.boolean().default(true),
+    emailDailySummary: z.boolean().default(false),
+    emailWeeklyReport: z.boolean().default(true),
+  }
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const selectNotificationPreferencesSchema = createSelectSchema(notificationPreferences);
+export const selectNotificationPreferencesSchema = createSelectSchema(
+  notificationPreferences
+);
 
-export const updateNotificationPreferencesSchema = insertNotificationPreferencesSchema.partial().omit({
-  userId: true,
-});
+export const updateNotificationPreferencesSchema =
+  insertNotificationPreferencesSchema.partial().omit({
+    userId: true,
+  });
 
 // TypeScript types
-export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
-export type SelectNotificationPreferences = z.infer<typeof selectNotificationPreferencesSchema>;
-export type UpdateNotificationPreferences = z.infer<typeof updateNotificationPreferencesSchema>;
+export type InsertNotificationPreferences = z.infer<
+  typeof insertNotificationPreferencesSchema
+>;
+export type SelectNotificationPreferences = z.infer<
+  typeof selectNotificationPreferencesSchema
+>;
+export type UpdateNotificationPreferences = z.infer<
+  typeof updateNotificationPreferencesSchema
+>;
 
 // Default preferences for new users
-export const defaultNotificationPreferences: Omit<InsertNotificationPreferences, "userId"> = {
+export const defaultNotificationPreferences: Omit<
+  InsertNotificationPreferences,
+  "userId"
+> = {
   emailOrderFills: true,
   emailLargeLosses: true,
   emailCircuitBreaker: true,

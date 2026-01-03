@@ -129,7 +129,9 @@ export const insertWatchlistSchema = createInsertSchema(watchlists).omit({
  * - Omits auto-generated fields (id, addedAt)
  * - sortOrder is optional and defaults to 0
  */
-export const insertWatchlistSymbolSchema = createInsertSchema(watchlistSymbols).omit({
+export const insertWatchlistSymbolSchema = createInsertSchema(
+  watchlistSymbols
+).omit({
   id: true,
   addedAt: true,
 });
@@ -213,7 +215,9 @@ export type AddWatchlistSymbolInput = z.infer<typeof addWatchlistSymbolSchema>;
 /**
  * Type for updating a watchlist symbol
  */
-export type UpdateWatchlistSymbolInput = z.infer<typeof updateWatchlistSymbolSchema>;
+export type UpdateWatchlistSymbolInput = z.infer<
+  typeof updateWatchlistSymbolSchema
+>;
 
 /**
  * Type for watchlist with symbols included

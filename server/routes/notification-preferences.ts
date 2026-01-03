@@ -36,12 +36,21 @@ async function requireAuth(req: Request, res: Response, next: () => void) {
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as Request & { userId: string }).userId;
-    const preferences = await storage.getOrCreateNotificationPreferences(userId);
+    const preferences =
+      await storage.getOrCreateNotificationPreferences(userId);
 
-    log.debug("NotificationPreferencesAPI", "Retrieved notification preferences", { userId });
+    log.debug(
+      "NotificationPreferencesAPI",
+      "Retrieved notification preferences",
+      { userId }
+    );
     res.json(preferences);
   } catch (error) {
-    log.error("NotificationPreferencesAPI", "Failed to get notification preferences", { error });
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to get notification preferences",
+      { error }
+    );
     serverError(res, "Failed to retrieve notification preferences");
   }
 });
@@ -64,7 +73,10 @@ router.put("/", requireAuth, async (req: Request, res: Response) => {
     await storage.getOrCreateNotificationPreferences(userId);
 
     // Update preferences
-    const updated = await storage.updateNotificationPreferences(userId, parsed.data);
+    const updated = await storage.updateNotificationPreferences(
+      userId,
+      parsed.data
+    );
     if (!updated) {
       return serverError(res, "Failed to update notification preferences");
     }
@@ -76,7 +88,11 @@ router.put("/", requireAuth, async (req: Request, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    log.error("NotificationPreferencesAPI", "Failed to update notification preferences", { error });
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to update notification preferences",
+      { error }
+    );
     serverError(res, "Failed to update notification preferences");
   }
 });
@@ -99,7 +115,10 @@ router.patch("/", requireAuth, async (req: Request, res: Response) => {
     await storage.getOrCreateNotificationPreferences(userId);
 
     // Update only provided fields
-    const updated = await storage.updateNotificationPreferences(userId, parsed.data);
+    const updated = await storage.updateNotificationPreferences(
+      userId,
+      parsed.data
+    );
     if (!updated) {
       return serverError(res, "Failed to update notification preferences");
     }
@@ -111,7 +130,11 @@ router.patch("/", requireAuth, async (req: Request, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    log.error("NotificationPreferencesAPI", "Failed to patch notification preferences", { error });
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to patch notification preferences",
+      { error }
+    );
     serverError(res, "Failed to update notification preferences");
   }
 });
@@ -130,10 +153,18 @@ router.delete("/", requireAuth, async (req: Request, res: Response) => {
     // Create new default preferences
     const defaults = await storage.createDefaultNotificationPreferences(userId);
 
-    log.info("NotificationPreferencesAPI", "Reset notification preferences to defaults", { userId });
+    log.info(
+      "NotificationPreferencesAPI",
+      "Reset notification preferences to defaults",
+      { userId }
+    );
     res.json(defaults);
   } catch (error) {
-    log.error("NotificationPreferencesAPI", "Failed to reset notification preferences", { error });
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to reset notification preferences",
+      { error }
+    );
     serverError(res, "Failed to reset notification preferences");
   }
 });

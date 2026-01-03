@@ -1,5 +1,6 @@
 import CircuitBreaker from "opossum";
 import { log } from "../utils/logger";
+import { notifyCircuitBreakerTriggered } from "../trading/order-execution-flow";
 
 interface BreakerOptions {
   timeout?: number;
@@ -57,6 +58,21 @@ export function getBreaker<T extends any[], R>(
 
   breaker.on("open", () => {
     log.warn("CircuitBreaker", `[${name}] OPEN - failing fast`);
+
+    // Send email notification when circuit breaker opens
+    const estimatedRecovery = new Date(
+      Date.now() +
+        (options?.resetTimeout || DEFAULT_OPTIONS.resetTimeout || 30000)
+    );
+    notifyCircuitBreakerTriggered(
+      `Circuit breaker ${name} opened - service experiencing errors`,
+      estimatedRecovery
+    ).catch((err) =>
+      log.error("CircuitBreaker", "Failed to send circuit breaker email", {
+        error: err.message,
+        breakerName: name,
+      })
+    );
   });
 
   breaker.on("halfOpen", () => {

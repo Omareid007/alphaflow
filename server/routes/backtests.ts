@@ -129,27 +129,31 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id/equity-curve", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const points = await db
-      .select()
-      .from(backtestEquityCurve)
-      .where(eq(backtestEquityCurve.runId, req.params.id))
-      .orderBy(backtestEquityCurve.ts);
+router.get(
+  "/:id/equity-curve",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const points = await db
+        .select()
+        .from(backtestEquityCurve)
+        .where(eq(backtestEquityCurve.runId, req.params.id))
+        .orderBy(backtestEquityCurve.ts);
 
-    const formattedPoints = points.map((p) => ({
-      ts: p.ts.toISOString(),
-      equity: parseFloat(p.equity),
-      cash: parseFloat(p.cash),
-      exposure: parseFloat(p.exposure),
-    }));
+      const formattedPoints = points.map((p) => ({
+        ts: p.ts.toISOString(),
+        equity: parseFloat(p.equity),
+        cash: parseFloat(p.cash),
+        exposure: parseFloat(p.exposure),
+      }));
 
-    res.json({ points: formattedPoints });
-  } catch (error) {
-    log.error("BacktestAPI", `Failed to get equity curve: ${error}`);
-    res.status(500).json({ error: "Failed to get equity curve" });
+      res.json({ points: formattedPoints });
+    } catch (error) {
+      log.error("BacktestAPI", `Failed to get equity curve: ${error}`);
+      res.status(500).json({ error: "Failed to get equity curve" });
+    }
   }
-});
+);
 
 router.get("/:id/trades", requireAuth, async (req: Request, res: Response) => {
   try {

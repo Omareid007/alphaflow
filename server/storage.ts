@@ -1568,7 +1568,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(userPreferences)
         .where(eq(userPreferences.userId, userId));
-      return prefs || null;
+      return (prefs as SelectUserPreferences | undefined) || null;
     } catch (error) {
       log.error("Storage", "Failed to get user preferences", { error, userId });
       return null;
@@ -1587,7 +1587,7 @@ export class DatabaseStorage implements IStorage {
         ...prefs,
       })
       .returning();
-    return created;
+    return created as SelectUserPreferences;
   }
 
   async updateUserPreferences(
@@ -1600,7 +1600,7 @@ export class DatabaseStorage implements IStorage {
         .set({ ...updates, updatedAt: new Date() })
         .where(eq(userPreferences.userId, userId))
         .returning();
-      return updated || null;
+      return (updated as SelectUserPreferences | undefined) || null;
     } catch (error) {
       log.error("Storage", "Failed to update user preferences", {
         error,
@@ -1648,7 +1648,10 @@ export class DatabaseStorage implements IStorage {
         .where(eq(notificationPreferences.userId, userId));
       return prefs || null;
     } catch (error) {
-      log.error("Storage", "Failed to get notification preferences", { error, userId });
+      log.error("Storage", "Failed to get notification preferences", {
+        error,
+        userId,
+      });
       return null;
     }
   }

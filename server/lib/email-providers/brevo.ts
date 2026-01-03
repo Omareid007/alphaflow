@@ -75,7 +75,7 @@ export const brevoProvider: EmailProvider = {
       const response = await fetch(BREVO_API_URL, {
         method: "POST",
         headers: {
-          "accept": "application/json",
+          accept: "application/json",
           "api-key": apiKey,
           "content-type": "application/json",
         },

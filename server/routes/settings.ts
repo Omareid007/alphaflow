@@ -58,7 +58,10 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     }
 
     const namespace = getUserSettingsNamespace(userId);
-    const storedSettings = await getSetting<Partial<UserSettings>>(namespace, "preferences");
+    const storedSettings = await getSetting<Partial<UserSettings>>(
+      namespace,
+      "preferences"
+    );
 
     // Merge stored settings with defaults to ensure all fields exist
     const settings: UserSettings = {
@@ -98,15 +101,22 @@ router.put("/", requireAuth, async (req: Request, res: Response) => {
     const updates = req.body as Partial<UserSettings>;
 
     // Validate theme if provided
-    if (updates.theme !== undefined && !["dark", "light"].includes(updates.theme)) {
+    if (
+      updates.theme !== undefined &&
+      !["dark", "light"].includes(updates.theme)
+    ) {
       return badRequest(res, "Invalid theme value. Must be 'dark' or 'light'");
     }
 
     // Validate risk guardrails if provided
     if (updates.riskGuardrails) {
-      const { maxPositionSize, maxDrawdown, maxDailyLoss } = updates.riskGuardrails;
+      const { maxPositionSize, maxDrawdown, maxDailyLoss } =
+        updates.riskGuardrails;
 
-      if (maxPositionSize !== undefined && (maxPositionSize < 0 || maxPositionSize > 1)) {
+      if (
+        maxPositionSize !== undefined &&
+        (maxPositionSize < 0 || maxPositionSize > 1)
+      ) {
         return badRequest(res, "maxPositionSize must be between 0 and 1");
       }
 
@@ -114,7 +124,10 @@ router.put("/", requireAuth, async (req: Request, res: Response) => {
         return badRequest(res, "maxDrawdown must be between 0 and 1");
       }
 
-      if (maxDailyLoss !== undefined && (maxDailyLoss < 0 || maxDailyLoss > 1)) {
+      if (
+        maxDailyLoss !== undefined &&
+        (maxDailyLoss < 0 || maxDailyLoss > 1)
+      ) {
         return badRequest(res, "maxDailyLoss must be between 0 and 1");
       }
     }
@@ -122,7 +135,10 @@ router.put("/", requireAuth, async (req: Request, res: Response) => {
     const namespace = getUserSettingsNamespace(userId);
 
     // Get existing settings
-    const existingSettings = await getSetting<Partial<UserSettings>>(namespace, "preferences");
+    const existingSettings = await getSetting<Partial<UserSettings>>(
+      namespace,
+      "preferences"
+    );
 
     // Deep merge updates with existing settings
     const newSettings: UserSettings = {

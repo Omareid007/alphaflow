@@ -47,7 +47,9 @@ export function useUpdateSettings() {
       await queryClient.cancelQueries({ queryKey: ["settings"] });
 
       // Snapshot previous state
-      const previousSettings = queryClient.getQueryData<UserSettings>(["settings"]);
+      const previousSettings = queryClient.getQueryData<UserSettings>([
+        "settings",
+      ]);
 
       // Optimistically update settings
       queryClient.setQueryData<UserSettings>(["settings"], (old) => ({
@@ -68,8 +70,8 @@ export function useUpdateSettings() {
     },
 
     onSuccess: () => {
-      // Refetch to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      // Only invalidate settings (not user preferences or other queries)
+      queryClient.invalidateQueries({ queryKey: ["settings"], exact: true });
       toast.success("Settings updated successfully");
     },
   });

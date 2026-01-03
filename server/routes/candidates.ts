@@ -1,5 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { candidatesService, type CandidateStatus } from "../universe/candidatesService";
+import {
+  candidatesService,
+  type CandidateStatus,
+} from "../universe/candidatesService";
 import { badRequest, serverError, notFound } from "../lib/standard-errors";
 import { log } from "../utils/logger";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
@@ -44,7 +47,12 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
 
     let candidates;
 
-    if (status && ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(String(status).toUpperCase())) {
+    if (
+      status &&
+      ["NEW", "WATCHLIST", "APPROVED", "REJECTED"].includes(
+        String(status).toUpperCase()
+      )
+    ) {
       candidates = await candidatesService.getCandidatesByStatus(
         String(status).toUpperCase() as CandidateStatus,
         parsedLimit
@@ -141,183 +149,215 @@ router.post("/generate", requireAuth, async (req: Request, res: Response) => {
  * POST /api/candidates/:symbol/approve
  * Approve a candidate
  */
-router.post("/:symbol/approve", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const userId = req.userId || "system";
+router.post(
+  "/:symbol/approve",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const userId = req.userId || "system";
 
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+
+      const result = await candidatesService.approveCandidate(symbol, userId);
+
+      log.info("Candidates", "Approved candidate", {
+        symbol: result.symbol,
+        previousStatus: result.previousStatus,
+        userId,
+      });
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not found")) {
+        return notFound(res, error.message);
+      }
+      log.error("Candidates", "Failed to approve candidate", { error });
+      serverError(res, "Failed to approve candidate");
     }
-
-    const result = await candidatesService.approveCandidate(symbol, userId);
-
-    log.info("Candidates", "Approved candidate", {
-      symbol: result.symbol,
-      previousStatus: result.previousStatus,
-      userId,
-    });
-
-    res.json(result);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return notFound(res, error.message);
-    }
-    log.error("Candidates", "Failed to approve candidate", { error });
-    serverError(res, "Failed to approve candidate");
   }
-});
+);
 
 /**
  * POST /api/candidates/:symbol/reject
  * Reject a candidate
  */
-router.post("/:symbol/reject", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
+router.post(
+  "/:symbol/reject",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
 
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+
+      const result = await candidatesService.rejectCandidate(symbol);
+
+      log.info("Candidates", "Rejected candidate", {
+        symbol: result.symbol,
+        previousStatus: result.previousStatus,
+      });
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not found")) {
+        return notFound(res, error.message);
+      }
+      log.error("Candidates", "Failed to reject candidate", { error });
+      serverError(res, "Failed to reject candidate");
     }
-
-    const result = await candidatesService.rejectCandidate(symbol);
-
-    log.info("Candidates", "Rejected candidate", {
-      symbol: result.symbol,
-      previousStatus: result.previousStatus,
-    });
-
-    res.json(result);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return notFound(res, error.message);
-    }
-    log.error("Candidates", "Failed to reject candidate", { error });
-    serverError(res, "Failed to reject candidate");
   }
-});
+);
 
 /**
  * POST /api/candidates/:symbol/watchlist
  * Add candidate to watchlist
  */
-router.post("/:symbol/watchlist", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
+router.post(
+  "/:symbol/watchlist",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
 
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+
+      const result = await candidatesService.watchlistCandidate(symbol);
+
+      log.info("Candidates", "Added to watchlist", {
+        symbol: result.symbol,
+        previousStatus: result.previousStatus,
+      });
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not found")) {
+        return notFound(res, error.message);
+      }
+      log.error("Candidates", "Failed to add candidate to watchlist", {
+        error,
+      });
+      serverError(res, "Failed to add candidate to watchlist");
     }
-
-    const result = await candidatesService.watchlistCandidate(symbol);
-
-    log.info("Candidates", "Added to watchlist", {
-      symbol: result.symbol,
-      previousStatus: result.previousStatus,
-    });
-
-    res.json(result);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return notFound(res, error.message);
-    }
-    log.error("Candidates", "Failed to add candidate to watchlist", { error });
-    serverError(res, "Failed to add candidate to watchlist");
   }
-});
+);
 
 /**
  * POST /api/candidates/bulk-approve
  * Bulk approve candidates
  */
-router.post("/bulk-approve", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbols } = req.body;
-    const userId = req.userId || "system";
+router.post(
+  "/bulk-approve",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbols } = req.body;
+      const userId = req.userId || "system";
 
-    if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
-      return badRequest(res, "symbols array is required");
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return badRequest(res, "symbols array is required");
+      }
+
+      const results = await Promise.allSettled(
+        symbols.map((symbol: string) =>
+          candidatesService.approveCandidate(symbol, userId)
+        )
+      );
+
+      const successful = results
+        .filter(
+          (
+            r
+          ): r is PromiseFulfilledResult<
+            Awaited<ReturnType<typeof candidatesService.approveCandidate>>
+          > => r.status === "fulfilled"
+        )
+        .map((r) => r.value.symbol);
+
+      const failed = results
+        .map((r, i) => ({ result: r, symbol: symbols[i] }))
+        .filter((x) => x.result.status === "rejected")
+        .map((x) => x.symbol);
+
+      log.info("Candidates", "Bulk approved", {
+        requested: symbols.length,
+        successful: successful.length,
+        failed: failed.length,
+        userId,
+      });
+
+      res.json({
+        success: true,
+        approved: successful,
+        failed,
+        total: symbols.length,
+      });
+    } catch (error) {
+      log.error("Candidates", "Failed to bulk approve candidates", { error });
+      serverError(res, "Failed to bulk approve candidates");
     }
-
-    const results = await Promise.allSettled(
-      symbols.map((symbol: string) =>
-        candidatesService.approveCandidate(symbol, userId)
-      )
-    );
-
-    const successful = results
-      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof candidatesService.approveCandidate>>> =>
-        r.status === "fulfilled"
-      )
-      .map((r) => r.value.symbol);
-
-    const failed = results
-      .map((r, i) => ({ result: r, symbol: symbols[i] }))
-      .filter((x) => x.result.status === "rejected")
-      .map((x) => x.symbol);
-
-    log.info("Candidates", "Bulk approved", {
-      requested: symbols.length,
-      successful: successful.length,
-      failed: failed.length,
-      userId,
-    });
-
-    res.json({
-      success: true,
-      approved: successful,
-      failed,
-      total: symbols.length,
-    });
-  } catch (error) {
-    log.error("Candidates", "Failed to bulk approve candidates", { error });
-    serverError(res, "Failed to bulk approve candidates");
   }
-});
+);
 
 /**
  * POST /api/candidates/bulk-reject
  * Bulk reject candidates
  */
-router.post("/bulk-reject", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbols } = req.body;
+router.post(
+  "/bulk-reject",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbols } = req.body;
 
-    if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
-      return badRequest(res, "symbols array is required");
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return badRequest(res, "symbols array is required");
+      }
+
+      const results = await Promise.allSettled(
+        symbols.map((symbol: string) =>
+          candidatesService.rejectCandidate(symbol)
+        )
+      );
+
+      const successful = results
+        .filter(
+          (
+            r
+          ): r is PromiseFulfilledResult<
+            Awaited<ReturnType<typeof candidatesService.rejectCandidate>>
+          > => r.status === "fulfilled"
+        )
+        .map((r) => r.value.symbol);
+
+      const failed = results
+        .map((r, i) => ({ result: r, symbol: symbols[i] }))
+        .filter((x) => x.result.status === "rejected")
+        .map((x) => x.symbol);
+
+      log.info("Candidates", "Bulk rejected", {
+        requested: symbols.length,
+        successful: successful.length,
+        failed: failed.length,
+      });
+
+      res.json({
+        success: true,
+        rejected: successful,
+        failed,
+        total: symbols.length,
+      });
+    } catch (error) {
+      log.error("Candidates", "Failed to bulk reject candidates", { error });
+      serverError(res, "Failed to bulk reject candidates");
     }
-
-    const results = await Promise.allSettled(
-      symbols.map((symbol: string) => candidatesService.rejectCandidate(symbol))
-    );
-
-    const successful = results
-      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof candidatesService.rejectCandidate>>> =>
-        r.status === "fulfilled"
-      )
-      .map((r) => r.value.symbol);
-
-    const failed = results
-      .map((r, i) => ({ result: r, symbol: symbols[i] }))
-      .filter((x) => x.result.status === "rejected")
-      .map((x) => x.symbol);
-
-    log.info("Candidates", "Bulk rejected", {
-      requested: symbols.length,
-      successful: successful.length,
-      failed: failed.length,
-    });
-
-    res.json({
-      success: true,
-      rejected: successful,
-      failed,
-      total: symbols.length,
-    });
-  } catch (error) {
-    log.error("Candidates", "Failed to bulk reject candidates", { error });
-    serverError(res, "Failed to bulk reject candidates");
   }
-});
+);
 
 export default router;

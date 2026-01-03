@@ -3,9 +3,9 @@
  * Captures all console output and writes to log files
  */
 
-import { spawn } from 'child_process';
-import { createWriteStream, WriteStream } from 'fs';
-import { join } from 'path';
+import { spawn } from "child_process";
+import { createWriteStream, WriteStream } from "fs";
+import { join } from "path";
 
 class LogCapture {
   private logStream: WriteStream;
@@ -13,12 +13,21 @@ class LogCapture {
   private combinedStream: WriteStream;
 
   constructor() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const logsDir = join(process.cwd(), 'logs');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const logsDir = join(process.cwd(), "logs");
 
-    this.logStream = createWriteStream(join(logsDir, `server-${timestamp}.log`), { flags: 'a' });
-    this.errorStream = createWriteStream(join(logsDir, `error-${timestamp}.log`), { flags: 'a' });
-    this.combinedStream = createWriteStream(join(logsDir, `combined-${timestamp}.log`), { flags: 'a' });
+    this.logStream = createWriteStream(
+      join(logsDir, `server-${timestamp}.log`),
+      { flags: "a" }
+    );
+    this.errorStream = createWriteStream(
+      join(logsDir, `error-${timestamp}.log`),
+      { flags: "a" }
+    );
+    this.combinedStream = createWriteStream(
+      join(logsDir, `combined-${timestamp}.log`),
+      { flags: "a" }
+    );
 
     console.log(`📝 Logs will be written to: logs/`);
   }
@@ -53,9 +62,9 @@ class LogCapture {
 }
 
 // Create logs directory
-import { mkdirSync } from 'fs';
+import { mkdirSync } from "fs";
 try {
-  mkdirSync(join(process.cwd(), 'logs'), { recursive: true });
+  mkdirSync(join(process.cwd(), "logs"), { recursive: true });
 } catch (e) {
   // Directory might already exist
 }
@@ -63,34 +72,34 @@ try {
 const capture = new LogCapture();
 
 // Start the server
-console.log('🚀 Starting server with log capture...\n');
+console.log("🚀 Starting server with log capture...\n");
 
-const serverProcess = spawn('npm', ['run', 'server:prod'], {
+const serverProcess = spawn("npm", ["run", "server:prod"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: 'production' },
+  env: { ...process.env, NODE_ENV: "production" },
 });
 
-serverProcess.stdout.on('data', (data) => {
+serverProcess.stdout.on("data", (data) => {
   capture.write(data.toString(), false);
 });
 
-serverProcess.stderr.on('data', (data) => {
+serverProcess.stderr.on("data", (data) => {
   capture.write(data.toString(), true);
 });
 
-serverProcess.on('close', (code) => {
+serverProcess.on("close", (code) => {
   console.log(`\n🛑 Server process exited with code ${code}`);
   capture.close();
   process.exit(code || 0);
 });
 
 // Handle termination
-process.on('SIGINT', () => {
-  console.log('\n⚠️  Shutting down server...');
-  serverProcess.kill('SIGINT');
+process.on("SIGINT", () => {
+  console.log("\n⚠️  Shutting down server...");
+  serverProcess.kill("SIGINT");
 });
 
-process.on('SIGTERM', () => {
-  console.log('\n⚠️  Shutting down server...');
-  serverProcess.kill('SIGTERM');
+process.on("SIGTERM", () => {
+  console.log("\n⚠️  Shutting down server...");
+  serverProcess.kill("SIGTERM");
 });

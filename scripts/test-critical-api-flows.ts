@@ -3,9 +3,9 @@
  * Tests the most important user flows through the API
  */
 
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError } from "axios";
 
-const API_BASE = process.env.API_URL || 'http://localhost:5000';
+const API_BASE = process.env.API_URL || "http://localhost:5000";
 
 interface TestResult {
   flow: string;
@@ -30,22 +30,24 @@ async function testFlow(
       flow: flowName,
       passed: false,
       error: err.message,
-      details: err.response?.data ? JSON.stringify(err.response.data) : undefined,
+      details: err.response?.data
+        ? JSON.stringify(err.response.data)
+        : undefined,
     });
     console.log(`❌ ${flowName}: ${err.message}`);
   }
 }
 
 async function main() {
-  console.log('🔍 Testing Critical API Flows...\n');
+  console.log("🔍 Testing Critical API Flows...\n");
 
-  let sessionCookie = '';
+  let sessionCookie = "";
 
   // Flow 1: User Signup
-  await testFlow('User Signup Flow', async () => {
+  await testFlow("User Signup Flow", async () => {
     const response = await axios.post(`${API_BASE}/api/auth/signup`, {
       username: `testuser_${Date.now()}`,
-      password: 'testpass123456',
+      password: "testpass123456",
     });
 
     if (response.status !== 201) {
@@ -53,31 +55,31 @@ async function main() {
     }
 
     // Extract session cookie
-    const cookies = response.headers['set-cookie'];
+    const cookies = response.headers["set-cookie"];
     if (cookies) {
-      sessionCookie = cookies[0].split(';')[0];
+      sessionCookie = cookies[0].split(";")[0];
     }
   });
 
   // Flow 2: User Login
-  await testFlow('User Login Flow', async () => {
+  await testFlow("User Login Flow", async () => {
     const response = await axios.post(`${API_BASE}/api/auth/login`, {
-      username: 'admintest',
-      password: 'admin1234',
+      username: "admintest",
+      password: "admin1234",
     });
 
     if (response.status !== 200) {
       throw new Error(`Expected 200, got ${response.status}`);
     }
 
-    const cookies = response.headers['set-cookie'];
+    const cookies = response.headers["set-cookie"];
     if (cookies) {
-      sessionCookie = cookies[0].split(';')[0];
+      sessionCookie = cookies[0].split(";")[0];
     }
   });
 
   // Flow 3: Get Current User
-  await testFlow('Get Current User', async () => {
+  await testFlow("Get Current User", async () => {
     const response = await axios.get(`${API_BASE}/api/auth/me`, {
       headers: { Cookie: sessionCookie },
     });
@@ -87,26 +89,31 @@ async function main() {
     }
 
     if (!response.data.username) {
-      throw new Error('No username in response');
+      throw new Error("No username in response");
     }
   });
 
   // Flow 4: Protected Endpoint Without Auth (Should Fail)
-  await testFlow('Protected Endpoint Without Auth (Should Return 401)', async () => {
-    try {
-      await axios.get(`${API_BASE}/api/positions`);
-      throw new Error('Should have returned 401');
-    } catch (error) {
-      const err = error as AxiosError;
-      if (err.response?.status === 401) {
-        return; // Success - got 401 as expected
+  await testFlow(
+    "Protected Endpoint Without Auth (Should Return 401)",
+    async () => {
+      try {
+        await axios.get(`${API_BASE}/api/positions`);
+        throw new Error("Should have returned 401");
+      } catch (error) {
+        const err = error as AxiosError;
+        if (err.response?.status === 401) {
+          return; // Success - got 401 as expected
+        }
+        throw new Error(
+          `Expected 401, got ${err.response?.status || "unknown"}`
+        );
       }
-      throw new Error(`Expected 401, got ${err.response?.status || 'unknown'}`);
     }
-  });
+  );
 
   // Flow 5: Get Positions (Protected)
-  await testFlow('Get Positions (Protected)', async () => {
+  await testFlow("Get Positions (Protected)", async () => {
     const response = await axios.get(`${API_BASE}/api/positions`, {
       headers: { Cookie: sessionCookie },
     });
@@ -117,7 +124,7 @@ async function main() {
   });
 
   // Flow 6: Get Agent Status
-  await testFlow('Get Agent Status', async () => {
+  await testFlow("Get Agent Status", async () => {
     const response = await axios.get(`${API_BASE}/api/agent/status`, {
       headers: { Cookie: sessionCookie },
     });
@@ -128,19 +135,23 @@ async function main() {
   });
 
   // Flow 7: Get Strategies (CRITICAL - Check if protected)
-  await testFlow('Get Strategies - Check Auth', async () => {
+  await testFlow("Get Strategies - Check Auth", async () => {
     try {
       // Try without auth - should fail
       const unauthedResponse = await axios.get(`${API_BASE}/api/strategies`);
 
       // If we got here, endpoint is NOT protected (CRITICAL ISSUE)
       if (unauthedResponse.status === 200) {
-        throw new Error('CRITICAL: /api/strategies is not protected! Got 200 without auth');
+        throw new Error(
+          "CRITICAL: /api/strategies is not protected! Got 200 without auth"
+        );
       }
     } catch (error) {
       const err = error as AxiosError;
       if (err.response?.status !== 401) {
-        throw new Error(`Expected 401 without auth, got ${err.response?.status}`);
+        throw new Error(
+          `Expected 401 without auth, got ${err.response?.status}`
+        );
       }
     }
 
@@ -155,10 +166,10 @@ async function main() {
   });
 
   // Flow 8: Create Strategy
-  await testFlow('Create Strategy', async () => {
+  await testFlow("Create Strategy", async () => {
     const strategy = {
       name: `Test Strategy ${Date.now()}`,
-      type: 'momentum',
+      type: "momentum",
       active: false,
       config: {
         period: 14,
@@ -169,7 +180,7 @@ async function main() {
     const response = await axios.post(`${API_BASE}/api/strategies`, strategy, {
       headers: {
         Cookie: sessionCookie,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -179,19 +190,23 @@ async function main() {
   });
 
   // Flow 9: Get Orders (CRITICAL - Check if protected)
-  await testFlow('Get Orders - Check Auth', async () => {
+  await testFlow("Get Orders - Check Auth", async () => {
     try {
       // Try without auth - should fail
       const unauthedResponse = await axios.get(`${API_BASE}/api/orders`);
 
       // If we got here, endpoint is NOT protected (CRITICAL ISSUE)
       if (unauthedResponse.status === 200) {
-        throw new Error('CRITICAL: /api/orders is not protected! Got 200 without auth');
+        throw new Error(
+          "CRITICAL: /api/orders is not protected! Got 200 without auth"
+        );
       }
     } catch (error) {
       const err = error as AxiosError;
       if (err.response?.status !== 401) {
-        throw new Error(`Expected 401 without auth, got ${err.response?.status}`);
+        throw new Error(
+          `Expected 401 without auth, got ${err.response?.status}`
+        );
       }
     }
 
@@ -206,19 +221,25 @@ async function main() {
   });
 
   // Flow 10: Get Alpaca Account (CRITICAL - Check if protected)
-  await testFlow('Get Alpaca Account - Check Auth', async () => {
+  await testFlow("Get Alpaca Account - Check Auth", async () => {
     try {
       // Try without auth - should fail
-      const unauthedResponse = await axios.get(`${API_BASE}/api/alpaca/account`);
+      const unauthedResponse = await axios.get(
+        `${API_BASE}/api/alpaca/account`
+      );
 
       // If we got here, endpoint is NOT protected (CRITICAL ISSUE)
       if (unauthedResponse.status === 200) {
-        throw new Error('CRITICAL: /api/alpaca/account is not protected! Got 200 without auth');
+        throw new Error(
+          "CRITICAL: /api/alpaca/account is not protected! Got 200 without auth"
+        );
       }
     } catch (error) {
       const err = error as AxiosError;
       if (err.response?.status !== 401) {
-        throw new Error(`Expected 401 without auth, got ${err.response?.status}`);
+        throw new Error(
+          `Expected 401 without auth, got ${err.response?.status}`
+        );
       }
     }
 
@@ -233,7 +254,7 @@ async function main() {
   });
 
   // Flow 11: Market Data (Should be public)
-  await testFlow('Get Market Data (Public)', async () => {
+  await testFlow("Get Market Data (Public)", async () => {
     const response = await axios.get(`${API_BASE}/api/stock/quote/AAPL`);
 
     if (response.status !== 200) {
@@ -242,7 +263,7 @@ async function main() {
   });
 
   // Flow 12: Health Check
-  await testFlow('Database Health Check', async () => {
+  await testFlow("Database Health Check", async () => {
     const response = await axios.get(`${API_BASE}/api/health/db`, {
       headers: { Cookie: sessionCookie },
     });
@@ -253,11 +274,11 @@ async function main() {
   });
 
   // Flow 13: AI Analysis (Check validation)
-  await testFlow('AI Analysis - Input Validation', async () => {
+  await testFlow("AI Analysis - Input Validation", async () => {
     try {
       // Try with invalid input
       await axios.post(`${API_BASE}/api/ai/analyze`, {});
-      throw new Error('Should have failed validation');
+      throw new Error("Should have failed validation");
     } catch (error) {
       const err = error as AxiosError;
       if (![400, 401].includes(err.response?.status || 0)) {
@@ -267,25 +288,29 @@ async function main() {
   });
 
   // Flow 14: Risk Settings (CRITICAL - Should be protected)
-  await testFlow('Risk Settings - Check Auth', async () => {
+  await testFlow("Risk Settings - Check Auth", async () => {
     try {
       // Try without auth - should fail
       const unauthedResponse = await axios.get(`${API_BASE}/api/risk/settings`);
 
       // If we got here, endpoint is NOT protected (CRITICAL ISSUE)
       if (unauthedResponse.status === 200) {
-        throw new Error('CRITICAL: /api/risk/settings is not protected! Got 200 without auth');
+        throw new Error(
+          "CRITICAL: /api/risk/settings is not protected! Got 200 without auth"
+        );
       }
     } catch (error) {
       const err = error as AxiosError;
       if (err.response?.status !== 401) {
-        throw new Error(`Expected 401 without auth, got ${err.response?.status}`);
+        throw new Error(
+          `Expected 401 without auth, got ${err.response?.status}`
+        );
       }
     }
   });
 
   // Flow 15: Autonomous Trading State
-  await testFlow('Autonomous Trading State', async () => {
+  await testFlow("Autonomous Trading State", async () => {
     const response = await axios.get(`${API_BASE}/api/autonomous/state`, {
       headers: { Cookie: sessionCookie },
     });
@@ -296,9 +321,9 @@ async function main() {
   });
 
   // Print Results
-  console.log('\n' + '='.repeat(80));
-  console.log('  TEST RESULTS SUMMARY');
-  console.log('='.repeat(80));
+  console.log("\n" + "=".repeat(80));
+  console.log("  TEST RESULTS SUMMARY");
+  console.log("=".repeat(80));
 
   const passed = results.filter((r) => r.passed).length;
   const failed = results.filter((r) => !r.passed).length;
@@ -306,11 +331,13 @@ async function main() {
   console.log(`\nTotal Tests: ${results.length}`);
   console.log(`Passed: ${passed} ✅`);
   console.log(`Failed: ${failed} ❌`);
-  console.log(`Success Rate: ${((passed / results.length) * 100).toFixed(1)}%\n`);
+  console.log(
+    `Success Rate: ${((passed / results.length) * 100).toFixed(1)}%\n`
+  );
 
   if (failed > 0) {
-    console.log('Failed Tests:');
-    console.log('-'.repeat(80));
+    console.log("Failed Tests:");
+    console.log("-".repeat(80));
     results
       .filter((r) => !r.passed)
       .forEach((r) => {
@@ -322,21 +349,21 @@ async function main() {
       });
   }
 
-  console.log('\n' + '='.repeat(80));
+  console.log("\n" + "=".repeat(80));
 
   // Identify critical security issues
   const criticalIssues = results.filter(
-    (r) => !r.passed && r.error?.includes('CRITICAL')
+    (r) => !r.passed && r.error?.includes("CRITICAL")
   );
 
   if (criticalIssues.length > 0) {
-    console.log('\n🚨 CRITICAL SECURITY ISSUES DETECTED:');
-    console.log('-'.repeat(80));
+    console.log("\n🚨 CRITICAL SECURITY ISSUES DETECTED:");
+    console.log("-".repeat(80));
     criticalIssues.forEach((issue) => {
       console.log(`\n⚠️  ${issue.flow}`);
       console.log(`   ${issue.error}`);
     });
-    console.log('\n' + '='.repeat(80));
+    console.log("\n" + "=".repeat(80));
     process.exit(1);
   }
 
@@ -344,10 +371,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('\n✅ All critical API flows working correctly!\n');
+  console.log("\n✅ All critical API flows working correctly!\n");
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  console.error("Fatal error:", error);
   process.exit(1);
 });

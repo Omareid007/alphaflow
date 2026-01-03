@@ -1,9 +1,25 @@
 import { z } from "zod";
 
 export const TriggerConditionSchema = z.object({
-  type: z.enum(["price", "indicator", "time", "volume", "news_sentiment", "ai_signal"]),
+  type: z.enum([
+    "price",
+    "indicator",
+    "time",
+    "volume",
+    "news_sentiment",
+    "ai_signal",
+  ]),
   field: z.string(),
-  operator: z.enum(["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"]),
+  operator: z.enum([
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "eq",
+    "neq",
+    "crosses_above",
+    "crosses_below",
+  ]),
   value: z.union([z.number(), z.string()]),
   timeframe: z.enum(["1m", "5m", "15m", "1h", "4h", "1d", "1w"]).optional(),
   lookback: z.number().optional(),
@@ -16,12 +32,16 @@ export const TriggerSchema = z.object({
   logic: z.enum(["AND", "OR"]).default("AND"),
   cooldownMinutes: z.number().min(0).default(60),
   maxTriggersPerDay: z.number().min(1).default(10),
-  activeHours: z.object({
-    start: z.string().regex(/^\d{2}:\d{2}$/),
-    end: z.string().regex(/^\d{2}:\d{2}$/),
-    timezone: z.string().default("America/New_York"),
-  }).optional(),
-  enabledDays: z.array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])).default(["Mon", "Tue", "Wed", "Thu", "Fri"]),
+  activeHours: z
+    .object({
+      start: z.string().regex(/^\d{2}:\d{2}$/),
+      end: z.string().regex(/^\d{2}:\d{2}$/),
+      timezone: z.string().default("America/New_York"),
+    })
+    .optional(),
+  enabledDays: z
+    .array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]))
+    .default(["Mon", "Tue", "Wed", "Thu", "Fri"]),
 });
 
 export const GuardSchema = z.object({
@@ -40,7 +60,9 @@ export const GuardSchema = z.object({
     "ai_confidence_threshold",
   ]),
   value: z.union([z.number(), z.string()]),
-  action: z.enum(["block", "warn", "reduce_size", "require_approval"]).default("block"),
+  action: z
+    .enum(["block", "warn", "reduce_size", "require_approval"])
+    .default("block"),
   message: z.string().optional(),
 });
 
@@ -61,8 +83,12 @@ export const ActionSchema = z.object({
     "ai_debate",
   ]),
   symbol: z.string().optional(),
-  symbolSource: z.enum(["static", "universe", "trigger_context"]).default("static"),
-  sizeType: z.enum(["shares", "dollars", "percent_portfolio", "percent_position"]).default("dollars"),
+  symbolSource: z
+    .enum(["static", "universe", "trigger_context"])
+    .default("static"),
+  sizeType: z
+    .enum(["shares", "dollars", "percent_portfolio", "percent_position"])
+    .default("dollars"),
   size: z.number(),
   limitPrice: z.number().optional(),
   offsetPercent: z.number().optional(),
@@ -84,31 +110,45 @@ export const RiskConfigSchema = z.object({
 });
 
 export const UniverseConfigSchema = z.object({
-  source: z.enum(["static", "dynamic", "alpaca_universe"]).default("alpaca_universe"),
+  source: z
+    .enum(["static", "dynamic", "alpaca_universe"])
+    .default("alpaca_universe"),
   staticSymbols: z.array(z.string()).optional(),
-  filters: z.object({
-    minMarketCap: z.number().optional(),
-    maxMarketCap: z.number().optional(),
-    minAvgVolume: z.number().optional(),
-    sectors: z.array(z.string()).optional(),
-    excludeSymbols: z.array(z.string()).optional(),
-    liquidityTier: z.array(z.enum(["high", "medium", "low"])).optional(),
-  }).optional(),
+  filters: z
+    .object({
+      minMarketCap: z.number().optional(),
+      maxMarketCap: z.number().optional(),
+      minAvgVolume: z.number().optional(),
+      sectors: z.array(z.string()).optional(),
+      excludeSymbols: z.array(z.string()).optional(),
+      liquidityTier: z.array(z.enum(["high", "medium", "low"])).optional(),
+    })
+    .optional(),
   maxSymbols: z.number().min(1).default(50),
 });
 
 export const SignalsConfigSchema = z.object({
-  technicalIndicators: z.array(z.object({
-    name: z.string(),
-    params: z.record(z.any()),
-    weight: z.number().min(0).max(1).default(1),
-  })).optional(),
-  sentimentSources: z.array(z.enum(["news", "social", "earnings", "insider"])).optional(),
+  technicalIndicators: z
+    .array(
+      z.object({
+        name: z.string(),
+        params: z.record(z.any()),
+        weight: z.number().min(0).max(1).default(1),
+      })
+    )
+    .optional(),
+  sentimentSources: z
+    .array(z.enum(["news", "social", "earnings", "insider"]))
+    .optional(),
   fundamentalFactors: z.array(z.string()).optional(),
-  customSignals: z.array(z.object({
-    name: z.string(),
-    expression: z.string(),
-  })).optional(),
+  customSignals: z
+    .array(
+      z.object({
+        name: z.string(),
+        expression: z.string(),
+      })
+    )
+    .optional(),
 });
 
 export const LLMPolicySchema = z.object({
@@ -125,28 +165,32 @@ export const StrategySpecSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   type: z.enum(["manual", "semi_auto", "full_auto"]).default("semi_auto"),
-  
+
   triggers: z.array(TriggerSchema).min(1),
   guards: z.array(GuardSchema).default([]),
   actions: z.array(ActionSchema).min(1),
-  
+
   risk: RiskConfigSchema.default({}),
   universe: UniverseConfigSchema.default({}),
   signals: SignalsConfigSchema.default({}),
   llmPolicy: LLMPolicySchema.optional(),
-  
-  schedule: z.object({
-    enabled: z.boolean().default(true),
-    intervalMs: z.number().min(60000).default(300000),
-    marketHoursOnly: z.boolean().default(true),
-  }).default({}),
-  
-  metadata: z.object({
-    tags: z.array(z.string()).optional(),
-    author: z.string().optional(),
-    createdAt: z.string().optional(),
-    lastModified: z.string().optional(),
-  }).optional(),
+
+  schedule: z
+    .object({
+      enabled: z.boolean().default(true),
+      intervalMs: z.number().min(60000).default(300000),
+      marketHoursOnly: z.boolean().default(true),
+    })
+    .default({}),
+
+  metadata: z
+    .object({
+      tags: z.array(z.string()).optional(),
+      author: z.string().optional(),
+      createdAt: z.string().optional(),
+      lastModified: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type TriggerCondition = z.infer<typeof TriggerConditionSchema>;
@@ -159,14 +203,18 @@ export type SignalsConfig = z.infer<typeof SignalsConfigSchema>;
 export type LLMPolicy = z.infer<typeof LLMPolicySchema>;
 export type StrategySpec = z.infer<typeof StrategySpecSchema>;
 
-export function validateStrategySpec(spec: unknown): { valid: boolean; spec?: StrategySpec; errors?: string[] } {
+export function validateStrategySpec(spec: unknown): {
+  valid: boolean;
+  spec?: StrategySpec;
+  errors?: string[];
+} {
   const result = StrategySpecSchema.safeParse(spec);
   if (result.success) {
     return { valid: true, spec: result.data };
   }
-  return { 
-    valid: false, 
-    errors: result.error.errors.map(e => `${e.path.join(".")}: ${e.message}`) 
+  return {
+    valid: false,
+    errors: result.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`),
   };
 }
 
@@ -175,30 +223,36 @@ export function createDefaultStrategySpec(name: string): StrategySpec {
     version: "1.0",
     name,
     type: "semi_auto",
-    triggers: [{
-      id: "default-trigger",
-      name: "Price Alert",
-      conditions: [{
-        type: "price",
-        field: "price",
-        operator: "gt",
-        value: 0,
-      }],
-      logic: "AND",
-      cooldownMinutes: 60,
-      maxTriggersPerDay: 10,
-      enabledDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    }],
+    triggers: [
+      {
+        id: "default-trigger",
+        name: "Price Alert",
+        conditions: [
+          {
+            type: "price",
+            field: "price",
+            operator: "gt",
+            value: 0,
+          },
+        ],
+        logic: "AND",
+        cooldownMinutes: 60,
+        maxTriggersPerDay: 10,
+        enabledDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      },
+    ],
     guards: [],
-    actions: [{
-      id: "default-action",
-      type: "notify",
-      symbolSource: "trigger_context",
-      sizeType: "dollars",
-      size: 1000,
-      timeInForce: "day",
-      requireConfirmation: true,
-    }],
+    actions: [
+      {
+        id: "default-action",
+        type: "notify",
+        symbolSource: "trigger_context",
+        sizeType: "dollars",
+        size: 1000,
+        timeInForce: "day",
+        requireConfirmation: true,
+      },
+    ],
     risk: {
       maxOrdersPerDay: 20,
       maxNotionalPerOrder: 10000,

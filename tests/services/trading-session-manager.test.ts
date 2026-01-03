@@ -15,13 +15,19 @@ describe("TradingSessionManager", () => {
 
     it("should return false for US_EQUITIES on weekends", () => {
       const saturday = new Date("2025-01-18T14:30:00Z"); // Saturday
-      const isOpen = tradingSessionManager.isMarketOpen("US_EQUITIES", saturday);
+      const isOpen = tradingSessionManager.isMarketOpen(
+        "US_EQUITIES",
+        saturday
+      );
       expect(isOpen).toBe(false);
     });
 
     it("should return false for US_EQUITIES on holidays", () => {
       const newYearsDay = new Date("2025-01-01T14:30:00Z"); // New Year's Day
-      const isOpen = tradingSessionManager.isMarketOpen("US_EQUITIES", newYearsDay);
+      const isOpen = tradingSessionManager.isMarketOpen(
+        "US_EQUITIES",
+        newYearsDay
+      );
       expect(isOpen).toBe(false);
     });
   });
@@ -30,7 +36,10 @@ describe("TradingSessionManager", () => {
     it("should return regular session for US_EQUITIES during market hours", () => {
       // Wednesday 10:00 AM ET (15:00 UTC)
       const marketHours = new Date("2025-01-15T15:00:00Z");
-      const session = tradingSessionManager.getCurrentSession("US_EQUITIES", marketHours);
+      const session = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        marketHours
+      );
 
       expect(session.session).toBe("regular");
       expect(session.isOpen).toBe(true);
@@ -40,7 +49,10 @@ describe("TradingSessionManager", () => {
     it("should return pre_market session during pre-market hours", () => {
       // Wednesday 8:00 AM ET (13:00 UTC) - pre-market
       const preMarket = new Date("2025-01-15T13:00:00Z");
-      const session = tradingSessionManager.getCurrentSession("US_EQUITIES", preMarket);
+      const session = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        preMarket
+      );
 
       expect(session.session).toBe("pre_market");
       expect(session.isOpen).toBe(true);
@@ -50,7 +62,10 @@ describe("TradingSessionManager", () => {
     it("should return after_hours session during after-hours", () => {
       // Wednesday 5:00 PM ET (22:00 UTC) - after-hours
       const afterHours = new Date("2025-01-15T22:00:00Z");
-      const session = tradingSessionManager.getCurrentSession("US_EQUITIES", afterHours);
+      const session = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        afterHours
+      );
 
       expect(session.session).toBe("after_hours");
       expect(session.isOpen).toBe(true);
@@ -60,7 +75,10 @@ describe("TradingSessionManager", () => {
     it("should return closed session outside trading hours", () => {
       // Wednesday 2:00 AM ET (07:00 UTC) - before pre-market
       const overnight = new Date("2025-01-15T07:00:00Z");
-      const session = tradingSessionManager.getCurrentSession("US_EQUITIES", overnight);
+      const session = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        overnight
+      );
 
       expect(session.session).toBe("closed");
       expect(session.isOpen).toBe(false);
@@ -70,7 +88,10 @@ describe("TradingSessionManager", () => {
 
     it("should always return regular session for CRYPTO", () => {
       const anytime = new Date("2025-01-15T03:00:00Z");
-      const session = tradingSessionManager.getCurrentSession("CRYPTO", anytime);
+      const session = tradingSessionManager.getCurrentSession(
+        "CRYPTO",
+        anytime
+      );
 
       expect(session.session).toBe("regular");
       expect(session.isOpen).toBe(true);
@@ -84,9 +105,13 @@ describe("TradingSessionManager", () => {
       const mlkDay = new Date("2025-01-20");
       const regularDay = new Date("2025-01-15");
 
-      expect(tradingSessionManager.isHoliday("US_EQUITIES", newYears)).toBe(true);
+      expect(tradingSessionManager.isHoliday("US_EQUITIES", newYears)).toBe(
+        true
+      );
       expect(tradingSessionManager.isHoliday("US_EQUITIES", mlkDay)).toBe(true);
-      expect(tradingSessionManager.isHoliday("US_EQUITIES", regularDay)).toBe(false);
+      expect(tradingSessionManager.isHoliday("US_EQUITIES", regularDay)).toBe(
+        false
+      );
     });
 
     it("should return false for CRYPTO holidays (no holidays)", () => {
@@ -97,31 +122,53 @@ describe("TradingSessionManager", () => {
 
   describe("getSessionVolatilityMultiplier", () => {
     it("should return higher volatility for pre-market", () => {
-      const preMarketVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "pre_market");
-      const regularVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "regular");
+      const preMarketVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "US_EQUITIES",
+        "pre_market"
+      );
+      const regularVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "US_EQUITIES",
+        "regular"
+      );
 
       expect(preMarketVol).toBeGreaterThan(regularVol);
       expect(preMarketVol).toBe(2.0);
     });
 
     it("should return higher volatility for after-hours", () => {
-      const afterHoursVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "after_hours");
-      const regularVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "regular");
+      const afterHoursVol =
+        tradingSessionManager.getSessionVolatilityMultiplier(
+          "US_EQUITIES",
+          "after_hours"
+        );
+      const regularVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "US_EQUITIES",
+        "regular"
+      );
 
       expect(afterHoursVol).toBeGreaterThan(regularVol);
       expect(afterHoursVol).toBe(1.8);
     });
 
     it("should return higher baseline volatility for CRYPTO", () => {
-      const cryptoVol = tradingSessionManager.getSessionVolatilityMultiplier("CRYPTO", "regular");
-      const equityVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "regular");
+      const cryptoVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "CRYPTO",
+        "regular"
+      );
+      const equityVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "US_EQUITIES",
+        "regular"
+      );
 
       expect(cryptoVol).toBeGreaterThan(equityVol);
       expect(cryptoVol).toBe(1.5);
     });
 
     it("should return zero volatility when market is closed", () => {
-      const closedVol = tradingSessionManager.getSessionVolatilityMultiplier("US_EQUITIES", "closed");
+      const closedVol = tradingSessionManager.getSessionVolatilityMultiplier(
+        "US_EQUITIES",
+        "closed"
+      );
       expect(closedVol).toBe(0.0);
     });
   });
@@ -144,7 +191,10 @@ describe("TradingSessionManager", () => {
     it("should calculate next open for closed market", () => {
       // Saturday - market closed
       const saturday = new Date("2025-01-18T14:30:00Z");
-      const nextOpen = tradingSessionManager.getNextMarketOpen("US_EQUITIES", saturday);
+      const nextOpen = tradingSessionManager.getNextMarketOpen(
+        "US_EQUITIES",
+        saturday
+      );
 
       expect(nextOpen).toBeTruthy();
       // Next open should be Tuesday because Monday Jan 20 is MLK Day (holiday)
@@ -171,7 +221,10 @@ describe("TradingSessionManager", () => {
     it("should calculate next close for open market", () => {
       // Wednesday during market hours
       const marketHours = new Date("2025-01-15T15:00:00Z");
-      const nextClose = tradingSessionManager.getNextMarketClose("US_EQUITIES", marketHours);
+      const nextClose = tradingSessionManager.getNextMarketClose(
+        "US_EQUITIES",
+        marketHours
+      );
 
       expect(nextClose).toBeTruthy();
     });
@@ -196,8 +249,14 @@ describe("TradingSessionManager", () => {
     it("should cache session info for performance", () => {
       const now = new Date("2025-01-15T15:00:00Z");
 
-      const session1 = tradingSessionManager.getCurrentSession("US_EQUITIES", now);
-      const session2 = tradingSessionManager.getCurrentSession("US_EQUITIES", now);
+      const session1 = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        now
+      );
+      const session2 = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        now
+      );
 
       // Should be the same reference due to caching
       expect(session1).toEqual(session2);
@@ -210,7 +269,10 @@ describe("TradingSessionManager", () => {
       tradingSessionManager.clearCache();
 
       // After clearing, new session info should be calculated
-      const session = tradingSessionManager.getCurrentSession("US_EQUITIES", now);
+      const session = tradingSessionManager.getCurrentSession(
+        "US_EQUITIES",
+        now
+      );
       expect(session).toBeTruthy();
     });
   });

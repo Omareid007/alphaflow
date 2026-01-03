@@ -17,47 +17,59 @@ router.get("/indicators", requireAuth, async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/indicators/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const indicator = await macroIndicatorsService.getIndicator(req.params.id);
-    if (!indicator) {
-      return notFound(res, "Indicator not found");
+router.get(
+  "/indicators/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const indicator = await macroIndicatorsService.getIndicator(
+        req.params.id
+      );
+      if (!indicator) {
+        return notFound(res, "Indicator not found");
+      }
+      res.json({ success: true, data: indicator });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to get indicator", { error });
+      return serverError(res, "Failed to fetch indicator");
     }
-    res.json({ success: true, data: indicator });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to get indicator", { error });
-    return serverError(res, "Failed to fetch indicator");
   }
-});
+);
 
-router.get("/category/:category", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const category = req.params.category as MacroCategory;
-    const validCategories = [
-      "treasury_yields",
-      "inflation",
-      "employment",
-      "volatility",
-      "interest_rates",
-      "money_supply",
-      "gdp",
-      "consumer",
-      "housing",
-      "manufacturing",
-    ];
+router.get(
+  "/category/:category",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category as MacroCategory;
+      const validCategories = [
+        "treasury_yields",
+        "inflation",
+        "employment",
+        "volatility",
+        "interest_rates",
+        "money_supply",
+        "gdp",
+        "consumer",
+        "housing",
+        "manufacturing",
+      ];
 
-    if (!validCategories.includes(category)) {
-      return badRequest(res, "Invalid category");
+      if (!validCategories.includes(category)) {
+        return badRequest(res, "Invalid category");
+      }
+
+      const indicators =
+        await macroIndicatorsService.getIndicatorsByCategory(category);
+      res.json({ success: true, data: indicators });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to get indicators by category", {
+        error,
+      });
+      return serverError(res, "Failed to fetch indicators");
     }
-
-    const indicators =
-      await macroIndicatorsService.getIndicatorsByCategory(category);
-    res.json({ success: true, data: indicators });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to get indicators by category", { error });
-    return serverError(res, "Failed to fetch indicators");
   }
-});
+);
 
 router.get("/summary", requireAuth, async (_req: Request, res: Response) => {
   try {
@@ -81,17 +93,21 @@ router.post("/refresh", requireAuth, async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/refresh/all", requireAuth, async (_req: Request, res: Response) => {
-  try {
-    const result = await macroIndicatorsService.refreshAllIndicators();
-    res.json({ success: true, data: result });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to refresh all indicators", { error });
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to refresh indicators" });
+router.post(
+  "/refresh/all",
+  requireAuth,
+  async (_req: Request, res: Response) => {
+    try {
+      const result = await macroIndicatorsService.refreshAllIndicators();
+      res.json({ success: true, data: result });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to refresh all indicators", { error });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to refresh indicators" });
+    }
   }
-});
+);
 
 router.get("/regime", requireAuth, async (_req: Request, res: Response) => {
   try {

@@ -1,6 +1,6 @@
 import {
   HeaderSkeleton,
-  FormSkeleton
+  FormSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

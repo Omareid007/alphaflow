@@ -264,85 +264,101 @@ router.post("/:id/resume", requireAuth, async (req: Request, res: Response) => {
  * If closePositions is undefined and strategy has open positions,
  * returns requiresConfirmation: true with position count
  */
-router.post("/:id/lifecycle/stop", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { closePositions } = req.body;
+router.post(
+  "/:id/lifecycle/stop",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { closePositions } = req.body;
 
-    const result = await strategyLifecycleService.stopStrategy(
-      req.params.id,
-      closePositions
-    );
+      const result = await strategyLifecycleService.stopStrategy(
+        req.params.id,
+        closePositions
+      );
 
-    if (!result.success) {
-      // Check if we need user confirmation
-      if (result.requiresConfirmation) {
-        return res.status(200).json({
-          requiresConfirmation: true,
-          positionCount: result.positionCount,
-          message: result.message,
-        });
+      if (!result.success) {
+        // Check if we need user confirmation
+        if (result.requiresConfirmation) {
+          return res.status(200).json({
+            requiresConfirmation: true,
+            positionCount: result.positionCount,
+            message: result.message,
+          });
+        }
+        return badRequest(res, result.error || "Failed to stop strategy");
       }
-      return badRequest(res, result.error || "Failed to stop strategy");
+
+      // Stop the strategy in the trading engine
+      await alpacaTradingEngine.stopStrategy(req.params.id);
+
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to stop strategy (lifecycle)", {
+        error,
+      });
+      return serverError(res, "Failed to stop strategy");
     }
-
-    // Stop the strategy in the trading engine
-    await alpacaTradingEngine.stopStrategy(req.params.id);
-
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to stop strategy (lifecycle)", { error });
-    return serverError(res, "Failed to stop strategy");
   }
-});
+);
 
 /**
  * Start backtesting for a strategy
  * POST /api/strategies/:id/backtest/start
  */
-router.post("/:id/backtest/start", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const result = await strategyLifecycleService.startBacktest(req.params.id);
+router.post(
+  "/:id/backtest/start",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await strategyLifecycleService.startBacktest(
+        req.params.id
+      );
 
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to start backtest");
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to start backtest");
+      }
+
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to start backtest", { error });
+      return serverError(res, "Failed to start backtest");
     }
-
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to start backtest", { error });
-    return serverError(res, "Failed to start backtest");
   }
-});
+);
 
 /**
  * Complete backtesting and record results
  * POST /api/strategies/:id/backtest/complete
  * Body: { backtestId: string, performance?: PerformanceSummary }
  */
-router.post("/:id/backtest/complete", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { backtestId, performance } = req.body;
+router.post(
+  "/:id/backtest/complete",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { backtestId, performance } = req.body;
 
-    if (!backtestId) {
-      return badRequest(res, "backtestId is required");
+      if (!backtestId) {
+        return badRequest(res, "backtestId is required");
+      }
+
+      const result = await strategyLifecycleService.completeBacktest(
+        req.params.id,
+        backtestId,
+        performance
+      );
+
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to complete backtest");
+      }
+
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to complete backtest", { error });
+      return serverError(res, "Failed to complete backtest");
     }
-
-    const result = await strategyLifecycleService.completeBacktest(
-      req.params.id,
-      backtestId,
-      performance
-    );
-
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to complete backtest");
-    }
-
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to complete backtest", { error });
-    return serverError(res, "Failed to complete backtest");
   }
-});
+);
 
 /**
  * Reset a stopped strategy to draft
@@ -367,22 +383,28 @@ router.post("/:id/reset", requireAuth, async (req: Request, res: Response) => {
  * Update performance metrics for a strategy
  * POST /api/strategies/:id/metrics/update
  */
-router.post("/:id/metrics/update", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const result = await strategyLifecycleService.updatePerformanceMetrics(
-      req.params.id
-    );
+router.post(
+  "/:id/metrics/update",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await strategyLifecycleService.updatePerformanceMetrics(
+        req.params.id
+      );
 
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to update metrics");
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to update metrics");
+      }
+
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to update strategy metrics", {
+        error,
+      });
+      return serverError(res, "Failed to update strategy metrics");
     }
-
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to update strategy metrics", { error });
-    return serverError(res, "Failed to update strategy metrics");
   }
-});
+);
 
 /**
  * Get all running strategies
@@ -402,41 +424,58 @@ router.get("/running", requireAuth, async (req: Request, res: Response) => {
 // STRATEGY SCHEMA ROUTES
 // ============================================================================
 
-router.get("/moving-average/schema", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { STRATEGY_SCHEMA } =
-      await import("../strategies/moving-average-crossover");
-    res.json(STRATEGY_SCHEMA);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get MA strategy schema", { error });
-    return serverError(res, "Failed to get strategy schema");
+router.get(
+  "/moving-average/schema",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { STRATEGY_SCHEMA } =
+        await import("../strategies/moving-average-crossover");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get MA strategy schema", { error });
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
+);
 
-router.get("/mean-reversion/schema", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { STRATEGY_SCHEMA } =
-      await import("../strategies/mean-reversion-scalper");
-    res.json(STRATEGY_SCHEMA);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get mean reversion strategy schema", {
-      error,
-    });
-    return serverError(res, "Failed to get strategy schema");
+router.get(
+  "/mean-reversion/schema",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { STRATEGY_SCHEMA } =
+        await import("../strategies/mean-reversion-scalper");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        "Failed to get mean reversion strategy schema",
+        {
+          error,
+        }
+      );
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
+);
 
-router.get("/momentum/schema", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { STRATEGY_SCHEMA } = await import("../strategies/momentum-strategy");
-    res.json(STRATEGY_SCHEMA);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get momentum strategy schema", {
-      error,
-    });
-    return serverError(res, "Failed to get strategy schema");
+router.get(
+  "/momentum/schema",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { STRATEGY_SCHEMA } =
+        await import("../strategies/momentum-strategy");
+      res.json(STRATEGY_SCHEMA);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get momentum strategy schema", {
+        error,
+      });
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
+);
 
 router.get("/all-schemas", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -452,22 +491,26 @@ router.get("/all-schemas", requireAuth, async (req: Request, res: Response) => {
 // STRATEGY BACKTEST ROUTES
 // ============================================================================
 
-router.post("/moving-average/backtest", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } =
-      await import("../strategies/moving-average-crossover");
-    const config = normalizeMovingAverageConfig(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
-    const result = await backtestMovingAverageStrategy(config, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run MA backtest", { error });
-    return serverError(
-      res,
-      (error as Error).message || "Failed to run backtest"
-    );
+router.post(
+  "/moving-average/backtest",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMovingAverageConfig, backtestMovingAverageStrategy } =
+        await import("../strategies/moving-average-crossover");
+      const config = normalizeMovingAverageConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMovingAverageStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run MA backtest", { error });
+      return serverError(
+        res,
+        (error as Error).message || "Failed to run backtest"
+      );
+    }
   }
-});
+);
 
 router.post(
   "/moving-average/ai-validate",
@@ -502,96 +545,114 @@ router.post(
   }
 );
 
-router.post("/mean-reversion/backtest", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } =
-      await import("../strategies/mean-reversion-scalper");
-    const config = normalizeMeanReversionConfig(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
-    const result = await backtestMeanReversionStrategy(config, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run mean reversion backtest", {
-      error,
-    });
-    return serverError(
-      res,
-      (error as Error).message || "Failed to run backtest"
-    );
-  }
-});
-
-router.post("/mean-reversion/signal", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { normalizeMeanReversionConfig, generateMeanReversionSignal } =
-      await import("../strategies/mean-reversion-scalper");
-    const config = normalizeMeanReversionConfig(req.body.config || req.body);
-    const prices = req.body.prices as number[];
-
-    if (
-      !prices ||
-      !Array.isArray(prices) ||
-      prices.length < config.lookbackPeriod
-    ) {
-      return badRequest(
+router.post(
+  "/mean-reversion/backtest",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMeanReversionConfig, backtestMeanReversionStrategy } =
+        await import("../strategies/mean-reversion-scalper");
+      const config = normalizeMeanReversionConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMeanReversionStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run mean reversion backtest", {
+        error,
+      });
+      return serverError(
         res,
-        `Need at least ${config.lookbackPeriod} price points`
+        (error as Error).message || "Failed to run backtest"
       );
     }
-
-    const signal = generateMeanReversionSignal(prices, config);
-    res.json(signal);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to generate mean reversion signal", {
-      error,
-    });
-    return serverError(
-      res,
-      (error as Error).message || "Failed to generate signal"
-    );
   }
-});
+);
 
-router.post("/momentum/backtest", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { normalizeMomentumConfig, backtestMomentumStrategy } =
-      await import("../strategies/momentum-strategy");
-    const config = normalizeMomentumConfig(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
-    const result = await backtestMomentumStrategy(config, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run momentum backtest", { error });
-    return serverError(
-      res,
-      (error as Error).message || "Failed to run backtest"
-    );
-  }
-});
+router.post(
+  "/mean-reversion/signal",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMeanReversionConfig, generateMeanReversionSignal } =
+        await import("../strategies/mean-reversion-scalper");
+      const config = normalizeMeanReversionConfig(req.body.config || req.body);
+      const prices = req.body.prices as number[];
 
-router.post("/momentum/signal", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { normalizeMomentumConfig, generateMomentumSignal } =
-      await import("../strategies/momentum-strategy");
-    const config = normalizeMomentumConfig(req.body.config || req.body);
-    const prices = req.body.prices as number[];
+      if (
+        !prices ||
+        !Array.isArray(prices) ||
+        prices.length < config.lookbackPeriod
+      ) {
+        return badRequest(
+          res,
+          `Need at least ${config.lookbackPeriod} price points`
+        );
+      }
 
-    const requiredLength =
-      Math.max(config.lookbackPeriod, config.rsiPeriod) + 1;
-    if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
-      return badRequest(res, `Need at least ${requiredLength} price points`);
+      const signal = generateMeanReversionSignal(prices, config);
+      res.json(signal);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to generate mean reversion signal", {
+        error,
+      });
+      return serverError(
+        res,
+        (error as Error).message || "Failed to generate signal"
+      );
     }
-
-    const signal = generateMomentumSignal(prices, config);
-    res.json(signal);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to generate momentum signal", { error });
-    return serverError(
-      res,
-      (error as Error).message || "Failed to generate signal"
-    );
   }
-});
+);
+
+router.post(
+  "/momentum/backtest",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMomentumConfig, backtestMomentumStrategy } =
+        await import("../strategies/momentum-strategy");
+      const config = normalizeMomentumConfig(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 365;
+      const result = await backtestMomentumStrategy(config, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run momentum backtest", { error });
+      return serverError(
+        res,
+        (error as Error).message || "Failed to run backtest"
+      );
+    }
+  }
+);
+
+router.post(
+  "/momentum/signal",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { normalizeMomentumConfig, generateMomentumSignal } =
+        await import("../strategies/momentum-strategy");
+      const config = normalizeMomentumConfig(req.body.config || req.body);
+      const prices = req.body.prices as number[];
+
+      const requiredLength =
+        Math.max(config.lookbackPeriod, config.rsiPeriod) + 1;
+      if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
+        return badRequest(res, `Need at least ${requiredLength} price points`);
+      }
+
+      const signal = generateMomentumSignal(prices, config);
+      res.json(signal);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to generate momentum signal", {
+        error,
+      });
+      return serverError(
+        res,
+        (error as Error).message || "Failed to generate signal"
+      );
+    }
+  }
+);
 
 router.post("/backtest", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -787,132 +848,157 @@ router.post("/versions", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/versions/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const version = await storage.getStrategyVersion(req.params.id);
-    if (!version) {
-      return notFound(res, "Strategy version not found");
+router.get(
+  "/versions/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const version = await storage.getStrategyVersion(req.params.id);
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
+      res.json(version);
+    } catch (error) {
+      log.error("StrategiesAPI", `Failed to get strategy version: ${error}`);
+      return serverError(res, "Failed to get strategy version");
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to get strategy version: ${error}`);
-    return serverError(res, "Failed to get strategy version");
   }
-});
+);
 
-router.patch("/versions/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    // SECURITY: Sanitize strategy input to prevent XSS attacks
-    const sanitizedBody = sanitizeStrategyInput(req.body);
+router.patch(
+  "/versions/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      // SECURITY: Sanitize strategy input to prevent XSS attacks
+      const sanitizedBody = sanitizeStrategyInput(req.body);
 
-    const version = await storage.updateStrategyVersion(
-      req.params.id,
-      sanitizedBody
-    );
-    if (!version) {
-      return notFound(res, "Strategy version not found");
+      const version = await storage.updateStrategyVersion(
+        req.params.id,
+        sanitizedBody
+      );
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
+      res.json(version);
+    } catch (error) {
+      log.error("StrategiesAPI", `Failed to update strategy version: ${error}`);
+      return serverError(
+        res,
+        (error as Error).message || "Failed to update strategy version"
+      );
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to update strategy version: ${error}`);
-    return serverError(
-      res,
-      (error as Error).message || "Failed to update strategy version"
-    );
   }
-});
+);
 
-router.post("/versions/:id/activate", requireAuth, async (req: Request, res: Response) => {
-  try {
-    // 1. Get the strategy version to validate
-    const version = await storage.getStrategyVersion(req.params.id);
-    if (!version) {
-      return notFound(res, "Strategy version not found");
-    }
+router.post(
+  "/versions/:id/activate",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      // 1. Get the strategy version to validate
+      const version = await storage.getStrategyVersion(req.params.id);
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
 
-    // 2. BACKTEST VALIDATION GATE: Check if strategy has successful backtest
-    if (version.strategyId) {
-      const { db } = await import("../db");
-      const { backtestRuns } = await import("@shared/schema");
-      const { eq, and, desc } = await import("drizzle-orm");
+      // 2. BACKTEST VALIDATION GATE: Check if strategy has successful backtest
+      if (version.strategyId) {
+        const { db } = await import("../db");
+        const { backtestRuns } = await import("@shared/schema");
+        const { eq, and, desc } = await import("drizzle-orm");
 
-      // Query for successful backtests for this strategy
-      const successfulBacktests = await db
-        .select()
-        .from(backtestRuns)
-        .where(
-          and(
-            eq(backtestRuns.strategyId, version.strategyId),
-            eq(backtestRuns.status, "DONE")
+        // Query for successful backtests for this strategy
+        const successfulBacktests = await db
+          .select()
+          .from(backtestRuns)
+          .where(
+            and(
+              eq(backtestRuns.strategyId, version.strategyId),
+              eq(backtestRuns.status, "DONE")
+            )
           )
-        )
-        .orderBy(desc(backtestRuns.createdAt))
-        .limit(1);
+          .orderBy(desc(backtestRuns.createdAt))
+          .limit(1);
 
-      if (successfulBacktests.length === 0) {
-        log.warn(
+        if (successfulBacktests.length === 0) {
+          log.warn(
+            "StrategiesAPI",
+            `Activation blocked for strategy version ${req.params.id}: No successful backtest found`
+          );
+          return validationError(
+            res,
+            "Strategy must have at least one successful backtest before activation. Please run a backtest and verify results before activating this strategy.",
+            {
+              strategyId: version.strategyId,
+              strategyVersionId: req.params.id,
+            }
+          );
+        }
+
+        log.info(
           "StrategiesAPI",
-          `Activation blocked for strategy version ${req.params.id}: No successful backtest found`
-        );
-        return validationError(
-          res,
-          "Strategy must have at least one successful backtest before activation. Please run a backtest and verify results before activating this strategy.",
+          `Backtest validation passed for strategy version ${req.params.id}`,
           {
             strategyId: version.strategyId,
-            strategyVersionId: req.params.id,
+            backtestId: successfulBacktests[0].id,
+            backtestDate: successfulBacktests[0].createdAt,
           }
         );
       }
 
-      log.info(
-        "StrategiesAPI",
-        `Backtest validation passed for strategy version ${req.params.id}`,
+      // 3. Activate the strategy version
+      const updatedVersion = await storage.updateStrategyVersion(
+        req.params.id,
         {
-          strategyId: version.strategyId,
-          backtestId: successfulBacktests[0].id,
-          backtestDate: successfulBacktests[0].createdAt,
+          status: "active",
+          activatedAt: new Date(),
         }
       );
+
+      if (!updatedVersion) {
+        return notFound(res, "Strategy version not found");
+      }
+
+      res.json(updatedVersion);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to activate strategy version: ${error}`
+      );
+      return serverError(
+        res,
+        (error as Error).message || "Failed to activate strategy version"
+      );
     }
-
-    // 3. Activate the strategy version
-    const updatedVersion = await storage.updateStrategyVersion(req.params.id, {
-      status: "active",
-      activatedAt: new Date(),
-    });
-
-    if (!updatedVersion) {
-      return notFound(res, "Strategy version not found");
-    }
-
-    res.json(updatedVersion);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to activate strategy version: ${error}`);
-    return serverError(
-      res,
-      (error as Error).message || "Failed to activate strategy version"
-    );
   }
-});
+);
 
-router.post("/versions/:id/archive", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const version = await storage.updateStrategyVersion(req.params.id, {
-      status: "archived",
-    });
+router.post(
+  "/versions/:id/archive",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const version = await storage.updateStrategyVersion(req.params.id, {
+        status: "archived",
+      });
 
-    if (!version) {
-      return res.status(404).json({ error: "Strategy version not found" });
+      if (!version) {
+        return res.status(404).json({ error: "Strategy version not found" });
+      }
+
+      res.json(version);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to archive strategy version: ${error}`
+      );
+      res.status(500).json({
+        error: (error as Error).message || "Failed to archive strategy version",
+      });
     }
-
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to archive strategy version: ${error}`);
-    res.status(500).json({
-      error: (error as Error).message || "Failed to archive strategy version",
-    });
   }
-});
+);
 
 router.get(
   "/versions/:strategyId/latest",
@@ -951,167 +1037,176 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id/performance", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const strategyId = req.params.id;
+router.get(
+  "/:id/performance",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const strategyId = req.params.id;
 
-    // 1. Get strategy to verify it exists
-    const strategy = await storage.getStrategy(strategyId);
-    if (!strategy) {
-      return res.status(404).json({ error: "Strategy not found" });
-    }
+      // 1. Get strategy to verify it exists
+      const strategy = await storage.getStrategy(strategyId);
+      if (!strategy) {
+        return res.status(404).json({ error: "Strategy not found" });
+      }
 
-    // 2. Get real-time state from alpacaTradingEngine
-    const { alpacaTradingEngine } =
-      await import("../trading/alpaca-trading-engine");
-    const strategyState = alpacaTradingEngine.getStrategyState(strategyId);
+      // 2. Get real-time state from alpacaTradingEngine
+      const { alpacaTradingEngine } =
+        await import("../trading/alpaca-trading-engine");
+      const strategyState = alpacaTradingEngine.getStrategyState(strategyId);
 
-    // 3. Get all trades for this strategy from database
-    const { db } = await import("../db");
-    const { trades } = await import("@shared/schema");
-    const { eq, and, isNotNull, sql } = await import("drizzle-orm");
+      // 3. Get all trades for this strategy from database
+      const { db } = await import("../db");
+      const { trades } = await import("@shared/schema");
+      const { eq, and, isNotNull, sql } = await import("drizzle-orm");
 
-    const allTrades = await db
-      .select()
-      .from(trades)
-      .where(eq(trades.strategyId, strategyId))
-      .orderBy(sql`${trades.executedAt} DESC`)
-      .limit(1000);
+      const allTrades = await db
+        .select()
+        .from(trades)
+        .where(eq(trades.strategyId, strategyId))
+        .orderBy(sql`${trades.executedAt} DESC`)
+        .limit(1000);
 
-    // 4. Calculate metrics from trades
-    const totalTrades = allTrades.length;
+      // 4. Calculate metrics from trades
+      const totalTrades = allTrades.length;
 
-    // Separate opening and closing trades
-    const closingTrades = allTrades.filter(
-      (t) => t.pnl !== null && t.pnl !== "0"
-    );
-    const winningTrades = closingTrades.filter(
-      (t) => parseFloat(t.pnl || "0") > 0
-    );
-    const losingTrades = closingTrades.filter(
-      (t) => parseFloat(t.pnl || "0") < 0
-    );
+      // Separate opening and closing trades
+      const closingTrades = allTrades.filter(
+        (t) => t.pnl !== null && t.pnl !== "0"
+      );
+      const winningTrades = closingTrades.filter(
+        (t) => parseFloat(t.pnl || "0") > 0
+      );
+      const losingTrades = closingTrades.filter(
+        (t) => parseFloat(t.pnl || "0") < 0
+      );
 
-    const winRate =
-      closingTrades.length > 0
-        ? (winningTrades.length / closingTrades.length) * 100
-        : 0;
+      const winRate =
+        closingTrades.length > 0
+          ? (winningTrades.length / closingTrades.length) * 100
+          : 0;
 
-    // Calculate total P&L from all closing trades
-    const totalPnl = closingTrades.reduce((sum, t) => {
-      return sum + parseFloat(t.pnl || "0");
-    }, 0);
+      // Calculate total P&L from all closing trades
+      const totalPnl = closingTrades.reduce((sum, t) => {
+        return sum + parseFloat(t.pnl || "0");
+      }, 0);
 
-    // Calculate average win and loss
-    const avgWin =
-      winningTrades.length > 0
-        ? winningTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) /
-          winningTrades.length
-        : 0;
+      // Calculate average win and loss
+      const avgWin =
+        winningTrades.length > 0
+          ? winningTrades.reduce(
+              (sum, t) => sum + parseFloat(t.pnl || "0"),
+              0
+            ) / winningTrades.length
+          : 0;
 
-    const avgLoss =
-      losingTrades.length > 0
-        ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) /
-          losingTrades.length
-        : 0;
+      const avgLoss =
+        losingTrades.length > 0
+          ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) /
+            losingTrades.length
+          : 0;
 
-    // 5. Get current positions for this strategy
-    const { positions } = await import("@shared/schema");
-    const currentPositions = await db
-      .select()
-      .from(positions)
-      .where(eq(positions.strategyId, strategyId));
+      // 5. Get current positions for this strategy
+      const { positions } = await import("@shared/schema");
+      const currentPositions = await db
+        .select()
+        .from(positions)
+        .where(eq(positions.strategyId, strategyId));
 
-    // Calculate unrealized P&L from positions
-    const unrealizedPnl = currentPositions.reduce((sum, p) => {
-      return sum + parseFloat(p.unrealizedPnl || "0");
-    }, 0);
+      // Calculate unrealized P&L from positions
+      const unrealizedPnl = currentPositions.reduce((sum, p) => {
+        return sum + parseFloat(p.unrealizedPnl || "0");
+      }, 0);
 
-    // 6. Build performance response
-    const performance = {
-      strategyId,
-      strategyName: strategy.name,
-      status: strategyState?.isRunning ? "running" : "stopped",
-      lastCheck: strategyState?.lastCheck || null,
-      lastError: strategyState?.error || null,
+      // 6. Build performance response
+      const performance = {
+        strategyId,
+        strategyName: strategy.name,
+        status: strategyState?.isRunning ? "running" : "stopped",
+        lastCheck: strategyState?.lastCheck || null,
+        lastError: strategyState?.error || null,
 
-      // Real-time metrics
-      metrics: {
-        totalTrades,
-        closingTrades: closingTrades.length,
-        openingTrades: totalTrades - closingTrades.length,
+        // Real-time metrics
+        metrics: {
+          totalTrades,
+          closingTrades: closingTrades.length,
+          openingTrades: totalTrades - closingTrades.length,
 
-        // P&L metrics
-        realizedPnl: totalPnl,
-        unrealizedPnl,
-        totalPnl: totalPnl + unrealizedPnl,
+          // P&L metrics
+          realizedPnl: totalPnl,
+          unrealizedPnl,
+          totalPnl: totalPnl + unrealizedPnl,
 
-        // Win/Loss metrics
-        winningTrades: winningTrades.length,
-        losingTrades: losingTrades.length,
-        winRate: parseFloat(winRate.toFixed(2)),
+          // Win/Loss metrics
+          winningTrades: winningTrades.length,
+          losingTrades: losingTrades.length,
+          winRate: parseFloat(winRate.toFixed(2)),
 
-        // Average trade metrics
-        avgWin: parseFloat(avgWin.toFixed(2)),
-        avgLoss: parseFloat(avgLoss.toFixed(2)),
-        avgTrade:
-          closingTrades.length > 0
-            ? parseFloat((totalPnl / closingTrades.length).toFixed(2))
-            : 0,
-
-        // Profit factor (avg win / abs(avg loss))
-        profitFactor:
-          avgLoss !== 0
-            ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2))
-            : avgWin > 0
-              ? Infinity
+          // Average trade metrics
+          avgWin: parseFloat(avgWin.toFixed(2)),
+          avgLoss: parseFloat(avgLoss.toFixed(2)),
+          avgTrade:
+            closingTrades.length > 0
+              ? parseFloat((totalPnl / closingTrades.length).toFixed(2))
               : 0,
-      },
 
-      // Current positions
-      positions: currentPositions.map((p) => ({
-        id: p.id,
-        symbol: p.symbol,
-        side: p.side,
-        quantity: parseFloat(p.quantity),
-        entryPrice: parseFloat(p.entryPrice),
-        currentPrice: parseFloat(p.currentPrice || p.entryPrice),
-        unrealizedPnl: parseFloat(p.unrealizedPnl || "0"),
-        openedAt: p.openedAt,
-      })),
+          // Profit factor (avg win / abs(avg loss))
+          profitFactor:
+            avgLoss !== 0
+              ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2))
+              : avgWin > 0
+                ? Infinity
+                : 0,
+        },
 
-      // Recent trades (last 10)
-      recentTrades: allTrades.slice(0, 10).map((t) => ({
-        id: t.id,
-        symbol: t.symbol,
-        side: t.side,
-        quantity: parseFloat(t.quantity),
-        price: parseFloat(t.price),
-        pnl: t.pnl ? parseFloat(t.pnl) : null,
-        status: t.status,
-        executedAt: t.executedAt,
-        notes: t.notes,
-      })),
+        // Current positions
+        positions: currentPositions.map((p) => ({
+          id: p.id,
+          symbol: p.symbol,
+          side: p.side,
+          quantity: parseFloat(p.quantity),
+          entryPrice: parseFloat(p.entryPrice),
+          currentPrice: parseFloat(p.currentPrice || p.entryPrice),
+          unrealizedPnl: parseFloat(p.unrealizedPnl || "0"),
+          openedAt: p.openedAt,
+        })),
 
-      // Last decision info (if available)
-      lastDecision: strategyState?.lastDecision
-        ? {
-            action: strategyState.lastDecision.action,
-            confidence: strategyState.lastDecision.confidence,
-            reasoning: strategyState.lastDecision.reasoning,
-            riskLevel: strategyState.lastDecision.riskLevel,
-          }
-        : null,
-    };
+        // Recent trades (last 10)
+        recentTrades: allTrades.slice(0, 10).map((t) => ({
+          id: t.id,
+          symbol: t.symbol,
+          side: t.side,
+          quantity: parseFloat(t.quantity),
+          price: parseFloat(t.price),
+          pnl: t.pnl ? parseFloat(t.pnl) : null,
+          status: t.status,
+          executedAt: t.executedAt,
+          notes: t.notes,
+        })),
 
-    res.json(performance);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to get strategy performance: ${error}`);
-    res.status(500).json({
-      error: (error as Error).message || "Failed to get strategy performance",
-    });
+        // Last decision info (if available)
+        lastDecision: strategyState?.lastDecision
+          ? {
+              action: strategyState.lastDecision.action,
+              confidence: strategyState.lastDecision.confidence,
+              reasoning: strategyState.lastDecision.reasoning,
+              riskLevel: strategyState.lastDecision.riskLevel,
+            }
+          : null,
+      };
+
+      res.json(performance);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to get strategy performance: ${error}`
+      );
+      res.status(500).json({
+        error: (error as Error).message || "Failed to get strategy performance",
+      });
+    }
   }
-});
+);
 
 // ============================================================================
 // STRATEGY ORDER EXECUTION ROUTES
@@ -1147,7 +1242,10 @@ router.post("/:id/orders", requireAuth, async (req: Request, res: Response) => {
     // Validate request body
     const parsed = strategyOrderRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      return validationError(res, parsed.error.errors.map(e => e.message).join(", "));
+      return validationError(
+        res,
+        parsed.error.errors.map((e) => e.message).join(", ")
+      );
     }
 
     const { symbol, side, decision, overrideQty, overrideNotional } =
@@ -1233,86 +1331,99 @@ router.get("/:id/orders", requireAuth, async (req: Request, res: Response) => {
  * POST /api/strategies/:id/close-position
  * Close a position using strategy order settings
  */
-router.post("/:id/close-position", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const strategyId = req.params.id;
-    const { symbol, quantity } = req.body;
+router.post(
+  "/:id/close-position",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const strategyId = req.params.id;
+      const { symbol, quantity } = req.body;
 
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
-    }
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
 
-    const result = await strategyOrderService.closePosition(
-      strategyId,
-      symbol,
-      quantity,
-      req.headers["x-trace-id"] as string
-    );
+      const result = await strategyOrderService.closePosition(
+        strategyId,
+        symbol,
+        quantity,
+        req.headers["x-trace-id"] as string
+      );
 
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        error: result.error,
-        context: result.context,
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+          context: result.context,
+        });
+      }
+
+      log.info("StrategiesAPI", "Position closed via strategy", {
+        strategyId,
+        symbol,
+        orderId: result.orderId,
       });
+
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to close position", { error });
+      return serverError(res, "Failed to close position");
     }
-
-    log.info("StrategiesAPI", "Position closed via strategy", {
-      strategyId,
-      symbol,
-      orderId: result.orderId,
-    });
-
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to close position", { error });
-    return serverError(res, "Failed to close position");
   }
-});
+);
 
 /**
  * GET /api/strategies/:id/execution-context
  * Get the parsed execution context for a strategy
  */
-router.get("/:id/execution-context", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const strategyId = req.params.id;
+router.get(
+  "/:id/execution-context",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const strategyId = req.params.id;
 
-    const context = await strategyOrderService.getExecutionContext(strategyId);
-    if (!context) {
-      return notFound(res, "Strategy not found");
+      const context =
+        await strategyOrderService.getExecutionContext(strategyId);
+      if (!context) {
+        return notFound(res, "Strategy not found");
+      }
+
+      res.json(context);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get execution context", { error });
+      return serverError(res, "Failed to get execution context");
     }
-
-    res.json(context);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get execution context", { error });
-    return serverError(res, "Failed to get execution context");
   }
-});
+);
 
 /**
  * POST /api/strategies/:id/preview-position-size
  * Preview position size calculation for a symbol
  */
-router.post("/:id/preview-position-size", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const strategyId = req.params.id;
-    const { symbol } = req.body;
+router.post(
+  "/:id/preview-position-size",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const strategyId = req.params.id;
+      const { symbol } = req.body;
 
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+
+      const result = await strategyOrderService.previewPositionSize(
+        strategyId,
+        symbol
+      );
+
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to preview position size", { error });
+      return serverError(res, "Failed to preview position size");
     }
-
-    const result = await strategyOrderService.previewPositionSize(
-      strategyId,
-      symbol
-    );
-
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to preview position size", { error });
-    return serverError(res, "Failed to preview position size");
   }
-});
+);
 
 export default router;

@@ -21,8 +21,8 @@ describe("SmartOrderRouter", () => {
   beforeEach(() => {
     router = new SmartOrderRouter();
     mockPrice = {
-      bid: 100.00,
-      ask: 100.10,
+      bid: 100.0,
+      ask: 100.1,
       last: 100.05,
       spread: 0.001, // 0.1% spread
     };
@@ -44,7 +44,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "day",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("market");
       expect(result.timeInForce).toBe("day");
@@ -61,7 +65,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc", // INVALID for market orders
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("market");
       expect(result.timeInForce).toBe("day");
@@ -80,7 +88,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.timeInForce).toBe("gtc");
@@ -101,7 +113,11 @@ describe("SmartOrderRouter", () => {
         stopLossStopPrice: "95.00",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.timeInForce).toBe("day");
       expect(result.transformations).toContain(
@@ -125,7 +141,11 @@ describe("SmartOrderRouter", () => {
         type: "market", // NOT ALLOWED in extended hours
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.timeInForce).toBe("day");
@@ -144,7 +164,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.limitPrice).toBeDefined();
@@ -153,9 +177,11 @@ describe("SmartOrderRouter", () => {
       const expectedPrice = mockPrice.ask * 1.005; // 0.5% buffer for extended hours
 
       expect(limitPrice).toBeCloseTo(expectedPrice, 2);
-      expect(result.transformations.some(t =>
-        t.includes("Auto-calculated buy limit")
-      )).toBe(true);
+      expect(
+        result.transformations.some((t) =>
+          t.includes("Auto-calculated buy limit")
+        )
+      ).toBe(true);
     });
 
     it("should auto-calculate sell limit price with buffer in pre-market", () => {
@@ -166,7 +192,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.limitPrice).toBeDefined();
@@ -187,7 +217,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc", // Should be forced to 'day'
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.timeInForce).toBe("day");
       expect(result.extendedHours).toBe(true);
@@ -205,7 +239,11 @@ describe("SmartOrderRouter", () => {
         stopPrice: "95.00",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("stop_limit");
       expect(result.transformations).toContain(
@@ -222,7 +260,11 @@ describe("SmartOrderRouter", () => {
         trailPercent: "2",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.transformations).toContain(
@@ -239,7 +281,11 @@ describe("SmartOrderRouter", () => {
         limitPrice: "100.00",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.warnings).toContain(
         "Fractional shares not allowed in extended hours - order may be rejected"
@@ -262,7 +308,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.timeInForce).toBe("day");
@@ -282,7 +332,11 @@ describe("SmartOrderRouter", () => {
         // extendedHours NOT specified
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.extendedHours).toBe(true);
       expect(result.transformations).toContain(
@@ -302,7 +356,11 @@ describe("SmartOrderRouter", () => {
         stopLossStopPrice: "95.00",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.warnings).toContain(
         "Bracket orders only recommended during regular hours"
@@ -325,7 +383,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.type).toBe("limit");
       expect(result.transformations).toContain(
@@ -343,7 +405,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "ioc", // Won't work when closed
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
       expect(result.timeInForce).toBe("day");
       expect(result.transformations).toContain(
@@ -365,7 +431,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "regular");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "regular"
+      );
 
       expect(result.isCrypto).toBe(true);
       expect(result.extendedHours).toBe(false);
@@ -381,7 +451,11 @@ describe("SmartOrderRouter", () => {
       };
 
       // Even during "closed" hours for equities
-      const result = router.transformOrderForExecution(order, mockPrice, "closed");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "closed"
+      );
 
       expect(result.type).toBe("market");
       expect(result.isCrypto).toBe(true);
@@ -397,7 +471,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc", // NOT ALLOWED for market orders
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "regular");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "regular"
+      );
 
       // Market orders can't use GTC for any asset type, so should be changed to 'day'
       expect(result.timeInForce).toBe("day");
@@ -416,7 +494,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "regular");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "regular"
+      );
 
       expect(result.type).toBe("limit");
       expect(result.timeInForce).toBe("gtc");
@@ -440,11 +522,17 @@ describe("SmartOrderRouter", () => {
         limitPrice: "110.00", // 10% above market
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
-      expect(result.warnings.some(w =>
-        w.includes("above market") && w.includes("worse price")
-      )).toBe(true);
+      expect(
+        result.warnings.some(
+          (w) => w.includes("above market") && w.includes("worse price")
+        )
+      ).toBe(true);
     });
 
     it("should warn on sell limit far below market", () => {
@@ -456,18 +544,24 @@ describe("SmartOrderRouter", () => {
         limitPrice: "90.00", // 10% below market
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        session
+      );
 
-      expect(result.warnings.some(w =>
-        w.includes("below market") && w.includes("worse price")
-      )).toBe(true);
+      expect(
+        result.warnings.some(
+          (w) => w.includes("below market") && w.includes("worse price")
+        )
+      ).toBe(true);
     });
 
     it("should warn on wide spread", () => {
       const wideSpreadPrice: CurrentPriceData = {
-        bid: 100.00,
-        ask: 103.00, // 3% spread
-        last: 101.50,
+        bid: 100.0,
+        ask: 103.0, // 3% spread
+        last: 101.5,
         spread: 0.03,
       };
 
@@ -479,11 +573,15 @@ describe("SmartOrderRouter", () => {
         limitPrice: "102.00", // Need limit order for price validation
       };
 
-      const result = router.transformOrderForExecution(order, wideSpreadPrice, session);
+      const result = router.transformOrderForExecution(
+        order,
+        wideSpreadPrice,
+        session
+      );
 
-      expect(result.warnings.some(w =>
-        w.includes("Wide spread detected")
-      )).toBe(true);
+      expect(
+        result.warnings.some((w) => w.includes("Wide spread detected"))
+      ).toBe(true);
     });
   });
 
@@ -556,29 +654,29 @@ describe("SmartOrderRouter", () => {
   describe("Helper Functions", () => {
     it("should create price data from quote", () => {
       const quote = {
-        bid: 100.00,
-        ask: 100.10,
+        bid: 100.0,
+        ask: 100.1,
         last: 100.05,
       };
 
       const priceData = createPriceData(quote);
 
-      expect(priceData.bid).toBe(100.00);
-      expect(priceData.ask).toBe(100.10);
+      expect(priceData.bid).toBe(100.0);
+      expect(priceData.ask).toBe(100.1);
       expect(priceData.last).toBe(100.05);
       expect(priceData.spread).toBeCloseTo(0.001, 4);
     });
 
     it("should handle missing bid/ask in quote", () => {
       const quote = {
-        last: 100.00,
+        last: 100.0,
       };
 
       const priceData = createPriceData(quote);
 
-      expect(priceData.bid).toBe(100.00);
-      expect(priceData.ask).toBe(100.00);
-      expect(priceData.last).toBe(100.00);
+      expect(priceData.bid).toBe(100.0);
+      expect(priceData.ask).toBe(100.0);
+      expect(priceData.last).toBe(100.0);
     });
   });
 
@@ -595,7 +693,11 @@ describe("SmartOrderRouter", () => {
         type: "market",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "pre_market");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "pre_market"
+      );
 
       expect(result.type).toBe("limit");
       expect(result.timeInForce).toBe("day");
@@ -617,7 +719,11 @@ describe("SmartOrderRouter", () => {
         timeInForce: "gtc",
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "after_hours");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "after_hours"
+      );
 
       expect(result.type).toBe("stop_limit");
       expect(result.timeInForce).toBe("day"); // Forced
@@ -635,12 +741,16 @@ describe("SmartOrderRouter", () => {
         limitPrice: "99.00", // User-specified
       };
 
-      const result = router.transformOrderForExecution(order, mockPrice, "pre_market");
+      const result = router.transformOrderForExecution(
+        order,
+        mockPrice,
+        "pre_market"
+      );
 
       expect(result.limitPrice).toBe("99.00");
-      expect(result.transformations.some(t =>
-        t.includes("Auto-calculated")
-      )).toBe(false);
+      expect(
+        result.transformations.some((t) => t.includes("Auto-calculated"))
+      ).toBe(false);
     });
   });
 });

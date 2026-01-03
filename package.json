@@ -6,8 +6,8 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "next dev -p 3000 -H 0.0.0.0",
     "dev:server": "NODE_ENV=development tsx watch --tsconfig tsconfig.json server/index.ts",
-    "build": "next build && npm run build:server",
-    "build:client": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build && npm run build:server",
+    "build:client": "NODE_OPTIONS='--max-old-space-size=4096' next build",
     "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=server_dist",
     "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:client": "next start -p 3000 -H 0.0.0.0",
@@ -107,6 +107,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.1",
+    "@tanstack/react-query-devtools": "^5.91.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",

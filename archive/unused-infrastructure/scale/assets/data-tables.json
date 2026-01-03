@@ -132,15 +132,47 @@
       "displayName": "Momentum Strategy",
       "description": "Trend-following strategy based on price momentum and RSI",
       "parameters": {
-        "lookbackPeriod": { "min": 5, "max": 30, "default": 14, "unit": "days" },
-        "momentumThreshold": { "min": 0.005, "max": 0.10, "default": 0.02, "unit": "percent" },
+        "lookbackPeriod": {
+          "min": 5,
+          "max": 30,
+          "default": 14,
+          "unit": "days"
+        },
+        "momentumThreshold": {
+          "min": 0.005,
+          "max": 0.1,
+          "default": 0.02,
+          "unit": "percent"
+        },
         "rsiPeriod": { "min": 5, "max": 21, "default": 14, "unit": "days" },
-        "rsiOverbought": { "min": 60, "max": 85, "default": 70, "unit": "level" },
+        "rsiOverbought": {
+          "min": 60,
+          "max": 85,
+          "default": 70,
+          "unit": "level"
+        },
         "rsiOversold": { "min": 15, "max": 40, "default": 30, "unit": "level" },
-        "allocationPct": { "min": 0.02, "max": 0.20, "default": 0.08, "unit": "percent" },
-        "riskLimitPct": { "min": 0.02, "max": 0.15, "default": 0.05, "unit": "percent" }
+        "allocationPct": {
+          "min": 0.02,
+          "max": 0.2,
+          "default": 0.08,
+          "unit": "percent"
+        },
+        "riskLimitPct": {
+          "min": 0.02,
+          "max": 0.15,
+          "default": 0.05,
+          "unit": "percent"
+        }
       },
-      "presets": ["conservative", "moderate", "aggressive", "scalper", "swing", "daytrader"]
+      "presets": [
+        "conservative",
+        "moderate",
+        "aggressive",
+        "scalper",
+        "swing",
+        "daytrader"
+      ]
     },
     "maCrossover": {
       "displayName": "MA Crossover Strategy",
@@ -148,22 +180,71 @@
       "parameters": {
         "fastPeriod": { "min": 3, "max": 20, "default": 7, "unit": "days" },
         "slowPeriod": { "min": 10, "max": 60, "default": 20, "unit": "days" },
-        "allocationPct": { "min": 0.01, "max": 0.25, "default": 0.10, "unit": "percent" },
-        "riskLimitPct": { "min": 0.02, "max": 0.30, "default": 0.10, "unit": "percent" }
+        "allocationPct": {
+          "min": 0.01,
+          "max": 0.25,
+          "default": 0.1,
+          "unit": "percent"
+        },
+        "riskLimitPct": {
+          "min": 0.02,
+          "max": 0.3,
+          "default": 0.1,
+          "unit": "percent"
+        }
       },
-      "presets": ["conservative", "moderate", "aggressive", "scalper", "swing", "daytrader"]
+      "presets": [
+        "conservative",
+        "moderate",
+        "aggressive",
+        "scalper",
+        "swing",
+        "daytrader"
+      ]
     },
     "meanReversion": {
       "displayName": "Mean Reversion Scalper",
       "description": "Statistical mean reversion using Bollinger Bands and standard deviation",
       "parameters": {
-        "lookbackPeriod": { "min": 5, "max": 50, "default": 14, "unit": "days" },
-        "deviationThreshold": { "min": 1.0, "max": 4.0, "default": 2.0, "unit": "sigma" },
-        "allocationPct": { "min": 0.01, "max": 0.15, "default": 0.05, "unit": "percent" },
-        "riskLimitPct": { "min": 0.01, "max": 0.10, "default": 0.03, "unit": "percent" },
-        "maxHoldingPeriod": { "min": 1, "max": 10, "default": 3, "unit": "days" }
+        "lookbackPeriod": {
+          "min": 5,
+          "max": 50,
+          "default": 14,
+          "unit": "days"
+        },
+        "deviationThreshold": {
+          "min": 1.0,
+          "max": 4.0,
+          "default": 2.0,
+          "unit": "sigma"
+        },
+        "allocationPct": {
+          "min": 0.01,
+          "max": 0.15,
+          "default": 0.05,
+          "unit": "percent"
+        },
+        "riskLimitPct": {
+          "min": 0.01,
+          "max": 0.1,
+          "default": 0.03,
+          "unit": "percent"
+        },
+        "maxHoldingPeriod": {
+          "min": 1,
+          "max": 10,
+          "default": 3,
+          "unit": "days"
+        }
       },
-      "presets": ["conservative", "moderate", "aggressive", "scalper", "swing", "daytrader"]
+      "presets": [
+        "conservative",
+        "moderate",
+        "aggressive",
+        "scalper",
+        "swing",
+        "daytrader"
+      ]
     }
   },
 
@@ -185,25 +266,88 @@
   },
 
   "apiRateLimits": [
-    { "provider": "Alpaca", "limit": 180, "unit": "per_minute", "cacheTTL": 30 },
-    { "provider": "Finnhub", "limit": 50, "unit": "per_minute", "cacheTTL": 60 },
-    { "provider": "TwelveData", "limit": 6, "unit": "per_minute", "dailyLimit": 700, "cacheTTL": 300 },
-    { "provider": "CoinGecko", "limit": 10, "unit": "per_minute", "dailyLimit": 500, "cacheTTL": 60 },
-    { "provider": "NewsAPI", "limit": 100, "unit": "per_day", "cacheTTL": 3600 },
+    {
+      "provider": "Alpaca",
+      "limit": 180,
+      "unit": "per_minute",
+      "cacheTTL": 30
+    },
+    {
+      "provider": "Finnhub",
+      "limit": 50,
+      "unit": "per_minute",
+      "cacheTTL": 60
+    },
+    {
+      "provider": "TwelveData",
+      "limit": 6,
+      "unit": "per_minute",
+      "dailyLimit": 700,
+      "cacheTTL": 300
+    },
+    {
+      "provider": "CoinGecko",
+      "limit": 10,
+      "unit": "per_minute",
+      "dailyLimit": 500,
+      "cacheTTL": 60
+    },
+    {
+      "provider": "NewsAPI",
+      "limit": 100,
+      "unit": "per_day",
+      "cacheTTL": 3600
+    },
     { "provider": "GDELT", "limit": 60, "unit": "per_minute", "cacheTTL": 900 },
-    { "provider": "Alpha Vantage", "limit": 5, "unit": "per_minute", "dailyLimit": 500, "cacheTTL": 300 }
+    {
+      "provider": "Alpha Vantage",
+      "limit": 5,
+      "unit": "per_minute",
+      "dailyLimit": 500,
+      "cacheTTL": 300
+    }
   ],
 
   "supportedSymbols": {
     "stocks": [
-      "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "UNH",
-      "JNJ", "WMT", "PG", "MA", "HD", "CVX", "ABBV", "MRK", "KO", "PEP",
-      "COST", "TMO", "AVGO", "ORCL", "ACN", "MCD", "CSCO", "ABT", "AMD", "INTC",
-      "IBM", "CRM", "NFLX", "ADBE", "PYPL", "DIS"
+      "AAPL",
+      "MSFT",
+      "GOOGL",
+      "AMZN",
+      "NVDA",
+      "META",
+      "TSLA",
+      "JPM",
+      "V",
+      "UNH",
+      "JNJ",
+      "WMT",
+      "PG",
+      "MA",
+      "HD",
+      "CVX",
+      "ABBV",
+      "MRK",
+      "KO",
+      "PEP",
+      "COST",
+      "TMO",
+      "AVGO",
+      "ORCL",
+      "ACN",
+      "MCD",
+      "CSCO",
+      "ABT",
+      "AMD",
+      "INTC",
+      "IBM",
+      "CRM",
+      "NFLX",
+      "ADBE",
+      "PYPL",
+      "DIS"
     ],
-    "crypto": [
-      "BTC/USD", "ETH/USD", "SOL/USD"
-    ],
+    "crypto": ["BTC/USD", "ETH/USD", "SOL/USD"],
     "total": 39
   },
 
@@ -253,16 +397,43 @@
   ],
 
   "databaseTables": [
-    "users", "strategies", "trades", "positions", "orders", "fills",
-    "ai_decisions", "agent_status", "ai_decision_features", "ai_trade_outcomes",
-    "ai_calibration_log", "llm_calls", "ai_agent_profiles", "ai_arena_runs",
-    "ai_arena_agent_decisions", "ai_outcome_links", "work_items", "work_item_runs",
-    "universe_assets", "universe_liquidity_metrics", "universe_fundamentals",
-    "universe_technicals", "macro_indicators", "asset_classifications",
-    "external_api_cache_entries", "external_api_usage_counters", "admin_settings",
-    "connector_metrics", "strategy_versions", "backtestRuns", "backtestTradeEvents",
-    "backtestEquityCurve", "debate_sessions", "debate_messages", "debate_consensus",
-    "competition_runs", "competition_scores"
+    "users",
+    "strategies",
+    "trades",
+    "positions",
+    "orders",
+    "fills",
+    "ai_decisions",
+    "agent_status",
+    "ai_decision_features",
+    "ai_trade_outcomes",
+    "ai_calibration_log",
+    "llm_calls",
+    "ai_agent_profiles",
+    "ai_arena_runs",
+    "ai_arena_agent_decisions",
+    "ai_outcome_links",
+    "work_items",
+    "work_item_runs",
+    "universe_assets",
+    "universe_liquidity_metrics",
+    "universe_fundamentals",
+    "universe_technicals",
+    "macro_indicators",
+    "asset_classifications",
+    "external_api_cache_entries",
+    "external_api_usage_counters",
+    "admin_settings",
+    "connector_metrics",
+    "strategy_versions",
+    "backtestRuns",
+    "backtestTradeEvents",
+    "backtestEquityCurve",
+    "debate_sessions",
+    "debate_messages",
+    "debate_consensus",
+    "competition_runs",
+    "competition_scores"
   ],
 
   "slaTargets": {
@@ -321,14 +492,44 @@
 
   "llmDailyCostBreakdown": {
     "roles": [
-      { "role": "news_summarizer", "model": "Groq Llama 3.1-8b", "costPer1k": 0.00005, "callsPerDay": 100, "dailyCost": 0.0025 },
-      { "role": "technical_analyst", "model": "DeepSeek R1", "costPer1k": 0.00055, "callsPerDay": 50, "dailyCost": 0.055 },
-      { "role": "risk_manager", "model": "GPT-4o-mini", "costPer1k": 0.00015, "callsPerDay": 30, "dailyCost": 0.0068 },
-      { "role": "execution_planner", "model": "GPT-4o-mini", "costPer1k": 0.00015, "callsPerDay": 50, "dailyCost": 0.0075 },
-      { "role": "post_trade_reporter", "model": "Groq Llama 3.1-8b", "costPer1k": 0.00005, "callsPerDay": 20, "dailyCost": 0.0008 }
+      {
+        "role": "news_summarizer",
+        "model": "Groq Llama 3.1-8b",
+        "costPer1k": 0.00005,
+        "callsPerDay": 100,
+        "dailyCost": 0.0025
+      },
+      {
+        "role": "technical_analyst",
+        "model": "DeepSeek R1",
+        "costPer1k": 0.00055,
+        "callsPerDay": 50,
+        "dailyCost": 0.055
+      },
+      {
+        "role": "risk_manager",
+        "model": "GPT-4o-mini",
+        "costPer1k": 0.00015,
+        "callsPerDay": 30,
+        "dailyCost": 0.0068
+      },
+      {
+        "role": "execution_planner",
+        "model": "GPT-4o-mini",
+        "costPer1k": 0.00015,
+        "callsPerDay": 50,
+        "dailyCost": 0.0075
+      },
+      {
+        "role": "post_trade_reporter",
+        "model": "Groq Llama 3.1-8b",
+        "costPer1k": 0.00005,
+        "callsPerDay": 20,
+        "dailyCost": 0.0008
+      }
     ],
     "totalDaily": 0.07,
-    "totalMonthly": 2.10
+    "totalMonthly": 2.1
   },
 
   "issuesRegistry": {
@@ -337,7 +538,10 @@
         "id": "C-001",
         "title": "Position Tracking Duality",
         "description": "Alpaca positions not synced with database",
-        "files": ["server/trading/alpaca-trading-engine.ts", "server/orchestration/coordinator.ts"],
+        "files": [
+          "server/trading/alpaca-trading-engine.ts",
+          "server/orchestration/coordinator.ts"
+        ],
         "impact": "Portfolio value discrepancies, incorrect P&L"
       },
       {
@@ -353,21 +557,30 @@
         "id": "H-001",
         "title": "Technical Indicator Redundancy",
         "description": "SMA/EMA/RSI duplicated in 4+ files",
-        "files": ["server/strategies/*.ts", "server/lib/technical-indicators.ts"],
+        "files": [
+          "server/strategies/*.ts",
+          "server/lib/technical-indicators.ts"
+        ],
         "linesOfDuplication": 280
       },
       {
         "id": "H-002",
         "title": "Triple Sentiment Source Without Orchestration",
         "description": "GDELT, NewsAPI, HuggingFace not aggregated",
-        "files": ["server/connectors/gdelt-connector.ts", "server/connectors/news-connector.ts"],
+        "files": [
+          "server/connectors/gdelt-connector.ts",
+          "server/connectors/news-connector.ts"
+        ],
         "impact": "Conflicting sentiment signals"
       },
       {
         "id": "H-003",
         "title": "Duplicate Preset Logic",
         "description": "Same presets defined in each strategy file",
-        "files": ["server/strategies/momentum-strategy.ts", "server/strategies/ma-crossover-strategy.ts"],
+        "files": [
+          "server/strategies/momentum-strategy.ts",
+          "server/strategies/ma-crossover-strategy.ts"
+        ],
         "linesOfDuplication": 300
       }
     ],
@@ -396,7 +609,11 @@
     "price": "$8/month",
     "os": "Ubuntu 22.04 LTS",
     "recommended": {
-      "postgres": { "sharedBuffers": "2GB", "workMem": "256MB", "maxConnections": 100 },
+      "postgres": {
+        "sharedBuffers": "2GB",
+        "workMem": "256MB",
+        "maxConnections": 100
+      },
       "docker": "24.0+",
       "node": "20 LTS"
     }
@@ -424,27 +641,52 @@
     "phase0": {
       "name": "Foundation",
       "status": "completed",
-      "items": ["Monolithic architecture", "3 strategies", "Paper trading", "React Native app"]
+      "items": [
+        "Monolithic architecture",
+        "3 strategies",
+        "Paper trading",
+        "React Native app"
+      ]
     },
     "phase1": {
       "name": "Stabilization",
       "status": "in_progress",
-      "items": ["Position reconciliation", "Indicator consolidation", "Sentiment aggregator", "Unified caching"]
+      "items": [
+        "Position reconciliation",
+        "Indicator consolidation",
+        "Sentiment aggregator",
+        "Unified caching"
+      ]
     },
     "phase2": {
       "name": "Microservices",
       "status": "planned",
-      "items": ["Service extraction", "NATS messaging", "Docker orchestration", "API gateway"]
+      "items": [
+        "Service extraction",
+        "NATS messaging",
+        "Docker orchestration",
+        "API gateway"
+      ]
     },
     "phase3": {
       "name": "Enhancement",
       "status": "planned",
-      "items": ["Walk-forward backtesting", "LLM response caching", "Real-time analytics", "Mobile push"]
+      "items": [
+        "Walk-forward backtesting",
+        "LLM response caching",
+        "Real-time analytics",
+        "Mobile push"
+      ]
     },
     "phase4": {
       "name": "Scale",
       "status": "planned",
-      "items": ["Kubernetes deployment", "Multi-region", "Advanced ML models", "Social trading"]
+      "items": [
+        "Kubernetes deployment",
+        "Multi-region",
+        "Advanced ML models",
+        "Social trading"
+      ]
     }
   }
 }

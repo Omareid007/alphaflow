@@ -278,23 +278,25 @@ export async function sendDailySummary(options: {
   });
   const subject = `Daily Summary - ${dateStr}`;
 
-  const topGainersText = options.topGainers.length > 0
-    ? options.topGainers
-        .map(
-          (g) =>
-            `  - ${g.symbol}: +$${g.change.toFixed(2)} (${g.changePercent.toFixed(2)}%)`
-        )
-        .join("\n")
-    : "  None";
+  const topGainersText =
+    options.topGainers.length > 0
+      ? options.topGainers
+          .map(
+            (g) =>
+              `  - ${g.symbol}: +$${g.change.toFixed(2)} (${g.changePercent.toFixed(2)}%)`
+          )
+          .join("\n")
+      : "  None";
 
-  const topLosersText = options.topLosers.length > 0
-    ? options.topLosers
-        .map(
-          (l) =>
-            `  - ${l.symbol}: -$${Math.abs(l.change).toFixed(2)} (${l.changePercent.toFixed(2)}%)`
-        )
-        .join("\n")
-    : "  None";
+  const topLosersText =
+    options.topLosers.length > 0
+      ? options.topLosers
+          .map(
+            (l) =>
+              `  - ${l.symbol}: -$${Math.abs(l.change).toFixed(2)} (${l.changePercent.toFixed(2)}%)`
+          )
+          .join("\n")
+      : "  None";
 
   const text = `
 Daily Portfolio Summary - ${dateStr}

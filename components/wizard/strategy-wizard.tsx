@@ -324,7 +324,11 @@ export function StrategyWizard({
 
       {/* Animated step transitions */}
       <AnimatePresence mode="wait">
-        <WizardStep key={currentStep} stepKey={currentStep} direction={direction}>
+        <WizardStep
+          key={currentStep}
+          stepKey={currentStep}
+          direction={direction}
+        >
           {currentStep === 1 && (
             <PresetSelector
               presets={selectedTemplate.presets}

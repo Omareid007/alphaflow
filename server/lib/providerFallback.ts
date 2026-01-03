@@ -61,7 +61,10 @@ export class ProviderFallbackManager<T> {
     });
   }
 
-  async fetch(cacheKey: string, ...args: ProviderFetchArgs): Promise<FallbackResult<T>> {
+  async fetch(
+    cacheKey: string,
+    ...args: ProviderFetchArgs
+  ): Promise<FallbackResult<T>> {
     const fullCacheKey = `${this.cachePrefix}:${cacheKey}`;
 
     const cached = this.cache.get(fullCacheKey);

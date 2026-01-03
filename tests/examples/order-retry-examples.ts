@@ -153,7 +153,9 @@ export function setupRetryMonitoring() {
 
     // Alert on low success rate
     if (successRate < 70 && stats.totalRetries > 10) {
-      console.warn(`⚠️ WARNING: Retry success rate below 70% (${successRate.toFixed(1)}%)`);
+      console.warn(
+        `⚠️ WARNING: Retry success rate below 70% (${successRate.toFixed(1)}%)`
+      );
     }
 
     // Alert on circuit breaker
@@ -240,7 +242,9 @@ export async function manualRetryWorkflow(orderId: string) {
 export class RetryAwareTradingStrategy {
   private retryAttempts = new Map<string, number>();
 
-  async submitOrder(params: any): Promise<{ success: boolean; orderId?: string }> {
+  async submitOrder(
+    params: any
+  ): Promise<{ success: boolean; orderId?: string }> {
     try {
       // Submit order via normal flow
       // This is just a placeholder
@@ -267,7 +271,9 @@ export class RetryAwareTradingStrategy {
       this.retryAttempts.set(orderId, attempts + 1);
 
       if (attempts >= 3) {
-        console.warn(`Order ${orderId} failed after 3 attempts - strategy may need adjustment`);
+        console.warn(
+          `Order ${orderId} failed after 3 attempts - strategy may need adjustment`
+        );
         this.retryAttempts.delete(orderId);
       }
     } else if (status === "filled") {

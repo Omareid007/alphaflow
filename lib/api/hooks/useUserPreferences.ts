@@ -32,7 +32,10 @@ export interface UpdatePreferencesPayload {
 /**
  * Default preferences for new users
  */
-export const defaultPreferences: Omit<UserPreferences, "id" | "userId" | "createdAt" | "updatedAt"> = {
+export const defaultPreferences: Omit<
+  UserPreferences,
+  "id" | "userId" | "createdAt" | "updatedAt"
+> = {
   theme: "dark",
   accentColor: "#00C805",
   animationLevel: "full",
@@ -55,7 +58,7 @@ export function useUserPreferences() {
   return useQuery({
     queryKey: userPreferencesKeys.current(),
     queryFn: async (): Promise<UserPreferences> => {
-      const response = await api.get("/user/preferences");
+      const response = await api.get("/user/preferences") as { data: UserPreferences };
       return response.data;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -71,13 +74,17 @@ export function useUpdatePreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (updates: UpdatePreferencesPayload): Promise<UserPreferences> => {
-      const response = await api.put("/user/preferences", updates);
+    mutationFn: async (
+      updates: UpdatePreferencesPayload
+    ): Promise<UserPreferences> => {
+      const response = await api.put("/user/preferences", updates) as { data: UserPreferences };
       return response.data;
     },
     onMutate: async (updates) => {
       // Cancel outgoing fetches
-      await queryClient.cancelQueries({ queryKey: userPreferencesKeys.current() });
+      await queryClient.cancelQueries({
+        queryKey: userPreferencesKeys.current(),
+      });
 
       // Snapshot previous value
       const previousPrefs = queryClient.getQueryData<UserPreferences>(
@@ -86,11 +93,14 @@ export function useUpdatePreferences() {
 
       // Optimistically update
       if (previousPrefs) {
-        queryClient.setQueryData<UserPreferences>(userPreferencesKeys.current(), {
-          ...previousPrefs,
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        });
+        queryClient.setQueryData<UserPreferences>(
+          userPreferencesKeys.current(),
+          {
+            ...previousPrefs,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          }
+        );
       }
 
       return { previousPrefs };
@@ -98,17 +108,18 @@ export function useUpdatePreferences() {
     onError: (error, _updates, context) => {
       // Rollback on error
       if (context?.previousPrefs) {
-        queryClient.setQueryData(userPreferencesKeys.current(), context.previousPrefs);
+        queryClient.setQueryData(
+          userPreferencesKeys.current(),
+          context.previousPrefs
+        );
       }
       toast.error("Failed to save preferences");
       console.error("Preferences update error:", error);
     },
     onSuccess: (data) => {
+      // Update cache with server response (no need to invalidate, we have fresh data)
       queryClient.setQueryData(userPreferencesKeys.current(), data);
       toast.success("Preferences saved");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: userPreferencesKeys.current() });
     },
   });
 }
@@ -121,7 +132,7 @@ export function useResetPreferences() {
 
   return useMutation({
     mutationFn: async (): Promise<UserPreferences> => {
-      const response = await api.delete("/user/preferences");
+      const response = await api.delete("/user/preferences") as { data: UserPreferences };
       return response.data;
     },
     onSuccess: (data) => {
@@ -185,7 +196,9 @@ export function useAnimationPreference() {
 
   // Effective animation level respects system preference
   const effectiveLevel =
-    prefersReducedMotion && animationLevel === "full" ? "reduced" : animationLevel;
+    prefersReducedMotion && animationLevel === "full"
+      ? "reduced"
+      : animationLevel;
 
   const setAnimationLevel = (level: AnimationLevel) => {
     updatePreferences.mutate({ animationLevel: level });

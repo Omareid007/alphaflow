@@ -67,20 +67,24 @@ router.get("/traders/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/traders/:id", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const trader = await storage.updateTraderProfile(req.params.id, req.body);
-    if (!trader) {
-      return res.status(404).json({ error: "Trader not found" });
+router.patch(
+  "/traders/:id",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const trader = await storage.updateTraderProfile(req.params.id, req.body);
+      if (!trader) {
+        return res.status(404).json({ error: "Trader not found" });
+      }
+      res.json(trader);
+    } catch (error) {
+      log.error("CompetitionAPI", `Failed to update trader: ${error}`);
+      res
+        .status(500)
+        .json({ error: (error as Error).message || "Failed to update trader" });
     }
-    res.json(trader);
-  } catch (error) {
-    log.error("CompetitionAPI", `Failed to update trader: ${error}`);
-    res
-      .status(500)
-      .json({ error: (error as Error).message || "Failed to update trader" });
   }
-});
+);
 
 router.get("/runs", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -167,46 +171,50 @@ router.patch("/runs/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/runs/:id/scores", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const {
-      traderId,
-      rank,
-      metrics,
-      pnl,
-      pnlPct,
-      sharpe,
-      sortino,
-      maxDrawdown,
-      winRate,
-      totalTrades,
-    } = req.body;
+router.post(
+  "/runs/:id/scores",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const {
+        traderId,
+        rank,
+        metrics,
+        pnl,
+        pnlPct,
+        sharpe,
+        sortino,
+        maxDrawdown,
+        winRate,
+        totalTrades,
+      } = req.body;
 
-    if (!traderId) {
-      return res.status(400).json({ error: "traderId is required" });
+      if (!traderId) {
+        return res.status(400).json({ error: "traderId is required" });
+      }
+
+      const score = await storage.createCompetitionScore({
+        runId: req.params.id,
+        traderProfileId: traderId,
+        rank,
+        totalPnl: pnl ? String(pnl) : undefined,
+        roi: pnlPct ? String(pnlPct) : undefined,
+        sharpe: sharpe ? String(sharpe) : undefined,
+        sortino: sortino ? String(sortino) : undefined,
+        maxDrawdown: maxDrawdown ? String(maxDrawdown) : undefined,
+        winRate: winRate ? String(winRate) : undefined,
+        tradeCount: totalTrades,
+        details: metrics,
+      } as InsertCompetitionScore);
+
+      res.json(score);
+    } catch (error) {
+      log.error("CompetitionAPI", `Failed to create score: ${error}`);
+      res
+        .status(500)
+        .json({ error: (error as Error).message || "Failed to create score" });
     }
-
-    const score = await storage.createCompetitionScore({
-      runId: req.params.id,
-      traderProfileId: traderId,
-      rank,
-      totalPnl: pnl ? String(pnl) : undefined,
-      roi: pnlPct ? String(pnlPct) : undefined,
-      sharpe: sharpe ? String(sharpe) : undefined,
-      sortino: sortino ? String(sortino) : undefined,
-      maxDrawdown: maxDrawdown ? String(maxDrawdown) : undefined,
-      winRate: winRate ? String(winRate) : undefined,
-      tradeCount: totalTrades,
-      details: metrics,
-    } as InsertCompetitionScore);
-
-    res.json(score);
-  } catch (error) {
-    log.error("CompetitionAPI", `Failed to create score: ${error}`);
-    res
-      .status(500)
-      .json({ error: (error as Error).message || "Failed to create score" });
   }
-});
+);
 
 export default router;

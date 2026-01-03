@@ -2,7 +2,7 @@ import {
   HeaderSkeleton,
   MetricCardSkeleton,
   TableSkeleton,
-  ChartSkeleton
+  ChartSkeleton,
 } from "@/components/loading/skeleton-templates";
 
 export default function Loading() {

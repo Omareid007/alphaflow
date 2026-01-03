@@ -148,14 +148,18 @@ describe("Usage Examples", () => {
 
     // This would normally trigger the retry handler
     // In a real scenario, it would convert to a limit order
-    console.log("Example: Extended hours market order would be converted to limit order");
+    console.log(
+      "Example: Extended hours market order would be converted to limit order"
+    );
   });
 
   it("demonstrates insufficient funds fix", () => {
     const reason = "insufficient buying power to complete order";
     const result = testRejectionReason(reason);
 
-    console.log("Example: Insufficient funds rejection would reduce quantity to fit buying power");
+    console.log(
+      "Example: Insufficient funds rejection would reduce quantity to fit buying power"
+    );
     expect(result.category).toBe("insufficient_funds");
   });
 
@@ -163,7 +167,9 @@ describe("Usage Examples", () => {
     const reason = "fractional shares not supported for this symbol";
     const result = testRejectionReason(reason);
 
-    console.log("Example: Fractional shares rejection would round down to whole shares");
+    console.log(
+      "Example: Fractional shares rejection would round down to whole shares"
+    );
     expect(result.category).toBe("order_type");
   });
 });

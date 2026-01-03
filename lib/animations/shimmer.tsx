@@ -223,7 +223,11 @@ export function ChartShimmer({
                   repeatCount="indefinite"
                 />
               </stop>
-              <stop offset="50%" stopColor="hsl(var(--muted))" stopOpacity="0.5">
+              <stop
+                offset="50%"
+                stopColor="hsl(var(--muted))"
+                stopOpacity="0.5"
+              >
                 <animate
                   attributeName="offset"
                   values="-0.5; 2.5"
@@ -231,7 +235,11 @@ export function ChartShimmer({
                   repeatCount="indefinite"
                 />
               </stop>
-              <stop offset="100%" stopColor="hsl(var(--muted))" stopOpacity="0.3">
+              <stop
+                offset="100%"
+                stopColor="hsl(var(--muted))"
+                stopOpacity="0.3"
+              >
                 <animate
                   attributeName="offset"
                   values="0; 3"

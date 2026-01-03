@@ -2,13 +2,13 @@
 /**
  * AI Active Trader - Service Template Generator
  * Creates a new microservice from template with proper structure
- * 
+ *
  * Usage: npx tsx scripts/create-service.ts <service-name>
  * Example: npx tsx scripts/create-service.ts notification-service
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 function getServiceTemplate(): string {
   return `/**
@@ -132,63 +132,79 @@ CMD ["node", "dist/services/{{SERVICE_NAME}}/index.js"]
 
 function toPascalCase(str: string): string {
   return str
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('');
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
 }
 
-function createService(serviceName: string, description: string = ''): void {
-  const servicesDir = path.join(process.cwd(), 'services');
+function createService(serviceName: string, description: string = ""): void {
+  const servicesDir = path.join(process.cwd(), "services");
   const serviceDir = path.join(servicesDir, serviceName);
-  
+
   if (fs.existsSync(serviceDir)) {
-    console.error('Error: Service directory already exists: ' + serviceDir);
+    console.error("Error: Service directory already exists: " + serviceDir);
     process.exit(1);
   }
 
   // Create service directory
   fs.mkdirSync(serviceDir, { recursive: true });
-  
+
   // Generate index.ts from template
   const indexContent = getServiceTemplate()
     .replace(/\{\{SERVICE_NAME\}\}/g, serviceName)
     .replace(/\{\{SERVICE_NAME_PASCAL\}\}/g, toPascalCase(serviceName))
-    .replace(/\{\{SERVICE_DESCRIPTION\}\}/g, description || toPascalCase(serviceName) + ' microservice');
-  
-  fs.writeFileSync(path.join(serviceDir, 'index.ts'), indexContent);
-  
+    .replace(
+      /\{\{SERVICE_DESCRIPTION\}\}/g,
+      description || toPascalCase(serviceName) + " microservice"
+    );
+
+  fs.writeFileSync(path.join(serviceDir, "index.ts"), indexContent);
+
   // Generate Dockerfile
-  const dockerfileContent = getDockerfileTemplate()
-    .replace(/\{\{SERVICE_NAME\}\}/g, serviceName);
-  
-  fs.writeFileSync(path.join(process.cwd(), 'docker', 'Dockerfile.' + serviceName), dockerfileContent);
-  
-  console.log('Created service: ' + serviceName);
-  console.log('  ' + serviceDir + '/index.ts');
-  console.log('  docker/Dockerfile.' + serviceName);
-  console.log('');
-  console.log('Next steps:');
-  console.log('  1. Add service-specific routes in ' + serviceDir + '/index.ts');
-  console.log('  2. Subscribe to events using eventBus.subscribe()');
-  console.log('  3. Publish events using eventBus.publish()');
+  const dockerfileContent = getDockerfileTemplate().replace(
+    /\{\{SERVICE_NAME\}\}/g,
+    serviceName
+  );
+
+  fs.writeFileSync(
+    path.join(process.cwd(), "docker", "Dockerfile." + serviceName),
+    dockerfileContent
+  );
+
+  console.log("Created service: " + serviceName);
+  console.log("  " + serviceDir + "/index.ts");
+  console.log("  docker/Dockerfile." + serviceName);
+  console.log("");
+  console.log("Next steps:");
+  console.log(
+    "  1. Add service-specific routes in " + serviceDir + "/index.ts"
+  );
+  console.log("  2. Subscribe to events using eventBus.subscribe()");
+  console.log("  3. Publish events using eventBus.publish()");
 }
 
 // CLI
 const args = process.argv.slice(2);
 
-if (args.length === 0 || args[0] === '--help') {
-  console.log('Usage: npx tsx scripts/create-service.ts <service-name> [description]');
-  console.log('');
-  console.log('Example:');
-  console.log('  npx tsx scripts/create-service.ts notification-service "Handles notifications"');
+if (args.length === 0 || args[0] === "--help") {
+  console.log(
+    "Usage: npx tsx scripts/create-service.ts <service-name> [description]"
+  );
+  console.log("");
+  console.log("Example:");
+  console.log(
+    '  npx tsx scripts/create-service.ts notification-service "Handles notifications"'
+  );
   process.exit(0);
 }
 
 const serviceName = args[0];
-const description = args.slice(1).join(' ');
+const description = args.slice(1).join(" ");
 
 if (!/^[a-z][a-z0-9-]*$/.test(serviceName)) {
-  console.error('Error: Service name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens');
+  console.error(
+    "Error: Service name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens"
+  );
   process.exit(1);
 }
 

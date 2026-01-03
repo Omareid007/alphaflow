@@ -120,7 +120,7 @@ export function PerformanceMetricsGrid({
         );
 
         return (
-          <StaggerItem key={metric.title} index={index}>
+          <StaggerItem key={metric.title}>
             <Card variant="elevated" hover="lift" className="overflow-hidden">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">

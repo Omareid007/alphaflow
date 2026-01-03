@@ -8,7 +8,7 @@ export interface Position {
   marketValue: number;
   unrealizedPL: number;
   unrealizedPLPercent: number;
-  side: 'long' | 'short';
+  side: "long" | "short";
   assetClass: string;
 }
 
@@ -30,20 +30,20 @@ export interface RiskMetrics {
   sectorBreached: boolean;
 
   // Risk indicators
-  portfolioVaR95: number;  // 95% Value at Risk
-  portfolioVaR99: number;  // 99% Value at Risk
+  portfolioVaR95: number; // 95% Value at Risk
+  portfolioVaR99: number; // 99% Value at Risk
   currentDrawdown: number;
   peakEquity: number;
 
   // Overall status
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   alerts: string[];
 }
 
 export interface OrderValidation {
   isValid: boolean;
   symbol: string;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   qty: number;
   estimatedValue: number;
 
@@ -121,44 +121,89 @@ export interface AlpacaClock {
 
 // Risk thresholds (configurable)
 export const RISK_THRESHOLDS = {
-  MAX_POSITION_CONCENTRATION: 0.05,  // 5% max per position
-  MAX_SECTOR_EXPOSURE: 0.25,         // 25% max per sector
-  MAX_DAILY_DRAWDOWN: 0.05,          // 5% max daily loss
-  WARNING_THRESHOLD: 0.80,           // 80% of limit triggers warning
-  CRITICAL_THRESHOLD: 0.95,          // 95% of limit is critical
+  MAX_POSITION_CONCENTRATION: 0.05, // 5% max per position
+  MAX_SECTOR_EXPOSURE: 0.25, // 25% max per sector
+  MAX_DAILY_DRAWDOWN: 0.05, // 5% max daily loss
+  WARNING_THRESHOLD: 0.8, // 80% of limit triggers warning
+  CRITICAL_THRESHOLD: 0.95, // 95% of limit is critical
 };
 
 // Sector mappings for major symbols
 export const SECTOR_MAP: Record<string, string> = {
   // Technology
-  AAPL: 'Technology', MSFT: 'Technology', GOOGL: 'Technology', GOOG: 'Technology',
-  META: 'Technology', NVDA: 'Technology', AMD: 'Technology', INTC: 'Technology',
-  CRM: 'Technology', ORCL: 'Technology', ADBE: 'Technology', CSCO: 'Technology',
+  AAPL: "Technology",
+  MSFT: "Technology",
+  GOOGL: "Technology",
+  GOOG: "Technology",
+  META: "Technology",
+  NVDA: "Technology",
+  AMD: "Technology",
+  INTC: "Technology",
+  CRM: "Technology",
+  ORCL: "Technology",
+  ADBE: "Technology",
+  CSCO: "Technology",
 
   // Financial
-  JPM: 'Financial', BAC: 'Financial', GS: 'Financial', MS: 'Financial',
-  WFC: 'Financial', C: 'Financial', AXP: 'Financial', V: 'Financial', MA: 'Financial',
+  JPM: "Financial",
+  BAC: "Financial",
+  GS: "Financial",
+  MS: "Financial",
+  WFC: "Financial",
+  C: "Financial",
+  AXP: "Financial",
+  V: "Financial",
+  MA: "Financial",
 
   // Healthcare
-  JNJ: 'Healthcare', UNH: 'Healthcare', PFE: 'Healthcare', MRK: 'Healthcare',
-  ABBV: 'Healthcare', LLY: 'Healthcare', TMO: 'Healthcare',
+  JNJ: "Healthcare",
+  UNH: "Healthcare",
+  PFE: "Healthcare",
+  MRK: "Healthcare",
+  ABBV: "Healthcare",
+  LLY: "Healthcare",
+  TMO: "Healthcare",
 
   // Consumer
-  AMZN: 'Consumer', TSLA: 'Consumer', HD: 'Consumer', NKE: 'Consumer',
-  MCD: 'Consumer', SBUX: 'Consumer', WMT: 'Consumer', COST: 'Consumer',
+  AMZN: "Consumer",
+  TSLA: "Consumer",
+  HD: "Consumer",
+  NKE: "Consumer",
+  MCD: "Consumer",
+  SBUX: "Consumer",
+  WMT: "Consumer",
+  COST: "Consumer",
 
   // Energy
-  XOM: 'Energy', CVX: 'Energy', COP: 'Energy', SLB: 'Energy', EOG: 'Energy',
+  XOM: "Energy",
+  CVX: "Energy",
+  COP: "Energy",
+  SLB: "Energy",
+  EOG: "Energy",
 
   // Industrial
-  CAT: 'Industrial', BA: 'Industrial', GE: 'Industrial', HON: 'Industrial',
-  UPS: 'Industrial', UNP: 'Industrial', DE: 'Industrial',
+  CAT: "Industrial",
+  BA: "Industrial",
+  GE: "Industrial",
+  HON: "Industrial",
+  UPS: "Industrial",
+  UNP: "Industrial",
+  DE: "Industrial",
 
   // Communications
-  VZ: 'Communications', T: 'Communications', NFLX: 'Communications', DIS: 'Communications',
-  CMCSA: 'Communications',
+  VZ: "Communications",
+  T: "Communications",
+  NFLX: "Communications",
+  DIS: "Communications",
+  CMCSA: "Communications",
 
   // ETFs (by type)
-  SPY: 'ETF-Broad', QQQ: 'ETF-Tech', IWM: 'ETF-SmallCap', DIA: 'ETF-Broad',
-  XLF: 'ETF-Financial', XLE: 'ETF-Energy', XLK: 'ETF-Tech', XLV: 'ETF-Healthcare',
+  SPY: "ETF-Broad",
+  QQQ: "ETF-Tech",
+  IWM: "ETF-SmallCap",
+  DIA: "ETF-Broad",
+  XLF: "ETF-Financial",
+  XLE: "ETF-Energy",
+  XLK: "ETF-Tech",
+  XLV: "ETF-Healthcare",
 };

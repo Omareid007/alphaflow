@@ -277,7 +277,9 @@ export const insertUserSchema = createInsertSchema(users)
  * - Omits auto-generated fields (id, createdAt)
  * - used defaults to false
  */
-export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+export const insertPasswordResetTokenSchema = createInsertSchema(
+  passwordResetTokens
+).omit({
   id: true,
   createdAt: true,
 });

@@ -11,9 +11,9 @@
  * @see https://github.com/pinojs/pino
  */
 
-import pino, { Logger as PinoLogger } from 'pino';
+import pino, { Logger as PinoLogger } from "pino";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogContext {
   requestId?: string;
@@ -24,54 +24,54 @@ interface LogContext {
 // Sensitive fields to redact in logs
 const REDACT_PATHS = [
   // API credentials
-  'alpacaApiKey',
-  'alpacaSecretKey',
-  'ALPACA_API_KEY',
-  'ALPACA_SECRET_KEY',
-  'apiKey',
-  'secretKey',
-  'api_key',
-  'secret_key',
+  "alpacaApiKey",
+  "alpacaSecretKey",
+  "ALPACA_API_KEY",
+  "ALPACA_SECRET_KEY",
+  "apiKey",
+  "secretKey",
+  "api_key",
+  "secret_key",
 
   // Authentication
-  'password',
-  'token',
-  'accessToken',
-  'refreshToken',
-  'authorization',
-  'cookie',
-  'session',
-  'jwt',
+  "password",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "authorization",
+  "cookie",
+  "session",
+  "jwt",
 
   // Nested patterns
-  '*.apiKey',
-  '*.secretKey',
-  '*.password',
-  '*.token',
-  '*.accessToken',
-  '*.refreshToken',
+  "*.apiKey",
+  "*.secretKey",
+  "*.password",
+  "*.token",
+  "*.accessToken",
+  "*.refreshToken",
 
   // Request headers
-  'req.headers.authorization',
-  'req.headers.cookie',
+  "req.headers.authorization",
+  "req.headers.cookie",
   'req.headers["x-api-key"]',
 
   // Request body
-  'body.password',
-  'body.apiKey',
-  'body.secretKey',
-  'body.token',
+  "body.password",
+  "body.apiKey",
+  "body.secretKey",
+  "body.token",
 ];
 
 // Determine if we're in production
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production";
 
 // Get log level from environment
 const getLogLevel = (): string => {
   if (process.env.LOG_LEVEL) {
     return process.env.LOG_LEVEL;
   }
-  return isProduction ? 'info' : 'debug';
+  return isProduction ? "info" : "debug";
 };
 
 // Create pino logger with appropriate configuration
@@ -80,15 +80,15 @@ const createPinoLogger = (): PinoLogger => {
     level: getLogLevel(),
     redact: {
       paths: REDACT_PATHS,
-      censor: '[REDACTED]',
+      censor: "[REDACTED]",
     },
     formatters: {
       level: (label: string) => ({ level: label }),
     },
     timestamp: pino.stdTimeFunctions.isoTime,
     base: {
-      service: 'alphaflow',
-      env: process.env.NODE_ENV || 'development',
+      service: "alphaflow",
+      env: process.env.NODE_ENV || "development",
     },
   };
 
@@ -97,11 +97,11 @@ const createPinoLogger = (): PinoLogger => {
     return pino({
       ...baseConfig,
       transport: {
-        target: 'pino-pretty',
+        target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: 'SYS:standard',
-          ignore: 'pid,hostname,service,env',
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname,service,env",
         },
       },
     });
@@ -231,28 +231,28 @@ class Logger {
    * Log API-related message
    */
   api(message: string, meta?: LogContext): void {
-    this.info('API', message, meta);
+    this.info("API", message, meta);
   }
 
   /**
    * Log orchestrator-related message
    */
   orchestrator(message: string, meta?: LogContext): void {
-    this.info('Orchestrator', message, meta);
+    this.info("Orchestrator", message, meta);
   }
 
   /**
    * Log Alpaca-related message
    */
   alpaca(message: string, meta?: LogContext): void {
-    this.info('Alpaca', message, meta);
+    this.info("Alpaca", message, meta);
   }
 
   /**
    * Log AI-related message
    */
   ai(message: string, meta?: LogContext): void {
-    this.info('AI', message, meta);
+    this.info("AI", message, meta);
   }
 
   /**
@@ -266,35 +266,35 @@ class Logger {
    * Log trade-related message
    */
   trade(action: string, meta?: LogContext): void {
-    this.info('Trade', action, meta);
+    this.info("Trade", action, meta);
   }
 
   /**
    * Log order-related message
    */
   order(action: string, meta?: LogContext): void {
-    this.info('Order', action, meta);
+    this.info("Order", action, meta);
   }
 
   /**
    * Log position-related message
    */
   position(action: string, meta?: LogContext): void {
-    this.info('Position', action, meta);
+    this.info("Position", action, meta);
   }
 
   /**
    * Log strategy-related message
    */
   strategy(action: string, meta?: LogContext): void {
-    this.info('Strategy', action, meta);
+    this.info("Strategy", action, meta);
   }
 
   /**
    * Log backtest-related message
    */
   backtest(action: string, meta?: LogContext): void {
-    this.info('Backtest', action, meta);
+    this.info("Backtest", action, meta);
   }
 }
 
@@ -317,20 +317,24 @@ export function createRequestLogger() {
 
     const start = Date.now();
 
-    res.on('finish', () => {
+    res.on("finish", () => {
       // Skip non-API routes to reduce noise
-      if (!req.path.startsWith('/api')) return;
+      if (!req.path.startsWith("/api")) return;
 
       const duration = Date.now() - start;
-      const level = res.statusCode >= 400 ? 'warn' : 'info';
+      const level = res.statusCode >= 400 ? "warn" : "info";
 
-      log[level]('API', `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`, {
-        requestId,
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        duration,
-      });
+      log[level](
+        "API",
+        `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`,
+        {
+          requestId,
+          method: req.method,
+          path: req.path,
+          status: res.statusCode,
+          duration,
+        }
+      );
     });
 
     next();
@@ -344,27 +348,27 @@ export function createRequestLogger() {
 /**
  * Trading module logger (for high-volume trading operations)
  */
-export const tradingLogger = pinoLogger.child({ module: 'trading' });
+export const tradingLogger = pinoLogger.child({ module: "trading" });
 
 /**
  * Autonomous module logger
  */
-export const autonomousLogger = pinoLogger.child({ module: 'autonomous' });
+export const autonomousLogger = pinoLogger.child({ module: "autonomous" });
 
 /**
  * AI module logger
  */
-export const aiLogger = pinoLogger.child({ module: 'ai' });
+export const aiLogger = pinoLogger.child({ module: "ai" });
 
 /**
  * API routes logger
  */
-export const apiLogger = pinoLogger.child({ module: 'api' });
+export const apiLogger = pinoLogger.child({ module: "api" });
 
 /**
  * Connector/integration logger
  */
-export const connectorLogger = pinoLogger.child({ module: 'connector' });
+export const connectorLogger = pinoLogger.child({ module: "connector" });
 
 // Export the raw pino logger for advanced use cases
 export { pinoLogger };

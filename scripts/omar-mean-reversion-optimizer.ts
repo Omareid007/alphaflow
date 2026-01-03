@@ -11,16 +11,19 @@
  */
 
 // ============= CONFIGURATION =============
-const ALPACA_KEY = process.env.ALPACA_API_KEY || '';
-const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY || '';
-const ALPACA_DATA_URL = 'https://data.alpaca.markets';
+const ALPACA_KEY = process.env.ALPACA_API_KEY || "";
+const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY || "";
+const ALPACA_DATA_URL = "https://data.alpaca.markets";
 
 // Optimizer settings
 const TOTAL_ITERATIONS = 1200;
 const BATCH_SIZE = 20;
 
 // MEAN REVERSION SPECIFIC PARAMETER RANGES
-const MR_PARAM_RANGES: Record<string, { min: number; max: number; step: number; integer?: boolean }> = {
+const MR_PARAM_RANGES: Record<
+  string,
+  { min: number; max: number; step: number; integer?: boolean }
+> = {
   // Core mean reversion parameters
   rsiPeriod: { min: 10, max: 18, step: 1, integer: true },
   rsiOversold: { min: 20, max: 40, step: 1, integer: true },
@@ -34,20 +37,20 @@ const MR_PARAM_RANGES: Record<string, { min: number; max: number; step: number; 
   atrPeriod: { min: 10, max: 20, step: 2, integer: true },
 
   // Entry thresholds - LOWER for oversold
-  buyThreshold: { min: 0.08, max: 0.20, step: 0.01 },
-  confidenceMin: { min: 0.20, max: 0.40, step: 0.02 },
+  buyThreshold: { min: 0.08, max: 0.2, step: 0.01 },
+  confidenceMin: { min: 0.2, max: 0.4, step: 0.02 },
 
   // Position sizing
-  maxPositionPct: { min: 0.03, max: 0.10, step: 0.01 },
+  maxPositionPct: { min: 0.03, max: 0.1, step: 0.01 },
   maxPositions: { min: 8, max: 25, step: 1, integer: true },
   maxPortfolioExposure: { min: 0.5, max: 0.85, step: 0.05 },
   maxDailyLoss: { min: 0.03, max: 0.08, step: 0.01 },
 
   // Factor weights - HIGHER correlation/volatility for mean reversion
-  technicalWeight: { min: 0.15, max: 0.30, step: 0.01 },
-  volatilityWeight: { min: 0.10, max: 0.25, step: 0.01 },  // HIGHER
-  correlationWeight: { min: 0.10, max: 0.25, step: 0.01 }, // HIGHER
-  momentumWeight: { min: 0.05, max: 0.15, step: 0.01 },    // LOWER
+  technicalWeight: { min: 0.15, max: 0.3, step: 0.01 },
+  volatilityWeight: { min: 0.1, max: 0.25, step: 0.01 }, // HIGHER
+  correlationWeight: { min: 0.1, max: 0.25, step: 0.01 }, // HIGHER
+  momentumWeight: { min: 0.05, max: 0.15, step: 0.01 }, // LOWER
   volumeWeight: { min: 0.08, max: 0.18, step: 0.01 },
   sentimentWeight: { min: 0.05, max: 0.15, step: 0.01 },
   patternWeight: { min: 0.05, max: 0.15, step: 0.01 },
@@ -60,14 +63,49 @@ const MR_PARAM_RANGES: Record<string, { min: number; max: number; step: number; 
 
 // Symbol universe - focus on liquid stocks
 const SYMBOLS = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
-  'AMD', 'INTC', 'CRM', 'NFLX', 'ADBE', 'ORCL', 'NOW',
-  'JPM', 'BAC', 'GS', 'V', 'MA', 'PYPL',
-  'UNH', 'JNJ', 'PFE', 'ABBV', 'LLY',
-  'WMT', 'COST', 'HD', 'NKE', 'MCD', 'DIS',
-  'CAT', 'DE', 'BA', 'UPS',
-  'XOM', 'CVX', 'COP',
-  'SPY', 'QQQ', 'IWM', 'XLF', 'XLK',
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "NVDA",
+  "META",
+  "TSLA",
+  "AMD",
+  "INTC",
+  "CRM",
+  "NFLX",
+  "ADBE",
+  "ORCL",
+  "NOW",
+  "JPM",
+  "BAC",
+  "GS",
+  "V",
+  "MA",
+  "PYPL",
+  "UNH",
+  "JNJ",
+  "PFE",
+  "ABBV",
+  "LLY",
+  "WMT",
+  "COST",
+  "HD",
+  "NKE",
+  "MCD",
+  "DIS",
+  "CAT",
+  "DE",
+  "BA",
+  "UPS",
+  "XOM",
+  "CVX",
+  "COP",
+  "SPY",
+  "QQQ",
+  "IWM",
+  "XLF",
+  "XLK",
 ];
 
 interface AlpacaBar {
@@ -120,7 +158,11 @@ interface BacktestResult {
 
 // ============= ALPACA DATA FETCHER =============
 
-async function fetchAlpacaBars(symbol: string, start: string, end: string): Promise<AlpacaBar[]> {
+async function fetchAlpacaBars(
+  symbol: string,
+  start: string,
+  end: string
+): Promise<AlpacaBar[]> {
   const allBars: AlpacaBar[] = [];
   let pageToken: string | null = null;
 
@@ -130,8 +172,8 @@ async function fetchAlpacaBars(symbol: string, start: string, end: string): Prom
 
     const response = await fetch(url, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        "APCA-API-KEY-ID": ALPACA_KEY,
+        "APCA-API-SECRET-KEY": ALPACA_SECRET,
       },
     });
 
@@ -171,21 +213,26 @@ function calculateEMA(data: number[], period: number): number[] {
 
 function calculateRSI(closes: number[], period: number): number[] {
   const changes: number[] = [];
-  for (let i = 1; i < closes.length; i++) changes.push(closes[i] - closes[i - 1]);
-  const gains = changes.map(c => c > 0 ? c : 0);
-  const losses = changes.map(c => c < 0 ? -c : 0);
+  for (let i = 1; i < closes.length; i++)
+    changes.push(closes[i] - closes[i - 1]);
+  const gains = changes.map((c) => (c > 0 ? c : 0));
+  const losses = changes.map((c) => (c < 0 ? -c : 0));
   const avgGain = calculateEMA(gains, period);
   const avgLoss = calculateEMA(losses, period);
 
   const rsi: number[] = [NaN];
   for (let i = 0; i < avgGain.length; i++) {
     if (avgLoss[i] === 0) rsi.push(100);
-    else rsi.push(100 - (100 / (1 + avgGain[i] / avgLoss[i])));
+    else rsi.push(100 - 100 / (1 + avgGain[i] / avgLoss[i]));
   }
   return rsi;
 }
 
-function calculateBollingerBands(closes: number[], period: number, stdDev: number): { upper: number[], middle: number[], lower: number[], width: number[] } {
+function calculateBollingerBands(
+  closes: number[],
+  period: number,
+  stdDev: number
+): { upper: number[]; middle: number[]; lower: number[]; width: number[] } {
   const middle = calculateSMA(closes, period);
   const upper: number[] = [];
   const lower: number[] = [];
@@ -199,7 +246,8 @@ function calculateBollingerBands(closes: number[], period: number, stdDev: numbe
     } else {
       const slice = closes.slice(i - period + 1, i + 1);
       const mean = middle[i];
-      const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
+      const variance =
+        slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
       const std = Math.sqrt(variance);
       upper.push(mean + stdDev * std);
       lower.push(mean - stdDev * std);
@@ -209,7 +257,12 @@ function calculateBollingerBands(closes: number[], period: number, stdDev: numbe
   return { upper, middle, lower, width };
 }
 
-function calculateATR(highs: number[], lows: number[], closes: number[], period: number): number[] {
+function calculateATR(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number
+): number[] {
   const tr: number[] = [highs[0] - lows[0]];
   for (let i = 1; i < closes.length; i++) {
     const hl = highs[i] - lows[i];
@@ -220,7 +273,12 @@ function calculateATR(highs: number[], lows: number[], closes: number[], period:
   return calculateEMA(tr, period);
 }
 
-function calculateStochastic(highs: number[], lows: number[], closes: number[], period: number): { k: number[], d: number[] } {
+function calculateStochastic(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number
+): { k: number[]; d: number[] } {
   const k: number[] = [];
   for (let i = 0; i < closes.length; i++) {
     if (i < period - 1) k.push(NaN);
@@ -233,7 +291,10 @@ function calculateStochastic(highs: number[], lows: number[], closes: number[], 
       k.push(range === 0 ? 50 : ((closes[i] - lowest) / range) * 100);
     }
   }
-  const d = calculateSMA(k.filter(v => !isNaN(v)), 3);
+  const d = calculateSMA(
+    k.filter((v) => !isNaN(v)),
+    3
+  );
   return { k, d };
 }
 
@@ -252,13 +313,20 @@ function calculateOBV(closes: number[], volumes: number[]): number[] {
 function generateMeanReversionSignal(
   bars: AlpacaBar[],
   params: Record<string, number>
-): { score: number, confidence: number, rsi: number, bbPosition: number, factors: Record<string, number> } {
-  if (bars.length < 50) return { score: 0, confidence: 0, rsi: NaN, bbPosition: NaN, factors: {} };
+): {
+  score: number;
+  confidence: number;
+  rsi: number;
+  bbPosition: number;
+  factors: Record<string, number>;
+} {
+  if (bars.length < 50)
+    return { score: 0, confidence: 0, rsi: NaN, bbPosition: NaN, factors: {} };
 
-  const closes = bars.map(b => b.c);
-  const highs = bars.map(b => b.h);
-  const lows = bars.map(b => b.l);
-  const volumes = bars.map(b => b.v);
+  const closes = bars.map((b) => b.c);
+  const highs = bars.map((b) => b.h);
+  const lows = bars.map((b) => b.l);
+  const volumes = bars.map((b) => b.v);
 
   const factors: Record<string, number> = {};
 
@@ -271,27 +339,35 @@ function generateMeanReversionSignal(
   let technicalScore = 0;
   // Strong mean reversion signal when oversold
   if (currentRSI < rsiOversold) {
-    technicalScore = 0.8 + (rsiOversold - currentRSI) / rsiOversold * 0.2; // 0.8 to 1.0
+    technicalScore = 0.8 + ((rsiOversold - currentRSI) / rsiOversold) * 0.2; // 0.8 to 1.0
   } else if (currentRSI < rsiOversold + 5) {
     technicalScore = 0.4; // Near oversold
   } else if (currentRSI > rsiOverbought) {
-    technicalScore = -0.8 - (currentRSI - rsiOverbought) / (100 - rsiOverbought) * 0.2;
+    technicalScore =
+      -0.8 - ((currentRSI - rsiOverbought) / (100 - rsiOverbought)) * 0.2;
   } else if (currentRSI > rsiOverbought - 5) {
     technicalScore = -0.4;
   } else {
     // Neutral zone - slight mean reversion bias
-    technicalScore = (50 - currentRSI) / 50 * 0.3;
+    technicalScore = ((50 - currentRSI) / 50) * 0.3;
   }
 
   // Bollinger Bands - MEAN REVERSION FOCUSED
-  const bb = calculateBollingerBands(closes, params.bbPeriod || 20, params.bbStdDev || 2);
+  const bb = calculateBollingerBands(
+    closes,
+    params.bbPeriod || 20,
+    params.bbStdDev || 2
+  );
   const currentClose = closes[closes.length - 1];
   const bbLower = bb.lower[bb.lower.length - 1];
   const bbUpper = bb.upper[bb.upper.length - 1];
   const bbMiddle = bb.middle[bb.middle.length - 1];
 
   // BB position: -1 = at lower band, 0 = at middle, 1 = at upper band
-  const bbPosition = (bbUpper - bbLower) > 0 ? (currentClose - bbMiddle) / ((bbUpper - bbMiddle) || 1) : 0;
+  const bbPosition =
+    bbUpper - bbLower > 0
+      ? (currentClose - bbMiddle) / (bbUpper - bbMiddle || 1)
+      : 0;
 
   if (currentClose < bbLower) {
     // Below lower band - strong buy signal
@@ -318,16 +394,22 @@ function generateMeanReversionSignal(
   // Volatility - MEAN REVERSION THRIVES ON VOLATILITY
   const volLookback = params.volatilityLookback || 20;
   const returns: number[] = [];
-  for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+  for (let i = 1; i < closes.length; i++)
+    returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
   const recentReturns = returns.slice(-volLookback);
-  const volatility = Math.sqrt(recentReturns.reduce((sum, r) => sum + r * r, 0) / recentReturns.length) * Math.sqrt(252);
+  const volatility =
+    Math.sqrt(
+      recentReturns.reduce((sum, r) => sum + r * r, 0) / recentReturns.length
+    ) * Math.sqrt(252);
 
   // Higher volatility is GOOD for mean reversion (more extremes to trade)
   // But not too high (instability)
   let volScore = 0;
-  if (volatility > 0.20 && volatility < 0.60) volScore = 0.5; // Sweet spot
-  else if (volatility > 0.15 && volatility < 0.70) volScore = 0.3;
-  else if (volatility > 0.70) volScore = -0.3; // Too volatile
+  if (volatility > 0.2 && volatility < 0.6)
+    volScore = 0.5; // Sweet spot
+  else if (volatility > 0.15 && volatility < 0.7) volScore = 0.3;
+  else if (volatility > 0.7)
+    volScore = -0.3; // Too volatile
   else volScore = 0.1; // Low vol - harder to find extremes
 
   factors.volatility = volScore;
@@ -336,26 +418,38 @@ function generateMeanReversionSignal(
   const corrLookback = params.correlationLookback || 30;
   const sma = calculateSMA(closes.slice(-corrLookback - 1), corrLookback);
   const currentSMA = sma[sma.length - 1];
-  const deviation = currentSMA > 0 ? (currentClose - currentSMA) / currentSMA : 0;
+  const deviation =
+    currentSMA > 0 ? (currentClose - currentSMA) / currentSMA : 0;
 
   // Mean reversion: buy when below average, sell when above
   let corrScore = 0;
-  if (deviation < -0.05) corrScore = 0.6;      // 5%+ below mean - strong buy
-  else if (deviation < -0.03) corrScore = 0.4; // 3-5% below
-  else if (deviation < -0.01) corrScore = 0.2; // 1-3% below
-  else if (deviation > 0.05) corrScore = -0.6; // 5%+ above mean
+  if (deviation < -0.05)
+    corrScore = 0.6; // 5%+ below mean - strong buy
+  else if (deviation < -0.03)
+    corrScore = 0.4; // 3-5% below
+  else if (deviation < -0.01)
+    corrScore = 0.2; // 1-3% below
+  else if (deviation > 0.05)
+    corrScore = -0.6; // 5%+ above mean
   else if (deviation > 0.03) corrScore = -0.4;
   else if (deviation > 0.01) corrScore = -0.2;
 
   factors.correlation = corrScore;
 
   // Momentum - CONTRARIAN for mean reversion
-  const momentum5 = (closes[closes.length - 1] - closes[closes.length - 6]) / closes[closes.length - 6];
-  const momentum10 = closes.length >= 11 ? (closes[closes.length - 1] - closes[closes.length - 11]) / closes[closes.length - 11] : 0;
+  const momentum5 =
+    (closes[closes.length - 1] - closes[closes.length - 6]) /
+    closes[closes.length - 6];
+  const momentum10 =
+    closes.length >= 11
+      ? (closes[closes.length - 1] - closes[closes.length - 11]) /
+        closes[closes.length - 11]
+      : 0;
 
   // Negative momentum + oversold = good mean reversion setup
   let momScore = 0;
-  if (momentum5 < -0.05 && currentRSI < rsiOversold + 10) momScore = 0.5; // Strong pullback in oversold
+  if (momentum5 < -0.05 && currentRSI < rsiOversold + 10)
+    momScore = 0.5; // Strong pullback in oversold
   else if (momentum5 < -0.03) momScore = 0.3;
   else if (momentum5 > 0.05 && currentRSI > rsiOverbought - 10) momScore = -0.5;
   else if (momentum5 > 0.03) momScore = -0.3;
@@ -367,10 +461,12 @@ function generateMeanReversionSignal(
   const currentVolume = volumes[volumes.length - 1];
   const volumeRatio = currentVolume / avgVolume;
   const obv = calculateOBV(closes, volumes);
-  const obvTrend = obv.length > 5 ? obv[obv.length - 1] - obv[obv.length - 6] : 0;
+  const obvTrend =
+    obv.length > 5 ? obv[obv.length - 1] - obv[obv.length - 6] : 0;
 
   let volumeScore = 0;
-  if (volumeRatio > 1.5 && momentum5 < 0) volumeScore = 0.3; // High volume selloff
+  if (volumeRatio > 1.5 && momentum5 < 0)
+    volumeScore = 0.3; // High volume selloff
   else if (volumeRatio > 1.2) volumeScore = 0.2;
   else if (volumeRatio < 0.7) volumeScore = -0.2; // Low conviction
 
@@ -379,25 +475,38 @@ function generateMeanReversionSignal(
   // Sentiment proxy - contrarian
   const trendUp = momentum10 > 0.05;
   const trendDown = momentum10 < -0.05;
-  factors.sentiment = trendDown && currentRSI < rsiOversold + 10 ? 0.3 : trendUp && currentRSI > rsiOverbought - 10 ? -0.3 : 0;
+  factors.sentiment =
+    trendDown && currentRSI < rsiOversold + 10
+      ? 0.3
+      : trendUp && currentRSI > rsiOverbought - 10
+        ? -0.3
+        : 0;
 
   // Pattern recognition - simple
   const sma20 = calculateSMA(closes, 20);
   const current = closes[closes.length - 1];
   const sma20Current = sma20[sma20.length - 1];
-  factors.pattern = current < sma20Current * 0.97 ? 0.2 : current > sma20Current * 1.03 ? -0.2 : 0;
+  factors.pattern =
+    current < sma20Current * 0.97
+      ? 0.2
+      : current > sma20Current * 1.03
+        ? -0.2
+        : 0;
 
   // Breadth
   const sma10 = calculateSMA(closes, 10);
   const sma50 = closes.length >= 50 ? calculateSMA(closes, 50) : sma20;
-  factors.breadth = (current < sma10[sma10.length - 1] ? 0.33 : -0.33) + (current < sma20Current ? 0.33 : -0.33) + (current < sma50[sma50.length - 1] ? 0.34 : -0.34);
+  factors.breadth =
+    (current < sma10[sma10.length - 1] ? 0.33 : -0.33) +
+    (current < sma20Current ? 0.33 : -0.33) +
+    (current < sma50[sma50.length - 1] ? 0.34 : -0.34);
 
   // Weighted score - MEAN REVERSION WEIGHTS
   const score =
     factors.technical * (params.technicalWeight || 0.25) +
     factors.volatility * (params.volatilityWeight || 0.18) +
     factors.correlation * (params.correlationWeight || 0.18) +
-    factors.momentum * (params.momentumWeight || 0.10) +
+    factors.momentum * (params.momentumWeight || 0.1) +
     factors.volume * (params.volumeWeight || 0.12) +
     factors.sentiment * (params.sentimentWeight || 0.08) +
     factors.pattern * (params.patternWeight || 0.05) +
@@ -405,9 +514,10 @@ function generateMeanReversionSignal(
 
   // Confidence - alignment of factors
   const factorValues = Object.values(factors);
-  const positiveFactors = factorValues.filter(f => f > 0.1).length;
-  const negativeFactors = factorValues.filter(f => f < -0.1).length;
-  const agreement = Math.max(positiveFactors, negativeFactors) / factorValues.length;
+  const positiveFactors = factorValues.filter((f) => f > 0.1).length;
+  const negativeFactors = factorValues.filter((f) => f < -0.1).length;
+  const agreement =
+    Math.max(positiveFactors, negativeFactors) / factorValues.length;
   const confidence = agreement * Math.abs(score);
 
   return { score, confidence, rsi: currentRSI, bbPosition, factors };
@@ -426,15 +536,18 @@ async function runMeanReversionBacktest(
   const trades: TradeResult[] = [];
   const equity: number[] = [capital];
   const dailyReturns: number[] = [];
-  const positions: Map<string, {
-    entry: number,
-    shares: number,
-    entryDate: string,
-    stopLoss: number,
-    takeProfit: number,
-    entryRSI: number,
-    entryBBPosition: number
-  }> = new Map();
+  const positions: Map<
+    string,
+    {
+      entry: number;
+      shares: number;
+      entryDate: string;
+      stopLoss: number;
+      takeProfit: number;
+      entryRSI: number;
+      entryBBPosition: number;
+    }
+  > = new Map();
 
   // Get trading days
   const tradingDays: string[] = [];
@@ -453,21 +566,21 @@ async function runMeanReversionBacktest(
     for (const [symbol, pos] of positions) {
       const symbolBars = bars.get(symbol);
       if (!symbolBars) continue;
-      const currentBar = symbolBars.find(b => b.t === currentDate);
+      const currentBar = symbolBars.find((b) => b.t === currentDate);
       if (!currentBar) continue;
 
       const currentPrice = currentBar.c;
       const high = currentBar.h;
       const low = currentBar.l;
       let exitPrice: number | null = null;
-      let exitReason = '';
+      let exitReason = "";
 
       if (low <= pos.stopLoss) {
         exitPrice = pos.stopLoss;
-        exitReason = 'stop';
+        exitReason = "stop";
       } else if (high >= pos.takeProfit) {
         exitPrice = pos.takeProfit;
-        exitReason = 'target';
+        exitReason = "target";
       }
 
       if (exitPrice) {
@@ -484,7 +597,7 @@ async function runMeanReversionBacktest(
           entryDate: pos.entryDate,
           exitDate: currentDate,
           entryRSI: pos.entryRSI,
-          entryBBPosition: pos.entryBBPosition
+          entryBBPosition: pos.entryBBPosition,
         });
         positions.delete(symbol);
       }
@@ -493,26 +606,31 @@ async function runMeanReversionBacktest(
     // Check entries
     if (positions.size < (params.maxPositions || 15)) {
       const candidates: {
-        symbol: string,
-        score: number,
-        confidence: number,
-        price: number,
-        atr: number,
-        rsi: number,
-        bbPosition: number
+        symbol: string;
+        score: number;
+        confidence: number;
+        price: number;
+        atr: number;
+        rsi: number;
+        bbPosition: number;
       }[] = [];
 
       for (const [symbol, symbolBars] of bars) {
         if (positions.has(symbol)) continue;
-        const barsToDate = symbolBars.filter(b => b.t <= currentDate).slice(-60);
+        const barsToDate = symbolBars
+          .filter((b) => b.t <= currentDate)
+          .slice(-60);
         if (barsToDate.length < 50) continue;
 
         const signal = generateMeanReversionSignal(barsToDate, params);
-        if (signal.score >= (params.buyThreshold || 0.12) && signal.confidence >= (params.confidenceMin || 0.28)) {
+        if (
+          signal.score >= (params.buyThreshold || 0.12) &&
+          signal.confidence >= (params.confidenceMin || 0.28)
+        ) {
           const currentBar = barsToDate[barsToDate.length - 1];
-          const closes = barsToDate.map(b => b.c);
-          const highs = barsToDate.map(b => b.h);
-          const lows = barsToDate.map(b => b.l);
+          const closes = barsToDate.map((b) => b.c);
+          const highs = barsToDate.map((b) => b.h);
+          const lows = barsToDate.map((b) => b.l);
           const atr = calculateATR(highs, lows, closes, params.atrPeriod || 14);
           candidates.push({
             symbol,
@@ -521,20 +639,25 @@ async function runMeanReversionBacktest(
             price: currentBar.c,
             atr: atr[atr.length - 1],
             rsi: signal.rsi,
-            bbPosition: signal.bbPosition
+            bbPosition: signal.bbPosition,
           });
         }
       }
 
       candidates.sort((a, b) => b.score - a.score);
 
-      for (const candidate of candidates.slice(0, (params.maxPositions || 15) - positions.size)) {
+      for (const candidate of candidates.slice(
+        0,
+        (params.maxPositions || 15) - positions.size
+      )) {
         const maxPositionSize = capital * (params.maxPositionPct || 0.05);
         const shares = Math.floor(maxPositionSize / candidate.price);
 
         if (shares > 0 && shares * candidate.price <= capital) {
-          const stopLoss = candidate.price - candidate.atr * (params.atrMultStop || 2.5);
-          const takeProfit = candidate.price + candidate.atr * (params.atrMultTarget || 3);
+          const stopLoss =
+            candidate.price - candidate.atr * (params.atrMultStop || 2.5);
+          const takeProfit =
+            candidate.price + candidate.atr * (params.atrMultTarget || 3);
           positions.set(candidate.symbol, {
             entry: candidate.price,
             shares,
@@ -542,7 +665,7 @@ async function runMeanReversionBacktest(
             stopLoss,
             takeProfit,
             entryRSI: candidate.rsi,
-            entryBBPosition: candidate.bbPosition
+            entryBBPosition: candidate.bbPosition,
           });
           capital -= shares * candidate.price;
         }
@@ -554,12 +677,15 @@ async function runMeanReversionBacktest(
     for (const [symbol, pos] of positions) {
       const symbolBars = bars.get(symbol);
       if (symbolBars) {
-        const currentBar = symbolBars.find(b => b.t === currentDate);
+        const currentBar = symbolBars.find((b) => b.t === currentDate);
         if (currentBar) currentEquity += pos.shares * currentBar.c;
       }
     }
     equity.push(currentEquity);
-    if (equity.length > 1) dailyReturns.push((currentEquity - equity[equity.length - 2]) / equity[equity.length - 2]);
+    if (equity.length > 1)
+      dailyReturns.push(
+        (currentEquity - equity[equity.length - 2]) / equity[equity.length - 2]
+      );
   }
 
   // Close remaining positions
@@ -578,31 +704,60 @@ async function runMeanReversionBacktest(
         entryDate: pos.entryDate,
         exitDate: tradingDays[tradingDays.length - 1],
         entryRSI: pos.entryRSI,
-        entryBBPosition: pos.entryBBPosition
+        entryBBPosition: pos.entryBBPosition,
       });
     }
   }
 
   // Calculate metrics
-  const totalReturn = (equity[equity.length - 1] - initialCapital) / initialCapital;
+  const totalReturn =
+    (equity[equity.length - 1] - initialCapital) / initialCapital;
   const maxDrawdown = equity.reduce((maxDD, val, i) => {
     const peak = Math.max(...equity.slice(0, i + 1));
     return Math.max(maxDD, (peak - val) / peak);
   }, 0);
 
-  const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / (dailyReturns.length || 1);
-  const stdReturn = Math.sqrt(dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (dailyReturns.length || 1));
-  const sharpe = stdReturn > 0 ? (avgReturn * 252) / (stdReturn * Math.sqrt(252)) : 0;
-  const negativeReturns = dailyReturns.filter(r => r < 0);
-  const downstdReturn = Math.sqrt(negativeReturns.reduce((sum, r) => sum + r * r, 0) / (negativeReturns.length || 1));
-  const sortino = downstdReturn > 0 ? (avgReturn * 252) / (downstdReturn * Math.sqrt(252)) : 0;
+  const avgReturn =
+    dailyReturns.reduce((a, b) => a + b, 0) / (dailyReturns.length || 1);
+  const stdReturn = Math.sqrt(
+    dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+      (dailyReturns.length || 1)
+  );
+  const sharpe =
+    stdReturn > 0 ? (avgReturn * 252) / (stdReturn * Math.sqrt(252)) : 0;
+  const negativeReturns = dailyReturns.filter((r) => r < 0);
+  const downstdReturn = Math.sqrt(
+    negativeReturns.reduce((sum, r) => sum + r * r, 0) /
+      (negativeReturns.length || 1)
+  );
+  const sortino =
+    downstdReturn > 0
+      ? (avgReturn * 252) / (downstdReturn * Math.sqrt(252))
+      : 0;
   const years = tradingDays.length / 252;
   const cagr = Math.pow(1 + totalReturn, 1 / years) - 1;
   const calmar = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
-  const winRate = trades.length > 0 ? trades.filter(t => t.pnl > 0).length / trades.length : 0;
-  const avgHoldingDays = trades.length > 0 ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length : 0;
+  const winRate =
+    trades.length > 0
+      ? trades.filter((t) => t.pnl > 0).length / trades.length
+      : 0;
+  const avgHoldingDays =
+    trades.length > 0
+      ? trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length
+      : 0;
 
-  return { totalReturn, sharpe, sortino, calmar, maxDrawdown, winRate, trades, equity, dailyReturns, avgHoldingDays };
+  return {
+    totalReturn,
+    sharpe,
+    sortino,
+    calmar,
+    maxDrawdown,
+    winRate,
+    trades,
+    equity,
+    dailyReturns,
+    avgHoldingDays,
+  };
 }
 
 // ============= MAIN =============
@@ -613,8 +768,8 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
   const startDate = new Date();
   startDate.setFullYear(startDate.getFullYear() - 2);
 
-  const start = startDate.toISOString().split('T')[0];
-  const end = endDate.toISOString().split('T')[0];
+  const start = startDate.toISOString().split("T")[0];
+  const end = endDate.toISOString().split("T")[0];
 
   console.log(`\nLoading historical data for ${SYMBOLS.length} symbols...`);
   console.log(`Period: ${start} to ${end}`);
@@ -627,7 +782,7 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
         bars.set(symbol, symbolBars);
         loaded++;
       }
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     } catch (err) {
       // Skip errors
     }
@@ -643,16 +798,28 @@ function generateRandomConfig(id: number): Record<string, number> {
 
   for (const [param, range] of Object.entries(MR_PARAM_RANGES)) {
     if (range.integer) {
-      params[param] = Math.floor(Math.random() * ((range.max - range.min) / range.step + 1)) * range.step + range.min;
+      params[param] =
+        Math.floor(Math.random() * ((range.max - range.min) / range.step + 1)) *
+          range.step +
+        range.min;
     } else {
       const steps = Math.round((range.max - range.min) / range.step);
-      params[param] = Math.round((Math.random() * steps) * range.step * 100) / 100 + range.min;
+      params[param] =
+        Math.round(Math.random() * steps * range.step * 100) / 100 + range.min;
     }
   }
 
   // Normalize weights to sum to ~1.0
-  const weightKeys = ['technicalWeight', 'volatilityWeight', 'correlationWeight', 'momentumWeight',
-                      'volumeWeight', 'sentimentWeight', 'patternWeight', 'breadthWeight'];
+  const weightKeys = [
+    "technicalWeight",
+    "volatilityWeight",
+    "correlationWeight",
+    "momentumWeight",
+    "volumeWeight",
+    "sentimentWeight",
+    "patternWeight",
+    "breadthWeight",
+  ];
   const total = weightKeys.reduce((sum, key) => sum + (params[key] || 0), 0);
   if (total > 0) {
     for (const key of weightKeys) {
@@ -664,19 +831,19 @@ function generateRandomConfig(id: number): Record<string, number> {
 }
 
 async function runMeanReversionOptimizer() {
-  console.log('═'.repeat(80));
-  console.log('  OMAR MEAN REVERSION OPTIMIZER - 1000+ ITERATIONS');
-  console.log('═'.repeat(80));
-  console.log('\n  Strategy Focus:');
-  console.log('  - RSI oversold entries (20-40)');
-  console.log('  - Bollinger Band extremes (15-25 period, 1.5-2.5 stdDev)');
-  console.log('  - Higher volatility/correlation weights for mean reversion');
-  console.log('  - Wider stops (ATR 2.0-3.0x) for breathing room');
-  console.log('  - Moderate targets (ATR 2-4x) for realistic exits');
+  console.log("═".repeat(80));
+  console.log("  OMAR MEAN REVERSION OPTIMIZER - 1000+ ITERATIONS");
+  console.log("═".repeat(80));
+  console.log("\n  Strategy Focus:");
+  console.log("  - RSI oversold entries (20-40)");
+  console.log("  - Bollinger Band extremes (15-25 period, 1.5-2.5 stdDev)");
+  console.log("  - Higher volatility/correlation weights for mean reversion");
+  console.log("  - Wider stops (ATR 2.0-3.0x) for breathing room");
+  console.log("  - Moderate targets (ATR 2-4x) for realistic exits");
 
   const bars = await loadHistoricalData();
   if (bars.size < 10) {
-    console.error('Insufficient data. Aborting.');
+    console.error("Insufficient data. Aborting.");
     return;
   }
 
@@ -687,16 +854,20 @@ async function runMeanReversionOptimizer() {
   const allConfigs: MRConfig[] = [];
   let bestConfig: MRConfig | null = null;
 
-  console.log('\n' + '─'.repeat(80));
-  console.log('  STARTING OPTIMIZATION');
-  console.log('─'.repeat(80));
+  console.log("\n" + "─".repeat(80));
+  console.log("  STARTING OPTIMIZATION");
+  console.log("─".repeat(80));
 
   const startTime = Date.now();
 
-  for (let iteration = 0; iteration < TOTAL_ITERATIONS; iteration += BATCH_SIZE) {
+  for (
+    let iteration = 0;
+    iteration < TOTAL_ITERATIONS;
+    iteration += BATCH_SIZE
+  ) {
     const batchConfigs: Record<string, number>[] = [];
 
-    for (let i = 0; i < BATCH_SIZE && (iteration + i) < TOTAL_ITERATIONS; i++) {
+    for (let i = 0; i < BATCH_SIZE && iteration + i < TOTAL_ITERATIONS; i++) {
       batchConfigs.push(generateRandomConfig(iteration + i));
     }
 
@@ -704,7 +875,12 @@ async function runMeanReversionOptimizer() {
     const results = await Promise.all(
       batchConfigs.map(async (params, idx) => {
         try {
-          const result = await runMeanReversionBacktest(params, bars, startDate, endDate);
+          const result = await runMeanReversionBacktest(
+            params,
+            bars,
+            startDate,
+            endDate
+          );
 
           const config: MRConfig = {
             id: iteration + idx,
@@ -730,74 +906,136 @@ async function runMeanReversionOptimizer() {
       if (!config) continue;
 
       // Filter valid configs
-      if (config.trades >= 30 && config.maxDrawdown < 0.40) {
+      if (config.trades >= 30 && config.maxDrawdown < 0.4) {
         allConfigs.push(config);
 
         // Track best by composite score
-        const compositeScore = config.sharpe * 0.3 + config.sortino * 0.25 + config.calmar * 0.25 + config.winRate * 0.15 + config.totalReturn * 0.05;
-        const bestScore = bestConfig ? (bestConfig.sharpe * 0.3 + bestConfig.sortino * 0.25 + bestConfig.calmar * 0.25 + bestConfig.winRate * 0.15 + bestConfig.totalReturn * 0.05) : -Infinity;
+        const compositeScore =
+          config.sharpe * 0.3 +
+          config.sortino * 0.25 +
+          config.calmar * 0.25 +
+          config.winRate * 0.15 +
+          config.totalReturn * 0.05;
+        const bestScore = bestConfig
+          ? bestConfig.sharpe * 0.3 +
+            bestConfig.sortino * 0.25 +
+            bestConfig.calmar * 0.25 +
+            bestConfig.winRate * 0.15 +
+            bestConfig.totalReturn * 0.05
+          : -Infinity;
 
         if (compositeScore > bestScore) {
           bestConfig = config;
-          console.log(`\n  🎯 NEW BEST (Iteration ${config.id}/${TOTAL_ITERATIONS})`);
-          console.log(`     Sharpe: ${config.sharpe.toFixed(3)} | Sortino: ${config.sortino.toFixed(3)} | Calmar: ${config.calmar.toFixed(3)}`);
-          console.log(`     Return: ${(config.totalReturn * 100).toFixed(1)}% | Win Rate: ${(config.winRate * 100).toFixed(1)}% | MaxDD: ${(config.maxDrawdown * 100).toFixed(1)}%`);
-          console.log(`     Trades: ${config.trades} | Avg Hold: ${config.avgHolding.toFixed(1)} days`);
+          console.log(
+            `\n  🎯 NEW BEST (Iteration ${config.id}/${TOTAL_ITERATIONS})`
+          );
+          console.log(
+            `     Sharpe: ${config.sharpe.toFixed(3)} | Sortino: ${config.sortino.toFixed(3)} | Calmar: ${config.calmar.toFixed(3)}`
+          );
+          console.log(
+            `     Return: ${(config.totalReturn * 100).toFixed(1)}% | Win Rate: ${(config.winRate * 100).toFixed(1)}% | MaxDD: ${(config.maxDrawdown * 100).toFixed(1)}%`
+          );
+          console.log(
+            `     Trades: ${config.trades} | Avg Hold: ${config.avgHolding.toFixed(1)} days`
+          );
         }
       }
     }
 
     // Progress update
-    const progress = ((iteration + BATCH_SIZE) / TOTAL_ITERATIONS * 100).toFixed(1);
+    const progress = (
+      ((iteration + BATCH_SIZE) / TOTAL_ITERATIONS) *
+      100
+    ).toFixed(1);
     const elapsed = (Date.now() - startTime) / 1000;
-    const eta = elapsed / ((iteration + BATCH_SIZE) / TOTAL_ITERATIONS) - elapsed;
+    const eta =
+      elapsed / ((iteration + BATCH_SIZE) / TOTAL_ITERATIONS) - elapsed;
 
-    if ((iteration + BATCH_SIZE) % 100 === 0 || iteration + BATCH_SIZE >= TOTAL_ITERATIONS) {
-      console.log(`\n  Progress: ${Math.min(iteration + BATCH_SIZE, TOTAL_ITERATIONS)}/${TOTAL_ITERATIONS} (${progress}%) | ETA: ${Math.round(eta)}s | Valid configs: ${allConfigs.length}`);
+    if (
+      (iteration + BATCH_SIZE) % 100 === 0 ||
+      iteration + BATCH_SIZE >= TOTAL_ITERATIONS
+    ) {
+      console.log(
+        `\n  Progress: ${Math.min(iteration + BATCH_SIZE, TOTAL_ITERATIONS)}/${TOTAL_ITERATIONS} (${progress}%) | ETA: ${Math.round(eta)}s | Valid configs: ${allConfigs.length}`
+      );
     } else {
-      process.stdout.write(`\r  Progress: ${Math.min(iteration + BATCH_SIZE, TOTAL_ITERATIONS)}/${TOTAL_ITERATIONS} (${progress}%)`);
+      process.stdout.write(
+        `\r  Progress: ${Math.min(iteration + BATCH_SIZE, TOTAL_ITERATIONS)}/${TOTAL_ITERATIONS} (${progress}%)`
+      );
     }
   }
 
-  console.log('\n\n' + '═'.repeat(80));
-  console.log('  OPTIMIZATION COMPLETE');
-  console.log('═'.repeat(80));
+  console.log("\n\n" + "═".repeat(80));
+  console.log("  OPTIMIZATION COMPLETE");
+  console.log("═".repeat(80));
 
   console.log(`\n  Total iterations: ${TOTAL_ITERATIONS}`);
   console.log(`  Valid configurations: ${allConfigs.length}`);
-  console.log(`  Time elapsed: ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+  console.log(
+    `  Time elapsed: ${((Date.now() - startTime) / 1000).toFixed(1)}s`
+  );
 
   if (bestConfig) {
-    console.log('\n' + '─'.repeat(80));
-    console.log('  🏆 BEST MEAN REVERSION CONFIGURATION');
-    console.log('─'.repeat(80));
+    console.log("\n" + "─".repeat(80));
+    console.log("  🏆 BEST MEAN REVERSION CONFIGURATION");
+    console.log("─".repeat(80));
 
     console.log(`\n  PERFORMANCE METRICS:`);
     console.log(`  ├─ Sharpe Ratio:    ${bestConfig.sharpe.toFixed(3)}`);
     console.log(`  ├─ Sortino Ratio:   ${bestConfig.sortino.toFixed(3)}`);
     console.log(`  ├─ Calmar Ratio:    ${bestConfig.calmar.toFixed(3)}`);
-    console.log(`  ├─ Win Rate:        ${(bestConfig.winRate * 100).toFixed(1)}%`);
-    console.log(`  ├─ Total Return:    ${(bestConfig.totalReturn * 100).toFixed(1)}%`);
-    console.log(`  ├─ Max Drawdown:    ${(bestConfig.maxDrawdown * 100).toFixed(1)}%`);
+    console.log(
+      `  ├─ Win Rate:        ${(bestConfig.winRate * 100).toFixed(1)}%`
+    );
+    console.log(
+      `  ├─ Total Return:    ${(bestConfig.totalReturn * 100).toFixed(1)}%`
+    );
+    console.log(
+      `  ├─ Max Drawdown:    ${(bestConfig.maxDrawdown * 100).toFixed(1)}%`
+    );
     console.log(`  ├─ Total Trades:    ${bestConfig.trades}`);
-    console.log(`  └─ Avg Holding:     ${bestConfig.avgHolding.toFixed(1)} days`);
+    console.log(
+      `  └─ Avg Holding:     ${bestConfig.avgHolding.toFixed(1)} days`
+    );
 
     const p = bestConfig.params;
     console.log(`\n  MEAN REVERSION PARAMETERS:`);
-    console.log(`  ├─ RSI Settings:     period=${p.rsiPeriod}, oversold=${p.rsiOversold}, overbought=${p.rsiOverbought}`);
-    console.log(`  ├─ Bollinger Bands:  period=${p.bbPeriod}, stdDev=${p.bbStdDev?.toFixed(1)}`);
-    console.log(`  ├─ ATR Settings:     period=${p.atrPeriod}, stop=${p.atrMultStop?.toFixed(1)}x, target=${p.atrMultTarget?.toFixed(1)}x`);
-    console.log(`  ├─ Entry Thresholds: buyThreshold=${p.buyThreshold?.toFixed(3)}, confidenceMin=${p.confidenceMin?.toFixed(3)}`);
-    console.log(`  ├─ Position Sizing:  maxPositionPct=${(p.maxPositionPct! * 100).toFixed(1)}%, maxPositions=${p.maxPositions}`);
-    console.log(`  └─ Risk Limits:      maxPortfolioExposure=${(p.maxPortfolioExposure! * 100).toFixed(0)}%, maxDailyLoss=${(p.maxDailyLoss! * 100).toFixed(1)}%`);
+    console.log(
+      `  ├─ RSI Settings:     period=${p.rsiPeriod}, oversold=${p.rsiOversold}, overbought=${p.rsiOverbought}`
+    );
+    console.log(
+      `  ├─ Bollinger Bands:  period=${p.bbPeriod}, stdDev=${p.bbStdDev?.toFixed(1)}`
+    );
+    console.log(
+      `  ├─ ATR Settings:     period=${p.atrPeriod}, stop=${p.atrMultStop?.toFixed(1)}x, target=${p.atrMultTarget?.toFixed(1)}x`
+    );
+    console.log(
+      `  ├─ Entry Thresholds: buyThreshold=${p.buyThreshold?.toFixed(3)}, confidenceMin=${p.confidenceMin?.toFixed(3)}`
+    );
+    console.log(
+      `  ├─ Position Sizing:  maxPositionPct=${(p.maxPositionPct! * 100).toFixed(1)}%, maxPositions=${p.maxPositions}`
+    );
+    console.log(
+      `  └─ Risk Limits:      maxPortfolioExposure=${(p.maxPortfolioExposure! * 100).toFixed(0)}%, maxDailyLoss=${(p.maxDailyLoss! * 100).toFixed(1)}%`
+    );
 
     console.log(`\n  FACTOR WEIGHTS (optimized for mean reversion):`);
-    console.log(`  ├─ Technical:     ${(p.technicalWeight! * 100).toFixed(1)}%`);
-    console.log(`  ├─ Volatility:    ${(p.volatilityWeight! * 100).toFixed(1)}% ⬆️  (higher for MR)`);
-    console.log(`  ├─ Correlation:   ${(p.correlationWeight! * 100).toFixed(1)}% ⬆️  (higher for MR)`);
-    console.log(`  ├─ Momentum:      ${(p.momentumWeight! * 100).toFixed(1)}% ⬇️  (lower for MR)`);
+    console.log(
+      `  ├─ Technical:     ${(p.technicalWeight! * 100).toFixed(1)}%`
+    );
+    console.log(
+      `  ├─ Volatility:    ${(p.volatilityWeight! * 100).toFixed(1)}% ⬆️  (higher for MR)`
+    );
+    console.log(
+      `  ├─ Correlation:   ${(p.correlationWeight! * 100).toFixed(1)}% ⬆️  (higher for MR)`
+    );
+    console.log(
+      `  ├─ Momentum:      ${(p.momentumWeight! * 100).toFixed(1)}% ⬇️  (lower for MR)`
+    );
     console.log(`  ├─ Volume:        ${(p.volumeWeight! * 100).toFixed(1)}%`);
-    console.log(`  ├─ Sentiment:     ${(p.sentimentWeight! * 100).toFixed(1)}%`);
+    console.log(
+      `  ├─ Sentiment:     ${(p.sentimentWeight! * 100).toFixed(1)}%`
+    );
     console.log(`  ├─ Pattern:       ${(p.patternWeight! * 100).toFixed(1)}%`);
     console.log(`  └─ Breadth:       ${(p.breadthWeight! * 100).toFixed(1)}%`);
 
@@ -810,14 +1048,15 @@ async function runMeanReversionOptimizer() {
     const top10 = allConfigs.sort((a, b) => b.sharpe - a.sharpe).slice(0, 10);
     for (let i = 0; i < top10.length; i++) {
       const c = top10[i];
-      console.log(`  ${i + 1}.  Sharpe: ${c.sharpe.toFixed(3)} | Sortino: ${c.sortino.toFixed(3)} | Calmar: ${c.calmar.toFixed(3)} | Win: ${(c.winRate * 100).toFixed(1)}% | Return: ${(c.totalReturn * 100).toFixed(1)}%`);
+      console.log(
+        `  ${i + 1}.  Sharpe: ${c.sharpe.toFixed(3)} | Sortino: ${c.sortino.toFixed(3)} | Calmar: ${c.calmar.toFixed(3)} | Win: ${(c.winRate * 100).toFixed(1)}% | Return: ${(c.totalReturn * 100).toFixed(1)}%`
+      );
     }
-
   } else {
-    console.log('\n  ❌ No valid configuration found.');
+    console.log("\n  ❌ No valid configuration found.");
   }
 
-  console.log('\n' + '═'.repeat(80));
+  console.log("\n" + "═".repeat(80));
 }
 
 runMeanReversionOptimizer().catch(console.error);

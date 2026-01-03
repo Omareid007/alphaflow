@@ -309,6 +309,15 @@ export default function PortfolioPage() {
       };
     }, [portfolioValue, portfolioCash, dailyPlPct]);
 
+  // Memoized chart history (must be before early returns per React hooks rules)
+  const portfolioChartData = useMemo(() => {
+    if (!portfolioSnapshot?.totalEquity) return [];
+    return generatePortfolioHistory(portfolioSnapshot.totalEquity, 30);
+  }, [portfolioSnapshot?.totalEquity]);
+
+  // Full-screen chart state (must be before early returns per React hooks rules)
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
+
   if (
     isLoading &&
     !portfolioSnapshot &&
@@ -391,15 +400,6 @@ export default function PortfolioPage() {
       </div>
     );
   }
-
-  // Memoized chart history
-  const portfolioChartData = useMemo(() => {
-    if (!portfolioSnapshot?.totalEquity) return [];
-    return generatePortfolioHistory(portfolioSnapshot.totalEquity, 30);
-  }, [portfolioSnapshot?.totalEquity]);
-
-  // Full-screen chart state
-  const [isChartExpanded, setIsChartExpanded] = useState(false);
 
   return (
     <PageTransition>

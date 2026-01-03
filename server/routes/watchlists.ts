@@ -86,7 +86,10 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
           .select()
           .from(watchlistSymbols)
           .where(eq(watchlistSymbols.watchlistId, watchlist.id))
-          .orderBy(asc(watchlistSymbols.sortOrder), desc(watchlistSymbols.addedAt));
+          .orderBy(
+            asc(watchlistSymbols.sortOrder),
+            desc(watchlistSymbols.addedAt)
+          );
 
         return {
           ...watchlist,
@@ -126,7 +129,9 @@ router.post("/", async (req: AuthenticatedRequest, res: Response) => {
       await db
         .update(watchlists)
         .set({ isDefault: false })
-        .where(and(eq(watchlists.userId, userId), eq(watchlists.isDefault, true)));
+        .where(
+          and(eq(watchlists.userId, userId), eq(watchlists.isDefault, true))
+        );
     }
 
     const [newWatchlist] = await db
@@ -139,7 +144,11 @@ router.post("/", async (req: AuthenticatedRequest, res: Response) => {
       })
       .returning();
 
-    log.info("Watchlists", "Created watchlist", { userId, watchlistId: newWatchlist.id, name });
+    log.info("Watchlists", "Created watchlist", {
+      userId,
+      watchlistId: newWatchlist.id,
+      name,
+    });
 
     res.status(201).json({
       ...newWatchlist,
@@ -222,7 +231,9 @@ router.put("/:id", async (req: AuthenticatedRequest, res: Response) => {
       await db
         .update(watchlists)
         .set({ isDefault: false })
-        .where(and(eq(watchlists.userId, userId), eq(watchlists.isDefault, true)));
+        .where(
+          and(eq(watchlists.userId, userId), eq(watchlists.isDefault, true))
+        );
     }
 
     const [updated] = await db
@@ -285,181 +296,196 @@ router.delete("/:id", async (req: AuthenticatedRequest, res: Response) => {
  * POST /api/watchlists/:id/symbols
  * Add a symbol to a watchlist
  */
-router.post("/:id/symbols", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
-    const { id: watchlistId } = req.params;
-    const validationResult = addWatchlistSymbolSchema.safeParse(req.body);
+router.post(
+  "/:id/symbols",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const { id: watchlistId } = req.params;
+      const validationResult = addWatchlistSymbolSchema.safeParse(req.body);
 
-    if (!validationResult.success) {
-      res.status(400).json({
-        error: "Invalid input",
-        details: validationResult.error.errors,
-      });
-      return;
-    }
+      if (!validationResult.success) {
+        res.status(400).json({
+          error: "Invalid input",
+          details: validationResult.error.errors,
+        });
+        return;
+      }
 
-    const { symbol, notes, tags } = validationResult.data;
+      const { symbol, notes, tags } = validationResult.data;
 
-    // Verify watchlist ownership
-    const [watchlist] = await db
-      .select()
-      .from(watchlists)
-      .where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId)));
+      // Verify watchlist ownership
+      const [watchlist] = await db
+        .select()
+        .from(watchlists)
+        .where(
+          and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))
+        );
 
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
-    }
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
 
-    // Check if symbol already exists in watchlist
-    const [existingSymbol] = await db
-      .select()
-      .from(watchlistSymbols)
-      .where(
-        and(
-          eq(watchlistSymbols.watchlistId, watchlistId),
-          eq(watchlistSymbols.symbol, symbol.toUpperCase())
-        )
-      );
+      // Check if symbol already exists in watchlist
+      const [existingSymbol] = await db
+        .select()
+        .from(watchlistSymbols)
+        .where(
+          and(
+            eq(watchlistSymbols.watchlistId, watchlistId),
+            eq(watchlistSymbols.symbol, symbol.toUpperCase())
+          )
+        );
 
-    if (existingSymbol) {
-      res.status(409).json({ error: "Symbol already in watchlist" });
-      return;
-    }
+      if (existingSymbol) {
+        res.status(409).json({ error: "Symbol already in watchlist" });
+        return;
+      }
 
-    const [newSymbol] = await db
-      .insert(watchlistSymbols)
-      .values({
+      const [newSymbol] = await db
+        .insert(watchlistSymbols)
+        .values({
+          watchlistId,
+          symbol: symbol.toUpperCase(),
+          notes,
+          tags,
+        })
+        .returning();
+
+      log.info("Watchlists", "Added symbol to watchlist", {
+        userId,
         watchlistId,
         symbol: symbol.toUpperCase(),
-        notes,
-        tags,
-      })
-      .returning();
+      });
 
-    log.info("Watchlists", "Added symbol to watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase(),
-    });
-
-    res.status(201).json({
-      success: true,
-      item: newSymbol,
-    });
-  } catch (error) {
-    log.error("Watchlists", "Failed to add symbol", { error });
-    res.status(500).json({ error: "Failed to add symbol" });
+      res.status(201).json({
+        success: true,
+        item: newSymbol,
+      });
+    } catch (error) {
+      log.error("Watchlists", "Failed to add symbol", { error });
+      res.status(500).json({ error: "Failed to add symbol" });
+    }
   }
-});
+);
 
 /**
  * PUT /api/watchlists/:id/symbols/:symbol
  * Update a symbol in a watchlist
  */
-router.put("/:id/symbols/:symbol", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
-    const { id: watchlistId, symbol } = req.params;
-    const validationResult = updateWatchlistSymbolSchema.safeParse(req.body);
+router.put(
+  "/:id/symbols/:symbol",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const { id: watchlistId, symbol } = req.params;
+      const validationResult = updateWatchlistSymbolSchema.safeParse(req.body);
 
-    if (!validationResult.success) {
-      res.status(400).json({
-        error: "Invalid input",
-        details: validationResult.error.errors,
-      });
-      return;
-    }
+      if (!validationResult.success) {
+        res.status(400).json({
+          error: "Invalid input",
+          details: validationResult.error.errors,
+        });
+        return;
+      }
 
-    const updates = validationResult.data;
+      const updates = validationResult.data;
 
-    // Verify watchlist ownership
-    const [watchlist] = await db
-      .select()
-      .from(watchlists)
-      .where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId)));
+      // Verify watchlist ownership
+      const [watchlist] = await db
+        .select()
+        .from(watchlists)
+        .where(
+          and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))
+        );
 
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
-    }
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
 
-    const [updated] = await db
-      .update(watchlistSymbols)
-      .set(updates)
-      .where(
-        and(
-          eq(watchlistSymbols.watchlistId, watchlistId),
-          eq(watchlistSymbols.symbol, symbol.toUpperCase())
+      const [updated] = await db
+        .update(watchlistSymbols)
+        .set(updates)
+        .where(
+          and(
+            eq(watchlistSymbols.watchlistId, watchlistId),
+            eq(watchlistSymbols.symbol, symbol.toUpperCase())
+          )
         )
-      )
-      .returning();
+        .returning();
 
-    if (!updated) {
-      res.status(404).json({ error: "Symbol not found in watchlist" });
-      return;
+      if (!updated) {
+        res.status(404).json({ error: "Symbol not found in watchlist" });
+        return;
+      }
+
+      log.info("Watchlists", "Updated symbol in watchlist", {
+        userId,
+        watchlistId,
+        symbol: symbol.toUpperCase(),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      log.error("Watchlists", "Failed to update symbol", { error });
+      res.status(500).json({ error: "Failed to update symbol" });
     }
-
-    log.info("Watchlists", "Updated symbol in watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase(),
-    });
-
-    res.json(updated);
-  } catch (error) {
-    log.error("Watchlists", "Failed to update symbol", { error });
-    res.status(500).json({ error: "Failed to update symbol" });
   }
-});
+);
 
 /**
  * DELETE /api/watchlists/:id/symbols/:symbol
  * Remove a symbol from a watchlist
  */
-router.delete("/:id/symbols/:symbol", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
-    const { id: watchlistId, symbol } = req.params;
+router.delete(
+  "/:id/symbols/:symbol",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const { id: watchlistId, symbol } = req.params;
 
-    // Verify watchlist ownership
-    const [watchlist] = await db
-      .select()
-      .from(watchlists)
-      .where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId)));
+      // Verify watchlist ownership
+      const [watchlist] = await db
+        .select()
+        .from(watchlists)
+        .where(
+          and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))
+        );
 
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
-    }
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
 
-    const result = await db
-      .delete(watchlistSymbols)
-      .where(
-        and(
-          eq(watchlistSymbols.watchlistId, watchlistId),
-          eq(watchlistSymbols.symbol, symbol.toUpperCase())
+      const result = await db
+        .delete(watchlistSymbols)
+        .where(
+          and(
+            eq(watchlistSymbols.watchlistId, watchlistId),
+            eq(watchlistSymbols.symbol, symbol.toUpperCase())
+          )
         )
-      )
-      .returning();
+        .returning();
 
-    if (result.length === 0) {
-      res.status(404).json({ error: "Symbol not found in watchlist" });
-      return;
+      if (result.length === 0) {
+        res.status(404).json({ error: "Symbol not found in watchlist" });
+        return;
+      }
+
+      log.info("Watchlists", "Removed symbol from watchlist", {
+        userId,
+        watchlistId,
+        symbol: symbol.toUpperCase(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      log.error("Watchlists", "Failed to remove symbol", { error });
+      res.status(500).json({ error: "Failed to remove symbol" });
     }
-
-    log.info("Watchlists", "Removed symbol from watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase(),
-    });
-
-    res.json({ success: true });
-  } catch (error) {
-    log.error("Watchlists", "Failed to remove symbol", { error });
-    res.status(500).json({ error: "Failed to remove symbol" });
   }
-});
+);
 
 export default router;

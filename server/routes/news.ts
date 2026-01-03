@@ -73,16 +73,20 @@ router.get("/crypto", requireAuth, async (req: Request, res: Response) => {
 });
 
 // Get news for a specific stock symbol
-router.get("/stock/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
-    const articles = await newsapi.getStockNews(symbol, pageSize);
-    res.json(articles);
-  } catch (error) {
-    log.error("Routes", "Failed to get stock news", { error: error });
-    res.status(500).json({ error: "Failed to get stock news" });
+router.get(
+  "/stock/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const articles = await newsapi.getStockNews(symbol, pageSize);
+      res.json(articles);
+    } catch (error) {
+      log.error("Routes", "Failed to get stock news", { error: error });
+      res.status(500).json({ error: "Failed to get stock news" });
+    }
   }
-});
+);
 
 export default router;

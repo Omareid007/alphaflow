@@ -1,6 +1,6 @@
-import React, { ReactElement } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React, { ReactElement } from "react";
+import { render, RenderOptions } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Create a new QueryClient for each test
 function createTestQueryClient() {
@@ -15,36 +15,34 @@ function createTestQueryClient() {
         retry: false,
       },
     },
-  })
+  });
 }
 
 interface WrapperProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 // Create wrapper with all providers
 function AllTheProviders({ children }: WrapperProps) {
-  const queryClient = createTestQueryClient()
+  const queryClient = createTestQueryClient();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  )
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 }
 
 // Custom render function with providers
 function customRender(
   ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>
+  options?: Omit<RenderOptions, "wrapper">
 ) {
-  return render(ui, { wrapper: AllTheProviders, ...options })
+  return render(ui, { wrapper: AllTheProviders, ...options });
 }
 
 // Re-export everything from @testing-library/react
-export * from '@testing-library/react'
-export { userEvent } from '@testing-library/user-event'
+export * from "@testing-library/react";
+export { userEvent } from "@testing-library/user-event";
 
 // Override render with our custom version
-export { customRender as render }
-export { createTestQueryClient }
+export { customRender as render };
+export { createTestQueryClient };

@@ -38,12 +38,15 @@ import {
 const TOTAL_ITERATIONS = 1000;
 const POPULATION_SIZE = 50;
 const ELITE_COUNT = 5;
-const MUTATION_RATE = 0.20;
+const MUTATION_RATE = 0.2;
 const CROSSOVER_RATE = 0.7;
 const TOURNAMENT_SIZE = 5;
 
 // Pattern-specific parameter ranges
-const PATTERN_PARAM_RANGES: Record<string, { min: number; max: number; step: number; integer?: boolean }> = {
+const PATTERN_PARAM_RANGES: Record<
+  string,
+  { min: number; max: number; step: number; integer?: boolean }
+> = {
   // Pattern detection windows
   patternLookbackWindow: { min: 10, max: 30, step: 1, integer: true },
   patternMinDistance: { min: 3, max: 10, step: 1, integer: true },
@@ -91,7 +94,7 @@ const PATTERN_PARAM_RANGES: Record<string, { min: number; max: number; step: num
   maxPositions: { min: 15, max: 25, step: 5, integer: true },
   atrMultStop: { min: 1.2, max: 2.0, step: 0.2 },
   atrMultTarget: { min: 3.0, max: 5.0, step: 0.5 },
-  buyThreshold: { min: 0.10, max: 0.18, step: 0.02 },
+  buyThreshold: { min: 0.1, max: 0.18, step: 0.02 },
   confidenceMin: { min: 0.25, max: 0.35, step: 0.05 },
 
   // Other factor weights (normalized with pattern weight)
@@ -106,12 +109,42 @@ const PATTERN_PARAM_RANGES: Record<string, { min: number; max: number; step: num
 
 // Symbol universe - diversified set
 const SYMBOLS = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
-  'AMD', 'INTC', 'CRM', 'NFLX', 'ADBE', 'ORCL',
-  'JPM', 'BAC', 'V', 'MA', 'GS', 'MS',
-  'UNH', 'JNJ', 'PFE', 'ABBV', 'LLY',
-  'WMT', 'COST', 'HD', 'NKE', 'MCD',
-  'SPY', 'QQQ', 'IWM', 'XLF', 'XLK', 'XLE', 'XLV',
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "NVDA",
+  "META",
+  "TSLA",
+  "AMD",
+  "INTC",
+  "CRM",
+  "NFLX",
+  "ADBE",
+  "ORCL",
+  "JPM",
+  "BAC",
+  "V",
+  "MA",
+  "GS",
+  "MS",
+  "UNH",
+  "JNJ",
+  "PFE",
+  "ABBV",
+  "LLY",
+  "WMT",
+  "COST",
+  "HD",
+  "NKE",
+  "MCD",
+  "SPY",
+  "QQQ",
+  "IWM",
+  "XLF",
+  "XLK",
+  "XLE",
+  "XLV",
 ];
 
 interface PatternGenome {
@@ -131,13 +164,16 @@ interface PatternGenome {
   patternTradeCount: number;
   patternWinRate: number;
   avgPatternStrength: number;
-  patternTypeStats: Record<string, { count: number; winRate: number; avgReturn: number }>;
+  patternTypeStats: Record<
+    string,
+    { count: number; winRate: number; avgReturn: number }
+  >;
 }
 
 interface ChartPattern {
   type: string;
   confidence: number;
-  direction: 'bullish' | 'bearish';
+  direction: "bullish" | "bearish";
   strength: number;
   startIdx: number;
   endIdx: number;
@@ -171,7 +207,10 @@ interface BacktestResult {
   patternTradeCount: number;
   patternWinRate: number;
   avgPatternStrength: number;
-  patternTypeStats: Record<string, { count: number; winRate: number; avgReturn: number }>;
+  patternTypeStats: Record<
+    string,
+    { count: number; winRate: number; avgReturn: number }
+  >;
 }
 
 // ============= GENETIC OPERATORS =============
@@ -181,10 +220,14 @@ function generateRandomGenome(generation: number): PatternGenome {
 
   for (const [param, range] of Object.entries(PATTERN_PARAM_RANGES)) {
     if (range.integer) {
-      genes[param] = Math.floor(Math.random() * ((range.max - range.min) / range.step + 1)) * range.step + range.min;
+      genes[param] =
+        Math.floor(Math.random() * ((range.max - range.min) / range.step + 1)) *
+          range.step +
+        range.min;
     } else {
       const steps = Math.round((range.max - range.min) / range.step);
-      genes[param] = Math.round((Math.random() * steps) * range.step * 100) / 100 + range.min;
+      genes[param] =
+        Math.round(Math.random() * steps * range.step * 100) / 100 + range.min;
     }
   }
 
@@ -210,29 +253,46 @@ function generateRandomGenome(generation: number): PatternGenome {
 }
 
 // Pattern-specific weight keys (includes breadthWeight and correlationWeight)
-const PATTERN_WEIGHT_KEYS = ['technicalWeight', 'momentumWeight', 'volatilityWeight', 'volumeWeight',
-                              'sentimentWeight', 'patternWeight', 'breadthWeight', 'correlationWeight'];
+const PATTERN_WEIGHT_KEYS = [
+  "technicalWeight",
+  "momentumWeight",
+  "volatilityWeight",
+  "volumeWeight",
+  "sentimentWeight",
+  "patternWeight",
+  "breadthWeight",
+  "correlationWeight",
+];
 
 function normalizeWeights(genes: Record<string, number>): void {
   sharedNormalizeWeights(genes, PATTERN_WEIGHT_KEYS);
 }
 
-function crossover(parent1: PatternGenome, parent2: PatternGenome, generation: number): PatternGenome {
+function crossover(
+  parent1: PatternGenome,
+  parent2: PatternGenome,
+  generation: number
+): PatternGenome {
   const childGenes: Record<string, number> = {};
 
   for (const param of Object.keys(PATTERN_PARAM_RANGES)) {
     const rand = Math.random();
     if (rand < 0.45) {
       childGenes[param] = parent1.genes[param];
-    } else if (rand < 0.90) {
+    } else if (rand < 0.9) {
       childGenes[param] = parent2.genes[param];
     } else {
       // Blend
       const alpha = Math.random();
-      childGenes[param] = alpha * parent1.genes[param] + (1 - alpha) * parent2.genes[param];
+      childGenes[param] =
+        alpha * parent1.genes[param] + (1 - alpha) * parent2.genes[param];
       const range = PATTERN_PARAM_RANGES[param];
-      childGenes[param] = Math.round(childGenes[param] / range.step) * range.step;
-      childGenes[param] = Math.max(range.min, Math.min(range.max, childGenes[param]));
+      childGenes[param] =
+        Math.round(childGenes[param] / range.step) * range.step;
+      childGenes[param] = Math.max(
+        range.min,
+        Math.min(range.max, childGenes[param])
+      );
       if (range.integer) childGenes[param] = Math.round(childGenes[param]);
     }
   }
@@ -242,7 +302,14 @@ function crossover(parent1: PatternGenome, parent2: PatternGenome, generation: n
   return {
     id: `gen${generation}-${Math.random().toString(36).substr(2, 9)}`,
     genes: childGenes,
-    fitness: 0, sharpe: 0, sortino: 0, calmar: 0, winRate: 0, totalReturn: 0, maxDrawdown: 0, trades: 0,
+    fitness: 0,
+    sharpe: 0,
+    sortino: 0,
+    calmar: 0,
+    winRate: 0,
+    totalReturn: 0,
+    maxDrawdown: 0,
+    trades: 0,
     generation,
     patternTradeCount: 0,
     patternWinRate: 0,
@@ -270,16 +337,22 @@ function mutate(genome: PatternGenome, mutationRate: number): PatternGenome {
 }
 
 // Pattern-specific tournament selection (uses shared algorithm with PatternGenome type)
-function tournamentSelect(population: PatternGenome[], tournamentSize: number): PatternGenome {
+function tournamentSelect(
+  population: PatternGenome[],
+  tournamentSize: number
+): PatternGenome {
   // PatternGenome is compatible with Genome interface for fitness-based selection
-  return sharedTournamentSelect(population as any, tournamentSize) as unknown as PatternGenome;
+  return sharedTournamentSelect(
+    population as any,
+    tournamentSize
+  ) as unknown as PatternGenome;
 }
 
 // ============= INDICATOR HELPERS =============
 // Wrapper to convert nullable arrays to NaN-filled arrays for compatibility
 
 function toNaNArray(arr: (number | null)[]): number[] {
-  return arr.map(v => v ?? NaN);
+  return arr.map((v) => v ?? NaN);
 }
 
 function getLastValue(arr: (number | null)[]): number {
@@ -337,7 +410,7 @@ function detectAdvancedPatterns(
 
   // ===== DOUBLE BOTTOM =====
   if (troughs.length >= 2) {
-    const recentTroughs = troughs.filter(t => t >= len - lookbackWindow);
+    const recentTroughs = troughs.filter((t) => t >= len - lookbackWindow);
     for (let i = 0; i < recentTroughs.length - 1; i++) {
       for (let j = i + 1; j < recentTroughs.length; j++) {
         const t1 = recentTroughs[i];
@@ -351,15 +424,20 @@ function detectAdvancedPatterns(
 
           if (priceDiff < (genes.doubleTopBottomTolerance || 0.02)) {
             const currentPrice = closes[len - 1];
-            const breakout = currentPrice > Math.max(price1, price2) * (1 + (genes.patternBreakoutConfirmation || 0.02));
+            const breakout =
+              currentPrice >
+              Math.max(price1, price2) *
+                (1 + (genes.patternBreakoutConfirmation || 0.02));
             const confidence = breakout ? 0.75 : 0.55;
-            const strength = (1 - priceDiff / (genes.doubleTopBottomTolerance || 0.02)) * (genes.doubleBottomWeight || 1.0);
+            const strength =
+              (1 - priceDiff / (genes.doubleTopBottomTolerance || 0.02)) *
+              (genes.doubleBottomWeight || 1.0);
 
             if (confidence >= (genes.minPatternConfidence || 0.4)) {
               patterns.push({
-                type: 'double_bottom',
+                type: "double_bottom",
                 confidence,
-                direction: 'bullish',
+                direction: "bullish",
                 strength,
                 startIdx: t1,
                 endIdx: len - 1,
@@ -373,7 +451,7 @@ function detectAdvancedPatterns(
 
   // ===== DOUBLE TOP =====
   if (peaks.length >= 2) {
-    const recentPeaks = peaks.filter(p => p >= len - lookbackWindow);
+    const recentPeaks = peaks.filter((p) => p >= len - lookbackWindow);
     for (let i = 0; i < recentPeaks.length - 1; i++) {
       for (let j = i + 1; j < recentPeaks.length; j++) {
         const p1 = recentPeaks[i];
@@ -387,15 +465,20 @@ function detectAdvancedPatterns(
 
           if (priceDiff < (genes.doubleTopBottomTolerance || 0.02)) {
             const currentPrice = closes[len - 1];
-            const breakdown = currentPrice < Math.min(price1, price2) * (1 - (genes.patternBreakoutConfirmation || 0.02));
+            const breakdown =
+              currentPrice <
+              Math.min(price1, price2) *
+                (1 - (genes.patternBreakoutConfirmation || 0.02));
             const confidence = breakdown ? 0.75 : 0.55;
-            const strength = (1 - priceDiff / (genes.doubleTopBottomTolerance || 0.02)) * (genes.doubleTopWeight || 1.0);
+            const strength =
+              (1 - priceDiff / (genes.doubleTopBottomTolerance || 0.02)) *
+              (genes.doubleTopWeight || 1.0);
 
             if (confidence >= (genes.minPatternConfidence || 0.4)) {
               patterns.push({
-                type: 'double_top',
+                type: "double_top",
                 confidence,
-                direction: 'bearish',
+                direction: "bearish",
                 strength: -strength,
                 startIdx: p1,
                 endIdx: len - 1,
@@ -409,7 +492,9 @@ function detectAdvancedPatterns(
 
   // ===== HEAD AND SHOULDERS =====
   if (peaks.length >= 3) {
-    const recentPeaks = peaks.filter(p => p >= len - lookbackWindow).slice(-5);
+    const recentPeaks = peaks
+      .filter((p) => p >= len - lookbackWindow)
+      .slice(-5);
     if (recentPeaks.length >= 3) {
       for (let i = 0; i <= recentPeaks.length - 3; i++) {
         const left = highs[recentPeaks[i]];
@@ -419,15 +504,21 @@ function detectAdvancedPatterns(
         const shoulderSymmetry = Math.abs(left - right) / left;
         const headHigher = head > left && head > right;
 
-        if (headHigher && shoulderSymmetry < (genes.headShouldersSymmetryTolerance || 0.05)) {
-          const confidence = 0.70 * (genes.headShouldersWeight || 1.0);
-          const strength = -(1 - shoulderSymmetry / (genes.headShouldersSymmetryTolerance || 0.05));
+        if (
+          headHigher &&
+          shoulderSymmetry < (genes.headShouldersSymmetryTolerance || 0.05)
+        ) {
+          const confidence = 0.7 * (genes.headShouldersWeight || 1.0);
+          const strength = -(
+            1 -
+            shoulderSymmetry / (genes.headShouldersSymmetryTolerance || 0.05)
+          );
 
           if (confidence >= (genes.minPatternConfidence || 0.4)) {
             patterns.push({
-              type: 'head_shoulders',
+              type: "head_shoulders",
               confidence,
-              direction: 'bearish',
+              direction: "bearish",
               strength: strength * (genes.headShouldersWeight || 1.0),
               startIdx: recentPeaks[i],
               endIdx: len - 1,
@@ -440,7 +531,9 @@ function detectAdvancedPatterns(
 
   // ===== INVERSE HEAD AND SHOULDERS =====
   if (troughs.length >= 3) {
-    const recentTroughs = troughs.filter(t => t >= len - lookbackWindow).slice(-5);
+    const recentTroughs = troughs
+      .filter((t) => t >= len - lookbackWindow)
+      .slice(-5);
     if (recentTroughs.length >= 3) {
       for (let i = 0; i <= recentTroughs.length - 3; i++) {
         const left = lows[recentTroughs[i]];
@@ -450,15 +543,20 @@ function detectAdvancedPatterns(
         const shoulderSymmetry = Math.abs(left - right) / left;
         const headLower = head < left && head < right;
 
-        if (headLower && shoulderSymmetry < (genes.headShouldersSymmetryTolerance || 0.05)) {
-          const confidence = 0.70 * (genes.invHeadShouldersWeight || 1.0);
-          const strength = 1 - shoulderSymmetry / (genes.headShouldersSymmetryTolerance || 0.05);
+        if (
+          headLower &&
+          shoulderSymmetry < (genes.headShouldersSymmetryTolerance || 0.05)
+        ) {
+          const confidence = 0.7 * (genes.invHeadShouldersWeight || 1.0);
+          const strength =
+            1 -
+            shoulderSymmetry / (genes.headShouldersSymmetryTolerance || 0.05);
 
           if (confidence >= (genes.minPatternConfidence || 0.4)) {
             patterns.push({
-              type: 'inv_head_shoulders',
+              type: "inv_head_shoulders",
               confidence,
-              direction: 'bullish',
+              direction: "bullish",
               strength: strength * (genes.invHeadShouldersWeight || 1.0),
               startIdx: recentTroughs[i],
               endIdx: len - 1,
@@ -471,26 +569,44 @@ function detectAdvancedPatterns(
 
   // ===== ASCENDING TRIANGLE =====
   const trianglePeriod = genes.triangleFormationPeriod || 25;
-  if (peaks.length >= (genes.triangleMinTouches || 3) && troughs.length >= (genes.triangleMinTouches || 3) && len >= trianglePeriod) {
-    const recentPeaks = peaks.filter(p => p >= len - trianglePeriod).slice(-(genes.triangleMinTouches || 3));
-    const recentTroughs = troughs.filter(t => t >= len - trianglePeriod).slice(-(genes.triangleMinTouches || 3));
+  if (
+    peaks.length >= (genes.triangleMinTouches || 3) &&
+    troughs.length >= (genes.triangleMinTouches || 3) &&
+    len >= trianglePeriod
+  ) {
+    const recentPeaks = peaks
+      .filter((p) => p >= len - trianglePeriod)
+      .slice(-(genes.triangleMinTouches || 3));
+    const recentTroughs = troughs
+      .filter((t) => t >= len - trianglePeriod)
+      .slice(-(genes.triangleMinTouches || 3));
 
-    if (recentPeaks.length >= (genes.triangleMinTouches || 3) && recentTroughs.length >= (genes.triangleMinTouches || 3)) {
-      const peakPrices = recentPeaks.map(p => highs[p]);
-      const troughPrices = recentTroughs.map(t => lows[t]);
+    if (
+      recentPeaks.length >= (genes.triangleMinTouches || 3) &&
+      recentTroughs.length >= (genes.triangleMinTouches || 3)
+    ) {
+      const peakPrices = recentPeaks.map((p) => highs[p]);
+      const troughPrices = recentTroughs.map((t) => lows[t]);
 
-      const flatTop = Math.abs(Math.max(...peakPrices) - Math.min(...peakPrices)) / Math.max(...peakPrices);
-      const risingBottom = troughPrices[troughPrices.length - 1] > troughPrices[0] * 1.01;
+      const flatTop =
+        Math.abs(Math.max(...peakPrices) - Math.min(...peakPrices)) /
+        Math.max(...peakPrices);
+      const risingBottom =
+        troughPrices[troughPrices.length - 1] > troughPrices[0] * 1.01;
 
-      if (flatTop < (genes.triangleFlatnessTolerance || 0.025) && risingBottom) {
-        const confidence = 0.60 * (genes.ascendingTriangleWeight || 1.0);
-        const strength = (1 - flatTop / (genes.triangleFlatnessTolerance || 0.025)) * 0.8;
+      if (
+        flatTop < (genes.triangleFlatnessTolerance || 0.025) &&
+        risingBottom
+      ) {
+        const confidence = 0.6 * (genes.ascendingTriangleWeight || 1.0);
+        const strength =
+          (1 - flatTop / (genes.triangleFlatnessTolerance || 0.025)) * 0.8;
 
         if (confidence >= (genes.minPatternConfidence || 0.4)) {
           patterns.push({
-            type: 'ascending_triangle',
+            type: "ascending_triangle",
             confidence,
-            direction: 'bullish',
+            direction: "bullish",
             strength: strength * (genes.ascendingTriangleWeight || 1.0),
             startIdx: Math.min(...recentPeaks, ...recentTroughs),
             endIdx: len - 1,
@@ -501,26 +617,44 @@ function detectAdvancedPatterns(
   }
 
   // ===== DESCENDING TRIANGLE =====
-  if (peaks.length >= (genes.triangleMinTouches || 3) && troughs.length >= (genes.triangleMinTouches || 3) && len >= trianglePeriod) {
-    const recentPeaks = peaks.filter(p => p >= len - trianglePeriod).slice(-(genes.triangleMinTouches || 3));
-    const recentTroughs = troughs.filter(t => t >= len - trianglePeriod).slice(-(genes.triangleMinTouches || 3));
+  if (
+    peaks.length >= (genes.triangleMinTouches || 3) &&
+    troughs.length >= (genes.triangleMinTouches || 3) &&
+    len >= trianglePeriod
+  ) {
+    const recentPeaks = peaks
+      .filter((p) => p >= len - trianglePeriod)
+      .slice(-(genes.triangleMinTouches || 3));
+    const recentTroughs = troughs
+      .filter((t) => t >= len - trianglePeriod)
+      .slice(-(genes.triangleMinTouches || 3));
 
-    if (recentPeaks.length >= (genes.triangleMinTouches || 3) && recentTroughs.length >= (genes.triangleMinTouches || 3)) {
-      const peakPrices = recentPeaks.map(p => highs[p]);
-      const troughPrices = recentTroughs.map(t => lows[t]);
+    if (
+      recentPeaks.length >= (genes.triangleMinTouches || 3) &&
+      recentTroughs.length >= (genes.triangleMinTouches || 3)
+    ) {
+      const peakPrices = recentPeaks.map((p) => highs[p]);
+      const troughPrices = recentTroughs.map((t) => lows[t]);
 
-      const flatBottom = Math.abs(Math.max(...troughPrices) - Math.min(...troughPrices)) / Math.max(...troughPrices);
-      const fallingTop = peakPrices[peakPrices.length - 1] < peakPrices[0] * 0.99;
+      const flatBottom =
+        Math.abs(Math.max(...troughPrices) - Math.min(...troughPrices)) /
+        Math.max(...troughPrices);
+      const fallingTop =
+        peakPrices[peakPrices.length - 1] < peakPrices[0] * 0.99;
 
-      if (flatBottom < (genes.triangleFlatnessTolerance || 0.025) && fallingTop) {
-        const confidence = 0.60 * (genes.descendingTriangleWeight || 1.0);
-        const strength = -(1 - flatBottom / (genes.triangleFlatnessTolerance || 0.025)) * 0.8;
+      if (
+        flatBottom < (genes.triangleFlatnessTolerance || 0.025) &&
+        fallingTop
+      ) {
+        const confidence = 0.6 * (genes.descendingTriangleWeight || 1.0);
+        const strength =
+          -(1 - flatBottom / (genes.triangleFlatnessTolerance || 0.025)) * 0.8;
 
         if (confidence >= (genes.minPatternConfidence || 0.4)) {
           patterns.push({
-            type: 'descending_triangle',
+            type: "descending_triangle",
             confidence,
-            direction: 'bearish',
+            direction: "bearish",
             strength: strength * (genes.descendingTriangleWeight || 1.0),
             startIdx: Math.min(...recentPeaks, ...recentTroughs),
             endIdx: len - 1,
@@ -545,15 +679,19 @@ function detectAdvancedPatterns(
     const minPullback = genes.flagPullbackMin || 0.02;
     const maxPullback = genes.flagPullbackMax || 0.08;
 
-    if (poleGain > minGain && flagPullback > minPullback && flagPullback < maxPullback) {
+    if (
+      poleGain > minGain &&
+      flagPullback > minPullback &&
+      flagPullback < maxPullback
+    ) {
       const confidence = 0.55 * (genes.bullFlagWeight || 0.7);
       const strength = poleGain * 0.5;
 
       if (confidence >= (genes.minPatternConfidence || 0.4)) {
         patterns.push({
-          type: 'bull_flag',
+          type: "bull_flag",
           confidence,
-          direction: 'bullish',
+          direction: "bullish",
           strength: strength * (genes.bullFlagWeight || 0.7),
           startIdx: poleStart,
           endIdx: len - 1,
@@ -575,15 +713,19 @@ function detectAdvancedPatterns(
     const minRebound = genes.flagPullbackMin || 0.02;
     const maxRebound = genes.flagPullbackMax || 0.08;
 
-    if (poleLoss > minLoss && flagRebound > minRebound && flagRebound < maxRebound) {
+    if (
+      poleLoss > minLoss &&
+      flagRebound > minRebound &&
+      flagRebound < maxRebound
+    ) {
       const confidence = 0.55 * (genes.bearFlagWeight || 0.7);
       const strength = -poleLoss * 0.5;
 
       if (confidence >= (genes.minPatternConfidence || 0.4)) {
         patterns.push({
-          type: 'bear_flag',
+          type: "bear_flag",
           confidence,
-          direction: 'bearish',
+          direction: "bearish",
           strength: strength * (genes.bearFlagWeight || 0.7),
           startIdx: poleStart,
           endIdx: len - 1,
@@ -600,13 +742,19 @@ function detectAdvancedPatterns(
 function generateSignal(
   bars: AlpacaBar[],
   genes: Record<string, number>
-): { score: number; confidence: number; patterns: ChartPattern[]; patternScore: number } {
-  if (bars.length < 50) return { score: 0, confidence: 0, patterns: [], patternScore: 0 };
+): {
+  score: number;
+  confidence: number;
+  patterns: ChartPattern[];
+  patternScore: number;
+} {
+  if (bars.length < 50)
+    return { score: 0, confidence: 0, patterns: [], patternScore: 0 };
 
-  const closes = bars.map(b => b.c);
-  const highs = bars.map(b => b.h);
-  const lows = bars.map(b => b.l);
-  const volumes = bars.map(b => b.v);
+  const closes = bars.map((b) => b.c);
+  const highs = bars.map((b) => b.h);
+  const lows = bars.map((b) => b.l);
+  const volumes = bars.map((b) => b.v);
 
   // Basic technical factors (using shared indicators with null handling)
   const rsi = calculateRSI(closes, 14);
@@ -630,12 +778,18 @@ function generateSignal(
   technical = Math.max(-1, Math.min(1, technical));
 
   // Momentum
-  const momentum5 = (closes[closes.length - 1] - closes[closes.length - 6]) / closes[closes.length - 6];
+  const momentum5 =
+    (closes[closes.length - 1] - closes[closes.length - 6]) /
+    closes[closes.length - 6];
   const momentum = Math.max(-1, Math.min(1, momentum5 * 10));
 
   // Volatility
-  const returns = closes.slice(-20).map((c, i, arr) => i > 0 ? (c - arr[i - 1]) / arr[i - 1] : 0);
-  const volatility = Math.sqrt(returns.reduce((sum, r) => sum + r * r, 0) / returns.length) * Math.sqrt(252);
+  const returns = closes
+    .slice(-20)
+    .map((c, i, arr) => (i > 0 ? (c - arr[i - 1]) / arr[i - 1] : 0));
+  const volatility =
+    Math.sqrt(returns.reduce((sum, r) => sum + r * r, 0) / returns.length) *
+    Math.sqrt(252);
   const volScore = Math.max(-1, Math.min(1, 0.5 - volatility));
 
   // Volume
@@ -647,8 +801,9 @@ function generateSignal(
   const current = closes[closes.length - 1];
   const sma20Last = getLastValue(sma20);
   const sma50Last = getLastValue(sma50);
-  const sentiment = (!isNaN(sma20Last) && current > sma20Last ? 0.4 : -0.4) +
-                    (!isNaN(sma50Last) && current > sma50Last ? 0.4 : -0.4);
+  const sentiment =
+    (!isNaN(sma20Last) && current > sma20Last ? 0.4 : -0.4) +
+    (!isNaN(sma50Last) && current > sma50Last ? 0.4 : -0.4);
 
   // PATTERN DETECTION (KEY FOCUS)
   const patterns = detectAdvancedPatterns(closes, highs, lows, genes);
@@ -659,24 +814,34 @@ function generateSignal(
   patternScore = Math.max(-1, Math.min(1, patternScore));
 
   // Breadth
-  const breadth = (!isNaN(sma20Last) && current > sma20Last ? 0.5 : -0.5);
+  const breadth = !isNaN(sma20Last) && current > sma20Last ? 0.5 : -0.5;
 
   // Correlation (mean reversion)
   const correlation = -sentiment * 0.3;
 
   // Weighted composite
-  const score = technical * (genes.technicalWeight || 0.20) +
-    momentum * (genes.momentumWeight || 0.20) +
+  const score =
+    technical * (genes.technicalWeight || 0.2) +
+    momentum * (genes.momentumWeight || 0.2) +
     volScore * (genes.volatilityWeight || 0.08) +
     volumeScore * (genes.volumeWeight || 0.12) +
     sentiment * (genes.sentimentWeight || 0.12) +
-    patternScore * (genes.patternWeight || 0.10) +
+    patternScore * (genes.patternWeight || 0.1) +
     breadth * (genes.breadthWeight || 0.08) +
-    correlation * (genes.correlationWeight || 0.10);
+    correlation * (genes.correlationWeight || 0.1);
 
-  const factors = [technical, momentum, volScore, volumeScore, sentiment, patternScore, breadth, correlation];
-  const posCount = factors.filter(f => f > 0.2).length;
-  const negCount = factors.filter(f => f < -0.2).length;
+  const factors = [
+    technical,
+    momentum,
+    volScore,
+    volumeScore,
+    sentiment,
+    patternScore,
+    breadth,
+    correlation,
+  ];
+  const posCount = factors.filter((f) => f > 0.2).length;
+  const negCount = factors.filter((f) => f < -0.2).length;
   const agreement = Math.max(posCount, negCount) / factors.length;
   const confidence = agreement * Math.abs(score);
 
@@ -697,15 +862,18 @@ async function runBacktest(
   const trades: TradeResult[] = [];
   const equity: number[] = [capital];
   const dailyReturns: number[] = [];
-  const positions: Map<string, {
-    entry: number;
-    shares: number;
-    entryDate: string;
-    stopLoss: number;
-    takeProfit: number;
-    patterns: ChartPattern[];
-    patternScore: number;
-  }> = new Map();
+  const positions: Map<
+    string,
+    {
+      entry: number;
+      shares: number;
+      entryDate: string;
+      stopLoss: number;
+      takeProfit: number;
+      patterns: ChartPattern[];
+      patternScore: number;
+    }
+  > = new Map();
 
   const tradingDays: string[] = [];
   const firstBars = bars.values().next().value;
@@ -723,7 +891,7 @@ async function runBacktest(
     for (const [symbol, pos] of positions) {
       const symbolBars = bars.get(symbol);
       if (!symbolBars) continue;
-      const currentBar = symbolBars.find(b => b.t === currentDate);
+      const currentBar = symbolBars.find((b) => b.t === currentDate);
       if (!currentBar) continue;
 
       const high = currentBar.h;
@@ -767,15 +935,20 @@ async function runBacktest(
 
       for (const [symbol, symbolBars] of bars) {
         if (positions.has(symbol)) continue;
-        const barsToDate = symbolBars.filter(b => b.t <= currentDate).slice(-60);
+        const barsToDate = symbolBars
+          .filter((b) => b.t <= currentDate)
+          .slice(-60);
         if (barsToDate.length < 50) continue;
 
         const signal = generateSignal(barsToDate, genes);
-        if (signal.score >= (genes.buyThreshold || 0.12) && signal.confidence >= (genes.confidenceMin || 0.28)) {
+        if (
+          signal.score >= (genes.buyThreshold || 0.12) &&
+          signal.confidence >= (genes.confidenceMin || 0.28)
+        ) {
           const currentBar = barsToDate[barsToDate.length - 1];
-          const closes = barsToDate.map(b => b.c);
-          const highs = barsToDate.map(b => b.h);
-          const lows = barsToDate.map(b => b.l);
+          const closes = barsToDate.map((b) => b.c);
+          const highs = barsToDate.map((b) => b.h);
+          const lows = barsToDate.map((b) => b.l);
           const atr = calculateATR(highs, lows, closes, 14);
           const atrValue = getLastValue(atr);
           if (!isNaN(atrValue)) {
@@ -794,13 +967,18 @@ async function runBacktest(
 
       candidates.sort((a, b) => b.score - a.score);
 
-      for (const candidate of candidates.slice(0, (genes.maxPositions || 20) - positions.size)) {
+      for (const candidate of candidates.slice(
+        0,
+        (genes.maxPositions || 20) - positions.size
+      )) {
         const maxPositionSize = capital * (genes.maxPositionPct || 0.05);
         const shares = Math.floor(maxPositionSize / candidate.price);
 
         if (shares > 0 && shares * candidate.price <= capital) {
-          const stopLoss = candidate.price - candidate.atr * (genes.atrMultStop || 1.5);
-          const takeProfit = candidate.price + candidate.atr * (genes.atrMultTarget || 4);
+          const stopLoss =
+            candidate.price - candidate.atr * (genes.atrMultStop || 1.5);
+          const takeProfit =
+            candidate.price + candidate.atr * (genes.atrMultTarget || 4);
           positions.set(candidate.symbol, {
             entry: candidate.price,
             shares,
@@ -820,12 +998,15 @@ async function runBacktest(
     for (const [symbol, pos] of positions) {
       const symbolBars = bars.get(symbol);
       if (symbolBars) {
-        const currentBar = symbolBars.find(b => b.t === currentDate);
+        const currentBar = symbolBars.find((b) => b.t === currentDate);
         if (currentBar) currentEquity += pos.shares * currentBar.c;
       }
     }
     equity.push(currentEquity);
-    if (equity.length > 1) dailyReturns.push((currentEquity - equity[equity.length - 2]) / equity[equity.length - 2]);
+    if (equity.length > 1)
+      dailyReturns.push(
+        (currentEquity - equity[equity.length - 2]) / equity[equity.length - 2]
+      );
   }
 
   // Close remaining positions
@@ -850,31 +1031,54 @@ async function runBacktest(
   }
 
   // Calculate metrics
-  const totalReturn = (equity[equity.length - 1] - initialCapital) / initialCapital;
+  const totalReturn =
+    (equity[equity.length - 1] - initialCapital) / initialCapital;
   const maxDrawdown = equity.reduce((maxDD, val, i) => {
     const peak = Math.max(...equity.slice(0, i + 1));
     return Math.max(maxDD, (peak - val) / peak);
   }, 0);
 
-  const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / (dailyReturns.length || 1);
-  const stdReturn = Math.sqrt(dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (dailyReturns.length || 1));
-  const sharpe = stdReturn > 0 ? (avgReturn * 252) / (stdReturn * Math.sqrt(252)) : 0;
-  const negativeReturns = dailyReturns.filter(r => r < 0);
-  const downstdReturn = Math.sqrt(negativeReturns.reduce((sum, r) => sum + r * r, 0) / (negativeReturns.length || 1));
-  const sortino = downstdReturn > 0 ? (avgReturn * 252) / (downstdReturn * Math.sqrt(252)) : 0;
+  const avgReturn =
+    dailyReturns.reduce((a, b) => a + b, 0) / (dailyReturns.length || 1);
+  const stdReturn = Math.sqrt(
+    dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) /
+      (dailyReturns.length || 1)
+  );
+  const sharpe =
+    stdReturn > 0 ? (avgReturn * 252) / (stdReturn * Math.sqrt(252)) : 0;
+  const negativeReturns = dailyReturns.filter((r) => r < 0);
+  const downstdReturn = Math.sqrt(
+    negativeReturns.reduce((sum, r) => sum + r * r, 0) /
+      (negativeReturns.length || 1)
+  );
+  const sortino =
+    downstdReturn > 0
+      ? (avgReturn * 252) / (downstdReturn * Math.sqrt(252))
+      : 0;
   const years = tradingDays.length / 252;
   const cagr = Math.pow(1 + totalReturn, 1 / years) - 1;
   const calmar = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
-  const winRate = trades.length > 0 ? trades.filter(t => t.pnl > 0).length / trades.length : 0;
+  const winRate =
+    trades.length > 0
+      ? trades.filter((t) => t.pnl > 0).length / trades.length
+      : 0;
 
   // Pattern analytics
-  const patternTrades = trades.filter(t => t.patterns.length > 0);
-  const patternWinRate = patternTrades.length > 0 ? patternTrades.filter(t => t.pnl > 0).length / patternTrades.length : 0;
-  const avgPatternStrength = patternTrades.length > 0
-    ? patternTrades.reduce((sum, t) => sum + Math.abs(t.patternScore), 0) / patternTrades.length
-    : 0;
+  const patternTrades = trades.filter((t) => t.patterns.length > 0);
+  const patternWinRate =
+    patternTrades.length > 0
+      ? patternTrades.filter((t) => t.pnl > 0).length / patternTrades.length
+      : 0;
+  const avgPatternStrength =
+    patternTrades.length > 0
+      ? patternTrades.reduce((sum, t) => sum + Math.abs(t.patternScore), 0) /
+        patternTrades.length
+      : 0;
 
-  const patternTypeStats: Record<string, { count: number; winRate: number; avgReturn: number }> = {};
+  const patternTypeStats: Record<
+    string,
+    { count: number; winRate: number; avgReturn: number }
+  > = {};
   for (const trade of patternTrades) {
     for (const pattern of trade.patterns) {
       if (!patternTypeStats[pattern.type]) {
@@ -885,10 +1089,13 @@ async function runBacktest(
   }
 
   for (const pType of Object.keys(patternTypeStats)) {
-    const pTrades = patternTrades.filter(t => t.patterns.some(p => p.type === pType));
-    const pWins = pTrades.filter(t => t.pnl > 0).length;
+    const pTrades = patternTrades.filter((t) =>
+      t.patterns.some((p) => p.type === pType)
+    );
+    const pWins = pTrades.filter((t) => t.pnl > 0).length;
     patternTypeStats[pType].winRate = pWins / pTrades.length;
-    patternTypeStats[pType].avgReturn = pTrades.reduce((sum, t) => sum + t.pnlPct, 0) / pTrades.length;
+    patternTypeStats[pType].avgReturn =
+      pTrades.reduce((sum, t) => sum + t.pnlPct, 0) / pTrades.length;
   }
 
   return {
@@ -909,7 +1116,16 @@ async function runBacktest(
 }
 
 function calculateFitness(result: BacktestResult): number {
-  const { sharpe, sortino, calmar, winRate, totalReturn, maxDrawdown, trades, patternWinRate } = result;
+  const {
+    sharpe,
+    sortino,
+    calmar,
+    winRate,
+    totalReturn,
+    maxDrawdown,
+    trades,
+    patternWinRate,
+  } = result;
 
   if (trades.length < 30) return -1000 + trades.length * 10;
   if (maxDrawdown > 0.35) return -500 * maxDrawdown;
@@ -937,8 +1153,8 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
   const startDate = new Date();
   startDate.setFullYear(startDate.getFullYear() - 2);
 
-  const start = startDate.toISOString().split('T')[0];
-  const end = endDate.toISOString().split('T')[0];
+  const start = startDate.toISOString().split("T")[0];
+  const end = endDate.toISOString().split("T")[0];
 
   console.log(`\nLoading historical data for ${SYMBOLS.length} symbols...`);
   console.log(`Period: ${start} to ${end}`);
@@ -951,7 +1167,7 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
         bars.set(symbol, symbolBars);
         loaded++;
       }
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     } catch (err) {
       // Skip
     }
@@ -963,9 +1179,9 @@ async function loadHistoricalData(): Promise<Map<string, AlpacaBar[]>> {
 }
 
 async function runPatternOptimizer() {
-  console.log('═'.repeat(80));
-  console.log('  OMAR PATTERN DETECTION OPTIMIZER - 1000+ ITERATIONS');
-  console.log('═'.repeat(80));
+  console.log("═".repeat(80));
+  console.log("  OMAR PATTERN DETECTION OPTIMIZER - 1000+ ITERATIONS");
+  console.log("═".repeat(80));
   console.log(`\n  Focus Areas:`);
   console.log(`  - Pattern recognition sensitivity and thresholds`);
   console.log(`  - Pattern detection windows (10-30 days)`);
@@ -975,11 +1191,13 @@ async function runPatternOptimizer() {
   console.log(`\n  Configuration:`);
   console.log(`  - Total Iterations: ${TOTAL_ITERATIONS.toLocaleString()}`);
   console.log(`  - Population Size: ${POPULATION_SIZE}`);
-  console.log(`  - Pattern Parameters: ${Object.keys(PATTERN_PARAM_RANGES).filter(k => k.includes('pattern') || k.includes('Peak') || k.includes('double') || k.includes('triangle') || k.includes('flag') || k.includes('head')).length}`);
+  console.log(
+    `  - Pattern Parameters: ${Object.keys(PATTERN_PARAM_RANGES).filter((k) => k.includes("pattern") || k.includes("Peak") || k.includes("double") || k.includes("triangle") || k.includes("flag") || k.includes("head")).length}`
+  );
 
   const bars = await loadHistoricalData();
   if (bars.size < 10) {
-    console.error('Insufficient data. Aborting.');
+    console.error("Insufficient data. Aborting.");
     return;
   }
 
@@ -999,9 +1217,9 @@ async function runPatternOptimizer() {
 
   const totalGenerations = Math.ceil(TOTAL_ITERATIONS / POPULATION_SIZE);
 
-  console.log('\n' + '─'.repeat(80));
-  console.log('  STARTING PATTERN OPTIMIZATION');
-  console.log('─'.repeat(80));
+  console.log("\n" + "─".repeat(80));
+  console.log("  STARTING PATTERN OPTIMIZATION");
+  console.log("─".repeat(80));
 
   for (let generation = 0; generation < totalGenerations; generation++) {
     const genStartTime = Date.now();
@@ -1031,10 +1249,18 @@ async function runPatternOptimizer() {
             globalBest = { ...genome };
             globalBestResult = result;
             console.log(`\n  🎯 NEW BEST (Gen ${generation})`);
-            console.log(`     Fitness: ${fitness.toFixed(2)} | Sharpe: ${result.sharpe.toFixed(2)} | Sortino: ${result.sortino.toFixed(2)} | Calmar: ${result.calmar.toFixed(2)}`);
-            console.log(`     Return: ${(result.totalReturn * 100).toFixed(1)}% | MaxDD: ${(result.maxDrawdown * 100).toFixed(1)}% | Win Rate: ${(result.winRate * 100).toFixed(1)}%`);
-            console.log(`     Trades: ${result.trades.length} | Pattern Trades: ${result.patternTradeCount} (${(result.patternWinRate * 100).toFixed(1)}% WR)`);
-            console.log(`     Pattern Weight: ${genome.genes.patternWeight?.toFixed(3)} | Avg Strength: ${result.avgPatternStrength.toFixed(3)}`);
+            console.log(
+              `     Fitness: ${fitness.toFixed(2)} | Sharpe: ${result.sharpe.toFixed(2)} | Sortino: ${result.sortino.toFixed(2)} | Calmar: ${result.calmar.toFixed(2)}`
+            );
+            console.log(
+              `     Return: ${(result.totalReturn * 100).toFixed(1)}% | MaxDD: ${(result.maxDrawdown * 100).toFixed(1)}% | Win Rate: ${(result.winRate * 100).toFixed(1)}%`
+            );
+            console.log(
+              `     Trades: ${result.trades.length} | Pattern Trades: ${result.patternTradeCount} (${(result.patternWinRate * 100).toFixed(1)}% WR)`
+            );
+            console.log(
+              `     Pattern Weight: ${genome.genes.patternWeight?.toFixed(3)} | Avg Strength: ${result.avgPatternStrength.toFixed(3)}`
+            );
           }
         } catch (err) {
           genome.fitness = -10000;
@@ -1071,46 +1297,66 @@ async function runPatternOptimizer() {
 
     population = newPopulation;
 
-    const avgFitness = population.reduce((sum, g) => sum + g.fitness, 0) / population.length;
+    const avgFitness =
+      population.reduce((sum, g) => sum + g.fitness, 0) / population.length;
     const bestFitness = population[0].fitness;
     const genTime = (Date.now() - genStartTime) / 1000;
-    const progress = ((generation + 1) / totalGenerations * 100).toFixed(1);
+    const progress = (((generation + 1) / totalGenerations) * 100).toFixed(1);
     const eta = genTime * (totalGenerations - generation - 1);
 
     if (generation % 5 === 0 || generation === totalGenerations - 1) {
-      console.log(`\n  Gen ${generation + 1}/${totalGenerations} (${progress}%) | ETA: ${Math.round(eta)}s`);
+      console.log(
+        `\n  Gen ${generation + 1}/${totalGenerations} (${progress}%) | ETA: ${Math.round(eta)}s`
+      );
       console.log(`  ├─ Evaluations: ${totalEvaluations.toLocaleString()}`);
-      console.log(`  ├─ Avg Fitness: ${avgFitness.toFixed(2)} | Best: ${bestFitness.toFixed(2)}`);
-      console.log(`  └─ Global Best: ${globalBest?.fitness.toFixed(2) || 'N/A'}`);
+      console.log(
+        `  ├─ Avg Fitness: ${avgFitness.toFixed(2)} | Best: ${bestFitness.toFixed(2)}`
+      );
+      console.log(
+        `  └─ Global Best: ${globalBest?.fitness.toFixed(2) || "N/A"}`
+      );
     }
   }
 
-  console.log('\n' + '═'.repeat(80));
-  console.log('  PATTERN OPTIMIZATION COMPLETE');
-  console.log('═'.repeat(80));
+  console.log("\n" + "═".repeat(80));
+  console.log("  PATTERN OPTIMIZATION COMPLETE");
+  console.log("═".repeat(80));
 
   if (globalBest && globalBestResult) {
     console.log(`\n  🏆 BEST PATTERN DETECTION CONFIGURATION:`);
-    console.log(`  ${'─'.repeat(40)}`);
+    console.log(`  ${"─".repeat(40)}`);
     console.log(`  Fitness Score: ${globalBest.fitness.toFixed(2)}`);
     console.log(`  Sharpe Ratio: ${globalBestResult.sharpe.toFixed(3)}`);
     console.log(`  Sortino Ratio: ${globalBestResult.sortino.toFixed(3)}`);
     console.log(`  Calmar Ratio: ${globalBestResult.calmar.toFixed(3)}`);
-    console.log(`  Total Return: ${(globalBestResult.totalReturn * 100).toFixed(2)}%`);
-    console.log(`  Max Drawdown: ${(globalBestResult.maxDrawdown * 100).toFixed(2)}%`);
+    console.log(
+      `  Total Return: ${(globalBestResult.totalReturn * 100).toFixed(2)}%`
+    );
+    console.log(
+      `  Max Drawdown: ${(globalBestResult.maxDrawdown * 100).toFixed(2)}%`
+    );
     console.log(`  Win Rate: ${(globalBestResult.winRate * 100).toFixed(1)}%`);
     console.log(`  Total Trades: ${globalBestResult.trades.length}`);
 
     console.log(`\n  PATTERN PERFORMANCE:`);
-    console.log(`  Pattern Trades: ${globalBestResult.patternTradeCount} (${(globalBestResult.patternTradeCount / globalBestResult.trades.length * 100).toFixed(1)}% of total)`);
-    console.log(`  Pattern Win Rate: ${(globalBestResult.patternWinRate * 100).toFixed(1)}%`);
-    console.log(`  Avg Pattern Strength: ${globalBestResult.avgPatternStrength.toFixed(3)}`);
+    console.log(
+      `  Pattern Trades: ${globalBestResult.patternTradeCount} (${((globalBestResult.patternTradeCount / globalBestResult.trades.length) * 100).toFixed(1)}% of total)`
+    );
+    console.log(
+      `  Pattern Win Rate: ${(globalBestResult.patternWinRate * 100).toFixed(1)}%`
+    );
+    console.log(
+      `  Avg Pattern Strength: ${globalBestResult.avgPatternStrength.toFixed(3)}`
+    );
 
     console.log(`\n  PATTERN TYPE BREAKDOWN:`);
-    const sortedPatterns = Object.entries(globalBestResult.patternTypeStats)
-      .sort((a, b) => b[1].count - a[1].count);
+    const sortedPatterns = Object.entries(
+      globalBestResult.patternTypeStats
+    ).sort((a, b) => b[1].count - a[1].count);
     for (const [pType, stats] of sortedPatterns) {
-      console.log(`  ${pType.padEnd(22)}: ${String(stats.count).padStart(3)} trades | WR: ${(stats.winRate * 100).toFixed(1).padStart(5)}% | Avg Return: ${(stats.avgReturn * 100).toFixed(2).padStart(6)}%`);
+      console.log(
+        `  ${pType.padEnd(22)}: ${String(stats.count).padStart(3)} trades | WR: ${(stats.winRate * 100).toFixed(1).padStart(5)}% | Avg Return: ${(stats.avgReturn * 100).toFixed(2).padStart(6)}%`
+      );
     }
 
     console.log(`\n  OPTIMAL PATTERN PARAMETERS:`);
@@ -1118,15 +1364,29 @@ async function runPatternOptimizer() {
     console.log(`  Detection Windows:`);
     console.log(`    - Pattern Lookback: ${p.patternLookbackWindow} days`);
     console.log(`    - Peak/Trough Window: ${p.peakTroughWindow}`);
-    console.log(`    - Peak/Trough Sensitivity: ${p.peakTroughSensitivity?.toFixed(2)}`);
-    console.log(`    - Min/Max Distance: ${p.patternMinDistance}-${p.patternMaxDistance} days`);
+    console.log(
+      `    - Peak/Trough Sensitivity: ${p.peakTroughSensitivity?.toFixed(2)}`
+    );
+    console.log(
+      `    - Min/Max Distance: ${p.patternMinDistance}-${p.patternMaxDistance} days`
+    );
 
     console.log(`\n  Pattern Thresholds:`);
-    console.log(`    - Double Top/Bottom Tolerance: ${p.doubleTopBottomTolerance?.toFixed(3)}`);
-    console.log(`    - Triangle Flatness Tolerance: ${p.triangleFlatnessTolerance?.toFixed(3)}`);
-    console.log(`    - H&S Symmetry Tolerance: ${p.headShouldersSymmetryTolerance?.toFixed(3)}`);
-    console.log(`    - Min Pattern Confidence: ${p.minPatternConfidence?.toFixed(2)}`);
-    console.log(`    - Breakout Confirmation: ${p.patternBreakoutConfirmation?.toFixed(3)}`);
+    console.log(
+      `    - Double Top/Bottom Tolerance: ${p.doubleTopBottomTolerance?.toFixed(3)}`
+    );
+    console.log(
+      `    - Triangle Flatness Tolerance: ${p.triangleFlatnessTolerance?.toFixed(3)}`
+    );
+    console.log(
+      `    - H&S Symmetry Tolerance: ${p.headShouldersSymmetryTolerance?.toFixed(3)}`
+    );
+    console.log(
+      `    - Min Pattern Confidence: ${p.minPatternConfidence?.toFixed(2)}`
+    );
+    console.log(
+      `    - Breakout Confirmation: ${p.patternBreakoutConfirmation?.toFixed(3)}`
+    );
 
     console.log(`\n  Pattern Weights:`);
     console.log(`    - Overall Pattern Weight: ${p.patternWeight?.toFixed(3)}`);
@@ -1134,16 +1394,24 @@ async function runPatternOptimizer() {
     console.log(`    - Double Top: ${p.doubleTopWeight?.toFixed(2)}`);
     console.log(`    - Head & Shoulders: ${p.headShouldersWeight?.toFixed(2)}`);
     console.log(`    - Inv H&S: ${p.invHeadShouldersWeight?.toFixed(2)}`);
-    console.log(`    - Ascending Triangle: ${p.ascendingTriangleWeight?.toFixed(2)}`);
-    console.log(`    - Descending Triangle: ${p.descendingTriangleWeight?.toFixed(2)}`);
+    console.log(
+      `    - Ascending Triangle: ${p.ascendingTriangleWeight?.toFixed(2)}`
+    );
+    console.log(
+      `    - Descending Triangle: ${p.descendingTriangleWeight?.toFixed(2)}`
+    );
     console.log(`    - Bull Flag: ${p.bullFlagWeight?.toFixed(2)}`);
     console.log(`    - Bear Flag: ${p.bearFlagWeight?.toFixed(2)}`);
 
     console.log(`\n  Flag Pattern Config:`);
     console.log(`    - Pole Min Gain: ${p.flagPoleMinGain?.toFixed(3)}`);
     console.log(`    - Pole Length: ${p.flagPoleLength} days`);
-    console.log(`    - Consolidation Length: ${p.flagConsolidationLength} days`);
-    console.log(`    - Pullback Range: ${p.flagPullbackMin?.toFixed(3)}-${p.flagPullbackMax?.toFixed(3)}`);
+    console.log(
+      `    - Consolidation Length: ${p.flagConsolidationLength} days`
+    );
+    console.log(
+      `    - Pullback Range: ${p.flagPullbackMin?.toFixed(3)}-${p.flagPullbackMax?.toFixed(3)}`
+    );
 
     console.log(`\n  Triangle Config:`);
     console.log(`    - Min Touches: ${p.triangleMinTouches}`);
@@ -1169,7 +1437,7 @@ async function runPatternOptimizer() {
     console.log(`\n  Total Evaluations: ${totalEvaluations.toLocaleString()}`);
   }
 
-  console.log('\n' + '═'.repeat(80));
+  console.log("\n" + "═".repeat(80));
 }
 
 runPatternOptimizer().catch(console.error);

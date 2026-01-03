@@ -1,19 +1,19 @@
-export type BacktestStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
+export type BacktestStatus = "QUEUED" | "RUNNING" | "DONE" | "FAILED";
 
-export type ExecutionPriceRule = 'NEXT_OPEN' | 'NEXT_CLOSE';
+export type ExecutionPriceRule = "NEXT_OPEN" | "NEXT_CLOSE";
 
 export interface FeesModel {
-  type: 'fixed' | 'percentage';
+  type: "fixed" | "percentage";
   value: number;
 }
 
 export interface SlippageModel {
-  type: 'bps' | 'spread_proxy';
+  type: "bps" | "spread_proxy";
   value: number;
 }
 
 export interface DataProvenance {
-  provider: 'alpaca' | 'polygon' | 'cache';
+  provider: "alpaca" | "polygon" | "cache";
   cacheHitRate: number;
   dataPulledAt: string;
   barsCountBySymbol: Record<string, number>;
@@ -68,7 +68,7 @@ export interface BacktestTradeEvent {
   runId: string;
   ts: string;
   symbol: string;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   qty: number;
   price: number;
   reason: string;

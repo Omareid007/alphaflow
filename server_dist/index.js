@@ -135,7 +135,9 @@ var init_auth = __esm({
       email: z.string().email().optional(),
       isAdmin: z.boolean().optional()
     });
-    insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+    insertPasswordResetTokenSchema = createInsertSchema(
+      passwordResetTokens
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -357,7 +359,16 @@ var init_trading = __esm({
 
 // shared/schema/ai-decisions.ts
 import { sql as sql3 } from "drizzle-orm";
-import { pgTable as pgTable3, varchar as varchar3, text as text3, timestamp as timestamp3, numeric as numeric2, integer as integer2, boolean as boolean3, index as index3 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable3,
+  varchar as varchar3,
+  text as text3,
+  timestamp as timestamp3,
+  numeric as numeric2,
+  integer as integer2,
+  boolean as boolean3,
+  index as index3
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema3 } from "drizzle-zod";
 var aiDecisions, aiDecisionFeatures, aiTradeOutcomes, aiCalibrationLog, insertAiDecisionSchema, insertAiDecisionFeaturesSchema, insertAiTradeOutcomesSchema, insertAiCalibrationLogSchema;
 var init_ai_decisions = __esm({
@@ -365,30 +376,36 @@ var init_ai_decisions = __esm({
     "use strict";
     init_auth();
     init_trading();
-    aiDecisions = pgTable3("ai_decisions", {
-      id: varchar3("id").primaryKey().default(sql3`gen_random_uuid()`),
-      userId: varchar3("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      strategyId: varchar3("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
-      symbol: text3("symbol").notNull(),
-      action: text3("action").notNull(),
-      confidence: numeric2("confidence"),
-      reasoning: text3("reasoning"),
-      marketContext: text3("market_context"),
-      createdAt: timestamp3("created_at").defaultNow().notNull(),
-      // Note: executedTradeId references trades table - foreign key defined at database level
-      executedTradeId: varchar3("executed_trade_id"),
-      status: text3("status").default("pending").notNull(),
-      stopLoss: numeric2("stop_loss"),
-      takeProfit: numeric2("take_profit"),
-      entryPrice: numeric2("entry_price"),
-      filledPrice: numeric2("filled_price"),
-      filledAt: timestamp3("filled_at"),
-      skipReason: text3("skip_reason"),
-      traceId: text3("trace_id"),
-      metadata: text3("metadata")
-    }, (table) => ({
-      userIdIdx: index3("ai_decisions_user_id_idx").on(table.userId)
-    }));
+    aiDecisions = pgTable3(
+      "ai_decisions",
+      {
+        id: varchar3("id").primaryKey().default(sql3`gen_random_uuid()`),
+        userId: varchar3("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+        strategyId: varchar3("strategy_id").references(() => strategies.id, {
+          onDelete: "set null"
+        }),
+        symbol: text3("symbol").notNull(),
+        action: text3("action").notNull(),
+        confidence: numeric2("confidence"),
+        reasoning: text3("reasoning"),
+        marketContext: text3("market_context"),
+        createdAt: timestamp3("created_at").defaultNow().notNull(),
+        // Note: executedTradeId references trades table - foreign key defined at database level
+        executedTradeId: varchar3("executed_trade_id"),
+        status: text3("status").default("pending").notNull(),
+        stopLoss: numeric2("stop_loss"),
+        takeProfit: numeric2("take_profit"),
+        entryPrice: numeric2("entry_price"),
+        filledPrice: numeric2("filled_price"),
+        filledAt: timestamp3("filled_at"),
+        skipReason: text3("skip_reason"),
+        traceId: text3("trace_id"),
+        metadata: text3("metadata")
+      },
+      (table) => ({
+        userIdIdx: index3("ai_decisions_user_id_idx").on(table.userId)
+      })
+    );
     aiDecisionFeatures = pgTable3("ai_decision_features", {
       id: varchar3("id").primaryKey().default(sql3`gen_random_uuid()`),
       decisionId: varchar3("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
@@ -412,7 +429,9 @@ var init_ai_decisions = __esm({
     aiTradeOutcomes = pgTable3("ai_trade_outcomes", {
       id: varchar3("id").primaryKey().default(sql3`gen_random_uuid()`),
       decisionId: varchar3("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }).notNull(),
-      tradeId: varchar3("trade_id").references(() => trades.id, { onDelete: "set null" }),
+      tradeId: varchar3("trade_id").references(() => trades.id, {
+        onDelete: "set null"
+      }),
       symbol: text3("symbol").notNull(),
       action: text3("action").notNull(),
       predictionConfidence: numeric2("prediction_confidence"),
@@ -430,7 +449,9 @@ var init_ai_decisions = __esm({
       maxGain: numeric2("max_gain"),
       marketSessionAtEntry: text3("market_session_at_entry"),
       marketSessionAtExit: text3("market_session_at_exit"),
-      strategyId: varchar3("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
+      strategyId: varchar3("strategy_id").references(() => strategies.id, {
+        onDelete: "set null"
+      }),
       exitReason: text3("exit_reason"),
       createdAt: timestamp3("created_at").defaultNow().notNull(),
       closedAt: timestamp3("closed_at")
@@ -456,15 +477,21 @@ var init_ai_decisions = __esm({
       id: true,
       createdAt: true
     });
-    insertAiDecisionFeaturesSchema = createInsertSchema3(aiDecisionFeatures).omit({
+    insertAiDecisionFeaturesSchema = createInsertSchema3(
+      aiDecisionFeatures
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertAiTradeOutcomesSchema = createInsertSchema3(aiTradeOutcomes).omit({
+    insertAiTradeOutcomesSchema = createInsertSchema3(
+      aiTradeOutcomes
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertAiCalibrationLogSchema = createInsertSchema3(aiCalibrationLog).omit({
+    insertAiCalibrationLogSchema = createInsertSchema3(
+      aiCalibrationLog
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -473,7 +500,16 @@ var init_ai_decisions = __esm({
 
 // shared/schema/orchestration.ts
 import { sql as sql4 } from "drizzle-orm";
-import { pgTable as pgTable4, varchar as varchar4, text as text4, timestamp as timestamp4, numeric as numeric3, boolean as boolean4, integer as integer3, index as index4 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable4,
+  varchar as varchar4,
+  text as text4,
+  timestamp as timestamp4,
+  numeric as numeric3,
+  boolean as boolean4,
+  integer as integer3,
+  index as index4
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema4 } from "drizzle-zod";
 var workItemTypes, workItemStatuses, agentStatus, workItems, insertWorkItemSchema, workItemRuns, insertWorkItemRunSchema, aiArenaRuns, insertAiArenaRunSchema, aiArenaAgentDecisions, insertAiArenaAgentDecisionSchema;
 var init_orchestration = __esm({
@@ -530,7 +566,9 @@ var init_orchestration = __esm({
       lastError: text4("last_error"),
       payload: text4("payload"),
       idempotencyKey: text4("idempotency_key").unique(),
-      decisionId: varchar4("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
+      decisionId: varchar4("decision_id").references(() => aiDecisions.id, {
+        onDelete: "set null"
+      }),
       brokerOrderId: text4("broker_order_id"),
       symbol: text4("symbol"),
       result: text4("result"),
@@ -558,73 +596,85 @@ var init_orchestration = __esm({
       id: true,
       createdAt: true
     });
-    aiArenaRuns = pgTable4("ai_arena_runs", {
-      id: varchar4("id").primaryKey().default(sql4`gen_random_uuid()`),
-      traceId: text4("trace_id").notNull(),
-      mode: text4("mode").$type().default("debate").notNull(),
-      symbols: text4("symbols").array().notNull(),
-      agentProfileIds: text4("agent_profile_ids").array().notNull(),
-      marketSnapshotHash: text4("market_snapshot_hash"),
-      portfolioSnapshotHash: text4("portfolio_snapshot_hash"),
-      // Note: strategyVersionId references strategy_versions table but defined without .references() to avoid circular type dependency
-      // The foreign key constraint exists at database level via migration
-      strategyVersionId: varchar4("strategy_version_id"),
-      status: text4("status").$type().default("pending").notNull(),
-      startedAt: timestamp4("started_at"),
-      completedAt: timestamp4("completed_at"),
-      durationMs: integer3("duration_ms"),
-      totalTokensUsed: integer3("total_tokens_used").default(0),
-      totalCostUsd: numeric3("total_cost_usd").default("0"),
-      escalationTriggered: boolean4("escalation_triggered").default(false),
-      escalationReason: text4("escalation_reason"),
-      consensusReached: boolean4("consensus_reached"),
-      finalDecision: text4("final_decision"),
-      disagreementRate: numeric3("disagreement_rate"),
-      avgConfidence: numeric3("avg_confidence"),
-      triggeredBy: text4("triggered_by"),
-      outcomeLinked: boolean4("outcome_linked").default(false),
-      notes: text4("notes"),
-      createdAt: timestamp4("created_at").defaultNow().notNull()
-    }, (table) => [
-      index4("ai_arena_runs_trace_id_idx").on(table.traceId),
-      index4("ai_arena_runs_status_idx").on(table.status),
-      index4("ai_arena_runs_mode_idx").on(table.mode),
-      index4("ai_arena_runs_created_at_idx").on(table.createdAt)
-    ]);
+    aiArenaRuns = pgTable4(
+      "ai_arena_runs",
+      {
+        id: varchar4("id").primaryKey().default(sql4`gen_random_uuid()`),
+        traceId: text4("trace_id").notNull(),
+        mode: text4("mode").$type().default("debate").notNull(),
+        symbols: text4("symbols").array().notNull(),
+        agentProfileIds: text4("agent_profile_ids").array().notNull(),
+        marketSnapshotHash: text4("market_snapshot_hash"),
+        portfolioSnapshotHash: text4("portfolio_snapshot_hash"),
+        // Note: strategyVersionId references strategy_versions table but defined without .references() to avoid circular type dependency
+        // The foreign key constraint exists at database level via migration
+        strategyVersionId: varchar4("strategy_version_id"),
+        status: text4("status").$type().default("pending").notNull(),
+        startedAt: timestamp4("started_at"),
+        completedAt: timestamp4("completed_at"),
+        durationMs: integer3("duration_ms"),
+        totalTokensUsed: integer3("total_tokens_used").default(0),
+        totalCostUsd: numeric3("total_cost_usd").default("0"),
+        escalationTriggered: boolean4("escalation_triggered").default(false),
+        escalationReason: text4("escalation_reason"),
+        consensusReached: boolean4("consensus_reached"),
+        finalDecision: text4("final_decision"),
+        disagreementRate: numeric3("disagreement_rate"),
+        avgConfidence: numeric3("avg_confidence"),
+        triggeredBy: text4("triggered_by"),
+        outcomeLinked: boolean4("outcome_linked").default(false),
+        notes: text4("notes"),
+        createdAt: timestamp4("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index4("ai_arena_runs_trace_id_idx").on(table.traceId),
+        index4("ai_arena_runs_status_idx").on(table.status),
+        index4("ai_arena_runs_mode_idx").on(table.mode),
+        index4("ai_arena_runs_created_at_idx").on(table.createdAt)
+      ]
+    );
     insertAiArenaRunSchema = createInsertSchema4(aiArenaRuns).omit({
       id: true,
       createdAt: true
     });
-    aiArenaAgentDecisions = pgTable4("ai_arena_agent_decisions", {
-      id: varchar4("id").primaryKey().default(sql4`gen_random_uuid()`),
-      arenaRunId: varchar4("arena_run_id").references(() => aiArenaRuns.id, { onDelete: "cascade" }).notNull(),
-      // Note: agentProfileId references ai_agent_profiles table but defined without .references() to avoid circular type dependency
-      // The foreign key constraint exists at database level via migration
-      agentProfileId: varchar4("agent_profile_id"),
-      role: text4("role").$type().notNull(),
-      action: text4("action").notNull(),
-      symbols: text4("symbols").array(),
-      confidence: numeric3("confidence"),
-      stance: text4("stance"),
-      rationale: text4("rationale"),
-      keySignals: text4("key_signals"),
-      risks: text4("risks"),
-      proposedOrder: text4("proposed_order"),
-      tokensUsed: integer3("tokens_used"),
-      costUsd: numeric3("cost_usd"),
-      latencyMs: integer3("latency_ms"),
-      modelUsed: text4("model_used"),
-      wasEscalation: boolean4("was_escalation").default(false),
-      rawOutput: text4("raw_output"),
-      toolCallsCount: integer3("tool_calls_count").default(0),
-      errorMessage: text4("error_message"),
-      createdAt: timestamp4("created_at").defaultNow().notNull()
-    }, (table) => [
-      index4("ai_arena_agent_decisions_run_id_idx").on(table.arenaRunId),
-      index4("ai_arena_agent_decisions_agent_profile_id_idx").on(table.agentProfileId),
-      index4("ai_arena_agent_decisions_role_idx").on(table.role)
-    ]);
-    insertAiArenaAgentDecisionSchema = createInsertSchema4(aiArenaAgentDecisions).omit({
+    aiArenaAgentDecisions = pgTable4(
+      "ai_arena_agent_decisions",
+      {
+        id: varchar4("id").primaryKey().default(sql4`gen_random_uuid()`),
+        arenaRunId: varchar4("arena_run_id").references(() => aiArenaRuns.id, { onDelete: "cascade" }).notNull(),
+        // Note: agentProfileId references ai_agent_profiles table but defined without .references() to avoid circular type dependency
+        // The foreign key constraint exists at database level via migration
+        agentProfileId: varchar4("agent_profile_id"),
+        role: text4("role").$type().notNull(),
+        action: text4("action").notNull(),
+        symbols: text4("symbols").array(),
+        confidence: numeric3("confidence"),
+        stance: text4("stance"),
+        rationale: text4("rationale"),
+        keySignals: text4("key_signals"),
+        risks: text4("risks"),
+        proposedOrder: text4("proposed_order"),
+        tokensUsed: integer3("tokens_used"),
+        costUsd: numeric3("cost_usd"),
+        latencyMs: integer3("latency_ms"),
+        modelUsed: text4("model_used"),
+        wasEscalation: boolean4("was_escalation").default(false),
+        rawOutput: text4("raw_output"),
+        toolCallsCount: integer3("tool_calls_count").default(0),
+        errorMessage: text4("error_message"),
+        createdAt: timestamp4("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index4("ai_arena_agent_decisions_run_id_idx").on(table.arenaRunId),
+        index4("ai_arena_agent_decisions_agent_profile_id_idx").on(
+          table.agentProfileId
+        ),
+        index4("ai_arena_agent_decisions_role_idx").on(table.role)
+      ]
+    );
+    insertAiArenaAgentDecisionSchema = createInsertSchema4(
+      aiArenaAgentDecisions
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -633,7 +683,16 @@ var init_orchestration = __esm({
 
 // shared/schema/orders.ts
 import { sql as sql5 } from "drizzle-orm";
-import { pgTable as pgTable5, varchar as varchar5, text as text5, numeric as numeric4, boolean as boolean5, timestamp as timestamp5, jsonb as jsonb3, index as index5 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable5,
+  varchar as varchar5,
+  text as text5,
+  numeric as numeric4,
+  boolean as boolean5,
+  timestamp as timestamp5,
+  jsonb as jsonb3,
+  index as index5
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema5 } from "drizzle-zod";
 var orderStatuses, orderTypes, timeInForceValues, assetClasses, brokerAssets, orders, fills, insertBrokerAssetSchema, insertOrderSchema, insertFillSchema;
 var init_orders = __esm({
@@ -661,7 +720,14 @@ var init_orders = __esm({
       "done_for_day"
     ];
     orderTypes = ["market", "limit", "stop", "stop_limit"];
-    timeInForceValues = ["day", "gtc", "opg", "cls", "ioc", "fok"];
+    timeInForceValues = [
+      "day",
+      "gtc",
+      "opg",
+      "cls",
+      "ioc",
+      "fok"
+    ];
     assetClasses = ["us_equity", "crypto"];
     brokerAssets = pgTable5("broker_assets", {
       id: varchar5("id").primaryKey().default(sql5`gen_random_uuid()`),
@@ -683,68 +749,84 @@ var init_orders = __esm({
       createdAt: timestamp5("created_at").defaultNow().notNull(),
       updatedAt: timestamp5("updated_at").defaultNow().notNull()
     });
-    orders = pgTable5("orders", {
-      id: varchar5("id").primaryKey().default(sql5`gen_random_uuid()`),
-      userId: varchar5("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      broker: text5("broker").notNull(),
-      brokerOrderId: text5("broker_order_id").notNull().unique(),
-      clientOrderId: text5("client_order_id").unique(),
-      symbol: text5("symbol").notNull(),
-      side: text5("side").notNull(),
-      type: text5("type").notNull(),
-      timeInForce: text5("time_in_force"),
-      qty: numeric4("qty"),
-      notional: numeric4("notional"),
-      limitPrice: numeric4("limit_price"),
-      stopPrice: numeric4("stop_price"),
-      status: text5("status").notNull(),
-      // ADDED: Missing Alpaca order fields for complete tracking
-      extendedHours: boolean5("extended_hours").default(false),
-      orderClass: text5("order_class"),
-      // simple, bracket, oco, oto
-      submittedAt: timestamp5("submitted_at").notNull(),
-      updatedAt: timestamp5("updated_at").notNull(),
-      filledAt: timestamp5("filled_at"),
-      expiredAt: timestamp5("expired_at"),
-      canceledAt: timestamp5("canceled_at"),
-      failedAt: timestamp5("failed_at"),
-      filledQty: numeric4("filled_qty"),
-      filledAvgPrice: numeric4("filled_avg_price"),
-      traceId: text5("trace_id"),
-      decisionId: varchar5("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
-      tradeIntentId: varchar5("trade_intent_id").references(() => trades.id, { onDelete: "set null" }),
-      workItemId: varchar5("work_item_id").references(() => workItems.id, { onDelete: "set null" }),
-      rawJson: jsonb3("raw_json"),
-      createdAt: timestamp5("created_at").defaultNow().notNull()
-    }, (table) => [
-      index5("orders_user_id_idx").on(table.userId),
-      index5("orders_broker_order_id_idx").on(table.brokerOrderId),
-      index5("orders_client_order_id_idx").on(table.clientOrderId),
-      index5("orders_symbol_idx").on(table.symbol),
-      index5("orders_status_idx").on(table.status),
-      index5("orders_trace_id_idx").on(table.traceId),
-      index5("orders_decision_id_idx").on(table.decisionId)
-    ]);
-    fills = pgTable5("fills", {
-      id: varchar5("id").primaryKey().default(sql5`gen_random_uuid()`),
-      broker: text5("broker").notNull(),
-      brokerOrderId: text5("broker_order_id").notNull(),
-      brokerFillId: text5("broker_fill_id").unique(),
-      orderId: varchar5("order_id").references(() => orders.id, { onDelete: "cascade" }),
-      symbol: text5("symbol").notNull(),
-      side: text5("side").notNull(),
-      qty: numeric4("qty").notNull(),
-      price: numeric4("price").notNull(),
-      occurredAt: timestamp5("occurred_at").notNull(),
-      traceId: text5("trace_id"),
-      rawJson: jsonb3("raw_json"),
-      createdAt: timestamp5("created_at").defaultNow().notNull()
-    }, (table) => [
-      index5("fills_broker_order_id_idx").on(table.brokerOrderId),
-      index5("fills_order_id_idx").on(table.orderId),
-      index5("fills_symbol_idx").on(table.symbol),
-      index5("fills_trace_id_idx").on(table.traceId)
-    ]);
+    orders = pgTable5(
+      "orders",
+      {
+        id: varchar5("id").primaryKey().default(sql5`gen_random_uuid()`),
+        userId: varchar5("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+        broker: text5("broker").notNull(),
+        brokerOrderId: text5("broker_order_id").notNull().unique(),
+        clientOrderId: text5("client_order_id").unique(),
+        symbol: text5("symbol").notNull(),
+        side: text5("side").notNull(),
+        type: text5("type").notNull(),
+        timeInForce: text5("time_in_force"),
+        qty: numeric4("qty"),
+        notional: numeric4("notional"),
+        limitPrice: numeric4("limit_price"),
+        stopPrice: numeric4("stop_price"),
+        status: text5("status").notNull(),
+        // ADDED: Missing Alpaca order fields for complete tracking
+        extendedHours: boolean5("extended_hours").default(false),
+        orderClass: text5("order_class"),
+        // simple, bracket, oco, oto
+        submittedAt: timestamp5("submitted_at").notNull(),
+        updatedAt: timestamp5("updated_at").notNull(),
+        filledAt: timestamp5("filled_at"),
+        expiredAt: timestamp5("expired_at"),
+        canceledAt: timestamp5("canceled_at"),
+        failedAt: timestamp5("failed_at"),
+        filledQty: numeric4("filled_qty"),
+        filledAvgPrice: numeric4("filled_avg_price"),
+        traceId: text5("trace_id"),
+        decisionId: varchar5("decision_id").references(() => aiDecisions.id, {
+          onDelete: "set null"
+        }),
+        tradeIntentId: varchar5("trade_intent_id").references(() => trades.id, {
+          onDelete: "set null"
+        }),
+        workItemId: varchar5("work_item_id").references(() => workItems.id, {
+          onDelete: "set null"
+        }),
+        rawJson: jsonb3("raw_json"),
+        createdAt: timestamp5("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index5("orders_user_id_idx").on(table.userId),
+        index5("orders_broker_order_id_idx").on(table.brokerOrderId),
+        index5("orders_client_order_id_idx").on(table.clientOrderId),
+        index5("orders_symbol_idx").on(table.symbol),
+        index5("orders_status_idx").on(table.status),
+        index5("orders_trace_id_idx").on(table.traceId),
+        index5("orders_decision_id_idx").on(table.decisionId)
+      ]
+    );
+    fills = pgTable5(
+      "fills",
+      {
+        id: varchar5("id").primaryKey().default(sql5`gen_random_uuid()`),
+        broker: text5("broker").notNull(),
+        brokerOrderId: text5("broker_order_id").notNull(),
+        brokerFillId: text5("broker_fill_id").unique(),
+        orderId: varchar5("order_id").references(() => orders.id, {
+          onDelete: "cascade"
+        }),
+        symbol: text5("symbol").notNull(),
+        side: text5("side").notNull(),
+        qty: numeric4("qty").notNull(),
+        price: numeric4("price").notNull(),
+        occurredAt: timestamp5("occurred_at").notNull(),
+        traceId: text5("trace_id"),
+        rawJson: jsonb3("raw_json"),
+        createdAt: timestamp5("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index5("fills_broker_order_id_idx").on(table.brokerOrderId),
+        index5("fills_order_id_idx").on(table.orderId),
+        index5("fills_symbol_idx").on(table.symbol),
+        index5("fills_trace_id_idx").on(table.traceId)
+      ]
+    );
     insertBrokerAssetSchema = createInsertSchema5(brokerAssets).omit({
       id: true,
       createdAt: true,
@@ -763,148 +845,192 @@ var init_orders = __esm({
 
 // shared/schema/debate-arena.ts
 import { sql as sql6 } from "drizzle-orm";
-import { pgTable as pgTable6, text as text6, varchar as varchar6, timestamp as timestamp6, numeric as numeric5, integer as integer4, jsonb as jsonb4, index as index6 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable6,
+  text as text6,
+  varchar as varchar6,
+  timestamp as timestamp6,
+  numeric as numeric5,
+  integer as integer4,
+  jsonb as jsonb4,
+  index as index6
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema6 } from "drizzle-zod";
 var debateSessions, debateMessages, debateConsensus, aiAgentProfiles, aiOutcomeLinks, insertDebateSessionSchema, insertDebateMessageSchema, insertDebateConsensusSchema, insertAiAgentProfileSchema, insertAiOutcomeLinkSchema;
 var init_debate_arena = __esm({
   "shared/schema/debate-arena.ts"() {
     "use strict";
     init_ai_decisions();
-    debateSessions = pgTable6("debate_sessions", {
-      id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
-      traceId: text6("trace_id").notNull(),
-      strategyVersionId: varchar6("strategy_version_id"),
-      symbols: text6("symbols").array().notNull(),
-      status: text6("status").$type().default("pending").notNull(),
-      triggeredBy: text6("triggered_by"),
-      marketContext: jsonb4("market_context"),
-      config: jsonb4("config"),
-      startedAt: timestamp6("started_at"),
-      completedAt: timestamp6("completed_at"),
-      durationMs: integer4("duration_ms"),
-      totalCost: numeric5("total_cost"),
-      createdAt: timestamp6("created_at").defaultNow().notNull()
-    }, (table) => [
-      index6("debate_sessions_trace_id_idx").on(table.traceId),
-      index6("debate_sessions_status_idx").on(table.status),
-      index6("debate_sessions_created_at_idx").on(table.createdAt)
-    ]);
-    debateMessages = pgTable6("debate_messages", {
-      id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
-      sessionId: varchar6("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull(),
-      role: text6("role").$type().notNull(),
-      stance: text6("stance"),
-      confidence: numeric5("confidence"),
-      keySignals: jsonb4("key_signals"),
-      risks: jsonb4("risks"),
-      invalidationPoints: jsonb4("invalidation_points"),
-      proposedAction: text6("proposed_action"),
-      proposedOrder: jsonb4("proposed_order"),
-      evidenceRefs: jsonb4("evidence_refs"),
-      rawOutput: text6("raw_output"),
-      provider: text6("provider"),
-      model: text6("model"),
-      tokensUsed: integer4("tokens_used"),
-      estimatedCost: numeric5("estimated_cost"),
-      latencyMs: integer4("latency_ms"),
-      createdAt: timestamp6("created_at").defaultNow().notNull()
-    }, (table) => [
-      index6("debate_messages_session_id_idx").on(table.sessionId),
-      index6("debate_messages_role_idx").on(table.role)
-    ]);
-    debateConsensus = pgTable6("debate_consensus", {
-      id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
-      sessionId: varchar6("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull().unique(),
-      decision: text6("decision").notNull(),
-      orderIntent: jsonb4("order_intent"),
-      reasonsSummary: text6("reasons_summary"),
-      riskChecks: jsonb4("risk_checks"),
-      confidence: numeric5("confidence"),
-      dissent: jsonb4("dissent"),
-      // Note: workItemId references workItems table - foreign key defined at database level to avoid circular dependency
-      workItemId: varchar6("work_item_id"),
-      brokerOrderId: text6("broker_order_id"),
-      createdAt: timestamp6("created_at").defaultNow().notNull()
-    }, (table) => [
-      index6("debate_consensus_session_id_idx").on(table.sessionId),
-      index6("debate_consensus_work_item_id_idx").on(table.workItemId)
-    ]);
-    aiAgentProfiles = pgTable6("ai_agent_profiles", {
-      id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
-      name: text6("name").notNull().unique(),
-      description: text6("description"),
-      provider: text6("provider").$type().notNull(),
-      model: text6("model").notNull(),
-      role: text6("role").$type().notNull(),
-      mode: text6("mode").$type().default("cheap_first").notNull(),
-      temperature: numeric5("temperature").default("0.7"),
-      maxTokens: integer4("max_tokens").default(2e3),
-      promptTemplateId: varchar6("prompt_template_id"),
-      toolPolicy: jsonb4("tool_policy"),
-      budgetLimitPerDay: numeric5("budget_limit_per_day"),
-      budgetLimitPerRun: numeric5("budget_limit_per_run"),
-      priority: integer4("priority").default(0),
-      status: text6("status").$type().default("active").notNull(),
-      totalCalls: integer4("total_calls").default(0).notNull(),
-      totalTokens: integer4("total_tokens").default(0).notNull(),
-      totalCostUsd: numeric5("total_cost_usd").default("0").notNull(),
-      avgLatencyMs: numeric5("avg_latency_ms"),
-      successRate: numeric5("success_rate"),
-      createdAt: timestamp6("created_at").defaultNow().notNull(),
-      updatedAt: timestamp6("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index6("ai_agent_profiles_status_idx").on(table.status),
-      index6("ai_agent_profiles_role_idx").on(table.role),
-      index6("ai_agent_profiles_mode_idx").on(table.mode)
-    ]);
-    aiOutcomeLinks = pgTable6("ai_outcome_links", {
-      id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
-      consensusId: varchar6("consensus_id").references(() => debateConsensus.id, { onDelete: "set null" }),
-      debateSessionId: varchar6("debate_session_id").references(() => debateSessions.id, { onDelete: "set null" }),
-      decisionId: varchar6("decision_id").references(() => aiDecisions.id, { onDelete: "set null" }),
-      // Note: workItemId references workItems table - foreign key defined at database level to avoid circular dependency
-      workItemId: varchar6("work_item_id"),
-      brokerOrderId: varchar6("broker_order_id"),
-      symbol: text6("symbol").notNull(),
-      side: text6("side").notNull(),
-      intendedQty: numeric5("intended_qty"),
-      intendedNotional: numeric5("intended_notional"),
-      filledQty: numeric5("filled_qty"),
-      filledAvgPrice: numeric5("filled_avg_price"),
-      fillCount: integer4("fill_count").default(0),
-      status: text6("status").$type().default("pending").notNull(),
-      pnlRealized: numeric5("pnl_realized"),
-      pnlUnrealized: numeric5("pnl_unrealized"),
-      entryPrice: numeric5("entry_price"),
-      exitPrice: numeric5("exit_price"),
-      holdDurationMs: integer4("hold_duration_ms"),
-      outcome: text6("outcome").$type().default("unknown"),
-      llmCostUsd: numeric5("llm_cost_usd"),
-      traceId: text6("trace_id"),
-      createdAt: timestamp6("created_at").defaultNow().notNull(),
-      closedAt: timestamp6("closed_at")
-    }, (table) => [
-      index6("ai_outcome_links_consensus_id_idx").on(table.consensusId),
-      index6("ai_outcome_links_debate_session_id_idx").on(table.debateSessionId),
-      index6("ai_outcome_links_work_item_id_idx").on(table.workItemId),
-      index6("ai_outcome_links_symbol_idx").on(table.symbol),
-      index6("ai_outcome_links_status_idx").on(table.status),
-      index6("ai_outcome_links_outcome_idx").on(table.outcome),
-      index6("ai_outcome_links_created_at_idx").on(table.createdAt)
-    ]);
-    insertDebateSessionSchema = createInsertSchema6(debateSessions).omit({
+    debateSessions = pgTable6(
+      "debate_sessions",
+      {
+        id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
+        traceId: text6("trace_id").notNull(),
+        strategyVersionId: varchar6("strategy_version_id"),
+        symbols: text6("symbols").array().notNull(),
+        status: text6("status").$type().default("pending").notNull(),
+        triggeredBy: text6("triggered_by"),
+        marketContext: jsonb4("market_context"),
+        config: jsonb4("config"),
+        startedAt: timestamp6("started_at"),
+        completedAt: timestamp6("completed_at"),
+        durationMs: integer4("duration_ms"),
+        totalCost: numeric5("total_cost"),
+        createdAt: timestamp6("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index6("debate_sessions_trace_id_idx").on(table.traceId),
+        index6("debate_sessions_status_idx").on(table.status),
+        index6("debate_sessions_created_at_idx").on(table.createdAt)
+      ]
+    );
+    debateMessages = pgTable6(
+      "debate_messages",
+      {
+        id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
+        sessionId: varchar6("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull(),
+        role: text6("role").$type().notNull(),
+        stance: text6("stance"),
+        confidence: numeric5("confidence"),
+        keySignals: jsonb4("key_signals"),
+        risks: jsonb4("risks"),
+        invalidationPoints: jsonb4("invalidation_points"),
+        proposedAction: text6("proposed_action"),
+        proposedOrder: jsonb4("proposed_order"),
+        evidenceRefs: jsonb4("evidence_refs"),
+        rawOutput: text6("raw_output"),
+        provider: text6("provider"),
+        model: text6("model"),
+        tokensUsed: integer4("tokens_used"),
+        estimatedCost: numeric5("estimated_cost"),
+        latencyMs: integer4("latency_ms"),
+        createdAt: timestamp6("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index6("debate_messages_session_id_idx").on(table.sessionId),
+        index6("debate_messages_role_idx").on(table.role)
+      ]
+    );
+    debateConsensus = pgTable6(
+      "debate_consensus",
+      {
+        id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
+        sessionId: varchar6("session_id").references(() => debateSessions.id, { onDelete: "cascade" }).notNull().unique(),
+        decision: text6("decision").notNull(),
+        orderIntent: jsonb4("order_intent"),
+        reasonsSummary: text6("reasons_summary"),
+        riskChecks: jsonb4("risk_checks"),
+        confidence: numeric5("confidence"),
+        dissent: jsonb4("dissent"),
+        // Note: workItemId references workItems table - foreign key defined at database level to avoid circular dependency
+        workItemId: varchar6("work_item_id"),
+        brokerOrderId: text6("broker_order_id"),
+        createdAt: timestamp6("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index6("debate_consensus_session_id_idx").on(table.sessionId),
+        index6("debate_consensus_work_item_id_idx").on(table.workItemId)
+      ]
+    );
+    aiAgentProfiles = pgTable6(
+      "ai_agent_profiles",
+      {
+        id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
+        name: text6("name").notNull().unique(),
+        description: text6("description"),
+        provider: text6("provider").$type().notNull(),
+        model: text6("model").notNull(),
+        role: text6("role").$type().notNull(),
+        mode: text6("mode").$type().default("cheap_first").notNull(),
+        temperature: numeric5("temperature").default("0.7"),
+        maxTokens: integer4("max_tokens").default(2e3),
+        promptTemplateId: varchar6("prompt_template_id"),
+        toolPolicy: jsonb4("tool_policy"),
+        budgetLimitPerDay: numeric5("budget_limit_per_day"),
+        budgetLimitPerRun: numeric5("budget_limit_per_run"),
+        priority: integer4("priority").default(0),
+        status: text6("status").$type().default("active").notNull(),
+        totalCalls: integer4("total_calls").default(0).notNull(),
+        totalTokens: integer4("total_tokens").default(0).notNull(),
+        totalCostUsd: numeric5("total_cost_usd").default("0").notNull(),
+        avgLatencyMs: numeric5("avg_latency_ms"),
+        successRate: numeric5("success_rate"),
+        createdAt: timestamp6("created_at").defaultNow().notNull(),
+        updatedAt: timestamp6("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index6("ai_agent_profiles_status_idx").on(table.status),
+        index6("ai_agent_profiles_role_idx").on(table.role),
+        index6("ai_agent_profiles_mode_idx").on(table.mode)
+      ]
+    );
+    aiOutcomeLinks = pgTable6(
+      "ai_outcome_links",
+      {
+        id: varchar6("id").primaryKey().default(sql6`gen_random_uuid()`),
+        consensusId: varchar6("consensus_id").references(() => debateConsensus.id, {
+          onDelete: "set null"
+        }),
+        debateSessionId: varchar6("debate_session_id").references(
+          () => debateSessions.id,
+          { onDelete: "set null" }
+        ),
+        decisionId: varchar6("decision_id").references(() => aiDecisions.id, {
+          onDelete: "set null"
+        }),
+        // Note: workItemId references workItems table - foreign key defined at database level to avoid circular dependency
+        workItemId: varchar6("work_item_id"),
+        brokerOrderId: varchar6("broker_order_id"),
+        symbol: text6("symbol").notNull(),
+        side: text6("side").notNull(),
+        intendedQty: numeric5("intended_qty"),
+        intendedNotional: numeric5("intended_notional"),
+        filledQty: numeric5("filled_qty"),
+        filledAvgPrice: numeric5("filled_avg_price"),
+        fillCount: integer4("fill_count").default(0),
+        status: text6("status").$type().default("pending").notNull(),
+        pnlRealized: numeric5("pnl_realized"),
+        pnlUnrealized: numeric5("pnl_unrealized"),
+        entryPrice: numeric5("entry_price"),
+        exitPrice: numeric5("exit_price"),
+        holdDurationMs: integer4("hold_duration_ms"),
+        outcome: text6("outcome").$type().default("unknown"),
+        llmCostUsd: numeric5("llm_cost_usd"),
+        traceId: text6("trace_id"),
+        createdAt: timestamp6("created_at").defaultNow().notNull(),
+        closedAt: timestamp6("closed_at")
+      },
+      (table) => [
+        index6("ai_outcome_links_consensus_id_idx").on(table.consensusId),
+        index6("ai_outcome_links_debate_session_id_idx").on(table.debateSessionId),
+        index6("ai_outcome_links_work_item_id_idx").on(table.workItemId),
+        index6("ai_outcome_links_symbol_idx").on(table.symbol),
+        index6("ai_outcome_links_status_idx").on(table.status),
+        index6("ai_outcome_links_outcome_idx").on(table.outcome),
+        index6("ai_outcome_links_created_at_idx").on(table.createdAt)
+      ]
+    );
+    insertDebateSessionSchema = createInsertSchema6(
+      debateSessions
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertDebateMessageSchema = createInsertSchema6(debateMessages).omit({
+    insertDebateMessageSchema = createInsertSchema6(
+      debateMessages
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertDebateConsensusSchema = createInsertSchema6(debateConsensus).omit({
+    insertDebateConsensusSchema = createInsertSchema6(
+      debateConsensus
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertAiAgentProfileSchema = createInsertSchema6(aiAgentProfiles).omit({
+    insertAiAgentProfileSchema = createInsertSchema6(
+      aiAgentProfiles
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true,
@@ -912,7 +1038,9 @@ var init_debate_arena = __esm({
       totalTokens: true,
       totalCostUsd: true
     });
-    insertAiOutcomeLinkSchema = createInsertSchema6(aiOutcomeLinks).omit({
+    insertAiOutcomeLinkSchema = createInsertSchema6(
+      aiOutcomeLinks
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -921,28 +1049,41 @@ var init_debate_arena = __esm({
 
 // shared/schema/market-data.ts
 import { sql as sql7 } from "drizzle-orm";
-import { pgTable as pgTable7, varchar as varchar7, text as text7, timestamp as timestamp7, numeric as numeric6, integer as integer5, jsonb as jsonb5, index as index7 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable7,
+  varchar as varchar7,
+  text as text7,
+  timestamp as timestamp7,
+  numeric as numeric6,
+  integer as integer5,
+  jsonb as jsonb5,
+  index as index7
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema7 } from "drizzle-zod";
 var macroIndicators, externalApiCacheEntries, externalApiUsageCounters, valyuRetrievalCounters, insertMacroIndicatorsSchema, insertExternalApiCacheEntrySchema, insertExternalApiUsageCounterSchema, insertValyuRetrievalCounterSchema;
 var init_market_data = __esm({
   "shared/schema/market-data.ts"() {
     "use strict";
-    macroIndicators = pgTable7("macro_indicators", {
-      id: varchar7("id").primaryKey().default(sql7`gen_random_uuid()`),
-      indicatorId: text7("indicator_id").notNull().unique(),
-      name: text7("name").notNull(),
-      category: text7("category").notNull(),
-      latestValue: numeric6("latest_value"),
-      previousValue: numeric6("previous_value"),
-      changePercent: numeric6("change_percent"),
-      frequency: text7("frequency"),
-      lastUpdatedAt: timestamp7("last_updated_at").defaultNow().notNull(),
-      source: text7("source").notNull().default("FRED"),
-      rawJson: jsonb5("raw_json")
-    }, (table) => [
-      index7("macro_indicators_category_idx").on(table.category),
-      index7("macro_indicators_indicator_id_idx").on(table.indicatorId)
-    ]);
+    macroIndicators = pgTable7(
+      "macro_indicators",
+      {
+        id: varchar7("id").primaryKey().default(sql7`gen_random_uuid()`),
+        indicatorId: text7("indicator_id").notNull().unique(),
+        name: text7("name").notNull(),
+        category: text7("category").notNull(),
+        latestValue: numeric6("latest_value"),
+        previousValue: numeric6("previous_value"),
+        changePercent: numeric6("change_percent"),
+        frequency: text7("frequency"),
+        lastUpdatedAt: timestamp7("last_updated_at").defaultNow().notNull(),
+        source: text7("source").notNull().default("FRED"),
+        rawJson: jsonb5("raw_json")
+      },
+      (table) => [
+        index7("macro_indicators_category_idx").on(table.category),
+        index7("macro_indicators_indicator_id_idx").on(table.indicatorId)
+      ]
+    );
     externalApiCacheEntries = pgTable7("external_api_cache_entries", {
       id: varchar7("id").primaryKey().default(sql7`gen_random_uuid()`),
       provider: text7("provider").notNull(),
@@ -978,23 +1119,31 @@ var init_market_data = __esm({
       retrievalCount: integer5("retrieval_count").default(0).notNull(),
       lastUpdated: timestamp7("last_updated").defaultNow().notNull()
     });
-    insertMacroIndicatorsSchema = createInsertSchema7(macroIndicators).omit({
+    insertMacroIndicatorsSchema = createInsertSchema7(
+      macroIndicators
+    ).omit({
       id: true,
       lastUpdatedAt: true
     });
-    insertExternalApiCacheEntrySchema = createInsertSchema7(externalApiCacheEntries).omit({
+    insertExternalApiCacheEntrySchema = createInsertSchema7(
+      externalApiCacheEntries
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true,
       hitCount: true,
       lastAccessedAt: true
     });
-    insertExternalApiUsageCounterSchema = createInsertSchema7(externalApiUsageCounters).omit({
+    insertExternalApiUsageCounterSchema = createInsertSchema7(
+      externalApiUsageCounters
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
     });
-    insertValyuRetrievalCounterSchema = createInsertSchema7(valyuRetrievalCounters).omit({
+    insertValyuRetrievalCounterSchema = createInsertSchema7(
+      valyuRetrievalCounters
+    ).omit({
       id: true,
       lastUpdated: true
     });
@@ -1003,7 +1152,18 @@ var init_market_data = __esm({
 
 // shared/schema/analysis.ts
 import { sql as sql8 } from "drizzle-orm";
-import { pgTable as pgTable8, varchar as varchar8, text as text8, timestamp as timestamp8, numeric as numeric7, jsonb as jsonb6, integer as integer6, boolean as boolean7, index as index8, unique as unique3 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable8,
+  varchar as varchar8,
+  text as text8,
+  timestamp as timestamp8,
+  numeric as numeric7,
+  jsonb as jsonb6,
+  integer as integer6,
+  boolean as boolean7,
+  index as index8,
+  unique as unique3
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema8 } from "drizzle-zod";
 var dataSourceAnalysis, shortInterestAnalysis, insiderActivityAnalysis, macroAnalysis, analysisFeedback, insertDataSourceAnalysisSchema, insertShortInterestAnalysisSchema, insertInsiderActivityAnalysisSchema, insertMacroAnalysisSchema, insertAnalysisFeedbackSchema;
 var init_analysis = __esm({
@@ -1011,131 +1171,175 @@ var init_analysis = __esm({
     "use strict";
     init_ai_decisions();
     init_ai_decisions();
-    dataSourceAnalysis = pgTable8("data_source_analysis", {
-      id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
-      decisionId: varchar8("decision_id").references(() => aiDecisions.id, { onDelete: "cascade" }),
-      symbol: text8("symbol").notNull(),
-      source: text8("source").notNull(),
-      // finra, sec-edgar, finnhub, fred, frankfurter, etc.
-      analysisType: text8("analysis_type").notNull(),
-      // short_interest, insider_activity, fundamentals, macro, forex
-      dataJson: jsonb6("data_json").notNull(),
-      // Raw analysis data
-      score: numeric7("score"),
-      // Normalized score (-1 to 1 or 0 to 100)
-      signal: text8("signal"),
-      // bullish, bearish, neutral
-      confidence: numeric7("confidence"),
-      // 0 to 1
-      reliability: numeric7("reliability"),
-      // Source reliability weight
-      createdAt: timestamp8("created_at").defaultNow().notNull()
-    }, (table) => [
-      index8("data_source_analysis_decision_id_idx").on(table.decisionId),
-      index8("data_source_analysis_symbol_idx").on(table.symbol),
-      index8("data_source_analysis_source_idx").on(table.source),
-      index8("data_source_analysis_created_at_idx").on(table.createdAt)
-    ]);
-    shortInterestAnalysis = pgTable8("short_interest_analysis", {
-      id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
-      symbol: text8("symbol").notNull(),
-      shortRatio: numeric7("short_ratio").notNull(),
-      // Short volume / Total volume
-      shortVolume: numeric7("short_volume"),
-      totalVolume: numeric7("total_volume"),
-      daysToCover: numeric7("days_to_cover"),
-      shortRatioTrend: text8("short_ratio_trend"),
-      // increasing, decreasing, stable
-      squeezePotential: text8("squeeze_potential"),
-      // high, medium, low
-      averageShortRatio: numeric7("average_short_ratio"),
-      // 20-day average
-      analysisDate: timestamp8("analysis_date").notNull(),
-      createdAt: timestamp8("created_at").defaultNow().notNull()
-    }, (table) => [
-      index8("short_interest_symbol_idx").on(table.symbol),
-      index8("short_interest_date_idx").on(table.analysisDate),
-      unique3("short_interest_symbol_date_unique").on(table.symbol, table.analysisDate)
-    ]);
-    insiderActivityAnalysis = pgTable8("insider_activity_analysis", {
-      id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
-      symbol: text8("symbol").notNull(),
-      totalBuys: numeric7("total_buys").default("0"),
-      totalSells: numeric7("total_sells").default("0"),
-      netActivity: numeric7("net_activity").default("0"),
-      // Buys - Sells (shares)
-      netValue: numeric7("net_value").default("0"),
-      // Dollar value
-      buyToSellRatio: numeric7("buy_to_sell_ratio"),
-      sentiment: text8("sentiment"),
-      // bullish, bearish, neutral
-      recentTransactionsJson: jsonb6("recent_transactions_json"),
-      // Last 10 transactions
-      analysisWindowDays: integer6("analysis_window_days").default(90),
-      analysisDate: timestamp8("analysis_date").notNull(),
-      createdAt: timestamp8("created_at").defaultNow().notNull()
-    }, (table) => [
-      index8("insider_activity_symbol_idx").on(table.symbol),
-      index8("insider_activity_date_idx").on(table.analysisDate),
-      unique3("insider_activity_symbol_date_unique").on(table.symbol, table.analysisDate)
-    ]);
-    macroAnalysis = pgTable8("macro_analysis", {
-      id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
-      vix: numeric7("vix"),
-      fedFundsRate: numeric7("fed_funds_rate"),
-      yieldCurve: numeric7("yield_curve"),
-      // 10Y-2Y spread
-      inflation: numeric7("inflation"),
-      // CPI
-      unemployment: numeric7("unemployment"),
-      marketRegime: text8("market_regime"),
-      // risk_on, risk_off, neutral
-      indicatorsJson: jsonb6("indicators_json"),
-      // All FRED indicators
-      analysisDate: timestamp8("analysis_date").notNull(),
-      createdAt: timestamp8("created_at").defaultNow().notNull()
-    }, (table) => [
-      index8("macro_analysis_date_idx").on(table.analysisDate),
-      unique3("macro_analysis_date_unique").on(table.analysisDate)
-    ]);
-    analysisFeedback = pgTable8("analysis_feedback", {
-      id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
-      dataSourceAnalysisId: varchar8("data_source_analysis_id").references(() => dataSourceAnalysis.id, { onDelete: "cascade" }),
-      tradeOutcomeId: varchar8("trade_outcome_id").references(() => aiTradeOutcomes.id, { onDelete: "cascade" }),
-      symbol: text8("symbol").notNull(),
-      source: text8("source").notNull(),
-      signalAtEntry: text8("signal_at_entry"),
-      // The signal when trade was entered
-      confidenceAtEntry: numeric7("confidence_at_entry"),
-      tradeResult: text8("trade_result"),
-      // win, loss
-      pnlPercent: numeric7("pnl_percent"),
-      signalAccuracy: boolean7("signal_accuracy"),
-      // Did signal predict correctly?
-      holdingTimeMs: integer6("holding_time_ms"),
-      createdAt: timestamp8("created_at").defaultNow().notNull()
-    }, (table) => [
-      index8("analysis_feedback_source_idx").on(table.source),
-      index8("analysis_feedback_symbol_idx").on(table.symbol),
-      index8("analysis_feedback_created_at_idx").on(table.createdAt)
-    ]);
-    insertDataSourceAnalysisSchema = createInsertSchema8(dataSourceAnalysis).omit({
+    dataSourceAnalysis = pgTable8(
+      "data_source_analysis",
+      {
+        id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
+        decisionId: varchar8("decision_id").references(() => aiDecisions.id, {
+          onDelete: "cascade"
+        }),
+        symbol: text8("symbol").notNull(),
+        source: text8("source").notNull(),
+        // finra, sec-edgar, finnhub, fred, frankfurter, etc.
+        analysisType: text8("analysis_type").notNull(),
+        // short_interest, insider_activity, fundamentals, macro, forex
+        dataJson: jsonb6("data_json").notNull(),
+        // Raw analysis data
+        score: numeric7("score"),
+        // Normalized score (-1 to 1 or 0 to 100)
+        signal: text8("signal"),
+        // bullish, bearish, neutral
+        confidence: numeric7("confidence"),
+        // 0 to 1
+        reliability: numeric7("reliability"),
+        // Source reliability weight
+        createdAt: timestamp8("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index8("data_source_analysis_decision_id_idx").on(table.decisionId),
+        index8("data_source_analysis_symbol_idx").on(table.symbol),
+        index8("data_source_analysis_source_idx").on(table.source),
+        index8("data_source_analysis_created_at_idx").on(table.createdAt)
+      ]
+    );
+    shortInterestAnalysis = pgTable8(
+      "short_interest_analysis",
+      {
+        id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
+        symbol: text8("symbol").notNull(),
+        shortRatio: numeric7("short_ratio").notNull(),
+        // Short volume / Total volume
+        shortVolume: numeric7("short_volume"),
+        totalVolume: numeric7("total_volume"),
+        daysToCover: numeric7("days_to_cover"),
+        shortRatioTrend: text8("short_ratio_trend"),
+        // increasing, decreasing, stable
+        squeezePotential: text8("squeeze_potential"),
+        // high, medium, low
+        averageShortRatio: numeric7("average_short_ratio"),
+        // 20-day average
+        analysisDate: timestamp8("analysis_date").notNull(),
+        createdAt: timestamp8("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index8("short_interest_symbol_idx").on(table.symbol),
+        index8("short_interest_date_idx").on(table.analysisDate),
+        unique3("short_interest_symbol_date_unique").on(
+          table.symbol,
+          table.analysisDate
+        )
+      ]
+    );
+    insiderActivityAnalysis = pgTable8(
+      "insider_activity_analysis",
+      {
+        id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
+        symbol: text8("symbol").notNull(),
+        totalBuys: numeric7("total_buys").default("0"),
+        totalSells: numeric7("total_sells").default("0"),
+        netActivity: numeric7("net_activity").default("0"),
+        // Buys - Sells (shares)
+        netValue: numeric7("net_value").default("0"),
+        // Dollar value
+        buyToSellRatio: numeric7("buy_to_sell_ratio"),
+        sentiment: text8("sentiment"),
+        // bullish, bearish, neutral
+        recentTransactionsJson: jsonb6("recent_transactions_json"),
+        // Last 10 transactions
+        analysisWindowDays: integer6("analysis_window_days").default(90),
+        analysisDate: timestamp8("analysis_date").notNull(),
+        createdAt: timestamp8("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index8("insider_activity_symbol_idx").on(table.symbol),
+        index8("insider_activity_date_idx").on(table.analysisDate),
+        unique3("insider_activity_symbol_date_unique").on(
+          table.symbol,
+          table.analysisDate
+        )
+      ]
+    );
+    macroAnalysis = pgTable8(
+      "macro_analysis",
+      {
+        id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
+        vix: numeric7("vix"),
+        fedFundsRate: numeric7("fed_funds_rate"),
+        yieldCurve: numeric7("yield_curve"),
+        // 10Y-2Y spread
+        inflation: numeric7("inflation"),
+        // CPI
+        unemployment: numeric7("unemployment"),
+        marketRegime: text8("market_regime"),
+        // risk_on, risk_off, neutral
+        indicatorsJson: jsonb6("indicators_json"),
+        // All FRED indicators
+        analysisDate: timestamp8("analysis_date").notNull(),
+        createdAt: timestamp8("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index8("macro_analysis_date_idx").on(table.analysisDate),
+        unique3("macro_analysis_date_unique").on(table.analysisDate)
+      ]
+    );
+    analysisFeedback = pgTable8(
+      "analysis_feedback",
+      {
+        id: varchar8("id").primaryKey().default(sql8`gen_random_uuid()`),
+        dataSourceAnalysisId: varchar8("data_source_analysis_id").references(
+          () => dataSourceAnalysis.id,
+          { onDelete: "cascade" }
+        ),
+        tradeOutcomeId: varchar8("trade_outcome_id").references(
+          () => aiTradeOutcomes.id,
+          { onDelete: "cascade" }
+        ),
+        symbol: text8("symbol").notNull(),
+        source: text8("source").notNull(),
+        signalAtEntry: text8("signal_at_entry"),
+        // The signal when trade was entered
+        confidenceAtEntry: numeric7("confidence_at_entry"),
+        tradeResult: text8("trade_result"),
+        // win, loss
+        pnlPercent: numeric7("pnl_percent"),
+        signalAccuracy: boolean7("signal_accuracy"),
+        // Did signal predict correctly?
+        holdingTimeMs: integer6("holding_time_ms"),
+        createdAt: timestamp8("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index8("analysis_feedback_source_idx").on(table.source),
+        index8("analysis_feedback_symbol_idx").on(table.symbol),
+        index8("analysis_feedback_created_at_idx").on(table.createdAt)
+      ]
+    );
+    insertDataSourceAnalysisSchema = createInsertSchema8(
+      dataSourceAnalysis
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertShortInterestAnalysisSchema = createInsertSchema8(shortInterestAnalysis).omit({
+    insertShortInterestAnalysisSchema = createInsertSchema8(
+      shortInterestAnalysis
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertInsiderActivityAnalysisSchema = createInsertSchema8(insiderActivityAnalysis).omit({
+    insertInsiderActivityAnalysisSchema = createInsertSchema8(
+      insiderActivityAnalysis
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertMacroAnalysisSchema = createInsertSchema8(macroAnalysis).omit({
-      id: true,
-      createdAt: true
-    });
-    insertAnalysisFeedbackSchema = createInsertSchema8(analysisFeedback).omit({
+    insertMacroAnalysisSchema = createInsertSchema8(macroAnalysis).omit(
+      {
+        id: true,
+        createdAt: true
+      }
+    );
+    insertAnalysisFeedbackSchema = createInsertSchema8(
+      analysisFeedback
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -1144,177 +1348,229 @@ var init_analysis = __esm({
 
 // shared/schema/universe.ts
 import { sql as sql9 } from "drizzle-orm";
-import { pgTable as pgTable9, varchar as varchar9, text as text9, timestamp as timestamp9, numeric as numeric8, boolean as boolean8, integer as integer7, jsonb as jsonb7, index as index9, unique as unique4 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable9,
+  varchar as varchar9,
+  text as text9,
+  timestamp as timestamp9,
+  numeric as numeric8,
+  boolean as boolean8,
+  integer as integer7,
+  jsonb as jsonb7,
+  index as index9,
+  unique as unique4
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema9 } from "drizzle-zod";
 var universeAssets, universeLiquidityMetrics, universeFundamentals, universeTechnicals, assetClassifications, universeCandidates, insertUniverseAssetSchema, insertUniverseLiquiditySchema, insertUniverseFundamentalsSchema, insertUniverseTechnicalsSchema, insertAssetClassificationSchema, insertUniverseCandidateSchema;
 var init_universe = __esm({
   "shared/schema/universe.ts"() {
     "use strict";
     init_auth();
-    universeAssets = pgTable9("universe_assets", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull().unique(),
-      name: text9("name").notNull(),
-      exchange: text9("exchange").notNull(),
-      assetClass: text9("asset_class").notNull(),
-      status: text9("status").notNull(),
-      tradable: boolean8("tradable").default(false).notNull(),
-      marginable: boolean8("marginable").default(false).notNull(),
-      shortable: boolean8("shortable").default(false).notNull(),
-      fractionable: boolean8("fractionable").default(false).notNull(),
-      easyToBorrow: boolean8("easy_to_borrow").default(false).notNull(),
-      isOtc: boolean8("is_otc").default(false).notNull(),
-      isSpac: boolean8("is_spac").default(false).notNull(),
-      isPennyStock: boolean8("is_penny_stock").default(false).notNull(),
-      excluded: boolean8("excluded").default(false).notNull(),
-      excludeReason: text9("exclude_reason"),
-      lastRefreshedAt: timestamp9("last_refreshed_at").defaultNow().notNull(),
-      rawJson: jsonb7("raw_json")
-    }, (table) => [
-      index9("universe_assets_symbol_idx").on(table.symbol),
-      index9("universe_assets_tradable_idx").on(table.tradable),
-      index9("universe_assets_exchange_idx").on(table.exchange)
-    ]);
-    universeLiquidityMetrics = pgTable9("universe_liquidity_metrics", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull().unique(),
-      avgDailyVolumeShares: numeric8("avg_daily_volume_shares"),
-      avgDailyTradedValueUsd: numeric8("avg_daily_traded_value_usd"),
-      avgBidAskSpreadPct: numeric8("avg_bid_ask_spread_pct"),
-      latestPrice: numeric8("latest_price"),
-      priceDataDays: integer7("price_data_days").default(30),
-      liquidityTier: text9("liquidity_tier"),
-      source: text9("source").notNull(),
-      lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
-      rawJson: jsonb7("raw_json")
-    }, (table) => [
-      index9("universe_liquidity_symbol_idx").on(table.symbol),
-      index9("universe_liquidity_tier_idx").on(table.liquidityTier)
-    ]);
-    universeFundamentals = pgTable9("universe_fundamentals", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull().unique(),
-      marketCap: numeric8("market_cap"),
-      revenueTtm: numeric8("revenue_ttm"),
-      revenueCagr3y: numeric8("revenue_cagr_3y"),
-      grossMargin: numeric8("gross_margin"),
-      operatingMargin: numeric8("operating_margin"),
-      netMargin: numeric8("net_margin"),
-      freeCashFlowMargin: numeric8("free_cash_flow_margin"),
-      debtToEquity: numeric8("debt_to_equity"),
-      sharesDilution1y: numeric8("shares_dilution_1y"),
-      peRatio: numeric8("pe_ratio"),
-      priceToBook: numeric8("price_to_book"),
-      beta: numeric8("beta"),
-      week52High: numeric8("week_52_high"),
-      week52Low: numeric8("week_52_low"),
-      dividendYield: numeric8("dividend_yield"),
-      sector: text9("sector"),
-      industry: text9("industry"),
-      source: text9("source").notNull(),
-      lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
-      rawJson: jsonb7("raw_json")
-    }, (table) => [
-      index9("universe_fundamentals_symbol_idx").on(table.symbol),
-      index9("universe_fundamentals_sector_idx").on(table.sector)
-    ]);
-    universeTechnicals = pgTable9("universe_technicals", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull(),
-      date: timestamp9("date").notNull(),
-      open: numeric8("open"),
-      high: numeric8("high"),
-      low: numeric8("low"),
-      close: numeric8("close"),
-      volume: numeric8("volume"),
-      vwap: numeric8("vwap"),
-      sma20: numeric8("sma_20"),
-      sma50: numeric8("sma_50"),
-      sma200: numeric8("sma_200"),
-      ema12: numeric8("ema_12"),
-      ema26: numeric8("ema_26"),
-      rsi14: numeric8("rsi_14"),
-      macd: numeric8("macd"),
-      macdSignal: numeric8("macd_signal"),
-      macdHistogram: numeric8("macd_histogram"),
-      atr14: numeric8("atr_14"),
-      bollingerUpper: numeric8("bollinger_upper"),
-      bollingerLower: numeric8("bollinger_lower"),
-      adx14: numeric8("adx_14"),
-      plusDi: numeric8("plus_di"),
-      minusDi: numeric8("minus_di"),
-      pivotPoint: numeric8("pivot_point"),
-      resistance1: numeric8("resistance_1"),
-      support1: numeric8("support_1"),
-      source: text9("source").notNull(),
-      lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull()
-    }, (table) => [
-      index9("universe_technicals_symbol_idx").on(table.symbol),
-      index9("universe_technicals_date_idx").on(table.date),
-      unique4("universe_technicals_symbol_date_unique").on(table.symbol, table.date)
-    ]);
-    assetClassifications = pgTable9("asset_classifications", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull().unique(),
-      assetClass: text9("asset_class"),
-      marketCapTier: text9("market_cap_tier"),
-      liquidityTier: text9("liquidity_tier"),
-      volatilityTier: text9("volatility_tier"),
-      trendStrength: text9("trend_strength"),
-      momentumScore: numeric8("momentum_score"),
-      valueScore: numeric8("value_score"),
-      qualityScore: numeric8("quality_score"),
-      lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
-      source: text9("source").notNull(),
-      rawJson: jsonb7("raw_json")
-    }, (table) => [
-      index9("asset_classifications_symbol_idx").on(table.symbol),
-      index9("asset_classifications_asset_class_idx").on(table.assetClass),
-      index9("asset_classifications_market_cap_tier_idx").on(table.marketCapTier)
-    ]);
-    universeCandidates = pgTable9("universe_candidates", {
-      id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
-      symbol: text9("symbol").notNull().unique(),
-      tier: text9("tier").notNull(),
-      liquidityScore: numeric8("liquidity_score"),
-      growthScore: numeric8("growth_score"),
-      qualityScore: numeric8("quality_score"),
-      finalScore: numeric8("final_score"),
-      themeTags: jsonb7("theme_tags"),
-      rationale: text9("rationale"),
-      status: text9("status").notNull().default("NEW"),
-      approvedBy: varchar9("approved_by").references(() => users.id, { onDelete: "set null" }),
-      approvedAt: timestamp9("approved_at"),
-      traceId: text9("trace_id"),
-      createdAt: timestamp9("created_at").defaultNow().notNull(),
-      updatedAt: timestamp9("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index9("universe_candidates_symbol_idx").on(table.symbol),
-      index9("universe_candidates_status_idx").on(table.status),
-      index9("universe_candidates_tier_idx").on(table.tier),
-      index9("universe_candidates_final_score_idx").on(table.finalScore)
-    ]);
-    insertUniverseAssetSchema = createInsertSchema9(universeAssets).omit({
+    universeAssets = pgTable9(
+      "universe_assets",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull().unique(),
+        name: text9("name").notNull(),
+        exchange: text9("exchange").notNull(),
+        assetClass: text9("asset_class").notNull(),
+        status: text9("status").notNull(),
+        tradable: boolean8("tradable").default(false).notNull(),
+        marginable: boolean8("marginable").default(false).notNull(),
+        shortable: boolean8("shortable").default(false).notNull(),
+        fractionable: boolean8("fractionable").default(false).notNull(),
+        easyToBorrow: boolean8("easy_to_borrow").default(false).notNull(),
+        isOtc: boolean8("is_otc").default(false).notNull(),
+        isSpac: boolean8("is_spac").default(false).notNull(),
+        isPennyStock: boolean8("is_penny_stock").default(false).notNull(),
+        excluded: boolean8("excluded").default(false).notNull(),
+        excludeReason: text9("exclude_reason"),
+        lastRefreshedAt: timestamp9("last_refreshed_at").defaultNow().notNull(),
+        rawJson: jsonb7("raw_json")
+      },
+      (table) => [
+        index9("universe_assets_symbol_idx").on(table.symbol),
+        index9("universe_assets_tradable_idx").on(table.tradable),
+        index9("universe_assets_exchange_idx").on(table.exchange)
+      ]
+    );
+    universeLiquidityMetrics = pgTable9(
+      "universe_liquidity_metrics",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull().unique(),
+        avgDailyVolumeShares: numeric8("avg_daily_volume_shares"),
+        avgDailyTradedValueUsd: numeric8("avg_daily_traded_value_usd"),
+        avgBidAskSpreadPct: numeric8("avg_bid_ask_spread_pct"),
+        latestPrice: numeric8("latest_price"),
+        priceDataDays: integer7("price_data_days").default(30),
+        liquidityTier: text9("liquidity_tier"),
+        source: text9("source").notNull(),
+        lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
+        rawJson: jsonb7("raw_json")
+      },
+      (table) => [
+        index9("universe_liquidity_symbol_idx").on(table.symbol),
+        index9("universe_liquidity_tier_idx").on(table.liquidityTier)
+      ]
+    );
+    universeFundamentals = pgTable9(
+      "universe_fundamentals",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull().unique(),
+        marketCap: numeric8("market_cap"),
+        revenueTtm: numeric8("revenue_ttm"),
+        revenueCagr3y: numeric8("revenue_cagr_3y"),
+        grossMargin: numeric8("gross_margin"),
+        operatingMargin: numeric8("operating_margin"),
+        netMargin: numeric8("net_margin"),
+        freeCashFlowMargin: numeric8("free_cash_flow_margin"),
+        debtToEquity: numeric8("debt_to_equity"),
+        sharesDilution1y: numeric8("shares_dilution_1y"),
+        peRatio: numeric8("pe_ratio"),
+        priceToBook: numeric8("price_to_book"),
+        beta: numeric8("beta"),
+        week52High: numeric8("week_52_high"),
+        week52Low: numeric8("week_52_low"),
+        dividendYield: numeric8("dividend_yield"),
+        sector: text9("sector"),
+        industry: text9("industry"),
+        source: text9("source").notNull(),
+        lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
+        rawJson: jsonb7("raw_json")
+      },
+      (table) => [
+        index9("universe_fundamentals_symbol_idx").on(table.symbol),
+        index9("universe_fundamentals_sector_idx").on(table.sector)
+      ]
+    );
+    universeTechnicals = pgTable9(
+      "universe_technicals",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull(),
+        date: timestamp9("date").notNull(),
+        open: numeric8("open"),
+        high: numeric8("high"),
+        low: numeric8("low"),
+        close: numeric8("close"),
+        volume: numeric8("volume"),
+        vwap: numeric8("vwap"),
+        sma20: numeric8("sma_20"),
+        sma50: numeric8("sma_50"),
+        sma200: numeric8("sma_200"),
+        ema12: numeric8("ema_12"),
+        ema26: numeric8("ema_26"),
+        rsi14: numeric8("rsi_14"),
+        macd: numeric8("macd"),
+        macdSignal: numeric8("macd_signal"),
+        macdHistogram: numeric8("macd_histogram"),
+        atr14: numeric8("atr_14"),
+        bollingerUpper: numeric8("bollinger_upper"),
+        bollingerLower: numeric8("bollinger_lower"),
+        adx14: numeric8("adx_14"),
+        plusDi: numeric8("plus_di"),
+        minusDi: numeric8("minus_di"),
+        pivotPoint: numeric8("pivot_point"),
+        resistance1: numeric8("resistance_1"),
+        support1: numeric8("support_1"),
+        source: text9("source").notNull(),
+        lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index9("universe_technicals_symbol_idx").on(table.symbol),
+        index9("universe_technicals_date_idx").on(table.date),
+        unique4("universe_technicals_symbol_date_unique").on(
+          table.symbol,
+          table.date
+        )
+      ]
+    );
+    assetClassifications = pgTable9(
+      "asset_classifications",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull().unique(),
+        assetClass: text9("asset_class"),
+        marketCapTier: text9("market_cap_tier"),
+        liquidityTier: text9("liquidity_tier"),
+        volatilityTier: text9("volatility_tier"),
+        trendStrength: text9("trend_strength"),
+        momentumScore: numeric8("momentum_score"),
+        valueScore: numeric8("value_score"),
+        qualityScore: numeric8("quality_score"),
+        lastUpdatedAt: timestamp9("last_updated_at").defaultNow().notNull(),
+        source: text9("source").notNull(),
+        rawJson: jsonb7("raw_json")
+      },
+      (table) => [
+        index9("asset_classifications_symbol_idx").on(table.symbol),
+        index9("asset_classifications_asset_class_idx").on(table.assetClass),
+        index9("asset_classifications_market_cap_tier_idx").on(table.marketCapTier)
+      ]
+    );
+    universeCandidates = pgTable9(
+      "universe_candidates",
+      {
+        id: varchar9("id").primaryKey().default(sql9`gen_random_uuid()`),
+        symbol: text9("symbol").notNull().unique(),
+        tier: text9("tier").notNull(),
+        liquidityScore: numeric8("liquidity_score"),
+        growthScore: numeric8("growth_score"),
+        qualityScore: numeric8("quality_score"),
+        finalScore: numeric8("final_score"),
+        themeTags: jsonb7("theme_tags"),
+        rationale: text9("rationale"),
+        status: text9("status").notNull().default("NEW"),
+        approvedBy: varchar9("approved_by").references(() => users.id, {
+          onDelete: "set null"
+        }),
+        approvedAt: timestamp9("approved_at"),
+        traceId: text9("trace_id"),
+        createdAt: timestamp9("created_at").defaultNow().notNull(),
+        updatedAt: timestamp9("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index9("universe_candidates_symbol_idx").on(table.symbol),
+        index9("universe_candidates_status_idx").on(table.status),
+        index9("universe_candidates_tier_idx").on(table.tier),
+        index9("universe_candidates_final_score_idx").on(table.finalScore)
+      ]
+    );
+    insertUniverseAssetSchema = createInsertSchema9(
+      universeAssets
+    ).omit({
       id: true,
       lastRefreshedAt: true
     });
-    insertUniverseLiquiditySchema = createInsertSchema9(universeLiquidityMetrics).omit({
+    insertUniverseLiquiditySchema = createInsertSchema9(
+      universeLiquidityMetrics
+    ).omit({
       id: true,
       lastUpdatedAt: true
     });
-    insertUniverseFundamentalsSchema = createInsertSchema9(universeFundamentals).omit({
+    insertUniverseFundamentalsSchema = createInsertSchema9(
+      universeFundamentals
+    ).omit({
       id: true,
       lastUpdatedAt: true
     });
-    insertUniverseTechnicalsSchema = createInsertSchema9(universeTechnicals).omit({
+    insertUniverseTechnicalsSchema = createInsertSchema9(
+      universeTechnicals
+    ).omit({
       id: true,
       lastUpdatedAt: true
     });
-    insertAssetClassificationSchema = createInsertSchema9(assetClassifications).omit({
+    insertAssetClassificationSchema = createInsertSchema9(
+      assetClassifications
+    ).omit({
       id: true,
       lastUpdatedAt: true
     });
-    insertUniverseCandidateSchema = createInsertSchema9(universeCandidates).omit({
+    insertUniverseCandidateSchema = createInsertSchema9(
+      universeCandidates
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -1324,48 +1580,72 @@ var init_universe = __esm({
 
 // shared/schema/allocation.ts
 import { sql as sql10 } from "drizzle-orm";
-import { pgTable as pgTable10, varchar as varchar10, text as text10, timestamp as timestamp10, numeric as numeric9, boolean as boolean9, integer as integer8, jsonb as jsonb8, index as index10 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable10,
+  varchar as varchar10,
+  text as text10,
+  timestamp as timestamp10,
+  numeric as numeric9,
+  boolean as boolean9,
+  integer as integer8,
+  jsonb as jsonb8,
+  index as index10
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema10 } from "drizzle-zod";
 var allocationPolicies, rebalanceRuns, insertAllocationPolicySchema, insertRebalanceRunSchema;
 var init_allocation = __esm({
   "shared/schema/allocation.ts"() {
     "use strict";
     init_auth();
-    allocationPolicies = pgTable10("allocation_policies", {
-      id: varchar10("id").primaryKey().default(sql10`gen_random_uuid()`),
-      name: text10("name").notNull().unique(),
-      description: text10("description"),
-      isActive: boolean9("is_active").default(false).notNull(),
-      maxPositionWeightPct: numeric9("max_position_weight_pct").default("8"),
-      maxSectorWeightPct: numeric9("max_sector_weight_pct").default("25"),
-      minLiquidityTier: text10("min_liquidity_tier").default("B"),
-      profitTakingThresholdPct: numeric9("profit_taking_threshold_pct").default("20"),
-      overweightThresholdPct: numeric9("overweight_threshold_pct").default("50"),
-      rotationTopN: integer8("rotation_top_n").default(10),
-      rebalanceFrequency: text10("rebalance_frequency").default("daily"),
-      createdBy: varchar10("created_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp10("created_at").defaultNow().notNull(),
-      updatedAt: timestamp10("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index10("allocation_policies_active_idx").on(table.isActive)
-    ]);
-    rebalanceRuns = pgTable10("rebalance_runs", {
-      id: varchar10("id").primaryKey().default(sql10`gen_random_uuid()`),
-      policyId: varchar10("policy_id").references(() => allocationPolicies.id, { onDelete: "set null" }),
-      traceId: text10("trace_id").notNull(),
-      status: text10("status").notNull().default("pending"),
-      triggerType: text10("trigger_type").notNull(),
-      inputSnapshot: jsonb8("input_snapshot"),
-      orderIntents: jsonb8("order_intents"),
-      executedOrders: jsonb8("executed_orders"),
-      rationale: text10("rationale"),
-      startedAt: timestamp10("started_at").defaultNow().notNull(),
-      completedAt: timestamp10("completed_at")
-    }, (table) => [
-      index10("rebalance_runs_trace_id_idx").on(table.traceId),
-      index10("rebalance_runs_status_idx").on(table.status)
-    ]);
-    insertAllocationPolicySchema = createInsertSchema10(allocationPolicies).omit({
+    allocationPolicies = pgTable10(
+      "allocation_policies",
+      {
+        id: varchar10("id").primaryKey().default(sql10`gen_random_uuid()`),
+        name: text10("name").notNull().unique(),
+        description: text10("description"),
+        isActive: boolean9("is_active").default(false).notNull(),
+        maxPositionWeightPct: numeric9("max_position_weight_pct").default("8"),
+        maxSectorWeightPct: numeric9("max_sector_weight_pct").default("25"),
+        minLiquidityTier: text10("min_liquidity_tier").default("B"),
+        profitTakingThresholdPct: numeric9("profit_taking_threshold_pct").default(
+          "20"
+        ),
+        overweightThresholdPct: numeric9("overweight_threshold_pct").default("50"),
+        rotationTopN: integer8("rotation_top_n").default(10),
+        rebalanceFrequency: text10("rebalance_frequency").default("daily"),
+        createdBy: varchar10("created_by").references(() => users.id, {
+          onDelete: "set null"
+        }),
+        createdAt: timestamp10("created_at").defaultNow().notNull(),
+        updatedAt: timestamp10("updated_at").defaultNow().notNull()
+      },
+      (table) => [index10("allocation_policies_active_idx").on(table.isActive)]
+    );
+    rebalanceRuns = pgTable10(
+      "rebalance_runs",
+      {
+        id: varchar10("id").primaryKey().default(sql10`gen_random_uuid()`),
+        policyId: varchar10("policy_id").references(() => allocationPolicies.id, {
+          onDelete: "set null"
+        }),
+        traceId: text10("trace_id").notNull(),
+        status: text10("status").notNull().default("pending"),
+        triggerType: text10("trigger_type").notNull(),
+        inputSnapshot: jsonb8("input_snapshot"),
+        orderIntents: jsonb8("order_intents"),
+        executedOrders: jsonb8("executed_orders"),
+        rationale: text10("rationale"),
+        startedAt: timestamp10("started_at").defaultNow().notNull(),
+        completedAt: timestamp10("completed_at")
+      },
+      (table) => [
+        index10("rebalance_runs_trace_id_idx").on(table.traceId),
+        index10("rebalance_runs_status_idx").on(table.status)
+      ]
+    );
+    insertAllocationPolicySchema = createInsertSchema10(
+      allocationPolicies
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -1379,81 +1659,113 @@ var init_allocation = __esm({
 
 // shared/schema/backtest.ts
 import { sql as sql11 } from "drizzle-orm";
-import { pgTable as pgTable11, text as text11, varchar as varchar11, timestamp as timestamp11, numeric as numeric10, integer as integer9, jsonb as jsonb9, index as index11 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable11,
+  text as text11,
+  varchar as varchar11,
+  timestamp as timestamp11,
+  numeric as numeric10,
+  integer as integer9,
+  jsonb as jsonb9,
+  index as index11
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema11 } from "drizzle-zod";
 var backtestStatuses, executionPriceRules, backtestRuns, backtestTradeEvents, backtestEquityCurve, insertBacktestRunSchema, insertBacktestTradeEventSchema, insertBacktestEquityCurveSchema;
 var init_backtest = __esm({
   "shared/schema/backtest.ts"() {
     "use strict";
     init_trading();
-    backtestStatuses = ["QUEUED", "RUNNING", "DONE", "FAILED"];
+    backtestStatuses = [
+      "QUEUED",
+      "RUNNING",
+      "DONE",
+      "FAILED"
+    ];
     executionPriceRules = ["NEXT_OPEN", "NEXT_CLOSE"];
-    backtestRuns = pgTable11("backtest_runs", {
-      id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
-      createdAt: timestamp11("created_at").defaultNow().notNull(),
-      updatedAt: timestamp11("updated_at").defaultNow().notNull(),
-      status: text11("status").default("QUEUED").notNull(),
-      strategyId: varchar11("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
-      strategyConfigHash: text11("strategy_config_hash").notNull(),
-      strategyConfig: jsonb9("strategy_config").notNull(),
-      universe: text11("universe").array().notNull(),
-      broker: text11("broker").notNull(),
-      timeframe: text11("timeframe").notNull(),
-      startDate: text11("start_date").notNull(),
-      endDate: text11("end_date").notNull(),
-      initialCash: numeric10("initial_cash").notNull(),
-      feesModel: jsonb9("fees_model").notNull(),
-      slippageModel: jsonb9("slippage_model").notNull(),
-      executionPriceRule: text11("execution_price_rule").notNull(),
-      dataSource: text11("data_source").notNull(),
-      provenance: jsonb9("provenance"),
-      resultsSummary: jsonb9("results_summary"),
-      errorMessage: text11("error_message"),
-      runtimeMs: integer9("runtime_ms")
-    }, (table) => [
-      index11("backtest_runs_status_idx").on(table.status),
-      index11("backtest_runs_strategy_id_idx").on(table.strategyId),
-      index11("backtest_runs_created_at_idx").on(table.createdAt)
-    ]);
-    backtestTradeEvents = pgTable11("backtest_trade_events", {
-      id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
-      runId: varchar11("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
-      ts: timestamp11("ts").notNull(),
-      symbol: text11("symbol").notNull(),
-      side: text11("side").notNull(),
-      qty: numeric10("qty").notNull(),
-      price: numeric10("price").notNull(),
-      reason: text11("reason").notNull(),
-      orderType: text11("order_type").notNull(),
-      fees: numeric10("fees").notNull(),
-      slippage: numeric10("slippage").notNull(),
-      positionAfter: numeric10("position_after").notNull(),
-      cashAfter: numeric10("cash_after").notNull()
-    }, (table) => [
-      index11("backtest_trade_events_run_id_idx").on(table.runId),
-      index11("backtest_trade_events_ts_idx").on(table.ts),
-      index11("backtest_trade_events_symbol_idx").on(table.symbol)
-    ]);
-    backtestEquityCurve = pgTable11("backtest_equity_curve", {
-      id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
-      runId: varchar11("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
-      ts: timestamp11("ts").notNull(),
-      equity: numeric10("equity").notNull(),
-      cash: numeric10("cash").notNull(),
-      exposure: numeric10("exposure").notNull()
-    }, (table) => [
-      index11("backtest_equity_curve_run_id_idx").on(table.runId),
-      index11("backtest_equity_curve_ts_idx").on(table.ts)
-    ]);
+    backtestRuns = pgTable11(
+      "backtest_runs",
+      {
+        id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
+        createdAt: timestamp11("created_at").defaultNow().notNull(),
+        updatedAt: timestamp11("updated_at").defaultNow().notNull(),
+        status: text11("status").default("QUEUED").notNull(),
+        strategyId: varchar11("strategy_id").references(() => strategies.id, {
+          onDelete: "set null"
+        }),
+        strategyConfigHash: text11("strategy_config_hash").notNull(),
+        strategyConfig: jsonb9("strategy_config").notNull(),
+        universe: text11("universe").array().notNull(),
+        broker: text11("broker").notNull(),
+        timeframe: text11("timeframe").notNull(),
+        startDate: text11("start_date").notNull(),
+        endDate: text11("end_date").notNull(),
+        initialCash: numeric10("initial_cash").notNull(),
+        feesModel: jsonb9("fees_model").notNull(),
+        slippageModel: jsonb9("slippage_model").notNull(),
+        executionPriceRule: text11("execution_price_rule").notNull(),
+        dataSource: text11("data_source").notNull(),
+        provenance: jsonb9("provenance"),
+        resultsSummary: jsonb9("results_summary"),
+        errorMessage: text11("error_message"),
+        runtimeMs: integer9("runtime_ms")
+      },
+      (table) => [
+        index11("backtest_runs_status_idx").on(table.status),
+        index11("backtest_runs_strategy_id_idx").on(table.strategyId),
+        index11("backtest_runs_created_at_idx").on(table.createdAt)
+      ]
+    );
+    backtestTradeEvents = pgTable11(
+      "backtest_trade_events",
+      {
+        id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
+        runId: varchar11("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
+        ts: timestamp11("ts").notNull(),
+        symbol: text11("symbol").notNull(),
+        side: text11("side").notNull(),
+        qty: numeric10("qty").notNull(),
+        price: numeric10("price").notNull(),
+        reason: text11("reason").notNull(),
+        orderType: text11("order_type").notNull(),
+        fees: numeric10("fees").notNull(),
+        slippage: numeric10("slippage").notNull(),
+        positionAfter: numeric10("position_after").notNull(),
+        cashAfter: numeric10("cash_after").notNull()
+      },
+      (table) => [
+        index11("backtest_trade_events_run_id_idx").on(table.runId),
+        index11("backtest_trade_events_ts_idx").on(table.ts),
+        index11("backtest_trade_events_symbol_idx").on(table.symbol)
+      ]
+    );
+    backtestEquityCurve = pgTable11(
+      "backtest_equity_curve",
+      {
+        id: varchar11("id").primaryKey().default(sql11`gen_random_uuid()`),
+        runId: varchar11("run_id").references(() => backtestRuns.id, { onDelete: "cascade" }).notNull(),
+        ts: timestamp11("ts").notNull(),
+        equity: numeric10("equity").notNull(),
+        cash: numeric10("cash").notNull(),
+        exposure: numeric10("exposure").notNull()
+      },
+      (table) => [
+        index11("backtest_equity_curve_run_id_idx").on(table.runId),
+        index11("backtest_equity_curve_ts_idx").on(table.ts)
+      ]
+    );
     insertBacktestRunSchema = createInsertSchema11(backtestRuns).omit({
       id: true,
       createdAt: true,
       updatedAt: true
     });
-    insertBacktestTradeEventSchema = createInsertSchema11(backtestTradeEvents).omit({
+    insertBacktestTradeEventSchema = createInsertSchema11(
+      backtestTradeEvents
+    ).omit({
       id: true
     });
-    insertBacktestEquityCurveSchema = createInsertSchema11(backtestEquityCurve).omit({
+    insertBacktestEquityCurveSchema = createInsertSchema11(
+      backtestEquityCurve
+    ).omit({
       id: true
     });
   }
@@ -1461,76 +1773,104 @@ var init_backtest = __esm({
 
 // shared/schema/competition.ts
 import { sql as sql12 } from "drizzle-orm";
-import { pgTable as pgTable12, varchar as varchar12, text as text12, timestamp as timestamp12, numeric as numeric11, boolean as boolean10, integer as integer10, jsonb as jsonb10, index as index12 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable12,
+  varchar as varchar12,
+  text as text12,
+  timestamp as timestamp12,
+  numeric as numeric11,
+  boolean as boolean10,
+  integer as integer10,
+  jsonb as jsonb10,
+  index as index12
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema12 } from "drizzle-zod";
 var traderProfiles, competitionRuns, competitionScores, insertTraderProfileSchema, insertCompetitionRunSchema, insertCompetitionScoreSchema;
 var init_competition = __esm({
   "shared/schema/competition.ts"() {
     "use strict";
-    traderProfiles = pgTable12("trader_profiles", {
-      id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
-      name: text12("name").notNull().unique(),
-      description: text12("description"),
-      strategyVersionId: varchar12("strategy_version_id"),
-      modelProfile: jsonb10("model_profile"),
-      riskPreset: jsonb10("risk_preset"),
-      universeFilter: jsonb10("universe_filter"),
-      isPromoted: boolean10("is_promoted").default(false).notNull(),
-      status: text12("status").$type().default("active").notNull(),
-      createdAt: timestamp12("created_at").defaultNow().notNull(),
-      updatedAt: timestamp12("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index12("trader_profiles_status_idx").on(table.status),
-      index12("trader_profiles_promoted_idx").on(table.isPromoted)
-    ]);
-    competitionRuns = pgTable12("competition_runs", {
-      id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
-      name: text12("name").notNull(),
-      traceId: text12("trace_id").notNull(),
-      mode: text12("mode").$type().notNull(),
-      traderIds: text12("trader_ids").array().notNull(),
-      universeSymbols: text12("universe_symbols").array(),
-      startedAt: timestamp12("started_at").defaultNow().notNull(),
-      endedAt: timestamp12("ended_at"),
-      durationMinutes: integer10("duration_minutes"),
-      status: text12("status").$type().default("pending").notNull(),
-      config: jsonb10("config"),
-      createdAt: timestamp12("created_at").defaultNow().notNull()
-    }, (table) => [
-      index12("competition_runs_trace_id_idx").on(table.traceId),
-      index12("competition_runs_status_idx").on(table.status)
-    ]);
-    competitionScores = pgTable12("competition_scores", {
-      id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
-      runId: varchar12("run_id").references(() => competitionRuns.id, { onDelete: "cascade" }).notNull(),
-      traderProfileId: varchar12("trader_profile_id").references(() => traderProfiles.id, { onDelete: "cascade" }).notNull(),
-      totalPnl: numeric11("total_pnl").default("0").notNull(),
-      roi: numeric11("roi").default("0").notNull(),
-      maxDrawdown: numeric11("max_drawdown").default("0").notNull(),
-      winRate: numeric11("win_rate").default("0").notNull(),
-      avgHoldTime: integer10("avg_hold_time"),
-      tradeCount: integer10("trade_count").default(0).notNull(),
-      errorCount: integer10("error_count").default(0).notNull(),
-      costPerDecision: numeric11("cost_per_decision"),
-      slippageProxy: numeric11("slippage_proxy"),
-      rank: integer10("rank"),
-      snapshotAt: timestamp12("snapshot_at").defaultNow().notNull(),
-      details: jsonb10("details")
-    }, (table) => [
-      index12("competition_scores_run_id_idx").on(table.runId),
-      index12("competition_scores_trader_id_idx").on(table.traderProfileId),
-      index12("competition_scores_rank_idx").on(table.rank)
-    ]);
-    insertTraderProfileSchema = createInsertSchema12(traderProfiles).omit({
+    traderProfiles = pgTable12(
+      "trader_profiles",
+      {
+        id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
+        name: text12("name").notNull().unique(),
+        description: text12("description"),
+        strategyVersionId: varchar12("strategy_version_id"),
+        modelProfile: jsonb10("model_profile"),
+        riskPreset: jsonb10("risk_preset"),
+        universeFilter: jsonb10("universe_filter"),
+        isPromoted: boolean10("is_promoted").default(false).notNull(),
+        status: text12("status").$type().default("active").notNull(),
+        createdAt: timestamp12("created_at").defaultNow().notNull(),
+        updatedAt: timestamp12("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index12("trader_profiles_status_idx").on(table.status),
+        index12("trader_profiles_promoted_idx").on(table.isPromoted)
+      ]
+    );
+    competitionRuns = pgTable12(
+      "competition_runs",
+      {
+        id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
+        name: text12("name").notNull(),
+        traceId: text12("trace_id").notNull(),
+        mode: text12("mode").$type().notNull(),
+        traderIds: text12("trader_ids").array().notNull(),
+        universeSymbols: text12("universe_symbols").array(),
+        startedAt: timestamp12("started_at").defaultNow().notNull(),
+        endedAt: timestamp12("ended_at"),
+        durationMinutes: integer10("duration_minutes"),
+        status: text12("status").$type().default("pending").notNull(),
+        config: jsonb10("config"),
+        createdAt: timestamp12("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index12("competition_runs_trace_id_idx").on(table.traceId),
+        index12("competition_runs_status_idx").on(table.status)
+      ]
+    );
+    competitionScores = pgTable12(
+      "competition_scores",
+      {
+        id: varchar12("id").primaryKey().default(sql12`gen_random_uuid()`),
+        runId: varchar12("run_id").references(() => competitionRuns.id, { onDelete: "cascade" }).notNull(),
+        traderProfileId: varchar12("trader_profile_id").references(() => traderProfiles.id, { onDelete: "cascade" }).notNull(),
+        totalPnl: numeric11("total_pnl").default("0").notNull(),
+        roi: numeric11("roi").default("0").notNull(),
+        maxDrawdown: numeric11("max_drawdown").default("0").notNull(),
+        winRate: numeric11("win_rate").default("0").notNull(),
+        avgHoldTime: integer10("avg_hold_time"),
+        tradeCount: integer10("trade_count").default(0).notNull(),
+        errorCount: integer10("error_count").default(0).notNull(),
+        costPerDecision: numeric11("cost_per_decision"),
+        slippageProxy: numeric11("slippage_proxy"),
+        rank: integer10("rank"),
+        snapshotAt: timestamp12("snapshot_at").defaultNow().notNull(),
+        details: jsonb10("details")
+      },
+      (table) => [
+        index12("competition_scores_run_id_idx").on(table.runId),
+        index12("competition_scores_trader_id_idx").on(table.traderProfileId),
+        index12("competition_scores_rank_idx").on(table.rank)
+      ]
+    );
+    insertTraderProfileSchema = createInsertSchema12(
+      traderProfiles
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
     });
-    insertCompetitionRunSchema = createInsertSchema12(competitionRuns).omit({
+    insertCompetitionRunSchema = createInsertSchema12(
+      competitionRuns
+    ).omit({
       id: true,
       createdAt: true
     });
-    insertCompetitionScoreSchema = createInsertSchema12(competitionScores).omit({
+    insertCompetitionScoreSchema = createInsertSchema12(
+      competitionScores
+    ).omit({
       id: true,
       snapshotAt: true
     });
@@ -1539,36 +1879,51 @@ var init_competition = __esm({
 
 // shared/schema/strategy-versioning.ts
 import { sql as sql13 } from "drizzle-orm";
-import { pgTable as pgTable13, varchar as varchar13, text as text13, timestamp as timestamp13, integer as integer11, jsonb as jsonb11, index as index13, unique as unique5 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable13,
+  varchar as varchar13,
+  text as text13,
+  timestamp as timestamp13,
+  integer as integer11,
+  jsonb as jsonb11,
+  index as index13,
+  unique as unique5
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema13 } from "drizzle-zod";
 var strategyVersions, insertStrategyVersionSchema;
 var init_strategy_versioning = __esm({
   "shared/schema/strategy-versioning.ts"() {
     "use strict";
     init_trading();
-    strategyVersions = pgTable13("strategy_versions", {
-      id: varchar13("id").primaryKey().default(sql13`gen_random_uuid()`),
-      strategyId: varchar13("strategy_id").references(() => strategies.id, { onDelete: "cascade" }).notNull(),
-      version: integer11("version").notNull(),
-      name: text13("name").notNull(),
-      spec: jsonb11("spec").notNull(),
-      universeConfig: jsonb11("universe_config"),
-      signalsConfig: jsonb11("signals_config"),
-      riskConfig: jsonb11("risk_config"),
-      llmPolicy: jsonb11("llm_policy"),
-      promptTemplate: text13("prompt_template"),
-      status: text13("status").$type().default("draft").notNull(),
-      dryRunResult: jsonb11("dry_run_result"),
-      changeNotes: text13("change_notes"),
-      createdBy: varchar13("created_by"),
-      createdAt: timestamp13("created_at").defaultNow().notNull(),
-      activatedAt: timestamp13("activated_at")
-    }, (table) => [
-      index13("strategy_versions_strategy_id_idx").on(table.strategyId),
-      index13("strategy_versions_status_idx").on(table.status),
-      unique5("strategy_versions_unique").on(table.strategyId, table.version)
-    ]);
-    insertStrategyVersionSchema = createInsertSchema13(strategyVersions).omit({
+    strategyVersions = pgTable13(
+      "strategy_versions",
+      {
+        id: varchar13("id").primaryKey().default(sql13`gen_random_uuid()`),
+        strategyId: varchar13("strategy_id").references(() => strategies.id, { onDelete: "cascade" }).notNull(),
+        version: integer11("version").notNull(),
+        name: text13("name").notNull(),
+        spec: jsonb11("spec").notNull(),
+        universeConfig: jsonb11("universe_config"),
+        signalsConfig: jsonb11("signals_config"),
+        riskConfig: jsonb11("risk_config"),
+        llmPolicy: jsonb11("llm_policy"),
+        promptTemplate: text13("prompt_template"),
+        status: text13("status").$type().default("draft").notNull(),
+        dryRunResult: jsonb11("dry_run_result"),
+        changeNotes: text13("change_notes"),
+        createdBy: varchar13("created_by"),
+        createdAt: timestamp13("created_at").defaultNow().notNull(),
+        activatedAt: timestamp13("activated_at")
+      },
+      (table) => [
+        index13("strategy_versions_strategy_id_idx").on(table.strategyId),
+        index13("strategy_versions_status_idx").on(table.status),
+        unique5("strategy_versions_unique").on(table.strategyId, table.version)
+      ]
+    );
+    insertStrategyVersionSchema = createInsertSchema13(
+      strategyVersions
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -1577,7 +1932,18 @@ var init_strategy_versioning = __esm({
 
 // shared/schema/monitoring.ts
 import { sql as sql14 } from "drizzle-orm";
-import { pgTable as pgTable14, text as text14, varchar as varchar14, timestamp as timestamp14, numeric as numeric12, boolean as boolean11, integer as integer12, jsonb as jsonb12, index as index14, unique as unique6 } from "drizzle-orm/pg-core";
+import {
+  pgTable as pgTable14,
+  text as text14,
+  varchar as varchar14,
+  timestamp as timestamp14,
+  numeric as numeric12,
+  boolean as boolean11,
+  integer as integer12,
+  jsonb as jsonb12,
+  index as index14,
+  unique as unique6
+} from "drizzle-orm/pg-core";
 import { createInsertSchema as createInsertSchema14 } from "drizzle-zod";
 var llmRoles, llmRoleConfigs, llmCalls, connectorMetrics, alertRules, alertEvents, toolInvocations, insertLlmRoleConfigSchema, insertLlmCallSchema, insertConnectorMetricsSchema, insertAlertRuleSchema, insertAlertEventSchema, insertToolInvocationSchema;
 var init_monitoring = __esm({
@@ -1635,86 +2001,108 @@ var init_monitoring = __esm({
       metadata: text14("metadata"),
       createdAt: timestamp14("created_at").defaultNow().notNull()
     });
-    connectorMetrics = pgTable14("connector_metrics", {
-      id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
-      connector: text14("connector").notNull(),
-      endpoint: text14("endpoint").notNull(),
-      date: timestamp14("date").notNull().defaultNow(),
-      totalRequests: integer12("total_requests").default(0).notNull(),
-      successCount: integer12("success_count").default(0).notNull(),
-      failureCount: integer12("failure_count").default(0).notNull(),
-      cacheHits: integer12("cache_hits").default(0).notNull(),
-      cacheMisses: integer12("cache_misses").default(0).notNull(),
-      rateLimitHits: integer12("rate_limit_hits").default(0).notNull(),
-      fallbackUsed: integer12("fallback_used").default(0).notNull(),
-      avgLatencyMs: numeric12("avg_latency_ms"),
-      p50LatencyMs: numeric12("p50_latency_ms"),
-      p95LatencyMs: numeric12("p95_latency_ms"),
-      p99LatencyMs: numeric12("p99_latency_ms"),
-      lastError: text14("last_error"),
-      lastErrorAt: timestamp14("last_error_at"),
-      createdAt: timestamp14("created_at").defaultNow().notNull(),
-      updatedAt: timestamp14("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index14("connector_metrics_connector_idx").on(table.connector),
-      index14("connector_metrics_date_idx").on(table.date),
-      unique6("connector_metrics_connector_endpoint_date_unique").on(table.connector, table.endpoint, table.date)
-    ]);
-    alertRules = pgTable14("alert_rules", {
-      id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
-      name: text14("name").notNull().unique(),
-      description: text14("description"),
-      ruleType: text14("rule_type").notNull(),
-      condition: jsonb12("condition").notNull(),
-      threshold: numeric12("threshold").notNull(),
-      enabled: boolean11("enabled").default(true).notNull(),
-      webhookUrl: text14("webhook_url"),
-      lastTriggeredAt: timestamp14("last_triggered_at"),
-      lastCheckedAt: timestamp14("last_checked_at"),
-      createdAt: timestamp14("created_at").defaultNow().notNull(),
-      updatedAt: timestamp14("updated_at").defaultNow().notNull()
-    }, (table) => [
-      index14("alert_rules_enabled_idx").on(table.enabled),
-      index14("alert_rules_type_idx").on(table.ruleType)
-    ]);
-    alertEvents = pgTable14("alert_events", {
-      id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
-      ruleId: varchar14("rule_id").references(() => alertRules.id, { onDelete: "cascade" }).notNull(),
-      ruleName: text14("rule_name").notNull(),
-      ruleType: text14("rule_type").notNull(),
-      triggeredValue: numeric12("triggered_value").notNull(),
-      threshold: numeric12("threshold").notNull(),
-      status: text14("status").default("triggered").notNull(),
-      webhookSent: boolean11("webhook_sent").default(false),
-      webhookResponse: text14("webhook_response"),
-      createdAt: timestamp14("created_at").defaultNow().notNull()
-    }, (table) => [
-      index14("alert_events_rule_id_idx").on(table.ruleId),
-      index14("alert_events_created_at_idx").on(table.createdAt)
-    ]);
-    toolInvocations = pgTable14("tool_invocations", {
-      id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
-      traceId: text14("trace_id").notNull(),
-      toolName: text14("tool_name").notNull(),
-      category: text14("category").$type().notNull(),
-      inputParams: jsonb12("input_params"),
-      outputResult: jsonb12("output_result"),
-      status: text14("status").$type().default("pending").notNull(),
-      errorMessage: text14("error_message"),
-      cacheHit: boolean11("cache_hit").default(false).notNull(),
-      latencyMs: integer12("latency_ms"),
-      callerRole: text14("caller_role"),
-      // Note: debateSessionId references debateSessions.id from debate-arena module
-      // Foreign key constraint will be resolved in main schema index
-      debateSessionId: varchar14("debate_session_id"),
-      createdAt: timestamp14("created_at").defaultNow().notNull()
-    }, (table) => [
-      index14("tool_invocations_trace_id_idx").on(table.traceId),
-      index14("tool_invocations_tool_name_idx").on(table.toolName),
-      index14("tool_invocations_created_at_idx").on(table.createdAt),
-      index14("tool_invocations_session_id_idx").on(table.debateSessionId)
-    ]);
-    insertLlmRoleConfigSchema = createInsertSchema14(llmRoleConfigs).omit({
+    connectorMetrics = pgTable14(
+      "connector_metrics",
+      {
+        id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
+        connector: text14("connector").notNull(),
+        endpoint: text14("endpoint").notNull(),
+        date: timestamp14("date").notNull().defaultNow(),
+        totalRequests: integer12("total_requests").default(0).notNull(),
+        successCount: integer12("success_count").default(0).notNull(),
+        failureCount: integer12("failure_count").default(0).notNull(),
+        cacheHits: integer12("cache_hits").default(0).notNull(),
+        cacheMisses: integer12("cache_misses").default(0).notNull(),
+        rateLimitHits: integer12("rate_limit_hits").default(0).notNull(),
+        fallbackUsed: integer12("fallback_used").default(0).notNull(),
+        avgLatencyMs: numeric12("avg_latency_ms"),
+        p50LatencyMs: numeric12("p50_latency_ms"),
+        p95LatencyMs: numeric12("p95_latency_ms"),
+        p99LatencyMs: numeric12("p99_latency_ms"),
+        lastError: text14("last_error"),
+        lastErrorAt: timestamp14("last_error_at"),
+        createdAt: timestamp14("created_at").defaultNow().notNull(),
+        updatedAt: timestamp14("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index14("connector_metrics_connector_idx").on(table.connector),
+        index14("connector_metrics_date_idx").on(table.date),
+        unique6("connector_metrics_connector_endpoint_date_unique").on(
+          table.connector,
+          table.endpoint,
+          table.date
+        )
+      ]
+    );
+    alertRules = pgTable14(
+      "alert_rules",
+      {
+        id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
+        name: text14("name").notNull().unique(),
+        description: text14("description"),
+        ruleType: text14("rule_type").notNull(),
+        condition: jsonb12("condition").notNull(),
+        threshold: numeric12("threshold").notNull(),
+        enabled: boolean11("enabled").default(true).notNull(),
+        webhookUrl: text14("webhook_url"),
+        lastTriggeredAt: timestamp14("last_triggered_at"),
+        lastCheckedAt: timestamp14("last_checked_at"),
+        createdAt: timestamp14("created_at").defaultNow().notNull(),
+        updatedAt: timestamp14("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        index14("alert_rules_enabled_idx").on(table.enabled),
+        index14("alert_rules_type_idx").on(table.ruleType)
+      ]
+    );
+    alertEvents = pgTable14(
+      "alert_events",
+      {
+        id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
+        ruleId: varchar14("rule_id").references(() => alertRules.id, { onDelete: "cascade" }).notNull(),
+        ruleName: text14("rule_name").notNull(),
+        ruleType: text14("rule_type").notNull(),
+        triggeredValue: numeric12("triggered_value").notNull(),
+        threshold: numeric12("threshold").notNull(),
+        status: text14("status").default("triggered").notNull(),
+        webhookSent: boolean11("webhook_sent").default(false),
+        webhookResponse: text14("webhook_response"),
+        createdAt: timestamp14("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index14("alert_events_rule_id_idx").on(table.ruleId),
+        index14("alert_events_created_at_idx").on(table.createdAt)
+      ]
+    );
+    toolInvocations = pgTable14(
+      "tool_invocations",
+      {
+        id: varchar14("id").primaryKey().default(sql14`gen_random_uuid()`),
+        traceId: text14("trace_id").notNull(),
+        toolName: text14("tool_name").notNull(),
+        category: text14("category").$type().notNull(),
+        inputParams: jsonb12("input_params"),
+        outputResult: jsonb12("output_result"),
+        status: text14("status").$type().default("pending").notNull(),
+        errorMessage: text14("error_message"),
+        cacheHit: boolean11("cache_hit").default(false).notNull(),
+        latencyMs: integer12("latency_ms"),
+        callerRole: text14("caller_role"),
+        // Note: debateSessionId references debateSessions.id from debate-arena module
+        // Foreign key constraint will be resolved in main schema index
+        debateSessionId: varchar14("debate_session_id"),
+        createdAt: timestamp14("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        index14("tool_invocations_trace_id_idx").on(table.traceId),
+        index14("tool_invocations_tool_name_idx").on(table.toolName),
+        index14("tool_invocations_created_at_idx").on(table.createdAt),
+        index14("tool_invocations_session_id_idx").on(table.debateSessionId)
+      ]
+    );
+    insertLlmRoleConfigSchema = createInsertSchema14(
+      llmRoleConfigs
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -1723,7 +2111,9 @@ var init_monitoring = __esm({
       id: true,
       createdAt: true
     });
-    insertConnectorMetricsSchema = createInsertSchema14(connectorMetrics).omit({
+    insertConnectorMetricsSchema = createInsertSchema14(
+      connectorMetrics
+    ).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -1737,7 +2127,9 @@ var init_monitoring = __esm({
       id: true,
       createdAt: true
     });
-    insertToolInvocationSchema = createInsertSchema14(toolInvocations).omit({
+    insertToolInvocationSchema = createInsertSchema14(
+      toolInvocations
+    ).omit({
       id: true,
       createdAt: true
     });
@@ -1800,7 +2192,9 @@ var init_watchlist = __esm({
       createdAt: true,
       updatedAt: true
     });
-    insertWatchlistSymbolSchema = createInsertSchema15(watchlistSymbols).omit({
+    insertWatchlistSymbolSchema = createInsertSchema15(
+      watchlistSymbols
+    ).omit({
       id: true,
       addedAt: true
     });
@@ -1828,6 +2222,139 @@ var init_watchlist = __esm({
   }
 });
 
+// shared/schema/user-preferences.ts
+import {
+  pgTable as pgTable16,
+  varchar as varchar16,
+  timestamp as timestamp16,
+  jsonb as jsonb13,
+  index as index16,
+  unique as unique7
+} from "drizzle-orm/pg-core";
+import { sql as sql16 } from "drizzle-orm";
+import { createInsertSchema as createInsertSchema16, createSelectSchema } from "drizzle-zod";
+import { z as z4 } from "zod";
+var themeValues, animationLevelValues, chartStyleValues, userPreferences, insertUserPreferencesSchema, selectUserPreferencesSchema, updateUserPreferencesSchema, defaultUserPreferences;
+var init_user_preferences = __esm({
+  "shared/schema/user-preferences.ts"() {
+    "use strict";
+    init_auth();
+    themeValues = ["dark", "light", "system"];
+    animationLevelValues = ["full", "reduced", "none"];
+    chartStyleValues = ["area", "candle", "line"];
+    userPreferences = pgTable16(
+      "user_preferences",
+      {
+        id: varchar16("id", { length: 36 }).primaryKey().default(sql16`gen_random_uuid()`),
+        userId: varchar16("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+        theme: varchar16("theme", { length: 10 }).default("dark").notNull(),
+        accentColor: varchar16("accent_color", { length: 7 }).default("#00C805").notNull(),
+        animationLevel: varchar16("animation_level", { length: 10 }).default("full").notNull(),
+        chartStyle: varchar16("chart_style", { length: 10 }).default("area").notNull(),
+        // Extensible JSON column for future preferences
+        extras: jsonb13("extras").default({}).notNull(),
+        createdAt: timestamp16("created_at").defaultNow().notNull(),
+        updatedAt: timestamp16("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        // Ensure one preferences record per user
+        unique7("user_preferences_user_id_unique").on(table.userId),
+        // Index for fast user lookup
+        index16("user_preferences_user_id_idx").on(table.userId)
+      ]
+    );
+    insertUserPreferencesSchema = createInsertSchema16(userPreferences, {
+      theme: z4.enum(themeValues).default("dark"),
+      accentColor: z4.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color (e.g., #00C805)").default("#00C805"),
+      animationLevel: z4.enum(animationLevelValues).default("full"),
+      chartStyle: z4.enum(chartStyleValues).default("area"),
+      extras: z4.record(z4.unknown()).default({})
+    }).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    selectUserPreferencesSchema = createSelectSchema(userPreferences);
+    updateUserPreferencesSchema = insertUserPreferencesSchema.partial().omit({
+      userId: true
+    });
+    defaultUserPreferences = {
+      theme: "dark",
+      accentColor: "#00C805",
+      animationLevel: "full",
+      chartStyle: "area",
+      extras: {}
+    };
+  }
+});
+
+// shared/schema/notification-preferences.ts
+import {
+  pgTable as pgTable17,
+  varchar as varchar17,
+  boolean as boolean13,
+  timestamp as timestamp17,
+  index as index17,
+  unique as unique8
+} from "drizzle-orm/pg-core";
+import { sql as sql17 } from "drizzle-orm";
+import { createInsertSchema as createInsertSchema17, createSelectSchema as createSelectSchema2 } from "drizzle-zod";
+import { z as z5 } from "zod";
+var notificationPreferences, insertNotificationPreferencesSchema, selectNotificationPreferencesSchema, updateNotificationPreferencesSchema, defaultNotificationPreferences;
+var init_notification_preferences = __esm({
+  "shared/schema/notification-preferences.ts"() {
+    "use strict";
+    init_auth();
+    notificationPreferences = pgTable17(
+      "notification_preferences",
+      {
+        id: varchar17("id", { length: 36 }).primaryKey().default(sql17`gen_random_uuid()`),
+        userId: varchar17("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+        emailOrderFills: boolean13("email_order_fills").default(true).notNull(),
+        emailLargeLosses: boolean13("email_large_losses").default(true).notNull(),
+        emailCircuitBreaker: boolean13("email_circuit_breaker").default(true).notNull(),
+        emailDailySummary: boolean13("email_daily_summary").default(false).notNull(),
+        emailWeeklyReport: boolean13("email_weekly_report").default(true).notNull(),
+        createdAt: timestamp17("created_at").defaultNow().notNull(),
+        updatedAt: timestamp17("updated_at").defaultNow().notNull()
+      },
+      (table) => [
+        // Ensure one preferences record per user
+        unique8("notification_preferences_user_id_unique").on(table.userId),
+        // Index for fast user lookup
+        index17("notification_preferences_user_id_idx").on(table.userId)
+      ]
+    );
+    insertNotificationPreferencesSchema = createInsertSchema17(
+      notificationPreferences,
+      {
+        emailOrderFills: z5.boolean().default(true),
+        emailLargeLosses: z5.boolean().default(true),
+        emailCircuitBreaker: z5.boolean().default(true),
+        emailDailySummary: z5.boolean().default(false),
+        emailWeeklyReport: z5.boolean().default(true)
+      }
+    ).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    selectNotificationPreferencesSchema = createSelectSchema2(
+      notificationPreferences
+    );
+    updateNotificationPreferencesSchema = insertNotificationPreferencesSchema.partial().omit({
+      userId: true
+    });
+    defaultNotificationPreferences = {
+      emailOrderFills: true,
+      emailLargeLosses: true,
+      emailCircuitBreaker: true,
+      emailDailySummary: false,
+      emailWeeklyReport: true
+    };
+  }
+});
+
 // shared/schema/index.ts
 var init_schema = __esm({
   "shared/schema/index.ts"() {
@@ -1847,6 +2374,8 @@ var init_schema = __esm({
     init_strategy_versioning();
     init_monitoring();
     init_watchlist();
+    init_user_preferences();
+    init_notification_preferences();
   }
 });
 
@@ -1868,6 +2397,7 @@ __export(schema_exports, {
   alertRules: () => alertRules,
   allocationPolicies: () => allocationPolicies,
   analysisFeedback: () => analysisFeedback,
+  animationLevelValues: () => animationLevelValues,
   assetClasses: () => assetClasses,
   assetClassifications: () => assetClassifications,
   auditLogs: () => auditLogs,
@@ -1876,6 +2406,7 @@ __export(schema_exports, {
   backtestStatuses: () => backtestStatuses,
   backtestTradeEvents: () => backtestTradeEvents,
   brokerAssets: () => brokerAssets,
+  chartStyleValues: () => chartStyleValues,
   competitionRuns: () => competitionRuns,
   competitionScores: () => competitionScores,
   connectorMetrics: () => connectorMetrics,
@@ -1884,6 +2415,8 @@ __export(schema_exports, {
   debateConsensus: () => debateConsensus,
   debateMessages: () => debateMessages,
   debateSessions: () => debateSessions,
+  defaultNotificationPreferences: () => defaultNotificationPreferences,
+  defaultUserPreferences: () => defaultUserPreferences,
   deployStrategySchema: () => deployStrategySchema,
   executionPriceRules: () => executionPriceRules,
   externalApiCacheEntries: () => externalApiCacheEntries,
@@ -1923,6 +2456,7 @@ __export(schema_exports, {
   insertLlmRoleConfigSchema: () => insertLlmRoleConfigSchema,
   insertMacroAnalysisSchema: () => insertMacroAnalysisSchema,
   insertMacroIndicatorsSchema: () => insertMacroIndicatorsSchema,
+  insertNotificationPreferencesSchema: () => insertNotificationPreferencesSchema,
   insertOrderSchema: () => insertOrderSchema,
   insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
   insertPositionSchema: () => insertPositionSchema,
@@ -1939,6 +2473,7 @@ __export(schema_exports, {
   insertUniverseFundamentalsSchema: () => insertUniverseFundamentalsSchema,
   insertUniverseLiquiditySchema: () => insertUniverseLiquiditySchema,
   insertUniverseTechnicalsSchema: () => insertUniverseTechnicalsSchema,
+  insertUserPreferencesSchema: () => insertUserPreferencesSchema,
   insertUserSchema: () => insertUserSchema,
   insertValyuRetrievalCounterSchema: () => insertValyuRetrievalCounterSchema,
   insertWatchlistSchema: () => insertWatchlistSchema,
@@ -1951,6 +2486,7 @@ __export(schema_exports, {
   llmRoles: () => llmRoles,
   macroAnalysis: () => macroAnalysis,
   macroIndicators: () => macroIndicators,
+  notificationPreferences: () => notificationPreferences,
   orderStatuses: () => orderStatuses,
   orderTypes: () => orderTypes,
   orders: () => orders,
@@ -1958,6 +2494,8 @@ __export(schema_exports, {
   performanceSummarySchema: () => performanceSummarySchema,
   positions: () => positions,
   rebalanceRuns: () => rebalanceRuns,
+  selectNotificationPreferencesSchema: () => selectNotificationPreferencesSchema,
+  selectUserPreferencesSchema: () => selectUserPreferencesSchema,
   sessions: () => sessions,
   shortInterestAnalysis: () => shortInterestAnalysis,
   strategies: () => strategies,
@@ -1965,6 +2503,7 @@ __export(schema_exports, {
   strategyStatusSchema: () => strategyStatusSchema,
   strategyStatuses: () => strategyStatuses,
   strategyVersions: () => strategyVersions,
+  themeValues: () => themeValues,
   timeInForceValues: () => timeInForceValues,
   toolInvocations: () => toolInvocations,
   traderProfiles: () => traderProfiles,
@@ -1976,9 +2515,12 @@ __export(schema_exports, {
   universeFundamentals: () => universeFundamentals,
   universeLiquidityMetrics: () => universeLiquidityMetrics,
   universeTechnicals: () => universeTechnicals,
+  updateNotificationPreferencesSchema: () => updateNotificationPreferencesSchema,
   updateStrategySchema: () => updateStrategySchema,
+  updateUserPreferencesSchema: () => updateUserPreferencesSchema,
   updateWatchlistSchema: () => updateWatchlistSchema,
   updateWatchlistSymbolSchema: () => updateWatchlistSymbolSchema,
+  userPreferences: () => userPreferences,
   users: () => users,
   valyuRetrievalCounters: () => valyuRetrievalCounters,
   watchlistSymbols: () => watchlistSymbols,
@@ -2348,7 +2890,7 @@ import {
   and,
   gte,
   lte,
-  sql as sql16,
+  sql as sql18,
   like,
   or,
   inArray
@@ -2484,12 +3026,12 @@ var init_storage = __esm({
           conditions.push(lte(trades.executedAt, filters.endDate));
         }
         if (filters.pnlDirection === "profit") {
-          conditions.push(sql16`CAST(${trades.pnl} AS numeric) >= 0`);
+          conditions.push(sql18`CAST(${trades.pnl} AS numeric) >= 0`);
         } else if (filters.pnlDirection === "loss") {
-          conditions.push(sql16`CAST(${trades.pnl} AS numeric) < 0`);
+          conditions.push(sql18`CAST(${trades.pnl} AS numeric) < 0`);
         }
         const whereClause = conditions.length > 0 ? and(...conditions) : void 0;
-        const countResult = await db.select({ count: sql16`count(*)` }).from(trades).where(whereClause);
+        const countResult = await db.select({ count: sql18`count(*)` }).from(trades).where(whereClause);
         const total = Number(countResult[0]?.count ?? 0);
         const limit4 = filters.limit ?? 50;
         const offset = filters.offset ?? 0;
@@ -2682,7 +3224,7 @@ var init_storage = __esm({
         const conditions = [];
         if (status) conditions.push(eq2(workItems.status, status));
         if (type) conditions.push(eq2(workItems.type, type));
-        const result = await db.select({ count: sql16`count(*)` }).from(workItems).where(conditions.length > 0 ? and(...conditions) : void 0);
+        const result = await db.select({ count: sql18`count(*)` }).from(workItems).where(conditions.length > 0 ? and(...conditions) : void 0);
         return Number(result[0]?.count || 0);
       }
       async getWorkItems(limit4 = 50, status) {
@@ -2729,11 +3271,11 @@ var init_storage = __esm({
       }
       async getBrokerAssetCount(assetClass) {
         const conditions = assetClass ? [eq2(brokerAssets.assetClass, assetClass)] : [];
-        const result = await db.select({ count: sql16`count(*)` }).from(brokerAssets).where(conditions.length > 0 ? and(...conditions) : void 0);
+        const result = await db.select({ count: sql18`count(*)` }).from(brokerAssets).where(conditions.length > 0 ? and(...conditions) : void 0);
         return Number(result[0]?.count || 0);
       }
       async getLastAssetSyncTime() {
-        const [result] = await db.select({ lastSynced: sql16`MAX(last_synced_at)` }).from(brokerAssets);
+        const [result] = await db.select({ lastSynced: sql18`MAX(last_synced_at)` }).from(brokerAssets);
         return result?.lastSynced || null;
       }
       async searchBrokerAssets(query, limit4 = 20) {
@@ -2743,7 +3285,7 @@ var init_storage = __esm({
             eq2(brokerAssets.tradable, true),
             or(
               like(brokerAssets.symbol, searchPattern),
-              like(sql16`UPPER(${brokerAssets.name})`, searchPattern)
+              like(sql18`UPPER(${brokerAssets.name})`, searchPattern)
             )
           )
         ).orderBy(brokerAssets.symbol).limit(limit4);
@@ -2985,6 +3527,107 @@ var init_storage = __esm({
         } catch (error) {
           log.error("Storage", "Failed to get recent audit logs", { error });
           return [];
+        }
+      }
+      // ========================================
+      // User Preferences Methods
+      // ========================================
+      async getUserPreferences(userId) {
+        try {
+          const [prefs] = await db.select().from(userPreferences).where(eq2(userPreferences.userId, userId));
+          return prefs || null;
+        } catch (error) {
+          log.error("Storage", "Failed to get user preferences", { error, userId });
+          return null;
+        }
+      }
+      async createUserPreferences(userId, prefs) {
+        const [created] = await db.insert(userPreferences).values({
+          userId,
+          ...defaultUserPreferences,
+          ...prefs
+        }).returning();
+        return created;
+      }
+      async updateUserPreferences(userId, updates) {
+        try {
+          const [updated] = await db.update(userPreferences).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(userPreferences.userId, userId)).returning();
+          return updated || null;
+        } catch (error) {
+          log.error("Storage", "Failed to update user preferences", {
+            error,
+            userId
+          });
+          return null;
+        }
+      }
+      async getOrCreateUserPreferences(userId) {
+        const existing = await this.getUserPreferences(userId);
+        if (existing) return existing;
+        return this.createUserPreferences(userId);
+      }
+      async deleteUserPreferences(userId) {
+        try {
+          const result = await db.delete(userPreferences).where(eq2(userPreferences.userId, userId)).returning();
+          return result.length > 0;
+        } catch (error) {
+          log.error("Storage", "Failed to delete user preferences", {
+            error,
+            userId
+          });
+          return false;
+        }
+      }
+      // ========================================
+      // Notification Preferences Methods
+      // ========================================
+      async getNotificationPreferences(userId) {
+        try {
+          const [prefs] = await db.select().from(notificationPreferences).where(eq2(notificationPreferences.userId, userId));
+          return prefs || null;
+        } catch (error) {
+          log.error("Storage", "Failed to get notification preferences", {
+            error,
+            userId
+          });
+          return null;
+        }
+      }
+      async createDefaultNotificationPreferences(userId, prefs) {
+        const [created] = await db.insert(notificationPreferences).values({
+          userId,
+          ...defaultNotificationPreferences,
+          ...prefs
+        }).returning();
+        return created;
+      }
+      async updateNotificationPreferences(userId, updates) {
+        try {
+          const [updated] = await db.update(notificationPreferences).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(notificationPreferences.userId, userId)).returning();
+          return updated || null;
+        } catch (error) {
+          log.error("Storage", "Failed to update notification preferences", {
+            error,
+            userId
+          });
+          return null;
+        }
+      }
+      async getOrCreateNotificationPreferences(userId) {
+        const existing = await this.getNotificationPreferences(userId);
+        if (existing) return existing;
+        return this.createDefaultNotificationPreferences(userId);
+      }
+      async deleteNotificationPreferences(userId) {
+        try {
+          const result = await db.delete(notificationPreferences).where(eq2(notificationPreferences.userId, userId)).returning();
+          return result.length > 0;
+        } catch (error) {
+          log.error("Storage", "Failed to delete notification preferences", {
+            error,
+            userId
+          });
+          return false;
         }
       }
     };
@@ -3342,9 +3985,9 @@ async function getProviderStatus(provider) {
 }
 async function getAllProviderStatus() {
   const status = {};
-  const providers2 = Object.keys(PROVIDER_LIMITS);
-  const results = await Promise.all(providers2.map((p) => getProviderStatus(p)));
-  providers2.forEach((p, i) => {
+  const providers3 = Object.keys(PROVIDER_LIMITS);
+  const results = await Promise.all(providers3.map((p) => getProviderStatus(p)));
+  providers3.forEach((p, i) => {
     status[p] = results[i];
   });
   return status;
@@ -3417,6 +4060,3327 @@ var init_rateLimiter = __esm({
   }
 });
 
+// server/utils/money.ts
+import Decimal from "decimal.js";
+function toDecimal(value, defaultValue = 0) {
+  if (value === null || value === void 0 || value === "") {
+    return new Decimal(defaultValue ?? 0);
+  }
+  try {
+    const d = new Decimal(value);
+    if (!d.isFinite()) {
+      return new Decimal(defaultValue ?? 0);
+    }
+    return d;
+  } catch {
+    return new Decimal(defaultValue ?? 0);
+  }
+}
+function toNumber(value) {
+  if (value instanceof Decimal) {
+    return value.toNumber();
+  }
+  return toDecimal(value).toNumber();
+}
+function priceWithBuffer(price, bufferPercent, direction = 1) {
+  const p = toDecimal(price);
+  const buffer = p.times(toDecimal(bufferPercent));
+  return direction === 1 ? p.plus(buffer) : p.minus(buffer);
+}
+function roundPrice(price, decimals = 2) {
+  return toDecimal(price).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
+}
+function formatPrice(price, decimals = 2) {
+  const d = toDecimal(price);
+  if (!d.isFinite()) return "0.00";
+  return d.toFixed(decimals);
+}
+function calculateQuantity(notional, price) {
+  const p = toDecimal(price);
+  if (p.isZero()) return new Decimal(0);
+  return toDecimal(notional).dividedBy(p);
+}
+function calculateWholeShares(notional, price) {
+  return calculateQuantity(notional, price).floor();
+}
+function partialQuantity(quantity, percent) {
+  return toDecimal(quantity).times(toDecimal(percent)).dividedBy(100);
+}
+function calculatePnL(entryPrice, exitPrice, quantity, side = "long") {
+  const entry = toDecimal(entryPrice);
+  const exit = toDecimal(exitPrice);
+  const qty = toDecimal(quantity);
+  if (!entry.isFinite() || !exit.isFinite() || !qty.isFinite()) {
+    return new Decimal(0);
+  }
+  if (side === "long") {
+    return exit.minus(entry).times(qty);
+  } else {
+    return entry.minus(exit).times(qty);
+  }
+}
+function percentChange(current, previous) {
+  const prev = toDecimal(previous);
+  if (prev.isZero()) return new Decimal(0);
+  const curr = toDecimal(current);
+  return curr.minus(prev).dividedBy(prev).times(100);
+}
+function percentOf(value, percent) {
+  return toDecimal(value).times(toDecimal(percent)).dividedBy(100);
+}
+function positionValue(quantity, price) {
+  return toDecimal(quantity).times(toDecimal(price));
+}
+function calculateSlippage(price, slippageBps, side) {
+  const p = toDecimal(price);
+  const slippage = p.times(toDecimal(slippageBps)).dividedBy(1e4);
+  return side === "buy" ? slippage : slippage.negated();
+}
+function calculateFeePercent(notional, feePercent) {
+  return toDecimal(notional).times(toDecimal(feePercent)).dividedBy(100);
+}
+function trailingStopPrice(highWaterMark, trailPercent) {
+  const hwm = toDecimal(highWaterMark);
+  const trail = percentOf(hwm, trailPercent);
+  return hwm.minus(trail);
+}
+function kellyFraction(winRate, avgWin, avgLoss) {
+  const w = toDecimal(winRate);
+  const win = toDecimal(avgWin);
+  const loss = toDecimal(avgLoss).abs();
+  if (win.isZero() || loss.isZero()) return new Decimal(0);
+  const lossRate = new Decimal(1).minus(w);
+  const winLossRatio = win.dividedBy(loss);
+  const kelly = winLossRatio.times(w).minus(lossRate).dividedBy(winLossRatio);
+  return Decimal.max(kelly, 0);
+}
+function kellySuggestedSize(portfolioValue, kellyFrac, fraction = 0.25, maxPercent = 10) {
+  const adjustedKelly = toDecimal(kellyFrac).times(toDecimal(fraction));
+  const kellyPercent = adjustedKelly.times(100);
+  const cappedPercent = Decimal.min(kellyPercent, toDecimal(maxPercent));
+  return percentOf(portfolioValue, cappedPercent);
+}
+function mean(values) {
+  if (values.length === 0) return new Decimal(0);
+  const sum = values.reduce(
+    (acc, v) => acc.plus(toDecimal(v)),
+    new Decimal(0)
+  );
+  return sum.dividedBy(values.length);
+}
+function variance(values) {
+  if (values.length < 2) return new Decimal(0);
+  const avg = mean(values);
+  const squaredDiffs = values.map((v) => toDecimal(v).minus(avg).pow(2));
+  return mean(squaredDiffs);
+}
+function stdDev(values) {
+  return variance(values).sqrt();
+}
+function sharpeRatio(returns, riskFreeRate = 0, periodsPerYear = 252) {
+  if (returns.length === 0) return new Decimal(0);
+  const avgReturn = mean(returns);
+  const std = stdDev(returns);
+  if (std.isZero()) return new Decimal(0);
+  const rf = toDecimal(riskFreeRate).dividedBy(periodsPerYear);
+  const excessReturn = avgReturn.minus(rf);
+  const annualizationFactor = new Decimal(periodsPerYear).sqrt();
+  return excessReturn.dividedBy(std).times(annualizationFactor);
+}
+function zScore(value, avg, std) {
+  const s = toDecimal(std);
+  if (s.isZero()) return new Decimal(0);
+  return toDecimal(value).minus(toDecimal(avg)).dividedBy(s);
+}
+var init_money = __esm({
+  "server/utils/money.ts"() {
+    "use strict";
+    Decimal.set({
+      precision: 20,
+      // High precision for intermediate calculations
+      rounding: Decimal.ROUND_HALF_UP,
+      // Standard financial rounding
+      toExpNeg: -9,
+      // Don't use exponential notation for small numbers
+      toExpPos: 21
+      // Don't use exponential notation for large numbers
+    });
+  }
+});
+
+// server/utils/numeric.ts
+function safeParseFloat(value, defaultValue = 0) {
+  if (value === null || value === void 0 || value === "") {
+    return defaultValue;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : defaultValue;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return defaultValue;
+  }
+  return toNumber(toDecimal(trimmed, defaultValue));
+}
+var init_numeric = __esm({
+  "server/utils/numeric.ts"() {
+    "use strict";
+    init_money();
+  }
+});
+
+// server/lib/performance-metrics.ts
+var performance_metrics_exports = {};
+__export(performance_metrics_exports, {
+  performanceTracker: () => performanceTracker
+});
+function createEmptyMetric() {
+  return {
+    count: 0,
+    totalMs: 0,
+    minMs: Infinity,
+    maxMs: 0,
+    p50Ms: 0,
+    p95Ms: 0,
+    p99Ms: 0,
+    samples: []
+  };
+}
+function calculatePercentile(samples, percentile) {
+  if (samples.length === 0) return 0;
+  const sorted = [...samples].sort((a, b) => a - b);
+  const index18 = Math.ceil(percentile / 100 * sorted.length) - 1;
+  return sorted[Math.max(0, index18)];
+}
+function updateMetric(metric, durationMs) {
+  metric.count++;
+  metric.totalMs += durationMs;
+  metric.minMs = Math.min(metric.minMs, durationMs);
+  metric.maxMs = Math.max(metric.maxMs, durationMs);
+  metric.samples.push(durationMs);
+  if (metric.samples.length > MAX_SAMPLES) {
+    metric.samples.shift();
+  }
+  metric.p50Ms = calculatePercentile(metric.samples, 50);
+  metric.p95Ms = calculatePercentile(metric.samples, 95);
+  metric.p99Ms = calculatePercentile(metric.samples, 99);
+}
+var MAX_SAMPLES, PerformanceTracker, performanceTracker;
+var init_performance_metrics = __esm({
+  "server/lib/performance-metrics.ts"() {
+    "use strict";
+    MAX_SAMPLES = 1e3;
+    PerformanceTracker = class {
+      metrics = {
+        orderExecution: createEmptyMetric(),
+        quoteRetrieval: createEmptyMetric(),
+        aiDecision: createEmptyMetric(),
+        databaseQuery: createEmptyMetric(),
+        apiCall: createEmptyMetric()
+      };
+      startTimes = /* @__PURE__ */ new Map();
+      startTimer(operationId) {
+        this.startTimes.set(operationId, Date.now());
+      }
+      endTimer(operationId, metricType) {
+        const startTime = this.startTimes.get(operationId);
+        if (!startTime) return 0;
+        const durationMs = Date.now() - startTime;
+        this.startTimes.delete(operationId);
+        updateMetric(this.metrics[metricType], durationMs);
+        return durationMs;
+      }
+      recordLatency(metricType, durationMs) {
+        updateMetric(this.metrics[metricType], durationMs);
+      }
+      async measure(metricType, operation) {
+        const start = Date.now();
+        const result = await operation();
+        const durationMs = Date.now() - start;
+        updateMetric(this.metrics[metricType], durationMs);
+        return { result, durationMs };
+      }
+      getMetrics() {
+        return { ...this.metrics };
+      }
+      getMetricSummary(metricType) {
+        const metric = this.metrics[metricType];
+        return {
+          avgMs: metric.count > 0 ? metric.totalMs / metric.count : 0,
+          minMs: metric.minMs === Infinity ? 0 : metric.minMs,
+          maxMs: metric.maxMs,
+          p50Ms: metric.p50Ms,
+          p95Ms: metric.p95Ms,
+          p99Ms: metric.p99Ms,
+          count: metric.count
+        };
+      }
+      getSLOStatus() {
+        return {
+          orderExecutionP99Under50ms: this.metrics.orderExecution.p99Ms < 50,
+          quoteRetrievalP99Under10ms: this.metrics.quoteRetrieval.p99Ms < 10,
+          aiDecisionP99Under5s: this.metrics.aiDecision.p99Ms < 5e3
+        };
+      }
+      reset() {
+        this.metrics = {
+          orderExecution: createEmptyMetric(),
+          quoteRetrieval: createEmptyMetric(),
+          aiDecision: createEmptyMetric(),
+          databaseQuery: createEmptyMetric(),
+          apiCall: createEmptyMetric()
+        };
+        this.startTimes.clear();
+      }
+    };
+    performanceTracker = new PerformanceTracker();
+  }
+});
+
+// server/lib/api-cache.ts
+var DEFAULT_FRESH_DURATION, DEFAULT_STALE_DURATION, DEFAULT_MAX_ENTRIES, ApiCache, marketDataCache, stockQuoteCache, cryptoPriceCache, newsCache, assetListCache, portfolioCache;
+var init_api_cache = __esm({
+  "server/lib/api-cache.ts"() {
+    "use strict";
+    init_logger();
+    DEFAULT_FRESH_DURATION = 60 * 1e3;
+    DEFAULT_STALE_DURATION = 30 * 60 * 1e3;
+    DEFAULT_MAX_ENTRIES = 1e3;
+    ApiCache = class {
+      cache = /* @__PURE__ */ new Map();
+      config;
+      constructor(config2 = {}) {
+        this.config = {
+          freshDuration: config2.freshDuration ?? DEFAULT_FRESH_DURATION,
+          staleDuration: config2.staleDuration ?? DEFAULT_STALE_DURATION,
+          maxEntries: config2.maxEntries ?? DEFAULT_MAX_ENTRIES
+        };
+      }
+      get(key) {
+        const entry = this.cache.get(key);
+        if (!entry) return null;
+        const now = Date.now();
+        if (now - entry.timestamp < this.config.freshDuration) {
+          return { data: entry.data, isFresh: true };
+        }
+        if (now - entry.timestamp < this.config.staleDuration) {
+          return { data: entry.data, isFresh: false };
+        }
+        this.cache.delete(key);
+        return null;
+      }
+      getFresh(key) {
+        const result = this.get(key);
+        return result?.isFresh ? result.data : null;
+      }
+      getStale(key) {
+        const result = this.get(key);
+        return result?.data ?? null;
+      }
+      set(key, data) {
+        if (this.cache.size >= this.config.maxEntries) {
+          this.evictOldest();
+        }
+        const now = Date.now();
+        this.cache.set(key, {
+          data,
+          timestamp: now,
+          staleTimestamp: now + this.config.staleDuration
+        });
+      }
+      evictOldest() {
+        let oldestKey = null;
+        let oldestTime = Infinity;
+        for (const [key, entry] of this.cache.entries()) {
+          if (entry.timestamp < oldestTime) {
+            oldestTime = entry.timestamp;
+            oldestKey = key;
+          }
+        }
+        if (oldestKey) {
+          this.cache.delete(oldestKey);
+        }
+      }
+      has(key) {
+        return this.get(key) !== null;
+      }
+      clear() {
+        this.cache.clear();
+      }
+      size() {
+        return this.cache.size;
+      }
+      getStats() {
+        const now = Date.now();
+        let freshCount = 0;
+        let staleCount = 0;
+        for (const entry of this.cache.values()) {
+          if (now - entry.timestamp < this.config.freshDuration) {
+            freshCount++;
+          } else if (now - entry.timestamp < this.config.staleDuration) {
+            staleCount++;
+          }
+        }
+        return { size: this.cache.size, freshCount, staleCount };
+      }
+    };
+    marketDataCache = new ApiCache({
+      freshDuration: 30 * 1e3,
+      staleDuration: 60 * 60 * 1e3
+    });
+    stockQuoteCache = new ApiCache({
+      freshDuration: 60 * 1e3,
+      staleDuration: 30 * 60 * 1e3
+    });
+    cryptoPriceCache = new ApiCache({
+      freshDuration: 60 * 1e3,
+      staleDuration: 30 * 60 * 1e3
+    });
+    newsCache = new ApiCache({
+      freshDuration: 5 * 60 * 1e3,
+      staleDuration: 60 * 60 * 1e3
+    });
+    assetListCache = new ApiCache({
+      freshDuration: 15 * 60 * 1e3,
+      staleDuration: 24 * 60 * 60 * 1e3
+    });
+    portfolioCache = new ApiCache({
+      freshDuration: 30 * 1e3,
+      staleDuration: 10 * 60 * 1e3
+    });
+  }
+});
+
+// server/lib/order-execution-cache.ts
+var order_execution_cache_exports = {};
+__export(order_execution_cache_exports, {
+  cacheAccountSnapshot: () => cacheAccountSnapshot,
+  cacheQuickQuote: () => cacheQuickQuote,
+  cacheTradability: () => cacheTradability,
+  clearOrderCaches: () => clearOrderCaches,
+  getAccountSnapshot: () => getAccountSnapshot,
+  getCachedBuyingPower: () => getCachedBuyingPower,
+  getCachedPrice: () => getCachedPrice,
+  getOrderCacheStats: () => getOrderCacheStats,
+  getQuickQuote: () => getQuickQuote,
+  getTradability: () => getTradability,
+  isTradable: () => isTradable,
+  preloadOrderValidationData: () => preloadOrderValidationData
+});
+function cacheQuickQuote(quote) {
+  quickQuoteCache.set(quote.symbol, quote);
+}
+function getQuickQuote(symbol) {
+  const result = quickQuoteCache.get(symbol);
+  return result?.data ?? null;
+}
+function getCachedPrice(symbol) {
+  const quote = getQuickQuote(symbol);
+  return quote?.price ?? null;
+}
+function cacheTradability(asset) {
+  tradabilityCache.set(asset.symbol, asset);
+}
+function getTradability(symbol) {
+  const result = tradabilityCache.get(symbol);
+  return result?.data ?? null;
+}
+function isTradable(symbol) {
+  const asset = getTradability(symbol);
+  return asset?.tradable ?? null;
+}
+function cacheAccountSnapshot(snapshot) {
+  accountSnapshotCache.set("account", snapshot);
+}
+function getAccountSnapshot() {
+  const result = accountSnapshotCache.get("account");
+  return result?.data ?? null;
+}
+function getCachedBuyingPower() {
+  const snapshot = getAccountSnapshot();
+  return snapshot?.buyingPower ?? null;
+}
+function preloadOrderValidationData(symbols, getQuote, getAsset, getAccount) {
+  const now = Date.now();
+  const quotePromises = symbols.map(async (symbol) => {
+    const cached = getQuickQuote(symbol);
+    if (cached) return;
+    try {
+      const quote = await getQuote(symbol);
+      cacheQuickQuote({
+        symbol,
+        price: quote.price,
+        bid: quote.bid,
+        ask: quote.ask,
+        spread: quote.ask - quote.bid,
+        timestamp: now
+      });
+    } catch {
+    }
+  });
+  const assetPromises = symbols.map(async (symbol) => {
+    const cached = getTradability(symbol);
+    if (cached) return;
+    try {
+      const asset = await getAsset(symbol);
+      cacheTradability({
+        symbol,
+        tradable: asset.tradable,
+        fractionable: asset.fractionable,
+        shortable: asset.shortable,
+        marginable: asset.marginable,
+        timestamp: now
+      });
+    } catch {
+    }
+  });
+  const accountPromise = (async () => {
+    const cached = getAccountSnapshot();
+    if (cached) return;
+    try {
+      const account = await getAccount();
+      cacheAccountSnapshot({
+        buyingPower: parseFloat(account.buying_power),
+        cash: parseFloat(account.cash),
+        equity: parseFloat(account.equity),
+        timestamp: now
+      });
+    } catch {
+    }
+  })();
+  return Promise.all([...quotePromises, ...assetPromises, accountPromise]).then(
+    () => {
+    }
+  );
+}
+function clearOrderCaches() {
+  quickQuoteCache.clear();
+  tradabilityCache.clear();
+  accountSnapshotCache.clear();
+}
+function getOrderCacheStats() {
+  return {
+    quotes: quickQuoteCache.size(),
+    tradability: tradabilityCache.size(),
+    hasAccountSnapshot: accountSnapshotCache.has("account")
+  };
+}
+var quickQuoteCache, tradabilityCache, accountSnapshotCache;
+var init_order_execution_cache = __esm({
+  "server/lib/order-execution-cache.ts"() {
+    "use strict";
+    init_api_cache();
+    quickQuoteCache = new ApiCache({
+      freshDuration: 5 * 1e3,
+      staleDuration: 30 * 1e3,
+      maxEntries: 500
+    });
+    tradabilityCache = new ApiCache({
+      freshDuration: 5 * 60 * 1e3,
+      staleDuration: 60 * 60 * 1e3,
+      maxEntries: 1e3
+    });
+    accountSnapshotCache = new ApiCache({
+      freshDuration: 10 * 1e3,
+      staleDuration: 60 * 1e3,
+      maxEntries: 1
+    });
+  }
+});
+
+// server/lib/webhook-emitter.ts
+import pLimit from "p-limit";
+function registerWebhook(config2) {
+  webhooks.set(config2.id, config2);
+  log.info("Webhook", "Registered", {
+    name: config2.name,
+    id: config2.id,
+    url: config2.url
+  });
+}
+function unregisterWebhook(id) {
+  const result = webhooks.delete(id);
+  if (result) {
+    log.info("Webhook", "Unregistered", { id });
+  }
+  return result;
+}
+function getWebhooks() {
+  return Array.from(webhooks.values());
+}
+function getWebhook(id) {
+  return webhooks.get(id);
+}
+function updateWebhook(id, updates) {
+  const existing = webhooks.get(id);
+  if (!existing) return void 0;
+  const updated = { ...existing, ...updates };
+  webhooks.set(id, updated);
+  return updated;
+}
+async function deliverWebhook(webhook, event) {
+  const startTime = Date.now();
+  const attempt = {
+    webhookId: webhook.id,
+    eventId: event.id,
+    eventType: event.type,
+    status: "pending",
+    timestamp: /* @__PURE__ */ new Date(),
+    durationMs: 0
+  };
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      "X-Webhook-Event": event.type,
+      "X-Webhook-Id": event.id,
+      "X-Webhook-Timestamp": event.timestamp,
+      ...webhook.headers
+    };
+    if (webhook.secret) {
+      const crypto5 = await import("crypto");
+      const signature = crypto5.createHmac("sha256", webhook.secret).update(JSON.stringify(event)).digest("hex");
+      headers["X-Webhook-Signature"] = `sha256=${signature}`;
+    }
+    const response = await fetch(webhook.url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(event),
+      signal: AbortSignal.timeout(1e4)
+    });
+    attempt.durationMs = Date.now() - startTime;
+    attempt.statusCode = response.status;
+    if (response.ok) {
+      attempt.status = "success";
+    } else {
+      attempt.status = "failed";
+      attempt.error = `HTTP ${response.status}: ${response.statusText}`;
+    }
+  } catch (error) {
+    attempt.durationMs = Date.now() - startTime;
+    attempt.status = "failed";
+    attempt.error = error instanceof Error ? error.message : "Unknown error";
+  }
+  deliveryHistory.push(attempt);
+  if (deliveryHistory.length > MAX_HISTORY) {
+    deliveryHistory.shift();
+  }
+  return attempt;
+}
+async function emitEvent(type, payload) {
+  const event = {
+    id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    type,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "ai-active-trader",
+    payload
+  };
+  const matchingWebhooks = Array.from(webhooks.values()).filter(
+    (w) => w.enabled && (w.eventTypes.includes(type) || w.eventTypes.includes("*"))
+  );
+  if (matchingWebhooks.length === 0) {
+    return [];
+  }
+  log.info("Webhook", "Emitting event", {
+    type,
+    webhookCount: matchingWebhooks.length
+  });
+  const results = await Promise.all(
+    matchingWebhooks.map(
+      (webhook) => limit(() => deliverWebhook(webhook, event))
+    )
+  );
+  const successes = results.filter((r) => r.status === "success").length;
+  const failures = results.filter((r) => r.status === "failed").length;
+  if (failures > 0) {
+    log.warn("Webhook", "Some deliveries failed", {
+      type,
+      successes,
+      failures
+    });
+  }
+  return results;
+}
+function getDeliveryHistory(limit4) {
+  const count3 = limit4 || MAX_HISTORY;
+  return deliveryHistory.slice(-count3);
+}
+function getWebhookStats() {
+  const recent = deliveryHistory.slice(-50);
+  const successes = recent.filter((d) => d.status === "success").length;
+  return {
+    totalWebhooks: webhooks.size,
+    enabledWebhooks: Array.from(webhooks.values()).filter((w) => w.enabled).length,
+    recentDeliveries: recent.length,
+    successRate: recent.length > 0 ? successes / recent.length : 1
+  };
+}
+var webhooks, deliveryHistory, MAX_HISTORY, limit, SUPPORTED_EVENTS;
+var init_webhook_emitter = __esm({
+  "server/lib/webhook-emitter.ts"() {
+    "use strict";
+    init_logger();
+    webhooks = /* @__PURE__ */ new Map();
+    deliveryHistory = [];
+    MAX_HISTORY = 100;
+    limit = pLimit(5);
+    SUPPORTED_EVENTS = [
+      "trade.order.submitted",
+      "trade.order.filled",
+      "trade.order.canceled",
+      "trade.order.rejected",
+      "trade.position.opened",
+      "trade.position.closed",
+      "trade.position.updated",
+      "ai.decision.generated",
+      "ai.decision.executed",
+      "market.data.update",
+      "market.news.alert",
+      "analytics.pnl.daily",
+      "analytics.metrics.update",
+      "system.error",
+      "system.health.changed"
+    ];
+  }
+});
+
+// server/lib/email-providers/sendgrid.ts
+import sgMail from "@sendgrid/mail";
+var apiKey, sendgridProvider;
+var init_sendgrid = __esm({
+  "server/lib/email-providers/sendgrid.ts"() {
+    "use strict";
+    init_logger();
+    apiKey = process.env.SENDGRID_API_KEY;
+    if (apiKey) {
+      sgMail.setApiKey(apiKey);
+    }
+    sendgridProvider = {
+      name: "sendgrid",
+      priority: 1,
+      isConfigured: () => !!process.env.SENDGRID_API_KEY,
+      async send(options) {
+        if (!this.isConfigured()) {
+          return {
+            success: false,
+            error: "SendGrid API key not configured",
+            provider: "sendgrid"
+          };
+        }
+        try {
+          const [response] = await sgMail.send({
+            to: options.to,
+            from: options.from,
+            subject: options.subject,
+            text: options.text,
+            html: options.html || `<p>${options.text}</p>`,
+            replyTo: options.replyTo
+          });
+          log.info("Email", "Email sent via SendGrid", {
+            to: Array.isArray(options.to) ? options.to.length : 1,
+            subject: options.subject.substring(0, 50),
+            statusCode: response.statusCode
+          });
+          return {
+            success: true,
+            messageId: response.headers["x-message-id"],
+            provider: "sendgrid"
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          log.error("Email", "SendGrid send failed", { error: errorMessage });
+          return {
+            success: false,
+            error: errorMessage,
+            provider: "sendgrid"
+          };
+        }
+      }
+    };
+  }
+});
+
+// server/lib/email-providers/brevo.ts
+var BREVO_API_URL, brevoProvider;
+var init_brevo = __esm({
+  "server/lib/email-providers/brevo.ts"() {
+    "use strict";
+    init_logger();
+    BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+    brevoProvider = {
+      name: "brevo",
+      priority: 2,
+      isConfigured: () => !!process.env.BREVO_API_KEY,
+      async send(options) {
+        const apiKey2 = process.env.BREVO_API_KEY;
+        if (!apiKey2) {
+          return {
+            success: false,
+            error: "Brevo API not configured",
+            provider: "brevo"
+          };
+        }
+        try {
+          const toAddresses = Array.isArray(options.to) ? options.to : [options.to];
+          let sender;
+          const fromMatch = options.from.match(/^(.+?)\s*<(.+)>$/);
+          if (fromMatch) {
+            sender = { name: fromMatch[1].trim(), email: fromMatch[2].trim() };
+          } else {
+            sender = { email: options.from };
+          }
+          const requestBody = {
+            sender,
+            to: toAddresses.map((email) => ({ email })),
+            subject: options.subject,
+            textContent: options.text,
+            htmlContent: options.html || `<p>${options.text}</p>`
+          };
+          if (options.replyTo) {
+            requestBody.replyTo = { email: options.replyTo };
+          }
+          const response = await fetch(BREVO_API_URL, {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+              "api-key": apiKey2,
+              "content-type": "application/json"
+            },
+            body: JSON.stringify(requestBody)
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message || `HTTP ${response.status}: ${response.statusText}`
+            );
+          }
+          const data = await response.json();
+          log.info("Email", "Email sent via Brevo", {
+            to: toAddresses.length,
+            subject: options.subject.substring(0, 50),
+            messageId: data.messageId
+          });
+          return {
+            success: true,
+            messageId: data.messageId,
+            provider: "brevo"
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          log.error("Email", "Brevo send failed", { error: errorMessage });
+          return {
+            success: false,
+            error: errorMessage,
+            provider: "brevo"
+          };
+        }
+      }
+    };
+  }
+});
+
+// server/lib/email-providers/index.ts
+function getActiveProvider() {
+  for (const provider of providers) {
+    if (provider.isConfigured()) {
+      return provider;
+    }
+  }
+  return null;
+}
+function getConfiguredProviders() {
+  return providers.filter((p) => p.isConfigured());
+}
+function isEmailConfigured() {
+  return providers.some((p) => p.isConfigured());
+}
+async function sendEmailWithFallback(options) {
+  const configuredProviders = getConfiguredProviders();
+  if (configuredProviders.length === 0) {
+    log.warn("Email", "No email provider configured");
+    return {
+      success: false,
+      error: "No email provider configured"
+    };
+  }
+  for (const provider of configuredProviders) {
+    log.debug("Email", `Attempting to send via ${provider.name}`);
+    const result = await provider.send(options);
+    if (result.success) {
+      return result;
+    }
+    log.warn("Email", `${provider.name} failed, trying next provider`, {
+      error: result.error
+    });
+  }
+  return {
+    success: false,
+    error: `All email providers failed (tried: ${configuredProviders.map((p) => p.name).join(", ")})`
+  };
+}
+var providers, activeProvider;
+var init_email_providers = __esm({
+  "server/lib/email-providers/index.ts"() {
+    "use strict";
+    init_logger();
+    init_sendgrid();
+    init_brevo();
+    providers = [sendgridProvider, brevoProvider].sort(
+      (a, b) => a.priority - b.priority
+    );
+    activeProvider = getActiveProvider();
+    if (activeProvider) {
+      log.info("Email", `Email service initialized with ${activeProvider.name}`);
+    } else {
+      log.warn(
+        "Email",
+        "No email provider configured - email notifications disabled"
+      );
+    }
+  }
+});
+
+// server/lib/email-service.ts
+function isEmailConfigured2() {
+  return isEmailConfigured();
+}
+async function sendEmail(options) {
+  if (!isEmailConfigured2()) {
+    return {
+      success: false,
+      error: "No email provider configured"
+    };
+  }
+  return sendEmailWithFallback(options);
+}
+async function sendPasswordResetEmail(options) {
+  const subject = "AlphaFlow - Password Reset Request";
+  const text17 = `
+Hello ${options.username},
+
+You requested a password reset for your AlphaFlow account.
+
+Click the link below to reset your password (valid for 1 hour):
+${options.resetUrl}?token=${options.resetToken}
+
+If you did not request this reset, please ignore this email.
+
+Best regards,
+The AlphaFlow Team
+`;
+  const html = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #3b82f6;">Password Reset Request</h2>
+  <p>Hello <strong>${options.username}</strong>,</p>
+  <p>You requested a password reset for your AlphaFlow account.</p>
+  <p style="margin: 20px 0;">
+    <a href="${options.resetUrl}?token=${options.resetToken}"
+       style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+      Reset Password
+    </a>
+  </p>
+  <p style="color: #6b7280; font-size: 14px;">This link is valid for 1 hour.</p>
+  <p style="color: #6b7280; font-size: 14px;">If you did not request this reset, please ignore this email.</p>
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+  <p style="color: #9ca3af; font-size: 12px;">Best regards,<br>The AlphaFlow Team</p>
+</div>
+`;
+  return sendEmail({
+    to: options.to,
+    from: options.from,
+    subject,
+    text: text17,
+    html
+  });
+}
+var init_email_service = __esm({
+  "server/lib/email-service.ts"() {
+    "use strict";
+    init_email_providers();
+  }
+});
+
+// server/lib/email-templates.ts
+function getOrderFilledTemplate(params) {
+  const { symbol, side, qty, price, totalValue, timestamp: timestamp18 } = params;
+  const sideColor = side === "buy" ? ALPHAFLOW_GREEN : ALPHAFLOW_RED;
+  const sideText = side === "buy" ? "BUY" : "SELL";
+  const sideIcon = side === "buy" ? "\u{1F4C8}" : "\u{1F4C9}";
+  const formattedDate = timestamp18.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  const formattedTime = timestamp18.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short"
+  });
+  const subject = `Order Filled: ${sideText} ${qty} ${symbol} @ $${price.toFixed(2)}`;
+  const text17 = `
+AlphaFlow Trade Confirmation
+
+Your order has been successfully filled!
+
+ORDER DETAILS
+Symbol: ${symbol}
+Action: ${sideText}
+Quantity: ${qty} shares
+Price: $${price.toFixed(2)}
+Total Value: $${totalValue.toFixed(2)}
+
+EXECUTION TIME
+${formattedDate}
+${formattedTime}
+
+NEXT STEPS
+\u2022 View your updated portfolio at: https://alphaflow.app/portfolio
+\u2022 Check position performance at: https://alphaflow.app/positions
+\u2022 Review order history at: https://alphaflow.app/orders
+
+Questions? Contact support@alphaflow.app
+
+---
+AlphaFlow Trading Platform
+  `.trim();
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Filled - ${symbol}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="${BASE_STYLES}">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, ${sideColor} 0%, ${side === "buy" ? "#16a34a" : "#dc2626"} 100%); padding: 32px 24px; border-radius: 8px 8px 0 0; text-align: center; color: white;">
+      <div style="font-size: 48px; margin-bottom: 8px;">${sideIcon}</div>
+      <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Order Filled!</h1>
+      <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.95;">${sideText} ${qty} shares of ${symbol}</p>
+    </div>
+
+    <!-- Content -->
+    <div style="background-color: white; padding: 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
+      <p style="color: #4b5563; font-size: 16px; margin-top: 0;">
+        Your order has been successfully executed. Below are the details of your trade:
+      </p>
+
+      <!-- Order Details Table -->
+      <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0;">
+        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0; margin-bottom: 16px; border-bottom: 2px solid ${sideColor}; padding-bottom: 8px;">
+          Order Details
+        </h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Symbol</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold; font-size: 16px; color: #1f2937;">${symbol}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Action</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold; color: ${sideColor};">${sideText}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Quantity</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${qty} shares</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Fill Price</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold; font-size: 18px; color: #1f2937;">$${price.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; color: #6b7280; font-weight: 600;">Total Value</td>
+            <td style="padding: 12px 8px; text-align: right; font-weight: bold; font-size: 20px; color: ${sideColor};">$${totalValue.toFixed(2)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Execution Time -->
+      <div style="background-color: #eff6ff; border-left: 4px solid ${ALPHAFLOW_BLUE}; padding: 16px; margin: 24px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #1e40af; font-size: 14px;">
+          <strong>Executed:</strong> ${formattedDate} at ${formattedTime}
+        </p>
+      </div>
+
+      <!-- Call to Action -->
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="https://alphaflow.app/portfolio" style="display: inline-block; background-color: ${ALPHAFLOW_GREEN}; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          View Portfolio
+        </a>
+      </div>
+
+      <!-- Quick Links -->
+      <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 12px;"><strong>Quick Links:</strong></p>
+        <ul style="margin: 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
+          <li><a href="https://alphaflow.app/positions" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">View Position Performance</a></li>
+          <li><a href="https://alphaflow.app/orders" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">Order History</a></li>
+          <li><a href="https://alphaflow.app/analytics" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">Portfolio Analytics</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f9fafb; padding: 20px 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none; text-align: center;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        \xA9 2026 AlphaFlow Trading Platform. All rights reserved.
+      </p>
+      <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 12px;">
+        Questions? Contact <a href="mailto:support@alphaflow.app" style="color: ${ALPHAFLOW_BLUE};">support@alphaflow.app</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+  return { subject, html, text: text17 };
+}
+function getLargeLossAlertTemplate(params) {
+  const { symbol, unrealizedPL, percentLoss, currentPrice, avgEntryPrice } = params;
+  const priceChange = currentPrice - avgEntryPrice;
+  const priceChangePercent = priceChange / avgEntryPrice * 100;
+  const subject = `\u26A0\uFE0F Large Loss Alert: ${symbol} down ${Math.abs(percentLoss).toFixed(2)}%`;
+  const text17 = `
+LARGE LOSS ALERT
+
+Your position in ${symbol} has exceeded the loss threshold!
+
+POSITION DETAILS
+Symbol: ${symbol}
+Unrealized P&L: -$${Math.abs(unrealizedPL).toFixed(2)}
+Loss Percentage: ${percentLoss.toFixed(2)}%
+Entry Price: $${avgEntryPrice.toFixed(2)}
+Current Price: $${currentPrice.toFixed(2)}
+Price Change: -$${Math.abs(priceChange).toFixed(2)} (${priceChangePercent.toFixed(2)}%)
+
+SUGGESTED ACTIONS
+1. Review your position strategy and risk tolerance
+2. Consider setting a stop-loss order to limit further losses
+3. Evaluate whether to hold, reduce, or close the position
+4. Check market news and fundamentals for ${symbol}
+5. Consult with a financial advisor if needed
+
+RISK MANAGEMENT REMINDER
+\u2022 Never invest more than you can afford to lose
+\u2022 Diversification helps manage portfolio risk
+\u2022 Emotional decisions can lead to poor outcomes
+\u2022 Review your overall portfolio allocation
+
+View Position: https://alphaflow.app/positions/${symbol}
+
+---
+AlphaFlow Trading Platform
+  `.trim();
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Large Loss Alert - ${symbol}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="${BASE_STYLES}">
+    <!-- Alert Header -->
+    <div style="background-color: #fef2f2; padding: 24px; border-left: 6px solid ${ALPHAFLOW_RED}; border-radius: 8px 8px 0 0;">
+      <div style="display: flex; align-items: center; margin-bottom: 12px;">
+        <div style="font-size: 40px; margin-right: 16px;">\u26A0\uFE0F</div>
+        <div>
+          <h1 style="margin: 0; color: #991b1b; font-size: 24px; font-weight: bold;">Large Loss Alert</h1>
+          <p style="margin: 4px 0 0 0; color: #b91c1c; font-size: 16px;">Position: ${symbol}</p>
+        </div>
+      </div>
+      <p style="margin: 12px 0 0 0; color: #7f1d1d; font-size: 14px; background-color: #fee2e2; padding: 12px; border-radius: 4px;">
+        <strong>\u26A1 Immediate Attention Required:</strong> Your position has exceeded the loss threshold.
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div style="background-color: white; padding: 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
+      <!-- Loss Summary -->
+      <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-radius: 8px; padding: 20px; margin-bottom: 24px; text-align: center;">
+        <p style="margin: 0 0 8px 0; color: #991b1b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Unrealized Loss</p>
+        <p style="margin: 0; color: #dc2626; font-size: 36px; font-weight: bold;">-$${Math.abs(unrealizedPL).toFixed(2)}</p>
+        <p style="margin: 8px 0 0 0; color: #b91c1c; font-size: 20px; font-weight: 600;">${percentLoss.toFixed(2)}%</p>
+      </div>
+
+      <!-- Position Details -->
+      <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0;">
+        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0; margin-bottom: 16px;">Position Details</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Symbol</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold; color: #1f2937;">${symbol}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Entry Price</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">$${avgEntryPrice.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Current Price</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: ${ALPHAFLOW_RED}; font-weight: bold;">$${currentPrice.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 8px; color: #6b7280; font-weight: 600;">Price Change</td>
+            <td style="padding: 10px 8px; text-align: right; color: ${ALPHAFLOW_RED}; font-weight: bold;">-$${Math.abs(priceChange).toFixed(2)} (${priceChangePercent.toFixed(2)}%)</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Suggested Actions -->
+      <div style="background-color: #fffbeb; border-left: 4px solid ${ALPHAFLOW_ORANGE}; padding: 20px; margin: 24px 0; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #92400e; font-size: 16px;">\u{1F3AF} Suggested Actions</h3>
+        <ol style="margin: 12px 0 0 0; padding-left: 24px; color: #78350f; font-size: 14px; line-height: 1.8;">
+          <li>Review your position strategy and risk tolerance</li>
+          <li>Consider setting a stop-loss order to limit further losses</li>
+          <li>Evaluate whether to hold, reduce, or close the position</li>
+          <li>Check market news and fundamentals for ${symbol}</li>
+          <li>Consult with a financial advisor if needed</li>
+        </ol>
+      </div>
+
+      <!-- Risk Management Reminder -->
+      <div style="background-color: #f0f9ff; border: 1px solid #bfdbfe; padding: 16px; margin: 24px 0; border-radius: 6px;">
+        <h3 style="margin-top: 0; color: #1e40af; font-size: 14px; font-weight: bold;">\u{1F4A1} Risk Management Reminder</h3>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #1e3a8a; font-size: 13px; line-height: 1.7;">
+          <li>Never invest more than you can afford to lose</li>
+          <li>Diversification helps manage portfolio risk</li>
+          <li>Emotional decisions can lead to poor outcomes</li>
+          <li>Review your overall portfolio allocation</li>
+        </ul>
+      </div>
+
+      <!-- Call to Action -->
+      <div style="text-align: center; margin: 32px 0 16px 0;">
+        <a href="https://alphaflow.app/positions/${symbol}" style="display: inline-block; background-color: ${ALPHAFLOW_RED}; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          Review Position
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f9fafb; padding: 20px 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none; text-align: center;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        \xA9 2026 AlphaFlow Trading Platform. All rights reserved.
+      </p>
+      <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 11px;">
+        <em>This is an automated alert. Trading involves risk. Past performance does not guarantee future results.</em>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+  return { subject, html, text: text17 };
+}
+function getCircuitBreakerTemplate(params) {
+  const { reason, triggeredAt, estimatedRecovery } = params;
+  const formattedTriggerTime = triggeredAt.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short"
+  });
+  const recoveryText = estimatedRecovery ? estimatedRecovery.toLocaleString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short"
+  }) : "Manual review required - no automatic resume scheduled";
+  const subject = `\u{1F6A8} Circuit Breaker Triggered - Trading Halted`;
+  const text17 = `
+CIRCUIT BREAKER ALERT
+
+Automated trading has been halted to protect your portfolio.
+
+STATUS: TRADING SUSPENDED
+
+DETAILS
+Reason: ${reason}
+Triggered: ${formattedTriggerTime}
+Estimated Recovery: ${recoveryText}
+
+WHAT THIS MEANS
+\u2022 All automated trading strategies have been paused
+\u2022 Open orders remain active (unless cancelled by system)
+\u2022 Your portfolio remains safe and accessible
+\u2022 Manual trading may still be available
+
+WHAT HAPPENS NEXT
+1. System will monitor market conditions continuously
+2. Trading will resume automatically when conditions normalize
+   OR after manual review confirms safety
+3. You will receive a notification when trading resumes
+4. All strategies will be evaluated before reactivation
+
+WHAT YOU CAN DO
+\u2022 Review your current positions at: https://alphaflow.app/positions
+\u2022 Check system status at: https://alphaflow.app/status
+\u2022 Contact support if you have concerns: support@alphaflow.app
+
+WHY WE DO THIS
+Circuit breakers protect your portfolio during:
+\u2022 Extreme market volatility
+\u2022 Rapid portfolio losses
+\u2022 System anomalies
+\u2022 Exchange-wide trading halts
+
+Your safety is our priority. Thank you for your patience.
+
+---
+AlphaFlow Trading Platform
+  `.trim();
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Breaker Alert</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="${BASE_STYLES}">
+    <!-- Alert Header -->
+    <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); padding: 32px 24px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
+      <div style="font-size: 56px; margin-bottom: 12px;">\u{1F6A8}</div>
+      <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Circuit Breaker Triggered</h1>
+      <p style="margin: 12px 0 0 0; font-size: 16px; opacity: 0.95; background-color: rgba(0,0,0,0.2); padding: 8px 16px; border-radius: 4px; display: inline-block;">
+        <strong>STATUS:</strong> Trading Suspended
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div style="background-color: white; padding: 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
+      <!-- Alert Banner -->
+      <div style="background-color: #fffbeb; border: 2px solid #f59e0b; padding: 20px; margin-bottom: 24px; border-radius: 8px; text-align: center;">
+        <p style="margin: 0; color: #92400e; font-size: 16px; font-weight: bold;">
+          \u26A1 Automated trading has been halted to protect your portfolio
+        </p>
+      </div>
+
+      <!-- Details -->
+      <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0;">
+        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0; margin-bottom: 16px;">Circuit Breaker Details</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600; width: 40%;">Status</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold; color: #ea580c;">TRADING HALTED</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Reason</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${reason}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">Triggered</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937; font-size: 14px;">${formattedTriggerTime}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 8px; color: #6b7280; font-weight: 600;">Estimated Recovery</td>
+            <td style="padding: 12px 8px; text-align: right; color: ${estimatedRecovery ? ALPHAFLOW_GREEN : ALPHAFLOW_ORANGE}; font-weight: 600; font-size: 14px;">${recoveryText}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- What This Means -->
+      <div style="margin: 24px 0;">
+        <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 12px; border-left: 4px solid ${ALPHAFLOW_BLUE}; padding-left: 12px;">What This Means</h3>
+        <ul style="margin: 0; padding-left: 24px; color: #4b5563; font-size: 14px; line-height: 1.8;">
+          <li>All automated trading strategies have been paused</li>
+          <li>Open orders remain active (unless cancelled by system)</li>
+          <li>Your portfolio remains safe and accessible</li>
+          <li>Manual trading may still be available</li>
+        </ul>
+      </div>
+
+      <!-- What Happens Next -->
+      <div style="margin: 24px 0;">
+        <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 12px; border-left: 4px solid ${ALPHAFLOW_GREEN}; padding-left: 12px;">What Happens Next</h3>
+        <ol style="margin: 0; padding-left: 24px; color: #4b5563; font-size: 14px; line-height: 1.8;">
+          <li>System will monitor market conditions continuously</li>
+          <li>Trading will resume automatically when conditions normalize OR after manual review confirms safety</li>
+          <li>You will receive a notification when trading resumes</li>
+          <li>All strategies will be evaluated before reactivation</li>
+        </ol>
+      </div>
+
+      <!-- What You Can Do -->
+      <div style="background-color: #f0f9ff; border-left: 4px solid ${ALPHAFLOW_BLUE}; padding: 20px; margin: 24px 0; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">What You Can Do</h3>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #1e3a8a; font-size: 14px; line-height: 1.7;">
+          <li><a href="https://alphaflow.app/positions" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">Review your current positions</a></li>
+          <li><a href="https://alphaflow.app/status" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">Check system status</a></li>
+          <li><a href="mailto:support@alphaflow.app" style="color: ${ALPHAFLOW_BLUE}; text-decoration: none;">Contact support if you have concerns</a></li>
+        </ul>
+      </div>
+
+      <!-- Why We Do This -->
+      <div style="background-color: #fefce8; border: 1px solid #fde047; padding: 16px; margin: 24px 0; border-radius: 6px;">
+        <h3 style="margin-top: 0; color: #713f12; font-size: 14px; font-weight: bold;">\u{1F6E1}\uFE0F Why We Do This</h3>
+        <p style="margin: 8px 0 12px 0; color: #854d0e; font-size: 13px;">
+          Circuit breakers protect your portfolio during:
+        </p>
+        <ul style="margin: 0; padding-left: 20px; color: #854d0e; font-size: 13px; line-height: 1.7;">
+          <li>Extreme market volatility</li>
+          <li>Rapid portfolio losses</li>
+          <li>System anomalies</li>
+          <li>Exchange-wide trading halts</li>
+        </ul>
+      </div>
+
+      <p style="text-align: center; color: #6b7280; font-size: 14px; margin: 24px 0 8px 0; font-style: italic;">
+        Your safety is our priority. Thank you for your patience.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f9fafb; padding: 20px 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none; text-align: center;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        \xA9 2026 AlphaFlow Trading Platform. All rights reserved.
+      </p>
+      <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 11px;">
+        <em>This is an automated safety alert. You will be notified when trading resumes.</em>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+  return { subject, html, text: text17 };
+}
+var ALPHAFLOW_GREEN, ALPHAFLOW_RED, ALPHAFLOW_BLUE, ALPHAFLOW_ORANGE, BASE_STYLES;
+var init_email_templates = __esm({
+  "server/lib/email-templates.ts"() {
+    "use strict";
+    ALPHAFLOW_GREEN = "#22c55e";
+    ALPHAFLOW_RED = "#ef4444";
+    ALPHAFLOW_BLUE = "#3b82f6";
+    ALPHAFLOW_ORANGE = "#f97316";
+    BASE_STYLES = `
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+`;
+  }
+});
+
+// server/lib/notification-service.ts
+var notification_service_exports = {};
+__export(notification_service_exports, {
+  createDefaultTemplates: () => createDefaultTemplates,
+  deleteChannel: () => deleteChannel,
+  deleteTemplate: () => deleteTemplate,
+  getChannel: () => getChannel,
+  getChannels: () => getChannels,
+  getNotificationHistory: () => getNotificationHistory,
+  getNotificationStats: () => getNotificationStats,
+  getTemplates: () => getTemplates,
+  registerChannel: () => registerChannel,
+  registerTemplate: () => registerTemplate,
+  sendCircuitBreakerEmail: () => sendCircuitBreakerEmail,
+  sendDirectNotification: () => sendDirectNotification,
+  sendLossAlertEmail: () => sendLossAlertEmail,
+  sendNotification: () => sendNotification,
+  sendOrderFilledEmail: () => sendOrderFilledEmail,
+  updateChannel: () => updateChannel,
+  updateTemplate: () => updateTemplate
+});
+function registerChannel(channel) {
+  channels.set(channel.id, channel);
+}
+function getChannel(id) {
+  return channels.get(id);
+}
+function getChannels() {
+  return Array.from(channels.values());
+}
+function updateChannel(id, updates) {
+  const channel = channels.get(id);
+  if (!channel) return null;
+  const updated = { ...channel, ...updates, id: channel.id };
+  channels.set(id, updated);
+  return updated;
+}
+function deleteChannel(id) {
+  return channels.delete(id);
+}
+function registerTemplate(template) {
+  templates.set(template.id, template);
+}
+function getTemplates() {
+  return Array.from(templates.values());
+}
+function updateTemplate(id, updates) {
+  const template = templates.get(id);
+  if (!template) return null;
+  const updated = { ...template, ...updates, id: template.id };
+  templates.set(id, updated);
+  return updated;
+}
+function deleteTemplate(id) {
+  return templates.delete(id);
+}
+function formatMessage(template, data) {
+  let message = template;
+  for (const [key, value] of Object.entries(data)) {
+    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g");
+    message = message.replace(regex, String(value ?? ""));
+  }
+  message = message.replace(/\{\{[^}]+\}\}/g, "");
+  return message;
+}
+async function sendTelegram(config2, message) {
+  const url = `https://api.telegram.org/bot${config2.botToken}/sendMessage`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: config2.chatId,
+      text: message,
+      parse_mode: "HTML"
+    })
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Telegram API error: ${response.status} - ${error}`);
+  }
+}
+async function sendSlack(config2, message) {
+  const response = await fetch(config2.webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: message,
+      channel: config2.channel
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Slack webhook error: ${response.status}`);
+  }
+}
+async function sendDiscord(config2, message) {
+  const response = await fetch(config2.webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: message })
+  });
+  if (!response.ok) {
+    throw new Error(`Discord webhook error: ${response.status}`);
+  }
+}
+async function sendToChannel(channel, message) {
+  const result = {
+    channelId: channel.id,
+    channelType: channel.type,
+    success: false,
+    timestamp: /* @__PURE__ */ new Date()
+  };
+  try {
+    switch (channel.type) {
+      case "telegram":
+        await sendTelegram(channel.config, message);
+        result.success = true;
+        break;
+      case "slack":
+        await sendSlack(channel.config, message);
+        result.success = true;
+        break;
+      case "discord":
+        await sendDiscord(channel.config, message);
+        result.success = true;
+        break;
+      case "email": {
+        if (!isEmailConfigured2()) {
+          result.error = "No email provider configured";
+          log.warn("Notification", "Email skipped - no provider configured", {
+            channelId: channel.id
+          });
+          break;
+        }
+        const emailConfig = channel.config;
+        const emailResult = await sendEmail({
+          to: emailConfig.to,
+          from: emailConfig.from,
+          subject: message.substring(0, 100).replace(/<[^>]*>/g, ""),
+          text: message.replace(/<[^>]*>/g, ""),
+          html: message.replace(/\n/g, "<br>"),
+          replyTo: emailConfig.replyTo
+        });
+        if (emailResult.success) {
+          result.success = true;
+          log.info("Notification", "Email sent successfully", {
+            channelId: channel.id,
+            to: emailConfig.to.length
+          });
+        } else {
+          result.error = emailResult.error;
+        }
+        break;
+      }
+      default:
+        result.error = `Unsupported channel type: ${channel.type}`;
+    }
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error);
+  }
+  notificationHistory.unshift(result);
+  if (notificationHistory.length > MAX_HISTORY2) {
+    notificationHistory.pop();
+  }
+  return result;
+}
+async function sendNotification(eventType, data) {
+  const results = [];
+  for (const template of templates.values()) {
+    if (!template.enabled) continue;
+    if (template.eventType !== eventType && template.eventType !== "*")
+      continue;
+    const message = formatMessage(template.messageTemplate, {
+      ...data,
+      eventType
+    });
+    for (const channelId of template.channels) {
+      const channel = channels.get(channelId);
+      if (!channel || !channel.enabled) continue;
+      const result = await sendToChannel(channel, message);
+      results.push(result);
+    }
+  }
+  return results;
+}
+async function sendDirectNotification(channelId, message) {
+  const channel = channels.get(channelId);
+  if (!channel) return null;
+  return sendToChannel(channel, message);
+}
+function getNotificationHistory(limit4 = 50) {
+  return notificationHistory.slice(0, limit4);
+}
+function getNotificationStats() {
+  const total = notificationHistory.length;
+  const successful = notificationHistory.filter((n) => n.success).length;
+  return {
+    totalChannels: channels.size,
+    enabledChannels: Array.from(channels.values()).filter((c) => c.enabled).length,
+    totalTemplates: templates.size,
+    recentNotifications: total,
+    successRate: total > 0 ? successful / total : 1
+  };
+}
+function createDefaultTemplates() {
+  const defaultTemplates = [
+    {
+      id: "trade-order-submitted",
+      name: "Trade Order Submitted",
+      eventType: "trade.order.submitted",
+      channels: [],
+      messageTemplate: "\u{1F4CA} <b>Order Submitted</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
+      enabled: true
+    },
+    {
+      id: "trade-order-filled",
+      name: "Trade Order Filled",
+      eventType: "trade.order.filled",
+      channels: [],
+      messageTemplate: "\u2705 <b>Order Filled</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
+      enabled: true
+    },
+    {
+      id: "trade-order-rejected",
+      name: "Trade Order Rejected",
+      eventType: "trade.order.rejected",
+      channels: [],
+      messageTemplate: "\u274C <b>Order Rejected</b>\n{{side}} {{qty}} {{symbol}}\nReason: {{reason}}",
+      enabled: true
+    },
+    {
+      id: "ai-decision",
+      name: "AI Decision Generated",
+      eventType: "ai.decision.generated",
+      channels: [],
+      messageTemplate: "\u{1F916} <b>AI Decision</b>\nSymbol: {{symbol}}\nAction: {{action}}\nConfidence: {{confidence}}%\nReason: {{reasoning}}",
+      enabled: true
+    },
+    {
+      id: "position-opened",
+      name: "Position Opened",
+      eventType: "trade.position.opened",
+      channels: [],
+      messageTemplate: "\u{1F4C8} <b>Position Opened</b>\n{{side}} {{qty}} {{symbol}} @ ${{entryPrice}}",
+      enabled: true
+    },
+    {
+      id: "position-closed",
+      name: "Position Closed",
+      eventType: "trade.position.closed",
+      channels: [],
+      messageTemplate: "\u{1F4C9} <b>Position Closed</b>\n{{symbol}} closed\nP/L: ${{pnl}} ({{pnlPercent}}%)",
+      enabled: true
+    }
+  ];
+  for (const template of defaultTemplates) {
+    if (!templates.has(template.id)) {
+      templates.set(template.id, template);
+    }
+  }
+}
+async function sendOrderFilledEmail(to, params) {
+  if (!isEmailConfigured2()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping order filled email",
+      {
+        symbol: params.symbol
+      }
+    );
+    return;
+  }
+  try {
+    const template = getOrderFilledTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html
+    });
+    if (result.success) {
+      log.info("Notification", "Order filled email sent", {
+        symbol: params.symbol,
+        side: params.side,
+        qty: params.qty
+      });
+    } else {
+      log.error("Notification", "Order filled email failed", {
+        error: result.error,
+        symbol: params.symbol
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending order filled email", {
+      error: error.message,
+      symbol: params.symbol
+    });
+  }
+}
+async function sendLossAlertEmail(to, params) {
+  if (!isEmailConfigured2()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping loss alert email",
+      {
+        symbol: params.symbol
+      }
+    );
+    return;
+  }
+  try {
+    const template = getLargeLossAlertTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html
+    });
+    if (result.success) {
+      log.info("Notification", "Loss alert email sent", {
+        symbol: params.symbol,
+        percentLoss: params.percentLoss
+      });
+    } else {
+      log.error("Notification", "Loss alert email failed", {
+        error: result.error,
+        symbol: params.symbol
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending loss alert email", {
+      error: error.message,
+      symbol: params.symbol
+    });
+  }
+}
+async function sendCircuitBreakerEmail(to, params) {
+  if (!isEmailConfigured2()) {
+    log.warn(
+      "Notification",
+      "Email not configured - skipping circuit breaker email",
+      {
+        reason: params.reason
+      }
+    );
+    return;
+  }
+  try {
+    const template = getCircuitBreakerTemplate(params);
+    const result = await sendEmail({
+      to,
+      from: "noreply@alphaflow.app",
+      subject: template.subject,
+      text: template.text,
+      html: template.html
+    });
+    if (result.success) {
+      log.info("Notification", "Circuit breaker email sent", {
+        reason: params.reason
+      });
+    } else {
+      log.error("Notification", "Circuit breaker email failed", {
+        error: result.error,
+        reason: params.reason
+      });
+    }
+  } catch (error) {
+    log.error("Notification", "Error sending circuit breaker email", {
+      error: error.message,
+      reason: params.reason
+    });
+  }
+}
+var channels, templates, notificationHistory, MAX_HISTORY2;
+var init_notification_service = __esm({
+  "server/lib/notification-service.ts"() {
+    "use strict";
+    init_logger();
+    init_email_service();
+    init_email_templates();
+    channels = /* @__PURE__ */ new Map();
+    templates = /* @__PURE__ */ new Map();
+    notificationHistory = [];
+    MAX_HISTORY2 = 200;
+    createDefaultTemplates();
+  }
+});
+
+// server/services/tradability-service.ts
+function mapAlpacaAssetToInsert(asset) {
+  return {
+    alpacaId: asset.id,
+    symbol: asset.symbol.toUpperCase(),
+    name: asset.name,
+    assetClass: asset.class === "crypto" ? "crypto" : "us_equity",
+    exchange: asset.exchange,
+    status: asset.status,
+    tradable: asset.tradable,
+    marginable: asset.marginable,
+    shortable: asset.shortable,
+    easyToBorrow: asset.easy_to_borrow,
+    fractionable: asset.fractionable,
+    lastSyncedAt: /* @__PURE__ */ new Date()
+  };
+}
+function brokerAssetToTradabilityCheck(asset) {
+  return {
+    symbol: asset.symbol,
+    tradable: asset.tradable,
+    assetClass: asset.assetClass,
+    exchange: asset.exchange,
+    fractionable: asset.fractionable,
+    marginable: asset.marginable,
+    shortable: asset.shortable,
+    lastSyncedAt: asset.lastSyncedAt,
+    reason: asset.tradable ? void 0 : `Asset status: ${asset.status}`
+  };
+}
+var SYNC_STALE_THRESHOLD_MS, CACHE_TTL_MS, memoryCache, TradabilityService, tradabilityService;
+var init_tradability_service = __esm({
+  "server/services/tradability-service.ts"() {
+    "use strict";
+    init_storage();
+    init_alpaca();
+    init_logger();
+    SYNC_STALE_THRESHOLD_MS = 24 * 60 * 60 * 1e3;
+    CACHE_TTL_MS = 5 * 60 * 1e3;
+    memoryCache = /* @__PURE__ */ new Map();
+    TradabilityService = class {
+      async validateSymbolTradable(symbol) {
+        const normalizedSymbol = symbol.toUpperCase();
+        const cached = memoryCache.get(normalizedSymbol);
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+          return cached.check;
+        }
+        const dbAsset = await storage.getBrokerAsset(normalizedSymbol);
+        if (dbAsset) {
+          const check = brokerAssetToTradabilityCheck(dbAsset);
+          memoryCache.set(normalizedSymbol, { check, cachedAt: Date.now() });
+          return check;
+        }
+        try {
+          const alpacaAsset = await alpaca.getAsset(normalizedSymbol);
+          if (alpacaAsset) {
+            const insertAsset = mapAlpacaAssetToInsert(alpacaAsset);
+            const savedAsset = await storage.upsertBrokerAsset(insertAsset);
+            const check = brokerAssetToTradabilityCheck(savedAsset);
+            memoryCache.set(normalizedSymbol, { check, cachedAt: Date.now() });
+            return check;
+          }
+        } catch (error) {
+          log.warn(
+            "tradability",
+            `Failed to fetch asset ${normalizedSymbol} from Alpaca`,
+            { error: error.message }
+          );
+        }
+        const notFoundCheck = {
+          symbol: normalizedSymbol,
+          tradable: false,
+          reason: "Symbol not found in broker asset universe"
+        };
+        memoryCache.set(normalizedSymbol, {
+          check: notFoundCheck,
+          cachedAt: Date.now()
+        });
+        return notFoundCheck;
+      }
+      async validateSymbolsTradable(symbols) {
+        const results = /* @__PURE__ */ new Map();
+        for (const symbol of symbols) {
+          const check = await this.validateSymbolTradable(symbol);
+          results.set(symbol.toUpperCase(), check);
+        }
+        return results;
+      }
+      async syncAssetUniverse(assetClass = "us_equity") {
+        const errors = [];
+        let synced = 0;
+        let tradable = 0;
+        try {
+          log.info("tradability", `Starting universe sync for ${assetClass}`);
+          const assets = await alpaca.getAssets("active", assetClass);
+          log.info(
+            "tradability",
+            `Fetched ${assets.length} ${assetClass} assets from Alpaca`
+          );
+          const insertAssets = assets.map(mapAlpacaAssetToInsert);
+          synced = await storage.bulkUpsertBrokerAssets(insertAssets);
+          tradable = assets.filter((a) => a.tradable).length;
+          log.info(
+            "tradability",
+            `Universe sync complete: ${synced} synced, ${tradable} tradable`
+          );
+        } catch (error) {
+          errors.push(`Sync failed for ${assetClass}: ${error.message}`);
+          log.error("tradability", `Universe sync error: ${error.message}`);
+        }
+        return { synced, tradable, errors };
+      }
+      async getUniverseStats() {
+        const equityCount = await storage.getBrokerAssetCount("us_equity");
+        const cryptoCount = await storage.getBrokerAssetCount("crypto");
+        const lastSyncedAt = await storage.getLastAssetSyncTime();
+        const tradableEquities = (await storage.getBrokerAssets("us_equity", true)).length;
+        const tradableCrypto = (await storage.getBrokerAssets("crypto", true)).length;
+        const isStale = !lastSyncedAt || Date.now() - lastSyncedAt.getTime() > SYNC_STALE_THRESHOLD_MS;
+        return {
+          totalAssets: equityCount + cryptoCount,
+          tradableEquities,
+          tradableCrypto,
+          lastSyncedAt,
+          isStale
+        };
+      }
+      async searchSymbols(query, limit4 = 20) {
+        return storage.searchBrokerAssets(query, limit4);
+      }
+      clearMemoryCache() {
+        memoryCache.clear();
+        log.info("tradability", "Memory cache cleared");
+      }
+    };
+    tradabilityService = new TradabilityService();
+  }
+});
+
+// server/trading/order-types-matrix.ts
+import { z as z6 } from "zod";
+function isTerminalStatus(status) {
+  return TERMINAL_STATUSES.includes(status);
+}
+function isActiveStatus(status) {
+  return ACTIVE_STATUSES.includes(status);
+}
+function isFailedStatus(status) {
+  return FAILED_STATUSES.includes(status);
+}
+function validateOrderTypeCombination(orderType, timeInForce, extendedHours = false) {
+  const result = { valid: true, errors: [], warnings: [] };
+  const typeConfig = ORDER_TYPE_MATRIX.find((t) => t.orderType === orderType);
+  if (!typeConfig) {
+    result.valid = false;
+    result.errors.push(`Invalid order type: ${orderType}`);
+    return result;
+  }
+  if (!typeConfig.validTimeInForce.includes(timeInForce)) {
+    result.valid = false;
+    result.errors.push(
+      `Invalid time_in_force '${timeInForce}' for ${orderType} order. Valid options: ${typeConfig.validTimeInForce.join(", ")}`
+    );
+  }
+  if (extendedHours && !typeConfig.supportsExtendedHours) {
+    result.valid = false;
+    result.errors.push(
+      `Extended hours trading not supported for ${orderType} orders. Use limit or stop_limit orders for extended hours.`
+    );
+  }
+  return result;
+}
+function validateStopPrice(side, currentPrice, stopPrice) {
+  const result = { valid: true, errors: [], warnings: [] };
+  if (side === "buy" && stopPrice <= currentPrice) {
+    result.warnings.push(
+      `Buy stop at $${stopPrice} is below current price $${currentPrice}. This order will trigger immediately as a market order.`
+    );
+  }
+  if (side === "sell" && stopPrice >= currentPrice) {
+    result.warnings.push(
+      `Sell stop at $${stopPrice} is above current price $${currentPrice}. This order will trigger immediately as a market order.`
+    );
+  }
+  return result;
+}
+function validateLimitPrice(side, currentPrice, limitPrice) {
+  const result = { valid: true, errors: [], warnings: [] };
+  if (side === "buy" && limitPrice > currentPrice * 1.1) {
+    result.warnings.push(
+      `Buy limit at $${limitPrice} is significantly above current price $${currentPrice}. This order will likely fill immediately at a worse price.`
+    );
+  }
+  if (side === "sell" && limitPrice < currentPrice * 0.9) {
+    result.warnings.push(
+      `Sell limit at $${limitPrice} is significantly below current price $${currentPrice}. This order will likely fill immediately at a worse price.`
+    );
+  }
+  return result;
+}
+function validateBracketOrder(side, entryPrice, takeProfitPrice, stopLossPrice) {
+  const result = { valid: true, errors: [], warnings: [] };
+  if (side === "buy") {
+    if (takeProfitPrice <= entryPrice) {
+      result.valid = false;
+      result.errors.push(
+        `Take profit price ($${takeProfitPrice}) must be above entry price ($${entryPrice}) for buy orders`
+      );
+    }
+    if (stopLossPrice >= entryPrice) {
+      result.valid = false;
+      result.errors.push(
+        `Stop loss price ($${stopLossPrice}) must be below entry price ($${entryPrice}) for buy orders`
+      );
+    }
+  } else {
+    if (takeProfitPrice >= entryPrice) {
+      result.valid = false;
+      result.errors.push(
+        `Take profit price ($${takeProfitPrice}) must be below entry price ($${entryPrice}) for sell orders`
+      );
+    }
+    if (stopLossPrice <= entryPrice) {
+      result.valid = false;
+      result.errors.push(
+        `Stop loss price ($${stopLossPrice}) must be above entry price ($${entryPrice}) for sell orders`
+      );
+    }
+  }
+  return result;
+}
+function validateTrailingStop(trailPercent, trailPrice) {
+  const result = { valid: true, errors: [], warnings: [] };
+  if (trailPercent !== void 0 && trailPrice !== void 0) {
+    result.valid = false;
+    result.errors.push(
+      "Cannot specify both trail_percent and trail_price. Choose one."
+    );
+  }
+  if (trailPercent === void 0 && trailPrice === void 0) {
+    result.valid = false;
+    result.errors.push(
+      "Must specify either trail_percent or trail_price for trailing stop orders."
+    );
+  }
+  if (trailPercent !== void 0) {
+    if (trailPercent <= 0 || trailPercent > 100) {
+      result.valid = false;
+      result.errors.push(
+        `Trail percent must be between 0 and 100, got ${trailPercent}`
+      );
+    }
+    if (trailPercent < 0.5) {
+      result.warnings.push(
+        "Trail percent below 0.5% may trigger too frequently"
+      );
+    }
+    if (trailPercent > 10) {
+      result.warnings.push(
+        "Trail percent above 10% may not provide adequate protection"
+      );
+    }
+  }
+  if (trailPrice !== void 0 && trailPrice <= 0) {
+    result.valid = false;
+    result.errors.push(`Trail price must be positive, got ${trailPrice}`);
+  }
+  return result;
+}
+var OrderTypeEnum, OrderClassEnum, TimeInForceEnum, OrderSideEnum, ORDER_TYPE_MATRIX, BaseOrderSchema, QuantitySchema, MarketOrderSchema, LimitOrderSchema, StopOrderSchema, StopLimitOrderSchema, TrailingStopOrderSchema, BracketOrderSchema, OCOOrderSchema, OTOOrderSchema, SimpleOrderSchema, ComplexOrderSchema, CreateOrderSchema, OrderStatusEnum, TERMINAL_STATUSES, ACTIVE_STATUSES, FAILED_STATUSES;
+var init_order_types_matrix = __esm({
+  "server/trading/order-types-matrix.ts"() {
+    "use strict";
+    OrderTypeEnum = z6.enum([
+      "market",
+      "limit",
+      "stop",
+      "stop_limit",
+      "trailing_stop"
+    ]);
+    OrderClassEnum = z6.enum(["simple", "bracket", "oco", "oto"]);
+    TimeInForceEnum = z6.enum([
+      "day",
+      "gtc",
+      "opg",
+      "cls",
+      "ioc",
+      "fok"
+    ]);
+    OrderSideEnum = z6.enum(["buy", "sell"]);
+    ORDER_TYPE_MATRIX = [
+      {
+        orderType: "market",
+        validTimeInForce: ["day", "opg", "cls", "ioc", "fok"],
+        supportsExtendedHours: false,
+        requiredFields: ["symbol", "side", "qty|notional"],
+        optionalFields: ["client_order_id"],
+        description: "Execute immediately at best available price"
+      },
+      {
+        orderType: "limit",
+        validTimeInForce: ["day", "gtc", "opg", "cls", "ioc", "fok"],
+        supportsExtendedHours: true,
+        requiredFields: ["symbol", "side", "qty|notional", "limit_price"],
+        optionalFields: ["client_order_id", "extended_hours"],
+        description: "Execute at specified price or better"
+      },
+      {
+        orderType: "stop",
+        validTimeInForce: ["day", "gtc"],
+        supportsExtendedHours: false,
+        requiredFields: ["symbol", "side", "qty", "stop_price"],
+        optionalFields: ["client_order_id"],
+        description: "Trigger market order when stop price is reached"
+      },
+      {
+        orderType: "stop_limit",
+        validTimeInForce: ["day", "gtc"],
+        supportsExtendedHours: true,
+        requiredFields: ["symbol", "side", "qty", "stop_price", "limit_price"],
+        optionalFields: ["client_order_id", "extended_hours"],
+        description: "Trigger limit order when stop price is reached"
+      },
+      {
+        orderType: "trailing_stop",
+        validTimeInForce: ["day", "gtc"],
+        supportsExtendedHours: false,
+        requiredFields: ["symbol", "side", "qty", "trail_percent|trail_price"],
+        optionalFields: ["client_order_id"],
+        description: "Dynamic stop that follows price movement"
+      }
+    ];
+    BaseOrderSchema = z6.object({
+      symbol: z6.string().min(1).max(10).toUpperCase(),
+      side: OrderSideEnum,
+      client_order_id: z6.string().uuid().optional()
+    });
+    QuantitySchema = z6.union([
+      z6.object({
+        qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number")
+      }),
+      z6.object({
+        notional: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount")
+      })
+    ]);
+    MarketOrderSchema = BaseOrderSchema.extend({
+      type: z6.literal("market"),
+      time_in_force: z6.enum(["day", "opg", "cls", "ioc", "fok"]),
+      extended_hours: z6.literal(false).optional()
+    }).and(QuantitySchema);
+    LimitOrderSchema = BaseOrderSchema.extend({
+      type: z6.literal("limit"),
+      time_in_force: TimeInForceEnum,
+      limit_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+      extended_hours: z6.boolean().optional()
+    }).and(QuantitySchema);
+    StopOrderSchema = BaseOrderSchema.extend({
+      type: z6.literal("stop"),
+      time_in_force: z6.enum(["day", "gtc"]),
+      stop_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      extended_hours: z6.literal(false).optional()
+    });
+    StopLimitOrderSchema = BaseOrderSchema.extend({
+      type: z6.literal("stop_limit"),
+      time_in_force: z6.enum(["day", "gtc"]),
+      stop_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+      limit_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      extended_hours: z6.boolean().optional()
+    });
+    TrailingStopOrderSchema = BaseOrderSchema.extend({
+      type: z6.literal("trailing_stop"),
+      time_in_force: z6.enum(["day", "gtc"]),
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      extended_hours: z6.literal(false).optional()
+    }).and(
+      z6.union([
+        z6.object({
+          trail_percent: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive percent")
+        }),
+        z6.object({
+          trail_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount")
+        })
+      ])
+    );
+    BracketOrderSchema = BaseOrderSchema.extend({
+      order_class: z6.literal("bracket"),
+      type: z6.enum(["market", "limit"]),
+      time_in_force: z6.literal("day"),
+      // FIXED: Must be "day" only - "gtc" causes 422 rejection
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      limit_price: z6.string().regex(/^\d+(\.\d+)?$/).optional(),
+      take_profit: z6.object({
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
+      }),
+      stop_loss: z6.object({
+        stop_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/).optional()
+      })
+    });
+    OCOOrderSchema = BaseOrderSchema.extend({
+      order_class: z6.literal("oco"),
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      time_in_force: z6.enum(["day", "gtc"]),
+      take_profit: z6.object({
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
+      }),
+      stop_loss: z6.object({
+        stop_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/).optional()
+      })
+    });
+    OTOOrderSchema = BaseOrderSchema.extend({
+      order_class: z6.literal("oto"),
+      type: z6.enum(["market", "limit"]),
+      time_in_force: z6.enum(["day", "gtc"]),
+      qty: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
+      limit_price: z6.string().regex(/^\d+(\.\d+)?$/).optional(),
+      stop_loss: z6.object({
+        stop_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/).optional()
+      }).optional(),
+      take_profit: z6.object({
+        limit_price: z6.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
+      }).optional()
+    });
+    SimpleOrderSchema = z6.union([
+      MarketOrderSchema,
+      LimitOrderSchema,
+      StopOrderSchema,
+      StopLimitOrderSchema,
+      TrailingStopOrderSchema
+    ]);
+    ComplexOrderSchema = z6.union([
+      BracketOrderSchema,
+      OCOOrderSchema,
+      OTOOrderSchema
+    ]);
+    CreateOrderSchema = z6.union([
+      SimpleOrderSchema,
+      ComplexOrderSchema
+    ]);
+    OrderStatusEnum = z6.enum([
+      "new",
+      // Order has been received but not yet accepted
+      "pending_new",
+      // Order is being processed
+      "accepted",
+      // Order is accepted and live in the market
+      "partially_filled",
+      // Order has been partially filled
+      "filled",
+      // Order has been completely filled
+      "done_for_day",
+      // Order is done for the day
+      "canceled",
+      // Order has been canceled
+      "expired",
+      // Order has expired
+      "replaced",
+      // Order has been replaced
+      "pending_cancel",
+      // Order cancel request is pending
+      "pending_replace",
+      // Order replace request is pending
+      "stopped",
+      // Order has been stopped
+      "rejected",
+      // Order has been rejected
+      "suspended",
+      // Order has been suspended
+      "calculated"
+      // Order is being calculated
+    ]);
+    TERMINAL_STATUSES = [
+      "filled",
+      "canceled",
+      "expired",
+      "replaced",
+      "rejected"
+    ];
+    ACTIVE_STATUSES = [
+      "new",
+      "pending_new",
+      "accepted",
+      "partially_filled",
+      "pending_cancel",
+      "pending_replace"
+    ];
+    FAILED_STATUSES = ["canceled", "expired", "rejected"];
+  }
+});
+
+// server/trading/order-execution-flow.ts
+import { randomUUID } from "crypto";
+function classifyError(error, context) {
+  const message = error.message.toLowerCase();
+  if (message.includes("insufficient") || message.includes("buying power")) {
+    return {
+      type: "INSUFFICIENT_FUNDS" /* INSUFFICIENT_FUNDS */,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */
+    };
+  }
+  if (message.includes("symbol") && (message.includes("not found") || message.includes("invalid"))) {
+    return {
+      type: "INVALID_SYMBOL" /* INVALID_SYMBOL */,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: "MANUAL_INTERVENTION" /* MANUAL_INTERVENTION */
+    };
+  }
+  if (message.includes("market") && (message.includes("closed") || message.includes("not open"))) {
+    return {
+      type: "MARKET_CLOSED" /* MARKET_CLOSED */,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 6e4,
+      recoveryStrategy: "WAIT_FOR_MARKET_OPEN" /* WAIT_FOR_MARKET_OPEN */
+    };
+  }
+  if (message.includes("429") || message.includes("rate limit")) {
+    return {
+      type: "RATE_LIMITED" /* RATE_LIMITED */,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 5e3,
+      recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */
+    };
+  }
+  if (message.includes("network") || message.includes("fetch") || message.includes("econnrefused")) {
+    return {
+      type: "NETWORK_ERROR" /* NETWORK_ERROR */,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 2e3,
+      recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */
+    };
+  }
+  if (message.includes("timeout")) {
+    return {
+      type: "TIMEOUT" /* TIMEOUT */,
+      message: error.message,
+      retryable: true,
+      suggestedDelay: 1e3,
+      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
+    };
+  }
+  if (message.includes("rejected") || message.includes("refused")) {
+    return {
+      type: "BROKER_REJECTION" /* BROKER_REJECTION */,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */
+    };
+  }
+  if (message.includes("position") && message.includes("not found")) {
+    return {
+      type: "POSITION_NOT_FOUND" /* POSITION_NOT_FOUND */,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
+    };
+  }
+  if (message.includes("order") && message.includes("not found")) {
+    return {
+      type: "ORDER_NOT_FOUND" /* ORDER_NOT_FOUND */,
+      message: error.message,
+      retryable: false,
+      suggestedDelay: 0,
+      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
+    };
+  }
+  return {
+    type: "UNKNOWN" /* UNKNOWN */,
+    message: error.message,
+    retryable: true,
+    suggestedDelay: 3e3,
+    recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */,
+    originalError: error
+  };
+}
+async function identifyUnrealOrders() {
+  const unrealOrders = [];
+  try {
+    const allOrders = await alpaca.getOrders("all", 500);
+    const staleThresholdMs = 24 * 60 * 60 * 1e3;
+    const now = Date.now();
+    for (const order of allOrders) {
+      let isUnreal = false;
+      let reason = "";
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+      const notionalValue = order.notional ? safeParseFloat(order.notional, 0) : 0;
+      const orderCreatedAt = new Date(order.created_at).getTime();
+      const orderAgeMs = now - orderCreatedAt;
+      if (order.status === "rejected") {
+        isUnreal = true;
+        reason = "Order was rejected by broker";
+      } else if (order.status === "canceled" && filledQty === 0) {
+        isUnreal = true;
+        reason = "Order was canceled with no fills";
+      } else if (order.status === "expired" && filledQty === 0) {
+        isUnreal = true;
+        reason = "Order expired with no fills";
+      } else if (filledQty === 0 && notionalValue === 0 && order.qty === "0") {
+        isUnreal = true;
+        reason = "Order has zero quantity and zero notional";
+      } else if (isActiveStatus(order.status) && orderAgeMs >= staleThresholdMs && filledQty === 0) {
+        isUnreal = true;
+        reason = "Stale active order with no fills (>24 hours old)";
+      }
+      if (isUnreal) {
+        unrealOrders.push({
+          orderId: order.id,
+          symbol: order.symbol,
+          status: order.status,
+          reason,
+          createdAt: order.created_at,
+          filledQty: order.filled_qty,
+          qty: order.qty,
+          notional: order.notional
+        });
+      }
+    }
+  } catch (error) {
+    log.error("OrderCleanup", "Failed to identify unreal orders", {
+      error: error.message
+    });
+  }
+  return unrealOrders;
+}
+async function cleanupUnrealOrders() {
+  const result = {
+    identified: 0,
+    canceled: 0,
+    errors: []
+  };
+  try {
+    const unrealOrders = await identifyUnrealOrders();
+    result.identified = unrealOrders.length;
+    for (const order of unrealOrders) {
+      if (isActiveStatus(order.status)) {
+        try {
+          await alpaca.cancelOrder(order.orderId);
+          log.info("OrderCleanup", "Canceled unreal order", {
+            orderId: order.orderId,
+            reason: order.reason
+          });
+          result.canceled++;
+        } catch (error) {
+          const errorMsg = `Failed to cancel ${order.orderId}: ${error.message}`;
+          result.errors.push(errorMsg);
+          log.warn("OrderCleanup", "Failed to cancel order", {
+            orderId: order.orderId,
+            error: error.message
+          });
+        }
+      }
+    }
+    log.info("OrderCleanup", "Unreal order cleanup complete", {
+      identified: result.identified,
+      canceled: result.canceled
+    });
+  } catch (error) {
+    result.errors.push(`Cleanup failed: ${error.message}`);
+  }
+  return result;
+}
+async function reconcileOrderBook() {
+  const result = {
+    alpacaOrders: 0,
+    localTrades: 0,
+    missingLocal: [],
+    orphanedLocal: [],
+    synced: 0
+  };
+  try {
+    const alpacaOrders = await alpaca.getOrders("all", 100);
+    result.alpacaOrders = alpacaOrders.length;
+    const localTrades = await storage.getTrades(void 0, 100);
+    result.localTrades = localTrades.length;
+    const alpacaOrderIds = new Set(alpacaOrders.map((o) => o.id));
+    const alpacaClientIds = new Set(alpacaOrders.map((o) => o.client_order_id));
+    for (const order of alpacaOrders) {
+      if (order.status === "filled") {
+        const hasLocal = localTrades.some(
+          (t) => t.notes?.includes(order.id) || t.notes?.includes(order.client_order_id)
+        );
+        if (!hasLocal) {
+          result.missingLocal.push(order.id);
+          await storage.createTrade({
+            symbol: order.symbol,
+            side: order.side,
+            quantity: order.filled_qty,
+            price: order.filled_avg_price || "0",
+            status: "completed",
+            notes: `Synced from Alpaca: ${order.id}`,
+            pnl: null,
+            strategyId: null
+          });
+          result.synced++;
+        }
+      }
+    }
+    log.info("Reconciliation", "Order book reconciliation complete", {
+      alpacaOrders: result.alpacaOrders,
+      localTrades: result.localTrades,
+      synced: result.synced
+    });
+  } catch (error) {
+    log.error("Reconciliation", "Order book reconciliation failed", {
+      error: error.message
+    });
+  }
+  return result;
+}
+async function waitForAlpacaOrderFill(orderId, timeoutMs = ORDER_FILL_TIMEOUT_MS) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const order = await alpaca.getOrder(orderId);
+      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
+      const filledQty = safeParseFloat(order.filled_qty, 0);
+      const hasFillData = filledPrice > 0 && filledQty > 0;
+      if (order.status === "filled" && hasFillData) {
+        return {
+          order,
+          timedOut: false,
+          hasFillData: true,
+          isFullyFilled: true
+        };
+      }
+      if (isTerminalStatus(order.status)) {
+        log.info("OrderFlow", "Order ended with status", {
+          orderId,
+          status: order.status
+        });
+        return { order, timedOut: false, hasFillData, isFullyFilled: false };
+      }
+      await new Promise(
+        (resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS)
+      );
+    } catch (error) {
+      log.error("OrderFlow", "Error polling order", {
+        orderId,
+        error: error.message
+      });
+      await new Promise(
+        (resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS)
+      );
+    }
+  }
+  log.warn("OrderFlow", "Order fill timeout", { orderId, timeoutMs });
+  try {
+    const finalOrder = await alpaca.getOrder(orderId);
+    const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
+    const filledQty = safeParseFloat(finalOrder.filled_qty, 0);
+    const hasFillData = filledPrice > 0 && filledQty > 0;
+    const isFullyFilled = finalOrder.status === "filled" && hasFillData;
+    return { order: finalOrder, timedOut: true, hasFillData, isFullyFilled };
+  } catch {
+    return {
+      order: null,
+      timedOut: true,
+      hasFillData: false,
+      isFullyFilled: false
+    };
+  }
+}
+async function cancelExpiredOrders(maxAgeMs = STALE_ORDER_TIMEOUT_MS) {
+  let canceledCount = 0;
+  try {
+    const openOrders = await alpaca.getOrders("open", 100);
+    const now = Date.now();
+    for (const order of openOrders) {
+      const createdAt = new Date(order.created_at).getTime();
+      const orderAge = now - createdAt;
+      if (orderAge > maxAgeMs) {
+        try {
+          await alpaca.cancelOrder(order.id);
+          canceledCount++;
+          log.info("OrderFlow", "Canceled expired order", {
+            orderId: order.id,
+            symbol: order.symbol,
+            ageSec: Math.floor(orderAge / 1e3)
+          });
+        } catch (error) {
+          log.warn("OrderFlow", "Failed to cancel expired order", {
+            orderId: order.id,
+            error: error.message
+          });
+        }
+      }
+    }
+    if (canceledCount > 0) {
+      log.info("OrderFlow", "Expired order cancellation complete", {
+        canceledCount
+      });
+    }
+  } catch (error) {
+    log.error("OrderFlow", "Error checking for expired orders", {
+      error: error.message
+    });
+  }
+  return canceledCount;
+}
+async function getUserEmailForNotifications() {
+  return null;
+}
+async function checkPositionForLargeLoss(symbol, currentPrice) {
+  try {
+    const positions2 = await alpaca.getPositions();
+    const position = positions2.find((p) => p.symbol === symbol);
+    if (!position) {
+      return;
+    }
+    const unrealizedPL = parseFloat(position.unrealized_pl || "0");
+    const avgEntryPrice = parseFloat(position.avg_entry_price);
+    const marketValue = parseFloat(position.market_value || "0");
+    const percentLoss = marketValue > 0 ? percentChange(unrealizedPL, Math.abs(marketValue)).toNumber() : 0;
+    if (percentLoss < -5) {
+      const userEmail = await getUserEmailForNotifications();
+      if (userEmail) {
+        sendLossAlertEmail(userEmail, {
+          symbol,
+          unrealizedPL,
+          percentLoss,
+          currentPrice,
+          avgEntryPrice
+        }).catch(
+          (err) => log.error("Notification", "Loss alert email failed", {
+            error: err.message,
+            symbol
+          })
+        );
+      }
+    }
+  } catch (error) {
+    log.error("OrderExecution", "Error checking position for large loss", {
+      error: error.message,
+      symbol
+    });
+  }
+}
+async function notifyCircuitBreakerTriggered(reason, estimatedRecovery) {
+  try {
+    const userEmail = await getUserEmailForNotifications();
+    if (userEmail) {
+      sendCircuitBreakerEmail(userEmail, {
+        reason,
+        triggeredAt: /* @__PURE__ */ new Date(),
+        estimatedRecovery
+      }).catch(
+        (err) => log.error("Notification", "Circuit breaker email failed", {
+          error: err.message,
+          reason
+        })
+      );
+    }
+  } catch (error) {
+    log.error("OrderExecution", "Error sending circuit breaker notification", {
+      error: error.message,
+      reason
+    });
+  }
+}
+var DEFAULT_OPTIONS, OrderExecutionEngine, orderExecutionEngine, ORDER_FILL_POLL_INTERVAL_MS, ORDER_FILL_TIMEOUT_MS, STALE_ORDER_TIMEOUT_MS;
+var init_order_execution_flow = __esm({
+  "server/trading/order-execution-flow.ts"() {
+    "use strict";
+    init_alpaca();
+    init_storage();
+    init_numeric();
+    init_money();
+    init_performance_metrics();
+    init_order_execution_cache();
+    init_webhook_emitter();
+    init_notification_service();
+    init_tradability_service();
+    init_logger();
+    init_order_types_matrix();
+    init_trading_config();
+    DEFAULT_OPTIONS = {
+      maxRetries: 3,
+      retryDelayMs: 1e3,
+      timeoutMs: 3e4,
+      validateBeforeSubmit: true,
+      trackExpectedOutcome: true,
+      autoRecover: true
+    };
+    OrderExecutionEngine = class {
+      activeExecutions = /* @__PURE__ */ new Map();
+      /**
+       * Execute order with full validation, retry, and recovery
+       */
+      async executeOrder(params, options = {}) {
+        const opts = { ...DEFAULT_OPTIONS, ...options };
+        const clientOrderId = params.client_order_id || randomUUID();
+        const state = {
+          orderId: null,
+          clientOrderId,
+          status: "pending",
+          symbol: params.symbol,
+          side: params.side,
+          orderType: params.type,
+          requestedQty: params.qty || params.notional || "0",
+          filledQty: "0",
+          requestedPrice: params.limit_price || params.stop_price || null,
+          filledPrice: null,
+          attempts: 0,
+          maxAttempts: opts.maxRetries,
+          createdAt: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date(),
+          errors: [],
+          validationResult: null,
+          expectedOutcome: null,
+          actualOutcome: null
+        };
+        this.activeExecutions.set(clientOrderId, state);
+        const warnings = [];
+        try {
+          state.status = "validating";
+          state.updatedAt = /* @__PURE__ */ new Date();
+          if (opts.validateBeforeSubmit) {
+            const validation = await this.validateOrderParams(params);
+            state.validationResult = validation;
+            if (!validation.valid) {
+              const error = classifyError(new Error(validation.errors.join("; ")));
+              error.type = "VALIDATION_ERROR" /* VALIDATION_ERROR */;
+              state.errors.push(error);
+              state.status = "failed";
+              return {
+                success: false,
+                state,
+                error,
+                validationWarnings: validation.warnings
+              };
+            }
+            warnings.push(...validation.warnings);
+          }
+          if (opts.trackExpectedOutcome) {
+            state.expectedOutcome = await this.calculateExpectedOutcome(params);
+          }
+          state.status = "submitting";
+          let order = null;
+          while (state.attempts < opts.maxRetries) {
+            state.attempts++;
+            state.updatedAt = /* @__PURE__ */ new Date();
+            try {
+              const orderWithClientId = {
+                ...params,
+                client_order_id: clientOrderId
+              };
+              order = await this.submitOrderWithTimeout(
+                orderWithClientId,
+                opts.timeoutMs
+              );
+              state.orderId = order.id;
+              state.status = "submitted";
+              emitEvent("trade.order.submitted", {
+                orderId: order.id,
+                clientOrderId,
+                symbol: params.symbol,
+                side: params.side,
+                type: params.type,
+                qty: params.qty,
+                limitPrice: params.limit_price,
+                timestamp: (/* @__PURE__ */ new Date()).toISOString()
+              }).catch(
+                (err) => log.error("Webhook", "Order submitted event failed", {
+                  error: err.message
+                })
+              );
+              sendNotification("trade.order.submitted", {
+                orderId: order.id,
+                symbol: params.symbol,
+                side: params.side,
+                qty: params.qty,
+                price: params.limit_price || "market"
+              }).catch(
+                (err) => log.error("Notification", "Order submitted notification failed", {
+                  error: err.message
+                })
+              );
+              break;
+            } catch (error) {
+              const classifiedError = classifyError(
+                error,
+                `Attempt ${state.attempts}`
+              );
+              state.errors.push(classifiedError);
+              if (!classifiedError.retryable || state.attempts >= opts.maxRetries) {
+                if (opts.autoRecover && classifiedError.recoveryStrategy !== "NONE" /* NONE */) {
+                  const recovered = await this.attemptRecovery(
+                    state,
+                    classifiedError,
+                    params
+                  );
+                  if (recovered) {
+                    order = recovered;
+                    break;
+                  }
+                }
+                state.status = "failed";
+                sendNotification("trade.order.rejected", {
+                  symbol: params.symbol,
+                  side: params.side,
+                  qty: params.qty,
+                  reason: classifiedError.message
+                }).catch(
+                  (err) => log.error("Notification", "Order rejected notification failed", {
+                    error: err.message
+                  })
+                );
+                return {
+                  success: false,
+                  state,
+                  error: classifiedError,
+                  validationWarnings: warnings
+                };
+              }
+              const delay = classifiedError.suggestedDelay * Math.pow(2, state.attempts - 1);
+              await this.sleep(delay);
+            }
+          }
+          if (!order) {
+            state.status = "failed";
+            return {
+              success: false,
+              state,
+              error: state.errors[state.errors.length - 1],
+              validationWarnings: warnings
+            };
+          }
+          state.status = "monitoring";
+          const monitoredOrder = await this.monitorOrderUntilTerminal(
+            order.id,
+            opts.timeoutMs
+          );
+          state.actualOutcome = this.recordActualOutcome(monitoredOrder, state);
+          if (isFailedStatus(monitoredOrder.status)) {
+            state.status = monitoredOrder.status === "canceled" ? "canceled" : "failed";
+            return {
+              success: false,
+              state,
+              order: monitoredOrder,
+              validationWarnings: warnings,
+              outcomeAnalysis: this.analyzeOutcome(state)
+            };
+          }
+          state.status = "filled";
+          state.filledQty = monitoredOrder.filled_qty;
+          state.filledPrice = monitoredOrder.filled_avg_price;
+          emitEvent("trade.order.filled", {
+            orderId: monitoredOrder.id,
+            clientOrderId,
+            symbol: monitoredOrder.symbol,
+            side: monitoredOrder.side,
+            filledQty: monitoredOrder.filled_qty,
+            filledPrice: monitoredOrder.filled_avg_price,
+            status: monitoredOrder.status,
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }).catch(
+            (err) => log.error("Webhook", "Order filled event failed", {
+              error: err.message
+            })
+          );
+          sendNotification("trade.order.filled", {
+            orderId: monitoredOrder.id,
+            symbol: monitoredOrder.symbol,
+            side: monitoredOrder.side,
+            qty: monitoredOrder.filled_qty,
+            price: monitoredOrder.filled_avg_price
+          }).catch(
+            (err) => log.error("Notification", "Order filled notification failed", {
+              error: err.message
+            })
+          );
+          const userEmail = await getUserEmailForNotifications();
+          if (userEmail) {
+            const filledPrice = parseFloat(monitoredOrder.filled_avg_price || "0");
+            const filledQty = parseFloat(monitoredOrder.filled_qty);
+            sendOrderFilledEmail(userEmail, {
+              symbol: monitoredOrder.symbol,
+              side: monitoredOrder.side,
+              qty: filledQty,
+              price: filledPrice,
+              totalValue: filledPrice * filledQty,
+              timestamp: /* @__PURE__ */ new Date()
+            }).catch(
+              (err) => log.error("Notification", "Order filled email failed", {
+                error: err.message
+              })
+            );
+          }
+          return {
+            success: true,
+            state,
+            order: monitoredOrder,
+            validationWarnings: warnings,
+            outcomeAnalysis: this.analyzeOutcome(state)
+          };
+        } finally {
+          this.activeExecutions.delete(clientOrderId);
+        }
+      }
+      /**
+       * Validate order parameters before submission
+       */
+      async validateOrderParams(params) {
+        const result = { valid: true, errors: [], warnings: [] };
+        try {
+          CreateOrderSchema.parse(params);
+        } catch (e) {
+          result.valid = false;
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          result.errors.push(`Schema validation failed: ${errorMessage}`);
+          return result;
+        }
+        const tradabilityCheck = await tradabilityService.validateSymbolTradable(
+          params.symbol
+        );
+        if (!tradabilityCheck.tradable) {
+          result.valid = false;
+          result.errors.push(
+            `Symbol ${params.symbol} is not tradable: ${tradabilityCheck.reason || "Not found in broker universe"}`
+          );
+          return result;
+        }
+        if (!tradabilityCheck.fractionable && params.notional) {
+          result.warnings.push(
+            `${params.symbol} does not support fractional trading; use qty instead of notional`
+          );
+        }
+        if (!tradabilityCheck.marginable) {
+          result.warnings.push(`${params.symbol} is not marginable`);
+        }
+        const typeTifValidation = validateOrderTypeCombination(
+          params.type,
+          params.time_in_force,
+          params.extended_hours
+        );
+        result.errors.push(...typeTifValidation.errors);
+        result.warnings.push(...typeTifValidation.warnings);
+        if (!typeTifValidation.valid) result.valid = false;
+        let currentPrice = null;
+        const cachedQuote = getQuickQuote(params.symbol);
+        if (cachedQuote) {
+          currentPrice = cachedQuote.price;
+        } else {
+          try {
+            const operationId = `quote_${params.symbol}_${Date.now()}`;
+            performanceTracker.startTimer(operationId);
+            const snapshots = await alpaca.getSnapshots([params.symbol]);
+            const latency = performanceTracker.endTimer(
+              operationId,
+              "quoteRetrieval"
+            );
+            currentPrice = snapshots[params.symbol]?.latestTrade?.p || null;
+            if (currentPrice) {
+              const trade = snapshots[params.symbol]?.latestTrade;
+              cacheQuickQuote({
+                symbol: params.symbol,
+                price: currentPrice,
+                bid: snapshots[params.symbol]?.latestQuote?.bp || currentPrice,
+                ask: snapshots[params.symbol]?.latestQuote?.ap || currentPrice,
+                spread: 0,
+                timestamp: Date.now()
+              });
+            }
+            if (latency > 10) {
+              log.debug("OrderExecution", "Slow quote retrieval", {
+                latencyMs: latency,
+                symbol: params.symbol
+              });
+            }
+          } catch {
+            result.warnings.push(
+              `Could not fetch current price for ${params.symbol}`
+            );
+          }
+        }
+        if (currentPrice) {
+          if (params.stop_price) {
+            const stopValidation = validateStopPrice(
+              params.side,
+              currentPrice,
+              parseFloat(params.stop_price)
+            );
+            result.errors.push(...stopValidation.errors);
+            result.warnings.push(...stopValidation.warnings);
+            if (!stopValidation.valid) result.valid = false;
+          }
+          if (params.limit_price) {
+            const limitValidation = validateLimitPrice(
+              params.side,
+              currentPrice,
+              parseFloat(params.limit_price)
+            );
+            result.errors.push(...limitValidation.errors);
+            result.warnings.push(...limitValidation.warnings);
+            if (!limitValidation.valid) result.valid = false;
+          }
+          if (params.order_class === "bracket" && params.take_profit && params.stop_loss) {
+            const entryPrice = params.limit_price ? parseFloat(params.limit_price) : currentPrice;
+            const bracketValidation = validateBracketOrder(
+              params.side,
+              entryPrice,
+              parseFloat(params.take_profit.limit_price),
+              parseFloat(params.stop_loss.stop_price)
+            );
+            result.errors.push(...bracketValidation.errors);
+            result.warnings.push(...bracketValidation.warnings);
+            if (!bracketValidation.valid) result.valid = false;
+          }
+        }
+        if (params.type === "trailing_stop") {
+          const trailValidation = validateTrailingStop(
+            params.trail_percent ? parseFloat(params.trail_percent) : void 0,
+            params.trail_price ? parseFloat(params.trail_price) : void 0
+          );
+          result.errors.push(...trailValidation.errors);
+          result.warnings.push(...trailValidation.warnings);
+          if (!trailValidation.valid) result.valid = false;
+        }
+        if (!params.extended_hours) {
+          try {
+            const marketStatus = await alpaca.getMarketStatus();
+            if (!marketStatus.isOpen && params.time_in_force === "day") {
+              result.warnings.push(
+                `Market is currently ${marketStatus.session}. Day orders will queue until market open.`
+              );
+            }
+          } catch {
+            result.warnings.push("Could not verify market status");
+          }
+        }
+        return result;
+      }
+      /**
+       * Calculate expected outcome based on order parameters
+       */
+      async calculateExpectedOutcome(params) {
+        const qty = parseFloat(params.qty || "0");
+        const notional = parseFloat(params.notional || "0");
+        let currentPrice = 0;
+        try {
+          const snapshots = await alpaca.getSnapshots([params.symbol]);
+          currentPrice = snapshots[params.symbol]?.latestTrade?.p || 0;
+        } catch {
+          currentPrice = params.limit_price ? parseFloat(params.limit_price) : 0;
+        }
+        const expectedQty = qty > 0 ? qty : calculateQuantity(notional, currentPrice).toNumber();
+        const risks = [];
+        let fillPriceMin = currentPrice;
+        let fillPriceMax = currentPrice;
+        let shouldFillImmediately = false;
+        let fillTimeEstimate = 0;
+        switch (params.type) {
+          case "market":
+            fillPriceMin = priceWithBuffer(currentPrice, 5e-3, -1).toNumber();
+            fillPriceMax = priceWithBuffer(currentPrice, 5e-3, 1).toNumber();
+            shouldFillImmediately = true;
+            fillTimeEstimate = 500;
+            risks.push("Slippage possible in fast-moving markets");
+            break;
+          case "limit":
+            const limitPrice = parseFloat(params.limit_price || "0");
+            fillPriceMin = limitPrice;
+            fillPriceMax = limitPrice;
+            shouldFillImmediately = params.side === "buy" ? limitPrice >= currentPrice : limitPrice <= currentPrice;
+            fillTimeEstimate = shouldFillImmediately ? 1e3 : 3e5;
+            if (!shouldFillImmediately) {
+              risks.push("Order may not fill if price doesn't reach limit");
+            }
+            break;
+          case "stop":
+            const stopPrice = parseFloat(params.stop_price || "0");
+            fillPriceMin = priceWithBuffer(stopPrice, 0.01, -1).toNumber();
+            fillPriceMax = priceWithBuffer(stopPrice, 0.01, 1).toNumber();
+            shouldFillImmediately = false;
+            fillTimeEstimate = 6e5;
+            risks.push("Stop orders trigger as market orders - slippage possible");
+            break;
+          case "stop_limit":
+            fillPriceMin = parseFloat(params.limit_price || "0");
+            fillPriceMax = parseFloat(params.limit_price || "0");
+            shouldFillImmediately = false;
+            fillTimeEstimate = 6e5;
+            risks.push("Order may not fill if gap occurs past limit price");
+            break;
+          case "trailing_stop":
+            fillPriceMin = priceWithBuffer(currentPrice, 0.1, -1).toNumber();
+            fillPriceMax = priceWithBuffer(currentPrice, 0.1, 1).toNumber();
+            shouldFillImmediately = false;
+            fillTimeEstimate = 36e5;
+            risks.push("Trailing stop may trigger during normal volatility");
+            break;
+        }
+        const avgFillPrice = toDecimal(fillPriceMin).plus(fillPriceMax).dividedBy(2);
+        const estimatedCost = positionValue(expectedQty, avgFillPrice).toNumber();
+        return {
+          fillPrice: { min: fillPriceMin, max: fillPriceMax },
+          fillQty: expectedQty,
+          estimatedCost,
+          shouldFillImmediately,
+          fillTimeEstimateMs: fillTimeEstimate,
+          risksIdentified: risks
+        };
+      }
+      /**
+       * Submit order with timeout and performance tracking
+       */
+      async submitOrderWithTimeout(params, timeoutMs) {
+        const operationId = `order_${params.symbol}_${Date.now()}`;
+        performanceTracker.startTimer(operationId);
+        return new Promise((resolve2, reject) => {
+          const timeout = setTimeout(() => {
+            performanceTracker.endTimer(operationId, "orderExecution");
+            reject(new Error(`Order submission timed out after ${timeoutMs}ms`));
+          }, timeoutMs);
+          alpaca.createOrder(params).then((order) => {
+            clearTimeout(timeout);
+            const latency = performanceTracker.endTimer(
+              operationId,
+              "orderExecution"
+            );
+            if (latency > 50) {
+              log.debug("OrderExecution", "Slow order submission", {
+                latencyMs: latency,
+                symbol: params.symbol
+              });
+            }
+            resolve2(order);
+          }).catch((error) => {
+            clearTimeout(timeout);
+            performanceTracker.endTimer(operationId, "orderExecution");
+            reject(error);
+          });
+        });
+      }
+      /**
+       * Monitor order until it reaches a terminal state
+       */
+      async monitorOrderUntilTerminal(orderId, timeoutMs) {
+        const startTime = Date.now();
+        const pollInterval = 1e3;
+        while (Date.now() - startTime < timeoutMs) {
+          try {
+            const order = await alpaca.getOrder(orderId);
+            if (isTerminalStatus(order.status)) {
+              return order;
+            }
+            await this.sleep(pollInterval);
+          } catch (error) {
+            log.error("OrderExecution", "Error polling order", {
+              orderId,
+              error: error.message
+            });
+            await this.sleep(pollInterval);
+          }
+        }
+        return await alpaca.getOrder(orderId);
+      }
+      /**
+       * Record actual outcome from filled order
+       */
+      recordActualOutcome(order, state) {
+        const fillPrice = safeParseFloat(order.filled_avg_price, 0);
+        const fillQty = safeParseFloat(order.filled_qty, 0);
+        const fillTimeMs = order.filled_at ? new Date(order.filled_at).getTime() - state.createdAt.getTime() : Date.now() - state.createdAt.getTime();
+        const requestedPrice = state.requestedPrice ? parseFloat(state.requestedPrice) : null;
+        const slippage = requestedPrice && fillPrice ? percentChange(fillPrice, requestedPrice).toNumber() : null;
+        const unexpectedEvents = [];
+        if (order.status === "partially_filled") {
+          unexpectedEvents.push(
+            `Only partially filled: ${fillQty} of ${order.qty}`
+          );
+        }
+        if (slippage !== null && Math.abs(slippage) > 1) {
+          unexpectedEvents.push(
+            `Significant slippage: ${formatPrice(slippage, 2)}%`
+          );
+        }
+        const totalCost = positionValue(fillQty, fillPrice).toNumber();
+        return {
+          filled: order.status === "filled",
+          fillPrice,
+          fillQty,
+          totalCost,
+          fillTimeMs,
+          slippage,
+          status: order.status,
+          unexpectedEvents
+        };
+      }
+      /**
+       * Analyze outcome vs expected
+       */
+      analyzeOutcome(state) {
+        const expected = state.expectedOutcome;
+        const actual = state.actualOutcome;
+        if (!expected || !actual) {
+          return {
+            matchesExpected: true,
+            slippagePercent: null,
+            fillTimeDeviation: null,
+            unexpectedIssues: [],
+            recommendations: []
+          };
+        }
+        const issues = [];
+        const recommendations = [];
+        let matchesExpected = true;
+        if (actual.fillPrice !== null) {
+          if (actual.fillPrice < expected.fillPrice.min || actual.fillPrice > expected.fillPrice.max) {
+            matchesExpected = false;
+            issues.push(
+              `Fill price $${actual.fillPrice.toFixed(2)} outside expected range $${expected.fillPrice.min.toFixed(2)}-$${expected.fillPrice.max.toFixed(2)}`
+            );
+            recommendations.push(
+              "Consider using limit orders for better price control"
+            );
+          }
+        }
+        if (actual.fillQty < expected.fillQty * 0.99) {
+          matchesExpected = false;
+          issues.push(
+            `Partial fill: ${actual.fillQty} of ${expected.fillQty} requested`
+          );
+          recommendations.push("Check liquidity before placing large orders");
+        }
+        const fillTimeDeviation = actual.fillTimeMs - expected.fillTimeEstimateMs;
+        if (expected.shouldFillImmediately && actual.fillTimeMs > 5e3) {
+          issues.push(`Expected immediate fill but took ${actual.fillTimeMs}ms`);
+        }
+        issues.push(...actual.unexpectedEvents);
+        return {
+          matchesExpected,
+          slippagePercent: actual.slippage,
+          fillTimeDeviation,
+          unexpectedIssues: issues,
+          recommendations
+        };
+      }
+      /**
+       * Attempt recovery based on error type
+       */
+      async attemptRecovery(state, error, originalParams) {
+        state.status = "recovering";
+        log.info("OrderExecution", "Attempting recovery", {
+          recoveryStrategy: error.recoveryStrategy
+        });
+        switch (error.recoveryStrategy) {
+          case "CHECK_AND_SYNC" /* CHECK_AND_SYNC */:
+            try {
+              const orders2 = await alpaca.getOrders("all", 10);
+              const existingOrder = orders2.find(
+                (o) => o.client_order_id === state.clientOrderId
+              );
+              if (existingOrder) {
+                log.info("OrderExecution", "Found existing order via sync", {
+                  orderId: existingOrder.id
+                });
+                return existingOrder;
+              }
+            } catch {
+              log.error("OrderExecution", "Sync check failed");
+            }
+            return null;
+          case "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */:
+            if (error.type === "INSUFFICIENT_FUNDS" /* INSUFFICIENT_FUNDS */) {
+              const reducedParams = { ...originalParams };
+              if (reducedParams.qty) {
+                reducedParams.qty = toDecimal(reducedParams.qty).times(0.5).toString();
+              } else if (reducedParams.notional) {
+                reducedParams.notional = toDecimal(reducedParams.notional).times(0.5).toString();
+              }
+              try {
+                return await alpaca.createOrder(reducedParams);
+              } catch {
+                return null;
+              }
+            }
+            return null;
+          case "WAIT_FOR_MARKET_OPEN" /* WAIT_FOR_MARKET_OPEN */:
+            const marketStatus = await alpaca.getMarketStatus();
+            if (marketStatus.isOpen || marketStatus.isExtendedHours) {
+              try {
+                return await alpaca.createOrder(originalParams);
+              } catch {
+                return null;
+              }
+            }
+            return null;
+          default:
+            return null;
+        }
+      }
+      sleep(ms) {
+        return new Promise((resolve2) => setTimeout(resolve2, ms));
+      }
+      /**
+       * Get active execution states for monitoring
+       */
+      getActiveExecutions() {
+        return new Map(this.activeExecutions);
+      }
+    };
+    orderExecutionEngine = new OrderExecutionEngine();
+    ORDER_FILL_POLL_INTERVAL_MS = tradingConfig.orderExecution.orderFillPollIntervalMs;
+    ORDER_FILL_TIMEOUT_MS = tradingConfig.orderExecution.orderFillTimeoutMs;
+    STALE_ORDER_TIMEOUT_MS = tradingConfig.orderExecution.staleOrderTimeoutMs;
+  }
+});
+
 // server/lib/circuitBreaker.ts
 var circuitBreaker_exports = {};
 __export(circuitBreaker_exports, {
@@ -3436,7 +7400,7 @@ function getBreaker(name, fn, options, fallback) {
     return breakers.get(key);
   }
   const breaker = new CircuitBreaker(fn, {
-    ...DEFAULT_OPTIONS,
+    ...DEFAULT_OPTIONS2,
     ...options,
     name
   });
@@ -3445,6 +7409,18 @@ function getBreaker(name, fn, options, fallback) {
   }
   breaker.on("open", () => {
     log.warn("CircuitBreaker", `[${name}] OPEN - failing fast`);
+    const estimatedRecovery = new Date(
+      Date.now() + (options?.resetTimeout || DEFAULT_OPTIONS2.resetTimeout || 3e4)
+    );
+    notifyCircuitBreakerTriggered(
+      `Circuit breaker ${name} opened - service experiencing errors`,
+      estimatedRecovery
+    ).catch(
+      (err) => log.error("CircuitBreaker", "Failed to send circuit breaker email", {
+        error: err.message,
+        breakerName: name
+      })
+    );
   });
   breaker.on("halfOpen", () => {
     log.info("CircuitBreaker", `[${name}] HALF-OPEN - testing`);
@@ -3523,12 +7499,13 @@ function withCircuitBreaker(name, fn, options, fallback) {
   const breaker = getBreaker(name, fn, options, fallback);
   return (...args) => breaker.fire(...args);
 }
-var DEFAULT_OPTIONS, breakers;
+var DEFAULT_OPTIONS2, breakers;
 var init_circuitBreaker = __esm({
   "server/lib/circuitBreaker.ts"() {
     "use strict";
     init_logger();
-    DEFAULT_OPTIONS = {
+    init_order_execution_flow();
+    DEFAULT_OPTIONS2 = {
       timeout: 1e4,
       errorThresholdPercentage: 50,
       resetTimeout: 3e4,
@@ -3714,20 +7691,20 @@ var init_alpaca = __esm({
                     }
                     throw error;
                   }
-                  const text16 = await response.text();
+                  const text17 = await response.text();
                   if (process.env.NODE_ENV === "development" && process.env.ALPACA_DEBUG === "true") {
                     log.debug(
                       "Alpaca",
-                      `Response for ${url}: ${text16.substring(0, 150)}`
+                      `Response for ${url}: ${text17.substring(0, 150)}`
                     );
                   }
-                  if (!text16 || text16.trim() === "") {
+                  if (!text17 || text17.trim() === "") {
                     if (url.includes("/positions") || url.includes("/orders") || url.includes("/assets")) {
                       return [];
                     }
                     return {};
                   }
-                  const parsed = JSON.parse(text16);
+                  const parsed = JSON.parse(text17);
                   return parsed;
                 } catch (error) {
                   if (i === retries - 1) throw error;
@@ -5030,11 +9007,11 @@ var init_claudeClient = __esm({
           }
           const data = await response.json();
           const latencyMs = Date.now() - startTime;
-          let text16;
+          let text17;
           const toolCalls = [];
           for (const block of data.content) {
             if (block.type === "text") {
-              text16 = (text16 || "") + block.text;
+              text17 = (text17 || "") + block.text;
             } else if (block.type === "tool_use") {
               toolCalls.push({
                 id: block.id,
@@ -5050,8 +9027,8 @@ var init_claudeClient = __esm({
             stopReason: data.stop_reason
           });
           return {
-            text: text16,
-            content: text16,
+            text: text17,
+            content: text17,
             toolCalls: toolCalls.length > 0 ? toolCalls : void 0,
             raw: data,
             model: data.model,
@@ -5666,7 +9643,7 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
       /**
        * Call specialized sentiment model
        */
-      async analyzeSentiment(text16) {
+      async analyzeSentiment(text17) {
         const sentimentModel = "cardiffnlp/twitter-roberta-base-sentiment-latest";
         const url = `${HF_API_BASE}/${sentimentModel}`;
         const response = await fetch(url, {
@@ -5675,7 +9652,7 @@ ${req.messages.map((m) => m.content).join("\n")}` : req.messages.map((m) => m.co
             Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ inputs: text16 })
+          body: JSON.stringify({ inputs: text17 })
         });
         if (!response.ok) {
           throw new Error(`Sentiment analysis failed: ${response.status}`);
@@ -5725,7 +9702,7 @@ __export(llmGateway_exports, {
   llmGateway: () => llmGateway,
   resetLLMCacheStats: () => resetLLMCacheStats
 });
-import { randomUUID, createHash } from "crypto";
+import { randomUUID as randomUUID2, createHash } from "crypto";
 function estimateCost(tokens, costPer1kTokens) {
   return tokens / 1e3 * costPer1kTokens;
 }
@@ -5751,11 +9728,11 @@ async function logCall(callData) {
     log.warn("LLMGateway", "Failed to log LLM call", { error: String(error) });
   }
 }
-function parseJsonFromText(text16) {
+function parseJsonFromText(text17) {
   try {
-    return JSON.parse(text16);
+    return JSON.parse(text17);
   } catch {
-    const jsonMatch = text16.match(/\{[\s\S]*\}/);
+    const jsonMatch = text17.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         return JSON.parse(jsonMatch[0]);
@@ -5945,7 +9922,7 @@ async function callLLMUncached(req) {
   );
 }
 function generateTraceId() {
-  return randomUUID();
+  return randomUUID2();
 }
 function getLLMCacheStats() {
   return llmResponseCache.getStats();
@@ -6042,7 +10019,7 @@ var init_llmGateway = __esm({
        * Generate a cache key from role, system prompt, and messages
        */
       generateCacheKey(role, system, messages) {
-        const normalizeWhitespace = (text16) => text16.replace(/\s+/g, " ").trim();
+        const normalizeWhitespace = (text17) => text17.replace(/\s+/g, " ").trim();
         const systemNormalized = system ? normalizeWhitespace(system) : "";
         const messagesContent = messages.map((m) => {
           if (typeof m.content === "string") {
@@ -7111,257 +11088,6 @@ var init_orchestration2 = __esm({
   }
 });
 
-// server/lib/api-cache.ts
-var DEFAULT_FRESH_DURATION, DEFAULT_STALE_DURATION, DEFAULT_MAX_ENTRIES, ApiCache, marketDataCache, stockQuoteCache, cryptoPriceCache, newsCache, assetListCache, portfolioCache;
-var init_api_cache = __esm({
-  "server/lib/api-cache.ts"() {
-    "use strict";
-    init_logger();
-    DEFAULT_FRESH_DURATION = 60 * 1e3;
-    DEFAULT_STALE_DURATION = 30 * 60 * 1e3;
-    DEFAULT_MAX_ENTRIES = 1e3;
-    ApiCache = class {
-      cache = /* @__PURE__ */ new Map();
-      config;
-      constructor(config2 = {}) {
-        this.config = {
-          freshDuration: config2.freshDuration ?? DEFAULT_FRESH_DURATION,
-          staleDuration: config2.staleDuration ?? DEFAULT_STALE_DURATION,
-          maxEntries: config2.maxEntries ?? DEFAULT_MAX_ENTRIES
-        };
-      }
-      get(key) {
-        const entry = this.cache.get(key);
-        if (!entry) return null;
-        const now = Date.now();
-        if (now - entry.timestamp < this.config.freshDuration) {
-          return { data: entry.data, isFresh: true };
-        }
-        if (now - entry.timestamp < this.config.staleDuration) {
-          return { data: entry.data, isFresh: false };
-        }
-        this.cache.delete(key);
-        return null;
-      }
-      getFresh(key) {
-        const result = this.get(key);
-        return result?.isFresh ? result.data : null;
-      }
-      getStale(key) {
-        const result = this.get(key);
-        return result?.data ?? null;
-      }
-      set(key, data) {
-        if (this.cache.size >= this.config.maxEntries) {
-          this.evictOldest();
-        }
-        const now = Date.now();
-        this.cache.set(key, {
-          data,
-          timestamp: now,
-          staleTimestamp: now + this.config.staleDuration
-        });
-      }
-      evictOldest() {
-        let oldestKey = null;
-        let oldestTime = Infinity;
-        for (const [key, entry] of this.cache.entries()) {
-          if (entry.timestamp < oldestTime) {
-            oldestTime = entry.timestamp;
-            oldestKey = key;
-          }
-        }
-        if (oldestKey) {
-          this.cache.delete(oldestKey);
-        }
-      }
-      has(key) {
-        return this.get(key) !== null;
-      }
-      clear() {
-        this.cache.clear();
-      }
-      size() {
-        return this.cache.size;
-      }
-      getStats() {
-        const now = Date.now();
-        let freshCount = 0;
-        let staleCount = 0;
-        for (const entry of this.cache.values()) {
-          if (now - entry.timestamp < this.config.freshDuration) {
-            freshCount++;
-          } else if (now - entry.timestamp < this.config.staleDuration) {
-            staleCount++;
-          }
-        }
-        return { size: this.cache.size, freshCount, staleCount };
-      }
-    };
-    marketDataCache = new ApiCache({
-      freshDuration: 30 * 1e3,
-      staleDuration: 60 * 60 * 1e3
-    });
-    stockQuoteCache = new ApiCache({
-      freshDuration: 60 * 1e3,
-      staleDuration: 30 * 60 * 1e3
-    });
-    cryptoPriceCache = new ApiCache({
-      freshDuration: 60 * 1e3,
-      staleDuration: 30 * 60 * 1e3
-    });
-    newsCache = new ApiCache({
-      freshDuration: 5 * 60 * 1e3,
-      staleDuration: 60 * 60 * 1e3
-    });
-    assetListCache = new ApiCache({
-      freshDuration: 15 * 60 * 1e3,
-      staleDuration: 24 * 60 * 60 * 1e3
-    });
-    portfolioCache = new ApiCache({
-      freshDuration: 30 * 1e3,
-      staleDuration: 10 * 60 * 1e3
-    });
-  }
-});
-
-// server/lib/order-execution-cache.ts
-var order_execution_cache_exports = {};
-__export(order_execution_cache_exports, {
-  cacheAccountSnapshot: () => cacheAccountSnapshot,
-  cacheQuickQuote: () => cacheQuickQuote,
-  cacheTradability: () => cacheTradability,
-  clearOrderCaches: () => clearOrderCaches,
-  getAccountSnapshot: () => getAccountSnapshot,
-  getCachedBuyingPower: () => getCachedBuyingPower,
-  getCachedPrice: () => getCachedPrice,
-  getOrderCacheStats: () => getOrderCacheStats,
-  getQuickQuote: () => getQuickQuote,
-  getTradability: () => getTradability,
-  isTradable: () => isTradable,
-  preloadOrderValidationData: () => preloadOrderValidationData
-});
-function cacheQuickQuote(quote) {
-  quickQuoteCache.set(quote.symbol, quote);
-}
-function getQuickQuote(symbol) {
-  const result = quickQuoteCache.get(symbol);
-  return result?.data ?? null;
-}
-function getCachedPrice(symbol) {
-  const quote = getQuickQuote(symbol);
-  return quote?.price ?? null;
-}
-function cacheTradability(asset) {
-  tradabilityCache.set(asset.symbol, asset);
-}
-function getTradability(symbol) {
-  const result = tradabilityCache.get(symbol);
-  return result?.data ?? null;
-}
-function isTradable(symbol) {
-  const asset = getTradability(symbol);
-  return asset?.tradable ?? null;
-}
-function cacheAccountSnapshot(snapshot) {
-  accountSnapshotCache.set("account", snapshot);
-}
-function getAccountSnapshot() {
-  const result = accountSnapshotCache.get("account");
-  return result?.data ?? null;
-}
-function getCachedBuyingPower() {
-  const snapshot = getAccountSnapshot();
-  return snapshot?.buyingPower ?? null;
-}
-function preloadOrderValidationData(symbols, getQuote, getAsset, getAccount) {
-  const now = Date.now();
-  const quotePromises = symbols.map(async (symbol) => {
-    const cached = getQuickQuote(symbol);
-    if (cached) return;
-    try {
-      const quote = await getQuote(symbol);
-      cacheQuickQuote({
-        symbol,
-        price: quote.price,
-        bid: quote.bid,
-        ask: quote.ask,
-        spread: quote.ask - quote.bid,
-        timestamp: now
-      });
-    } catch {
-    }
-  });
-  const assetPromises = symbols.map(async (symbol) => {
-    const cached = getTradability(symbol);
-    if (cached) return;
-    try {
-      const asset = await getAsset(symbol);
-      cacheTradability({
-        symbol,
-        tradable: asset.tradable,
-        fractionable: asset.fractionable,
-        shortable: asset.shortable,
-        marginable: asset.marginable,
-        timestamp: now
-      });
-    } catch {
-    }
-  });
-  const accountPromise = (async () => {
-    const cached = getAccountSnapshot();
-    if (cached) return;
-    try {
-      const account = await getAccount();
-      cacheAccountSnapshot({
-        buyingPower: parseFloat(account.buying_power),
-        cash: parseFloat(account.cash),
-        equity: parseFloat(account.equity),
-        timestamp: now
-      });
-    } catch {
-    }
-  })();
-  return Promise.all([...quotePromises, ...assetPromises, accountPromise]).then(
-    () => {
-    }
-  );
-}
-function clearOrderCaches() {
-  quickQuoteCache.clear();
-  tradabilityCache.clear();
-  accountSnapshotCache.clear();
-}
-function getOrderCacheStats() {
-  return {
-    quotes: quickQuoteCache.size(),
-    tradability: tradabilityCache.size(),
-    hasAccountSnapshot: accountSnapshotCache.has("account")
-  };
-}
-var quickQuoteCache, tradabilityCache, accountSnapshotCache;
-var init_order_execution_cache = __esm({
-  "server/lib/order-execution-cache.ts"() {
-    "use strict";
-    init_api_cache();
-    quickQuoteCache = new ApiCache({
-      freshDuration: 5 * 1e3,
-      staleDuration: 30 * 1e3,
-      maxEntries: 500
-    });
-    tradabilityCache = new ApiCache({
-      freshDuration: 5 * 60 * 1e3,
-      staleDuration: 60 * 60 * 1e3,
-      maxEntries: 1e3
-    });
-    accountSnapshotCache = new ApiCache({
-      freshDuration: 10 * 1e3,
-      staleDuration: 60 * 1e3,
-      maxEntries: 1
-    });
-  }
-});
-
 // server/trading/symbol-normalizer.ts
 function isCryptoSymbol(symbol) {
   const upperSymbol = symbol.toUpperCase();
@@ -8137,7 +11863,7 @@ async function getUsageStats(provider) {
   return stats;
 }
 async function getAllUsageStats() {
-  const providers2 = [
+  const providers3 = [
     "alpaca",
     "finnhub",
     "coingecko",
@@ -8153,7 +11879,7 @@ async function getAllUsageStats() {
     "together"
   ];
   const allStats = {};
-  for (const provider of providers2) {
+  for (const provider of providers3) {
     allStats[provider] = await getUsageStats(provider);
   }
   return allStats;
@@ -8645,7 +12371,7 @@ async function getProviderStatus2(provider) {
   };
 }
 async function getAllProviderStatuses() {
-  const providers2 = [
+  const providers3 = [
     "alpaca",
     "finnhub",
     "coingecko",
@@ -8664,7 +12390,7 @@ async function getAllProviderStatuses() {
     "aitrados_econ"
   ];
   const statuses = {};
-  for (const provider of providers2) {
+  for (const provider of providers3) {
     statuses[provider] = await getProviderStatus2(provider);
   }
   return statuses;
@@ -10279,15 +14005,15 @@ var init_finra = __esm({
         if (!response.ok) {
           throw new Error(`RegSHO file not available for ${dateStr}`);
         }
-        const text16 = await response.text();
-        return this.parseRegSHOFile(text16, dateStr);
+        const text17 = await response.text();
+        return this.parseRegSHOFile(text17, dateStr);
       }
       /**
        * Parse FINRA RegSHO file format
        * Format: Date|Symbol|ShortVolume|ShortExemptVolume|TotalVolume|Market
        */
-      parseRegSHOFile(text16, dateStr) {
-        const lines = text16.split("\n").filter((line) => line.trim());
+      parseRegSHOFile(text17, dateStr) {
+        const lines = text17.split("\n").filter((line) => line.trim());
         const results = [];
         for (let i = 1; i < lines.length; i++) {
           const parts = lines[i].split("|");
@@ -10453,7 +14179,7 @@ var init_finra = __esm({
 });
 
 // server/connectors/sec-edgar.ts
-import { z as z4 } from "zod";
+import { z as z7 } from "zod";
 async function fetchSEC(url) {
   return wrapWithLimiter("sec-edgar", async () => {
     const response = await fetch(url, {
@@ -10910,12 +14636,12 @@ var init_sec_edgar = __esm({
     init_logger();
     SEC_BASE_URL = "https://data.sec.gov";
     SEC_USER_AGENT = `AI-Active-Trader/1.0 (support@aiactivetrader.com)`;
-    CompanyFactsSchema = z4.object({
-      cik: z4.union([z4.number(), z4.string()]).transform((v) => String(v)),
-      entityName: z4.string(),
-      facts: z4.object({
-        "us-gaap": z4.record(z4.any()).optional(),
-        dei: z4.record(z4.any()).optional()
+    CompanyFactsSchema = z7.object({
+      cik: z7.union([z7.number(), z7.string()]).transform((v) => String(v)),
+      entityName: z7.string(),
+      facts: z7.object({
+        "us-gaap": z7.record(z7.any()).optional(),
+        dei: z7.record(z7.any()).optional()
       })
     });
     cache = new ApiCache({
@@ -11602,162 +15328,14 @@ var init_frankfurter = __esm({
   }
 });
 
-// server/utils/money.ts
-import Decimal from "decimal.js";
-function toDecimal(value, defaultValue = 0) {
-  if (value === null || value === void 0 || value === "") {
-    return new Decimal(defaultValue ?? 0);
-  }
-  try {
-    const d = new Decimal(value);
-    if (!d.isFinite()) {
-      return new Decimal(defaultValue ?? 0);
-    }
-    return d;
-  } catch {
-    return new Decimal(defaultValue ?? 0);
-  }
-}
-function toNumber(value) {
-  if (value instanceof Decimal) {
-    return value.toNumber();
-  }
-  return toDecimal(value).toNumber();
-}
-function priceWithBuffer(price, bufferPercent, direction = 1) {
-  const p = toDecimal(price);
-  const buffer = p.times(toDecimal(bufferPercent));
-  return direction === 1 ? p.plus(buffer) : p.minus(buffer);
-}
-function roundPrice(price, decimals = 2) {
-  return toDecimal(price).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
-}
-function formatPrice(price, decimals = 2) {
-  const d = toDecimal(price);
-  if (!d.isFinite()) return "0.00";
-  return d.toFixed(decimals);
-}
-function calculateQuantity(notional, price) {
-  const p = toDecimal(price);
-  if (p.isZero()) return new Decimal(0);
-  return toDecimal(notional).dividedBy(p);
-}
-function calculateWholeShares(notional, price) {
-  return calculateQuantity(notional, price).floor();
-}
-function partialQuantity(quantity, percent) {
-  return toDecimal(quantity).times(toDecimal(percent)).dividedBy(100);
-}
-function calculatePnL(entryPrice, exitPrice, quantity, side = "long") {
-  const entry = toDecimal(entryPrice);
-  const exit = toDecimal(exitPrice);
-  const qty = toDecimal(quantity);
-  if (!entry.isFinite() || !exit.isFinite() || !qty.isFinite()) {
-    return new Decimal(0);
-  }
-  if (side === "long") {
-    return exit.minus(entry).times(qty);
-  } else {
-    return entry.minus(exit).times(qty);
-  }
-}
-function percentChange(current, previous) {
-  const prev = toDecimal(previous);
-  if (prev.isZero()) return new Decimal(0);
-  const curr = toDecimal(current);
-  return curr.minus(prev).dividedBy(prev).times(100);
-}
-function percentOf(value, percent) {
-  return toDecimal(value).times(toDecimal(percent)).dividedBy(100);
-}
-function positionValue(quantity, price) {
-  return toDecimal(quantity).times(toDecimal(price));
-}
-function calculateSlippage(price, slippageBps, side) {
-  const p = toDecimal(price);
-  const slippage = p.times(toDecimal(slippageBps)).dividedBy(1e4);
-  return side === "buy" ? slippage : slippage.negated();
-}
-function calculateFeePercent(notional, feePercent) {
-  return toDecimal(notional).times(toDecimal(feePercent)).dividedBy(100);
-}
-function trailingStopPrice(highWaterMark, trailPercent) {
-  const hwm = toDecimal(highWaterMark);
-  const trail = percentOf(hwm, trailPercent);
-  return hwm.minus(trail);
-}
-function kellyFraction(winRate, avgWin, avgLoss) {
-  const w = toDecimal(winRate);
-  const win = toDecimal(avgWin);
-  const loss = toDecimal(avgLoss).abs();
-  if (win.isZero() || loss.isZero()) return new Decimal(0);
-  const lossRate = new Decimal(1).minus(w);
-  const winLossRatio = win.dividedBy(loss);
-  const kelly = winLossRatio.times(w).minus(lossRate).dividedBy(winLossRatio);
-  return Decimal.max(kelly, 0);
-}
-function kellySuggestedSize(portfolioValue, kellyFrac, fraction = 0.25, maxPercent = 10) {
-  const adjustedKelly = toDecimal(kellyFrac).times(toDecimal(fraction));
-  const kellyPercent = adjustedKelly.times(100);
-  const cappedPercent = Decimal.min(kellyPercent, toDecimal(maxPercent));
-  return percentOf(portfolioValue, cappedPercent);
-}
-function mean(values) {
-  if (values.length === 0) return new Decimal(0);
-  const sum = values.reduce(
-    (acc, v) => acc.plus(toDecimal(v)),
-    new Decimal(0)
-  );
-  return sum.dividedBy(values.length);
-}
-function variance(values) {
-  if (values.length < 2) return new Decimal(0);
-  const avg = mean(values);
-  const squaredDiffs = values.map((v) => toDecimal(v).minus(avg).pow(2));
-  return mean(squaredDiffs);
-}
-function stdDev(values) {
-  return variance(values).sqrt();
-}
-function sharpeRatio(returns, riskFreeRate = 0, periodsPerYear = 252) {
-  if (returns.length === 0) return new Decimal(0);
-  const avgReturn = mean(returns);
-  const std = stdDev(returns);
-  if (std.isZero()) return new Decimal(0);
-  const rf = toDecimal(riskFreeRate).dividedBy(periodsPerYear);
-  const excessReturn = avgReturn.minus(rf);
-  const annualizationFactor = new Decimal(periodsPerYear).sqrt();
-  return excessReturn.dividedBy(std).times(annualizationFactor);
-}
-function zScore(value, avg, std) {
-  const s = toDecimal(std);
-  if (s.isZero()) return new Decimal(0);
-  return toDecimal(value).minus(toDecimal(avg)).dividedBy(s);
-}
-var init_money = __esm({
-  "server/utils/money.ts"() {
-    "use strict";
-    Decimal.set({
-      precision: 20,
-      // High precision for intermediate calculations
-      rounding: Decimal.ROUND_HALF_UP,
-      // Standard financial rounding
-      toExpNeg: -9,
-      // Don't use exponential notation for small numbers
-      toExpPos: 21
-      // Don't use exponential notation for large numbers
-    });
-  }
-});
-
 // server/ai/technical-analysis-fallback.ts
-var CACHE_TTL_MS, analysisCache, ANALYSIS_CACHE_TTL_MS, ANALYSIS_STALE_TTL_MS, TechnicalAnalysisFallback, technicalAnalysisFallback;
+var CACHE_TTL_MS2, analysisCache, ANALYSIS_CACHE_TTL_MS, ANALYSIS_STALE_TTL_MS, TechnicalAnalysisFallback, technicalAnalysisFallback;
 var init_technical_analysis_fallback = __esm({
   "server/ai/technical-analysis-fallback.ts"() {
     "use strict";
     init_logger();
     init_money();
-    CACHE_TTL_MS = 5 * 60 * 1e3;
+    CACHE_TTL_MS2 = 5 * 60 * 1e3;
     analysisCache = /* @__PURE__ */ new Map();
     ANALYSIS_CACHE_TTL_MS = 2 * 60 * 1e3;
     ANALYSIS_STALE_TTL_MS = 10 * 60 * 1e3;
@@ -12769,7 +16347,7 @@ var init_technical_analysis_fallback = __esm({
 });
 
 // server/ai/decision-engine.ts
-import pLimit from "p-limit";
+import pLimit2 from "p-limit";
 import pRetry from "p-retry";
 async function executeToolCall(name, args) {
   try {
@@ -13005,7 +16583,7 @@ function isRateLimitOrQuotaError(error) {
   errorMsg.includes("429") || errorMsg.includes("402") || // Payment required - budget exhausted
   errorMsg.includes("403") || errorMsg.includes("RATELIMIT_EXCEEDED") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("rate limit") || errorMsg.toLowerCase().includes("spend limit") || errorMsg.toLowerCase().includes("exceeded") || errorMsg.toLowerCase().includes("budget") || errorMsg.toLowerCase().includes("credits") || errorMsg.toLowerCase().includes("payment");
 }
-var DATA_QUERY_TOOLS, limit, AIDecisionEngine, aiDecisionEngine;
+var DATA_QUERY_TOOLS, limit2, AIDecisionEngine, aiDecisionEngine;
 var init_decision_engine = __esm({
   "server/ai/decision-engine.ts"() {
     "use strict";
@@ -13225,7 +16803,7 @@ var init_decision_engine = __esm({
         }
       }
     ];
-    limit = pLimit(2);
+    limit2 = pLimit2(2);
     AIDecisionEngine = class {
       getSystemPrompt() {
         return `You are an expert trading analyst AI assistant for a paper trading application. Your role is to analyze market data and provide trading recommendations.
@@ -13257,7 +16835,7 @@ This is for PAPER TRADING only - educational purposes. Be decisive but conservat
         );
         const traceId = options?.traceId || generateTraceId();
         const criticality = options?.criticality || "high";
-        return limit(
+        return limit2(
           () => pRetry(
             async () => {
               try {
@@ -14545,17 +18123,17 @@ var init_huggingface = __esm({
           throw error;
         }
       }
-      async analyzeSentiment(text16, model = "finbert") {
+      async analyzeSentiment(text17, model = "finbert") {
         const modelIds = {
           finbert: "ProsusAI/finbert",
           financialbert: "ahmedrachid/FinancialBERT-Sentiment-Analysis",
           deberta: "mrm8488/deberta-v3-ft-financial-news-sentiment-analysis"
         };
         const modelId = modelIds[model];
-        const l1CacheKey = `sentiment_${model}_${text16.substring(0, 50)}`;
+        const l1CacheKey = `sentiment_${model}_${text17.substring(0, 50)}`;
         const result = await this.callModel(
           modelId,
-          text16,
+          text17,
           l1CacheKey,
           this.rawSentimentCache
         );
@@ -14919,12 +18497,12 @@ var init_ai_analyzer = __esm({
           "sell"
         ];
         let score = 0;
-        const text16 = headlines.join(" ").toLowerCase();
+        const text17 = headlines.join(" ").toLowerCase();
         for (const word of bullishWords) {
-          if (text16.includes(word)) score++;
+          if (text17.includes(word)) score++;
         }
         for (const word of bearishWords) {
-          if (text16.includes(word)) score--;
+          if (text17.includes(word)) score--;
         }
         if (score > 1) return "bullish";
         if (score < -1) return "bearish";
@@ -15306,27 +18884,6 @@ var init_ai_analyzer = __esm({
   }
 });
 
-// server/utils/numeric.ts
-function safeParseFloat(value, defaultValue = 0) {
-  if (value === null || value === void 0 || value === "") {
-    return defaultValue;
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : defaultValue;
-  }
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    return defaultValue;
-  }
-  return toNumber(toDecimal(trimmed, defaultValue));
-}
-var init_numeric = __esm({
-  "server/utils/numeric.ts"() {
-    "use strict";
-    init_money();
-  }
-});
-
 // server/trading/risk-validator.ts
 async function checkRiskLimits(side, symbol, tradeValue, killSwitchActive, normalizeSymbolForAlpaca3) {
   const status = await storage.getAgentStatus();
@@ -15430,145 +18987,6 @@ var init_risk_validator = __esm({
     init_money();
     init_alpaca();
     init_numeric();
-  }
-});
-
-// server/services/tradability-service.ts
-function mapAlpacaAssetToInsert(asset) {
-  return {
-    alpacaId: asset.id,
-    symbol: asset.symbol.toUpperCase(),
-    name: asset.name,
-    assetClass: asset.class === "crypto" ? "crypto" : "us_equity",
-    exchange: asset.exchange,
-    status: asset.status,
-    tradable: asset.tradable,
-    marginable: asset.marginable,
-    shortable: asset.shortable,
-    easyToBorrow: asset.easy_to_borrow,
-    fractionable: asset.fractionable,
-    lastSyncedAt: /* @__PURE__ */ new Date()
-  };
-}
-function brokerAssetToTradabilityCheck(asset) {
-  return {
-    symbol: asset.symbol,
-    tradable: asset.tradable,
-    assetClass: asset.assetClass,
-    exchange: asset.exchange,
-    fractionable: asset.fractionable,
-    marginable: asset.marginable,
-    shortable: asset.shortable,
-    lastSyncedAt: asset.lastSyncedAt,
-    reason: asset.tradable ? void 0 : `Asset status: ${asset.status}`
-  };
-}
-var SYNC_STALE_THRESHOLD_MS, CACHE_TTL_MS2, memoryCache, TradabilityService, tradabilityService;
-var init_tradability_service = __esm({
-  "server/services/tradability-service.ts"() {
-    "use strict";
-    init_storage();
-    init_alpaca();
-    init_logger();
-    SYNC_STALE_THRESHOLD_MS = 24 * 60 * 60 * 1e3;
-    CACHE_TTL_MS2 = 5 * 60 * 1e3;
-    memoryCache = /* @__PURE__ */ new Map();
-    TradabilityService = class {
-      async validateSymbolTradable(symbol) {
-        const normalizedSymbol = symbol.toUpperCase();
-        const cached = memoryCache.get(normalizedSymbol);
-        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS2) {
-          return cached.check;
-        }
-        const dbAsset = await storage.getBrokerAsset(normalizedSymbol);
-        if (dbAsset) {
-          const check = brokerAssetToTradabilityCheck(dbAsset);
-          memoryCache.set(normalizedSymbol, { check, cachedAt: Date.now() });
-          return check;
-        }
-        try {
-          const alpacaAsset = await alpaca.getAsset(normalizedSymbol);
-          if (alpacaAsset) {
-            const insertAsset = mapAlpacaAssetToInsert(alpacaAsset);
-            const savedAsset = await storage.upsertBrokerAsset(insertAsset);
-            const check = brokerAssetToTradabilityCheck(savedAsset);
-            memoryCache.set(normalizedSymbol, { check, cachedAt: Date.now() });
-            return check;
-          }
-        } catch (error) {
-          log.warn(
-            "tradability",
-            `Failed to fetch asset ${normalizedSymbol} from Alpaca`,
-            { error: error.message }
-          );
-        }
-        const notFoundCheck = {
-          symbol: normalizedSymbol,
-          tradable: false,
-          reason: "Symbol not found in broker asset universe"
-        };
-        memoryCache.set(normalizedSymbol, {
-          check: notFoundCheck,
-          cachedAt: Date.now()
-        });
-        return notFoundCheck;
-      }
-      async validateSymbolsTradable(symbols) {
-        const results = /* @__PURE__ */ new Map();
-        for (const symbol of symbols) {
-          const check = await this.validateSymbolTradable(symbol);
-          results.set(symbol.toUpperCase(), check);
-        }
-        return results;
-      }
-      async syncAssetUniverse(assetClass = "us_equity") {
-        const errors = [];
-        let synced = 0;
-        let tradable = 0;
-        try {
-          log.info("tradability", `Starting universe sync for ${assetClass}`);
-          const assets = await alpaca.getAssets("active", assetClass);
-          log.info(
-            "tradability",
-            `Fetched ${assets.length} ${assetClass} assets from Alpaca`
-          );
-          const insertAssets = assets.map(mapAlpacaAssetToInsert);
-          synced = await storage.bulkUpsertBrokerAssets(insertAssets);
-          tradable = assets.filter((a) => a.tradable).length;
-          log.info(
-            "tradability",
-            `Universe sync complete: ${synced} synced, ${tradable} tradable`
-          );
-        } catch (error) {
-          errors.push(`Sync failed for ${assetClass}: ${error.message}`);
-          log.error("tradability", `Universe sync error: ${error.message}`);
-        }
-        return { synced, tradable, errors };
-      }
-      async getUniverseStats() {
-        const equityCount = await storage.getBrokerAssetCount("us_equity");
-        const cryptoCount = await storage.getBrokerAssetCount("crypto");
-        const lastSyncedAt = await storage.getLastAssetSyncTime();
-        const tradableEquities = (await storage.getBrokerAssets("us_equity", true)).length;
-        const tradableCrypto = (await storage.getBrokerAssets("crypto", true)).length;
-        const isStale = !lastSyncedAt || Date.now() - lastSyncedAt.getTime() > SYNC_STALE_THRESHOLD_MS;
-        return {
-          totalAssets: equityCount + cryptoCount,
-          tradableEquities,
-          tradableCrypto,
-          lastSyncedAt,
-          isStale
-        };
-      }
-      async searchSymbols(query, limit4 = 20) {
-        return storage.searchBrokerAssets(query, limit4);
-      }
-      clearMemoryCache() {
-        memoryCache.clear();
-        log.info("tradability", "Memory cache cleared");
-      }
-    };
-    tradabilityService = new TradabilityService();
   }
 });
 
@@ -19208,8 +22626,8 @@ var init_coingecko = __esm({
           cacheKey,
           this.ohlcCache
         );
-        return rawData.map(([timestamp16, open, high, low, close]) => ({
-          timestamp: timestamp16,
+        return rawData.map(([timestamp18, open, high, low, close]) => ({
+          timestamp: timestamp18,
           open,
           high,
           low,
@@ -20045,483 +23463,6 @@ var init_candidatesService = __esm({
       }
     };
     candidatesService = new CandidatesService();
-  }
-});
-
-// server/lib/performance-metrics.ts
-var performance_metrics_exports = {};
-__export(performance_metrics_exports, {
-  performanceTracker: () => performanceTracker
-});
-function createEmptyMetric() {
-  return {
-    count: 0,
-    totalMs: 0,
-    minMs: Infinity,
-    maxMs: 0,
-    p50Ms: 0,
-    p95Ms: 0,
-    p99Ms: 0,
-    samples: []
-  };
-}
-function calculatePercentile(samples, percentile) {
-  if (samples.length === 0) return 0;
-  const sorted = [...samples].sort((a, b) => a - b);
-  const index16 = Math.ceil(percentile / 100 * sorted.length) - 1;
-  return sorted[Math.max(0, index16)];
-}
-function updateMetric(metric, durationMs) {
-  metric.count++;
-  metric.totalMs += durationMs;
-  metric.minMs = Math.min(metric.minMs, durationMs);
-  metric.maxMs = Math.max(metric.maxMs, durationMs);
-  metric.samples.push(durationMs);
-  if (metric.samples.length > MAX_SAMPLES) {
-    metric.samples.shift();
-  }
-  metric.p50Ms = calculatePercentile(metric.samples, 50);
-  metric.p95Ms = calculatePercentile(metric.samples, 95);
-  metric.p99Ms = calculatePercentile(metric.samples, 99);
-}
-var MAX_SAMPLES, PerformanceTracker, performanceTracker;
-var init_performance_metrics = __esm({
-  "server/lib/performance-metrics.ts"() {
-    "use strict";
-    MAX_SAMPLES = 1e3;
-    PerformanceTracker = class {
-      metrics = {
-        orderExecution: createEmptyMetric(),
-        quoteRetrieval: createEmptyMetric(),
-        aiDecision: createEmptyMetric(),
-        databaseQuery: createEmptyMetric(),
-        apiCall: createEmptyMetric()
-      };
-      startTimes = /* @__PURE__ */ new Map();
-      startTimer(operationId) {
-        this.startTimes.set(operationId, Date.now());
-      }
-      endTimer(operationId, metricType) {
-        const startTime = this.startTimes.get(operationId);
-        if (!startTime) return 0;
-        const durationMs = Date.now() - startTime;
-        this.startTimes.delete(operationId);
-        updateMetric(this.metrics[metricType], durationMs);
-        return durationMs;
-      }
-      recordLatency(metricType, durationMs) {
-        updateMetric(this.metrics[metricType], durationMs);
-      }
-      async measure(metricType, operation) {
-        const start = Date.now();
-        const result = await operation();
-        const durationMs = Date.now() - start;
-        updateMetric(this.metrics[metricType], durationMs);
-        return { result, durationMs };
-      }
-      getMetrics() {
-        return { ...this.metrics };
-      }
-      getMetricSummary(metricType) {
-        const metric = this.metrics[metricType];
-        return {
-          avgMs: metric.count > 0 ? metric.totalMs / metric.count : 0,
-          minMs: metric.minMs === Infinity ? 0 : metric.minMs,
-          maxMs: metric.maxMs,
-          p50Ms: metric.p50Ms,
-          p95Ms: metric.p95Ms,
-          p99Ms: metric.p99Ms,
-          count: metric.count
-        };
-      }
-      getSLOStatus() {
-        return {
-          orderExecutionP99Under50ms: this.metrics.orderExecution.p99Ms < 50,
-          quoteRetrievalP99Under10ms: this.metrics.quoteRetrieval.p99Ms < 10,
-          aiDecisionP99Under5s: this.metrics.aiDecision.p99Ms < 5e3
-        };
-      }
-      reset() {
-        this.metrics = {
-          orderExecution: createEmptyMetric(),
-          quoteRetrieval: createEmptyMetric(),
-          aiDecision: createEmptyMetric(),
-          databaseQuery: createEmptyMetric(),
-          apiCall: createEmptyMetric()
-        };
-        this.startTimes.clear();
-      }
-    };
-    performanceTracker = new PerformanceTracker();
-  }
-});
-
-// server/lib/email-service.ts
-import sgMail from "@sendgrid/mail";
-async function sendEmail(options) {
-  if (!apiKey) {
-    return {
-      success: false,
-      error: "SENDGRID_API_KEY not configured"
-    };
-  }
-  try {
-    const [response] = await sgMail.send({
-      to: options.to,
-      from: options.from,
-      subject: options.subject,
-      text: options.text,
-      html: options.html || `<p>${options.text}</p>`,
-      replyTo: options.replyTo
-    });
-    log.info("Email", "Email sent successfully", {
-      to: Array.isArray(options.to) ? options.to.length : 1,
-      subject: options.subject.substring(0, 50),
-      statusCode: response.statusCode
-    });
-    return {
-      success: true,
-      messageId: response.headers["x-message-id"]
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log.error("Email", "Failed to send email", {
-      error: errorMessage,
-      to: options.to,
-      subject: options.subject
-    });
-    return {
-      success: false,
-      error: errorMessage
-    };
-  }
-}
-async function sendPasswordResetEmail(options) {
-  const subject = "AlphaFlow - Password Reset Request";
-  const text16 = `
-Hello ${options.username},
-
-You requested a password reset for your AlphaFlow account.
-
-Click the link below to reset your password (valid for 1 hour):
-${options.resetUrl}?token=${options.resetToken}
-
-If you did not request this reset, please ignore this email.
-
-Best regards,
-The AlphaFlow Team
-`;
-  const html = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h2 style="color: #3b82f6;">Password Reset Request</h2>
-  <p>Hello <strong>${options.username}</strong>,</p>
-  <p>You requested a password reset for your AlphaFlow account.</p>
-  <p style="margin: 20px 0;">
-    <a href="${options.resetUrl}?token=${options.resetToken}"
-       style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
-      Reset Password
-    </a>
-  </p>
-  <p style="color: #6b7280; font-size: 14px;">This link is valid for 1 hour.</p>
-  <p style="color: #6b7280; font-size: 14px;">If you did not request this reset, please ignore this email.</p>
-  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-  <p style="color: #9ca3af; font-size: 12px;">Best regards,<br>The AlphaFlow Team</p>
-</div>
-`;
-  return sendEmail({
-    to: options.to,
-    from: options.from,
-    subject,
-    text: text16,
-    html
-  });
-}
-function isEmailConfigured() {
-  return !!apiKey;
-}
-var apiKey;
-var init_email_service = __esm({
-  "server/lib/email-service.ts"() {
-    "use strict";
-    init_logger();
-    apiKey = process.env.SENDGRID_API_KEY;
-    if (apiKey) {
-      sgMail.setApiKey(apiKey);
-      log.info("Email", "SendGrid initialized");
-    } else {
-      log.warn("Email", "SENDGRID_API_KEY not set - email notifications disabled");
-    }
-  }
-});
-
-// server/lib/notification-service.ts
-var notification_service_exports = {};
-__export(notification_service_exports, {
-  createDefaultTemplates: () => createDefaultTemplates,
-  deleteChannel: () => deleteChannel,
-  deleteTemplate: () => deleteTemplate,
-  getChannel: () => getChannel,
-  getChannels: () => getChannels,
-  getNotificationHistory: () => getNotificationHistory,
-  getNotificationStats: () => getNotificationStats,
-  getTemplates: () => getTemplates,
-  registerChannel: () => registerChannel,
-  registerTemplate: () => registerTemplate,
-  sendDirectNotification: () => sendDirectNotification,
-  sendNotification: () => sendNotification,
-  updateChannel: () => updateChannel,
-  updateTemplate: () => updateTemplate
-});
-function registerChannel(channel) {
-  channels.set(channel.id, channel);
-}
-function getChannel(id) {
-  return channels.get(id);
-}
-function getChannels() {
-  return Array.from(channels.values());
-}
-function updateChannel(id, updates) {
-  const channel = channels.get(id);
-  if (!channel) return null;
-  const updated = { ...channel, ...updates, id: channel.id };
-  channels.set(id, updated);
-  return updated;
-}
-function deleteChannel(id) {
-  return channels.delete(id);
-}
-function registerTemplate(template) {
-  templates.set(template.id, template);
-}
-function getTemplates() {
-  return Array.from(templates.values());
-}
-function updateTemplate(id, updates) {
-  const template = templates.get(id);
-  if (!template) return null;
-  const updated = { ...template, ...updates, id: template.id };
-  templates.set(id, updated);
-  return updated;
-}
-function deleteTemplate(id) {
-  return templates.delete(id);
-}
-function formatMessage(template, data) {
-  let message = template;
-  for (const [key, value] of Object.entries(data)) {
-    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g");
-    message = message.replace(regex, String(value ?? ""));
-  }
-  message = message.replace(/\{\{[^}]+\}\}/g, "");
-  return message;
-}
-async function sendTelegram(config2, message) {
-  const url = `https://api.telegram.org/bot${config2.botToken}/sendMessage`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: config2.chatId,
-      text: message,
-      parse_mode: "HTML"
-    })
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Telegram API error: ${response.status} - ${error}`);
-  }
-}
-async function sendSlack(config2, message) {
-  const response = await fetch(config2.webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: message,
-      channel: config2.channel
-    })
-  });
-  if (!response.ok) {
-    throw new Error(`Slack webhook error: ${response.status}`);
-  }
-}
-async function sendDiscord(config2, message) {
-  const response = await fetch(config2.webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content: message })
-  });
-  if (!response.ok) {
-    throw new Error(`Discord webhook error: ${response.status}`);
-  }
-}
-async function sendToChannel(channel, message) {
-  const result = {
-    channelId: channel.id,
-    channelType: channel.type,
-    success: false,
-    timestamp: /* @__PURE__ */ new Date()
-  };
-  try {
-    switch (channel.type) {
-      case "telegram":
-        await sendTelegram(channel.config, message);
-        result.success = true;
-        break;
-      case "slack":
-        await sendSlack(channel.config, message);
-        result.success = true;
-        break;
-      case "discord":
-        await sendDiscord(channel.config, message);
-        result.success = true;
-        break;
-      case "email": {
-        if (!isEmailConfigured()) {
-          result.error = "SENDGRID_API_KEY not configured";
-          log.warn("Notification", "Email skipped - SendGrid not configured", {
-            channelId: channel.id
-          });
-          break;
-        }
-        const emailConfig = channel.config;
-        const emailResult = await sendEmail({
-          to: emailConfig.to,
-          from: emailConfig.from,
-          subject: message.substring(0, 100).replace(/<[^>]*>/g, ""),
-          text: message.replace(/<[^>]*>/g, ""),
-          html: message.replace(/\n/g, "<br>"),
-          replyTo: emailConfig.replyTo
-        });
-        if (emailResult.success) {
-          result.success = true;
-          log.info("Notification", "Email sent successfully", {
-            channelId: channel.id,
-            to: emailConfig.to.length
-          });
-        } else {
-          result.error = emailResult.error;
-        }
-        break;
-      }
-      default:
-        result.error = `Unsupported channel type: ${channel.type}`;
-    }
-  } catch (error) {
-    result.error = error instanceof Error ? error.message : String(error);
-  }
-  notificationHistory.unshift(result);
-  if (notificationHistory.length > MAX_HISTORY2) {
-    notificationHistory.pop();
-  }
-  return result;
-}
-async function sendNotification(eventType, data) {
-  const results = [];
-  for (const template of templates.values()) {
-    if (!template.enabled) continue;
-    if (template.eventType !== eventType && template.eventType !== "*")
-      continue;
-    const message = formatMessage(template.messageTemplate, {
-      ...data,
-      eventType
-    });
-    for (const channelId of template.channels) {
-      const channel = channels.get(channelId);
-      if (!channel || !channel.enabled) continue;
-      const result = await sendToChannel(channel, message);
-      results.push(result);
-    }
-  }
-  return results;
-}
-async function sendDirectNotification(channelId, message) {
-  const channel = channels.get(channelId);
-  if (!channel) return null;
-  return sendToChannel(channel, message);
-}
-function getNotificationHistory(limit4 = 50) {
-  return notificationHistory.slice(0, limit4);
-}
-function getNotificationStats() {
-  const total = notificationHistory.length;
-  const successful = notificationHistory.filter((n) => n.success).length;
-  return {
-    totalChannels: channels.size,
-    enabledChannels: Array.from(channels.values()).filter((c) => c.enabled).length,
-    totalTemplates: templates.size,
-    recentNotifications: total,
-    successRate: total > 0 ? successful / total : 1
-  };
-}
-function createDefaultTemplates() {
-  const defaultTemplates = [
-    {
-      id: "trade-order-submitted",
-      name: "Trade Order Submitted",
-      eventType: "trade.order.submitted",
-      channels: [],
-      messageTemplate: "\u{1F4CA} <b>Order Submitted</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
-      enabled: true
-    },
-    {
-      id: "trade-order-filled",
-      name: "Trade Order Filled",
-      eventType: "trade.order.filled",
-      channels: [],
-      messageTemplate: "\u2705 <b>Order Filled</b>\n{{side}} {{qty}} {{symbol}} @ ${{price}}\nOrder ID: {{orderId}}",
-      enabled: true
-    },
-    {
-      id: "trade-order-rejected",
-      name: "Trade Order Rejected",
-      eventType: "trade.order.rejected",
-      channels: [],
-      messageTemplate: "\u274C <b>Order Rejected</b>\n{{side}} {{qty}} {{symbol}}\nReason: {{reason}}",
-      enabled: true
-    },
-    {
-      id: "ai-decision",
-      name: "AI Decision Generated",
-      eventType: "ai.decision.generated",
-      channels: [],
-      messageTemplate: "\u{1F916} <b>AI Decision</b>\nSymbol: {{symbol}}\nAction: {{action}}\nConfidence: {{confidence}}%\nReason: {{reasoning}}",
-      enabled: true
-    },
-    {
-      id: "position-opened",
-      name: "Position Opened",
-      eventType: "trade.position.opened",
-      channels: [],
-      messageTemplate: "\u{1F4C8} <b>Position Opened</b>\n{{side}} {{qty}} {{symbol}} @ ${{entryPrice}}",
-      enabled: true
-    },
-    {
-      id: "position-closed",
-      name: "Position Closed",
-      eventType: "trade.position.closed",
-      channels: [],
-      messageTemplate: "\u{1F4C9} <b>Position Closed</b>\n{{symbol}} closed\nP/L: ${{pnl}} ({{pnlPercent}}%)",
-      enabled: true
-    }
-  ];
-  for (const template of defaultTemplates) {
-    if (!templates.has(template.id)) {
-      templates.set(template.id, template);
-    }
-  }
-}
-var channels, templates, notificationHistory, MAX_HISTORY2;
-var init_notification_service = __esm({
-  "server/lib/notification-service.ts"() {
-    "use strict";
-    init_logger();
-    init_email_service();
-    channels = /* @__PURE__ */ new Map();
-    templates = /* @__PURE__ */ new Map();
-    notificationHistory = [];
-    MAX_HISTORY2 = 200;
-    createDefaultTemplates();
   }
 });
 
@@ -21549,7 +24490,7 @@ var init_tradingEnforcement = __esm({
 });
 
 // server/universe/allocationService.ts
-import { eq as eq13, and as and11, desc as desc7, sql as sql22 } from "drizzle-orm";
+import { eq as eq13, and as and11, desc as desc7, sql as sql24 } from "drizzle-orm";
 var AllocationService, allocationService;
 var init_allocationService = __esm({
   "server/universe/allocationService.ts"() {
@@ -21588,7 +24529,7 @@ var init_allocationService = __esm({
           await db.update(allocationPolicies).set({ isActive: false, updatedAt: /* @__PURE__ */ new Date() }).where(
             and11(
               eq13(allocationPolicies.isActive, true),
-              sql22`${allocationPolicies.id} != ${id}`
+              sql24`${allocationPolicies.id} != ${id}`
             )
           );
         }
@@ -23217,12 +26158,12 @@ var init_data_fusion_engine2 = __esm({
             let bullishCount = 0;
             let bearishCount = 0;
             recentNews.forEach((article) => {
-              const text16 = (article.headline + " " + article.summary).toLowerCase();
+              const text17 = (article.headline + " " + article.summary).toLowerCase();
               sentimentKeywords.bullish.forEach((kw) => {
-                if (text16.includes(kw)) bullishCount++;
+                if (text17.includes(kw)) bullishCount++;
               });
               sentimentKeywords.bearish.forEach((kw) => {
-                if (text16.includes(kw)) bearishCount++;
+                if (text17.includes(kw)) bearishCount++;
               });
             });
             if (bullishCount > bearishCount + 3) {
@@ -24166,8 +27107,8 @@ async function backtestMeanReversionStrategy(config2, lookbackDays = 365) {
   for (let i = 0; i < closePrices.length; i++) {
     const date = new Date(timestamps[i] * 1e3).toISOString().split("T")[0];
     const price = closePrices[i];
-    const z10 = zScores[i];
-    if (!inPosition && z10 !== null && z10 <= -normalizedConfig.deviationThreshold) {
+    const z12 = zScores[i];
+    if (!inPosition && z12 !== null && z12 <= -normalizedConfig.deviationThreshold) {
       inPosition = true;
       entryPrice = price;
       entryEquity = equity;
@@ -24175,7 +27116,7 @@ async function backtestMeanReversionStrategy(config2, lookbackDays = 365) {
       holdingDays = 0;
     } else if (inPosition) {
       holdingDays++;
-      const shouldExit = positionSide === "long" && z10 !== null && z10 >= 0 || holdingDays >= normalizedConfig.maxHoldingPeriod;
+      const shouldExit = positionSide === "long" && z12 !== null && z12 >= 0 || holdingDays >= normalizedConfig.maxHoldingPeriod;
       if (shouldExit) {
         const returnPct = positionSide === "long" ? (price - entryPrice) / entryPrice : (entryPrice - price) / entryPrice;
         equity = entryEquity * (1 + returnPct * normalizedConfig.allocationPct);
@@ -26026,8 +28967,12 @@ async function getAuditStats() {
     const now = /* @__PURE__ */ new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1e3);
-    const todayLogs = logs.filter((l) => new Date(l.timestamp) >= today);
-    const weekLogs = logs.filter((l) => new Date(l.timestamp) >= thisWeek);
+    const todayLogs = logs.filter(
+      (l) => new Date(l.timestamp) >= today
+    );
+    const weekLogs = logs.filter(
+      (l) => new Date(l.timestamp) >= thisWeek
+    );
     const errorLogs = logs.filter(
       (l) => l.responseStatus && l.responseStatus >= 400
     );
@@ -26139,8 +29084,21 @@ init_storage();
 init_logger();
 init_trading_config();
 init_money();
-var VALID_ORDER_TYPES = ["market", "limit", "stop", "stop_limit", "trailing_stop"];
-var VALID_TIME_IN_FORCE = ["day", "gtc", "opg", "cls", "ioc", "fok"];
+var VALID_ORDER_TYPES = [
+  "market",
+  "limit",
+  "stop",
+  "stop_limit",
+  "trailing_stop"
+];
+var VALID_TIME_IN_FORCE = [
+  "day",
+  "gtc",
+  "opg",
+  "cls",
+  "ioc",
+  "fok"
+];
 function toOrderType(value, fallback = "limit") {
   if (value && VALID_ORDER_TYPES.includes(value)) {
     return value;
@@ -26626,7 +29584,9 @@ var rejectionHandlers = [
                   side: "sell",
                   qty: availableQty.toString(),
                   type: toOrderType(order.order.type || "limit"),
-                  time_in_force: toTimeInForce(order.order.time_in_force || "day"),
+                  time_in_force: toTimeInForce(
+                    order.order.time_in_force || "day"
+                  ),
                   limit_price: order.order.limit_price || void 0,
                   extended_hours: order.order.extended_hours
                 },
@@ -27406,7 +30366,7 @@ var AlpacaStreamManager = class {
     }
   }
   async handleTradeUpdate(update) {
-    const { event, order, timestamp: timestamp16, price, qty, execution_id } = update;
+    const { event, order, timestamp: timestamp18, price, qty, execution_id } = update;
     const brokerOrderId = order.id;
     log.info(
       "AlpacaStream",
@@ -27459,7 +30419,7 @@ var AlpacaStreamManager = class {
         filledPrice: order.filled_avg_price || void 0
       });
       if ((event === "fill" || event === "partial_fill") && price && qty) {
-        const fillId = execution_id || `${brokerOrderId}-${qty}-${price}-${Math.floor(new Date(timestamp16).getTime() / 1e3)}`;
+        const fillId = execution_id || `${brokerOrderId}-${qty}-${price}-${Math.floor(new Date(timestamp18).getTime() / 1e3)}`;
         try {
           await storage.createFill({
             broker: "alpaca",
@@ -27470,7 +30430,7 @@ var AlpacaStreamManager = class {
             side: order.side,
             qty,
             price,
-            occurredAt: new Date(timestamp16),
+            occurredAt: new Date(timestamp18),
             traceId,
             rawJson: update
           });
@@ -27971,1458 +30931,14 @@ var marketConditionAnalyzer = new MarketConditionAnalyzer();
 
 // server/autonomous/orchestrator.ts
 init_logger();
-
-// server/trading/order-execution-flow.ts
-init_alpaca();
-init_storage();
-init_numeric();
-init_money();
-init_performance_metrics();
-init_order_execution_cache();
-import { randomUUID as randomUUID2 } from "crypto";
-
-// server/lib/webhook-emitter.ts
-init_logger();
-import pLimit2 from "p-limit";
-var webhooks = /* @__PURE__ */ new Map();
-var deliveryHistory = [];
-var MAX_HISTORY = 100;
-var limit2 = pLimit2(5);
-function registerWebhook(config2) {
-  webhooks.set(config2.id, config2);
-  log.info("Webhook", "Registered", {
-    name: config2.name,
-    id: config2.id,
-    url: config2.url
-  });
-}
-function unregisterWebhook(id) {
-  const result = webhooks.delete(id);
-  if (result) {
-    log.info("Webhook", "Unregistered", { id });
-  }
-  return result;
-}
-function getWebhooks() {
-  return Array.from(webhooks.values());
-}
-function getWebhook(id) {
-  return webhooks.get(id);
-}
-function updateWebhook(id, updates) {
-  const existing = webhooks.get(id);
-  if (!existing) return void 0;
-  const updated = { ...existing, ...updates };
-  webhooks.set(id, updated);
-  return updated;
-}
-async function deliverWebhook(webhook, event) {
-  const startTime = Date.now();
-  const attempt = {
-    webhookId: webhook.id,
-    eventId: event.id,
-    eventType: event.type,
-    status: "pending",
-    timestamp: /* @__PURE__ */ new Date(),
-    durationMs: 0
-  };
-  try {
-    const headers = {
-      "Content-Type": "application/json",
-      "X-Webhook-Event": event.type,
-      "X-Webhook-Id": event.id,
-      "X-Webhook-Timestamp": event.timestamp,
-      ...webhook.headers
-    };
-    if (webhook.secret) {
-      const crypto5 = await import("crypto");
-      const signature = crypto5.createHmac("sha256", webhook.secret).update(JSON.stringify(event)).digest("hex");
-      headers["X-Webhook-Signature"] = `sha256=${signature}`;
-    }
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(event),
-      signal: AbortSignal.timeout(1e4)
-    });
-    attempt.durationMs = Date.now() - startTime;
-    attempt.statusCode = response.status;
-    if (response.ok) {
-      attempt.status = "success";
-    } else {
-      attempt.status = "failed";
-      attempt.error = `HTTP ${response.status}: ${response.statusText}`;
-    }
-  } catch (error) {
-    attempt.durationMs = Date.now() - startTime;
-    attempt.status = "failed";
-    attempt.error = error instanceof Error ? error.message : "Unknown error";
-  }
-  deliveryHistory.push(attempt);
-  if (deliveryHistory.length > MAX_HISTORY) {
-    deliveryHistory.shift();
-  }
-  return attempt;
-}
-async function emitEvent(type, payload) {
-  const event = {
-    id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    type,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    source: "ai-active-trader",
-    payload
-  };
-  const matchingWebhooks = Array.from(webhooks.values()).filter(
-    (w) => w.enabled && (w.eventTypes.includes(type) || w.eventTypes.includes("*"))
-  );
-  if (matchingWebhooks.length === 0) {
-    return [];
-  }
-  log.info("Webhook", "Emitting event", {
-    type,
-    webhookCount: matchingWebhooks.length
-  });
-  const results = await Promise.all(
-    matchingWebhooks.map(
-      (webhook) => limit2(() => deliverWebhook(webhook, event))
-    )
-  );
-  const successes = results.filter((r) => r.status === "success").length;
-  const failures = results.filter((r) => r.status === "failed").length;
-  if (failures > 0) {
-    log.warn("Webhook", "Some deliveries failed", {
-      type,
-      successes,
-      failures
-    });
-  }
-  return results;
-}
-function getDeliveryHistory(limit4) {
-  const count3 = limit4 || MAX_HISTORY;
-  return deliveryHistory.slice(-count3);
-}
-function getWebhookStats() {
-  const recent = deliveryHistory.slice(-50);
-  const successes = recent.filter((d) => d.status === "success").length;
-  return {
-    totalWebhooks: webhooks.size,
-    enabledWebhooks: Array.from(webhooks.values()).filter((w) => w.enabled).length,
-    recentDeliveries: recent.length,
-    successRate: recent.length > 0 ? successes / recent.length : 1
-  };
-}
-var SUPPORTED_EVENTS = [
-  "trade.order.submitted",
-  "trade.order.filled",
-  "trade.order.canceled",
-  "trade.order.rejected",
-  "trade.position.opened",
-  "trade.position.closed",
-  "trade.position.updated",
-  "ai.decision.generated",
-  "ai.decision.executed",
-  "market.data.update",
-  "market.news.alert",
-  "analytics.pnl.daily",
-  "analytics.metrics.update",
-  "system.error",
-  "system.health.changed"
-];
-
-// server/trading/order-execution-flow.ts
-init_notification_service();
-init_tradability_service();
-init_logger();
-
-// server/trading/order-types-matrix.ts
-import { z as z5 } from "zod";
-var OrderTypeEnum = z5.enum([
-  "market",
-  "limit",
-  "stop",
-  "stop_limit",
-  "trailing_stop"
-]);
-var OrderClassEnum = z5.enum(["simple", "bracket", "oco", "oto"]);
-var TimeInForceEnum = z5.enum([
-  "day",
-  "gtc",
-  "opg",
-  "cls",
-  "ioc",
-  "fok"
-]);
-var OrderSideEnum = z5.enum(["buy", "sell"]);
-var ORDER_TYPE_MATRIX = [
-  {
-    orderType: "market",
-    validTimeInForce: ["day", "opg", "cls", "ioc", "fok"],
-    supportsExtendedHours: false,
-    requiredFields: ["symbol", "side", "qty|notional"],
-    optionalFields: ["client_order_id"],
-    description: "Execute immediately at best available price"
-  },
-  {
-    orderType: "limit",
-    validTimeInForce: ["day", "gtc", "opg", "cls", "ioc", "fok"],
-    supportsExtendedHours: true,
-    requiredFields: ["symbol", "side", "qty|notional", "limit_price"],
-    optionalFields: ["client_order_id", "extended_hours"],
-    description: "Execute at specified price or better"
-  },
-  {
-    orderType: "stop",
-    validTimeInForce: ["day", "gtc"],
-    supportsExtendedHours: false,
-    requiredFields: ["symbol", "side", "qty", "stop_price"],
-    optionalFields: ["client_order_id"],
-    description: "Trigger market order when stop price is reached"
-  },
-  {
-    orderType: "stop_limit",
-    validTimeInForce: ["day", "gtc"],
-    supportsExtendedHours: true,
-    requiredFields: ["symbol", "side", "qty", "stop_price", "limit_price"],
-    optionalFields: ["client_order_id", "extended_hours"],
-    description: "Trigger limit order when stop price is reached"
-  },
-  {
-    orderType: "trailing_stop",
-    validTimeInForce: ["day", "gtc"],
-    supportsExtendedHours: false,
-    requiredFields: ["symbol", "side", "qty", "trail_percent|trail_price"],
-    optionalFields: ["client_order_id"],
-    description: "Dynamic stop that follows price movement"
-  }
-];
-var BaseOrderSchema = z5.object({
-  symbol: z5.string().min(1).max(10).toUpperCase(),
-  side: OrderSideEnum,
-  client_order_id: z5.string().uuid().optional()
-});
-var QuantitySchema = z5.union([
-  z5.object({
-    qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number")
-  }),
-  z5.object({
-    notional: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount")
-  })
-]);
-var MarketOrderSchema = BaseOrderSchema.extend({
-  type: z5.literal("market"),
-  time_in_force: z5.enum(["day", "opg", "cls", "ioc", "fok"]),
-  extended_hours: z5.literal(false).optional()
-}).and(QuantitySchema);
-var LimitOrderSchema = BaseOrderSchema.extend({
-  type: z5.literal("limit"),
-  time_in_force: TimeInForceEnum,
-  limit_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-  extended_hours: z5.boolean().optional()
-}).and(QuantitySchema);
-var StopOrderSchema = BaseOrderSchema.extend({
-  type: z5.literal("stop"),
-  time_in_force: z5.enum(["day", "gtc"]),
-  stop_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z5.literal(false).optional()
-});
-var StopLimitOrderSchema = BaseOrderSchema.extend({
-  type: z5.literal("stop_limit"),
-  time_in_force: z5.enum(["day", "gtc"]),
-  stop_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-  limit_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z5.boolean().optional()
-});
-var TrailingStopOrderSchema = BaseOrderSchema.extend({
-  type: z5.literal("trailing_stop"),
-  time_in_force: z5.enum(["day", "gtc"]),
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  extended_hours: z5.literal(false).optional()
-}).and(
-  z5.union([
-    z5.object({
-      trail_percent: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive percent")
-    }),
-    z5.object({
-      trail_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive dollar amount")
-    })
-  ])
-);
-var BracketOrderSchema = BaseOrderSchema.extend({
-  order_class: z5.literal("bracket"),
-  type: z5.enum(["market", "limit"]),
-  time_in_force: z5.literal("day"),
-  // FIXED: Must be "day" only - "gtc" causes 422 rejection
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  limit_price: z5.string().regex(/^\d+(\.\d+)?$/).optional(),
-  take_profit: z5.object({
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
-  }),
-  stop_loss: z5.object({
-    stop_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/).optional()
-  })
-});
-var OCOOrderSchema = BaseOrderSchema.extend({
-  order_class: z5.literal("oco"),
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  time_in_force: z5.enum(["day", "gtc"]),
-  take_profit: z5.object({
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
-  }),
-  stop_loss: z5.object({
-    stop_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/).optional()
-  })
-});
-var OTOOrderSchema = BaseOrderSchema.extend({
-  order_class: z5.literal("oto"),
-  type: z5.enum(["market", "limit"]),
-  time_in_force: z5.enum(["day", "gtc"]),
-  qty: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive number"),
-  limit_price: z5.string().regex(/^\d+(\.\d+)?$/).optional(),
-  stop_loss: z5.object({
-    stop_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price"),
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/).optional()
-  }).optional(),
-  take_profit: z5.object({
-    limit_price: z5.string().regex(/^\d+(\.\d+)?$/, "Must be a positive price")
-  }).optional()
-});
-var SimpleOrderSchema = z5.union([
-  MarketOrderSchema,
-  LimitOrderSchema,
-  StopOrderSchema,
-  StopLimitOrderSchema,
-  TrailingStopOrderSchema
-]);
-var ComplexOrderSchema = z5.union([
-  BracketOrderSchema,
-  OCOOrderSchema,
-  OTOOrderSchema
-]);
-var CreateOrderSchema = z5.union([
-  SimpleOrderSchema,
-  ComplexOrderSchema
-]);
-var OrderStatusEnum = z5.enum([
-  "new",
-  // Order has been received but not yet accepted
-  "pending_new",
-  // Order is being processed
-  "accepted",
-  // Order is accepted and live in the market
-  "partially_filled",
-  // Order has been partially filled
-  "filled",
-  // Order has been completely filled
-  "done_for_day",
-  // Order is done for the day
-  "canceled",
-  // Order has been canceled
-  "expired",
-  // Order has expired
-  "replaced",
-  // Order has been replaced
-  "pending_cancel",
-  // Order cancel request is pending
-  "pending_replace",
-  // Order replace request is pending
-  "stopped",
-  // Order has been stopped
-  "rejected",
-  // Order has been rejected
-  "suspended",
-  // Order has been suspended
-  "calculated"
-  // Order is being calculated
-]);
-var TERMINAL_STATUSES = [
-  "filled",
-  "canceled",
-  "expired",
-  "replaced",
-  "rejected"
-];
-var ACTIVE_STATUSES = [
-  "new",
-  "pending_new",
-  "accepted",
-  "partially_filled",
-  "pending_cancel",
-  "pending_replace"
-];
-var FAILED_STATUSES = ["canceled", "expired", "rejected"];
-function isTerminalStatus(status) {
-  return TERMINAL_STATUSES.includes(status);
-}
-function isActiveStatus(status) {
-  return ACTIVE_STATUSES.includes(status);
-}
-function isFailedStatus(status) {
-  return FAILED_STATUSES.includes(status);
-}
-function validateOrderTypeCombination(orderType, timeInForce, extendedHours = false) {
-  const result = { valid: true, errors: [], warnings: [] };
-  const typeConfig = ORDER_TYPE_MATRIX.find((t) => t.orderType === orderType);
-  if (!typeConfig) {
-    result.valid = false;
-    result.errors.push(`Invalid order type: ${orderType}`);
-    return result;
-  }
-  if (!typeConfig.validTimeInForce.includes(timeInForce)) {
-    result.valid = false;
-    result.errors.push(
-      `Invalid time_in_force '${timeInForce}' for ${orderType} order. Valid options: ${typeConfig.validTimeInForce.join(", ")}`
-    );
-  }
-  if (extendedHours && !typeConfig.supportsExtendedHours) {
-    result.valid = false;
-    result.errors.push(
-      `Extended hours trading not supported for ${orderType} orders. Use limit or stop_limit orders for extended hours.`
-    );
-  }
-  return result;
-}
-function validateStopPrice(side, currentPrice, stopPrice) {
-  const result = { valid: true, errors: [], warnings: [] };
-  if (side === "buy" && stopPrice <= currentPrice) {
-    result.warnings.push(
-      `Buy stop at $${stopPrice} is below current price $${currentPrice}. This order will trigger immediately as a market order.`
-    );
-  }
-  if (side === "sell" && stopPrice >= currentPrice) {
-    result.warnings.push(
-      `Sell stop at $${stopPrice} is above current price $${currentPrice}. This order will trigger immediately as a market order.`
-    );
-  }
-  return result;
-}
-function validateLimitPrice(side, currentPrice, limitPrice) {
-  const result = { valid: true, errors: [], warnings: [] };
-  if (side === "buy" && limitPrice > currentPrice * 1.1) {
-    result.warnings.push(
-      `Buy limit at $${limitPrice} is significantly above current price $${currentPrice}. This order will likely fill immediately at a worse price.`
-    );
-  }
-  if (side === "sell" && limitPrice < currentPrice * 0.9) {
-    result.warnings.push(
-      `Sell limit at $${limitPrice} is significantly below current price $${currentPrice}. This order will likely fill immediately at a worse price.`
-    );
-  }
-  return result;
-}
-function validateBracketOrder(side, entryPrice, takeProfitPrice, stopLossPrice) {
-  const result = { valid: true, errors: [], warnings: [] };
-  if (side === "buy") {
-    if (takeProfitPrice <= entryPrice) {
-      result.valid = false;
-      result.errors.push(
-        `Take profit price ($${takeProfitPrice}) must be above entry price ($${entryPrice}) for buy orders`
-      );
-    }
-    if (stopLossPrice >= entryPrice) {
-      result.valid = false;
-      result.errors.push(
-        `Stop loss price ($${stopLossPrice}) must be below entry price ($${entryPrice}) for buy orders`
-      );
-    }
-  } else {
-    if (takeProfitPrice >= entryPrice) {
-      result.valid = false;
-      result.errors.push(
-        `Take profit price ($${takeProfitPrice}) must be below entry price ($${entryPrice}) for sell orders`
-      );
-    }
-    if (stopLossPrice <= entryPrice) {
-      result.valid = false;
-      result.errors.push(
-        `Stop loss price ($${stopLossPrice}) must be above entry price ($${entryPrice}) for sell orders`
-      );
-    }
-  }
-  return result;
-}
-function validateTrailingStop(trailPercent, trailPrice) {
-  const result = { valid: true, errors: [], warnings: [] };
-  if (trailPercent !== void 0 && trailPrice !== void 0) {
-    result.valid = false;
-    result.errors.push(
-      "Cannot specify both trail_percent and trail_price. Choose one."
-    );
-  }
-  if (trailPercent === void 0 && trailPrice === void 0) {
-    result.valid = false;
-    result.errors.push(
-      "Must specify either trail_percent or trail_price for trailing stop orders."
-    );
-  }
-  if (trailPercent !== void 0) {
-    if (trailPercent <= 0 || trailPercent > 100) {
-      result.valid = false;
-      result.errors.push(
-        `Trail percent must be between 0 and 100, got ${trailPercent}`
-      );
-    }
-    if (trailPercent < 0.5) {
-      result.warnings.push(
-        "Trail percent below 0.5% may trigger too frequently"
-      );
-    }
-    if (trailPercent > 10) {
-      result.warnings.push(
-        "Trail percent above 10% may not provide adequate protection"
-      );
-    }
-  }
-  if (trailPrice !== void 0 && trailPrice <= 0) {
-    result.valid = false;
-    result.errors.push(`Trail price must be positive, got ${trailPrice}`);
-  }
-  return result;
-}
-
-// server/trading/order-execution-flow.ts
-init_trading_config();
-function classifyError(error, context) {
-  const message = error.message.toLowerCase();
-  if (message.includes("insufficient") || message.includes("buying power")) {
-    return {
-      type: "INSUFFICIENT_FUNDS" /* INSUFFICIENT_FUNDS */,
-      message: error.message,
-      retryable: false,
-      suggestedDelay: 0,
-      recoveryStrategy: "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */
-    };
-  }
-  if (message.includes("symbol") && (message.includes("not found") || message.includes("invalid"))) {
-    return {
-      type: "INVALID_SYMBOL" /* INVALID_SYMBOL */,
-      message: error.message,
-      retryable: false,
-      suggestedDelay: 0,
-      recoveryStrategy: "MANUAL_INTERVENTION" /* MANUAL_INTERVENTION */
-    };
-  }
-  if (message.includes("market") && (message.includes("closed") || message.includes("not open"))) {
-    return {
-      type: "MARKET_CLOSED" /* MARKET_CLOSED */,
-      message: error.message,
-      retryable: true,
-      suggestedDelay: 6e4,
-      recoveryStrategy: "WAIT_FOR_MARKET_OPEN" /* WAIT_FOR_MARKET_OPEN */
-    };
-  }
-  if (message.includes("429") || message.includes("rate limit")) {
-    return {
-      type: "RATE_LIMITED" /* RATE_LIMITED */,
-      message: error.message,
-      retryable: true,
-      suggestedDelay: 5e3,
-      recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */
-    };
-  }
-  if (message.includes("network") || message.includes("fetch") || message.includes("econnrefused")) {
-    return {
-      type: "NETWORK_ERROR" /* NETWORK_ERROR */,
-      message: error.message,
-      retryable: true,
-      suggestedDelay: 2e3,
-      recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */
-    };
-  }
-  if (message.includes("timeout")) {
-    return {
-      type: "TIMEOUT" /* TIMEOUT */,
-      message: error.message,
-      retryable: true,
-      suggestedDelay: 1e3,
-      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
-    };
-  }
-  if (message.includes("rejected") || message.includes("refused")) {
-    return {
-      type: "BROKER_REJECTION" /* BROKER_REJECTION */,
-      message: error.message,
-      retryable: false,
-      suggestedDelay: 0,
-      recoveryStrategy: "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */
-    };
-  }
-  if (message.includes("position") && message.includes("not found")) {
-    return {
-      type: "POSITION_NOT_FOUND" /* POSITION_NOT_FOUND */,
-      message: error.message,
-      retryable: false,
-      suggestedDelay: 0,
-      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
-    };
-  }
-  if (message.includes("order") && message.includes("not found")) {
-    return {
-      type: "ORDER_NOT_FOUND" /* ORDER_NOT_FOUND */,
-      message: error.message,
-      retryable: false,
-      suggestedDelay: 0,
-      recoveryStrategy: "CHECK_AND_SYNC" /* CHECK_AND_SYNC */
-    };
-  }
-  return {
-    type: "UNKNOWN" /* UNKNOWN */,
-    message: error.message,
-    retryable: true,
-    suggestedDelay: 3e3,
-    recoveryStrategy: "RETRY_WITH_BACKOFF" /* RETRY_WITH_BACKOFF */,
-    originalError: error
-  };
-}
-var DEFAULT_OPTIONS2 = {
-  maxRetries: 3,
-  retryDelayMs: 1e3,
-  timeoutMs: 3e4,
-  validateBeforeSubmit: true,
-  trackExpectedOutcome: true,
-  autoRecover: true
-};
-var OrderExecutionEngine = class {
-  activeExecutions = /* @__PURE__ */ new Map();
-  /**
-   * Execute order with full validation, retry, and recovery
-   */
-  async executeOrder(params, options = {}) {
-    const opts = { ...DEFAULT_OPTIONS2, ...options };
-    const clientOrderId = params.client_order_id || randomUUID2();
-    const state = {
-      orderId: null,
-      clientOrderId,
-      status: "pending",
-      symbol: params.symbol,
-      side: params.side,
-      orderType: params.type,
-      requestedQty: params.qty || params.notional || "0",
-      filledQty: "0",
-      requestedPrice: params.limit_price || params.stop_price || null,
-      filledPrice: null,
-      attempts: 0,
-      maxAttempts: opts.maxRetries,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date(),
-      errors: [],
-      validationResult: null,
-      expectedOutcome: null,
-      actualOutcome: null
-    };
-    this.activeExecutions.set(clientOrderId, state);
-    const warnings = [];
-    try {
-      state.status = "validating";
-      state.updatedAt = /* @__PURE__ */ new Date();
-      if (opts.validateBeforeSubmit) {
-        const validation = await this.validateOrderParams(params);
-        state.validationResult = validation;
-        if (!validation.valid) {
-          const error = classifyError(new Error(validation.errors.join("; ")));
-          error.type = "VALIDATION_ERROR" /* VALIDATION_ERROR */;
-          state.errors.push(error);
-          state.status = "failed";
-          return {
-            success: false,
-            state,
-            error,
-            validationWarnings: validation.warnings
-          };
-        }
-        warnings.push(...validation.warnings);
-      }
-      if (opts.trackExpectedOutcome) {
-        state.expectedOutcome = await this.calculateExpectedOutcome(params);
-      }
-      state.status = "submitting";
-      let order = null;
-      while (state.attempts < opts.maxRetries) {
-        state.attempts++;
-        state.updatedAt = /* @__PURE__ */ new Date();
-        try {
-          const orderWithClientId = {
-            ...params,
-            client_order_id: clientOrderId
-          };
-          order = await this.submitOrderWithTimeout(
-            orderWithClientId,
-            opts.timeoutMs
-          );
-          state.orderId = order.id;
-          state.status = "submitted";
-          emitEvent("trade.order.submitted", {
-            orderId: order.id,
-            clientOrderId,
-            symbol: params.symbol,
-            side: params.side,
-            type: params.type,
-            qty: params.qty,
-            limitPrice: params.limit_price,
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }).catch(
-            (err) => log.error("Webhook", "Order submitted event failed", {
-              error: err.message
-            })
-          );
-          sendNotification("trade.order.submitted", {
-            orderId: order.id,
-            symbol: params.symbol,
-            side: params.side,
-            qty: params.qty,
-            price: params.limit_price || "market"
-          }).catch(
-            (err) => log.error("Notification", "Order submitted notification failed", {
-              error: err.message
-            })
-          );
-          break;
-        } catch (error) {
-          const classifiedError = classifyError(
-            error,
-            `Attempt ${state.attempts}`
-          );
-          state.errors.push(classifiedError);
-          if (!classifiedError.retryable || state.attempts >= opts.maxRetries) {
-            if (opts.autoRecover && classifiedError.recoveryStrategy !== "NONE" /* NONE */) {
-              const recovered = await this.attemptRecovery(
-                state,
-                classifiedError,
-                params
-              );
-              if (recovered) {
-                order = recovered;
-                break;
-              }
-            }
-            state.status = "failed";
-            sendNotification("trade.order.rejected", {
-              symbol: params.symbol,
-              side: params.side,
-              qty: params.qty,
-              reason: classifiedError.message
-            }).catch(
-              (err) => log.error("Notification", "Order rejected notification failed", {
-                error: err.message
-              })
-            );
-            return {
-              success: false,
-              state,
-              error: classifiedError,
-              validationWarnings: warnings
-            };
-          }
-          const delay = classifiedError.suggestedDelay * Math.pow(2, state.attempts - 1);
-          await this.sleep(delay);
-        }
-      }
-      if (!order) {
-        state.status = "failed";
-        return {
-          success: false,
-          state,
-          error: state.errors[state.errors.length - 1],
-          validationWarnings: warnings
-        };
-      }
-      state.status = "monitoring";
-      const monitoredOrder = await this.monitorOrderUntilTerminal(
-        order.id,
-        opts.timeoutMs
-      );
-      state.actualOutcome = this.recordActualOutcome(monitoredOrder, state);
-      if (isFailedStatus(monitoredOrder.status)) {
-        state.status = monitoredOrder.status === "canceled" ? "canceled" : "failed";
-        return {
-          success: false,
-          state,
-          order: monitoredOrder,
-          validationWarnings: warnings,
-          outcomeAnalysis: this.analyzeOutcome(state)
-        };
-      }
-      state.status = "filled";
-      state.filledQty = monitoredOrder.filled_qty;
-      state.filledPrice = monitoredOrder.filled_avg_price;
-      emitEvent("trade.order.filled", {
-        orderId: monitoredOrder.id,
-        clientOrderId,
-        symbol: monitoredOrder.symbol,
-        side: monitoredOrder.side,
-        filledQty: monitoredOrder.filled_qty,
-        filledPrice: monitoredOrder.filled_avg_price,
-        status: monitoredOrder.status,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      }).catch(
-        (err) => log.error("Webhook", "Order filled event failed", {
-          error: err.message
-        })
-      );
-      sendNotification("trade.order.filled", {
-        orderId: monitoredOrder.id,
-        symbol: monitoredOrder.symbol,
-        side: monitoredOrder.side,
-        qty: monitoredOrder.filled_qty,
-        price: monitoredOrder.filled_avg_price
-      }).catch(
-        (err) => log.error("Notification", "Order filled notification failed", {
-          error: err.message
-        })
-      );
-      return {
-        success: true,
-        state,
-        order: monitoredOrder,
-        validationWarnings: warnings,
-        outcomeAnalysis: this.analyzeOutcome(state)
-      };
-    } finally {
-      this.activeExecutions.delete(clientOrderId);
-    }
-  }
-  /**
-   * Validate order parameters before submission
-   */
-  async validateOrderParams(params) {
-    const result = { valid: true, errors: [], warnings: [] };
-    try {
-      CreateOrderSchema.parse(params);
-    } catch (e) {
-      result.valid = false;
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      result.errors.push(`Schema validation failed: ${errorMessage}`);
-      return result;
-    }
-    const tradabilityCheck = await tradabilityService.validateSymbolTradable(
-      params.symbol
-    );
-    if (!tradabilityCheck.tradable) {
-      result.valid = false;
-      result.errors.push(
-        `Symbol ${params.symbol} is not tradable: ${tradabilityCheck.reason || "Not found in broker universe"}`
-      );
-      return result;
-    }
-    if (!tradabilityCheck.fractionable && params.notional) {
-      result.warnings.push(
-        `${params.symbol} does not support fractional trading; use qty instead of notional`
-      );
-    }
-    if (!tradabilityCheck.marginable) {
-      result.warnings.push(`${params.symbol} is not marginable`);
-    }
-    const typeTifValidation = validateOrderTypeCombination(
-      params.type,
-      params.time_in_force,
-      params.extended_hours
-    );
-    result.errors.push(...typeTifValidation.errors);
-    result.warnings.push(...typeTifValidation.warnings);
-    if (!typeTifValidation.valid) result.valid = false;
-    let currentPrice = null;
-    const cachedQuote = getQuickQuote(params.symbol);
-    if (cachedQuote) {
-      currentPrice = cachedQuote.price;
-    } else {
-      try {
-        const operationId = `quote_${params.symbol}_${Date.now()}`;
-        performanceTracker.startTimer(operationId);
-        const snapshots = await alpaca.getSnapshots([params.symbol]);
-        const latency = performanceTracker.endTimer(
-          operationId,
-          "quoteRetrieval"
-        );
-        currentPrice = snapshots[params.symbol]?.latestTrade?.p || null;
-        if (currentPrice) {
-          const trade = snapshots[params.symbol]?.latestTrade;
-          cacheQuickQuote({
-            symbol: params.symbol,
-            price: currentPrice,
-            bid: snapshots[params.symbol]?.latestQuote?.bp || currentPrice,
-            ask: snapshots[params.symbol]?.latestQuote?.ap || currentPrice,
-            spread: 0,
-            timestamp: Date.now()
-          });
-        }
-        if (latency > 10) {
-          log.debug("OrderExecution", "Slow quote retrieval", {
-            latencyMs: latency,
-            symbol: params.symbol
-          });
-        }
-      } catch {
-        result.warnings.push(
-          `Could not fetch current price for ${params.symbol}`
-        );
-      }
-    }
-    if (currentPrice) {
-      if (params.stop_price) {
-        const stopValidation = validateStopPrice(
-          params.side,
-          currentPrice,
-          parseFloat(params.stop_price)
-        );
-        result.errors.push(...stopValidation.errors);
-        result.warnings.push(...stopValidation.warnings);
-        if (!stopValidation.valid) result.valid = false;
-      }
-      if (params.limit_price) {
-        const limitValidation = validateLimitPrice(
-          params.side,
-          currentPrice,
-          parseFloat(params.limit_price)
-        );
-        result.errors.push(...limitValidation.errors);
-        result.warnings.push(...limitValidation.warnings);
-        if (!limitValidation.valid) result.valid = false;
-      }
-      if (params.order_class === "bracket" && params.take_profit && params.stop_loss) {
-        const entryPrice = params.limit_price ? parseFloat(params.limit_price) : currentPrice;
-        const bracketValidation = validateBracketOrder(
-          params.side,
-          entryPrice,
-          parseFloat(params.take_profit.limit_price),
-          parseFloat(params.stop_loss.stop_price)
-        );
-        result.errors.push(...bracketValidation.errors);
-        result.warnings.push(...bracketValidation.warnings);
-        if (!bracketValidation.valid) result.valid = false;
-      }
-    }
-    if (params.type === "trailing_stop") {
-      const trailValidation = validateTrailingStop(
-        params.trail_percent ? parseFloat(params.trail_percent) : void 0,
-        params.trail_price ? parseFloat(params.trail_price) : void 0
-      );
-      result.errors.push(...trailValidation.errors);
-      result.warnings.push(...trailValidation.warnings);
-      if (!trailValidation.valid) result.valid = false;
-    }
-    if (!params.extended_hours) {
-      try {
-        const marketStatus = await alpaca.getMarketStatus();
-        if (!marketStatus.isOpen && params.time_in_force === "day") {
-          result.warnings.push(
-            `Market is currently ${marketStatus.session}. Day orders will queue until market open.`
-          );
-        }
-      } catch {
-        result.warnings.push("Could not verify market status");
-      }
-    }
-    return result;
-  }
-  /**
-   * Calculate expected outcome based on order parameters
-   */
-  async calculateExpectedOutcome(params) {
-    const qty = parseFloat(params.qty || "0");
-    const notional = parseFloat(params.notional || "0");
-    let currentPrice = 0;
-    try {
-      const snapshots = await alpaca.getSnapshots([params.symbol]);
-      currentPrice = snapshots[params.symbol]?.latestTrade?.p || 0;
-    } catch {
-      currentPrice = params.limit_price ? parseFloat(params.limit_price) : 0;
-    }
-    const expectedQty = qty > 0 ? qty : calculateQuantity(notional, currentPrice).toNumber();
-    const risks = [];
-    let fillPriceMin = currentPrice;
-    let fillPriceMax = currentPrice;
-    let shouldFillImmediately = false;
-    let fillTimeEstimate = 0;
-    switch (params.type) {
-      case "market":
-        fillPriceMin = priceWithBuffer(currentPrice, 5e-3, -1).toNumber();
-        fillPriceMax = priceWithBuffer(currentPrice, 5e-3, 1).toNumber();
-        shouldFillImmediately = true;
-        fillTimeEstimate = 500;
-        risks.push("Slippage possible in fast-moving markets");
-        break;
-      case "limit":
-        const limitPrice = parseFloat(params.limit_price || "0");
-        fillPriceMin = limitPrice;
-        fillPriceMax = limitPrice;
-        shouldFillImmediately = params.side === "buy" ? limitPrice >= currentPrice : limitPrice <= currentPrice;
-        fillTimeEstimate = shouldFillImmediately ? 1e3 : 3e5;
-        if (!shouldFillImmediately) {
-          risks.push("Order may not fill if price doesn't reach limit");
-        }
-        break;
-      case "stop":
-        const stopPrice = parseFloat(params.stop_price || "0");
-        fillPriceMin = priceWithBuffer(stopPrice, 0.01, -1).toNumber();
-        fillPriceMax = priceWithBuffer(stopPrice, 0.01, 1).toNumber();
-        shouldFillImmediately = false;
-        fillTimeEstimate = 6e5;
-        risks.push("Stop orders trigger as market orders - slippage possible");
-        break;
-      case "stop_limit":
-        fillPriceMin = parseFloat(params.limit_price || "0");
-        fillPriceMax = parseFloat(params.limit_price || "0");
-        shouldFillImmediately = false;
-        fillTimeEstimate = 6e5;
-        risks.push("Order may not fill if gap occurs past limit price");
-        break;
-      case "trailing_stop":
-        fillPriceMin = priceWithBuffer(currentPrice, 0.1, -1).toNumber();
-        fillPriceMax = priceWithBuffer(currentPrice, 0.1, 1).toNumber();
-        shouldFillImmediately = false;
-        fillTimeEstimate = 36e5;
-        risks.push("Trailing stop may trigger during normal volatility");
-        break;
-    }
-    const avgFillPrice = toDecimal(fillPriceMin).plus(fillPriceMax).dividedBy(2);
-    const estimatedCost = positionValue(expectedQty, avgFillPrice).toNumber();
-    return {
-      fillPrice: { min: fillPriceMin, max: fillPriceMax },
-      fillQty: expectedQty,
-      estimatedCost,
-      shouldFillImmediately,
-      fillTimeEstimateMs: fillTimeEstimate,
-      risksIdentified: risks
-    };
-  }
-  /**
-   * Submit order with timeout and performance tracking
-   */
-  async submitOrderWithTimeout(params, timeoutMs) {
-    const operationId = `order_${params.symbol}_${Date.now()}`;
-    performanceTracker.startTimer(operationId);
-    return new Promise((resolve2, reject) => {
-      const timeout = setTimeout(() => {
-        performanceTracker.endTimer(operationId, "orderExecution");
-        reject(new Error(`Order submission timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-      alpaca.createOrder(params).then((order) => {
-        clearTimeout(timeout);
-        const latency = performanceTracker.endTimer(
-          operationId,
-          "orderExecution"
-        );
-        if (latency > 50) {
-          log.debug("OrderExecution", "Slow order submission", {
-            latencyMs: latency,
-            symbol: params.symbol
-          });
-        }
-        resolve2(order);
-      }).catch((error) => {
-        clearTimeout(timeout);
-        performanceTracker.endTimer(operationId, "orderExecution");
-        reject(error);
-      });
-    });
-  }
-  /**
-   * Monitor order until it reaches a terminal state
-   */
-  async monitorOrderUntilTerminal(orderId, timeoutMs) {
-    const startTime = Date.now();
-    const pollInterval = 1e3;
-    while (Date.now() - startTime < timeoutMs) {
-      try {
-        const order = await alpaca.getOrder(orderId);
-        if (isTerminalStatus(order.status)) {
-          return order;
-        }
-        await this.sleep(pollInterval);
-      } catch (error) {
-        log.error("OrderExecution", "Error polling order", {
-          orderId,
-          error: error.message
-        });
-        await this.sleep(pollInterval);
-      }
-    }
-    return await alpaca.getOrder(orderId);
-  }
-  /**
-   * Record actual outcome from filled order
-   */
-  recordActualOutcome(order, state) {
-    const fillPrice = safeParseFloat(order.filled_avg_price, 0);
-    const fillQty = safeParseFloat(order.filled_qty, 0);
-    const fillTimeMs = order.filled_at ? new Date(order.filled_at).getTime() - state.createdAt.getTime() : Date.now() - state.createdAt.getTime();
-    const requestedPrice = state.requestedPrice ? parseFloat(state.requestedPrice) : null;
-    const slippage = requestedPrice && fillPrice ? percentChange(fillPrice, requestedPrice).toNumber() : null;
-    const unexpectedEvents = [];
-    if (order.status === "partially_filled") {
-      unexpectedEvents.push(
-        `Only partially filled: ${fillQty} of ${order.qty}`
-      );
-    }
-    if (slippage !== null && Math.abs(slippage) > 1) {
-      unexpectedEvents.push(
-        `Significant slippage: ${formatPrice(slippage, 2)}%`
-      );
-    }
-    const totalCost = positionValue(fillQty, fillPrice).toNumber();
-    return {
-      filled: order.status === "filled",
-      fillPrice,
-      fillQty,
-      totalCost,
-      fillTimeMs,
-      slippage,
-      status: order.status,
-      unexpectedEvents
-    };
-  }
-  /**
-   * Analyze outcome vs expected
-   */
-  analyzeOutcome(state) {
-    const expected = state.expectedOutcome;
-    const actual = state.actualOutcome;
-    if (!expected || !actual) {
-      return {
-        matchesExpected: true,
-        slippagePercent: null,
-        fillTimeDeviation: null,
-        unexpectedIssues: [],
-        recommendations: []
-      };
-    }
-    const issues = [];
-    const recommendations = [];
-    let matchesExpected = true;
-    if (actual.fillPrice !== null) {
-      if (actual.fillPrice < expected.fillPrice.min || actual.fillPrice > expected.fillPrice.max) {
-        matchesExpected = false;
-        issues.push(
-          `Fill price $${actual.fillPrice.toFixed(2)} outside expected range $${expected.fillPrice.min.toFixed(2)}-$${expected.fillPrice.max.toFixed(2)}`
-        );
-        recommendations.push(
-          "Consider using limit orders for better price control"
-        );
-      }
-    }
-    if (actual.fillQty < expected.fillQty * 0.99) {
-      matchesExpected = false;
-      issues.push(
-        `Partial fill: ${actual.fillQty} of ${expected.fillQty} requested`
-      );
-      recommendations.push("Check liquidity before placing large orders");
-    }
-    const fillTimeDeviation = actual.fillTimeMs - expected.fillTimeEstimateMs;
-    if (expected.shouldFillImmediately && actual.fillTimeMs > 5e3) {
-      issues.push(`Expected immediate fill but took ${actual.fillTimeMs}ms`);
-    }
-    issues.push(...actual.unexpectedEvents);
-    return {
-      matchesExpected,
-      slippagePercent: actual.slippage,
-      fillTimeDeviation,
-      unexpectedIssues: issues,
-      recommendations
-    };
-  }
-  /**
-   * Attempt recovery based on error type
-   */
-  async attemptRecovery(state, error, originalParams) {
-    state.status = "recovering";
-    log.info("OrderExecution", "Attempting recovery", {
-      recoveryStrategy: error.recoveryStrategy
-    });
-    switch (error.recoveryStrategy) {
-      case "CHECK_AND_SYNC" /* CHECK_AND_SYNC */:
-        try {
-          const orders2 = await alpaca.getOrders("all", 10);
-          const existingOrder = orders2.find(
-            (o) => o.client_order_id === state.clientOrderId
-          );
-          if (existingOrder) {
-            log.info("OrderExecution", "Found existing order via sync", {
-              orderId: existingOrder.id
-            });
-            return existingOrder;
-          }
-        } catch {
-          log.error("OrderExecution", "Sync check failed");
-        }
-        return null;
-      case "ADJUST_AND_RETRY" /* ADJUST_AND_RETRY */:
-        if (error.type === "INSUFFICIENT_FUNDS" /* INSUFFICIENT_FUNDS */) {
-          const reducedParams = { ...originalParams };
-          if (reducedParams.qty) {
-            reducedParams.qty = toDecimal(reducedParams.qty).times(0.5).toString();
-          } else if (reducedParams.notional) {
-            reducedParams.notional = toDecimal(reducedParams.notional).times(0.5).toString();
-          }
-          try {
-            return await alpaca.createOrder(reducedParams);
-          } catch {
-            return null;
-          }
-        }
-        return null;
-      case "WAIT_FOR_MARKET_OPEN" /* WAIT_FOR_MARKET_OPEN */:
-        const marketStatus = await alpaca.getMarketStatus();
-        if (marketStatus.isOpen || marketStatus.isExtendedHours) {
-          try {
-            return await alpaca.createOrder(originalParams);
-          } catch {
-            return null;
-          }
-        }
-        return null;
-      default:
-        return null;
-    }
-  }
-  sleep(ms) {
-    return new Promise((resolve2) => setTimeout(resolve2, ms));
-  }
-  /**
-   * Get active execution states for monitoring
-   */
-  getActiveExecutions() {
-    return new Map(this.activeExecutions);
-  }
-};
-var orderExecutionEngine = new OrderExecutionEngine();
-async function identifyUnrealOrders() {
-  const unrealOrders = [];
-  try {
-    const allOrders = await alpaca.getOrders("all", 500);
-    const staleThresholdMs = 24 * 60 * 60 * 1e3;
-    const now = Date.now();
-    for (const order of allOrders) {
-      let isUnreal = false;
-      let reason = "";
-      const filledQty = safeParseFloat(order.filled_qty, 0);
-      const notionalValue = order.notional ? safeParseFloat(order.notional, 0) : 0;
-      const orderCreatedAt = new Date(order.created_at).getTime();
-      const orderAgeMs = now - orderCreatedAt;
-      if (order.status === "rejected") {
-        isUnreal = true;
-        reason = "Order was rejected by broker";
-      } else if (order.status === "canceled" && filledQty === 0) {
-        isUnreal = true;
-        reason = "Order was canceled with no fills";
-      } else if (order.status === "expired" && filledQty === 0) {
-        isUnreal = true;
-        reason = "Order expired with no fills";
-      } else if (filledQty === 0 && notionalValue === 0 && order.qty === "0") {
-        isUnreal = true;
-        reason = "Order has zero quantity and zero notional";
-      } else if (isActiveStatus(order.status) && orderAgeMs >= staleThresholdMs && filledQty === 0) {
-        isUnreal = true;
-        reason = "Stale active order with no fills (>24 hours old)";
-      }
-      if (isUnreal) {
-        unrealOrders.push({
-          orderId: order.id,
-          symbol: order.symbol,
-          status: order.status,
-          reason,
-          createdAt: order.created_at,
-          filledQty: order.filled_qty,
-          qty: order.qty,
-          notional: order.notional
-        });
-      }
-    }
-  } catch (error) {
-    log.error("OrderCleanup", "Failed to identify unreal orders", {
-      error: error.message
-    });
-  }
-  return unrealOrders;
-}
-async function cleanupUnrealOrders() {
-  const result = {
-    identified: 0,
-    canceled: 0,
-    errors: []
-  };
-  try {
-    const unrealOrders = await identifyUnrealOrders();
-    result.identified = unrealOrders.length;
-    for (const order of unrealOrders) {
-      if (isActiveStatus(order.status)) {
-        try {
-          await alpaca.cancelOrder(order.orderId);
-          log.info("OrderCleanup", "Canceled unreal order", {
-            orderId: order.orderId,
-            reason: order.reason
-          });
-          result.canceled++;
-        } catch (error) {
-          const errorMsg = `Failed to cancel ${order.orderId}: ${error.message}`;
-          result.errors.push(errorMsg);
-          log.warn("OrderCleanup", "Failed to cancel order", {
-            orderId: order.orderId,
-            error: error.message
-          });
-        }
-      }
-    }
-    log.info("OrderCleanup", "Unreal order cleanup complete", {
-      identified: result.identified,
-      canceled: result.canceled
-    });
-  } catch (error) {
-    result.errors.push(`Cleanup failed: ${error.message}`);
-  }
-  return result;
-}
-async function reconcileOrderBook() {
-  const result = {
-    alpacaOrders: 0,
-    localTrades: 0,
-    missingLocal: [],
-    orphanedLocal: [],
-    synced: 0
-  };
-  try {
-    const alpacaOrders = await alpaca.getOrders("all", 100);
-    result.alpacaOrders = alpacaOrders.length;
-    const localTrades = await storage.getTrades(void 0, 100);
-    result.localTrades = localTrades.length;
-    const alpacaOrderIds = new Set(alpacaOrders.map((o) => o.id));
-    const alpacaClientIds = new Set(alpacaOrders.map((o) => o.client_order_id));
-    for (const order of alpacaOrders) {
-      if (order.status === "filled") {
-        const hasLocal = localTrades.some(
-          (t) => t.notes?.includes(order.id) || t.notes?.includes(order.client_order_id)
-        );
-        if (!hasLocal) {
-          result.missingLocal.push(order.id);
-          await storage.createTrade({
-            symbol: order.symbol,
-            side: order.side,
-            quantity: order.filled_qty,
-            price: order.filled_avg_price || "0",
-            status: "completed",
-            notes: `Synced from Alpaca: ${order.id}`,
-            pnl: null,
-            strategyId: null
-          });
-          result.synced++;
-        }
-      }
-    }
-    log.info("Reconciliation", "Order book reconciliation complete", {
-      alpacaOrders: result.alpacaOrders,
-      localTrades: result.localTrades,
-      synced: result.synced
-    });
-  } catch (error) {
-    log.error("Reconciliation", "Order book reconciliation failed", {
-      error: error.message
-    });
-  }
-  return result;
-}
-var ORDER_FILL_POLL_INTERVAL_MS = tradingConfig.orderExecution.orderFillPollIntervalMs;
-var ORDER_FILL_TIMEOUT_MS = tradingConfig.orderExecution.orderFillTimeoutMs;
-var STALE_ORDER_TIMEOUT_MS = tradingConfig.orderExecution.staleOrderTimeoutMs;
-async function waitForAlpacaOrderFill(orderId, timeoutMs = ORDER_FILL_TIMEOUT_MS) {
-  const startTime = Date.now();
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const order = await alpaca.getOrder(orderId);
-      const filledPrice = safeParseFloat(order.filled_avg_price, 0);
-      const filledQty = safeParseFloat(order.filled_qty, 0);
-      const hasFillData = filledPrice > 0 && filledQty > 0;
-      if (order.status === "filled" && hasFillData) {
-        return {
-          order,
-          timedOut: false,
-          hasFillData: true,
-          isFullyFilled: true
-        };
-      }
-      if (isTerminalStatus(order.status)) {
-        log.info("OrderFlow", "Order ended with status", {
-          orderId,
-          status: order.status
-        });
-        return { order, timedOut: false, hasFillData, isFullyFilled: false };
-      }
-      await new Promise(
-        (resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS)
-      );
-    } catch (error) {
-      log.error("OrderFlow", "Error polling order", {
-        orderId,
-        error: error.message
-      });
-      await new Promise(
-        (resolve2) => setTimeout(resolve2, ORDER_FILL_POLL_INTERVAL_MS)
-      );
-    }
-  }
-  log.warn("OrderFlow", "Order fill timeout", { orderId, timeoutMs });
-  try {
-    const finalOrder = await alpaca.getOrder(orderId);
-    const filledPrice = safeParseFloat(finalOrder.filled_avg_price, 0);
-    const filledQty = safeParseFloat(finalOrder.filled_qty, 0);
-    const hasFillData = filledPrice > 0 && filledQty > 0;
-    const isFullyFilled = finalOrder.status === "filled" && hasFillData;
-    return { order: finalOrder, timedOut: true, hasFillData, isFullyFilled };
-  } catch {
-    return {
-      order: null,
-      timedOut: true,
-      hasFillData: false,
-      isFullyFilled: false
-    };
-  }
-}
-async function cancelExpiredOrders(maxAgeMs = STALE_ORDER_TIMEOUT_MS) {
-  let canceledCount = 0;
-  try {
-    const openOrders = await alpaca.getOrders("open", 100);
-    const now = Date.now();
-    for (const order of openOrders) {
-      const createdAt = new Date(order.created_at).getTime();
-      const orderAge = now - createdAt;
-      if (orderAge > maxAgeMs) {
-        try {
-          await alpaca.cancelOrder(order.id);
-          canceledCount++;
-          log.info("OrderFlow", "Canceled expired order", {
-            orderId: order.id,
-            symbol: order.symbol,
-            ageSec: Math.floor(orderAge / 1e3)
-          });
-        } catch (error) {
-          log.warn("OrderFlow", "Failed to cancel expired order", {
-            orderId: order.id,
-            error: error.message
-          });
-        }
-      }
-    }
-    if (canceledCount > 0) {
-      log.info("OrderFlow", "Expired order cancellation complete", {
-        canceledCount
-      });
-    }
-  } catch (error) {
-    log.error("OrderFlow", "Error checking for expired orders", {
-      error: error.message
-    });
-  }
-  return canceledCount;
-}
+init_order_execution_flow();
 
 // server/ai/learning-service.ts
 init_db();
 init_schema2();
 init_logger();
 init_money();
-import { eq as eq9, desc as desc5, and as and8, gte as gte4, sql as sql20 } from "drizzle-orm";
+import { eq as eq9, desc as desc5, and as and8, gte as gte4, sql as sql22 } from "drizzle-orm";
 async function recordDecisionFeatures(decisionId, symbol, features) {
   try {
     const featureVectorJson = JSON.stringify(features);
@@ -29530,7 +31046,7 @@ async function runCalibrationAnalysis(windowDays = 30) {
     const outcomes = await db.select().from(aiTradeOutcomes).where(
       and8(
         gte4(aiTradeOutcomes.createdAt, startDate),
-        sql20`${aiTradeOutcomes.isWin} IS NOT NULL`
+        sql22`${aiTradeOutcomes.isWin} IS NOT NULL`
       )
     );
     if (outcomes.length === 0) {
@@ -29723,7 +31239,9 @@ function validateDecision(decision, context, currentPositionCount) {
     warnings.push(`Confidence is just above minimum threshold`);
   }
   if (decision.action === "buy" && currentPositionCount >= rules.maxPositions - 2) {
-    warnings.push(`Approaching maximum positions (${currentPositionCount}/${rules.maxPositions})`);
+    warnings.push(
+      `Approaching maximum positions (${currentPositionCount}/${rules.maxPositions})`
+    );
   }
   return {
     valid: true,
@@ -30773,6 +32291,7 @@ init_storage();
 init_logger();
 init_numeric();
 init_money();
+init_order_execution_flow();
 
 // server/services/advanced-rebalancing-service.ts
 init_db();
@@ -34182,11 +35701,11 @@ function calculateExposure(positions2, prices) {
 function mergeAndSortBars(bars) {
   const allEntries = [];
   for (const [symbol, symbolBars] of Object.entries(bars)) {
-    symbolBars.forEach((bar, index16) => {
+    symbolBars.forEach((bar, index18) => {
       allEntries.push({
         symbol,
         bar,
-        symbolBarIndex: index16,
+        symbolBarIndex: index18,
         time: new Date(bar.ts).getTime()
       });
     });
@@ -35504,21 +37023,25 @@ router.get("/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get backtest" });
   }
 });
-router.get("/:id/equity-curve", requireAuth, async (req, res) => {
-  try {
-    const points = await db.select().from(backtestEquityCurve).where(eq16(backtestEquityCurve.runId, req.params.id)).orderBy(backtestEquityCurve.ts);
-    const formattedPoints = points.map((p) => ({
-      ts: p.ts.toISOString(),
-      equity: parseFloat(p.equity),
-      cash: parseFloat(p.cash),
-      exposure: parseFloat(p.exposure)
-    }));
-    res.json({ points: formattedPoints });
-  } catch (error) {
-    log.error("BacktestAPI", `Failed to get equity curve: ${error}`);
-    res.status(500).json({ error: "Failed to get equity curve" });
+router.get(
+  "/:id/equity-curve",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const points = await db.select().from(backtestEquityCurve).where(eq16(backtestEquityCurve.runId, req.params.id)).orderBy(backtestEquityCurve.ts);
+      const formattedPoints = points.map((p) => ({
+        ts: p.ts.toISOString(),
+        equity: parseFloat(p.equity),
+        cash: parseFloat(p.cash),
+        exposure: parseFloat(p.exposure)
+      }));
+      res.json({ points: formattedPoints });
+    } catch (error) {
+      log.error("BacktestAPI", `Failed to get equity curve: ${error}`);
+      res.status(500).json({ error: "Failed to get equity curve" });
+    }
   }
-});
+);
 router.get("/:id/trades", requireAuth, async (req, res) => {
   try {
     const trades3 = await db.select().from(backtestTradeEvents).where(eq16(backtestTradeEvents.runId, req.params.id)).orderBy(backtestTradeEvents.ts);
@@ -35772,13 +37295,13 @@ init_db();
 init_schema2();
 init_logger();
 import { Router as Router3 } from "express";
-import { eq as eq19, desc as desc13, and as and14, or as or3, like as like4, gte as gte6, sql as sql24, count as count2 } from "drizzle-orm";
+import { eq as eq19, desc as desc13, and as and14, or as or3, like as like4, gte as gte6, sql as sql26, count as count2 } from "drizzle-orm";
 
 // server/observability/alertService.ts
 init_db();
 init_schema2();
 init_logger();
-import { eq as eq18, desc as desc12, gte as gte5, sql as sql23, and as and13, count } from "drizzle-orm";
+import { eq as eq18, desc as desc12, gte as gte5, sql as sql25, and as and13, count } from "drizzle-orm";
 var AlertService = class {
   evaluationInterval = null;
   async getMetricsSnapshot() {
@@ -35797,7 +37320,7 @@ var AlertService = class {
       }).from(workItems).groupBy(workItems.status),
       db.select({
         total: count(),
-        errors: sql23`count(case when ${llmCalls.status} = 'error' then 1 end)`
+        errors: sql25`count(case when ${llmCalls.status} = 'error' then 1 end)`
       }).from(llmCalls).where(gte5(llmCalls.createdAt, oneHourAgo)),
       db.select().from(agentStatus).limit(1),
       db.select({
@@ -36072,11 +37595,11 @@ observabilityRouter.get("/health", async (req, res) => {
       }).from(workItems).where(eq19(workItems.status, "PENDING")).orderBy(workItems.createdAt).limit(1),
       db.select({
         total: count2(),
-        errors: sql24`count(case when ${llmCalls.status} = 'error' then 1 end)`
+        errors: sql26`count(case when ${llmCalls.status} = 'error' then 1 end)`
       }).from(llmCalls).where(gte6(llmCalls.createdAt, oneHourAgo)),
       db.select({
         total: count2(),
-        errors: sql24`count(case when ${llmCalls.status} = 'error' then 1 end)`
+        errors: sql26`count(case when ${llmCalls.status} = 'error' then 1 end)`
       }).from(llmCalls).where(gte6(llmCalls.createdAt, oneDayAgo)),
       db.select().from(agentStatus).limit(1)
     ]);
@@ -36518,7 +38041,7 @@ init_llmGateway();
 init_storage();
 init_logger();
 init_alpaca();
-import { z as z6 } from "zod";
+import { z as z8 } from "zod";
 var toolRegistry = /* @__PURE__ */ new Map();
 function registerTool(tool) {
   if (toolRegistry.has(tool.name)) {
@@ -36544,7 +38067,7 @@ function getToolSchemas() {
   return Array.from(toolRegistry.values()).map((t) => ({
     name: t.name,
     description: t.description,
-    inputSchema: t.inputSchema instanceof z6.ZodObject ? t.inputSchema.shape : {}
+    inputSchema: t.inputSchema instanceof z8.ZodObject ? t.inputSchema.shape : {}
   }));
 }
 async function invokeTool(toolName, params, context) {
@@ -36631,8 +38154,8 @@ registerTool({
   name: "getQuote",
   description: "Get real-time quote for a symbol from Alpaca",
   category: "market_data",
-  inputSchema: z6.object({
-    symbol: z6.string().describe("Stock or crypto symbol")
+  inputSchema: z8.object({
+    symbol: z8.string().describe("Stock or crypto symbol")
   }),
   cacheable: true,
   cacheTtlMs: 5e3,
@@ -36655,10 +38178,10 @@ registerTool({
   name: "getBars",
   description: "Get historical price bars for a symbol",
   category: "market_data",
-  inputSchema: z6.object({
-    symbol: z6.string(),
-    timeframe: z6.enum(["1Min", "5Min", "15Min", "1Hour", "1Day"]).default("1Day"),
-    limit: z6.number().min(1).max(100).default(20)
+  inputSchema: z8.object({
+    symbol: z8.string(),
+    timeframe: z8.enum(["1Min", "5Min", "15Min", "1Hour", "1Day"]).default("1Day"),
+    limit: z8.number().min(1).max(100).default(20)
   }),
   cacheable: true,
   cacheTtlMs: 6e4,
@@ -36686,7 +38209,7 @@ registerTool({
   name: "listPositions",
   description: "Get all open positions from Alpaca",
   category: "broker",
-  inputSchema: z6.object({}),
+  inputSchema: z8.object({}),
   execute: async () => {
     const positions2 = await alpaca.getPositions();
     return positions2.map(
@@ -36705,7 +38228,7 @@ registerTool({
   name: "getAccount",
   description: "Get Alpaca account information",
   category: "broker",
-  inputSchema: z6.object({}),
+  inputSchema: z8.object({}),
   execute: async () => {
     const account = await alpaca.getAccount();
     return {
@@ -36724,9 +38247,9 @@ registerTool({
   name: "listOrders",
   description: "Get orders from Alpaca",
   category: "broker",
-  inputSchema: z6.object({
-    status: z6.enum(["open", "closed", "all"]).default("open"),
-    limit: z6.number().min(1).max(100).default(50)
+  inputSchema: z8.object({
+    status: z8.enum(["open", "closed", "all"]).default("open"),
+    limit: z8.number().min(1).max(100).default(50)
   }),
   execute: async (params) => {
     const { status, limit: limit4 } = params;
@@ -36749,7 +38272,7 @@ registerTool({
   name: "getMarketClock",
   description: "Get market open/close times",
   category: "market_data",
-  inputSchema: z6.object({}),
+  inputSchema: z8.object({}),
   cacheable: true,
   cacheTtlMs: 6e4,
   execute: async () => {
@@ -37144,18 +38667,22 @@ router2.get("/sessions", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to list debate sessions" });
   }
 });
-router2.get("/sessions/:id", requireAuth, async (req, res) => {
-  try {
-    const details = await getDebateDetails(req.params.id);
-    if (!details) {
-      return res.status(404).json({ error: "Debate session not found" });
+router2.get(
+  "/sessions/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const details = await getDebateDetails(req.params.id);
+      if (!details) {
+        return res.status(404).json({ error: "Debate session not found" });
+      }
+      res.json(details);
+    } catch (error) {
+      log.error("DebateAPI", `Failed to get debate session: ${error}`);
+      res.status(500).json({ error: "Failed to get debate session" });
     }
-    res.json(details);
-  } catch (error) {
-    log.error("DebateAPI", `Failed to get debate session: ${error}`);
-    res.status(500).json({ error: "Failed to get debate session" });
   }
-});
+);
 var debate_default = router2;
 
 // server/routes/tools.ts
@@ -37287,18 +38814,22 @@ router4.get("/traders/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get trader" });
   }
 });
-router4.patch("/traders/:id", requireAuth, async (req, res) => {
-  try {
-    const trader = await storage.updateTraderProfile(req.params.id, req.body);
-    if (!trader) {
-      return res.status(404).json({ error: "Trader not found" });
+router4.patch(
+  "/traders/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const trader = await storage.updateTraderProfile(req.params.id, req.body);
+      if (!trader) {
+        return res.status(404).json({ error: "Trader not found" });
+      }
+      res.json(trader);
+    } catch (error) {
+      log.error("CompetitionAPI", `Failed to update trader: ${error}`);
+      res.status(500).json({ error: error.message || "Failed to update trader" });
     }
-    res.json(trader);
-  } catch (error) {
-    log.error("CompetitionAPI", `Failed to update trader: ${error}`);
-    res.status(500).json({ error: error.message || "Failed to update trader" });
   }
-});
+);
 router4.get("/runs", requireAuth, async (req, res) => {
   try {
     const limit4 = parseInt(req.query.limit) || 20;
@@ -37366,42 +38897,46 @@ router4.patch("/runs/:id", requireAuth, async (req, res) => {
     });
   }
 });
-router4.post("/runs/:id/scores", requireAuth, async (req, res) => {
-  try {
-    const {
-      traderId,
-      rank,
-      metrics,
-      pnl,
-      pnlPct,
-      sharpe,
-      sortino,
-      maxDrawdown,
-      winRate,
-      totalTrades
-    } = req.body;
-    if (!traderId) {
-      return res.status(400).json({ error: "traderId is required" });
+router4.post(
+  "/runs/:id/scores",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const {
+        traderId,
+        rank,
+        metrics,
+        pnl,
+        pnlPct,
+        sharpe,
+        sortino,
+        maxDrawdown,
+        winRate,
+        totalTrades
+      } = req.body;
+      if (!traderId) {
+        return res.status(400).json({ error: "traderId is required" });
+      }
+      const score = await storage.createCompetitionScore({
+        runId: req.params.id,
+        traderProfileId: traderId,
+        rank,
+        totalPnl: pnl ? String(pnl) : void 0,
+        roi: pnlPct ? String(pnlPct) : void 0,
+        sharpe: sharpe ? String(sharpe) : void 0,
+        sortino: sortino ? String(sortino) : void 0,
+        maxDrawdown: maxDrawdown ? String(maxDrawdown) : void 0,
+        winRate: winRate ? String(winRate) : void 0,
+        tradeCount: totalTrades,
+        details: metrics
+      });
+      res.json(score);
+    } catch (error) {
+      log.error("CompetitionAPI", `Failed to create score: ${error}`);
+      res.status(500).json({ error: error.message || "Failed to create score" });
     }
-    const score = await storage.createCompetitionScore({
-      runId: req.params.id,
-      traderProfileId: traderId,
-      rank,
-      totalPnl: pnl ? String(pnl) : void 0,
-      roi: pnlPct ? String(pnlPct) : void 0,
-      sharpe: sharpe ? String(sharpe) : void 0,
-      sortino: sortino ? String(sortino) : void 0,
-      maxDrawdown: maxDrawdown ? String(maxDrawdown) : void 0,
-      winRate: winRate ? String(winRate) : void 0,
-      tradeCount: totalTrades,
-      details: metrics
-    });
-    res.json(score);
-  } catch (error) {
-    log.error("CompetitionAPI", `Failed to create score: ${error}`);
-    res.status(500).json({ error: error.message || "Failed to create score" });
   }
-});
+);
 var competition_default = router4;
 
 // server/routes/strategies.ts
@@ -38174,7 +39709,16 @@ var StrategyOrderService = class {
    * and submits the order with all strategy parameters applied.
    */
   async executeWithStrategy(request) {
-    const { strategyId, symbol, side, decision, overrideQty, overrideNotional, traceId, bypassQueue } = request;
+    const {
+      strategyId,
+      symbol,
+      side,
+      decision,
+      overrideQty,
+      overrideNotional,
+      traceId,
+      bypassQueue
+    } = request;
     try {
       const strategy = await storage.getStrategy(strategyId);
       if (!strategy) {
@@ -38247,7 +39791,11 @@ var StrategyOrderService = class {
         quantity = Math.floor(overrideNotional / quote.price);
         notional = overrideNotional;
       } else {
-        positionSizeResult = calculatePositionSize(context, portfolioValue, quote.price);
+        positionSizeResult = calculatePositionSize(
+          context,
+          portfolioValue,
+          quote.price
+        );
         if (positionSizeResult.quantity < 1) {
           return {
             success: false,
@@ -38265,7 +39813,11 @@ var StrategyOrderService = class {
           });
         }
       }
-      const bracketParams = calculateBracketOrderParams(context, quote.price, side);
+      const bracketParams = calculateBracketOrderParams(
+        context,
+        quote.price,
+        side
+      );
       const orderType = getOrderType(context);
       const timeInForce = getTimeInForce(context);
       const limitPrice = orderType === "limit" ? calculateLimitPrice(context, quote.price, side) : void 0;
@@ -38303,11 +39855,15 @@ var StrategyOrderService = class {
       });
       const result = await unifiedOrderExecutor.submitOrder(orderRequest);
       if (result.success) {
-        log.info("StrategyOrderService", "Strategy order submitted successfully", {
-          strategyId,
-          orderId: result.orderId,
-          clientOrderId: result.clientOrderId
-        });
+        log.info(
+          "StrategyOrderService",
+          "Strategy order submitted successfully",
+          {
+            strategyId,
+            orderId: result.orderId,
+            clientOrderId: result.clientOrderId
+          }
+        );
       } else {
         log.error("StrategyOrderService", "Strategy order failed", {
           strategyId,
@@ -38330,11 +39886,15 @@ var StrategyOrderService = class {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error("StrategyOrderService", "Unexpected error executing strategy order", {
-        strategyId,
-        symbol,
-        error: errorMessage
-      });
+      log.error(
+        "StrategyOrderService",
+        "Unexpected error executing strategy order",
+        {
+          strategyId,
+          symbol,
+          error: errorMessage
+        }
+      );
       return {
         success: false,
         error: `Unexpected error: ${errorMessage}`
@@ -38367,19 +39927,27 @@ var StrategyOrderService = class {
         const positions3 = await storage.getPositionsByStrategy(strategyId);
         const count3 = positions3.length;
         await setCounter(cacheKey, count3);
-        log.debug("StrategyOrderService", "Initialized position count in Redis", {
-          strategyId,
-          count: count3
-        });
+        log.debug(
+          "StrategyOrderService",
+          "Initialized position count in Redis",
+          {
+            strategyId,
+            count: count3
+          }
+        );
         return count3;
       }
       const positions2 = await storage.getPositionsByStrategy(strategyId);
       return positions2.length;
     } catch (error) {
-      log.warn("StrategyOrderService", "Failed to get position count, using 0", {
-        strategyId,
-        error: error instanceof Error ? error.message : String(error)
-      });
+      log.warn(
+        "StrategyOrderService",
+        "Failed to get position count, using 0",
+        {
+          strategyId,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      );
       return 0;
     }
   }
@@ -38391,7 +39959,9 @@ var StrategyOrderService = class {
       const snapshots = await alpaca.getSnapshots([symbol]);
       const snapshot = snapshots[symbol];
       if (!snapshot) {
-        log.warn("StrategyOrderService", "No snapshot returned for symbol", { symbol });
+        log.warn("StrategyOrderService", "No snapshot returned for symbol", {
+          symbol
+        });
         return { price: null };
       }
       if (snapshot.latestQuote && snapshot.latestQuote.bp > 0 && snapshot.latestQuote.ap > 0) {
@@ -38405,7 +39975,9 @@ var StrategyOrderService = class {
       if (snapshot.latestTrade && snapshot.latestTrade.p > 0) {
         return { price: snapshot.latestTrade.p };
       }
-      log.warn("StrategyOrderService", "Snapshot has no valid price data", { symbol });
+      log.warn("StrategyOrderService", "Snapshot has no valid price data", {
+        symbol
+      });
       return { price: null };
     } catch (error) {
       log.error("StrategyOrderService", "Failed to get price data", {
@@ -38541,7 +40113,7 @@ var StrategyOrderService = class {
 var strategyOrderService = new StrategyOrderService();
 
 // server/routes/strategies.ts
-import { z as z7 } from "zod";
+import { z as z9 } from "zod";
 var router5 = Router7();
 router5.get("/", requireAuth, async (req, res) => {
   try {
@@ -38728,62 +40300,78 @@ router5.post("/:id/resume", requireAuth, async (req, res) => {
     return serverError(res, "Failed to resume strategy");
   }
 });
-router5.post("/:id/lifecycle/stop", requireAuth, async (req, res) => {
-  try {
-    const { closePositions } = req.body;
-    const result = await strategyLifecycleService.stopStrategy(
-      req.params.id,
-      closePositions
-    );
-    if (!result.success) {
-      if (result.requiresConfirmation) {
-        return res.status(200).json({
-          requiresConfirmation: true,
-          positionCount: result.positionCount,
-          message: result.message
-        });
+router5.post(
+  "/:id/lifecycle/stop",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { closePositions } = req.body;
+      const result = await strategyLifecycleService.stopStrategy(
+        req.params.id,
+        closePositions
+      );
+      if (!result.success) {
+        if (result.requiresConfirmation) {
+          return res.status(200).json({
+            requiresConfirmation: true,
+            positionCount: result.positionCount,
+            message: result.message
+          });
+        }
+        return badRequest(res, result.error || "Failed to stop strategy");
       }
-      return badRequest(res, result.error || "Failed to stop strategy");
+      await alpacaTradingEngine.stopStrategy(req.params.id);
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to stop strategy (lifecycle)", {
+        error
+      });
+      return serverError(res, "Failed to stop strategy");
     }
-    await alpacaTradingEngine.stopStrategy(req.params.id);
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to stop strategy (lifecycle)", { error });
-    return serverError(res, "Failed to stop strategy");
   }
-});
-router5.post("/:id/backtest/start", requireAuth, async (req, res) => {
-  try {
-    const result = await strategyLifecycleService.startBacktest(req.params.id);
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to start backtest");
+);
+router5.post(
+  "/:id/backtest/start",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const result = await strategyLifecycleService.startBacktest(
+        req.params.id
+      );
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to start backtest");
+      }
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to start backtest", { error });
+      return serverError(res, "Failed to start backtest");
     }
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to start backtest", { error });
-    return serverError(res, "Failed to start backtest");
   }
-});
-router5.post("/:id/backtest/complete", requireAuth, async (req, res) => {
-  try {
-    const { backtestId, performance } = req.body;
-    if (!backtestId) {
-      return badRequest(res, "backtestId is required");
+);
+router5.post(
+  "/:id/backtest/complete",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { backtestId, performance } = req.body;
+      if (!backtestId) {
+        return badRequest(res, "backtestId is required");
+      }
+      const result = await strategyLifecycleService.completeBacktest(
+        req.params.id,
+        backtestId,
+        performance
+      );
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to complete backtest");
+      }
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to complete backtest", { error });
+      return serverError(res, "Failed to complete backtest");
     }
-    const result = await strategyLifecycleService.completeBacktest(
-      req.params.id,
-      backtestId,
-      performance
-    );
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to complete backtest");
-    }
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to complete backtest", { error });
-    return serverError(res, "Failed to complete backtest");
   }
-});
+);
 router5.post("/:id/reset", requireAuth, async (req, res) => {
   try {
     const result = await strategyLifecycleService.resetToDraft(req.params.id);
@@ -38796,20 +40384,26 @@ router5.post("/:id/reset", requireAuth, async (req, res) => {
     return serverError(res, "Failed to reset strategy");
   }
 });
-router5.post("/:id/metrics/update", requireAuth, async (req, res) => {
-  try {
-    const result = await strategyLifecycleService.updatePerformanceMetrics(
-      req.params.id
-    );
-    if (!result.success) {
-      return badRequest(res, result.error || "Failed to update metrics");
+router5.post(
+  "/:id/metrics/update",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const result = await strategyLifecycleService.updatePerformanceMetrics(
+        req.params.id
+      );
+      if (!result.success) {
+        return badRequest(res, result.error || "Failed to update metrics");
+      }
+      res.json(result.strategy);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to update strategy metrics", {
+        error
+      });
+      return serverError(res, "Failed to update strategy metrics");
     }
-    res.json(result.strategy);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to update strategy metrics", { error });
-    return serverError(res, "Failed to update strategy metrics");
   }
-});
+);
 router5.get("/running", requireAuth, async (req, res) => {
   try {
     const strategies2 = await strategyLifecycleService.getRunningStrategies();
@@ -38819,37 +40413,53 @@ router5.get("/running", requireAuth, async (req, res) => {
     return serverError(res, "Failed to get running strategies");
   }
 });
-router5.get("/moving-average/schema", requireAuth, async (req, res) => {
-  try {
-    const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_moving_average_crossover(), moving_average_crossover_exports));
-    res.json(STRATEGY_SCHEMA4);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get MA strategy schema", { error });
-    return serverError(res, "Failed to get strategy schema");
+router5.get(
+  "/moving-average/schema",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_moving_average_crossover(), moving_average_crossover_exports));
+      res.json(STRATEGY_SCHEMA4);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get MA strategy schema", { error });
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
-router5.get("/mean-reversion/schema", requireAuth, async (req, res) => {
-  try {
-    const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
-    res.json(STRATEGY_SCHEMA4);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get mean reversion strategy schema", {
-      error
-    });
-    return serverError(res, "Failed to get strategy schema");
+);
+router5.get(
+  "/mean-reversion/schema",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
+      res.json(STRATEGY_SCHEMA4);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        "Failed to get mean reversion strategy schema",
+        {
+          error
+        }
+      );
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
-router5.get("/momentum/schema", requireAuth, async (req, res) => {
-  try {
-    const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
-    res.json(STRATEGY_SCHEMA4);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get momentum strategy schema", {
-      error
-    });
-    return serverError(res, "Failed to get strategy schema");
+);
+router5.get(
+  "/momentum/schema",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { STRATEGY_SCHEMA: STRATEGY_SCHEMA4 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
+      res.json(STRATEGY_SCHEMA4);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get momentum strategy schema", {
+        error
+      });
+      return serverError(res, "Failed to get strategy schema");
+    }
   }
-});
+);
 router5.get("/all-schemas", requireAuth, async (req, res) => {
   try {
     const { ALL_STRATEGIES: ALL_STRATEGIES2 } = await Promise.resolve().then(() => (init_strategies(), strategies_exports));
@@ -38859,21 +40469,25 @@ router5.get("/all-schemas", requireAuth, async (req, res) => {
     return serverError(res, "Failed to get strategy schemas");
   }
 });
-router5.post("/moving-average/backtest", requireAuth, async (req, res) => {
-  try {
-    const { normalizeMovingAverageConfig: normalizeMovingAverageConfig2, backtestMovingAverageStrategy: backtestMovingAverageStrategy2 } = await Promise.resolve().then(() => (init_moving_average_crossover(), moving_average_crossover_exports));
-    const config2 = normalizeMovingAverageConfig2(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays) || 365;
-    const result = await backtestMovingAverageStrategy2(config2, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run MA backtest", { error });
-    return serverError(
-      res,
-      error.message || "Failed to run backtest"
-    );
+router5.post(
+  "/moving-average/backtest",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { normalizeMovingAverageConfig: normalizeMovingAverageConfig2, backtestMovingAverageStrategy: backtestMovingAverageStrategy2 } = await Promise.resolve().then(() => (init_moving_average_crossover(), moving_average_crossover_exports));
+      const config2 = normalizeMovingAverageConfig2(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays) || 365;
+      const result = await backtestMovingAverageStrategy2(config2, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run MA backtest", { error });
+      return serverError(
+        res,
+        error.message || "Failed to run backtest"
+      );
+    }
   }
-});
+);
 router5.post(
   "/moving-average/ai-validate",
   async (req, res) => {
@@ -38900,80 +40514,98 @@ router5.post(
     }
   }
 );
-router5.post("/mean-reversion/backtest", requireAuth, async (req, res) => {
-  try {
-    const { normalizeMeanReversionConfig: normalizeMeanReversionConfig2, backtestMeanReversionStrategy: backtestMeanReversionStrategy2 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
-    const config2 = normalizeMeanReversionConfig2(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays) || 365;
-    const result = await backtestMeanReversionStrategy2(config2, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run mean reversion backtest", {
-      error
-    });
-    return serverError(
-      res,
-      error.message || "Failed to run backtest"
-    );
-  }
-});
-router5.post("/mean-reversion/signal", requireAuth, async (req, res) => {
-  try {
-    const { normalizeMeanReversionConfig: normalizeMeanReversionConfig2, generateMeanReversionSignal: generateMeanReversionSignal2 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
-    const config2 = normalizeMeanReversionConfig2(req.body.config || req.body);
-    const prices = req.body.prices;
-    if (!prices || !Array.isArray(prices) || prices.length < config2.lookbackPeriod) {
-      return badRequest(
+router5.post(
+  "/mean-reversion/backtest",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { normalizeMeanReversionConfig: normalizeMeanReversionConfig2, backtestMeanReversionStrategy: backtestMeanReversionStrategy2 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
+      const config2 = normalizeMeanReversionConfig2(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays) || 365;
+      const result = await backtestMeanReversionStrategy2(config2, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run mean reversion backtest", {
+        error
+      });
+      return serverError(
         res,
-        `Need at least ${config2.lookbackPeriod} price points`
+        error.message || "Failed to run backtest"
       );
     }
-    const signal = generateMeanReversionSignal2(prices, config2);
-    res.json(signal);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to generate mean reversion signal", {
-      error
-    });
-    return serverError(
-      res,
-      error.message || "Failed to generate signal"
-    );
   }
-});
-router5.post("/momentum/backtest", requireAuth, async (req, res) => {
-  try {
-    const { normalizeMomentumConfig: normalizeMomentumConfig2, backtestMomentumStrategy: backtestMomentumStrategy2 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
-    const config2 = normalizeMomentumConfig2(req.body);
-    const lookbackDays = parseInt(req.query.lookbackDays) || 365;
-    const result = await backtestMomentumStrategy2(config2, lookbackDays);
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to run momentum backtest", { error });
-    return serverError(
-      res,
-      error.message || "Failed to run backtest"
-    );
-  }
-});
-router5.post("/momentum/signal", requireAuth, async (req, res) => {
-  try {
-    const { normalizeMomentumConfig: normalizeMomentumConfig2, generateMomentumSignal: generateMomentumSignal2 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
-    const config2 = normalizeMomentumConfig2(req.body.config || req.body);
-    const prices = req.body.prices;
-    const requiredLength = Math.max(config2.lookbackPeriod, config2.rsiPeriod) + 1;
-    if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
-      return badRequest(res, `Need at least ${requiredLength} price points`);
+);
+router5.post(
+  "/mean-reversion/signal",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { normalizeMeanReversionConfig: normalizeMeanReversionConfig2, generateMeanReversionSignal: generateMeanReversionSignal2 } = await Promise.resolve().then(() => (init_mean_reversion_scalper(), mean_reversion_scalper_exports));
+      const config2 = normalizeMeanReversionConfig2(req.body.config || req.body);
+      const prices = req.body.prices;
+      if (!prices || !Array.isArray(prices) || prices.length < config2.lookbackPeriod) {
+        return badRequest(
+          res,
+          `Need at least ${config2.lookbackPeriod} price points`
+        );
+      }
+      const signal = generateMeanReversionSignal2(prices, config2);
+      res.json(signal);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to generate mean reversion signal", {
+        error
+      });
+      return serverError(
+        res,
+        error.message || "Failed to generate signal"
+      );
     }
-    const signal = generateMomentumSignal2(prices, config2);
-    res.json(signal);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to generate momentum signal", { error });
-    return serverError(
-      res,
-      error.message || "Failed to generate signal"
-    );
   }
-});
+);
+router5.post(
+  "/momentum/backtest",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { normalizeMomentumConfig: normalizeMomentumConfig2, backtestMomentumStrategy: backtestMomentumStrategy2 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
+      const config2 = normalizeMomentumConfig2(req.body);
+      const lookbackDays = parseInt(req.query.lookbackDays) || 365;
+      const result = await backtestMomentumStrategy2(config2, lookbackDays);
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to run momentum backtest", { error });
+      return serverError(
+        res,
+        error.message || "Failed to run backtest"
+      );
+    }
+  }
+);
+router5.post(
+  "/momentum/signal",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { normalizeMomentumConfig: normalizeMomentumConfig2, generateMomentumSignal: generateMomentumSignal2 } = await Promise.resolve().then(() => (init_momentum_strategy(), momentum_strategy_exports));
+      const config2 = normalizeMomentumConfig2(req.body.config || req.body);
+      const prices = req.body.prices;
+      const requiredLength = Math.max(config2.lookbackPeriod, config2.rsiPeriod) + 1;
+      if (!prices || !Array.isArray(prices) || prices.length < requiredLength) {
+        return badRequest(res, `Need at least ${requiredLength} price points`);
+      }
+      const signal = generateMomentumSignal2(prices, config2);
+      res.json(signal);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to generate momentum signal", {
+        error
+      });
+      return serverError(
+        res,
+        error.message || "Failed to generate signal"
+      );
+    }
+  }
+);
 router5.post("/backtest", requireAuth, async (req, res) => {
   try {
     const { strategyType, symbol, lookbackDays = 365 } = req.body;
@@ -39136,109 +40768,134 @@ router5.post("/versions", requireAuth, async (req, res) => {
     );
   }
 });
-router5.get("/versions/:id", requireAuth, async (req, res) => {
-  try {
-    const version = await storage.getStrategyVersion(req.params.id);
-    if (!version) {
-      return notFound(res, "Strategy version not found");
+router5.get(
+  "/versions/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const version = await storage.getStrategyVersion(req.params.id);
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
+      res.json(version);
+    } catch (error) {
+      log.error("StrategiesAPI", `Failed to get strategy version: ${error}`);
+      return serverError(res, "Failed to get strategy version");
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to get strategy version: ${error}`);
-    return serverError(res, "Failed to get strategy version");
   }
-});
-router5.patch("/versions/:id", requireAuth, async (req, res) => {
-  try {
-    const sanitizedBody = sanitizeStrategyInput(req.body);
-    const version = await storage.updateStrategyVersion(
-      req.params.id,
-      sanitizedBody
-    );
-    if (!version) {
-      return notFound(res, "Strategy version not found");
+);
+router5.patch(
+  "/versions/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const sanitizedBody = sanitizeStrategyInput(req.body);
+      const version = await storage.updateStrategyVersion(
+        req.params.id,
+        sanitizedBody
+      );
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
+      res.json(version);
+    } catch (error) {
+      log.error("StrategiesAPI", `Failed to update strategy version: ${error}`);
+      return serverError(
+        res,
+        error.message || "Failed to update strategy version"
+      );
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to update strategy version: ${error}`);
-    return serverError(
-      res,
-      error.message || "Failed to update strategy version"
-    );
   }
-});
-router5.post("/versions/:id/activate", requireAuth, async (req, res) => {
-  try {
-    const version = await storage.getStrategyVersion(req.params.id);
-    if (!version) {
-      return notFound(res, "Strategy version not found");
-    }
-    if (version.strategyId) {
-      const { db: db2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      const { backtestRuns: backtestRuns3 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
-      const { eq: eq31, and: and21, desc: desc23 } = await import("drizzle-orm");
-      const successfulBacktests = await db2.select().from(backtestRuns3).where(
-        and21(
-          eq31(backtestRuns3.strategyId, version.strategyId),
-          eq31(backtestRuns3.status, "DONE")
-        )
-      ).orderBy(desc23(backtestRuns3.createdAt)).limit(1);
-      if (successfulBacktests.length === 0) {
-        log.warn(
+);
+router5.post(
+  "/versions/:id/activate",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const version = await storage.getStrategyVersion(req.params.id);
+      if (!version) {
+        return notFound(res, "Strategy version not found");
+      }
+      if (version.strategyId) {
+        const { db: db2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const { backtestRuns: backtestRuns3 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
+        const { eq: eq31, and: and21, desc: desc23 } = await import("drizzle-orm");
+        const successfulBacktests = await db2.select().from(backtestRuns3).where(
+          and21(
+            eq31(backtestRuns3.strategyId, version.strategyId),
+            eq31(backtestRuns3.status, "DONE")
+          )
+        ).orderBy(desc23(backtestRuns3.createdAt)).limit(1);
+        if (successfulBacktests.length === 0) {
+          log.warn(
+            "StrategiesAPI",
+            `Activation blocked for strategy version ${req.params.id}: No successful backtest found`
+          );
+          return validationError(
+            res,
+            "Strategy must have at least one successful backtest before activation. Please run a backtest and verify results before activating this strategy.",
+            {
+              strategyId: version.strategyId,
+              strategyVersionId: req.params.id
+            }
+          );
+        }
+        log.info(
           "StrategiesAPI",
-          `Activation blocked for strategy version ${req.params.id}: No successful backtest found`
-        );
-        return validationError(
-          res,
-          "Strategy must have at least one successful backtest before activation. Please run a backtest and verify results before activating this strategy.",
+          `Backtest validation passed for strategy version ${req.params.id}`,
           {
             strategyId: version.strategyId,
-            strategyVersionId: req.params.id
+            backtestId: successfulBacktests[0].id,
+            backtestDate: successfulBacktests[0].createdAt
           }
         );
       }
-      log.info(
-        "StrategiesAPI",
-        `Backtest validation passed for strategy version ${req.params.id}`,
+      const updatedVersion = await storage.updateStrategyVersion(
+        req.params.id,
         {
-          strategyId: version.strategyId,
-          backtestId: successfulBacktests[0].id,
-          backtestDate: successfulBacktests[0].createdAt
+          status: "active",
+          activatedAt: /* @__PURE__ */ new Date()
         }
       );
+      if (!updatedVersion) {
+        return notFound(res, "Strategy version not found");
+      }
+      res.json(updatedVersion);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to activate strategy version: ${error}`
+      );
+      return serverError(
+        res,
+        error.message || "Failed to activate strategy version"
+      );
     }
-    const updatedVersion = await storage.updateStrategyVersion(req.params.id, {
-      status: "active",
-      activatedAt: /* @__PURE__ */ new Date()
-    });
-    if (!updatedVersion) {
-      return notFound(res, "Strategy version not found");
-    }
-    res.json(updatedVersion);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to activate strategy version: ${error}`);
-    return serverError(
-      res,
-      error.message || "Failed to activate strategy version"
-    );
   }
-});
-router5.post("/versions/:id/archive", requireAuth, async (req, res) => {
-  try {
-    const version = await storage.updateStrategyVersion(req.params.id, {
-      status: "archived"
-    });
-    if (!version) {
-      return res.status(404).json({ error: "Strategy version not found" });
+);
+router5.post(
+  "/versions/:id/archive",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const version = await storage.updateStrategyVersion(req.params.id, {
+        status: "archived"
+      });
+      if (!version) {
+        return res.status(404).json({ error: "Strategy version not found" });
+      }
+      res.json(version);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to archive strategy version: ${error}`
+      );
+      res.status(500).json({
+        error: error.message || "Failed to archive strategy version"
+      });
     }
-    res.json(version);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to archive strategy version: ${error}`);
-    res.status(500).json({
-      error: error.message || "Failed to archive strategy version"
-    });
   }
-});
+);
 router5.get(
   "/versions/:strategyId/latest",
   async (req, res) => {
@@ -39271,121 +40928,134 @@ router5.delete("/:id", requireAuth, async (req, res) => {
     return serverError(res, "Failed to delete strategy");
   }
 });
-router5.get("/:id/performance", requireAuth, async (req, res) => {
-  try {
-    const strategyId = req.params.id;
-    const strategy = await storage.getStrategy(strategyId);
-    if (!strategy) {
-      return res.status(404).json({ error: "Strategy not found" });
+router5.get(
+  "/:id/performance",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const strategyId = req.params.id;
+      const strategy = await storage.getStrategy(strategyId);
+      if (!strategy) {
+        return res.status(404).json({ error: "Strategy not found" });
+      }
+      const { alpacaTradingEngine: alpacaTradingEngine2 } = await Promise.resolve().then(() => (init_alpaca_trading_engine(), alpaca_trading_engine_exports));
+      const strategyState = alpacaTradingEngine2.getStrategyState(strategyId);
+      const { db: db2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const { trades: trades3 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
+      const { eq: eq31, and: and21, isNotNull: isNotNull2, sql: sql33 } = await import("drizzle-orm");
+      const allTrades = await db2.select().from(trades3).where(eq31(trades3.strategyId, strategyId)).orderBy(sql33`${trades3.executedAt} DESC`).limit(1e3);
+      const totalTrades = allTrades.length;
+      const closingTrades = allTrades.filter(
+        (t) => t.pnl !== null && t.pnl !== "0"
+      );
+      const winningTrades = closingTrades.filter(
+        (t) => parseFloat(t.pnl || "0") > 0
+      );
+      const losingTrades = closingTrades.filter(
+        (t) => parseFloat(t.pnl || "0") < 0
+      );
+      const winRate = closingTrades.length > 0 ? winningTrades.length / closingTrades.length * 100 : 0;
+      const totalPnl = closingTrades.reduce((sum, t) => {
+        return sum + parseFloat(t.pnl || "0");
+      }, 0);
+      const avgWin = winningTrades.length > 0 ? winningTrades.reduce(
+        (sum, t) => sum + parseFloat(t.pnl || "0"),
+        0
+      ) / winningTrades.length : 0;
+      const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) / losingTrades.length : 0;
+      const { positions: positions2 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
+      const currentPositions = await db2.select().from(positions2).where(eq31(positions2.strategyId, strategyId));
+      const unrealizedPnl = currentPositions.reduce((sum, p) => {
+        return sum + parseFloat(p.unrealizedPnl || "0");
+      }, 0);
+      const performance = {
+        strategyId,
+        strategyName: strategy.name,
+        status: strategyState?.isRunning ? "running" : "stopped",
+        lastCheck: strategyState?.lastCheck || null,
+        lastError: strategyState?.error || null,
+        // Real-time metrics
+        metrics: {
+          totalTrades,
+          closingTrades: closingTrades.length,
+          openingTrades: totalTrades - closingTrades.length,
+          // P&L metrics
+          realizedPnl: totalPnl,
+          unrealizedPnl,
+          totalPnl: totalPnl + unrealizedPnl,
+          // Win/Loss metrics
+          winningTrades: winningTrades.length,
+          losingTrades: losingTrades.length,
+          winRate: parseFloat(winRate.toFixed(2)),
+          // Average trade metrics
+          avgWin: parseFloat(avgWin.toFixed(2)),
+          avgLoss: parseFloat(avgLoss.toFixed(2)),
+          avgTrade: closingTrades.length > 0 ? parseFloat((totalPnl / closingTrades.length).toFixed(2)) : 0,
+          // Profit factor (avg win / abs(avg loss))
+          profitFactor: avgLoss !== 0 ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2)) : avgWin > 0 ? Infinity : 0
+        },
+        // Current positions
+        positions: currentPositions.map((p) => ({
+          id: p.id,
+          symbol: p.symbol,
+          side: p.side,
+          quantity: parseFloat(p.quantity),
+          entryPrice: parseFloat(p.entryPrice),
+          currentPrice: parseFloat(p.currentPrice || p.entryPrice),
+          unrealizedPnl: parseFloat(p.unrealizedPnl || "0"),
+          openedAt: p.openedAt
+        })),
+        // Recent trades (last 10)
+        recentTrades: allTrades.slice(0, 10).map((t) => ({
+          id: t.id,
+          symbol: t.symbol,
+          side: t.side,
+          quantity: parseFloat(t.quantity),
+          price: parseFloat(t.price),
+          pnl: t.pnl ? parseFloat(t.pnl) : null,
+          status: t.status,
+          executedAt: t.executedAt,
+          notes: t.notes
+        })),
+        // Last decision info (if available)
+        lastDecision: strategyState?.lastDecision ? {
+          action: strategyState.lastDecision.action,
+          confidence: strategyState.lastDecision.confidence,
+          reasoning: strategyState.lastDecision.reasoning,
+          riskLevel: strategyState.lastDecision.riskLevel
+        } : null
+      };
+      res.json(performance);
+    } catch (error) {
+      log.error(
+        "StrategiesAPI",
+        `Failed to get strategy performance: ${error}`
+      );
+      res.status(500).json({
+        error: error.message || "Failed to get strategy performance"
+      });
     }
-    const { alpacaTradingEngine: alpacaTradingEngine2 } = await Promise.resolve().then(() => (init_alpaca_trading_engine(), alpaca_trading_engine_exports));
-    const strategyState = alpacaTradingEngine2.getStrategyState(strategyId);
-    const { db: db2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-    const { trades: trades3 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
-    const { eq: eq31, and: and21, isNotNull: isNotNull2, sql: sql31 } = await import("drizzle-orm");
-    const allTrades = await db2.select().from(trades3).where(eq31(trades3.strategyId, strategyId)).orderBy(sql31`${trades3.executedAt} DESC`).limit(1e3);
-    const totalTrades = allTrades.length;
-    const closingTrades = allTrades.filter(
-      (t) => t.pnl !== null && t.pnl !== "0"
-    );
-    const winningTrades = closingTrades.filter(
-      (t) => parseFloat(t.pnl || "0") > 0
-    );
-    const losingTrades = closingTrades.filter(
-      (t) => parseFloat(t.pnl || "0") < 0
-    );
-    const winRate = closingTrades.length > 0 ? winningTrades.length / closingTrades.length * 100 : 0;
-    const totalPnl = closingTrades.reduce((sum, t) => {
-      return sum + parseFloat(t.pnl || "0");
-    }, 0);
-    const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) / winningTrades.length : 0;
-    const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + parseFloat(t.pnl || "0"), 0) / losingTrades.length : 0;
-    const { positions: positions2 } = await Promise.resolve().then(() => (init_schema2(), schema_exports));
-    const currentPositions = await db2.select().from(positions2).where(eq31(positions2.strategyId, strategyId));
-    const unrealizedPnl = currentPositions.reduce((sum, p) => {
-      return sum + parseFloat(p.unrealizedPnl || "0");
-    }, 0);
-    const performance = {
-      strategyId,
-      strategyName: strategy.name,
-      status: strategyState?.isRunning ? "running" : "stopped",
-      lastCheck: strategyState?.lastCheck || null,
-      lastError: strategyState?.error || null,
-      // Real-time metrics
-      metrics: {
-        totalTrades,
-        closingTrades: closingTrades.length,
-        openingTrades: totalTrades - closingTrades.length,
-        // P&L metrics
-        realizedPnl: totalPnl,
-        unrealizedPnl,
-        totalPnl: totalPnl + unrealizedPnl,
-        // Win/Loss metrics
-        winningTrades: winningTrades.length,
-        losingTrades: losingTrades.length,
-        winRate: parseFloat(winRate.toFixed(2)),
-        // Average trade metrics
-        avgWin: parseFloat(avgWin.toFixed(2)),
-        avgLoss: parseFloat(avgLoss.toFixed(2)),
-        avgTrade: closingTrades.length > 0 ? parseFloat((totalPnl / closingTrades.length).toFixed(2)) : 0,
-        // Profit factor (avg win / abs(avg loss))
-        profitFactor: avgLoss !== 0 ? parseFloat((avgWin / Math.abs(avgLoss)).toFixed(2)) : avgWin > 0 ? Infinity : 0
-      },
-      // Current positions
-      positions: currentPositions.map((p) => ({
-        id: p.id,
-        symbol: p.symbol,
-        side: p.side,
-        quantity: parseFloat(p.quantity),
-        entryPrice: parseFloat(p.entryPrice),
-        currentPrice: parseFloat(p.currentPrice || p.entryPrice),
-        unrealizedPnl: parseFloat(p.unrealizedPnl || "0"),
-        openedAt: p.openedAt
-      })),
-      // Recent trades (last 10)
-      recentTrades: allTrades.slice(0, 10).map((t) => ({
-        id: t.id,
-        symbol: t.symbol,
-        side: t.side,
-        quantity: parseFloat(t.quantity),
-        price: parseFloat(t.price),
-        pnl: t.pnl ? parseFloat(t.pnl) : null,
-        status: t.status,
-        executedAt: t.executedAt,
-        notes: t.notes
-      })),
-      // Last decision info (if available)
-      lastDecision: strategyState?.lastDecision ? {
-        action: strategyState.lastDecision.action,
-        confidence: strategyState.lastDecision.confidence,
-        reasoning: strategyState.lastDecision.reasoning,
-        riskLevel: strategyState.lastDecision.riskLevel
-      } : null
-    };
-    res.json(performance);
-  } catch (error) {
-    log.error("StrategiesAPI", `Failed to get strategy performance: ${error}`);
-    res.status(500).json({
-      error: error.message || "Failed to get strategy performance"
-    });
   }
-});
-var strategyOrderRequestSchema = z7.object({
-  symbol: z7.string().min(1).max(10),
-  side: z7.enum(["buy", "sell"]),
-  decision: z7.object({
-    confidence: z7.number().min(0).max(1),
-    reasoning: z7.string().optional()
+);
+var strategyOrderRequestSchema = z9.object({
+  symbol: z9.string().min(1).max(10),
+  side: z9.enum(["buy", "sell"]),
+  decision: z9.object({
+    confidence: z9.number().min(0).max(1),
+    reasoning: z9.string().optional()
   }).optional(),
-  overrideQty: z7.number().positive().optional(),
-  overrideNotional: z7.number().positive().optional()
+  overrideQty: z9.number().positive().optional(),
+  overrideNotional: z9.number().positive().optional()
 });
 router5.post("/:id/orders", requireAuth, async (req, res) => {
   try {
     const strategyId = req.params.id;
     const parsed = strategyOrderRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      return validationError(res, parsed.error.errors.map((e) => e.message).join(", "));
+      return validationError(
+        res,
+        parsed.error.errors.map((e) => e.message).join(", ")
+      );
     }
     const { symbol, side, decision, overrideQty, overrideNotional } = parsed.data;
     const result = await strategyOrderService.executeWithStrategy({
@@ -39447,67 +41117,79 @@ router5.get("/:id/orders", requireAuth, async (req, res) => {
     return serverError(res, "Failed to get strategy orders");
   }
 });
-router5.post("/:id/close-position", requireAuth, async (req, res) => {
-  try {
-    const strategyId = req.params.id;
-    const { symbol, quantity } = req.body;
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
-    }
-    const result = await strategyOrderService.closePosition(
-      strategyId,
-      symbol,
-      quantity,
-      req.headers["x-trace-id"]
-    );
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        error: result.error,
-        context: result.context
+router5.post(
+  "/:id/close-position",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const strategyId = req.params.id;
+      const { symbol, quantity } = req.body;
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+      const result = await strategyOrderService.closePosition(
+        strategyId,
+        symbol,
+        quantity,
+        req.headers["x-trace-id"]
+      );
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+          context: result.context
+        });
+      }
+      log.info("StrategiesAPI", "Position closed via strategy", {
+        strategyId,
+        symbol,
+        orderId: result.orderId
       });
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to close position", { error });
+      return serverError(res, "Failed to close position");
     }
-    log.info("StrategiesAPI", "Position closed via strategy", {
-      strategyId,
-      symbol,
-      orderId: result.orderId
-    });
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to close position", { error });
-    return serverError(res, "Failed to close position");
   }
-});
-router5.get("/:id/execution-context", requireAuth, async (req, res) => {
-  try {
-    const strategyId = req.params.id;
-    const context = await strategyOrderService.getExecutionContext(strategyId);
-    if (!context) {
-      return notFound(res, "Strategy not found");
+);
+router5.get(
+  "/:id/execution-context",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const strategyId = req.params.id;
+      const context = await strategyOrderService.getExecutionContext(strategyId);
+      if (!context) {
+        return notFound(res, "Strategy not found");
+      }
+      res.json(context);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to get execution context", { error });
+      return serverError(res, "Failed to get execution context");
     }
-    res.json(context);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to get execution context", { error });
-    return serverError(res, "Failed to get execution context");
   }
-});
-router5.post("/:id/preview-position-size", requireAuth, async (req, res) => {
-  try {
-    const strategyId = req.params.id;
-    const { symbol } = req.body;
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+);
+router5.post(
+  "/:id/preview-position-size",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const strategyId = req.params.id;
+      const { symbol } = req.body;
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
+      }
+      const result = await strategyOrderService.previewPositionSize(
+        strategyId,
+        symbol
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("StrategiesAPI", "Failed to preview position size", { error });
+      return serverError(res, "Failed to preview position size");
     }
-    const result = await strategyOrderService.previewPositionSize(
-      strategyId,
-      symbol
-    );
-    res.json(result);
-  } catch (error) {
-    log.error("StrategiesAPI", "Failed to preview position size", { error });
-    return serverError(res, "Failed to preview position size");
   }
-});
+);
 var strategies_default = router5;
 
 // server/routes/arena.ts
@@ -39519,22 +41201,22 @@ init_logger();
 init_db();
 init_schema2();
 import { eq as eq20, and as and15, gte as gte7 } from "drizzle-orm";
-import { z as z8 } from "zod";
-var AgentDecisionOutputSchema = z8.object({
-  action: z8.enum(["buy", "sell", "hold", "scale_in", "scale_out"]),
-  symbols: z8.array(z8.string()).optional().default([]),
-  confidence: z8.number().min(0).max(1),
-  stance: z8.enum(["bullish", "bearish", "neutral", "abstain"]),
-  rationale: z8.string(),
-  keySignals: z8.array(z8.string()).optional().default([]),
-  risks: z8.array(z8.string()).optional().default([]),
-  proposedOrder: z8.object({
-    symbol: z8.string(),
-    side: z8.enum(["buy", "sell"]),
-    qty: z8.number().optional(),
-    notional: z8.number().optional(),
-    type: z8.enum(["market", "limit"]),
-    limitPrice: z8.number().optional()
+import { z as z10 } from "zod";
+var AgentDecisionOutputSchema = z10.object({
+  action: z10.enum(["buy", "sell", "hold", "scale_in", "scale_out"]),
+  symbols: z10.array(z10.string()).optional().default([]),
+  confidence: z10.number().min(0).max(1),
+  stance: z10.enum(["bullish", "bearish", "neutral", "abstain"]),
+  rationale: z10.string(),
+  keySignals: z10.array(z10.string()).optional().default([]),
+  risks: z10.array(z10.string()).optional().default([]),
+  proposedOrder: z10.object({
+    symbol: z10.string(),
+    side: z10.enum(["buy", "sell"]),
+    qty: z10.number().optional(),
+    notional: z10.number().optional(),
+    type: z10.enum(["market", "limit"]),
+    limitPrice: z10.number().optional()
   }).optional()
 });
 var DEFAULT_ESCALATION_POLICY = {
@@ -40050,8 +41732,8 @@ ${contextSummary}`;
     const validDecisions = decisions.filter((d) => !d.errorMessage);
     if (validDecisions.length < 2) return 0;
     const actions = validDecisions.map((d) => d.action);
-    const unique7 = new Set(actions);
-    return (unique7.size - 1) / Math.max(1, validDecisions.length - 1);
+    const unique9 = new Set(actions);
+    return (unique9.size - 1) / Math.max(1, validDecisions.length - 1);
   }
   calculateAvgConfidence(decisions) {
     const validDecisions = decisions.filter((d) => !d.errorMessage);
@@ -40249,7 +41931,7 @@ var arenaCoordinator = new ArenaCoordinator();
 init_db();
 init_schema2();
 init_logger();
-import { eq as eq21, desc as desc15, and as and16, gte as gte8, sql as sql26 } from "drizzle-orm";
+import { eq as eq21, desc as desc15, and as and16, gte as gte8, sql as sql28 } from "drizzle-orm";
 var router6 = Router8();
 router6.post("/run", requireAuth, async (req, res) => {
   try {
@@ -40298,7 +41980,7 @@ router6.get("/runs", requireAuth, async (req, res) => {
       orderBy: [desc15(aiArenaRuns.createdAt)],
       limit: limit4
     });
-    const costToday = await db.select({ total: sql26`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(
+    const costToday = await db.select({ total: sql28`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(
       gte8(aiArenaRuns.createdAt, new Date((/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0)))
     );
     res.json({
@@ -40431,80 +42113,92 @@ router6.post("/profiles", requireAuth, async (req, res) => {
     });
   }
 });
-router6.get("/profiles/:id", requireAuth, async (req, res) => {
-  try {
-    const profile = await db.query.aiAgentProfiles.findFirst({
-      where: eq21(aiAgentProfiles.id, req.params.id)
-    });
-    if (!profile) {
-      return res.status(404).json({ error: "Agent profile not found" });
+router6.get(
+  "/profiles/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const profile = await db.query.aiAgentProfiles.findFirst({
+        where: eq21(aiAgentProfiles.id, req.params.id)
+      });
+      if (!profile) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+      res.json(profile);
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to get agent profile: ${error}`);
+      res.status(500).json({ error: "Failed to get agent profile" });
     }
-    res.json(profile);
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to get agent profile: ${error}`);
-    res.status(500).json({ error: "Failed to get agent profile" });
   }
-});
-router6.patch("/profiles/:id", requireAuth, async (req, res) => {
-  try {
-    const {
-      status,
-      description,
-      model,
-      mode,
-      temperature,
-      maxTokens,
-      budgetLimitPerDay,
-      priority
-    } = req.body;
-    const updates = { updatedAt: /* @__PURE__ */ new Date() };
-    if (status !== void 0) updates.status = status;
-    if (description !== void 0) updates.description = description;
-    if (model !== void 0) updates.model = model;
-    if (mode !== void 0) updates.mode = mode;
-    if (temperature !== void 0) updates.temperature = String(temperature);
-    if (maxTokens !== void 0) updates.maxTokens = maxTokens;
-    if (budgetLimitPerDay !== void 0)
-      updates.budgetLimitPerDay = String(budgetLimitPerDay);
-    if (priority !== void 0) updates.priority = priority;
-    const [updated] = await db.update(aiAgentProfiles).set(updates).where(eq21(aiAgentProfiles.id, req.params.id)).returning();
-    if (!updated) {
-      return res.status(404).json({ error: "Agent profile not found" });
+);
+router6.patch(
+  "/profiles/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const {
+        status,
+        description,
+        model,
+        mode,
+        temperature,
+        maxTokens,
+        budgetLimitPerDay,
+        priority
+      } = req.body;
+      const updates = { updatedAt: /* @__PURE__ */ new Date() };
+      if (status !== void 0) updates.status = status;
+      if (description !== void 0) updates.description = description;
+      if (model !== void 0) updates.model = model;
+      if (mode !== void 0) updates.mode = mode;
+      if (temperature !== void 0) updates.temperature = String(temperature);
+      if (maxTokens !== void 0) updates.maxTokens = maxTokens;
+      if (budgetLimitPerDay !== void 0)
+        updates.budgetLimitPerDay = String(budgetLimitPerDay);
+      if (priority !== void 0) updates.priority = priority;
+      const [updated] = await db.update(aiAgentProfiles).set(updates).where(eq21(aiAgentProfiles.id, req.params.id)).returning();
+      if (!updated) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
+      res.status(500).json({
+        error: error.message || "Failed to update agent profile"
+      });
     }
-    res.json(updated);
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to update agent profile: ${error}`);
-    res.status(500).json({
-      error: error.message || "Failed to update agent profile"
-    });
   }
-});
-router6.delete("/profiles/:id", requireAuth, async (req, res) => {
-  try {
-    const [deleted] = await db.update(aiAgentProfiles).set({ status: "disabled", updatedAt: /* @__PURE__ */ new Date() }).where(eq21(aiAgentProfiles.id, req.params.id)).returning();
-    if (!deleted) {
-      return res.status(404).json({ error: "Agent profile not found" });
+);
+router6.delete(
+  "/profiles/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const [deleted] = await db.update(aiAgentProfiles).set({ status: "disabled", updatedAt: /* @__PURE__ */ new Date() }).where(eq21(aiAgentProfiles.id, req.params.id)).returning();
+      if (!deleted) {
+        return res.status(404).json({ error: "Agent profile not found" });
+      }
+      res.json({ success: true, message: "Agent profile disabled" });
+    } catch (error) {
+      log.error("ArenaAPI", `Failed to delete agent profile: ${error}`);
+      res.status(500).json({ error: "Failed to delete agent profile" });
     }
-    res.json({ success: true, message: "Agent profile disabled" });
-  } catch (error) {
-    log.error("ArenaAPI", `Failed to delete agent profile: ${error}`);
-    res.status(500).json({ error: "Failed to delete agent profile" });
   }
-});
+);
 router6.get("/stats", requireAuth, async (req, res) => {
   try {
     const today = new Date((/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0));
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1e3);
-    const [runsToday] = await db.select({ count: sql26`COUNT(*)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, today));
-    const [costToday] = await db.select({ total: sql26`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, today));
-    const [costWeek] = await db.select({ total: sql26`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, weekAgo));
-    const [escalationsToday] = await db.select({ count: sql26`COUNT(*)` }).from(aiArenaRuns).where(
+    const [runsToday] = await db.select({ count: sql28`COUNT(*)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, today));
+    const [costToday] = await db.select({ total: sql28`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, today));
+    const [costWeek] = await db.select({ total: sql28`COALESCE(SUM(total_cost_usd::numeric), 0)` }).from(aiArenaRuns).where(gte8(aiArenaRuns.createdAt, weekAgo));
+    const [escalationsToday] = await db.select({ count: sql28`COUNT(*)` }).from(aiArenaRuns).where(
       and16(
         gte8(aiArenaRuns.createdAt, today),
         eq21(aiArenaRuns.escalationTriggered, true)
       )
     );
-    const [activeProfiles] = await db.select({ count: sql26`COUNT(*)` }).from(aiAgentProfiles).where(eq21(aiAgentProfiles.status, "active"));
+    const [activeProfiles] = await db.select({ count: sql28`COUNT(*)` }).from(aiAgentProfiles).where(eq21(aiAgentProfiles.status, "active"));
     res.json({
       runsToday: runsToday?.count || 0,
       costToday: parseFloat(costToday?.total || "0"),
@@ -40773,25 +42467,29 @@ router7.post("/rerank", requireAuth, async (req, res) => {
     res.status(500).json({ error: String(error) });
   }
 });
-router7.post("/semantic-search", requireAuth, async (req, res) => {
-  try {
-    const { query, corpus, topK } = req.body;
-    if (!query || !corpus || !Array.isArray(corpus)) {
-      return res.status(400).json({ error: "query and corpus array are required" });
+router7.post(
+  "/semantic-search",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { query, corpus, topK } = req.body;
+      if (!query || !corpus || !Array.isArray(corpus)) {
+        return res.status(400).json({ error: "query and corpus array are required" });
+      }
+      if (corpus.length > 100) {
+        return res.status(413).json({ error: "corpus exceeds maximum size of 100 documents" });
+      }
+      if (query.length > 1e4) {
+        return res.status(413).json({ error: "query exceeds maximum length of 10000 characters" });
+      }
+      const result = await jina.semanticSearch(query, corpus, { topK });
+      res.json(result);
+    } catch (error) {
+      log.error("JinaRoutes", `Semantic search error: ${error}`);
+      res.status(500).json({ error: String(error) });
     }
-    if (corpus.length > 100) {
-      return res.status(413).json({ error: "corpus exceeds maximum size of 100 documents" });
-    }
-    if (query.length > 1e4) {
-      return res.status(413).json({ error: "query exceeds maximum length of 10000 characters" });
-    }
-    const result = await jina.semanticSearch(query, corpus, { topK });
-    res.json(result);
-  } catch (error) {
-    log.error("JinaRoutes", `Semantic search error: ${error}`);
-    res.status(500).json({ error: String(error) });
   }
-});
+);
 router7.get("/health", requireAuth, async (_req, res) => {
   const hasKey = !!process.env.JINA_API_KEY;
   res.json({
@@ -41052,43 +42750,55 @@ router8.get("/indicators", requireAuth, async (_req, res) => {
     return serverError(res, "Failed to fetch indicators");
   }
 });
-router8.get("/indicators/:id", requireAuth, async (req, res) => {
-  try {
-    const indicator = await macroIndicatorsService.getIndicator(req.params.id);
-    if (!indicator) {
-      return notFound(res, "Indicator not found");
+router8.get(
+  "/indicators/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const indicator = await macroIndicatorsService.getIndicator(
+        req.params.id
+      );
+      if (!indicator) {
+        return notFound(res, "Indicator not found");
+      }
+      res.json({ success: true, data: indicator });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to get indicator", { error });
+      return serverError(res, "Failed to fetch indicator");
     }
-    res.json({ success: true, data: indicator });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to get indicator", { error });
-    return serverError(res, "Failed to fetch indicator");
   }
-});
-router8.get("/category/:category", requireAuth, async (req, res) => {
-  try {
-    const category = req.params.category;
-    const validCategories = [
-      "treasury_yields",
-      "inflation",
-      "employment",
-      "volatility",
-      "interest_rates",
-      "money_supply",
-      "gdp",
-      "consumer",
-      "housing",
-      "manufacturing"
-    ];
-    if (!validCategories.includes(category)) {
-      return badRequest(res, "Invalid category");
+);
+router8.get(
+  "/category/:category",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const category = req.params.category;
+      const validCategories = [
+        "treasury_yields",
+        "inflation",
+        "employment",
+        "volatility",
+        "interest_rates",
+        "money_supply",
+        "gdp",
+        "consumer",
+        "housing",
+        "manufacturing"
+      ];
+      if (!validCategories.includes(category)) {
+        return badRequest(res, "Invalid category");
+      }
+      const indicators = await macroIndicatorsService.getIndicatorsByCategory(category);
+      res.json({ success: true, data: indicators });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to get indicators by category", {
+        error
+      });
+      return serverError(res, "Failed to fetch indicators");
     }
-    const indicators = await macroIndicatorsService.getIndicatorsByCategory(category);
-    res.json({ success: true, data: indicators });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to get indicators by category", { error });
-    return serverError(res, "Failed to fetch indicators");
   }
-});
+);
 router8.get("/summary", requireAuth, async (_req, res) => {
   try {
     const summary = await macroIndicatorsService.getMacroSummary();
@@ -41107,15 +42817,19 @@ router8.post("/refresh", requireAuth, async (_req, res) => {
     res.status(500).json({ success: false, error: "Failed to refresh indicators" });
   }
 });
-router8.post("/refresh/all", requireAuth, async (_req, res) => {
-  try {
-    const result = await macroIndicatorsService.refreshAllIndicators();
-    res.json({ success: true, data: result });
-  } catch (error) {
-    log.error("MacroRoutes", "Failed to refresh all indicators", { error });
-    res.status(500).json({ success: false, error: "Failed to refresh indicators" });
+router8.post(
+  "/refresh/all",
+  requireAuth,
+  async (_req, res) => {
+    try {
+      const result = await macroIndicatorsService.refreshAllIndicators();
+      res.json({ success: true, data: result });
+    } catch (error) {
+      log.error("MacroRoutes", "Failed to refresh all indicators", { error });
+      res.status(500).json({ success: false, error: "Failed to refresh indicators" });
+    }
   }
-});
+);
 router8.get("/regime", requireAuth, async (_req, res) => {
   try {
     const indicators = await macroIndicatorsService.getLatestIndicators();
@@ -41170,7 +42884,7 @@ init_schema2();
 init_finnhub();
 init_alpaca();
 init_technical_indicators();
-import { eq as eq23, sql as sql27 } from "drizzle-orm";
+import { eq as eq23, sql as sql29 } from "drizzle-orm";
 var DEFAULT_CONFIG3 = {
   macroIndicatorsIntervalMs: 4 * 60 * 60 * 1e3,
   fundamentalsIntervalMs: 24 * 60 * 60 * 1e3,
@@ -41231,7 +42945,7 @@ var EnrichmentScheduler = class {
   }
   async runInitialEnrichment() {
     log.info("EnrichmentScheduler", "Running initial enrichment check");
-    const [macroCount] = await db.select({ count: sql27`count(*)` }).from(sql27`macro_indicators`);
+    const [macroCount] = await db.select({ count: sql29`count(*)` }).from(sql29`macro_indicators`);
     if (Number(macroCount?.count || 0) === 0) {
       log.info(
         "EnrichmentScheduler",
@@ -41243,8 +42957,8 @@ var EnrichmentScheduler = class {
         })
       );
     }
-    const [technicalsCount] = await db.select({ count: sql27`count(*)` }).from(universeTechnicals);
-    const [brokerAssetsCount] = await db.select({ count: sql27`count(*)` }).from(brokerAssets).where(eq23(brokerAssets.tradable, true));
+    const [technicalsCount] = await db.select({ count: sql29`count(*)` }).from(universeTechnicals);
+    const [brokerAssetsCount] = await db.select({ count: sql29`count(*)` }).from(brokerAssets).where(eq23(brokerAssets.tradable, true));
     const techCount = Number(technicalsCount?.count || 0);
     const assetCount = Number(brokerAssetsCount?.count || 0);
     const coverageThreshold = Math.min(assetCount, 50) * 0.5;
@@ -41516,7 +43230,7 @@ var enrichmentScheduler = new EnrichmentScheduler();
 // server/routes/enrichment.ts
 init_logger();
 init_db();
-import { sql as sql28 } from "drizzle-orm";
+import { sql as sql30 } from "drizzle-orm";
 var router9 = Router11();
 router9.get("/status", requireAuth, async (_req, res) => {
   try {
@@ -41527,43 +43241,53 @@ router9.get("/status", requireAuth, async (_req, res) => {
     res.status(500).json({ success: false, error: "Failed to get enrichment status" });
   }
 });
-router9.get("/status/:jobName", requireAuth, async (req, res) => {
-  try {
-    const status = enrichmentScheduler.getJobStatus(req.params.jobName);
-    if (!status) {
-      return res.status(404).json({ success: false, error: "Job not found" });
+router9.get(
+  "/status/:jobName",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const status = enrichmentScheduler.getJobStatus(req.params.jobName);
+      if (!status) {
+        return res.status(404).json({ success: false, error: "Job not found" });
+      }
+      res.json({ success: true, data: status });
+    } catch (error) {
+      log.error("EnrichmentRoutes", "Failed to get job status", { error });
+      res.status(500).json({ success: false, error: "Failed to get job status" });
     }
-    res.json({ success: true, data: status });
-  } catch (error) {
-    log.error("EnrichmentRoutes", "Failed to get job status", { error });
-    res.status(500).json({ success: false, error: "Failed to get job status" });
   }
-});
-router9.post("/run/:jobName", requireAuth, async (req, res) => {
-  try {
-    const result = await enrichmentScheduler.runJobManually(req.params.jobName);
-    res.status(result.statusCode).json({ success: result.success, message: result.message });
-  } catch (error) {
-    log.error("EnrichmentRoutes", "Failed to run job", { error });
-    res.status(500).json({ success: false, error: "Failed to run job" });
+);
+router9.post(
+  "/run/:jobName",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const result = await enrichmentScheduler.runJobManually(
+        req.params.jobName
+      );
+      res.status(result.statusCode).json({ success: result.success, message: result.message });
+    } catch (error) {
+      log.error("EnrichmentRoutes", "Failed to run job", { error });
+      res.status(500).json({ success: false, error: "Failed to run job" });
+    }
   }
-});
+);
 router9.get("/stats", requireAuth, async (_req, res) => {
   try {
     const technicals = await db.execute(
-      sql28`SELECT COUNT(*) as count FROM universe_technicals`
+      sql30`SELECT COUNT(*) as count FROM universe_technicals`
     );
     const macro = await db.execute(
-      sql28`SELECT COUNT(*) as count FROM macro_indicators`
+      sql30`SELECT COUNT(*) as count FROM macro_indicators`
     );
     const fundamentals = await db.execute(
-      sql28`SELECT COUNT(*) as count FROM universe_fundamentals`
+      sql30`SELECT COUNT(*) as count FROM universe_fundamentals`
     );
     const classifications = await db.execute(
-      sql28`SELECT COUNT(*) as count FROM asset_classifications`
+      sql30`SELECT COUNT(*) as count FROM asset_classifications`
     );
     const assets = await db.execute(
-      sql28`SELECT COUNT(*) as count FROM broker_assets`
+      sql30`SELECT COUNT(*) as count FROM broker_assets`
     );
     res.json({
       success: true,
@@ -41588,7 +43312,7 @@ init_trading_config();
 import { Router as Router12 } from "express";
 import { randomUUID as randomUUID3 } from "crypto";
 var router10 = Router12();
-var providers = [
+var providers2 = [
   {
     id: "alpaca-trading",
     type: "broker",
@@ -41628,7 +43352,7 @@ var budgets = /* @__PURE__ */ new Map();
 var apiFunctions = /* @__PURE__ */ new Map();
 router10.get("/", requireAuth, async (req, res) => {
   try {
-    res.json(providers);
+    res.json(providers2);
   } catch (error) {
     log.error("ProvidersRoutes", "Failed to get providers", {
       error: error instanceof Error ? error.message : String(error)
@@ -41644,7 +43368,7 @@ router10.post("/", requireAuth, async (req, res) => {
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
-    providers.push(provider);
+    providers2.push(provider);
     res.status(201).json(provider);
   } catch (error) {
     log.error("ProvidersRoutes", "Failed to create provider", {
@@ -41655,7 +43379,7 @@ router10.post("/", requireAuth, async (req, res) => {
 });
 router10.get("/:id", requireAuth, async (req, res) => {
   try {
-    const provider = providers.find((p) => p.id === req.params.id);
+    const provider = providers2.find((p) => p.id === req.params.id);
     if (!provider) {
       return res.status(404).json({ error: "Provider not found" });
     }
@@ -41669,16 +43393,16 @@ router10.get("/:id", requireAuth, async (req, res) => {
 });
 router10.patch("/:id", requireAuth, async (req, res) => {
   try {
-    const index16 = providers.findIndex((p) => p.id === req.params.id);
-    if (index16 === -1) {
+    const index18 = providers2.findIndex((p) => p.id === req.params.id);
+    if (index18 === -1) {
       return res.status(404).json({ error: "Provider not found" });
     }
-    providers[index16] = {
-      ...providers[index16],
+    providers2[index18] = {
+      ...providers2[index18],
       ...req.body,
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
-    res.json(providers[index16]);
+    res.json(providers2[index18]);
   } catch (error) {
     log.error("ProvidersRoutes", "Failed to update provider", {
       error: error instanceof Error ? error.message : String(error)
@@ -41688,11 +43412,11 @@ router10.patch("/:id", requireAuth, async (req, res) => {
 });
 router10.delete("/:id", requireAuth, async (req, res) => {
   try {
-    const index16 = providers.findIndex((p) => p.id === req.params.id);
-    if (index16 === -1) {
+    const index18 = providers2.findIndex((p) => p.id === req.params.id);
+    if (index18 === -1) {
       return res.status(404).json({ error: "Provider not found" });
     }
-    providers.splice(index16, 1);
+    providers2.splice(index18, 1);
     credentials.delete(req.params.id);
     budgets.delete(req.params.id);
     apiFunctions.delete(req.params.id);
@@ -41706,7 +43430,7 @@ router10.delete("/:id", requireAuth, async (req, res) => {
 });
 router10.post("/:id/test", requireAuth, async (req, res) => {
   try {
-    const provider = providers.find((p) => p.id === req.params.id);
+    const provider = providers2.find((p) => p.id === req.params.id);
     if (!provider) {
       return res.status(404).json({ error: "Provider not found" });
     }
@@ -41729,46 +43453,54 @@ router10.post("/:id/test", requireAuth, async (req, res) => {
     });
   }
 });
-router10.get("/:id/credentials", requireAuth, async (req, res) => {
-  try {
-    const creds = credentials.get(req.params.id) || [];
-    const maskedCreds = creds.map((c) => ({
-      ...c,
-      encryptedValue: "********"
-    }));
-    res.json(maskedCreds);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to get credentials", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({ error: "Failed to get credentials" });
+router10.get(
+  "/:id/credentials",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const creds = credentials.get(req.params.id) || [];
+      const maskedCreds = creds.map((c) => ({
+        ...c,
+        encryptedValue: "********"
+      }));
+      res.json(maskedCreds);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to get credentials", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({ error: "Failed to get credentials" });
+    }
   }
-});
-router10.post("/:id/credentials", requireAuth, async (req, res) => {
-  try {
-    const credential = {
-      id: randomUUID3(),
-      providerId: req.params.id,
-      kind: req.body.kind,
-      encryptedValue: req.body.value,
-      // In production, encrypt this
-      lastRotatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const existing = credentials.get(req.params.id) || [];
-    existing.push(credential);
-    credentials.set(req.params.id, existing);
-    res.status(201).json({
-      ...credential,
-      encryptedValue: "********"
-    });
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to add credential", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({ error: "Failed to add credential" });
+);
+router10.post(
+  "/:id/credentials",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const credential = {
+        id: randomUUID3(),
+        providerId: req.params.id,
+        kind: req.body.kind,
+        encryptedValue: req.body.value,
+        // In production, encrypt this
+        lastRotatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const existing = credentials.get(req.params.id) || [];
+      existing.push(credential);
+      credentials.set(req.params.id, existing);
+      res.status(201).json({
+        ...credential,
+        encryptedValue: "********"
+      });
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to add credential", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({ error: "Failed to add credential" });
+    }
   }
-});
+);
 router10.get("/:id/budget", requireAuth, async (req, res) => {
   try {
     let budget = budgets.get(req.params.id);
@@ -41839,82 +43571,94 @@ router10.get("/:id/usage", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get usage metrics" });
   }
 });
-router10.get("/:id/functions", requireAuth, async (req, res) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    res.json(funcs);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to get API functions", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({ error: "Failed to get API functions" });
-  }
-});
-router10.post("/:id/discover", requireAuth, async (req, res) => {
-  try {
-    const { documentUrl } = req.body;
-    const discovered = [
-      {
-        id: randomUUID3(),
-        providerId: req.params.id,
-        name: "getAccount",
-        method: "GET",
-        path: "/account",
-        summary: "Get account information",
-        tags: ["account"],
-        parameters: [],
-        responses: {},
-        security: [],
-        authRequired: true,
-        costPerCall: 1e-3,
-        isEnabled: true,
-        isDeprecated: false,
-        metadata: {},
-        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      }
-    ];
-    const existing = apiFunctions.get(req.params.id) || [];
-    existing.push(...discovered);
-    apiFunctions.set(req.params.id, existing);
-    res.json({
-      success: true,
-      functionsDiscovered: discovered.length,
-      schemasDiscovered: 0,
-      functions: discovered,
-      schemas: []
-    });
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to discover APIs", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      success: false,
-      error: "API discovery failed"
-    });
-  }
-});
-router10.patch("/:id/functions/:funcId", requireAuth, async (req, res) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    const index16 = funcs.findIndex((f) => f.id === req.params.funcId);
-    if (index16 === -1) {
-      return res.status(404).json({ error: "Function not found" });
+router10.get(
+  "/:id/functions",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      res.json(funcs);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to get API functions", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({ error: "Failed to get API functions" });
     }
-    funcs[index16] = {
-      ...funcs[index16],
-      ...req.body,
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    apiFunctions.set(req.params.id, funcs);
-    res.json(funcs[index16]);
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to update function", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({ error: "Failed to update function" });
   }
-});
+);
+router10.post(
+  "/:id/discover",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { documentUrl } = req.body;
+      const discovered = [
+        {
+          id: randomUUID3(),
+          providerId: req.params.id,
+          name: "getAccount",
+          method: "GET",
+          path: "/account",
+          summary: "Get account information",
+          tags: ["account"],
+          parameters: [],
+          responses: {},
+          security: [],
+          authRequired: true,
+          costPerCall: 1e-3,
+          isEnabled: true,
+          isDeprecated: false,
+          metadata: {},
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      ];
+      const existing = apiFunctions.get(req.params.id) || [];
+      existing.push(...discovered);
+      apiFunctions.set(req.params.id, existing);
+      res.json({
+        success: true,
+        functionsDiscovered: discovered.length,
+        schemasDiscovered: 0,
+        functions: discovered,
+        schemas: []
+      });
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to discover APIs", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({
+        success: false,
+        error: "API discovery failed"
+      });
+    }
+  }
+);
+router10.patch(
+  "/:id/functions/:funcId",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      const index18 = funcs.findIndex((f) => f.id === req.params.funcId);
+      if (index18 === -1) {
+        return res.status(404).json({ error: "Function not found" });
+      }
+      funcs[index18] = {
+        ...funcs[index18],
+        ...req.body,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      apiFunctions.set(req.params.id, funcs);
+      res.json(funcs[index18]);
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to update function", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({ error: "Failed to update function" });
+    }
+  }
+);
 router10.post(
   "/:id/functions/:funcId/test",
   async (req, res) => {
@@ -41945,23 +43689,27 @@ router10.post(
     }
   }
 );
-router10.delete("/:id/functions/:funcId", requireAuth, async (req, res) => {
-  try {
-    const funcs = apiFunctions.get(req.params.id) || [];
-    const index16 = funcs.findIndex((f) => f.id === req.params.funcId);
-    if (index16 === -1) {
-      return res.status(404).json({ error: "Function not found" });
+router10.delete(
+  "/:id/functions/:funcId",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const funcs = apiFunctions.get(req.params.id) || [];
+      const index18 = funcs.findIndex((f) => f.id === req.params.funcId);
+      if (index18 === -1) {
+        return res.status(404).json({ error: "Function not found" });
+      }
+      funcs.splice(index18, 1);
+      apiFunctions.set(req.params.id, funcs);
+      res.status(204).send();
+    } catch (error) {
+      log.error("ProvidersRoutes", "Failed to delete function", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(500).json({ error: "Failed to delete function" });
     }
-    funcs.splice(index16, 1);
-    apiFunctions.set(req.params.id, funcs);
-    res.status(204).send();
-  } catch (error) {
-    log.error("ProvidersRoutes", "Failed to delete function", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({ error: "Failed to delete function" });
   }
-});
+);
 var providers_default = router10;
 
 // server/routes/auth.ts
@@ -41980,7 +43728,9 @@ var authLimiter = rateLimit({
   // 15 minutes
   max: 5,
   // 5 attempts per window per IP
-  message: { error: "Too many authentication attempts, please try again later" },
+  message: {
+    error: "Too many authentication attempts, please try again later"
+  },
   standardHeaders: true,
   // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false,
@@ -41990,7 +43740,9 @@ var authLimiter = rateLimit({
       ip: req.ip,
       path: req.path
     });
-    res.status(429).json({ error: "Too many authentication attempts, please try again later" });
+    res.status(429).json({
+      error: "Too many authentication attempts, please try again later"
+    });
   }
 });
 function getCookieOptions() {
@@ -42094,90 +43846,113 @@ router11.get("/me", async (req, res) => {
     res.status(500).json({ error: "Failed to get user" });
   }
 });
-router11.post("/forgot-password", authLimiter, async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return badRequest(res, "Email is required");
-    }
-    if (!isEmailConfigured()) {
-      log.warn("AuthAPI", "Password reset requested but email service not configured");
-      return res.json({
+router11.post(
+  "/forgot-password",
+  authLimiter,
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return badRequest(res, "Email is required");
+      }
+      if (!isEmailConfigured2()) {
+        log.warn(
+          "AuthAPI",
+          "Password reset requested but email service not configured"
+        );
+        return res.json({
+          message: "If an account with that email exists, a password reset link has been sent"
+        });
+      }
+      const sanitizedEmail = sanitizeInput(email.toLowerCase().trim());
+      const user = await storage.getUserByEmail(sanitizedEmail);
+      if (!user) {
+        log.info(
+          "AuthAPI",
+          `Password reset requested for non-existent email: ${sanitizedEmail}`
+        );
+        return res.json({
+          message: "If an account with that email exists, a password reset link has been sent"
+        });
+      }
+      const token = crypto4.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+      const resetUrl = `${baseUrl}/reset-password`;
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@alphaflow.com";
+      const result = await sendPasswordResetEmail({
+        to: sanitizedEmail,
+        from: fromEmail,
+        username: user.username,
+        resetToken: token,
+        resetUrl
+      });
+      if (result.success) {
+        log.info("AuthAPI", `Password reset email sent to: ${sanitizedEmail}`);
+      } else {
+        log.error(
+          "AuthAPI",
+          `Failed to send password reset email: ${result.error}`
+        );
+      }
+      res.json({
         message: "If an account with that email exists, a password reset link has been sent"
       });
+    } catch (error) {
+      log.error("AuthAPI", `Forgot password error: ${error}`);
+      return serverError(res, "Failed to process password reset request");
     }
-    const sanitizedEmail = sanitizeInput(email.toLowerCase().trim());
-    const user = await storage.getUserByEmail(sanitizedEmail);
-    if (!user) {
-      log.info("AuthAPI", `Password reset requested for non-existent email: ${sanitizedEmail}`);
-      return res.json({
-        message: "If an account with that email exists, a password reset link has been sent"
-      });
-    }
-    const token = crypto4.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
-    await storage.createPasswordResetToken(user.id, token, expiresAt);
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    const resetUrl = `${baseUrl}/reset-password`;
-    const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@alphaflow.com";
-    const result = await sendPasswordResetEmail({
-      to: sanitizedEmail,
-      from: fromEmail,
-      username: user.username,
-      resetToken: token,
-      resetUrl
-    });
-    if (result.success) {
-      log.info("AuthAPI", `Password reset email sent to: ${sanitizedEmail}`);
-    } else {
-      log.error("AuthAPI", `Failed to send password reset email: ${result.error}`);
-    }
-    res.json({
-      message: "If an account with that email exists, a password reset link has been sent"
-    });
-  } catch (error) {
-    log.error("AuthAPI", `Forgot password error: ${error}`);
-    return serverError(res, "Failed to process password reset request");
   }
-});
-router11.post("/reset-password", authLimiter, async (req, res) => {
-  try {
-    const { token, password } = req.body;
-    if (!token || !password) {
-      return badRequest(res, "Token and new password are required");
+);
+router11.post(
+  "/reset-password",
+  authLimiter,
+  async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return badRequest(res, "Token and new password are required");
+      }
+      if (password.length < 6) {
+        return badRequest(res, "Password must be at least 6 characters");
+      }
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        log.warn("AuthAPI", "Invalid password reset token attempted");
+        return badRequest(res, "Invalid or expired reset token");
+      }
+      if (/* @__PURE__ */ new Date() > resetToken.expiresAt) {
+        log.warn("AuthAPI", "Expired password reset token attempted");
+        return badRequest(res, "Invalid or expired reset token");
+      }
+      if (resetToken.used) {
+        log.warn("AuthAPI", "Already used password reset token attempted");
+        return badRequest(res, "Invalid or expired reset token");
+      }
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        log.error(
+          "AuthAPI",
+          `Password reset token refers to non-existent user: ${resetToken.userId}`
+        );
+        return badRequest(res, "Invalid or expired reset token");
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await storage.updateUser(user.id, { password: hashedPassword });
+      await storage.markPasswordResetTokenUsed(token);
+      await storage.deleteExpiredPasswordResetTokens();
+      log.info(
+        "AuthAPI",
+        `Password reset successful for user: ${user.username}`
+      );
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      log.error("AuthAPI", `Reset password error: ${error}`);
+      return serverError(res, "Failed to reset password");
     }
-    if (password.length < 6) {
-      return badRequest(res, "Password must be at least 6 characters");
-    }
-    const resetToken = await storage.getPasswordResetToken(token);
-    if (!resetToken) {
-      log.warn("AuthAPI", "Invalid password reset token attempted");
-      return badRequest(res, "Invalid or expired reset token");
-    }
-    if (/* @__PURE__ */ new Date() > resetToken.expiresAt) {
-      log.warn("AuthAPI", "Expired password reset token attempted");
-      return badRequest(res, "Invalid or expired reset token");
-    }
-    if (resetToken.used) {
-      log.warn("AuthAPI", "Already used password reset token attempted");
-      return badRequest(res, "Invalid or expired reset token");
-    }
-    const user = await storage.getUser(resetToken.userId);
-    if (!user) {
-      log.error("AuthAPI", `Password reset token refers to non-existent user: ${resetToken.userId}`);
-      return badRequest(res, "Invalid or expired reset token");
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await storage.updateUser(user.id, { password: hashedPassword });
-    await storage.markPasswordResetTokenUsed(token);
-    await storage.deleteExpiredPasswordResetTokens();
-    log.info("AuthAPI", `Password reset successful for user: ${user.username}`);
-    res.json({ message: "Password has been reset successfully" });
-  } catch (error) {
-    log.error("AuthAPI", `Reset password error: ${error}`);
-    return serverError(res, "Failed to reset password");
   }
-});
+);
 router11.post("/update-email", async (req, res) => {
   try {
     const sessionId = req.cookies?.session;
@@ -42201,7 +43976,9 @@ router11.post("/update-email", async (req, res) => {
     if (existingUser && existingUser.id !== session.userId) {
       return badRequest(res, "Email is already in use");
     }
-    const updatedUser = await storage.updateUser(session.userId, { email: sanitizedEmail });
+    const updatedUser = await storage.updateUser(session.userId, {
+      email: sanitizedEmail
+    });
     if (!updatedUser) {
       return serverError(res, "Failed to update email");
     }
@@ -42302,6 +44079,7 @@ function createLiveSourceMetadata() {
 }
 
 // server/routes/positions.ts
+init_order_execution_flow();
 var router12 = Router14();
 router12.get("/snapshot", requireAuth, async (req, res) => {
   try {
@@ -42335,6 +44113,20 @@ router12.get("/snapshot", requireAuth, async (req, res) => {
       (sum, pos) => sum + pos.unrealizedPl,
       0
     );
+    for (const position of positions2) {
+      if (position.unrealizedPlPct < -5) {
+        checkPositionForLargeLoss(position.symbol, position.currentPrice).catch(
+          (err) => log.error(
+            "PositionsAPI",
+            "Failed to check position for loss alert",
+            {
+              error: err.message,
+              symbol: position.symbol
+            }
+          )
+        );
+      }
+    }
     const trades3 = await storage.getTrades(void 0, 100);
     const closedTrades = trades3.filter((t) => t.pnl !== null && t.pnl !== "");
     const totalRealizedPl = closedTrades.reduce(
@@ -42486,46 +44278,57 @@ router12.post("/reconcile", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to reconcile positions" });
   }
 });
-router12.get("/reconcile/status", requireAuth, async (req, res) => {
-  try {
-    const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
-    const status = positionReconciler2.getStatus();
-    res.json(status);
-  } catch (error) {
-    log.error("PositionsAPI", `Failed to get reconciliation status: ${error}`);
-    res.status(500).json({ error: "Failed to get reconciliation status" });
-  }
-});
-router12.post("/close/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    if (!symbol) {
-      return badRequest(res, "Symbol is required");
+router12.get(
+  "/reconcile/status",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { positionReconciler: positionReconciler2 } = await Promise.resolve().then(() => (init_position_reconciler(), position_reconciler_exports));
+      const status = positionReconciler2.getStatus();
+      res.json(status);
+    } catch (error) {
+      log.error(
+        "PositionsAPI",
+        `Failed to get reconciliation status: ${error}`
+      );
+      res.status(500).json({ error: "Failed to get reconciliation status" });
     }
-    const result = await alpacaTradingEngine.closeAlpacaPosition(
-      symbol,
-      void 0,
-      {
-        authorizedByOrchestrator: true
+  }
+);
+router12.post(
+  "/close/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol) {
+        return badRequest(res, "Symbol is required");
       }
-    );
-    if (result.success) {
-      res.json({
-        success: true,
-        message: `Position ${symbol} closed successfully`,
-        result
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error || "Failed to close position"
-      });
+      const result = await alpacaTradingEngine.closeAlpacaPosition(
+        symbol,
+        void 0,
+        {
+          authorizedByOrchestrator: true
+        }
+      );
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Position ${symbol} closed successfully`,
+          result
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error || "Failed to close position"
+        });
+      }
+    } catch (error) {
+      log.error("PositionsAPI", `Failed to close position: ${error}`);
+      res.status(500).json({ error: String(error) });
     }
-  } catch (error) {
-    log.error("PositionsAPI", `Failed to close position: ${error}`);
-    res.status(500).json({ error: String(error) });
   }
-});
+);
 router12.post("/close-all", requireAuth, async (req, res) => {
   try {
     const result = await alpacaTradingEngine.closeAllPositions({
@@ -42543,6 +44346,7 @@ var positions_default = router12;
 // server/routes/orders.ts
 init_storage();
 init_alpaca();
+init_order_execution_flow();
 import { Router as Router15 } from "express";
 init_work_queue();
 var router13 = Router15();
@@ -42799,20 +44603,24 @@ router14.get("/:id", requireAuth, async (req, res) => {
     return serverError(res, "Failed to get trade");
   }
 });
-router14.get("/:id/enriched", requireAuth, async (req, res) => {
-  try {
-    const trade = await storage.getEnrichedTrade(req.params.id);
-    if (!trade) {
-      return notFound(res, "Trade not found");
+router14.get(
+  "/:id/enriched",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const trade = await storage.getEnrichedTrade(req.params.id);
+      if (!trade) {
+        return notFound(res, "Trade not found");
+      }
+      res.json(trade);
+    } catch (error) {
+      log.error("TradesAPI", "Failed to get enriched trade", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return serverError(res, "Failed to get enriched trade");
     }
-    res.json(trade);
-  } catch (error) {
-    log.error("TradesAPI", "Failed to get enriched trade", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return serverError(res, "Failed to get enriched trade");
   }
-});
+);
 router14.post("/", requireAuth, async (req, res) => {
   try {
     const parsed = insertTradeSchema.safeParse(req.body);
@@ -42828,52 +44636,56 @@ router14.post("/", requireAuth, async (req, res) => {
     return serverError(res, "Failed to create trade");
   }
 });
-router14.post("/backfill-prices", requireAuth, async (req, res) => {
-  try {
-    const trades3 = await storage.getTrades(void 0, 500);
-    const zeroTrades = trades3.filter((t) => safeParseFloat(t.price, 0) === 0);
-    if (zeroTrades.length === 0) {
-      return res.json({ message: "No trades need backfilling", updated: 0 });
-    }
-    let orders2 = [];
+router14.post(
+  "/backfill-prices",
+  requireAuth,
+  async (req, res) => {
     try {
-      orders2 = await alpaca.getOrders("all", 500);
-    } catch (e) {
-      log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", {
-        error: e instanceof Error ? e.message : String(e)
-      });
-      return serverError(res, "Failed to fetch order history from broker");
-    }
-    let updated = 0;
-    for (const trade of zeroTrades) {
-      const matchingOrder = orders2.find(
-        (o) => o.symbol === trade.symbol && o.side === trade.side && o.status === "filled" && safeParseFloat(o.filled_avg_price, 0) > 0 && Math.abs(
-          new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()
-        ) < 6e4
-      );
-      if (matchingOrder) {
-        const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
-        const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
-        await storage.updateTrade(trade.id, {
-          price: filledPrice.toString(),
-          quantity: filledQty.toString(),
-          status: "filled"
-        });
-        updated++;
+      const trades3 = await storage.getTrades(void 0, 500);
+      const zeroTrades = trades3.filter((t) => safeParseFloat(t.price, 0) === 0);
+      if (zeroTrades.length === 0) {
+        return res.json({ message: "No trades need backfilling", updated: 0 });
       }
+      let orders2 = [];
+      try {
+        orders2 = await alpaca.getOrders("all", 500);
+      } catch (e) {
+        log.error("TradesAPI", "Failed to fetch Alpaca orders for backfill", {
+          error: e instanceof Error ? e.message : String(e)
+        });
+        return serverError(res, "Failed to fetch order history from broker");
+      }
+      let updated = 0;
+      for (const trade of zeroTrades) {
+        const matchingOrder = orders2.find(
+          (o) => o.symbol === trade.symbol && o.side === trade.side && o.status === "filled" && safeParseFloat(o.filled_avg_price, 0) > 0 && Math.abs(
+            new Date(o.filled_at).getTime() - new Date(trade.executedAt).getTime()
+          ) < 6e4
+        );
+        if (matchingOrder) {
+          const filledPrice = safeParseFloat(matchingOrder.filled_avg_price, 0);
+          const filledQty = safeParseFloat(matchingOrder.filled_qty, 0);
+          await storage.updateTrade(trade.id, {
+            price: filledPrice.toString(),
+            quantity: filledQty.toString(),
+            status: "filled"
+          });
+          updated++;
+        }
+      }
+      res.json({
+        message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
+        updated,
+        remaining: zeroTrades.length - updated
+      });
+    } catch (error) {
+      log.error("TradesAPI", "Trade backfill error", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return serverError(res, "Failed to backfill trade prices");
     }
-    res.json({
-      message: `Backfilled ${updated} of ${zeroTrades.length} trades`,
-      updated,
-      remaining: zeroTrades.length - updated
-    });
-  } catch (error) {
-    log.error("TradesAPI", "Trade backfill error", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return serverError(res, "Failed to backfill trade prices");
   }
-});
+);
 var trades_default = router14;
 
 // server/routes/market-data.ts
@@ -42884,132 +44696,179 @@ init_finnhub();
 init_alpaca();
 init_newsapi();
 var router15 = Router17();
-router15.get("/crypto/markets", requireAuth, async (req, res) => {
-  try {
-    const perPage = parseInt(req.query.per_page) || 20;
-    const page = parseInt(req.query.page) || 1;
-    const order = req.query.order || "market_cap_desc";
-    const markets = await coingecko.getMarkets("usd", perPage, page, order);
-    res.json(markets);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch crypto markets: ${error}`);
-    return serverError(res, "Failed to fetch crypto market data");
-  }
-});
-router15.get("/crypto/prices", requireAuth, async (req, res) => {
-  try {
-    const ids = req.query.ids || "bitcoin,ethereum,solana";
-    const coinIds = ids.split(",").map((id) => id.trim());
-    const prices = await coingecko.getSimplePrice(coinIds);
-    res.json(prices);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch crypto prices: ${error}`);
-    return serverError(res, "Failed to fetch crypto prices");
-  }
-});
-router15.get("/crypto/chart/:coinId", requireAuth, async (req, res) => {
-  try {
-    const { coinId } = req.params;
-    const days = req.query.days || "7";
-    const chart = await coingecko.getMarketChart(coinId, "usd", days);
-    res.json(chart);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch crypto chart: ${error}`);
-    return serverError(res, "Failed to fetch crypto chart data");
-  }
-});
-router15.get("/crypto/trending", requireAuth, async (req, res) => {
-  try {
-    const trending = await coingecko.getTrending();
-    res.json(trending);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch trending coins: ${error}`);
-    return serverError(res, "Failed to fetch trending coins");
-  }
-});
-router15.get("/crypto/global", requireAuth, async (req, res) => {
-  try {
-    const global2 = await coingecko.getGlobalData();
-    res.json(global2);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch global market data: ${error}`);
-    return serverError(res, "Failed to fetch global market data");
-  }
-});
-router15.get("/crypto/search", requireAuth, async (req, res) => {
-  try {
-    const query = req.query.q || "";
-    if (!query) {
-      return badRequest(res, "Search query required");
+router15.get(
+  "/crypto/markets",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const perPage = parseInt(req.query.per_page) || 20;
+      const page = parseInt(req.query.page) || 1;
+      const order = req.query.order || "market_cap_desc";
+      const markets = await coingecko.getMarkets("usd", perPage, page, order);
+      res.json(markets);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch crypto markets: ${error}`);
+      return serverError(res, "Failed to fetch crypto market data");
     }
-    const results = await coingecko.searchCoins(query);
-    res.json(results);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to search coins: ${error}`);
-    return serverError(res, "Failed to search coins");
   }
-});
-router15.get("/stock/quote/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const quote = await finnhub.getQuote(symbol);
-    res.json(quote);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch stock quote: ${error}`);
-    return serverError(res, "Failed to fetch stock quote");
-  }
-});
-router15.get("/stock/quotes", requireAuth, async (req, res) => {
-  try {
-    const symbols = req.query.symbols || "AAPL,GOOGL,MSFT,AMZN,TSLA";
-    const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
-    const quotes = await finnhub.getMultipleQuotes(symbolList);
-    const result = {};
-    quotes.forEach((quote, symbol) => {
-      result[symbol] = quote;
-    });
-    res.json(result);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch stock quotes: ${error}`);
-    return serverError(res, "Failed to fetch stock quotes");
-  }
-});
-router15.get("/stock/candles/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const resolution = req.query.resolution || "D";
-    const from = req.query.from ? parseInt(req.query.from) : void 0;
-    const to = req.query.to ? parseInt(req.query.to) : void 0;
-    const candles = await finnhub.getCandles(symbol, resolution, from, to);
-    res.json(candles);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch stock candles: ${error}`);
-    return serverError(res, "Failed to fetch stock candles");
-  }
-});
-router15.get("/stock/profile/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const profile = await finnhub.getCompanyProfile(symbol);
-    res.json(profile);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to fetch company profile: ${error}`);
-    return serverError(res, "Failed to fetch company profile");
-  }
-});
-router15.get("/stock/search", requireAuth, async (req, res) => {
-  try {
-    const query = req.query.q || "";
-    if (!query) {
-      return badRequest(res, "Search query required");
+);
+router15.get(
+  "/crypto/prices",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const ids = req.query.ids || "bitcoin,ethereum,solana";
+      const coinIds = ids.split(",").map((id) => id.trim());
+      const prices = await coingecko.getSimplePrice(coinIds);
+      res.json(prices);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch crypto prices: ${error}`);
+      return serverError(res, "Failed to fetch crypto prices");
     }
-    const results = await finnhub.searchSymbols(query);
-    res.json(results);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to search stocks: ${error}`);
-    return serverError(res, "Failed to search stocks");
   }
-});
+);
+router15.get(
+  "/crypto/chart/:coinId",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { coinId } = req.params;
+      const days = req.query.days || "7";
+      const chart = await coingecko.getMarketChart(coinId, "usd", days);
+      res.json(chart);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch crypto chart: ${error}`);
+      return serverError(res, "Failed to fetch crypto chart data");
+    }
+  }
+);
+router15.get(
+  "/crypto/trending",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const trending = await coingecko.getTrending();
+      res.json(trending);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch trending coins: ${error}`);
+      return serverError(res, "Failed to fetch trending coins");
+    }
+  }
+);
+router15.get(
+  "/crypto/global",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const global2 = await coingecko.getGlobalData();
+      res.json(global2);
+    } catch (error) {
+      log.error(
+        "MarketDataAPI",
+        `Failed to fetch global market data: ${error}`
+      );
+      return serverError(res, "Failed to fetch global market data");
+    }
+  }
+);
+router15.get(
+  "/crypto/search",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const query = req.query.q || "";
+      if (!query) {
+        return badRequest(res, "Search query required");
+      }
+      const results = await coingecko.searchCoins(query);
+      res.json(results);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to search coins: ${error}`);
+      return serverError(res, "Failed to search coins");
+    }
+  }
+);
+router15.get(
+  "/stock/quote/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const quote = await finnhub.getQuote(symbol);
+      res.json(quote);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch stock quote: ${error}`);
+      return serverError(res, "Failed to fetch stock quote");
+    }
+  }
+);
+router15.get(
+  "/stock/quotes",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const symbols = req.query.symbols || "AAPL,GOOGL,MSFT,AMZN,TSLA";
+      const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
+      const quotes = await finnhub.getMultipleQuotes(symbolList);
+      const result = {};
+      quotes.forEach((quote, symbol) => {
+        result[symbol] = quote;
+      });
+      res.json(result);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch stock quotes: ${error}`);
+      return serverError(res, "Failed to fetch stock quotes");
+    }
+  }
+);
+router15.get(
+  "/stock/candles/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const resolution = req.query.resolution || "D";
+      const from = req.query.from ? parseInt(req.query.from) : void 0;
+      const to = req.query.to ? parseInt(req.query.to) : void 0;
+      const candles = await finnhub.getCandles(symbol, resolution, from, to);
+      res.json(candles);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch stock candles: ${error}`);
+      return serverError(res, "Failed to fetch stock candles");
+    }
+  }
+);
+router15.get(
+  "/stock/profile/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await finnhub.getCompanyProfile(symbol);
+      res.json(profile);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to fetch company profile: ${error}`);
+      return serverError(res, "Failed to fetch company profile");
+    }
+  }
+);
+router15.get(
+  "/stock/search",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const query = req.query.q || "";
+      if (!query) {
+        return badRequest(res, "Search query required");
+      }
+      const results = await finnhub.searchSymbols(query);
+      res.json(results);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to search stocks: ${error}`);
+      return serverError(res, "Failed to search stocks");
+    }
+  }
+);
 router15.get("/stock/news", requireAuth, async (req, res) => {
   try {
     const category = req.query.category || "general";
@@ -43020,56 +44879,64 @@ router15.get("/stock/news", requireAuth, async (req, res) => {
     return serverError(res, "Failed to fetch market news");
   }
 });
-router15.get("/market/quotes", requireAuth, async (req, res) => {
-  try {
-    const symbolsParam = req.query.symbols;
-    if (!symbolsParam) {
-      return badRequest(res, "symbols parameter required");
-    }
-    const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
-    const snapshots = await alpaca.getSnapshots(symbols);
-    const quotes = symbols.map((symbol) => {
-      const snap = snapshots[symbol];
-      if (!snap) {
-        return { symbol, price: null, change: null, changePercent: null };
+router15.get(
+  "/market/quotes",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const symbolsParam = req.query.symbols;
+      if (!symbolsParam) {
+        return badRequest(res, "symbols parameter required");
       }
-      const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
-      const prevClose = snap.prevDailyBar?.c || price;
-      const change = price - prevClose;
-      const changePercent = prevClose ? change / prevClose * 100 : 0;
-      return {
-        symbol,
-        price,
-        change,
-        changePercent,
-        volume: snap.dailyBar?.v || 0,
-        high: snap.dailyBar?.h || 0,
-        low: snap.dailyBar?.l || 0,
-        open: snap.dailyBar?.o || 0
-      };
-    });
-    res.json(quotes);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to get market quotes: ${error}`);
-    return serverError(res, "Failed to get market quotes");
+      const symbols = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
+      const snapshots = await alpaca.getSnapshots(symbols);
+      const quotes = symbols.map((symbol) => {
+        const snap = snapshots[symbol];
+        if (!snap) {
+          return { symbol, price: null, change: null, changePercent: null };
+        }
+        const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
+        const prevClose = snap.prevDailyBar?.c || price;
+        const change = price - prevClose;
+        const changePercent = prevClose ? change / prevClose * 100 : 0;
+        return {
+          symbol,
+          price,
+          change,
+          changePercent,
+          volume: snap.dailyBar?.v || 0,
+          high: snap.dailyBar?.h || 0,
+          low: snap.dailyBar?.l || 0,
+          open: snap.dailyBar?.o || 0
+        };
+      });
+      res.json(quotes);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to get market quotes: ${error}`);
+      return serverError(res, "Failed to get market quotes");
+    }
   }
-});
-router15.get("/news/headlines", requireAuth, async (req, res) => {
-  try {
-    const category = req.query.category || "business";
-    const country = req.query.country || "us";
-    const pageSize = parseInt(req.query.pageSize) || 20;
-    const headlines = await newsapi.getTopHeadlines(
-      category,
-      country,
-      pageSize
-    );
-    res.json(headlines);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to get news headlines: ${error}`);
-    return serverError(res, "Failed to get news headlines");
+);
+router15.get(
+  "/news/headlines",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const category = req.query.category || "business";
+      const country = req.query.country || "us";
+      const pageSize = parseInt(req.query.pageSize) || 20;
+      const headlines = await newsapi.getTopHeadlines(
+        category,
+        country,
+        pageSize
+      );
+      res.json(headlines);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to get news headlines: ${error}`);
+      return serverError(res, "Failed to get news headlines");
+    }
   }
-});
+);
 router15.get("/news/search", requireAuth, async (req, res) => {
   try {
     const query = req.query.q;
@@ -43105,22 +44972,27 @@ router15.get("/news/crypto", requireAuth, async (req, res) => {
     return serverError(res, "Failed to get crypto news");
   }
 });
-router15.get("/news/stock/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-    const articles = await newsapi.getStockNews(symbol, pageSize);
-    res.json(articles);
-  } catch (error) {
-    log.error("MarketDataAPI", `Failed to get stock news: ${error}`);
-    return serverError(res, "Failed to get stock news");
+router15.get(
+  "/news/stock/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const pageSize = parseInt(req.query.pageSize) || 10;
+      const articles = await newsapi.getStockNews(symbol, pageSize);
+      res.json(articles);
+    } catch (error) {
+      log.error("MarketDataAPI", `Failed to get stock news: ${error}`);
+      return serverError(res, "Failed to get stock news");
+    }
   }
-});
+);
 var market_data_default = router15;
 
 // server/routes/webhooks.ts
-import { Router as Router18 } from "express";
+init_webhook_emitter();
 init_logger();
+import { Router as Router18 } from "express";
 var router16 = Router18();
 var redactWebhook = (webhook) => ({
   ...webhook,
@@ -43670,12 +45542,12 @@ var SentimentAggregatorService = class {
       "risky"
     ];
     articles.forEach((article) => {
-      const text16 = `${article.title || ""} ${article.description || ""}`.toLowerCase();
+      const text17 = `${article.title || ""} ${article.description || ""}`.toLowerCase();
       positiveKeywords.forEach((keyword) => {
-        if (text16.includes(keyword)) positiveCount++;
+        if (text17.includes(keyword)) positiveCount++;
       });
       negativeKeywords.forEach((keyword) => {
-        if (text16.includes(keyword)) negativeCount++;
+        if (text17.includes(keyword)) negativeCount++;
       });
     });
     const total = positiveCount + negativeCount;
@@ -44091,7 +45963,13 @@ router17.get("/sentiment", requireAuth, async (req, res) => {
     res.json(sentiments);
   } catch (error) {
     log.error("AiDecisionsAPI", `Failed to get sentiment signals: ${error}`);
-    const symbols = req.query.symbols?.split(",") || ["SPY", "QQQ", "AAPL", "TSLA", "NVDA"];
+    const symbols = req.query.symbols?.split(",") || [
+      "SPY",
+      "QQQ",
+      "AAPL",
+      "TSLA",
+      "NVDA"
+    ];
     const fallback = symbols.map((symbol) => ({
       id: `sent-${symbol}-${Date.now()}`,
       sourceId: "fallback",
@@ -44108,7 +45986,9 @@ router17.get("/sentiment", requireAuth, async (req, res) => {
   }
 });
 function generateExplanation(result) {
-  const validSources = result.sources.filter((s) => !s.error && s.confidence > 0);
+  const validSources = result.sources.filter(
+    (s) => !s.error && s.confidence > 0
+  );
   const sourceNames = validSources.map((s) => s.name).join(", ");
   if (validSources.length === 0) {
     return `No sentiment data available for ${result.symbol}`;
@@ -44131,82 +46011,109 @@ router17.get("/cache/stats", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get cache stats" });
   }
 });
-router17.post("/cache/clear", requireAuth, async (req, res) => {
-  try {
-    clearLLMCache();
-    res.json({ success: true, message: "LLM cache cleared" });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error clearing LLM cache: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache" });
+router17.post(
+  "/cache/clear",
+  requireAuth,
+  async (req, res) => {
+    try {
+      clearLLMCache();
+      res.json({ success: true, message: "LLM cache cleared" });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Error clearing LLM cache: ${error}`);
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
   }
-});
-router17.post("/cache/clear/:role", requireAuth, async (req, res) => {
-  try {
-    const { role } = req.params;
-    clearLLMCacheForRole(role);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error clearing LLM cache for role: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache for role" });
+);
+router17.post(
+  "/cache/clear/:role",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { role } = req.params;
+      clearLLMCacheForRole(role);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error(
+        "AiDecisionsAPI",
+        `Error clearing LLM cache for role: ${error}`
+      );
+      res.status(500).json({ error: "Failed to clear cache for role" });
+    }
   }
-});
-router17.post("/cache/reset-stats", requireAuth, async (req, res) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Error resetting LLM cache stats: ${error}`);
-    res.status(500).json({ error: "Failed to reset cache stats" });
+);
+router17.post(
+  "/cache/reset-stats",
+  requireAuth,
+  async (req, res) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Error resetting LLM cache stats: ${error}`);
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
-router17.get("/agent/status", requireAuth, async (req, res) => {
-  try {
-    const status = await storage.getAgentStatus();
-    if (!status) {
-      const defaultStatus = await storage.updateAgentStatus({
-        isRunning: false,
-        totalTrades: 0,
-        totalPnl: "0"
+);
+router17.get(
+  "/agent/status",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const status = await storage.getAgentStatus();
+      if (!status) {
+        const defaultStatus = await storage.updateAgentStatus({
+          isRunning: false,
+          totalTrades: 0,
+          totalPnl: "0"
+        });
+        return res.json(defaultStatus);
+      }
+      res.json(status);
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get agent status: ${error}`);
+      res.status(500).json({ error: "Failed to get agent status" });
+    }
+  }
+);
+router17.post(
+  "/agent/toggle",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const currentStatus = await storage.getAgentStatus();
+      const newIsRunning = !(currentStatus?.isRunning ?? false);
+      if (newIsRunning) {
+        await alpacaTradingEngine.resumeAgent();
+      } else {
+        await alpacaTradingEngine.stopAllStrategies();
+      }
+      const status = await storage.getAgentStatus();
+      res.json(status);
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to toggle agent: ${error}`);
+      res.status(500).json({ error: "Failed to toggle agent" });
+    }
+  }
+);
+router17.get(
+  "/agent/market-analysis",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
+      const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
+      res.json({
+        isRunning: analyzerStatus.isRunning,
+        lastAnalysis,
+        lastAnalysisTime: analyzerStatus.lastAnalysisTime,
+        currentOrderLimit: analyzerStatus.currentOrderLimit
       });
-      return res.json(defaultStatus);
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get market analysis: ${error}`);
+      res.status(500).json({ error: "Failed to get market analysis" });
     }
-    res.json(status);
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get agent status: ${error}`);
-    res.status(500).json({ error: "Failed to get agent status" });
   }
-});
-router17.post("/agent/toggle", requireAuth, async (req, res) => {
-  try {
-    const currentStatus = await storage.getAgentStatus();
-    const newIsRunning = !(currentStatus?.isRunning ?? false);
-    if (newIsRunning) {
-      await alpacaTradingEngine.resumeAgent();
-    } else {
-      await alpacaTradingEngine.stopAllStrategies();
-    }
-    const status = await storage.getAgentStatus();
-    res.json(status);
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to toggle agent: ${error}`);
-    res.status(500).json({ error: "Failed to toggle agent" });
-  }
-});
-router17.get("/agent/market-analysis", requireAuth, async (req, res) => {
-  try {
-    const analyzerStatus = marketConditionAnalyzer.getStatus();
-    const lastAnalysis = marketConditionAnalyzer.getLastAnalysis();
-    res.json({
-      isRunning: analyzerStatus.isRunning,
-      lastAnalysis,
-      lastAnalysisTime: analyzerStatus.lastAnalysisTime,
-      currentOrderLimit: analyzerStatus.currentOrderLimit
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get market analysis: ${error}`);
-    res.status(500).json({ error: "Failed to get market analysis" });
-  }
-});
+);
 router17.post(
   "/agent/market-analysis/refresh",
   async (req, res) => {
@@ -44222,88 +46129,104 @@ router17.post(
     }
   }
 );
-router17.get("/agent/dynamic-limits", requireAuth, async (req, res) => {
-  try {
-    const agentStatus2 = await storage.getAgentStatus();
-    const analyzerStatus = marketConditionAnalyzer.getStatus();
-    const minLimit = agentStatus2?.minOrderLimit ?? 10;
-    const maxLimit = agentStatus2?.maxOrderLimit ?? 50;
-    let currentLimit = agentStatus2?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
-    currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
-    res.json({
-      currentDynamicLimit: currentLimit,
-      minOrderLimit: minLimit,
-      maxOrderLimit: maxLimit,
-      marketCondition: agentStatus2?.marketCondition || "neutral",
-      aiConfidenceScore: agentStatus2?.aiConfidenceScore || "0.5",
-      lastMarketAnalysis: agentStatus2?.lastMarketAnalysis
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get dynamic limits: ${error}`);
-    res.status(500).json({ error: "Failed to get dynamic limits" });
+router17.get(
+  "/agent/dynamic-limits",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const agentStatus2 = await storage.getAgentStatus();
+      const analyzerStatus = marketConditionAnalyzer.getStatus();
+      const minLimit = agentStatus2?.minOrderLimit ?? 10;
+      const maxLimit = agentStatus2?.maxOrderLimit ?? 50;
+      let currentLimit = agentStatus2?.dynamicOrderLimit ?? analyzerStatus.currentOrderLimit ?? 25;
+      currentLimit = Math.max(minLimit, Math.min(maxLimit, currentLimit));
+      res.json({
+        currentDynamicLimit: currentLimit,
+        minOrderLimit: minLimit,
+        maxOrderLimit: maxLimit,
+        marketCondition: agentStatus2?.marketCondition || "neutral",
+        aiConfidenceScore: agentStatus2?.aiConfidenceScore || "0.5",
+        lastMarketAnalysis: agentStatus2?.lastMarketAnalysis
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get dynamic limits: ${error}`);
+      res.status(500).json({ error: "Failed to get dynamic limits" });
+    }
   }
-});
-router17.post("/agent/set-limits", requireAuth, async (req, res) => {
-  try {
-    const { minOrderLimit, maxOrderLimit } = req.body;
-    const updates = {};
-    if (minOrderLimit !== void 0) {
-      if (minOrderLimit < 1 || minOrderLimit > 100) {
-        return badRequest(res, "minOrderLimit must be between 1 and 100");
+);
+router17.post(
+  "/agent/set-limits",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { minOrderLimit, maxOrderLimit } = req.body;
+      const updates = {};
+      if (minOrderLimit !== void 0) {
+        if (minOrderLimit < 1 || minOrderLimit > 100) {
+          return badRequest(res, "minOrderLimit must be between 1 and 100");
+        }
+        updates.minOrderLimit = minOrderLimit;
       }
-      updates.minOrderLimit = minOrderLimit;
-    }
-    if (maxOrderLimit !== void 0) {
-      if (maxOrderLimit < 1 || maxOrderLimit > 100) {
-        return badRequest(res, "maxOrderLimit must be between 1 and 100");
+      if (maxOrderLimit !== void 0) {
+        if (maxOrderLimit < 1 || maxOrderLimit > 100) {
+          return badRequest(res, "maxOrderLimit must be between 1 and 100");
+        }
+        updates.maxOrderLimit = maxOrderLimit;
       }
-      updates.maxOrderLimit = maxOrderLimit;
+      if (updates.minOrderLimit && updates.maxOrderLimit && updates.minOrderLimit > updates.maxOrderLimit) {
+        return badRequest(
+          res,
+          "minOrderLimit cannot be greater than maxOrderLimit"
+        );
+      }
+      await storage.updateAgentStatus(updates);
+      const updatedStatus = await storage.getAgentStatus();
+      res.json({
+        success: true,
+        minOrderLimit: updatedStatus?.minOrderLimit,
+        maxOrderLimit: updatedStatus?.maxOrderLimit
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to set limits: ${error}`);
+      res.status(500).json({ error: "Failed to set limits" });
     }
-    if (updates.minOrderLimit && updates.maxOrderLimit && updates.minOrderLimit > updates.maxOrderLimit) {
-      return badRequest(
-        res,
-        "minOrderLimit cannot be greater than maxOrderLimit"
-      );
+  }
+);
+router17.get(
+  "/agent/health",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const healthStatus = orchestrator.getHealthStatus();
+      const agentStatus2 = await storage.getAgentStatus();
+      res.json({
+        ...healthStatus,
+        autoStartEnabled: agentStatus2?.autoStartEnabled ?? true,
+        lastHeartbeatFromDb: agentStatus2?.lastHeartbeat
+      });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to get agent health: ${error}`);
+      res.status(500).json({ error: "Failed to get agent health" });
     }
-    await storage.updateAgentStatus(updates);
-    const updatedStatus = await storage.getAgentStatus();
-    res.json({
-      success: true,
-      minOrderLimit: updatedStatus?.minOrderLimit,
-      maxOrderLimit: updatedStatus?.maxOrderLimit
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to set limits: ${error}`);
-    res.status(500).json({ error: "Failed to set limits" });
   }
-});
-router17.get("/agent/health", requireAuth, async (req, res) => {
-  try {
-    const healthStatus = orchestrator.getHealthStatus();
-    const agentStatus2 = await storage.getAgentStatus();
-    res.json({
-      ...healthStatus,
-      autoStartEnabled: agentStatus2?.autoStartEnabled ?? true,
-      lastHeartbeatFromDb: agentStatus2?.lastHeartbeat
-    });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to get agent health: ${error}`);
-    res.status(500).json({ error: "Failed to get agent health" });
-  }
-});
-router17.post("/agent/auto-start", requireAuth, async (req, res) => {
-  try {
-    const { enabled } = req.body;
-    if (typeof enabled !== "boolean") {
-      return badRequest(res, "enabled must be a boolean");
+);
+router17.post(
+  "/agent/auto-start",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return badRequest(res, "enabled must be a boolean");
+      }
+      await orchestrator.setAutoStartEnabled(enabled);
+      res.json({ success: true, autoStartEnabled: enabled });
+    } catch (error) {
+      log.error("AiDecisionsAPI", `Failed to set auto-start: ${error}`);
+      res.status(500).json({ error: "Failed to set auto-start" });
     }
-    await orchestrator.setAutoStartEnabled(enabled);
-    res.json({ success: true, autoStartEnabled: enabled });
-  } catch (error) {
-    log.error("AiDecisionsAPI", `Failed to set auto-start: ${error}`);
-    res.status(500).json({ error: "Failed to set auto-start" });
   }
-});
+);
 router17.post(
   "/autonomous/execute-trades",
   async (req, res) => {
@@ -44907,28 +46830,36 @@ router18.post("/llm/clear", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to clear cache" });
   }
 });
-router18.post("/llm/clear/:role", requireAuth, async (req, res) => {
-  try {
-    const { role } = req.params;
-    if (!role) {
-      return badRequest(res, "Role parameter is required");
+router18.post(
+  "/llm/clear/:role",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { role } = req.params;
+      if (!role) {
+        return badRequest(res, "Role parameter is required");
+      }
+      clearLLMCacheForRole(role);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error("CacheAPI", `Failed to clear LLM cache for role: ${error}`);
+      res.status(500).json({ error: "Failed to clear cache for role" });
     }
-    clearLLMCacheForRole(role);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("CacheAPI", `Failed to clear LLM cache for role: ${error}`);
-    res.status(500).json({ error: "Failed to clear cache for role" });
   }
-});
-router18.post("/llm/reset-stats", requireAuth, async (req, res) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("CacheAPI", `Failed to reset LLM cache stats: ${error}`);
-    res.status(500).json({ error: "Failed to reset cache stats" });
+);
+router18.post(
+  "/llm/reset-stats",
+  requireAuth,
+  async (req, res) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("CacheAPI", `Failed to reset LLM cache stats: ${error}`);
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
+);
 router18.get("/api", requireAuth, async (req, res) => {
   try {
     const { provider } = req.query;
@@ -45430,30 +47361,34 @@ router19.get("/configs", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get role configurations" });
   }
 });
-router19.put("/configs/:role", requireAuth, async (req, res) => {
-  try {
-    const { role } = req.params;
-    const validRoles = [
-      "market_news_summarizer",
-      "technical_analyst",
-      "risk_manager",
-      "execution_planner",
-      "post_trade_reporter"
-    ];
-    if (!validRoles.includes(role)) {
-      return badRequest(
-        res,
-        `Invalid role. Must be one of: ${validRoles.join(", ")}`
-      );
+router19.put(
+  "/configs/:role",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { role } = req.params;
+      const validRoles = [
+        "market_news_summarizer",
+        "technical_analyst",
+        "risk_manager",
+        "execution_planner",
+        "post_trade_reporter"
+      ];
+      if (!validRoles.includes(role)) {
+        return badRequest(
+          res,
+          `Invalid role. Must be one of: ${validRoles.join(", ")}`
+        );
+      }
+      const updates = req.body;
+      const updated = await updateRoleConfig(role, updates);
+      res.json({ success: true, config: updated });
+    } catch (error) {
+      log.error("LLMAPI", `Failed to update role config: ${error}`);
+      res.status(500).json({ error: "Failed to update role configuration" });
     }
-    const updates = req.body;
-    const updated = await updateRoleConfig(role, updates);
-    res.json({ success: true, config: updated });
-  } catch (error) {
-    log.error("LLMAPI", `Failed to update role config: ${error}`);
-    res.status(500).json({ error: "Failed to update role configuration" });
   }
-});
+);
 router19.get("/calls", requireAuth, async (req, res) => {
   try {
     const { role, limit: limit4 } = req.query;
@@ -45517,37 +47452,45 @@ router20.get("/api-cache", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get API cache stats" });
   }
 });
-router20.post("/api-cache/purge", requireAdmin, async (req, res) => {
-  try {
-    const { provider, key, expiredOnly } = req.body;
-    let purgedCount = 0;
-    let message = "";
-    if (provider && key) {
-      purgedCount = await invalidateCache(provider, key);
-      message = `Invalidated cache for ${provider}:${key}`;
-    } else if (provider && !expiredOnly) {
-      purgedCount = await invalidateCache(provider);
-      message = `Invalidated all cache entries for ${provider}`;
-    } else {
-      purgedCount = await purgeExpiredCache();
-      message = provider ? `Purged expired cache entries (provider filter not supported for expired purge)` : "Purged all expired cache entries";
+router20.post(
+  "/api-cache/purge",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { provider, key, expiredOnly } = req.body;
+      let purgedCount = 0;
+      let message = "";
+      if (provider && key) {
+        purgedCount = await invalidateCache(provider, key);
+        message = `Invalidated cache for ${provider}:${key}`;
+      } else if (provider && !expiredOnly) {
+        purgedCount = await invalidateCache(provider);
+        message = `Invalidated all cache entries for ${provider}`;
+      } else {
+        purgedCount = await purgeExpiredCache();
+        message = provider ? `Purged expired cache entries (provider filter not supported for expired purge)` : "Purged all expired cache entries";
+      }
+      res.json({ success: true, purgedCount, message });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to purge API cache", { error });
+      res.status(500).json({ error: "Failed to purge API cache" });
     }
-    res.json({ success: true, purgedCount, message });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to purge API cache", { error });
-    res.status(500).json({ error: "Failed to purge API cache" });
   }
-});
-router20.get("/provider-status", requireAdmin, async (req, res) => {
-  try {
-    const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
-    const statuses = await getAllProviderStatuses2();
-    res.json({ providers: statuses });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to get provider statuses", { error });
-    res.status(500).json({ error: "Failed to get provider statuses" });
+);
+router20.get(
+  "/provider-status",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
+      const statuses = await getAllProviderStatuses2();
+      res.json({ providers: statuses });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to get provider statuses", { error });
+      res.status(500).json({ error: "Failed to get provider statuses" });
+    }
   }
-});
+);
 router20.post(
   "/provider/:provider/force-refresh",
   async (req, res) => {
@@ -45605,443 +47548,471 @@ router20.patch(
     }
   }
 );
-router20.get("/valyu-budget", requireAdmin, async (req, res) => {
-  try {
-    const { getValyuBudgetStatus: getValyuBudgetStatus2, getValyuBudgetConfig: getValyuBudgetConfig2 } = await Promise.resolve().then(() => (init_valyuBudget(), valyuBudget_exports));
-    const statuses = await getValyuBudgetStatus2();
-    const config2 = getValyuBudgetConfig2();
-    res.json({ statuses, config: config2 });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to get Valyu budget status", { error });
-    res.status(500).json({ error: "Failed to get Valyu budget status" });
+router20.get(
+  "/valyu-budget",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getValyuBudgetStatus: getValyuBudgetStatus2, getValyuBudgetConfig: getValyuBudgetConfig2 } = await Promise.resolve().then(() => (init_valyuBudget(), valyuBudget_exports));
+      const statuses = await getValyuBudgetStatus2();
+      const config2 = getValyuBudgetConfig2();
+      res.json({ statuses, config: config2 });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to get Valyu budget status", { error });
+      res.status(500).json({ error: "Failed to get Valyu budget status" });
+    }
   }
-});
-router20.put("/valyu-budget", requireAdmin, async (req, res) => {
-  try {
-    const { updateValyuBudgetConfig: updateValyuBudgetConfig2, getValyuBudgetConfig: getValyuBudgetConfig2 } = await Promise.resolve().then(() => (init_valyuBudget(), valyuBudget_exports));
-    const {
-      webRetrievalsPerMonth,
-      financeRetrievalsPerMonth,
-      proprietaryRetrievalsPerMonth
-    } = req.body;
-    const updates = {};
-    if (webRetrievalsPerMonth !== void 0)
-      updates.webRetrievalsPerMonth = webRetrievalsPerMonth;
-    if (financeRetrievalsPerMonth !== void 0)
-      updates.financeRetrievalsPerMonth = financeRetrievalsPerMonth;
-    if (proprietaryRetrievalsPerMonth !== void 0)
-      updates.proprietaryRetrievalsPerMonth = proprietaryRetrievalsPerMonth;
-    updateValyuBudgetConfig2(updates);
-    const config2 = getValyuBudgetConfig2();
-    res.json({ success: true, config: config2, message: "Valyu budget limits updated" });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to update Valyu budget", { error });
-    res.status(500).json({ error: "Failed to update Valyu budget" });
+);
+router20.put(
+  "/valyu-budget",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { updateValyuBudgetConfig: updateValyuBudgetConfig2, getValyuBudgetConfig: getValyuBudgetConfig2 } = await Promise.resolve().then(() => (init_valyuBudget(), valyuBudget_exports));
+      const {
+        webRetrievalsPerMonth,
+        financeRetrievalsPerMonth,
+        proprietaryRetrievalsPerMonth
+      } = req.body;
+      const updates = {};
+      if (webRetrievalsPerMonth !== void 0)
+        updates.webRetrievalsPerMonth = webRetrievalsPerMonth;
+      if (financeRetrievalsPerMonth !== void 0)
+        updates.financeRetrievalsPerMonth = financeRetrievalsPerMonth;
+      if (proprietaryRetrievalsPerMonth !== void 0)
+        updates.proprietaryRetrievalsPerMonth = proprietaryRetrievalsPerMonth;
+      updateValyuBudgetConfig2(updates);
+      const config2 = getValyuBudgetConfig2();
+      res.json({
+        success: true,
+        config: config2,
+        message: "Valyu budget limits updated"
+      });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to update Valyu budget", { error });
+      res.status(500).json({ error: "Failed to update Valyu budget" });
+    }
   }
-});
-router20.get("/connectors-health", requireAdmin, async (req, res) => {
-  try {
-    const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
-    const providerStatuses = await getAllProviderStatuses2();
-    const connectors = [
-      {
-        name: "Alpaca Paper",
-        provider: "alpaca",
-        type: "brokerage",
-        hasApiKey: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY),
-        status: "checking",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "Finnhub",
-        provider: "finnhub",
-        type: "market_data",
-        hasApiKey: !!process.env.FINNHUB_API_KEY,
-        status: providerStatuses.finnhub?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "CoinGecko",
-        provider: "coingecko",
-        type: "crypto",
-        hasApiKey: true,
-        status: providerStatuses.coingecko?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "CoinMarketCap",
-        provider: "coinmarketcap",
-        type: "crypto",
-        hasApiKey: !!process.env.COINMARKETCAP_API_KEY,
-        status: providerStatuses.coinmarketcap?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "NewsAPI",
-        provider: "newsapi",
-        type: "news",
-        hasApiKey: !!process.env.NEWS_API_KEY,
-        status: providerStatuses.newsapi?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "GDELT",
-        provider: "gdelt",
-        type: "news",
-        hasApiKey: true,
-        status: providerStatuses.gdelt?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
-      },
-      {
-        name: "Valyu",
-        provider: "valyu",
-        type: "research",
-        hasApiKey: !!process.env.VALYU_API_KEY,
-        status: providerStatuses.valyu?.enabled ? "active" : "disabled",
-        lastSync: null,
-        callsRemaining: null,
-        healthDetails: null
+);
+router20.get(
+  "/connectors-health",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
+      const providerStatuses = await getAllProviderStatuses2();
+      const connectors = [
+        {
+          name: "Alpaca Paper",
+          provider: "alpaca",
+          type: "brokerage",
+          hasApiKey: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY),
+          status: "checking",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "Finnhub",
+          provider: "finnhub",
+          type: "market_data",
+          hasApiKey: !!process.env.FINNHUB_API_KEY,
+          status: providerStatuses.finnhub?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "CoinGecko",
+          provider: "coingecko",
+          type: "crypto",
+          hasApiKey: true,
+          status: providerStatuses.coingecko?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "CoinMarketCap",
+          provider: "coinmarketcap",
+          type: "crypto",
+          hasApiKey: !!process.env.COINMARKETCAP_API_KEY,
+          status: providerStatuses.coinmarketcap?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "NewsAPI",
+          provider: "newsapi",
+          type: "news",
+          hasApiKey: !!process.env.NEWS_API_KEY,
+          status: providerStatuses.newsapi?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "GDELT",
+          provider: "gdelt",
+          type: "news",
+          hasApiKey: true,
+          status: providerStatuses.gdelt?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        },
+        {
+          name: "Valyu",
+          provider: "valyu",
+          type: "research",
+          hasApiKey: !!process.env.VALYU_API_KEY,
+          status: providerStatuses.valyu?.enabled ? "active" : "disabled",
+          lastSync: null,
+          callsRemaining: null,
+          healthDetails: null
+        }
+      ];
+      try {
+        const { alpaca: alpaca2 } = await Promise.resolve().then(() => (init_alpaca(), alpaca_exports));
+        const account = await alpaca2.getAccount();
+        connectors[0].status = account.status === "ACTIVE" ? "active" : "error";
+        connectors[0].healthDetails = { overall: account.status, account };
+      } catch {
+        connectors[0].status = "error";
       }
-    ];
+      res.json({
+        connectors,
+        summary: {
+          total: connectors.length,
+          active: connectors.filter((c) => c.status === "active").length,
+          error: connectors.filter((c) => c.status === "error").length,
+          disabled: connectors.filter((c) => c.status === "disabled").length
+        }
+      });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to get connector health", { error });
+      res.status(500).json({ error: "Failed to get connector health" });
+    }
+  }
+);
+router20.get(
+  "/api-keys-status",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAllAvailableProviders: getAllAvailableProviders2 } = await Promise.resolve().then(() => (init_ai(), ai_exports));
+      const aiProviders = getAllAvailableProviders2();
+      const providerPolicies2 = getAllProviderPolicies();
+      const getPolicyEnabled = (provider) => {
+        const policy = providerPolicies2.find(
+          (p) => p.provider.toLowerCase() === provider.toLowerCase()
+        );
+        return policy?.enabled ?? true;
+      };
+      const apiKeys = [
+        {
+          name: "Alpaca API",
+          key: "ALPACA_API_KEY",
+          category: "brokerage",
+          configured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY),
+          enabled: getPolicyEnabled("alpaca")
+        },
+        {
+          name: "Finnhub API",
+          key: "FINNHUB_API_KEY",
+          category: "market_data",
+          configured: !!process.env.FINNHUB_API_KEY,
+          enabled: getPolicyEnabled("finnhub")
+        },
+        {
+          name: "CoinGecko API",
+          key: "COINGECKO_API_KEY",
+          category: "crypto",
+          configured: true,
+          enabled: getPolicyEnabled("coingecko")
+        },
+        {
+          name: "CoinMarketCap API",
+          key: "COINMARKETCAP_API_KEY",
+          category: "crypto",
+          configured: !!process.env.COINMARKETCAP_API_KEY,
+          enabled: getPolicyEnabled("coinmarketcap")
+        },
+        {
+          name: "NewsAPI",
+          key: "NEWS_API_KEY",
+          category: "news",
+          configured: !!process.env.NEWS_API_KEY,
+          enabled: getPolicyEnabled("newsapi")
+        },
+        {
+          name: "GDELT News",
+          key: "GDELT",
+          category: "news",
+          configured: true,
+          enabled: getPolicyEnabled("gdelt")
+        },
+        {
+          name: "Valyu API",
+          key: "VALYU_API_KEY",
+          category: "data",
+          configured: !!process.env.VALYU_API_KEY,
+          enabled: getPolicyEnabled("valyu")
+        },
+        {
+          name: "Hugging Face API",
+          key: "HUGGINGFACE_API_KEY",
+          category: "ai",
+          configured: !!process.env.HUGGINGFACE_API_KEY,
+          enabled: getPolicyEnabled("huggingface")
+        },
+        {
+          name: "OpenAI API",
+          key: "OPENAI_API_KEY",
+          category: "ai",
+          configured: aiProviders.includes("openai"),
+          enabled: getPolicyEnabled("openai")
+        },
+        {
+          name: "Groq API",
+          key: "GROQ_API_KEY",
+          category: "ai",
+          configured: aiProviders.includes("groq"),
+          enabled: getPolicyEnabled("groq")
+        },
+        {
+          name: "Together API",
+          key: "TOGETHER_API_KEY",
+          category: "ai",
+          configured: aiProviders.includes("together"),
+          enabled: getPolicyEnabled("together")
+        },
+        {
+          name: "AIML API",
+          key: "AIMLAPI_KEY",
+          category: "ai",
+          configured: aiProviders.includes("aimlapi"),
+          enabled: true
+        },
+        {
+          name: "OpenRouter API",
+          key: "OPENROUTER_API_KEY",
+          category: "ai",
+          configured: !!process.env.OPENROUTER_API_KEY,
+          enabled: true
+        }
+      ];
+      const summary = {
+        total: apiKeys.length,
+        configured: apiKeys.filter((k) => k.configured).length,
+        missing: apiKeys.filter((k) => !k.configured).length,
+        enabled: apiKeys.filter((k) => k.enabled).length,
+        byCategory: {
+          brokerage: apiKeys.filter((k) => k.category === "brokerage"),
+          market_data: apiKeys.filter((k) => k.category === "market_data"),
+          crypto: apiKeys.filter((k) => k.category === "crypto"),
+          news: apiKeys.filter((k) => k.category === "news"),
+          data: apiKeys.filter((k) => k.category === "data"),
+          ai: apiKeys.filter((k) => k.category === "ai")
+        }
+      };
+      res.json({ apiKeys, summary });
+    } catch (error) {
+      log.error("AdminAPI", "Failed to get API keys status", { error });
+      res.status(500).json({ error: "Failed to get API keys status" });
+    }
+  }
+);
+router20.get(
+  "/data-fusion-status",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
+      const providerStatuses = await getAllProviderStatuses2();
+      const fusionEngineStatus = dataFusionEngine.getStatus();
+      let marketIntelligence = null;
+      try {
+        marketIntelligence = await dataFusionEngine.getMarketIntelligence();
+      } catch (err) {
+        log.error("AdminAPI", "Failed to get market intelligence", {
+          error: err
+        });
+      }
+      const dataSources = [
+        {
+          name: "Market Prices",
+          provider: "finnhub",
+          active: !!process.env.FINNHUB_API_KEY && providerStatuses.finnhub?.enabled,
+          category: "market_data"
+        },
+        {
+          name: "Crypto Prices",
+          provider: "coingecko",
+          active: providerStatuses.coingecko?.enabled,
+          category: "market_data"
+        },
+        {
+          name: "Trade Execution",
+          provider: "alpaca",
+          active: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) && providerStatuses.alpaca?.enabled,
+          category: "brokerage"
+        },
+        {
+          name: "SEC Filings (EDGAR)",
+          provider: "sec-edgar",
+          active: true,
+          category: "fundamentals"
+        },
+        {
+          name: "Financial Data",
+          provider: "valyu",
+          active: !!process.env.VALYU_API_KEY && providerStatuses.valyu?.enabled,
+          category: "fundamentals"
+        },
+        {
+          name: "Macro Indicators (FRED)",
+          provider: "fred",
+          active: !!process.env.FRED_API_KEY,
+          category: "macro"
+        },
+        {
+          name: "Short Interest (FINRA)",
+          provider: "finra",
+          active: true,
+          category: "short_interest"
+        },
+        {
+          name: "Forex Rates (ECB)",
+          provider: "frankfurter",
+          active: true,
+          category: "forex"
+        },
+        {
+          name: "News Feed",
+          provider: "gdelt",
+          active: providerStatuses.gdelt?.enabled,
+          category: "news"
+        },
+        {
+          name: "News Headlines",
+          provider: "newsapi",
+          active: !!process.env.NEWS_API_KEY && providerStatuses.newsapi?.enabled,
+          category: "news"
+        },
+        {
+          name: "Sentiment Analysis",
+          provider: "huggingface",
+          active: !!process.env.HUGGINGFACE_API_KEY && providerStatuses.huggingface?.enabled,
+          category: "sentiment"
+        }
+      ];
+      const activeSourcesCount = marketIntelligence?.activeSources ?? dataSources.filter((s) => s.active).length;
+      const totalSources = marketIntelligence?.totalSources ?? dataSources.length;
+      const intelligenceScore = marketIntelligence?.overall ?? activeSourcesCount / totalSources;
+      const fusionMetrics = {
+        intelligenceScore,
+        activeSources: activeSourcesCount,
+        totalSources,
+        dataSources,
+        dataQuality: marketIntelligence?.dataQuality ?? "unknown",
+        components: marketIntelligence?.components ?? null,
+        signals: marketIntelligence?.signals ?? [],
+        embeddingsCount: fusionEngineStatus.cacheSize,
+        lastFusionRun: fusionEngineStatus.lastFusionTime ? new Date(fusionEngineStatus.lastFusionTime).toISOString() : null,
+        capabilities: {
+          marketData: dataSources.some((s) => s.provider === "finnhub" && s.active) || dataSources.some((s) => s.provider === "coingecko" && s.active),
+          newsAnalysis: dataSources.some(
+            (s) => (s.provider === "gdelt" || s.provider === "newsapi") && s.active
+          ),
+          sentimentAnalysis: dataSources.some(
+            (s) => s.provider === "huggingface" && s.active
+          ),
+          tradingCapability: dataSources.some(
+            (s) => s.provider === "alpaca" && s.active
+          ),
+          fundamentals: dataSources.some(
+            (s) => (s.provider === "sec-edgar" || s.provider === "valyu") && s.active
+          ),
+          shortInterest: dataSources.some(
+            (s) => s.provider === "finra" && s.active
+          ),
+          macroAnalysis: dataSources.some(
+            (s) => s.provider === "fred" && s.active
+          ),
+          forexData: dataSources.some(
+            (s) => s.provider === "frankfurter" && s.active
+          )
+        }
+      };
+      res.json(fusionMetrics);
+    } catch (error) {
+      log.error("AdminAPI", "Failed to get data fusion status", { error });
+      res.status(500).json({ error: "Failed to get data fusion status" });
+    }
+  }
+);
+router20.get(
+  "/alpaca-account",
+  requireAdmin,
+  async (req, res) => {
     try {
       const { alpaca: alpaca2 } = await Promise.resolve().then(() => (init_alpaca(), alpaca_exports));
-      const account = await alpaca2.getAccount();
-      connectors[0].status = account.status === "ACTIVE" ? "active" : "error";
-      connectors[0].healthDetails = { overall: account.status, account };
-    } catch {
-      connectors[0].status = "error";
-    }
-    res.json({
-      connectors,
-      summary: {
-        total: connectors.length,
-        active: connectors.filter((c) => c.status === "active").length,
-        error: connectors.filter((c) => c.status === "error").length,
-        disabled: connectors.filter((c) => c.status === "disabled").length
+      const { tradingConfig: tradingConfig2 } = await Promise.resolve().then(() => (init_trading_config(), trading_config_exports));
+      const fs2 = await import("fs");
+      const path2 = await import("path");
+      const envApiKey = process.env.ALPACA_API_KEY;
+      const maskedEnvKey = envApiKey ? `${envApiKey.substring(0, 6)}...${envApiKey.substring(envApiKey.length - 4)}` : "NOT SET";
+      let envFileKey = null;
+      try {
+        const envPath = path2.resolve(process.cwd(), ".env");
+        const envContent = fs2.readFileSync(envPath, "utf-8");
+        const match = envContent.match(/ALPACA_API_KEY=(.+)/);
+        if (match) {
+          envFileKey = match[1].trim();
+        }
+      } catch {
       }
-    });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to get connector health", { error });
-    res.status(500).json({ error: "Failed to get connector health" });
-  }
-});
-router20.get("/api-keys-status", requireAdmin, async (req, res) => {
-  try {
-    const { getAllAvailableProviders: getAllAvailableProviders2 } = await Promise.resolve().then(() => (init_ai(), ai_exports));
-    const aiProviders = getAllAvailableProviders2();
-    const providerPolicies2 = getAllProviderPolicies();
-    const getPolicyEnabled = (provider) => {
-      const policy = providerPolicies2.find(
-        (p) => p.provider.toLowerCase() === provider.toLowerCase()
-      );
-      return policy?.enabled ?? true;
-    };
-    const apiKeys = [
-      {
-        name: "Alpaca API",
-        key: "ALPACA_API_KEY",
-        category: "brokerage",
-        configured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY),
-        enabled: getPolicyEnabled("alpaca")
-      },
-      {
-        name: "Finnhub API",
-        key: "FINNHUB_API_KEY",
-        category: "market_data",
-        configured: !!process.env.FINNHUB_API_KEY,
-        enabled: getPolicyEnabled("finnhub")
-      },
-      {
-        name: "CoinGecko API",
-        key: "COINGECKO_API_KEY",
-        category: "crypto",
-        configured: true,
-        enabled: getPolicyEnabled("coingecko")
-      },
-      {
-        name: "CoinMarketCap API",
-        key: "COINMARKETCAP_API_KEY",
-        category: "crypto",
-        configured: !!process.env.COINMARKETCAP_API_KEY,
-        enabled: getPolicyEnabled("coinmarketcap")
-      },
-      {
-        name: "NewsAPI",
-        key: "NEWS_API_KEY",
-        category: "news",
-        configured: !!process.env.NEWS_API_KEY,
-        enabled: getPolicyEnabled("newsapi")
-      },
-      {
-        name: "GDELT News",
-        key: "GDELT",
-        category: "news",
-        configured: true,
-        enabled: getPolicyEnabled("gdelt")
-      },
-      {
-        name: "Valyu API",
-        key: "VALYU_API_KEY",
-        category: "data",
-        configured: !!process.env.VALYU_API_KEY,
-        enabled: getPolicyEnabled("valyu")
-      },
-      {
-        name: "Hugging Face API",
-        key: "HUGGINGFACE_API_KEY",
-        category: "ai",
-        configured: !!process.env.HUGGINGFACE_API_KEY,
-        enabled: getPolicyEnabled("huggingface")
-      },
-      {
-        name: "OpenAI API",
-        key: "OPENAI_API_KEY",
-        category: "ai",
-        configured: aiProviders.includes("openai"),
-        enabled: getPolicyEnabled("openai")
-      },
-      {
-        name: "Groq API",
-        key: "GROQ_API_KEY",
-        category: "ai",
-        configured: aiProviders.includes("groq"),
-        enabled: getPolicyEnabled("groq")
-      },
-      {
-        name: "Together API",
-        key: "TOGETHER_API_KEY",
-        category: "ai",
-        configured: aiProviders.includes("together"),
-        enabled: getPolicyEnabled("together")
-      },
-      {
-        name: "AIML API",
-        key: "AIMLAPI_KEY",
-        category: "ai",
-        configured: aiProviders.includes("aimlapi"),
-        enabled: true
-      },
-      {
-        name: "OpenRouter API",
-        key: "OPENROUTER_API_KEY",
-        category: "ai",
-        configured: !!process.env.OPENROUTER_API_KEY,
-        enabled: true
+      const maskedEnvFileKey = envFileKey ? `${envFileKey.substring(0, 6)}...${envFileKey.substring(envFileKey.length - 4)}` : "NOT FOUND";
+      const hasMismatch = envFileKey && envApiKey && envFileKey !== envApiKey;
+      let accountInfo = null;
+      let connectionStatus = "unknown";
+      try {
+        const account = await alpaca2.getAccount();
+        accountInfo = {
+          id: account.id,
+          status: account.status,
+          buying_power: parseFloat(account.buying_power).toFixed(2),
+          portfolio_value: parseFloat(account.portfolio_value).toFixed(2),
+          equity: parseFloat(account.equity).toFixed(2),
+          cash: parseFloat(account.cash).toFixed(2)
+        };
+        connectionStatus = "connected";
+      } catch (error) {
+        connectionStatus = "error";
+        log.error("AdminAPI", "Failed to connect to Alpaca", { error });
       }
-    ];
-    const summary = {
-      total: apiKeys.length,
-      configured: apiKeys.filter((k) => k.configured).length,
-      missing: apiKeys.filter((k) => !k.configured).length,
-      enabled: apiKeys.filter((k) => k.enabled).length,
-      byCategory: {
-        brokerage: apiKeys.filter((k) => k.category === "brokerage"),
-        market_data: apiKeys.filter((k) => k.category === "market_data"),
-        crypto: apiKeys.filter((k) => k.category === "crypto"),
-        news: apiKeys.filter((k) => k.category === "news"),
-        data: apiKeys.filter((k) => k.category === "data"),
-        ai: apiKeys.filter((k) => k.category === "ai")
-      }
-    };
-    res.json({ apiKeys, summary });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to get API keys status", { error });
-    res.status(500).json({ error: "Failed to get API keys status" });
-  }
-});
-router20.get("/data-fusion-status", requireAdmin, async (req, res) => {
-  try {
-    const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
-    const providerStatuses = await getAllProviderStatuses2();
-    const fusionEngineStatus = dataFusionEngine.getStatus();
-    let marketIntelligence = null;
-    try {
-      marketIntelligence = await dataFusionEngine.getMarketIntelligence();
-    } catch (err) {
-      log.error("AdminAPI", "Failed to get market intelligence", {
-        error: err
+      res.json({
+        configuration: {
+          tradingMode: tradingConfig2.alpaca.tradingMode,
+          baseUrl: tradingConfig2.alpaca.tradingMode === "live" ? tradingConfig2.alpaca.liveUrl : tradingConfig2.alpaca.paperUrl
+        },
+        credentials: {
+          runningEnvKey: maskedEnvKey,
+          envFileKey: maskedEnvFileKey,
+          hasMismatch,
+          mismatchWarning: hasMismatch ? "WARNING: Running environment uses different credentials than .env file. This may indicate Replit Secrets are overriding .env values." : null
+        },
+        account: accountInfo,
+        connectionStatus
       });
-    }
-    const dataSources = [
-      {
-        name: "Market Prices",
-        provider: "finnhub",
-        active: !!process.env.FINNHUB_API_KEY && providerStatuses.finnhub?.enabled,
-        category: "market_data"
-      },
-      {
-        name: "Crypto Prices",
-        provider: "coingecko",
-        active: providerStatuses.coingecko?.enabled,
-        category: "market_data"
-      },
-      {
-        name: "Trade Execution",
-        provider: "alpaca",
-        active: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) && providerStatuses.alpaca?.enabled,
-        category: "brokerage"
-      },
-      {
-        name: "SEC Filings (EDGAR)",
-        provider: "sec-edgar",
-        active: true,
-        category: "fundamentals"
-      },
-      {
-        name: "Financial Data",
-        provider: "valyu",
-        active: !!process.env.VALYU_API_KEY && providerStatuses.valyu?.enabled,
-        category: "fundamentals"
-      },
-      {
-        name: "Macro Indicators (FRED)",
-        provider: "fred",
-        active: !!process.env.FRED_API_KEY,
-        category: "macro"
-      },
-      {
-        name: "Short Interest (FINRA)",
-        provider: "finra",
-        active: true,
-        category: "short_interest"
-      },
-      {
-        name: "Forex Rates (ECB)",
-        provider: "frankfurter",
-        active: true,
-        category: "forex"
-      },
-      {
-        name: "News Feed",
-        provider: "gdelt",
-        active: providerStatuses.gdelt?.enabled,
-        category: "news"
-      },
-      {
-        name: "News Headlines",
-        provider: "newsapi",
-        active: !!process.env.NEWS_API_KEY && providerStatuses.newsapi?.enabled,
-        category: "news"
-      },
-      {
-        name: "Sentiment Analysis",
-        provider: "huggingface",
-        active: !!process.env.HUGGINGFACE_API_KEY && providerStatuses.huggingface?.enabled,
-        category: "sentiment"
-      }
-    ];
-    const activeSourcesCount = marketIntelligence?.activeSources ?? dataSources.filter((s) => s.active).length;
-    const totalSources = marketIntelligence?.totalSources ?? dataSources.length;
-    const intelligenceScore = marketIntelligence?.overall ?? activeSourcesCount / totalSources;
-    const fusionMetrics = {
-      intelligenceScore,
-      activeSources: activeSourcesCount,
-      totalSources,
-      dataSources,
-      dataQuality: marketIntelligence?.dataQuality ?? "unknown",
-      components: marketIntelligence?.components ?? null,
-      signals: marketIntelligence?.signals ?? [],
-      embeddingsCount: fusionEngineStatus.cacheSize,
-      lastFusionRun: fusionEngineStatus.lastFusionTime ? new Date(fusionEngineStatus.lastFusionTime).toISOString() : null,
-      capabilities: {
-        marketData: dataSources.some((s) => s.provider === "finnhub" && s.active) || dataSources.some((s) => s.provider === "coingecko" && s.active),
-        newsAnalysis: dataSources.some(
-          (s) => (s.provider === "gdelt" || s.provider === "newsapi") && s.active
-        ),
-        sentimentAnalysis: dataSources.some(
-          (s) => s.provider === "huggingface" && s.active
-        ),
-        tradingCapability: dataSources.some(
-          (s) => s.provider === "alpaca" && s.active
-        ),
-        fundamentals: dataSources.some(
-          (s) => (s.provider === "sec-edgar" || s.provider === "valyu") && s.active
-        ),
-        shortInterest: dataSources.some(
-          (s) => s.provider === "finra" && s.active
-        ),
-        macroAnalysis: dataSources.some(
-          (s) => s.provider === "fred" && s.active
-        ),
-        forexData: dataSources.some(
-          (s) => s.provider === "frankfurter" && s.active
-        )
-      }
-    };
-    res.json(fusionMetrics);
-  } catch (error) {
-    log.error("AdminAPI", "Failed to get data fusion status", { error });
-    res.status(500).json({ error: "Failed to get data fusion status" });
-  }
-});
-router20.get("/alpaca-account", requireAdmin, async (req, res) => {
-  try {
-    const { alpaca: alpaca2 } = await Promise.resolve().then(() => (init_alpaca(), alpaca_exports));
-    const { tradingConfig: tradingConfig2 } = await Promise.resolve().then(() => (init_trading_config(), trading_config_exports));
-    const fs2 = await import("fs");
-    const path2 = await import("path");
-    const envApiKey = process.env.ALPACA_API_KEY;
-    const maskedEnvKey = envApiKey ? `${envApiKey.substring(0, 6)}...${envApiKey.substring(envApiKey.length - 4)}` : "NOT SET";
-    let envFileKey = null;
-    try {
-      const envPath = path2.resolve(process.cwd(), ".env");
-      const envContent = fs2.readFileSync(envPath, "utf-8");
-      const match = envContent.match(/ALPACA_API_KEY=(.+)/);
-      if (match) {
-        envFileKey = match[1].trim();
-      }
-    } catch {
-    }
-    const maskedEnvFileKey = envFileKey ? `${envFileKey.substring(0, 6)}...${envFileKey.substring(envFileKey.length - 4)}` : "NOT FOUND";
-    const hasMismatch = envFileKey && envApiKey && envFileKey !== envApiKey;
-    let accountInfo = null;
-    let connectionStatus = "unknown";
-    try {
-      const account = await alpaca2.getAccount();
-      accountInfo = {
-        id: account.id,
-        status: account.status,
-        buying_power: parseFloat(account.buying_power).toFixed(2),
-        portfolio_value: parseFloat(account.portfolio_value).toFixed(2),
-        equity: parseFloat(account.equity).toFixed(2),
-        cash: parseFloat(account.cash).toFixed(2)
-      };
-      connectionStatus = "connected";
     } catch (error) {
-      connectionStatus = "error";
-      log.error("AdminAPI", "Failed to connect to Alpaca", { error });
+      log.error("AdminAPI", "Failed to verify Alpaca account", { error });
+      res.status(500).json({ error: "Failed to verify Alpaca account" });
     }
-    res.json({
-      configuration: {
-        tradingMode: tradingConfig2.alpaca.tradingMode,
-        baseUrl: tradingConfig2.alpaca.tradingMode === "live" ? tradingConfig2.alpaca.liveUrl : tradingConfig2.alpaca.paperUrl
-      },
-      credentials: {
-        runningEnvKey: maskedEnvKey,
-        envFileKey: maskedEnvFileKey,
-        hasMismatch,
-        mismatchWarning: hasMismatch ? "WARNING: Running environment uses different credentials than .env file. This may indicate Replit Secrets are overriding .env values." : null
-      },
-      account: accountInfo,
-      connectionStatus
-    });
-  } catch (error) {
-    log.error("AdminAPI", "Failed to verify Alpaca account", { error });
-    res.status(500).json({ error: "Failed to verify Alpaca account" });
   }
-});
+);
 var api_default = router20;
 
 // server/routes/admin/ai.ts
@@ -46059,7 +48030,9 @@ function isValidRole(role) {
   return VALID_ROLES.includes(role);
 }
 function isValidWorkItemStatus(status) {
-  return ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "DEAD_LETTER"].includes(status);
+  return ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "DEAD_LETTER"].includes(
+    status
+  );
 }
 var router21 = Router23();
 router21.get("/ai-config", requireAdmin, async (req, res) => {
@@ -46093,16 +48066,20 @@ router21.put("/ai-config", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to update AI config" });
   }
 });
-router21.get("/model-router/configs", requireAdmin, async (req, res) => {
-  try {
-    const configs = await getAllRoleConfigs();
-    const availableProviders = roleBasedRouter.getAvailableProviders();
-    res.json({ configs, availableProviders });
-  } catch (error) {
-    log.error("AdminAI", "Failed to get role configs", { error });
-    res.status(500).json({ error: "Failed to get role configurations" });
+router21.get(
+  "/model-router/configs",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const configs = await getAllRoleConfigs();
+      const availableProviders = roleBasedRouter.getAvailableProviders();
+      res.json({ configs, availableProviders });
+    } catch (error) {
+      log.error("AdminAI", "Failed to get role configs", { error });
+      res.status(500).json({ error: "Failed to get role configurations" });
+    }
   }
-});
+);
 router21.put(
   "/model-router/configs/:role",
   async (req, res) => {
@@ -46122,27 +48099,35 @@ router21.put(
     }
   }
 );
-router21.get("/model-router/calls", requireAdmin, async (req, res) => {
-  try {
-    const { role, limit: limit4 } = req.query;
-    const limitNum = parseInt(limit4) || 20;
-    const roleFilter = typeof role === "string" && isValidRole(role) ? role : void 0;
-    const calls = await getRecentCalls(limitNum, roleFilter);
-    res.json({ calls, count: calls.length });
-  } catch (error) {
-    log.error("AdminAI", "Failed to get recent LLM calls", { error });
-    res.status(500).json({ error: "Failed to get recent LLM calls" });
+router21.get(
+  "/model-router/calls",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { role, limit: limit4 } = req.query;
+      const limitNum = parseInt(limit4) || 20;
+      const roleFilter = typeof role === "string" && isValidRole(role) ? role : void 0;
+      const calls = await getRecentCalls(limitNum, roleFilter);
+      res.json({ calls, count: calls.length });
+    } catch (error) {
+      log.error("AdminAI", "Failed to get recent LLM calls", { error });
+      res.status(500).json({ error: "Failed to get recent LLM calls" });
+    }
   }
-});
-router21.get("/model-router/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await getCallStats();
-    res.json(stats);
-  } catch (error) {
-    log.error("AdminAI", "Failed to get LLM call stats", { error });
-    res.status(500).json({ error: "Failed to get LLM call statistics" });
+);
+router21.get(
+  "/model-router/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await getCallStats();
+      res.json(stats);
+    } catch (error) {
+      log.error("AdminAI", "Failed to get LLM call stats", { error });
+      res.status(500).json({ error: "Failed to get LLM call statistics" });
+    }
   }
-});
+);
 router21.get("/work-items", requireAdmin, async (req, res) => {
   try {
     const { status, type, limit: limit4 } = req.query;
@@ -46167,81 +48152,93 @@ router21.get("/work-items", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get work items" });
   }
 });
-router21.post("/work-items/retry", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.body;
-    if (!id) {
-      return res.status(400).json({ error: "Work item ID required" });
+router21.post(
+  "/work-items/retry",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Work item ID required" });
+      }
+      const item = await storage.getWorkItem(id);
+      if (!item) {
+        return res.status(404).json({ error: "Work item not found" });
+      }
+      if (item.status !== "DEAD_LETTER" && item.status !== "FAILED") {
+        return res.status(400).json({ error: "Can only retry DEAD_LETTER or FAILED items" });
+      }
+      await storage.updateWorkItem(id, {
+        status: "PENDING",
+        attempts: 0,
+        nextRunAt: /* @__PURE__ */ new Date(),
+        lastError: null
+      });
+      res.json({ success: true, message: "Work item queued for retry" });
+    } catch (error) {
+      log.error("AdminAI", "Failed to retry work item", { error });
+      res.status(500).json({ error: "Failed to retry work item" });
     }
-    const item = await storage.getWorkItem(id);
-    if (!item) {
-      return res.status(404).json({ error: "Work item not found" });
-    }
-    if (item.status !== "DEAD_LETTER" && item.status !== "FAILED") {
-      return res.status(400).json({ error: "Can only retry DEAD_LETTER or FAILED items" });
-    }
-    await storage.updateWorkItem(id, {
-      status: "PENDING",
-      attempts: 0,
-      nextRunAt: /* @__PURE__ */ new Date(),
-      lastError: null
-    });
-    res.json({ success: true, message: "Work item queued for retry" });
-  } catch (error) {
-    log.error("AdminAI", "Failed to retry work item", { error });
-    res.status(500).json({ error: "Failed to retry work item" });
   }
-});
-router21.post("/work-items/dead-letter", requireAdmin, async (req, res) => {
-  try {
-    const { id, reason } = req.body;
-    if (!id) {
-      return res.status(400).json({ error: "Work item ID required" });
+);
+router21.post(
+  "/work-items/dead-letter",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id, reason } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Work item ID required" });
+      }
+      const item = await storage.getWorkItem(id);
+      if (!item) {
+        return res.status(404).json({ error: "Work item not found" });
+      }
+      await storage.updateWorkItem(id, {
+        status: "DEAD_LETTER",
+        lastError: reason || "Manually moved to dead letter"
+      });
+      res.json({ success: true, message: "Work item moved to dead letter" });
+    } catch (error) {
+      log.error("AdminAI", "Failed to dead-letter work item", { error });
+      res.status(500).json({ error: "Failed to dead-letter work item" });
     }
-    const item = await storage.getWorkItem(id);
-    if (!item) {
-      return res.status(404).json({ error: "Work item not found" });
+  }
+);
+router21.get(
+  "/orchestrator-health",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const agentStatusData = await storage.getAgentStatus();
+      const counts = {
+        PENDING: await storage.getWorkItemCount("PENDING"),
+        RUNNING: await storage.getWorkItemCount("RUNNING"),
+        FAILED: await storage.getWorkItemCount("FAILED"),
+        DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER")
+      };
+      const recentErrors = await storage.getWorkItems(5, "FAILED");
+      res.json({
+        isRunning: agentStatusData?.isRunning || false,
+        killSwitchActive: agentStatusData?.killSwitchActive || false,
+        lastHeartbeat: agentStatusData?.lastHeartbeat || null,
+        queueDepth: counts,
+        totalPending: counts.PENDING + counts.RUNNING,
+        recentErrors: recentErrors.map((e) => ({
+          id: e.id,
+          type: e.type,
+          symbol: e.symbol,
+          error: e.lastError,
+          createdAt: e.createdAt
+        })),
+        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminAI", "Failed to get orchestrator health", { error });
+      res.status(500).json({ error: "Failed to get orchestrator health" });
     }
-    await storage.updateWorkItem(id, {
-      status: "DEAD_LETTER",
-      lastError: reason || "Manually moved to dead letter"
-    });
-    res.json({ success: true, message: "Work item moved to dead letter" });
-  } catch (error) {
-    log.error("AdminAI", "Failed to dead-letter work item", { error });
-    res.status(500).json({ error: "Failed to dead-letter work item" });
   }
-});
-router21.get("/orchestrator-health", requireAdmin, async (req, res) => {
-  try {
-    const agentStatusData = await storage.getAgentStatus();
-    const counts = {
-      PENDING: await storage.getWorkItemCount("PENDING"),
-      RUNNING: await storage.getWorkItemCount("RUNNING"),
-      FAILED: await storage.getWorkItemCount("FAILED"),
-      DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER")
-    };
-    const recentErrors = await storage.getWorkItems(5, "FAILED");
-    res.json({
-      isRunning: agentStatusData?.isRunning || false,
-      killSwitchActive: agentStatusData?.killSwitchActive || false,
-      lastHeartbeat: agentStatusData?.lastHeartbeat || null,
-      queueDepth: counts,
-      totalPending: counts.PENDING + counts.RUNNING,
-      recentErrors: recentErrors.map((e) => ({
-        id: e.id,
-        type: e.type,
-        symbol: e.symbol,
-        error: e.lastError,
-        createdAt: e.createdAt
-      })),
-      lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminAI", "Failed to get orchestrator health", { error });
-    res.status(500).json({ error: "Failed to get orchestrator health" });
-  }
-});
+);
 var ai_default = router21;
 
 // server/routes/admin/system.ts
@@ -46693,41 +48690,49 @@ router22.get("/modules", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get admin modules" });
   }
 });
-router22.get("/modules/accessible", requireAdmin, async (req, res) => {
-  try {
-    const user = await storage.getUser(req.userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+router22.get(
+  "/modules/accessible",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const rbacContext = createRBACContext(user);
+      const allModules = getModules();
+      const accessibleModules = filterModulesByCapability(
+        allModules,
+        rbacContext
+      );
+      res.json({
+        modules: accessibleModules,
+        count: accessibleModules.length,
+        totalModules: allModules.length,
+        userRole: rbacContext.role
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get accessible modules", { error });
+      res.status(500).json({ error: "Failed to get accessible modules" });
     }
-    const rbacContext = createRBACContext(user);
-    const allModules = getModules();
-    const accessibleModules = filterModulesByCapability(
-      allModules,
-      rbacContext
-    );
-    res.json({
-      modules: accessibleModules,
-      count: accessibleModules.length,
-      totalModules: allModules.length,
-      userRole: rbacContext.role
-    });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get accessible modules", { error });
-    res.status(500).json({ error: "Failed to get accessible modules" });
   }
-});
-router22.get("/modules/:id", requireAdmin, async (req, res) => {
-  try {
-    const module = getModule(req.params.id);
-    if (!module) {
-      return res.status(404).json({ error: "Module not found" });
+);
+router22.get(
+  "/modules/:id",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const module = getModule(req.params.id);
+      if (!module) {
+        return res.status(404).json({ error: "Module not found" });
+      }
+      res.json(module);
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get admin module", { error });
+      res.status(500).json({ error: "Failed to get admin module" });
     }
-    res.json(module);
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get admin module", { error });
-    res.status(500).json({ error: "Failed to get admin module" });
   }
-});
+);
 router22.get("/overview", requireAdmin, async (req, res) => {
   try {
     const overview = await getAdminOverview();
@@ -46787,25 +48792,29 @@ router22.get("/rbac/roles", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get roles" });
   }
 });
-router22.get("/rbac/check/:capability", requireAdmin, async (req, res) => {
-  try {
-    const { capability } = req.params;
-    const user = await storage.getUser(req.userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+router22.get(
+  "/rbac/check/:capability",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { capability } = req.params;
+      const user = await storage.getUser(req.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const rbacContext = createRBACContext(user);
+      const allowed = hasCapability(rbacContext, capability);
+      res.json({
+        capability,
+        allowed,
+        role: rbacContext.role
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to check capability", { error });
+      res.status(500).json({ error: "Failed to check capability" });
     }
-    const rbacContext = createRBACContext(user);
-    const allowed = hasCapability(rbacContext, capability);
-    res.json({
-      capability,
-      allowed,
-      role: rbacContext.role
-    });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to check capability", { error });
-    res.status(500).json({ error: "Failed to check capability" });
   }
-});
+);
 router22.get("/settings", requireAdmin, async (req, res) => {
   try {
     const settings = await listSettings();
@@ -46818,37 +48827,45 @@ router22.get("/settings", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to list settings" });
   }
 });
-router22.get("/settings/:namespace/:key", requireAdmin, async (req, res) => {
-  try {
-    const { namespace, key } = req.params;
-    const setting = await getSettingFull(namespace, key);
-    if (!setting) {
-      return res.status(404).json({ error: "Setting not found" });
+router22.get(
+  "/settings/:namespace/:key",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { namespace, key } = req.params;
+      const setting = await getSettingFull(namespace, key);
+      if (!setting) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json(sanitizeSettingForResponse(setting));
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get setting", { error });
+      res.status(500).json({ error: "Failed to get setting" });
     }
-    res.json(sanitizeSettingForResponse(setting));
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get setting", { error });
-    res.status(500).json({ error: "Failed to get setting" });
   }
-});
-router22.put("/settings/:namespace/:key", requireAdmin, async (req, res) => {
-  try {
-    const { namespace, key } = req.params;
-    const { value, description, isSecret } = req.body;
-    if (value === void 0) {
-      return res.status(400).json({ error: "Value is required" });
+);
+router22.put(
+  "/settings/:namespace/:key",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { namespace, key } = req.params;
+      const { value, description, isSecret } = req.body;
+      if (value === void 0) {
+        return res.status(400).json({ error: "Value is required" });
+      }
+      const setting = await setSetting(namespace, key, value, {
+        description,
+        isSecret,
+        userId: req.userId
+      });
+      res.json(sanitizeSettingForResponse(setting));
+    } catch (error) {
+      log.error("AdminSystem", "Failed to update setting", { error });
+      res.status(500).json({ error: "Failed to update setting" });
     }
-    const setting = await setSetting(namespace, key, value, {
-      description,
-      isSecret,
-      userId: req.userId
-    });
-    res.json(sanitizeSettingForResponse(setting));
-  } catch (error) {
-    log.error("AdminSystem", "Failed to update setting", { error });
-    res.status(500).json({ error: "Failed to update setting" });
   }
-});
+);
 router22.delete(
   "/settings/:namespace/:key",
   async (req, res) => {
@@ -46865,59 +48882,81 @@ router22.delete(
     }
   }
 );
-router22.get("/orchestrator/status", requireAdmin, async (req, res) => {
-  try {
-    const state = orchestrator.getState();
-    const riskLimits = orchestrator.getRiskLimits();
-    res.json({
-      ...state,
-      riskLimits,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get orchestrator status", { error });
-    res.status(500).json({ error: "Failed to get orchestrator status" });
-  }
-});
-router22.post("/orchestrator/pause", requireAdmin, async (req, res) => {
-  try {
-    await orchestrator.stop(true);
-    res.json({ success: true, message: "Orchestrator paused" });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to pause orchestrator", { error });
-    res.status(500).json({ error: "Failed to pause orchestrator" });
-  }
-});
-router22.post("/orchestrator/resume", requireAdmin, async (req, res) => {
-  try {
-    await orchestrator.start();
-    res.json({ success: true, message: "Orchestrator resumed" });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to resume orchestrator", { error });
-    res.status(500).json({ error: "Failed to resume orchestrator" });
-  }
-});
-router22.post("/orchestrator/run-now", requireAdmin, async (req, res) => {
-  try {
-    await orchestrator.start();
-    res.json({ success: true, message: "Orchestrator run triggered" });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to trigger orchestrator", { error });
-    res.status(500).json({ error: "Failed to trigger orchestrator" });
-  }
-});
-router22.put("/orchestrator/config", requireAdmin, async (req, res) => {
-  try {
-    const config2 = req.body;
-    if (config2.riskLimits) {
-      await orchestrator.updateRiskLimits(config2.riskLimits);
+router22.get(
+  "/orchestrator/status",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const state = orchestrator.getState();
+      const riskLimits = orchestrator.getRiskLimits();
+      res.json({
+        ...state,
+        riskLimits,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get orchestrator status", { error });
+      res.status(500).json({ error: "Failed to get orchestrator status" });
     }
-    res.json({ success: true, config: orchestrator.getState() });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to update orchestrator config", { error });
-    res.status(500).json({ error: "Failed to update orchestrator config" });
   }
-});
+);
+router22.post(
+  "/orchestrator/pause",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      await orchestrator.stop(true);
+      res.json({ success: true, message: "Orchestrator paused" });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to pause orchestrator", { error });
+      res.status(500).json({ error: "Failed to pause orchestrator" });
+    }
+  }
+);
+router22.post(
+  "/orchestrator/resume",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      await orchestrator.start();
+      res.json({ success: true, message: "Orchestrator resumed" });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to resume orchestrator", { error });
+      res.status(500).json({ error: "Failed to resume orchestrator" });
+    }
+  }
+);
+router22.post(
+  "/orchestrator/run-now",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      await orchestrator.start();
+      res.json({ success: true, message: "Orchestrator run triggered" });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to trigger orchestrator", { error });
+      res.status(500).json({ error: "Failed to trigger orchestrator" });
+    }
+  }
+);
+router22.put(
+  "/orchestrator/config",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const config2 = req.body;
+      if (config2.riskLimits) {
+        await orchestrator.updateRiskLimits(config2.riskLimits);
+      }
+      res.json({ success: true, config: orchestrator.getState() });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to update orchestrator config", {
+        error
+      });
+      res.status(500).json({ error: "Failed to update orchestrator config" });
+    }
+  }
+);
 router22.post(
   "/orchestrator/reset-stats",
   async (req, res) => {
@@ -46933,38 +48972,46 @@ router22.post(
     }
   }
 );
-router22.get("/jobs/status", requireAdmin, async (req, res) => {
-  try {
-    const counts = {
-      PENDING: await storage.getWorkItemCount("PENDING"),
-      RUNNING: await storage.getWorkItemCount("RUNNING"),
-      SUCCEEDED: await storage.getWorkItemCount("SUCCEEDED"),
-      FAILED: await storage.getWorkItemCount("FAILED"),
-      DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER")
-    };
-    res.json({
-      counts,
-      total: Object.values(counts).reduce((a, b) => a + b, 0),
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get jobs status", { error });
-    res.status(500).json({ error: "Failed to get jobs status" });
-  }
-});
-router22.post("/jobs/sync-positions", requireAdmin, async (req, res) => {
-  try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+router22.get(
+  "/jobs/status",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const counts = {
+        PENDING: await storage.getWorkItemCount("PENDING"),
+        RUNNING: await storage.getWorkItemCount("RUNNING"),
+        SUCCEEDED: await storage.getWorkItemCount("SUCCEEDED"),
+        FAILED: await storage.getWorkItemCount("FAILED"),
+        DEAD_LETTER: await storage.getWorkItemCount("DEAD_LETTER")
+      };
+      res.json({
+        counts,
+        total: Object.values(counts).reduce((a, b) => a + b, 0),
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get jobs status", { error });
+      res.status(500).json({ error: "Failed to get jobs status" });
     }
-    await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
-    res.json({ success: true, message: "Position sync completed" });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to sync positions", { error });
-    res.status(500).json({ error: "Failed to sync positions" });
   }
-});
+);
+router22.post(
+  "/jobs/sync-positions",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      await alpacaTradingEngine.syncPositionsFromAlpaca(userId);
+      res.json({ success: true, message: "Position sync completed" });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to sync positions", { error });
+      res.status(500).json({ error: "Failed to sync positions" });
+    }
+  }
+);
 router22.get("/search", requireAdmin, async (req, res) => {
   try {
     const { q, limit: limit4 } = req.query;
@@ -46981,20 +49028,24 @@ router22.get("/search", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to search" });
   }
 });
-router22.get("/trace/:traceId", requireAdmin, async (req, res) => {
-  try {
-    const { traceId } = req.params;
-    const related = await getRelatedEntities(traceId);
-    res.json({
-      traceId,
-      ...related,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminSystem", "Failed to get trace", { error });
-    res.status(500).json({ error: "Failed to get trace" });
+router22.get(
+  "/trace/:traceId",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { traceId } = req.params;
+      const related = await getRelatedEntities(traceId);
+      res.json({
+        traceId,
+        ...related,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get trace", { error });
+      res.status(500).json({ error: "Failed to get trace" });
+    }
   }
-});
+);
 var system_default = router22;
 
 // server/routes/admin/trading.ts
@@ -47003,65 +49054,81 @@ init_universe2();
 init_logger();
 import { Router as Router25 } from "express";
 var router23 = Router25();
-router23.get("/universe/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await alpacaUniverseService.getStats();
-    res.json({
-      ...stats,
-      source: "alpaca_universe",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get universe stats", { error });
-    res.status(500).json({ error: "Failed to get universe stats" });
-  }
-});
-router23.get("/universe/assets", requireAdmin, async (req, res) => {
-  try {
-    const { assetClass, tradable, limit: limit4, offset } = req.query;
-    const assets = await storage.getBrokerAssets(
-      assetClass,
-      tradable === "true",
-      limit4 ? parseInt(limit4) : 100
-    );
-    res.json({
-      assets,
-      count: assets.length,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get universe assets", { error });
-    res.status(500).json({ error: "Failed to get universe assets" });
-  }
-});
-router23.get("/universe/assets/:symbol", requireAdmin, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const asset = await storage.getBrokerAsset(symbol);
-    if (!asset) {
-      return res.status(404).json({ error: "Asset not found" });
+router23.get(
+  "/universe/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await alpacaUniverseService.getStats();
+      res.json({
+        ...stats,
+        source: "alpaca_universe",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get universe stats", { error });
+      res.status(500).json({ error: "Failed to get universe stats" });
     }
-    res.json(asset);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get asset", { error });
-    res.status(500).json({ error: "Failed to get asset" });
   }
-});
-router23.post("/universe/refresh", requireAdmin, async (req, res) => {
-  try {
-    const { assetClass } = req.body;
-    const result = await alpacaUniverseService.refreshAssets({
-      assetClass: assetClass || "us_equity"
-    });
-    res.json({
-      ...result,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to refresh universe", { error });
-    res.status(500).json({ error: "Failed to refresh universe" });
+);
+router23.get(
+  "/universe/assets",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { assetClass, tradable, limit: limit4, offset } = req.query;
+      const assets = await storage.getBrokerAssets(
+        assetClass,
+        tradable === "true",
+        limit4 ? parseInt(limit4) : 100
+      );
+      res.json({
+        assets,
+        count: assets.length,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get universe assets", { error });
+      res.status(500).json({ error: "Failed to get universe assets" });
+    }
   }
-});
+);
+router23.get(
+  "/universe/assets/:symbol",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const asset = await storage.getBrokerAsset(symbol);
+      if (!asset) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+      res.json(asset);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get asset", { error });
+      res.status(500).json({ error: "Failed to get asset" });
+    }
+  }
+);
+router23.post(
+  "/universe/refresh",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { assetClass } = req.body;
+      const result = await alpacaUniverseService.refreshAssets({
+        assetClass: assetClass || "us_equity"
+      });
+      res.json({
+        ...result,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to refresh universe", { error });
+      res.status(500).json({ error: "Failed to refresh universe" });
+    }
+  }
+);
 router23.post(
   "/universe/exclude/:symbol",
   async (req, res) => {
@@ -47080,36 +49147,44 @@ router23.post(
     }
   }
 );
-router23.get("/universe/tradable", requireAdmin, async (req, res) => {
-  try {
-    const { limit: limit4 } = req.query;
-    const assets = await storage.getBrokerAssets(
-      "us_equity",
-      true,
-      limit4 ? parseInt(limit4) : 500
-    );
-    res.json({
-      symbols: assets.map((a) => a.symbol),
-      count: assets.length
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get tradable symbols", { error });
-    res.status(500).json({ error: "Failed to get tradable symbols" });
+router23.get(
+  "/universe/tradable",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { limit: limit4 } = req.query;
+      const assets = await storage.getBrokerAssets(
+        "us_equity",
+        true,
+        limit4 ? parseInt(limit4) : 500
+      );
+      res.json({
+        symbols: assets.map((a) => a.symbol),
+        count: assets.length
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get tradable symbols", { error });
+      res.status(500).json({ error: "Failed to get tradable symbols" });
+    }
   }
-});
-router23.get("/liquidity/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await liquidityService.getTierStats();
-    res.json({
-      ...stats,
-      source: "liquidity_metrics",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get liquidity stats", { error });
-    res.status(500).json({ error: "Failed to get liquidity stats" });
+);
+router23.get(
+  "/liquidity/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await liquidityService.getTierStats();
+      res.json({
+        ...stats,
+        source: "liquidity_metrics",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get liquidity stats", { error });
+      res.status(500).json({ error: "Failed to get liquidity stats" });
+    }
   }
-});
+);
 router23.get(
   "/liquidity/metrics/:symbol",
   async (req, res) => {
@@ -47126,118 +49201,150 @@ router23.get(
     }
   }
 );
-router23.get("/liquidity/tier/:tier", requireAdmin, async (req, res) => {
-  try {
-    const { tier } = req.params;
-    const { limit: limit4 } = req.query;
-    if (!["A", "B", "C", "D"].includes(tier)) {
-      return res.status(400).json({ error: "Invalid tier. Must be A, B, C, or D" });
+router23.get(
+  "/liquidity/tier/:tier",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { tier } = req.params;
+      const { limit: limit4 } = req.query;
+      if (!["A", "B", "C", "D"].includes(tier)) {
+        return res.status(400).json({ error: "Invalid tier. Must be A, B, C, or D" });
+      }
+      const metrics = await liquidityService.getMetricsByTier(
+        tier,
+        limit4 ? parseInt(limit4) : 100
+      );
+      res.json({ tier, symbols: metrics, count: metrics.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get tier symbols", { error });
+      res.status(500).json({ error: "Failed to get tier symbols" });
     }
-    const metrics = await liquidityService.getMetricsByTier(
-      tier,
-      limit4 ? parseInt(limit4) : 100
-    );
-    res.json({ tier, symbols: metrics, count: metrics.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get tier symbols", { error });
-    res.status(500).json({ error: "Failed to get tier symbols" });
   }
-});
-router23.get("/liquidity/top", requireAdmin, async (req, res) => {
-  try {
-    const { limit: limit4 } = req.query;
-    const symbols = await liquidityService.getTopLiquid(
-      limit4 ? parseInt(limit4) : 50
-    );
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get top liquid symbols", { error });
-    res.status(500).json({ error: "Failed to get top liquid symbols" });
-  }
-});
-router23.post("/liquidity/compute", requireAdmin, async (req, res) => {
-  try {
-    const { symbols, traceId } = req.body;
-    const result = await liquidityService.computeLiquidityMetrics({
-      symbols,
-      traceId: traceId || `liq-${Date.now()}`
-    });
-    res.json({
-      ...result,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to compute liquidity", { error });
-    res.status(500).json({ error: "Failed to compute liquidity metrics" });
-  }
-});
-router23.get("/fundamentals/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await fundamentalsService.getStats();
-    res.json({
-      ...stats,
-      source: "universe_fundamentals",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get fundamentals stats", { error });
-    res.status(500).json({ error: "Failed to get fundamentals stats" });
-  }
-});
-router23.get("/fundamentals/:symbol", requireAdmin, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
-    if (!fundamentals) {
-      return res.status(404).json({ error: "Fundamentals not found" });
+);
+router23.get(
+  "/liquidity/top",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { limit: limit4 } = req.query;
+      const symbols = await liquidityService.getTopLiquid(
+        limit4 ? parseInt(limit4) : 50
+      );
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get top liquid symbols", { error });
+      res.status(500).json({ error: "Failed to get top liquid symbols" });
     }
-    res.json(fundamentals);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get fundamentals", { error });
-    res.status(500).json({ error: "Failed to get fundamentals" });
   }
-});
-router23.get("/fundamentals/top/scores", requireAdmin, async (req, res) => {
-  try {
-    const { limit: limit4 } = req.query;
-    const symbols = await fundamentalsService.getTopByScore(
-      limit4 ? parseInt(limit4) : 50
-    );
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get top scores", { error });
-    res.status(500).json({ error: "Failed to get top scores" });
+);
+router23.post(
+  "/liquidity/compute",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbols, traceId } = req.body;
+      const result = await liquidityService.computeLiquidityMetrics({
+        symbols,
+        traceId: traceId || `liq-${Date.now()}`
+      });
+      res.json({
+        ...result,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to compute liquidity", { error });
+      res.status(500).json({ error: "Failed to compute liquidity metrics" });
+    }
   }
-});
-router23.post("/fundamentals/fetch", requireAdmin, async (req, res) => {
-  try {
-    const { symbols, traceId } = req.body;
-    const result = await fundamentalsService.fetchAndStoreFundamentals({
-      symbols,
-      traceId: traceId || `fund-${Date.now()}`
-    });
-    res.json({
-      ...result,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to fetch fundamentals", { error });
-    res.status(500).json({ error: "Failed to fetch fundamentals" });
+);
+router23.get(
+  "/fundamentals/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await fundamentalsService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_fundamentals",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get fundamentals stats", { error });
+      res.status(500).json({ error: "Failed to get fundamentals stats" });
+    }
   }
-});
-router23.get("/candidates/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await candidatesService.getStats();
-    res.json({
-      ...stats,
-      source: "universe_candidates",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get candidates stats", { error });
-    res.status(500).json({ error: "Failed to get candidates stats" });
+);
+router23.get(
+  "/fundamentals/:symbol",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const fundamentals = await fundamentalsService.getFundamentalsBySymbol(symbol);
+      if (!fundamentals) {
+        return res.status(404).json({ error: "Fundamentals not found" });
+      }
+      res.json(fundamentals);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get fundamentals", { error });
+      res.status(500).json({ error: "Failed to get fundamentals" });
+    }
   }
-});
+);
+router23.get(
+  "/fundamentals/top/scores",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { limit: limit4 } = req.query;
+      const symbols = await fundamentalsService.getTopByScore(
+        limit4 ? parseInt(limit4) : 50
+      );
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get top scores", { error });
+      res.status(500).json({ error: "Failed to get top scores" });
+    }
+  }
+);
+router23.post(
+  "/fundamentals/fetch",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbols, traceId } = req.body;
+      const result = await fundamentalsService.fetchAndStoreFundamentals({
+        symbols,
+        traceId: traceId || `fund-${Date.now()}`
+      });
+      res.json({
+        ...result,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to fetch fundamentals", { error });
+      res.status(500).json({ error: "Failed to fetch fundamentals" });
+    }
+  }
+);
+router23.get(
+  "/candidates/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await candidatesService.getStats();
+      res.json({
+        ...stats,
+        source: "universe_candidates",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get candidates stats", { error });
+      res.status(500).json({ error: "Failed to get candidates stats" });
+    }
+  }
+);
 router23.get("/candidates", requireAdmin, async (req, res) => {
   try {
     const { status, limit: limit4 } = req.query;
@@ -47258,34 +49365,42 @@ router23.get("/candidates", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get candidates" });
   }
 });
-router23.get("/candidates/:symbol", requireAdmin, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const candidate = await candidatesService.getCandidateBySymbol(symbol);
-    if (!candidate) {
-      return res.status(404).json({ error: "Candidate not found" });
+router23.get(
+  "/candidates/:symbol",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const candidate = await candidatesService.getCandidateBySymbol(symbol);
+      if (!candidate) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+      res.json(candidate);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get candidate", { error });
+      res.status(500).json({ error: "Failed to get candidate" });
     }
-    res.json(candidate);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get candidate", { error });
-    res.status(500).json({ error: "Failed to get candidate" });
   }
-});
-router23.post("/candidates/generate", requireAdmin, async (req, res) => {
-  try {
-    const { minLiquidityTier, minScore, limit: limit4, traceId } = req.body;
-    const result = await candidatesService.generateCandidates({
-      minLiquidityTier,
-      minScore: minScore ? parseFloat(minScore) : 0.4,
-      limit: limit4 ? parseInt(limit4) : 100,
-      traceId: traceId || `cand-${Date.now()}`
-    });
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to generate candidates", { error });
-    res.status(500).json({ error: "Failed to generate candidates" });
+);
+router23.post(
+  "/candidates/generate",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { minLiquidityTier, minScore, limit: limit4, traceId } = req.body;
+      const result = await candidatesService.generateCandidates({
+        minLiquidityTier,
+        minScore: minScore ? parseFloat(minScore) : 0.4,
+        limit: limit4 ? parseInt(limit4) : 100,
+        traceId: traceId || `cand-${Date.now()}`
+      });
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to generate candidates", { error });
+      res.status(500).json({ error: "Failed to generate candidates" });
+    }
   }
-});
+);
 router23.post(
   "/candidates/:symbol/approve",
   async (req, res) => {
@@ -47329,82 +49444,108 @@ router23.post(
     }
   }
 );
-router23.get("/candidates/approved/list", requireAdmin, async (req, res) => {
-  try {
-    const symbols = await candidatesService.getApprovedSymbols();
-    res.json({ symbols, count: symbols.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get approved symbols", { error });
-    res.status(500).json({ error: "Failed to get approved symbols" });
-  }
-});
-router23.get("/enforcement/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await tradingEnforcementService.getStats();
-    res.json({
-      ...stats,
-      source: "trading_enforcement",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get enforcement stats", { error });
-    res.status(500).json({ error: "Failed to get enforcement stats" });
-  }
-});
-router23.post("/enforcement/check", requireAdmin, async (req, res) => {
-  try {
-    const { symbol, symbols, traceId } = req.body;
-    if (symbol) {
-      const result = await tradingEnforcementService.canTradeSymbol(
-        symbol,
-        traceId || `chk-${Date.now()}`
-      );
-      res.json(result);
-    } else if (symbols && Array.isArray(symbols)) {
-      const results = await tradingEnforcementService.canTradeMultiple(
-        symbols,
-        traceId || `chk-${Date.now()}`
-      );
-      res.json({ results: Object.fromEntries(results) });
-    } else {
-      res.status(400).json({ error: "Provide symbol or symbols array" });
+router23.get(
+  "/candidates/approved/list",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const symbols = await candidatesService.getApprovedSymbols();
+      res.json({ symbols, count: symbols.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get approved symbols", { error });
+      res.status(500).json({ error: "Failed to get approved symbols" });
     }
-  } catch (error) {
-    log.error("AdminTrading", "Failed to check trading eligibility", { error });
-    res.status(500).json({ error: "Failed to check trading eligibility" });
   }
-});
-router23.post("/enforcement/reset-stats", requireAdmin, async (req, res) => {
-  try {
-    tradingEnforcementService.resetStats();
-    res.json({ success: true, message: "Enforcement stats reset" });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to reset enforcement stats", { error });
-    res.status(500).json({ error: "Failed to reset enforcement stats" });
+);
+router23.get(
+  "/enforcement/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await tradingEnforcementService.getStats();
+      res.json({
+        ...stats,
+        source: "trading_enforcement",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get enforcement stats", { error });
+      res.status(500).json({ error: "Failed to get enforcement stats" });
+    }
   }
-});
-router23.get("/allocation/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await allocationService.getStats();
-    res.json({
-      ...stats,
-      source: "allocation_policies",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get allocation stats", { error });
-    res.status(500).json({ error: "Failed to get allocation stats" });
+);
+router23.post(
+  "/enforcement/check",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { symbol, symbols, traceId } = req.body;
+      if (symbol) {
+        const result = await tradingEnforcementService.canTradeSymbol(
+          symbol,
+          traceId || `chk-${Date.now()}`
+        );
+        res.json(result);
+      } else if (symbols && Array.isArray(symbols)) {
+        const results = await tradingEnforcementService.canTradeMultiple(
+          symbols,
+          traceId || `chk-${Date.now()}`
+        );
+        res.json({ results: Object.fromEntries(results) });
+      } else {
+        res.status(400).json({ error: "Provide symbol or symbols array" });
+      }
+    } catch (error) {
+      log.error("AdminTrading", "Failed to check trading eligibility", {
+        error
+      });
+      res.status(500).json({ error: "Failed to check trading eligibility" });
+    }
   }
-});
-router23.get("/allocation/policies", requireAdmin, async (req, res) => {
-  try {
-    const policies = await allocationService.listPolicies();
-    res.json({ policies, count: policies.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to list policies", { error });
-    res.status(500).json({ error: "Failed to list policies" });
+);
+router23.post(
+  "/enforcement/reset-stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      tradingEnforcementService.resetStats();
+      res.json({ success: true, message: "Enforcement stats reset" });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to reset enforcement stats", { error });
+      res.status(500).json({ error: "Failed to reset enforcement stats" });
+    }
   }
-});
+);
+router23.get(
+  "/allocation/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await allocationService.getStats();
+      res.json({
+        ...stats,
+        source: "allocation_policies",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get allocation stats", { error });
+      res.status(500).json({ error: "Failed to get allocation stats" });
+    }
+  }
+);
+router23.get(
+  "/allocation/policies",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const policies = await allocationService.listPolicies();
+      res.json({ policies, count: policies.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to list policies", { error });
+      res.status(500).json({ error: "Failed to list policies" });
+    }
+  }
+);
 router23.get(
   "/allocation/policies/active",
   async (req, res) => {
@@ -47420,32 +49561,40 @@ router23.get(
     }
   }
 );
-router23.get("/allocation/policies/:id", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const policy = await allocationService.getPolicyById(id);
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+router23.get(
+  "/allocation/policies/:id",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await allocationService.getPolicyById(id);
+      if (!policy) {
+        return res.status(404).json({ error: "Policy not found" });
+      }
+      res.json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get policy", { error });
+      res.status(500).json({ error: "Failed to get policy" });
     }
-    res.json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get policy", { error });
-    res.status(500).json({ error: "Failed to get policy" });
   }
-});
-router23.post("/allocation/policies", requireAdmin, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const policy = await allocationService.createPolicy({
-      ...req.body,
-      createdBy: userId
-    });
-    res.status(201).json(policy);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to create policy", { error });
-    res.status(500).json({ error: "Failed to create policy" });
+);
+router23.post(
+  "/allocation/policies",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      const policy = await allocationService.createPolicy({
+        ...req.body,
+        createdBy: userId
+      });
+      res.status(201).json(policy);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to create policy", { error });
+      res.status(500).json({ error: "Failed to create policy" });
+    }
   }
-});
+);
 router23.patch(
   "/allocation/policies/:id",
   async (req, res) => {
@@ -47494,98 +49643,122 @@ router23.post(
     }
   }
 );
-router23.post("/allocation/analyze", requireAdmin, async (req, res) => {
-  try {
-    const { traceId } = req.body;
-    const analysis = await allocationService.analyzeRebalance(
-      traceId || `analyze-${Date.now()}`
-    );
-    if (!analysis) {
-      return res.status(400).json({ error: "No active allocation policy configured" });
+router23.post(
+  "/allocation/analyze",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await allocationService.analyzeRebalance(
+        traceId || `analyze-${Date.now()}`
+      );
+      if (!analysis) {
+        return res.status(400).json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        currentPositions: Object.fromEntries(analysis.currentPositions)
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to analyze rebalance", { error });
+      res.status(500).json({ error: "Failed to analyze rebalance" });
     }
-    res.json({
-      ...analysis,
-      currentPositions: Object.fromEntries(analysis.currentPositions)
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to analyze rebalance", { error });
-    res.status(500).json({ error: "Failed to analyze rebalance" });
   }
-});
-router23.get("/allocation/runs", requireAdmin, async (req, res) => {
-  try {
-    const { limit: limit4 } = req.query;
-    const runs = await allocationService.getRebalanceRuns(
-      limit4 ? parseInt(limit4) : 20
-    );
-    res.json({ runs, count: runs.length });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalance runs", { error });
-    res.status(500).json({ error: "Failed to get rebalance runs" });
-  }
-});
-router23.get("/allocation/runs/:id", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const run = await allocationService.getRebalanceRunById(id);
-    if (!run) {
-      return res.status(404).json({ error: "Rebalance run not found" });
+);
+router23.get(
+  "/allocation/runs",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { limit: limit4 } = req.query;
+      const runs = await allocationService.getRebalanceRuns(
+        limit4 ? parseInt(limit4) : 20
+      );
+      res.json({ runs, count: runs.length });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalance runs", { error });
+      res.status(500).json({ error: "Failed to get rebalance runs" });
     }
-    res.json(run);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalance run", { error });
-    res.status(500).json({ error: "Failed to get rebalance run" });
   }
-});
-router23.get("/rebalancer/stats", requireAdmin, async (req, res) => {
-  try {
-    const stats = await rebalancerService.getStats();
-    res.json({
-      ...stats,
-      source: "rebalancer",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to get rebalancer stats", { error });
-    res.status(500).json({ error: "Failed to get rebalancer stats" });
-  }
-});
-router23.post("/rebalancer/dry-run", requireAdmin, async (req, res) => {
-  try {
-    const { traceId } = req.body;
-    const analysis = await rebalancerService.executeDryRun(
-      traceId || `dry-${Date.now()}`
-    );
-    if (!analysis) {
-      return res.status(400).json({ error: "No active allocation policy configured" });
+);
+router23.get(
+  "/allocation/runs/:id",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const run = await allocationService.getRebalanceRunById(id);
+      if (!run) {
+        return res.status(404).json({ error: "Rebalance run not found" });
+      }
+      res.json(run);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalance run", { error });
+      res.status(500).json({ error: "Failed to get rebalance run" });
     }
-    res.json({
-      ...analysis,
-      analysis: analysis.analysis ? {
-        ...analysis.analysis,
-        currentPositions: Object.fromEntries(
-          analysis.analysis.currentPositions
-        )
-      } : null
-    });
-  } catch (error) {
-    log.error("AdminTrading", "Failed to execute dry run", { error });
-    res.status(500).json({ error: "Failed to execute dry run" });
   }
-});
-router23.post("/rebalancer/execute", requireAdmin, async (req, res) => {
-  try {
-    const { traceId, dryRun } = req.body;
-    const result = await rebalancerService.executeRebalance(
-      traceId || `rebal-${Date.now()}`,
-      dryRun === true
-    );
-    res.json(result);
-  } catch (error) {
-    log.error("AdminTrading", "Failed to execute rebalance", { error });
-    res.status(500).json({ error: "Failed to execute rebalance" });
+);
+router23.get(
+  "/rebalancer/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const stats = await rebalancerService.getStats();
+      res.json({
+        ...stats,
+        source: "rebalancer",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to get rebalancer stats", { error });
+      res.status(500).json({ error: "Failed to get rebalancer stats" });
+    }
   }
-});
+);
+router23.post(
+  "/rebalancer/dry-run",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { traceId } = req.body;
+      const analysis = await rebalancerService.executeDryRun(
+        traceId || `dry-${Date.now()}`
+      );
+      if (!analysis) {
+        return res.status(400).json({ error: "No active allocation policy configured" });
+      }
+      res.json({
+        ...analysis,
+        analysis: analysis.analysis ? {
+          ...analysis.analysis,
+          currentPositions: Object.fromEntries(
+            analysis.analysis.currentPositions
+          )
+        } : null
+      });
+    } catch (error) {
+      log.error("AdminTrading", "Failed to execute dry run", { error });
+      res.status(500).json({ error: "Failed to execute dry run" });
+    }
+  }
+);
+router23.post(
+  "/rebalancer/execute",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { traceId, dryRun } = req.body;
+      const result = await rebalancerService.executeRebalance(
+        traceId || `rebal-${Date.now()}`,
+        dryRun === true
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("AdminTrading", "Failed to execute rebalance", { error });
+      res.status(500).json({ error: "Failed to execute rebalance" });
+    }
+  }
+);
 router23.post(
   "/rebalancer/profit-taking/analyze",
   async (req, res) => {
@@ -47627,16 +49800,20 @@ router24.get("/audit-logs", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get audit logs" });
   }
 });
-router24.get("/audit-logs/stats", requireAdmin, async (req, res) => {
-  try {
-    const { getAuditStats: getAuditStats2 } = await Promise.resolve().then(() => (init_audit_logger(), audit_logger_exports));
-    const stats = await getAuditStats2();
-    res.json(stats);
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get audit stats", { error });
-    res.status(500).json({ error: "Failed to get audit stats" });
+router24.get(
+  "/audit-logs/stats",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAuditStats: getAuditStats2 } = await Promise.resolve().then(() => (init_audit_logger(), audit_logger_exports));
+      const stats = await getAuditStats2();
+      res.json(stats);
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get audit stats", { error });
+      res.status(500).json({ error: "Failed to get audit stats" });
+    }
   }
-});
+);
 router24.get("/dashboard", requireAdmin, async (req, res) => {
   try {
     const { getAllAvailableProviders: getAllAvailableProviders2 } = await Promise.resolve().then(() => (init_ai(), ai_exports));
@@ -47721,146 +49898,166 @@ router24.post("/users", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to create user" });
   }
 });
-router24.patch("/users/:id", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { username, password, isAdmin } = req.body;
-    const updates = {};
-    if (username !== void 0) updates.username = username;
-    if (isAdmin !== void 0) updates.isAdmin = isAdmin;
-    if (password) {
-      updates.password = await bcrypt2.hash(password, 10);
-    }
-    const user = await storage.updateUser(id, updates);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    const { password: _, ...sanitizedUser } = user;
-    res.json(sanitizedUser);
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to update user", { error });
-    res.status(500).json({ error: "Failed to update user" });
-  }
-});
-router24.delete("/users/:id", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (id === req.userId) {
-      return res.status(400).json({ error: "Cannot delete your own account" });
-    }
-    const deleted = await storage.deleteUser(id);
-    if (!deleted) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    res.json({ success: true });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to delete user", { error });
-    res.status(500).json({ error: "Failed to delete user" });
-  }
-});
-router24.get("/observability/metrics", requireAdmin, async (req, res) => {
-  try {
-    const memUsage = process.memoryUsage();
-    const uptime = process.uptime();
-    const pendingJobs = await storage.getWorkItemCount("PENDING");
-    const runningJobs = await storage.getWorkItemCount("RUNNING");
-    const failedJobs = await storage.getWorkItemCount("FAILED");
-    const completedJobs = await storage.getWorkItemCount("SUCCEEDED");
-    const recentLogs = await storage.getRecentAuditLogs(100);
-    const logsLast24h = recentLogs.filter((auditLog) => {
-      const logTime = new Date(auditLog.timestamp).getTime();
-      return Date.now() - logTime < 24 * 60 * 60 * 1e3;
-    }).length;
-    res.json({
-      system: {
-        memoryUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
-        memoryTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
-        uptimeHours: Math.round(uptime / 3600 * 10) / 10,
-        nodeVersion: process.version
-      },
-      workQueue: {
-        pending: pendingJobs,
-        running: runningJobs,
-        failed: failedJobs,
-        completed: completedJobs
-      },
-      activity: {
-        logsLast24h,
-        totalRecentLogs: recentLogs.length
-      },
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get observability metrics", { error });
-    res.status(500).json({ error: "Failed to get observability metrics" });
-  }
-});
-router24.get("/observability/logs", requireAdmin, async (req, res) => {
-  try {
-    const { limit: limit4, offset, action } = req.query;
-    const limitNum = parseInt(limit4) || 50;
-    const offsetNum = parseInt(offset) || 0;
-    const logs = await storage.getRecentAuditLogs(limitNum, offsetNum);
-    const filteredLogs = action ? logs.filter((auditLog) => auditLog.action === action) : logs;
-    res.json({
-      logs: filteredLogs,
-      count: filteredLogs.length,
-      offset: offsetNum
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get logs", { error });
-    res.status(500).json({ error: "Failed to get logs" });
-  }
-});
-router24.get("/observability/health", requireAdmin, async (req, res) => {
-  try {
-    const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
-    let dbHealthy = true;
+router24.patch(
+  "/users/:id",
+  requireAdmin,
+  async (req, res) => {
     try {
-      await storage.getAgentStatus();
-    } catch {
-      dbHealthy = false;
+      const { id } = req.params;
+      const { username, password, isAdmin } = req.body;
+      const updates = {};
+      if (username !== void 0) updates.username = username;
+      if (isAdmin !== void 0) updates.isAdmin = isAdmin;
+      if (password) {
+        updates.password = await bcrypt2.hash(password, 10);
+      }
+      const user = await storage.updateUser(id, updates);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const { password: _, ...sanitizedUser } = user;
+      res.json(sanitizedUser);
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to update user", { error });
+      res.status(500).json({ error: "Failed to update user" });
     }
-    const providerStatuses = await getAllProviderStatuses2();
-    const providersHealthy = Object.values(providerStatuses).some(
-      (s) => s.enabled && s.budgetStatus.allowed
-    );
-    let alpacaHealthy = false;
-    try {
-      const alpaca2 = await Promise.resolve().then(() => (init_alpaca(), alpaca_exports));
-      const account = await alpaca2.alpacaClient.getAccount();
-      alpacaHealthy = account?.status === "ACTIVE";
-    } catch {
-      alpacaHealthy = false;
-    }
-    res.json({
-      services: [
-        {
-          name: "Database",
-          status: dbHealthy ? "healthy" : "unhealthy",
-          message: dbHealthy ? "Connected" : "Connection failed"
-        },
-        { name: "API Endpoints", status: "healthy", message: "Operational" },
-        {
-          name: "LLM Providers",
-          status: providersHealthy ? "healthy" : "degraded",
-          message: providersHealthy ? "Available" : "No providers"
-        },
-        {
-          name: "Alpaca Trading",
-          status: alpacaHealthy ? "healthy" : "unhealthy",
-          message: alpacaHealthy ? "Connected" : "Disconnected"
-        },
-        { name: "Background Jobs", status: "healthy", message: "Running" }
-      ],
-      overall: dbHealthy && alpacaHealthy ? "healthy" : "degraded",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("AdminMgmt", "Failed to get health status", { error });
-    res.status(500).json({ error: "Failed to get health status" });
   }
-});
+);
+router24.delete(
+  "/users/:id",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (id === req.userId) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to delete user", { error });
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  }
+);
+router24.get(
+  "/observability/metrics",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const memUsage = process.memoryUsage();
+      const uptime = process.uptime();
+      const pendingJobs = await storage.getWorkItemCount("PENDING");
+      const runningJobs = await storage.getWorkItemCount("RUNNING");
+      const failedJobs = await storage.getWorkItemCount("FAILED");
+      const completedJobs = await storage.getWorkItemCount("SUCCEEDED");
+      const recentLogs = await storage.getRecentAuditLogs(100);
+      const logsLast24h = recentLogs.filter((auditLog) => {
+        const logTime = new Date(auditLog.timestamp).getTime();
+        return Date.now() - logTime < 24 * 60 * 60 * 1e3;
+      }).length;
+      res.json({
+        system: {
+          memoryUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+          memoryTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+          uptimeHours: Math.round(uptime / 3600 * 10) / 10,
+          nodeVersion: process.version
+        },
+        workQueue: {
+          pending: pendingJobs,
+          running: runningJobs,
+          failed: failedJobs,
+          completed: completedJobs
+        },
+        activity: {
+          logsLast24h,
+          totalRecentLogs: recentLogs.length
+        },
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get observability metrics", { error });
+      res.status(500).json({ error: "Failed to get observability metrics" });
+    }
+  }
+);
+router24.get(
+  "/observability/logs",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { limit: limit4, offset, action } = req.query;
+      const limitNum = parseInt(limit4) || 50;
+      const offsetNum = parseInt(offset) || 0;
+      const logs = await storage.getRecentAuditLogs(limitNum, offsetNum);
+      const filteredLogs = action ? logs.filter((auditLog) => auditLog.action === action) : logs;
+      res.json({
+        logs: filteredLogs,
+        count: filteredLogs.length,
+        offset: offsetNum
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get logs", { error });
+      res.status(500).json({ error: "Failed to get logs" });
+    }
+  }
+);
+router24.get(
+  "/observability/health",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { getAllProviderStatuses: getAllProviderStatuses2 } = await Promise.resolve().then(() => (init_callExternal(), callExternal_exports));
+      let dbHealthy = true;
+      try {
+        await storage.getAgentStatus();
+      } catch {
+        dbHealthy = false;
+      }
+      const providerStatuses = await getAllProviderStatuses2();
+      const providersHealthy = Object.values(providerStatuses).some(
+        (s) => s.enabled && s.budgetStatus.allowed
+      );
+      let alpacaHealthy = false;
+      try {
+        const alpaca2 = await Promise.resolve().then(() => (init_alpaca(), alpaca_exports));
+        const account = await alpaca2.alpacaClient.getAccount();
+        alpacaHealthy = account?.status === "ACTIVE";
+      } catch {
+        alpacaHealthy = false;
+      }
+      res.json({
+        services: [
+          {
+            name: "Database",
+            status: dbHealthy ? "healthy" : "unhealthy",
+            message: dbHealthy ? "Connected" : "Connection failed"
+          },
+          { name: "API Endpoints", status: "healthy", message: "Operational" },
+          {
+            name: "LLM Providers",
+            status: providersHealthy ? "healthy" : "degraded",
+            message: providersHealthy ? "Available" : "No providers"
+          },
+          {
+            name: "Alpaca Trading",
+            status: alpacaHealthy ? "healthy" : "unhealthy",
+            message: alpacaHealthy ? "Connected" : "Disconnected"
+          },
+          { name: "Background Jobs", status: "healthy", message: "Running" }
+        ],
+        overall: dbHealthy && alpacaHealthy ? "healthy" : "degraded",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("AdminMgmt", "Failed to get health status", { error });
+      res.status(500).json({ error: "Failed to get health status" });
+    }
+  }
+);
 var management_default = router24;
 
 // server/routes/admin/index.ts
@@ -47883,7 +50080,10 @@ var redactChannelConfig = (channel) => {
     config2.botToken = "***REDACTED***";
   }
   if ("webhookUrl" in config2 && typeof config2.webhookUrl === "string") {
-    config2.webhookUrl = config2.webhookUrl.replace(/\/[^/]+$/, "/***REDACTED***");
+    config2.webhookUrl = config2.webhookUrl.replace(
+      /\/[^/]+$/,
+      "/***REDACTED***"
+    );
   }
   if ("password" in config2 && typeof config2.password === "string") {
     config2.password = "***REDACTED***";
@@ -47946,22 +50146,28 @@ router26.delete("/channels/:id", (req, res) => {
   }
   res.json({ success: true });
 });
-router26.post("/channels/:id/test", requireAuth, async (req, res) => {
-  try {
-    const { message } = req.body;
-    const result = await sendDirectNotification(
-      req.params.id,
-      message || "Test notification from AI Active Trader"
-    );
-    if (!result) {
-      return res.status(404).json({ error: "Channel not found" });
+router26.post(
+  "/channels/:id/test",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { message } = req.body;
+      const result = await sendDirectNotification(
+        req.params.id,
+        message || "Test notification from AI Active Trader"
+      );
+      if (!result) {
+        return res.status(404).json({ error: "Channel not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      log.error("NotificationsAPI", "Notification test error", {
+        error
+      });
+      res.status(500).json({ error: "Failed to send test notification" });
     }
-    res.json(result);
-  } catch (error) {
-    log.error("NotificationsAPI", "Notification test error", { error });
-    res.status(500).json({ error: "Failed to send test notification" });
   }
-});
+);
 router26.get("/templates", (req, res) => {
   res.json({ templates: getTemplates() });
 });
@@ -48030,45 +50236,57 @@ init_logger();
 import { Router as Router29 } from "express";
 import { desc as desc19, eq as eq27 } from "drizzle-orm";
 var router27 = Router29();
-router27.get("/allocation-policies", requireAuth, async (req, res) => {
-  try {
-    const policies = await db.query.allocationPolicies.findMany({
-      orderBy: [desc19(allocationPolicies.createdAt)]
-    });
-    res.json({ policies, count: policies.length });
-  } catch (error) {
-    log.error("Routes", "Failed to get allocation policies", { error });
-    res.status(500).json({ error: "Failed to get allocation policies" });
-  }
-});
-router27.post("/allocation-policies", requireAuth, async (req, res) => {
-  try {
-    const {
-      name,
-      description,
-      maxPositionWeightPct,
-      maxSectorWeightPct,
-      rebalanceFrequency,
-      isActive
-    } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: "name is required" });
+router27.get(
+  "/allocation-policies",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const policies = await db.query.allocationPolicies.findMany({
+        orderBy: [desc19(allocationPolicies.createdAt)]
+      });
+      res.json({ policies, count: policies.length });
+    } catch (error) {
+      log.error("Routes", "Failed to get allocation policies", {
+        error
+      });
+      res.status(500).json({ error: "Failed to get allocation policies" });
     }
-    const [policy] = await db.insert(allocationPolicies).values({
-      name,
-      description: description || null,
-      maxPositionWeightPct: maxPositionWeightPct ? String(maxPositionWeightPct) : "8",
-      maxSectorWeightPct: maxSectorWeightPct ? String(maxSectorWeightPct) : "25",
-      rebalanceFrequency: rebalanceFrequency || "daily",
-      isActive: isActive !== void 0 ? isActive : false,
-      createdBy: req.user?.id || null
-    }).returning();
-    res.json(policy);
-  } catch (error) {
-    log.error("Routes", "Failed to create allocation policy", { error });
-    res.status(500).json({ error: "Failed to create allocation policy" });
   }
-});
+);
+router27.post(
+  "/allocation-policies",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const {
+        name,
+        description,
+        maxPositionWeightPct,
+        maxSectorWeightPct,
+        rebalanceFrequency,
+        isActive
+      } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "name is required" });
+      }
+      const [policy] = await db.insert(allocationPolicies).values({
+        name,
+        description: description || null,
+        maxPositionWeightPct: maxPositionWeightPct ? String(maxPositionWeightPct) : "8",
+        maxSectorWeightPct: maxSectorWeightPct ? String(maxSectorWeightPct) : "25",
+        rebalanceFrequency: rebalanceFrequency || "daily",
+        isActive: isActive !== void 0 ? isActive : false,
+        createdBy: req.user?.id || null
+      }).returning();
+      res.json(policy);
+    } catch (error) {
+      log.error("Routes", "Failed to create allocation policy", {
+        error
+      });
+      res.status(500).json({ error: "Failed to create allocation policy" });
+    }
+  }
+);
 router27.patch(
   "/allocation-policies/:id",
   async (req, res) => {
@@ -48121,44 +50339,52 @@ router27.delete(
     }
   }
 );
-router27.get("/rebalance/runs", requireAuth, async (req, res) => {
-  try {
-    const { limit: limit4, status } = req.query;
-    let whereClause = void 0;
-    if (status) {
-      whereClause = eq27(rebalanceRuns.status, status);
+router27.get(
+  "/rebalance/runs",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { limit: limit4, status } = req.query;
+      let whereClause = void 0;
+      if (status) {
+        whereClause = eq27(rebalanceRuns.status, status);
+      }
+      const runs = await db.query.rebalanceRuns.findMany({
+        where: whereClause,
+        orderBy: [desc19(rebalanceRuns.startedAt)],
+        limit: limit4 ? parseInt(limit4) : 50
+      });
+      res.json({ runs, count: runs.length });
+    } catch (error) {
+      log.error("Routes", "Failed to get rebalance runs", { error });
+      res.status(500).json({ error: "Failed to get rebalance runs" });
     }
-    const runs = await db.query.rebalanceRuns.findMany({
-      where: whereClause,
-      orderBy: [desc19(rebalanceRuns.startedAt)],
-      limit: limit4 ? parseInt(limit4) : 50
-    });
-    res.json({ runs, count: runs.length });
-  } catch (error) {
-    log.error("Routes", "Failed to get rebalance runs", { error });
-    res.status(500).json({ error: "Failed to get rebalance runs" });
   }
-});
-router27.post("/rebalance/trigger", requireAuth, async (req, res) => {
-  try {
-    const { policyId, triggerType = "manual" } = req.body;
-    const traceId = `rebalance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const [run] = await db.insert(rebalanceRuns).values({
-      policyId: policyId || null,
-      traceId,
-      status: "running",
-      triggerType,
-      inputSnapshot: {}
-    }).returning();
-    setTimeout(async () => {
-      await db.update(rebalanceRuns).set({ status: "completed", completedAt: /* @__PURE__ */ new Date() }).where(eq27(rebalanceRuns.id, run.id));
-    }, 2e3);
-    res.json({ success: true, run });
-  } catch (error) {
-    log.error("Routes", "Failed to trigger rebalance", { error });
-    res.status(500).json({ error: "Failed to trigger rebalance" });
+);
+router27.post(
+  "/rebalance/trigger",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { policyId, triggerType = "manual" } = req.body;
+      const traceId = `rebalance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const [run] = await db.insert(rebalanceRuns).values({
+        policyId: policyId || null,
+        traceId,
+        status: "running",
+        triggerType,
+        inputSnapshot: {}
+      }).returning();
+      setTimeout(async () => {
+        await db.update(rebalanceRuns).set({ status: "completed", completedAt: /* @__PURE__ */ new Date() }).where(eq27(rebalanceRuns.id, run.id));
+      }, 2e3);
+      res.json({ success: true, run });
+    } catch (error) {
+      log.error("Routes", "Failed to trigger rebalance", { error });
+      res.status(500).json({ error: "Failed to trigger rebalance" });
+    }
   }
-});
+);
 var allocation_rebalance_default = router27;
 
 // server/routes/enforcement-fundamentals.ts
@@ -48638,64 +50864,73 @@ function registerPortfolioTradingRoutes(app2) {
       return serverError(res, "Failed to get portfolio by strategy");
     }
   });
-  app2.post("/api/portfolio/rebalance/preview", authMiddleware2, async (req, res) => {
-    try {
-      const { targetAllocations } = req.body;
-      if (!targetAllocations || !Array.isArray(targetAllocations)) {
-        return badRequest(res, "targetAllocations array is required");
+  app2.post(
+    "/api/portfolio/rebalance/preview",
+    authMiddleware2,
+    async (req, res) => {
+      try {
+        const { targetAllocations } = req.body;
+        if (!targetAllocations || !Array.isArray(targetAllocations)) {
+          return badRequest(res, "targetAllocations array is required");
+        }
+        const totalTarget = targetAllocations.reduce(
+          (sum, a) => sum + a.targetPercent,
+          0
+        );
+        if (totalTarget > 100) {
+          return badRequest(
+            res,
+            `Total target allocation (${totalTarget}%) exceeds 100%`
+          );
+        }
+        const [positions2, account] = await Promise.all([
+          alpaca.getPositions(),
+          alpaca.getAccount()
+        ]);
+        const portfolioValue = parseFloat(account.portfolio_value);
+        const positionMap = new Map(positions2.map((p) => [p.symbol, p]));
+        const rebalanceActions = targetAllocations.map((target) => {
+          const position = positionMap.get(target.symbol);
+          const currentValue = position ? parseFloat(position.market_value) : 0;
+          const currentPercent = currentValue / portfolioValue * 100;
+          const targetValue = target.targetPercent / 100 * portfolioValue;
+          const deltaValue = targetValue - currentValue;
+          const currentPrice = position ? parseFloat(position.current_price) : 0;
+          let action = "hold";
+          if (deltaValue > 50) action = "buy";
+          else if (deltaValue < -50) action = "sell";
+          return {
+            symbol: target.symbol,
+            action,
+            currentPercent,
+            targetPercent: target.targetPercent,
+            currentValue,
+            targetValue,
+            deltaValue,
+            estimatedQty: currentPrice > 0 ? Math.abs(Math.floor(deltaValue / currentPrice)) : 0
+          };
+        });
+        const buys = rebalanceActions.filter((a) => a.action === "buy");
+        const sells = rebalanceActions.filter((a) => a.action === "sell");
+        res.json({
+          preview: {
+            actions: rebalanceActions,
+            totalBuys: buys.length,
+            totalSells: sells.length,
+            totalBuyValue: buys.reduce((sum, a) => sum + a.deltaValue, 0),
+            totalSellValue: Math.abs(
+              sells.reduce((sum, a) => sum + a.deltaValue, 0)
+            )
+          },
+          portfolioValue,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      } catch (error) {
+        log.error("PortfolioAPI", "Failed to preview rebalance", { error });
+        return serverError(res, "Failed to preview rebalance");
       }
-      const totalTarget = targetAllocations.reduce(
-        (sum, a) => sum + a.targetPercent,
-        0
-      );
-      if (totalTarget > 100) {
-        return badRequest(res, `Total target allocation (${totalTarget}%) exceeds 100%`);
-      }
-      const [positions2, account] = await Promise.all([
-        alpaca.getPositions(),
-        alpaca.getAccount()
-      ]);
-      const portfolioValue = parseFloat(account.portfolio_value);
-      const positionMap = new Map(positions2.map((p) => [p.symbol, p]));
-      const rebalanceActions = targetAllocations.map((target) => {
-        const position = positionMap.get(target.symbol);
-        const currentValue = position ? parseFloat(position.market_value) : 0;
-        const currentPercent = currentValue / portfolioValue * 100;
-        const targetValue = target.targetPercent / 100 * portfolioValue;
-        const deltaValue = targetValue - currentValue;
-        const currentPrice = position ? parseFloat(position.current_price) : 0;
-        let action = "hold";
-        if (deltaValue > 50) action = "buy";
-        else if (deltaValue < -50) action = "sell";
-        return {
-          symbol: target.symbol,
-          action,
-          currentPercent,
-          targetPercent: target.targetPercent,
-          currentValue,
-          targetValue,
-          deltaValue,
-          estimatedQty: currentPrice > 0 ? Math.abs(Math.floor(deltaValue / currentPrice)) : 0
-        };
-      });
-      const buys = rebalanceActions.filter((a) => a.action === "buy");
-      const sells = rebalanceActions.filter((a) => a.action === "sell");
-      res.json({
-        preview: {
-          actions: rebalanceActions,
-          totalBuys: buys.length,
-          totalSells: sells.length,
-          totalBuyValue: buys.reduce((sum, a) => sum + a.deltaValue, 0),
-          totalSellValue: Math.abs(sells.reduce((sum, a) => sum + a.deltaValue, 0))
-        },
-        portfolioValue,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      });
-    } catch (error) {
-      log.error("PortfolioAPI", "Failed to preview rebalance", { error });
-      return serverError(res, "Failed to preview rebalance");
     }
-  });
+  );
   log.info("Routes", "Portfolio trading routes registered");
 }
 
@@ -48707,156 +50942,156 @@ init_sse_emitter();
 import { Router as Router31 } from "express";
 
 // server/validation/api-schemas.ts
-import { z as z9 } from "zod";
-var loginSchema = z9.object({
-  username: z9.string().min(3, "Username must be at least 3 characters"),
-  password: z9.string().min(6, "Password must be at least 6 characters")
+import { z as z11 } from "zod";
+var loginSchema = z11.object({
+  username: z11.string().min(3, "Username must be at least 3 characters"),
+  password: z11.string().min(6, "Password must be at least 6 characters")
 });
-var killSwitchSchema = z9.object({
-  activate: z9.boolean(),
-  reason: z9.string().optional()
+var killSwitchSchema = z11.object({
+  activate: z11.boolean(),
+  reason: z11.string().optional()
 });
-var riskLimitsSchema = z9.object({
-  maxPositionSizePercent: z9.number().min(1).max(100).optional(),
-  maxTotalExposurePercent: z9.number().min(1).max(300).optional(),
+var riskLimitsSchema = z11.object({
+  maxPositionSizePercent: z11.number().min(1).max(100).optional(),
+  maxTotalExposurePercent: z11.number().min(1).max(300).optional(),
   // Allow up to 300% for margin accounts
-  maxPositionsCount: z9.number().min(1).max(100).optional(),
-  dailyLossLimitPercent: z9.number().min(0.1).max(100).optional()
+  maxPositionsCount: z11.number().min(1).max(100).optional(),
+  dailyLossLimitPercent: z11.number().min(0.1).max(100).optional()
 });
-var modeSchema = z9.object({
-  mode: z9.enum(["autonomous", "semi-auto", "manual"])
+var modeSchema = z11.object({
+  mode: z11.enum(["autonomous", "semi-auto", "manual"])
 });
-var closePositionSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required")
+var closePositionSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required")
 });
-var executeTradesSchema = z9.object({
-  decisionIds: z9.array(z9.string()).min(1, "At least one decision ID required")
+var executeTradesSchema = z11.object({
+  decisionIds: z11.array(z11.string()).min(1, "At least one decision ID required")
 });
-var executeTradeSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  side: z9.enum(["buy", "sell"]),
-  quantity: z9.number().positive().optional(),
-  notional: z9.number().positive().optional(),
-  orderType: z9.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
-  limitPrice: z9.number().positive().optional(),
-  stopPrice: z9.number().positive().optional(),
-  timeInForce: z9.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
-  extendedHours: z9.boolean().optional(),
-  takeProfitPrice: z9.number().positive().optional(),
-  stopLossPrice: z9.number().positive().optional(),
-  trailPercent: z9.number().positive().optional()
+var executeTradeSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  side: z11.enum(["buy", "sell"]),
+  quantity: z11.number().positive().optional(),
+  notional: z11.number().positive().optional(),
+  orderType: z11.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
+  limitPrice: z11.number().positive().optional(),
+  stopPrice: z11.number().positive().optional(),
+  timeInForce: z11.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
+  extendedHours: z11.boolean().optional(),
+  takeProfitPrice: z11.number().positive().optional(),
+  stopLossPrice: z11.number().positive().optional(),
+  trailPercent: z11.number().positive().optional()
 }).refine(
   (data) => data.quantity !== void 0 || data.notional !== void 0,
   { message: "Either quantity or notional amount is required" }
 );
-var quickTradeSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  side: z9.enum(["buy", "sell"]),
-  amount: z9.number().positive("Amount must be positive"),
-  orderType: z9.enum(["market", "limit"]).optional(),
-  limitPrice: z9.number().positive().optional(),
-  extendedHours: z9.boolean().optional()
+var quickTradeSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  side: z11.enum(["buy", "sell"]),
+  amount: z11.number().positive("Amount must be positive"),
+  orderType: z11.enum(["market", "limit"]).optional(),
+  limitPrice: z11.number().positive().optional(),
+  extendedHours: z11.boolean().optional()
 });
-var alpacaOrderSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  side: z9.enum(["buy", "sell"]),
-  qty: z9.string().optional(),
-  notional: z9.string().optional(),
-  type: z9.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
-  time_in_force: z9.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
-  limit_price: z9.string().optional(),
-  stop_price: z9.string().optional(),
-  extended_hours: z9.boolean().optional(),
-  order_class: z9.enum(["simple", "bracket", "oco", "oto"]).optional(),
-  take_profit: z9.object({ limit_price: z9.string() }).optional(),
-  stop_loss: z9.object({
-    stop_price: z9.string(),
-    limit_price: z9.string().optional()
+var alpacaOrderSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  side: z11.enum(["buy", "sell"]),
+  qty: z11.string().optional(),
+  notional: z11.string().optional(),
+  type: z11.enum(["market", "limit", "stop", "stop_limit", "trailing_stop"]).optional(),
+  time_in_force: z11.enum(["day", "gtc", "opg", "cls", "ioc", "fok"]).optional(),
+  limit_price: z11.string().optional(),
+  stop_price: z11.string().optional(),
+  extended_hours: z11.boolean().optional(),
+  order_class: z11.enum(["simple", "bracket", "oco", "oto"]).optional(),
+  take_profit: z11.object({ limit_price: z11.string() }).optional(),
+  stop_loss: z11.object({
+    stop_price: z11.string(),
+    limit_price: z11.string().optional()
   }).optional(),
-  trail_percent: z9.string().optional(),
-  trail_price: z9.string().optional()
+  trail_percent: z11.string().optional(),
+  trail_price: z11.string().optional()
 });
-var bracketOrderSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  qty: z9.string().min(1, "Quantity is required"),
-  side: z9.enum(["buy", "sell"]),
-  type: z9.enum(["market", "limit"]).optional(),
-  time_in_force: z9.enum(["day", "gtc"]).optional(),
-  limit_price: z9.string().optional(),
-  take_profit_price: z9.string().min(1, "Take profit price is required"),
-  stop_loss_price: z9.string().min(1, "Stop loss price is required"),
-  stop_loss_limit_price: z9.string().optional()
+var bracketOrderSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  qty: z11.string().min(1, "Quantity is required"),
+  side: z11.enum(["buy", "sell"]),
+  type: z11.enum(["market", "limit"]).optional(),
+  time_in_force: z11.enum(["day", "gtc"]).optional(),
+  limit_price: z11.string().optional(),
+  take_profit_price: z11.string().min(1, "Take profit price is required"),
+  stop_loss_price: z11.string().min(1, "Stop loss price is required"),
+  stop_loss_limit_price: z11.string().optional()
 });
-var trailingStopSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  qty: z9.string().min(1, "Quantity is required"),
-  side: z9.enum(["buy", "sell"]),
-  trail_percent: z9.number().positive().optional(),
-  trail_price: z9.number().positive().optional(),
-  time_in_force: z9.enum(["day", "gtc"]).optional()
+var trailingStopSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  qty: z11.string().min(1, "Quantity is required"),
+  side: z11.enum(["buy", "sell"]),
+  trail_percent: z11.number().positive().optional(),
+  trail_price: z11.number().positive().optional(),
+  time_in_force: z11.enum(["day", "gtc"]).optional()
 });
-var closeAllPositionsSchema = z9.object({
-  cancelOrders: z9.boolean().optional()
+var closeAllPositionsSchema = z11.object({
+  cancelOrders: z11.boolean().optional()
 });
-var symbolParamSchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required")
+var symbolParamSchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required")
 });
-var searchAssetsSchema = z9.object({
-  query: z9.string().min(1, "Search query is required"),
-  assetClass: z9.enum(["us_equity", "crypto"]).optional()
+var searchAssetsSchema = z11.object({
+  query: z11.string().min(1, "Search query is required"),
+  assetClass: z11.enum(["us_equity", "crypto"]).optional()
 });
-var analyzeOpportunitySchema = z9.object({
-  symbol: z9.string().min(1, "Symbol is required"),
-  marketData: z9.object({
-    symbol: z9.string(),
-    currentPrice: z9.number().positive(),
-    priceChange24h: z9.number().optional(),
-    priceChangePercent24h: z9.number().optional(),
-    high24h: z9.number().optional(),
-    low24h: z9.number().optional(),
-    volume: z9.number().optional(),
-    marketCap: z9.number().optional()
+var analyzeOpportunitySchema = z11.object({
+  symbol: z11.string().min(1, "Symbol is required"),
+  marketData: z11.object({
+    symbol: z11.string(),
+    currentPrice: z11.number().positive(),
+    priceChange24h: z11.number().optional(),
+    priceChangePercent24h: z11.number().optional(),
+    high24h: z11.number().optional(),
+    low24h: z11.number().optional(),
+    volume: z11.number().optional(),
+    marketCap: z11.number().optional()
   }).optional(),
-  newsContext: z9.object({
-    headlines: z9.array(
-      z9.object({
-        title: z9.string(),
-        source: z9.string().optional(),
-        publishedAt: z9.string().optional(),
-        sentiment: z9.number().optional()
+  newsContext: z11.object({
+    headlines: z11.array(
+      z11.object({
+        title: z11.string(),
+        source: z11.string().optional(),
+        publishedAt: z11.string().optional(),
+        sentiment: z11.number().optional()
       })
     ).optional(),
-    overallSentiment: z9.number().optional()
+    overallSentiment: z11.number().optional()
   }).optional(),
-  strategyContext: z9.object({
-    id: z9.string().optional(),
-    name: z9.string().optional(),
-    type: z9.string().optional(),
-    parameters: z9.record(z9.unknown()).optional()
+  strategyContext: z11.object({
+    id: z11.string().optional(),
+    name: z11.string().optional(),
+    type: z11.string().optional(),
+    parameters: z11.record(z11.unknown()).optional()
   }).optional()
 });
-var barsQuerySchema = z9.object({
-  timeframe: z9.string().optional(),
-  start: z9.string().optional(),
-  end: z9.string().optional(),
-  limit: z9.string().optional()
+var barsQuerySchema = z11.object({
+  timeframe: z11.string().optional(),
+  start: z11.string().optional(),
+  end: z11.string().optional(),
+  limit: z11.string().optional()
 });
-var paginationSchema = z9.object({
-  limit: z9.string().optional().transform((val) => val ? parseInt(val, 10) : void 0),
-  offset: z9.string().optional().transform((val) => val ? parseInt(val, 10) : void 0)
+var paginationSchema = z11.object({
+  limit: z11.string().optional().transform((val) => val ? parseInt(val, 10) : void 0),
+  offset: z11.string().optional().transform((val) => val ? parseInt(val, 10) : void 0)
 });
-var tradesFilterSchema = z9.object({
-  limit: z9.string().optional().transform((val) => val ? parseInt(val, 10) : 20),
-  offset: z9.string().optional().transform((val) => val ? parseInt(val, 10) : 0),
-  symbol: z9.string().optional(),
-  strategyId: z9.string().optional(),
-  pnlDirection: z9.enum(["profit", "loss", "all"]).optional(),
-  startDate: z9.string().optional(),
-  endDate: z9.string().optional()
+var tradesFilterSchema = z11.object({
+  limit: z11.string().optional().transform((val) => val ? parseInt(val, 10) : 20),
+  offset: z11.string().optional().transform((val) => val ? parseInt(val, 10) : 0),
+  symbol: z11.string().optional(),
+  strategyId: z11.string().optional(),
+  pnlDirection: z11.enum(["profit", "loss", "all"]).optional(),
+  startDate: z11.string().optional(),
+  endDate: z11.string().optional()
 });
-var portfolioHistorySchema = z9.object({
-  period: z9.enum(["1D", "1W", "1M", "3M", "1A", "all"]).optional(),
-  timeframe: z9.enum(["1Min", "5Min", "15Min", "1H", "1D"]).optional()
+var portfolioHistorySchema = z11.object({
+  period: z11.enum(["1D", "1W", "1M", "3M", "1A", "all"]).optional(),
+  timeframe: z11.enum(["1Min", "5Min", "15Min", "1H", "1D"]).optional()
 });
 function validateRequest(schema, data) {
   const result = schema.safeParse(data);
@@ -49268,26 +51503,30 @@ router30.post("/execute", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to execute Alpaca trade" });
   }
 });
-router30.post("/close/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const { strategyId } = req.body;
-    const result = await alpacaTradingEngine.closeAlpacaPosition(
-      symbol,
-      strategyId,
-      {
-        authorizedByOrchestrator: true
+router30.post(
+  "/close/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { strategyId } = req.body;
+      const result = await alpacaTradingEngine.closeAlpacaPosition(
+        symbol,
+        strategyId,
+        {
+          authorizedByOrchestrator: true
+        }
+      );
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
       }
-    );
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaTradingAPI", "Close Alpaca position error", { error });
+      res.status(500).json({ error: "Failed to close Alpaca position" });
     }
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaTradingAPI", "Close Alpaca position error", { error });
-    res.status(500).json({ error: "Failed to close Alpaca position" });
   }
-});
+);
 router30.post("/analyze", requireAuth, async (req, res) => {
   try {
     const { symbol, strategyId } = req.body;
@@ -49301,22 +51540,26 @@ router30.post("/analyze", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to analyze symbol" });
   }
 });
-router30.post("/analyze-execute", requireAuth, async (req, res) => {
-  try {
-    const { symbol, strategyId } = req.body;
-    if (!symbol) {
-      return res.status(400).json({ error: "Symbol is required" });
+router30.post(
+  "/analyze-execute",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol, strategyId } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      const result = await alpacaTradingEngine.analyzeAndExecute(
+        symbol,
+        strategyId
+      );
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaTradingAPI", "Analyze and execute error", { error });
+      res.status(500).json({ error: "Failed to analyze and execute trade" });
     }
-    const result = await alpacaTradingEngine.analyzeAndExecute(
-      symbol,
-      strategyId
-    );
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaTradingAPI", "Analyze and execute error", { error });
-    res.status(500).json({ error: "Failed to analyze and execute trade" });
   }
-});
+);
 router30.post("/stop-all", requireAuth, async (req, res) => {
   try {
     await alpacaTradingEngine.stopAllStrategies();
@@ -49642,22 +51885,230 @@ router32.get("/crypto", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get crypto news" });
   }
 });
-router32.get("/stock/:symbol", requireAuth, async (req, res) => {
+router32.get(
+  "/stock/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const pageSize = parseInt(req.query.pageSize) || 10;
+      const articles = await newsapi.getStockNews(symbol, pageSize);
+      res.json(articles);
+    } catch (error) {
+      log.error("Routes", "Failed to get stock news", { error });
+      res.status(500).json({ error: "Failed to get stock news" });
+    }
+  }
+);
+var news_default = router32;
+
+// server/routes/user-preferences.ts
+init_storage();
+init_logger();
+import { Router as Router35 } from "express";
+init_schema2();
+var router33 = Router35();
+async function requireAuth7(req, res, next) {
+  const sessionId = req.cookies?.session;
+  if (!sessionId) {
+    return unauthorized(res, "Authentication required");
+  }
+  const session = await getSession(sessionId);
+  if (!session) {
+    return unauthorized(res, "Invalid or expired session");
+  }
+  req.userId = session.userId;
+  next();
+}
+router33.get("/", requireAuth7, async (req, res) => {
   try {
-    const { symbol } = req.params;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-    const articles = await newsapi.getStockNews(symbol, pageSize);
-    res.json(articles);
+    const userId = req.userId;
+    const preferences = await storage.getOrCreateUserPreferences(userId);
+    log.debug("UserPreferencesAPI", "Retrieved preferences", { userId });
+    res.json(preferences);
   } catch (error) {
-    log.error("Routes", "Failed to get stock news", { error });
-    res.status(500).json({ error: "Failed to get stock news" });
+    log.error("UserPreferencesAPI", "Failed to get preferences", { error });
+    serverError(res, "Failed to retrieve preferences");
   }
 });
-var news_default = router32;
+router33.put("/", requireAuth7, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const parsed = updateUserPreferencesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fromZodError(res, parsed.error);
+    }
+    await storage.getOrCreateUserPreferences(userId);
+    const updated = await storage.updateUserPreferences(userId, parsed.data);
+    if (!updated) {
+      return serverError(res, "Failed to update preferences");
+    }
+    log.info("UserPreferencesAPI", "Updated preferences", {
+      userId,
+      updates: Object.keys(parsed.data)
+    });
+    res.json(updated);
+  } catch (error) {
+    log.error("UserPreferencesAPI", "Failed to update preferences", { error });
+    serverError(res, "Failed to update preferences");
+  }
+});
+router33.patch("/", requireAuth7, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const parsed = updateUserPreferencesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fromZodError(res, parsed.error);
+    }
+    await storage.getOrCreateUserPreferences(userId);
+    const updated = await storage.updateUserPreferences(userId, parsed.data);
+    if (!updated) {
+      return serverError(res, "Failed to update preferences");
+    }
+    log.info("UserPreferencesAPI", "Patched preferences", {
+      userId,
+      fields: Object.keys(parsed.data)
+    });
+    res.json(updated);
+  } catch (error) {
+    log.error("UserPreferencesAPI", "Failed to patch preferences", { error });
+    serverError(res, "Failed to update preferences");
+  }
+});
+router33.delete("/", requireAuth7, async (req, res) => {
+  try {
+    const userId = req.userId;
+    await storage.deleteUserPreferences(userId);
+    const defaults = await storage.createUserPreferences(userId);
+    log.info("UserPreferencesAPI", "Reset preferences to defaults", { userId });
+    res.json(defaults);
+  } catch (error) {
+    log.error("UserPreferencesAPI", "Failed to reset preferences", { error });
+    serverError(res, "Failed to reset preferences");
+  }
+});
+var user_preferences_default = router33;
+
+// server/routes/notification-preferences.ts
+init_storage();
+init_logger();
+import { Router as Router36 } from "express";
+init_schema2();
+var router34 = Router36();
+async function requireAuth8(req, res, next) {
+  const sessionId = req.cookies?.session;
+  if (!sessionId) {
+    return unauthorized(res, "Authentication required");
+  }
+  const session = await getSession(sessionId);
+  if (!session) {
+    return unauthorized(res, "Invalid or expired session");
+  }
+  req.userId = session.userId;
+  next();
+}
+router34.get("/", requireAuth8, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const preferences = await storage.getOrCreateNotificationPreferences(userId);
+    log.debug(
+      "NotificationPreferencesAPI",
+      "Retrieved notification preferences",
+      { userId }
+    );
+    res.json(preferences);
+  } catch (error) {
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to get notification preferences",
+      { error }
+    );
+    serverError(res, "Failed to retrieve notification preferences");
+  }
+});
+router34.put("/", requireAuth8, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const parsed = updateNotificationPreferencesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fromZodError(res, parsed.error);
+    }
+    await storage.getOrCreateNotificationPreferences(userId);
+    const updated = await storage.updateNotificationPreferences(
+      userId,
+      parsed.data
+    );
+    if (!updated) {
+      return serverError(res, "Failed to update notification preferences");
+    }
+    log.info("NotificationPreferencesAPI", "Updated notification preferences", {
+      userId,
+      updates: Object.keys(parsed.data)
+    });
+    res.json(updated);
+  } catch (error) {
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to update notification preferences",
+      { error }
+    );
+    serverError(res, "Failed to update notification preferences");
+  }
+});
+router34.patch("/", requireAuth8, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const parsed = updateNotificationPreferencesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fromZodError(res, parsed.error);
+    }
+    await storage.getOrCreateNotificationPreferences(userId);
+    const updated = await storage.updateNotificationPreferences(
+      userId,
+      parsed.data
+    );
+    if (!updated) {
+      return serverError(res, "Failed to update notification preferences");
+    }
+    log.info("NotificationPreferencesAPI", "Patched notification preferences", {
+      userId,
+      fields: Object.keys(parsed.data)
+    });
+    res.json(updated);
+  } catch (error) {
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to patch notification preferences",
+      { error }
+    );
+    serverError(res, "Failed to update notification preferences");
+  }
+});
+router34.delete("/", requireAuth8, async (req, res) => {
+  try {
+    const userId = req.userId;
+    await storage.deleteNotificationPreferences(userId);
+    const defaults = await storage.createDefaultNotificationPreferences(userId);
+    log.info(
+      "NotificationPreferencesAPI",
+      "Reset notification preferences to defaults",
+      { userId }
+    );
+    res.json(defaults);
+  } catch (error) {
+    log.error(
+      "NotificationPreferencesAPI",
+      "Failed to reset notification preferences",
+      { error }
+    );
+    serverError(res, "Failed to reset notification preferences");
+  }
+});
+var notification_preferences_default = router34;
 
 // server/routes/cmc.ts
 init_logger();
-import { Router as Router35 } from "express";
+import { Router as Router37 } from "express";
 
 // server/connectors/coinmarketcap.ts
 init_api_cache();
@@ -49894,8 +52345,8 @@ var CoinMarketCapConnector = class {
 var coinmarketcap = new CoinMarketCapConnector();
 
 // server/routes/cmc.ts
-var router33 = Router35();
-router33.get("/listings", requireAuth, async (req, res) => {
+var router35 = Router37();
+router35.get("/listings", requireAuth, async (req, res) => {
   try {
     const start = parseInt(req.query.start) || 1;
     const limit4 = parseInt(req.query.limit) || 100;
@@ -49906,7 +52357,7 @@ router33.get("/listings", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get CoinMarketCap listings" });
   }
 });
-router33.get("/quotes", requireAuth, async (req, res) => {
+router35.get("/quotes", requireAuth, async (req, res) => {
   try {
     const symbols = req.query.symbols?.split(",") || ["BTC", "ETH"];
     const quotes = await coinmarketcap.getQuotesBySymbols(symbols);
@@ -49916,7 +52367,7 @@ router33.get("/quotes", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get CoinMarketCap quotes" });
   }
 });
-router33.get("/global", requireAuth, async (req, res) => {
+router35.get("/global", requireAuth, async (req, res) => {
   try {
     const metrics = await coinmarketcap.getGlobalMetrics();
     res.json(metrics);
@@ -49925,7 +52376,7 @@ router33.get("/global", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get CoinMarketCap global metrics" });
   }
 });
-router33.get("/search", requireAuth, async (req, res) => {
+router35.get("/search", requireAuth, async (req, res) => {
   try {
     const query = req.query.q;
     if (!query) {
@@ -49938,14 +52389,14 @@ router33.get("/search", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to search CoinMarketCap" });
   }
 });
-var cmc_default = router33;
+var cmc_default = router35;
 
 // server/routes/trading-sessions.ts
 init_trading_session_manager();
 init_logger();
-import { Router as Router36 } from "express";
-var router34 = Router36();
-router34.get("/all", requireAuth, async (req, res) => {
+import { Router as Router38 } from "express";
+var router36 = Router38();
+router36.get("/all", requireAuth, async (req, res) => {
   try {
     const allSessions = tradingSessionManager.getAllSessionInfo();
     res.json({
@@ -49959,7 +52410,7 @@ router34.get("/all", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get trading sessions" });
   }
 });
-router34.get("/:exchange", requireAuth, async (req, res) => {
+router36.get("/:exchange", requireAuth, async (req, res) => {
   try {
     const { exchange } = req.params;
     const session = tradingSessionManager.getCurrentSession(
@@ -49981,68 +52432,84 @@ router34.get("/:exchange", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get trading session" });
   }
 });
-router34.get("/:exchange/is-open", requireAuth, async (req, res) => {
-  try {
-    const { exchange } = req.params;
-    const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
-    res.json({
-      exchange: exchange.toUpperCase(),
-      isOpen,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to check if market is open", {
-      error
-    });
-    res.status(500).json({ error: "Failed to check market status" });
+router36.get(
+  "/:exchange/is-open",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const isOpen = tradingSessionManager.isMarketOpen(exchange.toUpperCase());
+      res.json({
+        exchange: exchange.toUpperCase(),
+        isOpen,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("TradingSessionsRoutes", "Failed to check if market is open", {
+        error
+      });
+      res.status(500).json({ error: "Failed to check market status" });
+    }
   }
-});
-router34.get("/:exchange/next-open", requireAuth, async (req, res) => {
-  try {
-    const { exchange } = req.params;
-    const nextOpen = tradingSessionManager.getNextMarketOpen(
-      exchange.toUpperCase()
-    );
-    res.json({
-      exchange: exchange.toUpperCase(),
-      nextOpen: nextOpen?.toISOString() || null,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get next market open", {
-      error
-    });
-    res.status(500).json({ error: "Failed to get next market open" });
+);
+router36.get(
+  "/:exchange/next-open",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const nextOpen = tradingSessionManager.getNextMarketOpen(
+        exchange.toUpperCase()
+      );
+      res.json({
+        exchange: exchange.toUpperCase(),
+        nextOpen: nextOpen?.toISOString() || null,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error("TradingSessionsRoutes", "Failed to get next market open", {
+        error
+      });
+      res.status(500).json({ error: "Failed to get next market open" });
+    }
   }
-});
-router34.get("/:exchange/volatility", requireAuth, async (req, res) => {
-  try {
-    const { exchange } = req.params;
-    const session = tradingSessionManager.getCurrentSession(
-      exchange.toUpperCase()
-    );
-    const volatilityMultiplier = tradingSessionManager.getSessionVolatilityMultiplier(
-      exchange.toUpperCase(),
-      session.session
-    );
-    res.json({
-      exchange: exchange.toUpperCase(),
-      session: session.session,
-      volatilityMultiplier,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (error) {
-    log.error("TradingSessionsRoutes", "Failed to get volatility multiplier", {
-      error
-    });
-    res.status(500).json({ error: "Failed to get volatility multiplier" });
+);
+router36.get(
+  "/:exchange/volatility",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { exchange } = req.params;
+      const session = tradingSessionManager.getCurrentSession(
+        exchange.toUpperCase()
+      );
+      const volatilityMultiplier = tradingSessionManager.getSessionVolatilityMultiplier(
+        exchange.toUpperCase(),
+        session.session
+      );
+      res.json({
+        exchange: exchange.toUpperCase(),
+        session: session.session,
+        volatilityMultiplier,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      log.error(
+        "TradingSessionsRoutes",
+        "Failed to get volatility multiplier",
+        {
+          error
+        }
+      );
+      res.status(500).json({ error: "Failed to get volatility multiplier" });
+    }
   }
-});
-var trading_sessions_default = router34;
+);
+var trading_sessions_default = router36;
 
 // server/routes/feeds.ts
 init_logger();
-import { Router as Router37 } from "express";
+import { Router as Router39 } from "express";
 
 // server/services/connector-metrics-service.ts
 init_db();
@@ -50113,8 +52580,8 @@ var ConnectorMetricsService = class {
   }
   calculatePercentile(sorted, percentile) {
     if (sorted.length === 0) return 0;
-    const index16 = Math.ceil(percentile / 100 * sorted.length) - 1;
-    return sorted[Math.max(0, index16)];
+    const index18 = Math.ceil(percentile / 100 * sorted.length) - 1;
+    return sorted[Math.max(0, index18)];
   }
   calculateStats(latencies) {
     if (latencies.length === 0) {
@@ -50260,7 +52727,7 @@ var ConnectorMetricsService = class {
 var connectorMetricsService = new ConnectorMetricsService();
 
 // server/routes/feeds.ts
-var router35 = Router37();
+var router37 = Router39();
 var FEED_CONFIGS = [
   {
     id: "alpaca",
@@ -50331,7 +52798,7 @@ function determineStatus(metrics) {
   }
   return "inactive";
 }
-router35.get("/", requireAuth, async (req, res) => {
+router37.get("/", requireAuth, async (req, res) => {
   try {
     const connectorSummaries = await connectorMetricsService.getConnectorSummary();
     const summaryByConnector = new Map(
@@ -50379,7 +52846,7 @@ router35.get("/", requireAuth, async (req, res) => {
     res.json(fallback);
   }
 });
-router35.get("/:id", requireAuth, async (req, res) => {
+router37.get("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const config2 = FEED_CONFIGS.find((f) => f.id === id);
@@ -50432,16 +52899,16 @@ router35.get("/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get feed details" });
   }
 });
-var feeds_default = router35;
+var feeds_default = router37;
 
 // server/routes/watchlists.ts
 init_db();
 init_schema2();
-import { Router as Router38 } from "express";
+import { Router as Router40 } from "express";
 import { eq as eq30, and as and20, desc as desc22, asc } from "drizzle-orm";
 init_logger();
-var router36 = Router38();
-async function requireAuth7(req, res, next) {
+var router38 = Router40();
+async function requireAuth9(req, res, next) {
   const sessionId = req.cookies?.session;
   if (!sessionId) {
     res.status(401).json({ error: "Unauthorized" });
@@ -50455,14 +52922,17 @@ async function requireAuth7(req, res, next) {
   req.userId = session.userId;
   next();
 }
-router36.use(requireAuth7);
-router36.get("/", async (req, res) => {
+router38.use(requireAuth9);
+router38.get("/", async (req, res) => {
   try {
     const userId = req.userId;
     const userWatchlists = await db.select().from(watchlists).where(eq30(watchlists.userId, userId)).orderBy(asc(watchlists.sortOrder), asc(watchlists.createdAt));
     const watchlistsWithSymbols = await Promise.all(
       userWatchlists.map(async (watchlist) => {
-        const symbols = await db.select().from(watchlistSymbols).where(eq30(watchlistSymbols.watchlistId, watchlist.id)).orderBy(asc(watchlistSymbols.sortOrder), desc22(watchlistSymbols.addedAt));
+        const symbols = await db.select().from(watchlistSymbols).where(eq30(watchlistSymbols.watchlistId, watchlist.id)).orderBy(
+          asc(watchlistSymbols.sortOrder),
+          desc22(watchlistSymbols.addedAt)
+        );
         return {
           ...watchlist,
           symbols
@@ -50475,7 +52945,7 @@ router36.get("/", async (req, res) => {
     res.status(500).json({ error: "Failed to get watchlists" });
   }
 });
-router36.post("/", async (req, res) => {
+router38.post("/", async (req, res) => {
   try {
     const userId = req.userId;
     const validationResult = createWatchlistSchema.safeParse(req.body);
@@ -50488,7 +52958,9 @@ router36.post("/", async (req, res) => {
     }
     const { name, description, isDefault } = validationResult.data;
     if (isDefault) {
-      await db.update(watchlists).set({ isDefault: false }).where(and20(eq30(watchlists.userId, userId), eq30(watchlists.isDefault, true)));
+      await db.update(watchlists).set({ isDefault: false }).where(
+        and20(eq30(watchlists.userId, userId), eq30(watchlists.isDefault, true))
+      );
     }
     const [newWatchlist] = await db.insert(watchlists).values({
       userId,
@@ -50496,7 +52968,11 @@ router36.post("/", async (req, res) => {
       description,
       isDefault: isDefault || false
     }).returning();
-    log.info("Watchlists", "Created watchlist", { userId, watchlistId: newWatchlist.id, name });
+    log.info("Watchlists", "Created watchlist", {
+      userId,
+      watchlistId: newWatchlist.id,
+      name
+    });
     res.status(201).json({
       ...newWatchlist,
       symbols: []
@@ -50506,7 +52982,7 @@ router36.post("/", async (req, res) => {
     res.status(500).json({ error: "Failed to create watchlist" });
   }
 });
-router36.get("/:id", async (req, res) => {
+router38.get("/:id", async (req, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
@@ -50525,7 +53001,7 @@ router36.get("/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to get watchlist" });
   }
 });
-router36.put("/:id", async (req, res) => {
+router38.put("/:id", async (req, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
@@ -50544,7 +53020,9 @@ router36.put("/:id", async (req, res) => {
       return;
     }
     if (updates.isDefault) {
-      await db.update(watchlists).set({ isDefault: false }).where(and20(eq30(watchlists.userId, userId), eq30(watchlists.isDefault, true)));
+      await db.update(watchlists).set({ isDefault: false }).where(
+        and20(eq30(watchlists.userId, userId), eq30(watchlists.isDefault, true))
+      );
     }
     const [updated] = await db.update(watchlists).set({
       ...updates,
@@ -50557,7 +53035,7 @@ router36.put("/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to update watchlist" });
   }
 });
-router36.delete("/:id", async (req, res) => {
+router38.delete("/:id", async (req, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
@@ -50574,130 +53052,145 @@ router36.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete watchlist" });
   }
 });
-router36.post("/:id/symbols", async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { id: watchlistId } = req.params;
-    const validationResult = addWatchlistSymbolSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      res.status(400).json({
-        error: "Invalid input",
-        details: validationResult.error.errors
+router38.post(
+  "/:id/symbols",
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      const { id: watchlistId } = req.params;
+      const validationResult = addWatchlistSymbolSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        res.status(400).json({
+          error: "Invalid input",
+          details: validationResult.error.errors
+        });
+        return;
+      }
+      const { symbol, notes, tags } = validationResult.data;
+      const [watchlist] = await db.select().from(watchlists).where(
+        and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId))
+      );
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
+      const [existingSymbol] = await db.select().from(watchlistSymbols).where(
+        and20(
+          eq30(watchlistSymbols.watchlistId, watchlistId),
+          eq30(watchlistSymbols.symbol, symbol.toUpperCase())
+        )
+      );
+      if (existingSymbol) {
+        res.status(409).json({ error: "Symbol already in watchlist" });
+        return;
+      }
+      const [newSymbol] = await db.insert(watchlistSymbols).values({
+        watchlistId,
+        symbol: symbol.toUpperCase(),
+        notes,
+        tags
+      }).returning();
+      log.info("Watchlists", "Added symbol to watchlist", {
+        userId,
+        watchlistId,
+        symbol: symbol.toUpperCase()
       });
-      return;
-    }
-    const { symbol, notes, tags } = validationResult.data;
-    const [watchlist] = await db.select().from(watchlists).where(and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId)));
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
-    }
-    const [existingSymbol] = await db.select().from(watchlistSymbols).where(
-      and20(
-        eq30(watchlistSymbols.watchlistId, watchlistId),
-        eq30(watchlistSymbols.symbol, symbol.toUpperCase())
-      )
-    );
-    if (existingSymbol) {
-      res.status(409).json({ error: "Symbol already in watchlist" });
-      return;
-    }
-    const [newSymbol] = await db.insert(watchlistSymbols).values({
-      watchlistId,
-      symbol: symbol.toUpperCase(),
-      notes,
-      tags
-    }).returning();
-    log.info("Watchlists", "Added symbol to watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase()
-    });
-    res.status(201).json({
-      success: true,
-      item: newSymbol
-    });
-  } catch (error) {
-    log.error("Watchlists", "Failed to add symbol", { error });
-    res.status(500).json({ error: "Failed to add symbol" });
-  }
-});
-router36.put("/:id/symbols/:symbol", async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { id: watchlistId, symbol } = req.params;
-    const validationResult = updateWatchlistSymbolSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      res.status(400).json({
-        error: "Invalid input",
-        details: validationResult.error.errors
+      res.status(201).json({
+        success: true,
+        item: newSymbol
       });
-      return;
+    } catch (error) {
+      log.error("Watchlists", "Failed to add symbol", { error });
+      res.status(500).json({ error: "Failed to add symbol" });
     }
-    const updates = validationResult.data;
-    const [watchlist] = await db.select().from(watchlists).where(and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId)));
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
-    }
-    const [updated] = await db.update(watchlistSymbols).set(updates).where(
-      and20(
-        eq30(watchlistSymbols.watchlistId, watchlistId),
-        eq30(watchlistSymbols.symbol, symbol.toUpperCase())
-      )
-    ).returning();
-    if (!updated) {
-      res.status(404).json({ error: "Symbol not found in watchlist" });
-      return;
-    }
-    log.info("Watchlists", "Updated symbol in watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase()
-    });
-    res.json(updated);
-  } catch (error) {
-    log.error("Watchlists", "Failed to update symbol", { error });
-    res.status(500).json({ error: "Failed to update symbol" });
   }
-});
-router36.delete("/:id/symbols/:symbol", async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { id: watchlistId, symbol } = req.params;
-    const [watchlist] = await db.select().from(watchlists).where(and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId)));
-    if (!watchlist) {
-      res.status(404).json({ error: "Watchlist not found" });
-      return;
+);
+router38.put(
+  "/:id/symbols/:symbol",
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      const { id: watchlistId, symbol } = req.params;
+      const validationResult = updateWatchlistSymbolSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        res.status(400).json({
+          error: "Invalid input",
+          details: validationResult.error.errors
+        });
+        return;
+      }
+      const updates = validationResult.data;
+      const [watchlist] = await db.select().from(watchlists).where(
+        and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId))
+      );
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
+      const [updated] = await db.update(watchlistSymbols).set(updates).where(
+        and20(
+          eq30(watchlistSymbols.watchlistId, watchlistId),
+          eq30(watchlistSymbols.symbol, symbol.toUpperCase())
+        )
+      ).returning();
+      if (!updated) {
+        res.status(404).json({ error: "Symbol not found in watchlist" });
+        return;
+      }
+      log.info("Watchlists", "Updated symbol in watchlist", {
+        userId,
+        watchlistId,
+        symbol: symbol.toUpperCase()
+      });
+      res.json(updated);
+    } catch (error) {
+      log.error("Watchlists", "Failed to update symbol", { error });
+      res.status(500).json({ error: "Failed to update symbol" });
     }
-    const result = await db.delete(watchlistSymbols).where(
-      and20(
-        eq30(watchlistSymbols.watchlistId, watchlistId),
-        eq30(watchlistSymbols.symbol, symbol.toUpperCase())
-      )
-    ).returning();
-    if (result.length === 0) {
-      res.status(404).json({ error: "Symbol not found in watchlist" });
-      return;
-    }
-    log.info("Watchlists", "Removed symbol from watchlist", {
-      userId,
-      watchlistId,
-      symbol: symbol.toUpperCase()
-    });
-    res.json({ success: true });
-  } catch (error) {
-    log.error("Watchlists", "Failed to remove symbol", { error });
-    res.status(500).json({ error: "Failed to remove symbol" });
   }
-});
-var watchlists_default = router36;
+);
+router38.delete(
+  "/:id/symbols/:symbol",
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      const { id: watchlistId, symbol } = req.params;
+      const [watchlist] = await db.select().from(watchlists).where(
+        and20(eq30(watchlists.id, watchlistId), eq30(watchlists.userId, userId))
+      );
+      if (!watchlist) {
+        res.status(404).json({ error: "Watchlist not found" });
+        return;
+      }
+      const result = await db.delete(watchlistSymbols).where(
+        and20(
+          eq30(watchlistSymbols.watchlistId, watchlistId),
+          eq30(watchlistSymbols.symbol, symbol.toUpperCase())
+        )
+      ).returning();
+      if (result.length === 0) {
+        res.status(404).json({ error: "Symbol not found in watchlist" });
+        return;
+      }
+      log.info("Watchlists", "Removed symbol from watchlist", {
+        userId,
+        watchlistId,
+        symbol: symbol.toUpperCase()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      log.error("Watchlists", "Failed to remove symbol", { error });
+      res.status(500).json({ error: "Failed to remove symbol" });
+    }
+  }
+);
+var watchlists_default = router38;
 
 // server/routes/connectors.ts
 init_coingecko();
 init_finnhub();
 init_alpaca();
-import { Router as Router39 } from "express";
+import { Router as Router41 } from "express";
 init_newsapi();
 init_valyu();
 init_huggingface();
@@ -50705,8 +53198,8 @@ init_gdelt();
 init_decision_engine();
 init_data_fusion_engine2();
 init_logger();
-var router37 = Router39();
-router37.get("/status", requireAuth, async (req, res) => {
+var router39 = Router41();
+router39.get("/status", requireAuth, async (req, res) => {
   try {
     const cryptoStatus = coingecko.getConnectionStatus();
     const stockStatus = finnhub.getConnectionStatus();
@@ -50851,25 +53344,29 @@ router37.get("/status", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get connector status" });
   }
 });
-var connectors_default = router37;
+var connectors_default = router39;
 
 // server/routes/fusion.ts
 init_data_fusion_engine2();
 init_logger();
-import { Router as Router40 } from "express";
-var router38 = Router40();
-router38.get("/intelligence", requireAuth, async (req, res) => {
-  try {
-    const intelligence = await dataFusionEngine.getMarketIntelligence();
-    res.json(intelligence);
-  } catch (error) {
-    log.error("FusionRoutes", "Failed to get market intelligence", {
-      error
-    });
-    res.status(500).json({ error: "Failed to get market intelligence" });
+import { Router as Router42 } from "express";
+var router40 = Router42();
+router40.get(
+  "/intelligence",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const intelligence = await dataFusionEngine.getMarketIntelligence();
+      res.json(intelligence);
+    } catch (error) {
+      log.error("FusionRoutes", "Failed to get market intelligence", {
+        error
+      });
+      res.status(500).json({ error: "Failed to get market intelligence" });
+    }
   }
-});
-router38.get("/market-data", requireAuth, async (req, res) => {
+);
+router40.get("/market-data", requireAuth, async (req, res) => {
   try {
     const fusedData = await dataFusionEngine.getFusedMarketData();
     res.json(fusedData);
@@ -50880,7 +53377,7 @@ router38.get("/market-data", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get fused market data" });
   }
 });
-router38.get("/status", requireAuth, async (req, res) => {
+router40.get("/status", requireAuth, async (req, res) => {
   try {
     const status = dataFusionEngine.getStatus();
     res.json(status);
@@ -50889,14 +53386,14 @@ router38.get("/status", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get fusion status" });
   }
 });
-var fusion_default = router38;
+var fusion_default = router40;
 
 // server/routes/market-quotes.ts
 init_alpaca();
 init_logger();
-import { Router as Router41 } from "express";
-var router39 = Router41();
-router39.get("/quotes", requireAuth, async (req, res) => {
+import { Router as Router43 } from "express";
+var router41 = Router43();
+router41.get("/quotes", requireAuth, async (req, res) => {
   try {
     const symbolsParam = req.query.symbols;
     if (!symbolsParam) {
@@ -50932,18 +53429,18 @@ router39.get("/quotes", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get market quotes" });
   }
 });
-var market_quotes_default = router39;
+var market_quotes_default = router41;
 
 // server/routes/health.ts
 init_db();
 init_logger();
-import { Router as Router42 } from "express";
-import { sql as sql30 } from "drizzle-orm";
-var router40 = Router42();
-router40.get("/db", async (req, res) => {
+import { Router as Router44 } from "express";
+import { sql as sql32 } from "drizzle-orm";
+var router42 = Router44();
+router42.get("/db", async (req, res) => {
   try {
     const stats = getPoolStats();
-    await db.execute(sql30`SELECT 1 as test`);
+    await db.execute(sql32`SELECT 1 as test`);
     res.json({
       status: "healthy",
       pool: stats,
@@ -50958,16 +53455,16 @@ router40.get("/db", async (req, res) => {
     });
   }
 });
-var health_default = router40;
+var health_default = router42;
 
 // server/routes/ai-analysis.ts
 init_storage();
 init_logger();
 init_llmGateway();
 init_decision_engine();
-import { Router as Router43 } from "express";
-var router41 = Router43();
-router41.post("/analyze", requireAuth, async (req, res) => {
+import { Router as Router45 } from "express";
+var router43 = Router45();
+router43.post("/analyze", requireAuth, async (req, res) => {
   try {
     const { symbol, marketData, newsContext, strategyId } = req.body;
     if (!symbol || !marketData) {
@@ -51019,7 +53516,7 @@ router41.post("/analyze", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to analyze trading opportunity" });
   }
 });
-router41.get("/status", requireAuth, async (req, res) => {
+router43.get("/status", requireAuth, async (req, res) => {
   try {
     const status = aiDecisionEngine.getStatus();
     res.json(status);
@@ -51027,7 +53524,7 @@ router41.get("/status", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get AI status" });
   }
 });
-router41.get("/events", requireAuth, async (req, res) => {
+router43.get("/events", requireAuth, async (req, res) => {
   try {
     const limit4 = Math.min(parseInt(req.query.limit) || 20, 100);
     const type = req.query.type;
@@ -51055,7 +53552,7 @@ router41.get("/events", requireAuth, async (req, res) => {
     res.json([]);
   }
 });
-router41.get("/cache/stats", requireAuth, async (req, res) => {
+router43.get("/cache/stats", requireAuth, async (req, res) => {
   try {
     const stats = getLLMCacheStats();
     res.json(stats);
@@ -51064,35 +53561,49 @@ router41.get("/cache/stats", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get cache stats" });
   }
 });
-router41.post("/cache/clear", requireAuth, async (req, res) => {
-  try {
-    clearLLMCache();
-    res.json({ success: true, message: "LLM cache cleared" });
-  } catch (error) {
-    log.error("Routes", "Error clearing LLM cache", { error });
-    res.status(500).json({ error: "Failed to clear cache" });
+router43.post(
+  "/cache/clear",
+  requireAuth,
+  async (req, res) => {
+    try {
+      clearLLMCache();
+      res.json({ success: true, message: "LLM cache cleared" });
+    } catch (error) {
+      log.error("Routes", "Error clearing LLM cache", { error });
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
   }
-});
-router41.post("/cache/clear/:role", requireAuth, async (req, res) => {
-  try {
-    const { role } = req.params;
-    clearLLMCacheForRole(role);
-    res.json({ success: true, message: `Cache cleared for role: ${role}` });
-  } catch (error) {
-    log.error("Routes", "Error clearing LLM cache for role", { error });
-    res.status(500).json({ error: "Failed to clear cache for role" });
+);
+router43.post(
+  "/cache/clear/:role",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { role } = req.params;
+      clearLLMCacheForRole(role);
+      res.json({ success: true, message: `Cache cleared for role: ${role}` });
+    } catch (error) {
+      log.error("Routes", "Error clearing LLM cache for role", {
+        error
+      });
+      res.status(500).json({ error: "Failed to clear cache for role" });
+    }
   }
-});
-router41.post("/cache/reset-stats", requireAuth, async (req, res) => {
-  try {
-    resetLLMCacheStats();
-    res.json({ success: true, message: "Cache statistics reset" });
-  } catch (error) {
-    log.error("Routes", "Error resetting LLM cache stats", { error });
-    res.status(500).json({ error: "Failed to reset cache stats" });
+);
+router43.post(
+  "/cache/reset-stats",
+  requireAuth,
+  async (req, res) => {
+    try {
+      resetLLMCacheStats();
+      res.json({ success: true, message: "Cache statistics reset" });
+    } catch (error) {
+      log.error("Routes", "Error resetting LLM cache stats", { error });
+      res.status(500).json({ error: "Failed to reset cache stats" });
+    }
   }
-});
-router41.get("/sentiment", requireAuth, async (req, res) => {
+);
+router43.get("/sentiment", requireAuth, async (req, res) => {
   try {
     const symbols = req.query.symbols?.split(",") || [
       "SPY",
@@ -51121,15 +53632,15 @@ router41.get("/sentiment", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get sentiment signals" });
   }
 });
-var ai_analysis_default = router41;
+var ai_analysis_default = router43;
 
 // server/routes/agent-control.ts
 init_storage();
 init_logger();
 init_alpaca_trading_engine();
-import { Router as Router44 } from "express";
-var router42 = Router44();
-router42.get("/status", requireAuth, async (req, res) => {
+import { Router as Router46 } from "express";
+var router44 = Router46();
+router44.get("/status", requireAuth, async (req, res) => {
   try {
     const status = await storage.getAgentStatus();
     if (!status) {
@@ -51145,7 +53656,7 @@ router42.get("/status", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get agent status" });
   }
 });
-router42.post("/toggle", requireAuth, async (req, res) => {
+router44.post("/toggle", requireAuth, async (req, res) => {
   try {
     const currentStatus = await storage.getAgentStatus();
     const newIsRunning = !(currentStatus?.isRunning ?? false);
@@ -51161,15 +53672,15 @@ router42.post("/toggle", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to toggle agent" });
   }
 });
-var agent_control_default = router42;
+var agent_control_default = router44;
 
 // server/routes/activity.ts
 init_storage();
 init_logger();
 init_alpaca();
-import { Router as Router45 } from "express";
-var router43 = Router45();
-router43.get("/timeline", requireAuth, async (req, res) => {
+import { Router as Router47 } from "express";
+var router45 = Router47();
+router45.get("/timeline", requireAuth, async (req, res) => {
   const fetchedAt = /* @__PURE__ */ new Date();
   try {
     const limit4 = parseInt(req.query.limit) || 50;
@@ -51314,13 +53825,13 @@ router43.get("/timeline", requireAuth, async (req, res) => {
     });
   }
 });
-var activity_default = router43;
+var activity_default = router45;
 
 // server/routes/performance.ts
 init_logger();
-import { Router as Router46 } from "express";
-var router44 = Router46();
-router44.get("/metrics", requireAuth, async (req, res) => {
+import { Router as Router48 } from "express";
+var router46 = Router48();
+router46.get("/metrics", requireAuth, async (req, res) => {
   try {
     const { performanceTracker: performanceTracker2 } = await Promise.resolve().then(() => (init_performance_metrics(), performance_metrics_exports));
     const { getOrderCacheStats: getOrderCacheStats2 } = await Promise.resolve().then(() => (init_order_execution_cache(), order_execution_cache_exports));
@@ -51345,16 +53856,16 @@ router44.get("/metrics", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get performance metrics" });
   }
 });
-var performance_default = router44;
+var performance_default = router46;
 
 // server/routes/analytics.ts
 init_storage();
 init_alpaca();
-import { Router as Router47 } from "express";
+import { Router as Router49 } from "express";
 init_numeric();
 init_logger();
-var router45 = Router47();
-router45.get("/summary", requireAuth, async (req, res) => {
+var router47 = Router49();
+router47.get("/summary", requireAuth, async (req, res) => {
   try {
     const orchestratorState = orchestrator.getState();
     const riskLimits = orchestrator.getRiskLimits();
@@ -51466,14 +53977,14 @@ router45.get("/summary", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to get analytics summary" });
   }
 });
-var analytics_default = router45;
+var analytics_default = router47;
 
 // server/routes/crypto.ts
 init_coingecko();
 init_logger();
-import { Router as Router48 } from "express";
-var router46 = Router48();
-router46.get("/markets", requireAuth, async (req, res) => {
+import { Router as Router50 } from "express";
+var router48 = Router50();
+router48.get("/markets", requireAuth, async (req, res) => {
   try {
     const perPage = parseInt(req.query.per_page) || 20;
     const page = parseInt(req.query.page) || 1;
@@ -51485,7 +53996,7 @@ router46.get("/markets", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch crypto market data" });
   }
 });
-router46.get("/prices", requireAuth, async (req, res) => {
+router48.get("/prices", requireAuth, async (req, res) => {
   try {
     const ids = req.query.ids || "bitcoin,ethereum,solana";
     const coinIds = ids.split(",").map((id) => id.trim());
@@ -51496,18 +54007,22 @@ router46.get("/prices", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch crypto prices" });
   }
 });
-router46.get("/chart/:coinId", requireAuth, async (req, res) => {
-  try {
-    const { coinId } = req.params;
-    const days = req.query.days || "7";
-    const chart = await coingecko.getMarketChart(coinId, "usd", days);
-    res.json(chart);
-  } catch (error) {
-    log.error("CryptoAPI", "Failed to get crypto chart", { error });
-    res.status(500).json({ error: "Failed to fetch crypto chart data" });
+router48.get(
+  "/chart/:coinId",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { coinId } = req.params;
+      const days = req.query.days || "7";
+      const chart = await coingecko.getMarketChart(coinId, "usd", days);
+      res.json(chart);
+    } catch (error) {
+      log.error("CryptoAPI", "Failed to get crypto chart", { error });
+      res.status(500).json({ error: "Failed to fetch crypto chart data" });
+    }
   }
-});
-router46.get("/trending", requireAuth, async (req, res) => {
+);
+router48.get("/trending", requireAuth, async (req, res) => {
   try {
     const trending = await coingecko.getTrending();
     res.json(trending);
@@ -51516,7 +54031,7 @@ router46.get("/trending", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch trending coins" });
   }
 });
-router46.get("/global", requireAuth, async (req, res) => {
+router48.get("/global", requireAuth, async (req, res) => {
   try {
     const global2 = await coingecko.getGlobalData();
     res.json(global2);
@@ -51525,7 +54040,7 @@ router46.get("/global", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch global market data" });
   }
 });
-router46.get("/search", requireAuth, async (req, res) => {
+router48.get("/search", requireAuth, async (req, res) => {
   try {
     const query = req.query.q || "";
     if (!query) {
@@ -51538,24 +54053,28 @@ router46.get("/search", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to search coins" });
   }
 });
-var crypto_default = router46;
+var crypto_default = router48;
 
 // server/routes/stock.ts
 init_finnhub();
 init_logger();
-import { Router as Router49 } from "express";
-var router47 = Router49();
-router47.get("/quote/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const quote = await finnhub.getQuote(symbol);
-    res.json(quote);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get stock quote", { error });
-    res.status(500).json({ error: "Failed to fetch stock quote" });
+import { Router as Router51 } from "express";
+var router49 = Router51();
+router49.get(
+  "/quote/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const quote = await finnhub.getQuote(symbol);
+      res.json(quote);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get stock quote", { error });
+      res.status(500).json({ error: "Failed to fetch stock quote" });
+    }
   }
-});
-router47.get("/quotes", requireAuth, async (req, res) => {
+);
+router49.get("/quotes", requireAuth, async (req, res) => {
   try {
     const symbols = req.query.symbols || "AAPL,GOOGL,MSFT,AMZN,TSLA";
     const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase());
@@ -51570,30 +54089,38 @@ router47.get("/quotes", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch stock quotes" });
   }
 });
-router47.get("/candles/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const resolution = req.query.resolution || "D";
-    const from = req.query.from ? parseInt(req.query.from) : void 0;
-    const to = req.query.to ? parseInt(req.query.to) : void 0;
-    const candles = await finnhub.getCandles(symbol, resolution, from, to);
-    res.json(candles);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get stock candles", { error });
-    res.status(500).json({ error: "Failed to fetch stock candles" });
+router49.get(
+  "/candles/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const resolution = req.query.resolution || "D";
+      const from = req.query.from ? parseInt(req.query.from) : void 0;
+      const to = req.query.to ? parseInt(req.query.to) : void 0;
+      const candles = await finnhub.getCandles(symbol, resolution, from, to);
+      res.json(candles);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get stock candles", { error });
+      res.status(500).json({ error: "Failed to fetch stock candles" });
+    }
   }
-});
-router47.get("/profile/:symbol", requireAuth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const profile = await finnhub.getCompanyProfile(symbol);
-    res.json(profile);
-  } catch (error) {
-    log.error("StockAPI", "Failed to get company profile", { error });
-    res.status(500).json({ error: "Failed to fetch company profile" });
+);
+router49.get(
+  "/profile/:symbol",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await finnhub.getCompanyProfile(symbol);
+      res.json(profile);
+    } catch (error) {
+      log.error("StockAPI", "Failed to get company profile", { error });
+      res.status(500).json({ error: "Failed to fetch company profile" });
+    }
   }
-});
-router47.get("/search", requireAuth, async (req, res) => {
+);
+router49.get("/search", requireAuth, async (req, res) => {
   try {
     const query = req.query.q || "";
     if (!query) {
@@ -51606,7 +54133,7 @@ router47.get("/search", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to search stocks" });
   }
 });
-router47.get("/news", requireAuth, async (req, res) => {
+router49.get("/news", requireAuth, async (req, res) => {
   try {
     const category = req.query.category || "general";
     const news = await finnhub.getMarketNews(category);
@@ -51616,7 +54143,7 @@ router47.get("/news", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch market news" });
   }
 });
-var stock_default = router47;
+var stock_default = router49;
 
 // server/routes.ts
 init_audit_logger();
@@ -51749,6 +54276,8 @@ async function registerRoutes(app2) {
   app2.use("/api/macro", authMiddleware3, macro_default);
   app2.use("/api/enrichment", authMiddleware3, enrichment_default);
   app2.use("/api/auth", auth_default);
+  app2.use("/api/user/preferences", user_preferences_default);
+  app2.use("/api/notifications/preferences", notification_preferences_default);
   app2.use("/api/positions", authMiddleware3, positions_default);
   app2.use("/api/orders", authMiddleware3, orders_default);
   app2.use("/api/trades", authMiddleware3, trades_default);

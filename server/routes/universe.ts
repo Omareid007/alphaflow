@@ -62,16 +62,20 @@ router.get("/search", requireAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/universe/check/:symbol - Check if symbol is tradable
-router.get("/check/:symbol", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const check = await tradabilityService.validateSymbolTradable(symbol);
-    res.json(check);
-  } catch (error) {
-    log.error("UniverseAPI", "Failed to check tradability", { error });
-    res.status(500).json({ error: "Failed to check tradability" });
+router.get(
+  "/check/:symbol",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const check = await tradabilityService.validateSymbolTradable(symbol);
+      res.json(check);
+    } catch (error) {
+      log.error("UniverseAPI", "Failed to check tradability", { error });
+      res.status(500).json({ error: "Failed to check tradability" });
+    }
   }
-});
+);
 
 // POST /api/universe/sync - Sync universe (queued)
 router.post("/sync", requireAuth, async (req: Request, res: Response) => {

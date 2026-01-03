@@ -9,7 +9,11 @@ import { Request, Response } from "express";
 vi.mock("@sendgrid/mail", () => ({
   default: {
     setApiKey: vi.fn(),
-    send: vi.fn().mockResolvedValue([{ statusCode: 202, headers: { "x-message-id": "test-id" } }]),
+    send: vi
+      .fn()
+      .mockResolvedValue([
+        { statusCode: 202, headers: { "x-message-id": "test-id" } },
+      ]),
   },
 }));
 
@@ -55,8 +59,15 @@ vi.mock("bcryptjs", () => ({
 }));
 
 import { storage } from "../../../server/storage";
-import { createSession, getSession, deleteSession } from "../../../server/lib/session";
-import { sendPasswordResetEmail, isEmailConfigured } from "../../../server/lib/email-service";
+import {
+  createSession,
+  getSession,
+  deleteSession,
+} from "../../../server/lib/session";
+import {
+  sendPasswordResetEmail,
+  isEmailConfigured,
+} from "../../../server/lib/email-service";
 import bcrypt from "bcryptjs";
 
 // ============================================================================
@@ -94,7 +105,11 @@ function createMockReq(overrides: Partial<Request> = {}): Partial<Request> {
   };
 }
 
-function createMockRes(): { res: Partial<Response>; json: ReturnType<typeof vi.fn>; status: ReturnType<typeof vi.fn> } {
+function createMockRes(): {
+  res: Partial<Response>;
+  json: ReturnType<typeof vi.fn>;
+  status: ReturnType<typeof vi.fn>;
+} {
   const json = vi.fn();
   const status = vi.fn().mockReturnThis();
   const cookie = vi.fn();
@@ -164,7 +179,10 @@ describe("Auth Routes", () => {
       // Sanitization happens before storage call
       const maliciousUsername = "<script>alert('xss')</script>";
       // The route would sanitize this before calling storage
-      await storage.createUser({ username: "sanitized-username", password: "test" });
+      await storage.createUser({
+        username: "sanitized-username",
+        password: "test",
+      });
 
       expect(storage.createUser).toHaveBeenCalledWith(
         expect.objectContaining({ username: "sanitized-username" })
@@ -179,7 +197,9 @@ describe("Auth Routes", () => {
     });
 
     it("should create session after successful signup", async () => {
-      vi.mocked(storage.createUser).mockResolvedValue(createMockUser({ id: "new-user-id" }));
+      vi.mocked(storage.createUser).mockResolvedValue(
+        createMockUser({ id: "new-user-id" })
+      );
 
       await createSession("new-user-id");
       expect(createSession).toHaveBeenCalledWith("new-user-id");
@@ -216,7 +236,10 @@ describe("Auth Routes", () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
       const user = await storage.getUserByUsername("testuser");
-      const validPassword = await bcrypt.compare("wrong-password", user!.password);
+      const validPassword = await bcrypt.compare(
+        "wrong-password",
+        user!.password
+      );
       expect(validPassword).toBe(false);
     });
 
@@ -340,7 +363,8 @@ describe("Auth Routes", () => {
 
       // Route always returns same message
       const response = {
-        message: "If an account with that email exists, a password reset link has been sent",
+        message:
+          "If an account with that email exists, a password reset link has been sent",
       };
       expect(response.message).toContain("If an account");
     });
@@ -353,7 +377,11 @@ describe("Auth Routes", () => {
       await storage.getUserByEmail("test@example.com");
       expect(storage.getUserByEmail).toHaveBeenCalledWith("test@example.com");
 
-      await storage.createPasswordResetToken("user-123", "token-abc", new Date());
+      await storage.createPasswordResetToken(
+        "user-123",
+        "token-abc",
+        new Date()
+      );
       expect(storage.createPasswordResetToken).toHaveBeenCalled();
     });
 
@@ -449,7 +477,9 @@ describe("Auth Routes", () => {
       expect(user).toBeDefined();
 
       await storage.updateUser("user-123", { password: "new-hashed" });
-      expect(storage.updateUser).toHaveBeenCalledWith("user-123", { password: "new-hashed" });
+      expect(storage.updateUser).toHaveBeenCalledWith("user-123", {
+        password: "new-hashed",
+      });
 
       await storage.markPasswordResetTokenUsed("valid-token");
       expect(storage.markPasswordResetTokenUsed).toHaveBeenCalled();
@@ -508,7 +538,9 @@ describe("Auth Routes", () => {
       expect(existing).toBeUndefined();
 
       // Update email
-      const updated = await storage.updateUser("user-123", { email: "new@example.com" });
+      const updated = await storage.updateUser("user-123", {
+        email: "new@example.com",
+      });
       expect(updated?.email).toBe("new@example.com");
     });
 
@@ -530,7 +562,10 @@ describe("Auth Routes", () => {
 
     it("should allow updating to same email (own email)", async () => {
       const session = { userId: "user-123", expiresAt: new Date() };
-      const sameUser = createMockUser({ id: "user-123", email: "same@example.com" });
+      const sameUser = createMockUser({
+        id: "user-123",
+        email: "same@example.com",
+      });
 
       vi.mocked(getSession).mockResolvedValue(session);
       vi.mocked(storage.getUserByEmail).mockResolvedValue(sameUser);
@@ -603,7 +638,12 @@ describe("Auth Routes", () => {
 
     it("should apply rate limiting to login endpoint", () => {
       // Login route has authLimiter middleware
-      const protectedRoutes = ["/signup", "/login", "/forgot-password", "/reset-password"];
+      const protectedRoutes = [
+        "/signup",
+        "/login",
+        "/forgot-password",
+        "/reset-password",
+      ];
 
       // These routes should all have rate limiting
       expect(protectedRoutes).toContain("/login");
@@ -680,17 +720,25 @@ describe("Auth Routes", () => {
     });
 
     it("should create session on successful signup", async () => {
-      vi.mocked(storage.createUser).mockResolvedValue(createMockUser({ id: "new-user" }));
+      vi.mocked(storage.createUser).mockResolvedValue(
+        createMockUser({ id: "new-user" })
+      );
       vi.mocked(createSession).mockResolvedValue("new-session-id");
 
-      const user = await storage.createUser({ username: "newuser", password: "hash" });
+      const user = await storage.createUser({
+        username: "newuser",
+        password: "hash",
+      });
       const sessionId = await createSession(user.id);
 
       expect(sessionId).toBe("new-session-id");
     });
 
     it("should validate session on authenticated requests", async () => {
-      const validSession = { userId: "user-123", expiresAt: new Date(Date.now() + 86400000) };
+      const validSession = {
+        userId: "user-123",
+        expiresAt: new Date(Date.now() + 86400000),
+      };
       vi.mocked(getSession).mockResolvedValue(validSession);
 
       const session = await getSession("valid-session-id");
@@ -721,7 +769,8 @@ describe("Protected Routes Authentication", () => {
       }) as any;
       const { res, json, status } = createMockRes();
 
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -745,7 +794,8 @@ describe("Protected Routes Authentication", () => {
       req.userId = mockUser.id; // Authenticated with userId
 
       const { res } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -761,7 +811,8 @@ describe("Protected Routes Authentication", () => {
       req.userId = undefined; // Missing userId
 
       const { res, json, status } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -786,7 +837,8 @@ describe("Protected Routes Authentication", () => {
       // No userId - unauthenticated
 
       const { res, json, status } = createMockRes();
-      const { requireAdmin } = await import("../../../server/middleware/requireAuth");
+      const { requireAdmin } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAdmin(req, res as Response, next);
@@ -810,7 +862,8 @@ describe("Protected Routes Authentication", () => {
       req.userId = mockUser.id; // Authenticated
 
       const { res } = createMockRes();
-      const { requireAdmin } = await import("../../../server/middleware/requireAuth");
+      const { requireAdmin } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       // Currently requireAdmin only checks authentication, not role
@@ -830,7 +883,8 @@ describe("Protected Routes Authentication", () => {
       }) as any;
 
       const { res, json, status } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -846,7 +900,8 @@ describe("Protected Routes Authentication", () => {
       }) as any;
 
       const { res, json, status } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -862,7 +917,8 @@ describe("Protected Routes Authentication", () => {
       }) as any;
 
       const { res, json, status } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);
@@ -878,7 +934,8 @@ describe("Protected Routes Authentication", () => {
       }) as any;
 
       const { res, json, status } = createMockRes();
-      const { requireAuth } = await import("../../../server/middleware/requireAuth");
+      const { requireAuth } =
+        await import("../../../server/middleware/requireAuth");
       const next = vi.fn();
 
       requireAuth(req, res as Response, next);

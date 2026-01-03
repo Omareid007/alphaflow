@@ -61,7 +61,7 @@ export function ConfigTab({ strategy, template }: ConfigTabProps) {
                 : String(value ?? "N/A");
 
               return (
-                <StaggerItem key={field.key} index={index}>
+                <StaggerItem key={field.key}>
                   <div className="rounded-xl bg-secondary/50 p-4 border border-border/30 hover:border-border/50 transition-colors">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       {field.label}

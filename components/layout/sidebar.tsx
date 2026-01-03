@@ -161,9 +161,7 @@ function SidebarContent({
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "group flex items-center rounded-xl text-sm font-medium transition-all duration-fast",
-                  isCollapsed
-                    ? "justify-center p-3"
-                    : "gap-3 px-4 py-2.5",
+                  isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-2.5",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-glow-sm"
                     : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -303,8 +301,9 @@ function SidebarContent({
           )}
 
           {/* Logout */}
-          {mounted && user && (
-            isCollapsed ? (
+          {mounted &&
+            user &&
+            (isCollapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -330,8 +329,7 @@ function SidebarContent({
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 Sign Out
               </Button>
-            )
-          )}
+            ))}
 
           {/* Collapse toggle button */}
           {showCollapseButton && (
@@ -396,7 +394,10 @@ export function Sidebar() {
 
       {/* Mobile sidebar - Sheet overlay */}
       <Sheet open={isOpen} onOpenChange={close}>
-        <SheetContent side="left" className="w-64 p-0 bg-card/95 backdrop-blur-sm">
+        <SheetContent
+          side="left"
+          className="w-64 p-0 bg-card/95 backdrop-blur-sm"
+        >
           <SidebarContent onNavClick={close} />
         </SheetContent>
       </Sheet>
