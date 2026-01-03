@@ -480,6 +480,43 @@ chore(deps): remove unused dependencies
 
 ---
 
+## 👑 KING MODE (PM Autonomous Operation)
+
+When working autonomously for the PM (non-developer):
+
+### Behavior Rules
+
+1. **Complete tasks fully** - Don't stop at 80%, finish 100%
+2. **Self-validate** - Run build/typecheck before reporting done
+3. **No partial work** - Either complete the task or explain why you can't
+4. **Evidence required** - Show proof of completion (output, screenshots)
+5. **Clean as you go** - Remove temp files, dead code immediately
+
+### Autonomous Limits
+
+- Maximum 50 turns per session
+- Stop on: build failure, test failure, permission denied
+- Always commit working code before major changes
+- Create backup branch before risky operations
+
+### PM Communication Style
+
+- Lead with results, not process
+- Use tables and bullets for status
+- Provide copy-paste commands when action needed
+- Flag blockers immediately, don't hide problems
+
+### Quality Gates (Autonomous)
+
+Before saying "done" in autonomous mode:
+
+1. npm run build - MUST pass
+2. npm run typecheck - MUST pass
+3. Manual test - MUST work
+4. Git committed - MUST be saved
+
+---
+
 ## 🧠 ULTRATHINK PROTOCOL
 
 When user says "ULTRATHINK" before a request:
