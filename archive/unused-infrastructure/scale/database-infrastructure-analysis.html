@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Active Trader - Database & Infrastructure Analysis</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a2e;
+            --text-primary: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --border-color: #27272a;
+            --code-bg: #1e1e2e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value.critical { color: var(--accent-red); }
+        .stat-value.warning { color: var(--accent-yellow); }
+        .stat-value.success { color: var(--accent-green); }
+        .stat-value.info { color: var(--accent-blue); }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+            color: var(--accent-purple);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-critical { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+        .badge-warning { background: rgba(234, 179, 8, 0.2); color: var(--accent-yellow); }
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
+        .badge-info { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .collapsible {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .collapsible-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .collapsible-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .collapsible-arrow {
+            transition: transform 0.3s;
+        }
+
+        .collapsible.open .collapsible-arrow {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .collapsible.open .collapsible-content {
+            display: block;
+        }
+
+        .prompt-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .prompt-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .prompt-description {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        pre:hover .copy-btn {
+            opacity: 1;
+        }
+
+        .copy-btn:hover {
+            background: #2563eb;
+        }
+
+        .dependency-graph {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .level {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .level::after {
+            content: '';
+            position: absolute;
+            bottom: -0.75rem;
+            left: 50%;
+            width: 2px;
+            height: 0.75rem;
+            background: var(--border-color);
+        }
+
+        .level:last-child::after {
+            display: none;
+        }
+
+        .level-label {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .node {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+
+        .node.critical { border-color: var(--accent-red); }
+        .node.important { border-color: var(--accent-yellow); }
+        .node.standard { border-color: var(--accent-blue); }
+
+        .verification-query {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .query-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--accent-green);
+        }
+
+        .toc {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .toc-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .toc-list li:last-child {
+            border-bottom: none;
+        }
+
+        .toc-list a {
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toc-list a:hover {
+            color: var(--accent-blue);
+        }
+
+        .prompt-count {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .copy-btn { display: none; }
+            pre { white-space: pre-wrap; word-wrap: break-word; }
+        }
+
+        .json-key { color: #7dd3fc; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fca5a5; }
+        .json-boolean { color: #c4b5fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Database & Infrastructure Analysis</h1>
+            <p class="subtitle">AI Active Trader - Comprehensive Enhancement Guide with Replit Prompts</p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section id="summary">
+            <h2>Executive Summary</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value info">35+</div>
+                    <div class="stat-label">Database Tables Defined</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value critical">15</div>
+                    <div class="stat-label">Empty Critical Tables</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value warning">5</div>
+                    <div class="stat-label">Data Flow Gaps</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value warning">7</div>
+                    <div class="stat-label">Infrastructure Gaps</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value success">29</div>
+                    <div class="stat-label">Total Fix Prompts</div>
+                </div>
+            </div>
+
+            <h3>Key Findings</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Area</th>
+                        <th>Status</th>
+                        <th>Issue</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Database Seeding</td>
+                        <td><span class="badge badge-critical">CRITICAL</span></td>
+                        <td>No automatic seeding mechanism</td>
+                        <td>System cannot function without manual data setup</td>
+                    </tr>
+                    <tr>
+                        <td>Sentiment Persistence</td>
+                        <td><span class="badge badge-warning">HIGH</span></td>
+                        <td>News sentiment not saved to database</td>
+                        <td>Cannot analyze sentiment trends over time</td>
+                    </tr>
+                    <tr>
+                        <td>Trade Outcomes</td>
+                        <td><span class="badge badge-warning">HIGH</span></td>
+                        <td>Exit data often missing</td>
+                        <td>AI learning feedback loop broken</td>
+                    </tr>
+                    <tr>
+                        <td>Order Slippage</td>
+                        <td><span class="badge badge-warning">MEDIUM</span></td>
+                        <td>Not calculated or tracked</td>
+                        <td>Unknown execution quality</td>
+                    </tr>
+                    <tr>
+                        <td>Database Backups</td>
+                        <td><span class="badge badge-critical">CRITICAL</span></td>
+                        <td>No backup scripts exist</td>
+                        <td>Data loss risk</td>
+                    </tr>
+                    <tr>
+                        <td>Monitoring Stack</td>
+                        <td><span class="badge badge-warning">MEDIUM</span></td>
+                        <td>No Prometheus/Grafana</td>
+                        <td>Cannot monitor system health</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Table of Contents -->
+        <nav class="toc">
+            <div class="toc-title">TABLE OF CONTENTS</div>
+            <ul class="toc-list">
+                <li><a href="#tables">Database Table Analysis <span class="prompt-count">35+ tables</span></a></li>
+                <li><a href="#seeding">Database Seeding Prompts <span class="prompt-count">15 prompts</span></a></li>
+                <li><a href="#infrastructure">Infrastructure Enhancement Prompts <span class="prompt-count">7 prompts</span></a></li>
+                <li><a href="#dataflow">Data Flow Fix Prompts <span class="prompt-count">7 prompts</span></a></li>
+                <li><a href="#verification">Verification Queries <span class="prompt-count">SQL</span></a></li>
+                <li><a href="#execution">Execution Order <span class="prompt-count">Dependency Graph</span></a></li>
+            </ul>
+        </nav>
+
+        <!-- Database Table Analysis -->
+        <section id="tables">
+            <h2>Database Table Analysis</h2>
+
+            <h3>Table Population Status</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Table</th>
+                        <th>Status</th>
+                        <th>Columns</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td rowspan="3">Core</td><td><code>users</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>6</td><td>No signup endpoint, needs admin seed</td></tr>
+                    <tr><td><code>strategies</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>7</td><td>3 strategies in code not in DB</td></tr>
+                    <tr><td><code>agent_status</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>14</td><td>Single row controls orchestrator</td></tr>
+
+                    <tr><td rowspan="4">Trading</td><td><code>trades</code></td><td><span class="badge badge-success">AUTO</span></td><td>13</td><td>Populated during live trading</td></tr>
+                    <tr><td><code>orders</code></td><td><span class="badge badge-success">AUTO</span></td><td>16</td><td>Populated during execution</td></tr>
+                    <tr><td><code>fills</code></td><td><span class="badge badge-success">AUTO</span></td><td>10</td><td>Via Alpaca stream</td></tr>
+                    <tr><td><code>positions</code></td><td><span class="badge badge-success">AUTO</span></td><td>8</td><td>Synced from Alpaca</td></tr>
+
+                    <tr><td rowspan="4">AI</td><td><code>ai_decisions</code></td><td><span class="badge badge-warning">PARTIAL</span></td><td>13</td><td>Exit data often missing</td></tr>
+                    <tr><td><code>ai_decision_features</code></td><td><span class="badge badge-warning">PARTIAL</span></td><td>14</td><td>Not auto-populated</td></tr>
+                    <tr><td><code>ai_trade_outcomes</code></td><td><span class="badge badge-warning">PARTIAL</span></td><td>19</td><td>Missing exit recordings</td></tr>
+                    <tr><td><code>ai_agent_profiles</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>16</td><td>Debate arena profiles</td></tr>
+
+                    <tr><td rowspan="4">Universe</td><td><code>universe_assets</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>15</td><td>Needs Alpaca sync</td></tr>
+                    <tr><td><code>universe_liquidity_metrics</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>8</td><td>Needs computation</td></tr>
+                    <tr><td><code>universe_candidates</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>13</td><td>Needs bootstrap</td></tr>
+                    <tr><td><code>universe_technicals</code></td><td><span class="badge badge-warning">PARTIAL</span></td><td>26</td><td>Not persistently stored</td></tr>
+
+                    <tr><td rowspan="4">Observability</td><td><code>llm_calls</code></td><td><span class="badge badge-success">AUTO</span></td><td>17</td><td>Logged automatically</td></tr>
+                    <tr><td><code>llm_role_configs</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>9</td><td>Role routing config</td></tr>
+                    <tr><td><code>alert_rules</code></td><td><span class="badge badge-critical">EMPTY</span></td><td>9</td><td>Monitoring rules</td></tr>
+                    <tr><td><code>connector_metrics</code></td><td><span class="badge badge-success">AUTO</span></td><td>17</td><td>API usage tracking</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Database Seeding Prompts -->
+        <section id="seeding">
+            <h2>Database Seeding Prompts</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Copy-paste these JSON prompts to Replit in order. Each prompt is self-contained with objectives, files to modify, code, and verification steps.
+            </p>
+
+            <!-- Prompt 1 -->
+            <div class="collapsible open">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-critical">P1</span>
+                        Seed Admin User
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create the primary admin user for system authentication and audit trails.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">users table</span>
+                            <span class="badge badge-warning">No dependencies</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Create the primary admin user for system authentication",
+  "files_to_create": ["server/scripts/seed-admin-user.ts"],
+  "table": "users",
+  "dependencies": [],
+  "code": "// server/scripts/seed-admin-user.ts\nimport { db } from '../db';\nimport { users } from '@shared/schema';\nimport { scrypt, randomBytes } from 'crypto';\nimport { promisify } from 'util';\nimport { eq } from 'drizzle-orm';\n\nconst scryptAsync = promisify(scrypt);\n\nasync function hashPassword(password: string): Promise&lt;string&gt; {\n  const salt = randomBytes(16).toString('hex');\n  const buf = await scryptAsync(password, salt, 64) as Buffer;\n  return `${buf.toString('hex')}.${salt}`;\n}\n\nasync function seedAdminUser() {\n  console.log('[SEED] Checking for existing admin user...');\n  \n  const existing = await db.select().from(users).where(eq(users.username, 'admin')).limit(1);\n  \n  if (existing.length > 0) {\n    console.log('[SEED] Admin user already exists, skipping...');\n    return existing[0];\n  }\n  \n  const password = process.env.ADMIN_PASSWORD || 'Admin123!@#';\n  const hashedPassword = await hashPassword(password);\n  \n  const [admin] = await db.insert(users).values({\n    username: 'admin',\n    password: hashedPassword,\n    isAdmin: true,\n  }).returning();\n  \n  console.log('[SEED] Admin user created:', admin.id);\n  console.log('[SEED] IMPORTANT: Change the default password immediately!');\n  \n  return admin;\n}\n\nseedAdminUser().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });",
+  "run_command": "npx tsx server/scripts/seed-admin-user.ts",
+  "verification": "SELECT id, username, is_admin FROM users WHERE username = 'admin';"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 2 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-critical">P2</span>
+                        Sync Broker Assets from Alpaca
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Populate broker_assets table with all tradable assets from Alpaca for tradability checks.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">broker_assets table</span>
+                            <span class="badge badge-warning">Requires ALPACA_API_KEY</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Populate broker_assets with all tradable Alpaca assets",
+  "files_to_create": ["server/scripts/sync-broker-assets.ts"],
+  "table": "broker_assets",
+  "dependencies": ["ALPACA_API_KEY", "ALPACA_SECRET_KEY"],
+  "code": "// server/scripts/sync-broker-assets.ts\nimport { storage } from '../storage';\nimport Alpaca from '@alpacahq/alpaca-trade-api';\n\nconst alpaca = new Alpaca({\n  keyId: process.env.ALPACA_API_KEY,\n  secretKey: process.env.ALPACA_SECRET_KEY,\n  paper: true\n});\n\nasync function syncBrokerAssets() {\n  console.log('[SYNC] Starting broker assets sync...');\n  \n  // Sync US Equities\n  console.log('[SYNC] Fetching US equity assets...');\n  const equities = await alpaca.getAssets({ status: 'active', asset_class: 'us_equity' });\n  console.log(`[SYNC] Found ${equities.length} US equity assets`);\n  \n  let count = 0;\n  for (const asset of equities) {\n    await storage.upsertBrokerAsset({\n      alpacaId: asset.id,\n      symbol: asset.symbol,\n      name: asset.name,\n      assetClass: 'us_equity',\n      exchange: asset.exchange,\n      status: asset.status,\n      tradable: asset.tradable,\n      marginable: asset.marginable,\n      shortable: asset.shortable,\n      easyToBorrow: asset.easy_to_borrow,\n      fractionable: asset.fractionable,\n      lastSyncedAt: new Date(),\n    });\n    count++;\n    if (count % 500 === 0) console.log(`[SYNC] Processed ${count} assets...`);\n  }\n  \n  // Sync Crypto\n  console.log('[SYNC] Fetching crypto assets...');\n  const crypto = await alpaca.getAssets({ status: 'active', asset_class: 'crypto' });\n  for (const asset of crypto) {\n    await storage.upsertBrokerAsset({\n      alpacaId: asset.id,\n      symbol: asset.symbol,\n      name: asset.name,\n      assetClass: 'crypto',\n      exchange: asset.exchange,\n      status: asset.status,\n      tradable: asset.tradable,\n      marginable: false,\n      shortable: false,\n      easyToBorrow: false,\n      fractionable: true,\n      lastSyncedAt: new Date(),\n    });\n  }\n  \n  console.log(`[SYNC] Broker assets sync complete! Total: ${count + crypto.length}`);\n}\n\nsyncBrokerAssets().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });",
+  "run_command": "npx tsx server/scripts/sync-broker-assets.ts",
+  "verification": "SELECT asset_class, COUNT(*) FROM broker_assets GROUP BY asset_class;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 3 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-critical">P3</span>
+                        Seed Trading Strategies
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create the 3 core trading strategies in the database matching the code definitions.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">strategies table</span>
+                            <span class="badge badge-success">Depends on: P1</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Seed the 3 core trading strategies from code definitions",
+  "files_to_create": ["server/scripts/seed-strategies.ts"],
+  "table": "strategies",
+  "dependencies": ["P1: Admin user"],
+  "code": "// server/scripts/seed-strategies.ts\nimport { db } from '../db';\nimport { strategies } from '@shared/schema';\nimport { eq } from 'drizzle-orm';\n\nconst STRATEGIES_TO_SEED = [\n  {\n    name: 'Moving Average Crossover Strategy',\n    type: 'moving_average_crossover',\n    description: 'Golden/Death cross strategy using fast (7) and slow (20) moving averages',\n    isActive: false,\n    assets: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'],\n    parameters: JSON.stringify({\n      fastPeriod: 7,\n      slowPeriod: 20,\n      allocationPct: 0.10,\n      riskLimitPct: 0.10,\n    }),\n  },\n  {\n    name: 'Mean Reversion Scalper',\n    type: 'mean_reversion_scalper',\n    description: 'Statistical mean reversion using Bollinger Bands with 2.0 sigma threshold',\n    isActive: false,\n    assets: ['AAPL', 'MSFT', 'GOOGL', 'JPM', 'V', 'MA'],\n    parameters: JSON.stringify({\n      lookbackPeriod: 14,\n      deviationThreshold: 2.0,\n      allocationPct: 0.05,\n      riskLimitPct: 0.03,\n      maxHoldingPeriod: 3,\n    }),\n  },\n  {\n    name: 'Momentum Strategy',\n    type: 'momentum_strategy',\n    description: 'Trend-following strategy based on price momentum and RSI indicators',\n    isActive: false,\n    assets: ['NVDA', 'AMD', 'TSLA', 'AVGO', 'NFLX'],\n    parameters: JSON.stringify({\n      lookbackPeriod: 14,\n      momentumThreshold: 0.02,\n      rsiPeriod: 14,\n      rsiOverbought: 70,\n      rsiOversold: 30,\n      allocationPct: 0.08,\n      riskLimitPct: 0.05,\n    }),\n  },\n];\n\nasync function seedStrategies() {\n  console.log('[SEED] Seeding trading strategies...');\n  \n  for (const strategyData of STRATEGIES_TO_SEED) {\n    const existing = await db.select().from(strategies).where(eq(strategies.type, strategyData.type)).limit(1);\n    \n    if (existing.length > 0) {\n      console.log(`[SEED] Strategy ${strategyData.type} already exists, updating...`);\n      await db.update(strategies).set({ ...strategyData, updatedAt: new Date() }).where(eq(strategies.id, existing[0].id));\n    } else {\n      console.log(`[SEED] Creating strategy: ${strategyData.name}`);\n      await db.insert(strategies).values(strategyData);\n    }\n  }\n  \n  const all = await db.select().from(strategies);\n  console.log(`[SEED] Strategies seeded: ${all.length}`);\n  all.forEach(s => console.log(`  - ${s.name} (${s.type}): active=${s.isActive}`));\n}\n\nseedStrategies().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });",
+  "run_command": "npx tsx server/scripts/seed-strategies.ts",
+  "verification": "SELECT id, name, type, is_active FROM strategies;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 4 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P4</span>
+                        Seed Admin Settings
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create essential admin settings for risk limits, API budgets, and feature flags.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">admin_settings table</span>
+                            <span class="badge badge-success">Depends on: P1</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Seed essential admin settings for system configuration",
+  "files_to_create": ["server/scripts/seed-admin-settings.ts"],
+  "table": "admin_settings",
+  "dependencies": ["P1: Admin user"],
+  "settings": [
+    { "namespace": "risk", "key": "max_position_size_percent", "value": 10 },
+    { "namespace": "risk", "key": "max_total_exposure_percent", "value": 50 },
+    { "namespace": "risk", "key": "max_positions_count", "value": 10 },
+    { "namespace": "risk", "key": "daily_loss_limit_percent", "value": 5 },
+    { "namespace": "orchestrator", "key": "analysis_interval_ms", "value": 60000 },
+    { "namespace": "orchestrator", "key": "auto_execute_trades", "value": false },
+    { "namespace": "orchestrator", "key": "conservative_mode", "value": true },
+    { "namespace": "budget", "key": "llm_daily_limit_usd", "value": 25 },
+    { "namespace": "universe", "key": "exclude_otc", "value": true },
+    { "namespace": "universe", "key": "exclude_penny_stocks", "value": true },
+    { "namespace": "features", "key": "arena_enabled", "value": true },
+    { "namespace": "features", "key": "live_trading_enabled", "value": false }
+  ],
+  "run_command": "npx tsx server/scripts/seed-admin-settings.ts",
+  "verification": "SELECT namespace, key, value FROM admin_settings ORDER BY namespace, key;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 5 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-critical">P5</span>
+                        Initialize Agent Status
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create the single agent_status row that controls the orchestrator state.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">agent_status table</span>
+                            <span class="badge badge-warning">No dependencies</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Initialize the agent_status singleton row for orchestrator control",
+  "files_to_create": ["server/scripts/seed-agent-status.ts"],
+  "table": "agent_status",
+  "dependencies": [],
+  "default_values": {
+    "isRunning": false,
+    "totalTrades": 0,
+    "totalPnl": "0",
+    "cashBalance": "100000",
+    "killSwitchActive": false,
+    "maxPositionSizePercent": "10",
+    "maxTotalExposurePercent": "50",
+    "maxPositionsCount": 10,
+    "dailyLossLimitPercent": "5",
+    "marketCondition": "neutral",
+    "aiConfidenceScore": "0.5",
+    "autoStartEnabled": false,
+    "autoExecuteTrades": false,
+    "conservativeMode": true
+  },
+  "run_command": "npx tsx server/scripts/seed-agent-status.ts",
+  "verification": "SELECT * FROM agent_status;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 6 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P6</span>
+                        Seed Strategy Versions
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create initial version records for each strategy to enable versioning and A/B testing.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">strategy_versions table</span>
+                            <span class="badge badge-success">Depends on: P3</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Create initial version records for strategy versioning",
+  "files_to_create": ["server/scripts/seed-strategy-versions.ts"],
+  "table": "strategy_versions",
+  "dependencies": ["P3: Strategies must exist"],
+  "run_command": "npx tsx server/scripts/seed-strategy-versions.ts",
+  "verification": "SELECT sv.id, s.name, sv.version, sv.status FROM strategy_versions sv JOIN strategies s ON sv.strategy_id = s.id;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 7 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P7</span>
+                        Seed LLM Role Configs
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Populate LLM role configurations for the role-based router with provider fallback chains.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">llm_role_configs table</span>
+                            <span class="badge badge-warning">No dependencies</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Seed LLM role configurations for role-based routing",
+  "files_to_create": ["server/scripts/seed-llm-role-configs.ts"],
+  "table": "llm_role_configs",
+  "dependencies": [],
+  "roles": [
+    {
+      "role": "market_news_summarizer",
+      "description": "Cheap + fast model for summarizing market news",
+      "fallbackChain": [
+        { "provider": "groq", "model": "llama-3.1-8b-instant" },
+        { "provider": "openai", "model": "gpt-4o-mini" }
+      ],
+      "maxTokens": 500,
+      "temperature": 0.3
+    },
+    {
+      "role": "technical_analyst",
+      "description": "Strong reasoning model for technical analysis",
+      "fallbackChain": [
+        { "provider": "openrouter", "model": "deepseek/deepseek-r1" },
+        { "provider": "openai", "model": "gpt-4o-mini" }
+      ],
+      "maxTokens": 2000,
+      "temperature": 0.2
+    },
+    {
+      "role": "risk_manager",
+      "description": "Conservative model for risk assessment",
+      "fallbackChain": [
+        { "provider": "openai", "model": "gpt-4o-mini" },
+        { "provider": "anthropic", "model": "claude-3-haiku" }
+      ],
+      "maxTokens": 1500,
+      "temperature": 0.1
+    },
+    {
+      "role": "execution_planner",
+      "description": "Deterministic model for trade execution",
+      "fallbackChain": [
+        { "provider": "openai", "model": "gpt-4o-mini" },
+        { "provider": "groq", "model": "llama-3.1-70b-versatile" }
+      ],
+      "maxTokens": 1000,
+      "temperature": 0.0
+    },
+    {
+      "role": "post_trade_reporter",
+      "description": "Cheap summarizer for post-trade reports",
+      "fallbackChain": [
+        { "provider": "groq", "model": "llama-3.1-8b-instant" },
+        { "provider": "openai", "model": "gpt-4o-mini" }
+      ],
+      "maxTokens": 800,
+      "temperature": 0.4
+    }
+  ],
+  "run_command": "npx tsx server/scripts/seed-llm-role-configs.ts",
+  "verification": "SELECT role, max_tokens, temperature, is_active FROM llm_role_configs;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 8 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P8</span>
+                        Seed Allocation Policies
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create portfolio allocation policy records for the rebalancing system.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">allocation_policies table</span>
+                            <span class="badge badge-success">Depends on: P1</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Create allocation policy records for portfolio rebalancing",
+  "files_to_create": ["server/scripts/seed-allocation-policies.ts"],
+  "table": "allocation_policies",
+  "dependencies": ["P1: Admin user for createdBy"],
+  "policies": [
+    {
+      "name": "Conservative",
+      "description": "Low-risk policy with smaller positions",
+      "isActive": false,
+      "maxPositionWeightPct": "5",
+      "maxSectorWeightPct": "20",
+      "minLiquidityTier": "A",
+      "rebalanceFrequency": "weekly"
+    },
+    {
+      "name": "Balanced",
+      "description": "Standard policy balancing growth and risk",
+      "isActive": true,
+      "maxPositionWeightPct": "8",
+      "maxSectorWeightPct": "25",
+      "minLiquidityTier": "B",
+      "rebalanceFrequency": "daily"
+    },
+    {
+      "name": "Aggressive",
+      "description": "Higher-risk policy with larger positions",
+      "isActive": false,
+      "maxPositionWeightPct": "12",
+      "maxSectorWeightPct": "35",
+      "minLiquidityTier": "B",
+      "rebalanceFrequency": "daily"
+    }
+  ],
+  "run_command": "npx tsx server/scripts/seed-allocation-policies.ts",
+  "verification": "SELECT name, is_active, max_position_weight_pct FROM allocation_policies;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 9 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P9</span>
+                        Seed AI Agent Profiles
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create AI agent profiles for the debate arena system with role-specific configurations.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">ai_agent_profiles table</span>
+                            <span class="badge badge-warning">No dependencies</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Seed AI agent profiles for debate arena",
+  "files_to_create": ["server/scripts/seed-ai-agent-profiles.ts"],
+  "table": "ai_agent_profiles",
+  "dependencies": [],
+  "profiles": [
+    { "name": "Bull Analyst - Fast", "role": "bull", "provider": "groq", "model": "llama-3.1-8b-instant", "mode": "cheap_first" },
+    { "name": "Bear Analyst - Fast", "role": "bear", "provider": "groq", "model": "llama-3.1-8b-instant", "mode": "cheap_first" },
+    { "name": "Technical Analyst - Fast", "role": "technical_analyst", "provider": "together", "model": "meta-llama/Llama-3.2-3B-Instruct-Turbo", "mode": "cheap_first" },
+    { "name": "Risk Manager", "role": "risk_manager", "provider": "openai", "model": "gpt-4o-mini", "mode": "always" },
+    { "name": "Bull Analyst - Power", "role": "bull", "provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "mode": "escalation_only" },
+    { "name": "Bear Analyst - Power", "role": "bear", "provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "mode": "escalation_only" },
+    { "name": "Judge - Final Decision", "role": "judge", "provider": "openai", "model": "gpt-4o-mini", "mode": "always" }
+  ],
+  "run_command": "npx tsx server/scripts/seed-ai-agent-profiles.ts",
+  "verification": "SELECT name, role, mode, provider, status FROM ai_agent_profiles ORDER BY priority;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt 10 -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">P10</span>
+                        Seed Alert Rules
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create monitoring alert rules for system health and risk management.</p>
+                        <div class="prompt-meta">
+                            <span class="badge badge-info">alert_rules table</span>
+                            <span class="badge badge-warning">No dependencies</span>
+                        </div>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Seed monitoring alert rules",
+  "files_to_create": ["server/scripts/seed-alert-rules.ts"],
+  "table": "alert_rules",
+  "dependencies": [],
+  "rules": [
+    { "name": "Dead Letter Queue Alert", "ruleType": "dead_letter_count", "threshold": 5, "enabled": true },
+    { "name": "High Retry Rate Alert", "ruleType": "retry_rate", "threshold": 10, "enabled": true },
+    { "name": "Orchestrator Silent Alert", "ruleType": "orchestrator_silent", "threshold": 10, "enabled": true },
+    { "name": "LLM Error Rate Alert", "ruleType": "llm_error_rate", "threshold": 20, "enabled": true },
+    { "name": "Critical Dead Letter Alert", "ruleType": "dead_letter_count", "threshold": 20, "enabled": true }
+  ],
+  "run_command": "npx tsx server/scripts/seed-alert-rules.ts",
+  "verification": "SELECT name, rule_type, threshold, enabled FROM alert_rules;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompts 11-15 abbreviated for space -->
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-info">P11-P15</span>
+                        Universe Population & Maintenance
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Final prompts for universe data population and maintenance automation.</p>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "prompts": [
+    {
+      "id": "P11",
+      "title": "Populate Universe Assets",
+      "table": "universe_assets",
+      "description": "Sync all tradable assets from Alpaca into universe_assets",
+      "run_command": "npx tsx server/scripts/populate-universe-assets.ts",
+      "verification": "SELECT COUNT(*), asset_class FROM universe_assets WHERE tradable = true GROUP BY asset_class;"
+    },
+    {
+      "id": "P12",
+      "title": "Compute Liquidity Metrics",
+      "table": "universe_liquidity_metrics",
+      "description": "Calculate ADTV, spread, and liquidity tier for universe assets",
+      "depends_on": "P11",
+      "run_command": "npx tsx server/scripts/compute-liquidity-metrics.ts",
+      "verification": "SELECT liquidity_tier, COUNT(*) FROM universe_liquidity_metrics GROUP BY liquidity_tier;"
+    },
+    {
+      "id": "P13",
+      "title": "Bootstrap Universe Candidates",
+      "table": "universe_candidates",
+      "description": "Populate universe_candidates with 200+ watchlist symbols",
+      "depends_on": ["P11", "P12"],
+      "watchlist_symbols": 206,
+      "run_command": "npx tsx server/scripts/bootstrap-universe-candidates.ts",
+      "verification": "SELECT status, COUNT(*) FROM universe_candidates GROUP BY status;"
+    },
+    {
+      "id": "P14",
+      "title": "Create Maintenance Cron Jobs",
+      "description": "Set up scheduled tasks for ongoing data freshness",
+      "cron_jobs": [
+        { "name": "Universe Sync", "schedule": "0 5 * * *", "description": "Daily at 5 AM ET" },
+        { "name": "Liquidity Refresh", "schedule": "0 10-16 * * 1-5", "description": "Hourly during market hours" },
+        { "name": "Candidate Generation", "schedule": "0 20 * * 0", "description": "Weekly Sunday 8 PM ET" }
+      ],
+      "run_command": "Add initializeMaintenanceJobs() to server/index.ts"
+    },
+    {
+      "id": "P15",
+      "title": "Data Validation Health Check",
+      "description": "Comprehensive script to validate all seeded data",
+      "run_command": "npx tsx server/scripts/validate-seed-data.ts",
+      "expected_output": "All tables show OK status"
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Infrastructure Prompts -->
+        <section id="infrastructure">
+            <h2>Infrastructure Enhancement Prompts</h2>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-critical">I1</span>
+                        Database Backup/Restore Automation
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create PostgreSQL backup and restore automation scripts for data protection.</p>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Create PostgreSQL backup/restore automation",
+  "priority": "CRITICAL",
+  "files_to_create": [
+    "scripts/db/backup.sh",
+    "scripts/db/restore.sh",
+    "infrastructure/k8s/postgres/backup-cronjob.yaml",
+    "docker/backup/Dockerfile.backup"
+  ],
+  "backup_features": [
+    "Full database dump using pg_dump",
+    "Compression with gzip",
+    "Timestamped files (backup-YYYYMMDD-HHMMSS.sql.gz)",
+    "Retention policy (7 daily, 4 weekly, 12 monthly)",
+    "S3/GCS upload support",
+    "Exit codes for monitoring"
+  ],
+  "restore_features": [
+    "Point-in-time restore",
+    "Pre-restore validation",
+    "Restore to different database (for testing)",
+    "Progress logging"
+  ],
+  "k8s_cronjob": {
+    "schedule": "0 2 * * *",
+    "image": "postgres:16-alpine",
+    "storage": "PVC mount for backups"
+  }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">I2</span>
+                        Environment Variable Documentation
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create comprehensive .env.example and environment variable documentation.</p>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Create .env.example and environment documentation",
+  "files_to_create": [
+    ".env.example",
+    "docs/ENVIRONMENT_VARIABLES.md",
+    ".env.development.example",
+    ".env.production.example"
+  ],
+  "variable_categories": {
+    "database": ["DATABASE_URL", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"],
+    "message_queue": ["NATS_URL"],
+    "trading_apis": ["ALPACA_API_KEY", "ALPACA_SECRET_KEY"],
+    "llm_providers": ["OPENAI_API_KEY", "GROQ_API_KEY", "TOGETHER_API_KEY"],
+    "market_data": ["FINNHUB_API_KEY", "POLYGON_API_KEY", "NEWS_API_KEY"],
+    "observability": ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME"],
+    "application": ["NODE_ENV", "SESSION_SECRET", "PORT"]
+  }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">I3-I7</span>
+                        Health Checks, Monitoring, Logging, Migrations
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "prompts": [
+    {
+      "id": "I3",
+      "title": "Health Check Enhancements",
+      "description": "Add deep health checks for DB, NATS, Redis with K8s-compatible probes",
+      "endpoints": ["/health/live", "/health/ready", "/health/deep"],
+      "files": ["server/health/health-service.ts", "server/health/routes.ts"]
+    },
+    {
+      "id": "I4",
+      "title": "Prometheus/Grafana Monitoring Stack",
+      "description": "Add Prometheus metrics and Grafana dashboards",
+      "metrics": [
+        "ai_trader_trades_total",
+        "ai_trader_llm_calls_total",
+        "ai_trader_llm_latency_seconds",
+        "ai_trader_decision_confidence",
+        "ai_trader_queue_depth"
+      ],
+      "files": ["server/metrics/prometheus.ts", "docker/prometheus/prometheus.yml", "docker/grafana/dashboards/"]
+    },
+    {
+      "id": "I5",
+      "title": "Log Aggregation Setup (Loki)",
+      "description": "Centralized logging with Grafana Loki and structured JSON format",
+      "log_format": {
+        "timestamp": "ISO8601",
+        "level": "info|warn|error",
+        "service": "trading-engine",
+        "traceId": "correlation-id",
+        "message": "string",
+        "context": "object"
+      },
+      "files": ["server/utils/logger.ts", "docker/loki/loki-config.yml", "docker/promtail/promtail-config.yml"]
+    },
+    {
+      "id": "I6",
+      "title": "Data Persistence Verification",
+      "description": "Scripts to verify data integrity and volume health",
+      "checks": ["Table row counts", "Foreign key integrity", "Orphaned records", "JSONB schemas", "Disk space"],
+      "files": ["scripts/db/verify-integrity.sh", "scripts/db/data-consistency-check.ts"]
+    },
+    {
+      "id": "I7",
+      "title": "Database Migration Automation",
+      "description": "Drizzle-based migrations with version control and rollback",
+      "features": ["SQL migrations (not push)", "Dry-run mode", "Rollback support", "Lock mechanism"],
+      "scripts": ["db:generate", "db:migrate", "db:migrate:dry", "db:rollback", "db:status"]
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Flow Fix Prompts -->
+        <section id="dataflow">
+            <h2>Data Flow Fix Prompts</h2>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">D1</span>
+                        News Sentiment Persistence
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <p class="prompt-description">Create a new table to persist news sentiment data from GDELT and NewsAPI.</p>
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "objective": "Persist news sentiment data for historical analysis",
+  "files_to_modify": [
+    "shared/schema.ts",
+    "server/connectors/gdelt.ts",
+    "server/connectors/newsapi.ts"
+  ],
+  "new_table": "news_sentiment_records",
+  "columns": [
+    "id VARCHAR PRIMARY KEY",
+    "symbol TEXT NOT NULL",
+    "source TEXT NOT NULL (gdelt|newsapi|huggingface)",
+    "sentiment TEXT NOT NULL (bullish|bearish|neutral)",
+    "sentiment_score NUMERIC (-1 to 1)",
+    "confidence NUMERIC",
+    "article_count INTEGER",
+    "average_tone NUMERIC",
+    "volume_spike BOOLEAN",
+    "headlines JSONB",
+    "fetched_at TIMESTAMP DEFAULT NOW()",
+    "expires_at TIMESTAMP"
+  ],
+  "migration_sql": "CREATE TABLE IF NOT EXISTS news_sentiment_records (\n  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),\n  symbol TEXT NOT NULL,\n  source TEXT NOT NULL,\n  sentiment TEXT NOT NULL,\n  sentiment_score NUMERIC,\n  confidence NUMERIC,\n  article_count INTEGER,\n  average_tone NUMERIC,\n  volume_spike BOOLEAN DEFAULT false,\n  headlines JSONB,\n  fetched_at TIMESTAMP DEFAULT NOW() NOT NULL,\n  expires_at TIMESTAMP\n);\nCREATE INDEX ON news_sentiment_records(symbol);\nCREATE INDEX ON news_sentiment_records(fetched_at);",
+  "verification": "SELECT source, COUNT(*), AVG(CAST(sentiment_score AS FLOAT)) FROM news_sentiment_records WHERE fetched_at > NOW() - INTERVAL '24 hours' GROUP BY source;"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <div class="collapsible-title">
+                        <span class="badge badge-warning">D2-D7</span>
+                        Technical Indicators, Trade Outcomes, Slippage
+                    </div>
+                    <svg class="collapsible-arrow" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="prompt-card">
+                        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "prompts": [
+    {
+      "id": "D2",
+      "title": "Technical Indicators Historical Storage",
+      "description": "Persist calculated indicators to universeTechnicals table",
+      "files": ["server/lib/technical-indicators.ts", "server/trading/alpaca-trading-engine.ts"],
+      "action": "Add persistTechnicalIndicators() function that upserts to universeTechnicals",
+      "verification": "SELECT symbol, date, rsi_14, macd, sma_20 FROM universe_technicals WHERE last_updated_at > NOW() - INTERVAL '1 hour'"
+    },
+    {
+      "id": "D3",
+      "title": "Complete Trade Outcome Recording",
+      "description": "Ensure trade outcomes recorded on all position closes",
+      "files": ["server/trading/alpaca-trading-engine.ts", "server/trading/alpaca-stream.ts"],
+      "action": "Add recordTradeOutcome() calls after closeAlpacaPosition and on sell fills",
+      "fields_to_capture": ["exitPrice", "exitReason", "holdingTimeMs", "realizedPnl", "slippagePercent"],
+      "verification": "SELECT COUNT(*) as total, SUM(CASE WHEN exit_price IS NOT NULL THEN 1 ELSE 0 END) as with_exit FROM ai_trade_outcomes"
+    },
+    {
+      "id": "D4",
+      "title": "Order Slippage Calculation",
+      "description": "Calculate slippage when orders are filled",
+      "files": ["shared/schema.ts", "server/trading/alpaca-stream.ts"],
+      "new_columns": ["expected_price", "slippage_amount", "slippage_percent", "slippage_direction"],
+      "migration_sql": "ALTER TABLE fills ADD COLUMN IF NOT EXISTS expected_price NUMERIC;\nALTER TABLE fills ADD COLUMN IF NOT EXISTS slippage_percent NUMERIC;\nALTER TABLE fills ADD COLUMN IF NOT EXISTS slippage_direction TEXT;",
+      "verification": "SELECT symbol, side, AVG(CAST(slippage_percent AS FLOAT)) FROM fills WHERE slippage_percent IS NOT NULL GROUP BY symbol, side"
+    },
+    {
+      "id": "D5",
+      "title": "Quote Capture at Order Submission",
+      "description": "Store bid/ask at order time for accurate slippage calculation",
+      "files": ["shared/schema.ts", "server/lib/work-queue.ts"],
+      "new_columns": ["quote_bid_at_submit", "quote_ask_at_submit", "quote_mid_at_submit", "quote_captured_at"],
+      "migration_sql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS quote_bid_at_submit NUMERIC;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS quote_ask_at_submit NUMERIC;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS quote_captured_at TIMESTAMP;"
+    },
+    {
+      "id": "D6",
+      "title": "AI Decision Features Auto-Population",
+      "description": "Automatically populate ai_decision_features when decisions are made",
+      "files": ["server/trading/alpaca-trading-engine.ts", "server/ai/learning-service.ts"],
+      "action": "Call recordDecisionFeatures() after creating aiDecision",
+      "verification": "SELECT COUNT(DISTINCT ad.id) as decisions, COUNT(DISTINCT df.decision_id) as with_features FROM ai_decisions ad LEFT JOIN ai_decision_features df ON ad.id = df.decision_id"
+    },
+    {
+      "id": "D7",
+      "title": "Data Flow Verification Queries",
+      "description": "SQL queries to verify all data persistence gaps are fixed",
+      "queries": {
+        "llm_calls": "SELECT DATE_TRUNC('hour', created_at), COUNT(*) FROM llm_calls WHERE created_at > NOW() - INTERVAL '24 hours' GROUP BY 1",
+        "sentiment": "SELECT source, COUNT(*) FROM news_sentiment_records WHERE fetched_at > NOW() - INTERVAL '24 hours' GROUP BY source",
+        "outcomes": "SELECT COUNT(*), SUM(CASE WHEN exit_price IS NOT NULL THEN 1 ELSE 0 END) FROM ai_trade_outcomes",
+        "slippage": "SELECT AVG(ABS(CAST(slippage_percent AS FLOAT))) FROM fills WHERE slippage_percent IS NOT NULL"
+      }
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Verification Queries -->
+        <section id="verification">
+            <h2>Verification Queries</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Run these queries after executing prompts to verify data is properly populated.</p>
+
+            <div class="verification-query">
+                <div class="query-title">Core Tables Health</div>
+                <pre><code>SELECT
+  'users' as table_name, COUNT(*) as rows FROM users
+UNION ALL SELECT 'strategies', COUNT(*) FROM strategies
+UNION ALL SELECT 'agent_status', COUNT(*) FROM agent_status
+UNION ALL SELECT 'llm_role_configs', COUNT(*) FROM llm_role_configs
+UNION ALL SELECT 'ai_agent_profiles', COUNT(*) FROM ai_agent_profiles
+UNION ALL SELECT 'alert_rules', COUNT(*) FROM alert_rules
+UNION ALL SELECT 'admin_settings', COUNT(*) FROM admin_settings;</code></pre>
+            </div>
+
+            <div class="verification-query">
+                <div class="query-title">Universe Data Health</div>
+                <pre><code>SELECT
+  'broker_assets' as table_name, COUNT(*) as rows FROM broker_assets
+UNION ALL SELECT 'universe_assets', COUNT(*) FROM universe_assets
+UNION ALL SELECT 'universe_liquidity_metrics', COUNT(*) FROM universe_liquidity_metrics
+UNION ALL SELECT 'universe_candidates', COUNT(*) FROM universe_candidates;</code></pre>
+            </div>
+
+            <div class="verification-query">
+                <div class="query-title">Data Flow Integrity</div>
+                <pre><code>-- Decisions with features coverage
+SELECT
+  DATE_TRUNC('day', ad.created_at) as day,
+  COUNT(DISTINCT ad.id) as decisions,
+  COUNT(DISTINCT df.decision_id) as with_features,
+  ROUND(100.0 * COUNT(DISTINCT df.decision_id) / NULLIF(COUNT(DISTINCT ad.id), 0), 1) as pct
+FROM ai_decisions ad
+LEFT JOIN ai_decision_features df ON ad.id = df.decision_id
+WHERE ad.created_at > NOW() - INTERVAL '7 days'
+GROUP BY 1 ORDER BY 1 DESC;</code></pre>
+            </div>
+
+            <div class="verification-query">
+                <div class="query-title">End-to-End Pipeline Check</div>
+                <pre><code>SELECT
+  ad.symbol,
+  ad.action,
+  ad.confidence,
+  o.status as order_status,
+  f.price as fill_price,
+  f.slippage_percent,
+  ato.realized_pnl,
+  ato.is_win
+FROM ai_decisions ad
+LEFT JOIN orders o ON o.decision_id = ad.id
+LEFT JOIN fills f ON f.order_id = o.id
+LEFT JOIN ai_trade_outcomes ato ON ato.decision_id = ad.id
+WHERE ad.created_at > NOW() - INTERVAL '24 hours'
+  AND ad.action IN ('buy', 'sell')
+ORDER BY ad.created_at DESC
+LIMIT 20;</code></pre>
+            </div>
+        </section>
+
+        <!-- Execution Order -->
+        <section id="execution">
+            <h2>Execution Order</h2>
+
+            <div class="dependency-graph">
+                <h3 style="text-align: center; margin-bottom: 2rem;">Dependency Graph</h3>
+
+                <div class="level">
+                    <span class="level-label">L0</span>
+                    <div class="node critical">P1: users</div>
+                    <div class="node critical">P2: broker_assets</div>
+                    <div class="node critical">P5: agent_status</div>
+                    <div class="node standard">P7: llm_role_configs</div>
+                </div>
+
+                <div class="level">
+                    <span class="level-label">L1</span>
+                    <div class="node important">P3: strategies</div>
+                    <div class="node important">P4: admin_settings</div>
+                    <div class="node standard">P9: ai_agent_profiles</div>
+                    <div class="node standard">P10: alert_rules</div>
+                </div>
+
+                <div class="level">
+                    <span class="level-label">L2</span>
+                    <div class="node standard">P6: strategy_versions</div>
+                    <div class="node standard">P8: allocation_policies</div>
+                    <div class="node important">P11: universe_assets</div>
+                </div>
+
+                <div class="level">
+                    <span class="level-label">L3</span>
+                    <div class="node standard">P12: liquidity_metrics</div>
+                    <div class="node standard">P13: universe_candidates</div>
+                </div>
+
+                <div class="level">
+                    <span class="level-label">L4</span>
+                    <div class="node standard">P14: maintenance_jobs</div>
+                    <div class="node standard">P15: validation</div>
+                </div>
+            </div>
+
+            <h3>Recommended Execution Sequence</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Prompt</th>
+                        <th>Table</th>
+                        <th>Dependencies</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>P1</td><td>users</td><td>None</td><td><span class="badge badge-critical">Critical</span></td></tr>
+                    <tr><td>2</td><td>P2</td><td>broker_assets</td><td>Alpaca API</td><td><span class="badge badge-critical">Critical</span></td></tr>
+                    <tr><td>3</td><td>P5</td><td>agent_status</td><td>None</td><td><span class="badge badge-critical">Critical</span></td></tr>
+                    <tr><td>4</td><td>P3</td><td>strategies</td><td>P1</td><td><span class="badge badge-critical">Critical</span></td></tr>
+                    <tr><td>5</td><td>P7</td><td>llm_role_configs</td><td>None</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>6</td><td>P4</td><td>admin_settings</td><td>P1</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>7</td><td>P9</td><td>ai_agent_profiles</td><td>None</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>8</td><td>P10</td><td>alert_rules</td><td>None</td><td><span class="badge badge-info">Medium</span></td></tr>
+                    <tr><td>9</td><td>P6</td><td>strategy_versions</td><td>P3</td><td><span class="badge badge-info">Medium</span></td></tr>
+                    <tr><td>10</td><td>P8</td><td>allocation_policies</td><td>P1</td><td><span class="badge badge-info">Medium</span></td></tr>
+                    <tr><td>11</td><td>P11</td><td>universe_assets</td><td>P2</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>12</td><td>P12</td><td>liquidity_metrics</td><td>P11</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>13</td><td>P13</td><td>universe_candidates</td><td>P11, P12</td><td><span class="badge badge-warning">High</span></td></tr>
+                    <tr><td>14</td><td>P14</td><td>cron jobs</td><td>All above</td><td><span class="badge badge-info">Medium</span></td></tr>
+                    <tr><td>15</td><td>P15</td><td>validation</td><td>All above</td><td><span class="badge badge-info">Final</span></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer style="text-align: center; padding: 2rem; border-top: 1px solid var(--border-color); margin-top: 3rem; color: var(--text-secondary);">
+            <p>AI Active Trader - Database & Infrastructure Analysis</p>
+            <p style="font-size: 0.85rem;">Generated with comprehensive codebase analysis</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleCollapsible(header) {
+            const collapsible = header.parentElement;
+            collapsible.classList.toggle('open');
+        }
+
+        function copyCode(button) {
+            const pre = button.parentElement;
+            const code = pre.querySelector('code');
+            const text = code.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        }
+
+        // Open first collapsible by default
+        document.addEventListener('DOMContentLoaded', () => {
+            const firstCollapsible = document.querySelector('.collapsible');
+            if (firstCollapsible) {
+                firstCollapsible.classList.add('open');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Active Trader - AI-Powered Autonomous Paper Trading Platform">
+    <title>AI Active Trader | Executive Pitch Deck</title>
+    <style>
+        /* ===== CSS CUSTOM PROPERTIES ===== */
+        :root {
+            /* Primary Brand - Deep Blue */
+            --color-primary: #0A2463;
+            --color-primary-light: #3E92CC;
+            --color-primary-dark: #001E3C;
+
+            /* Semantic Colors */
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #3B82F6;
+            --color-neutral: #6B7280;
+
+            /* Background */
+            --color-bg-dark: #0A0A0A;
+            --color-bg-surface: #1A1A2E;
+            --color-bg-card: #16213E;
+            --color-bg-elevated: #1E3A5F;
+
+            /* Text */
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: #94A3B8;
+            --color-text-muted: #64748B;
+
+            /* Asset Types */
+            --color-crypto: #F7931A;
+            --color-stock: #3E92CC;
+
+            /* Typography */
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+            /* Spacing */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            --spacing-3xl: 4rem;
+        }
+
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg-dark);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== NAVIGATION ===== */
+        .nav-sidebar {
+            position: fixed;
+            right: var(--spacing-lg);
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--color-text-muted);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-dot:hover, .nav-dot.active {
+            background: var(--color-primary-light);
+            border-color: var(--color-primary-light);
+            transform: scale(1.3);
+        }
+
+        .nav-dot[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--color-bg-card);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .nav-dot:hover[data-tooltip]::after {
+            opacity: 1;
+        }
+
+        /* ===== SLIDE CONTAINER ===== */
+        .slide {
+            min-height: 100vh;
+            padding: var(--spacing-3xl);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .slide-number {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            left: var(--spacing-lg);
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* ===== SLIDE 1: HERO ===== */
+        .slide-hero {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, var(--color-primary) 100%);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+            text-align: center;
+        }
+
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .hero-logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto var(--spacing-xl);
+            background: rgba(255,255,255,0.1);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(62, 146, 204, 0.3); }
+            50% { box-shadow: 0 0 60px rgba(62, 146, 204, 0.6); }
+        }
+
+        .hero-logo svg {
+            width: 60px;
+            height: 60px;
+            fill: white;
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--spacing-md);
+            background: linear-gradient(135deg, #fff 0%, var(--color-primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-tagline {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .hero-subtitle {
+            font-size: 1.125rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .hero-version {
+            display: inline-block;
+            padding: var(--spacing-xs) var(--spacing-md);
+            background: rgba(255,255,255,0.1);
+            border-radius: 999px;
+            font-size: 0.875rem;
+            color: rgba(255,255,255,0.8);
+            font-family: var(--font-mono);
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: var(--spacing-2xl);
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        .scroll-indicator svg {
+            width: 24px;
+            height: 24px;
+            fill: rgba(255,255,255,0.5);
+        }
+
+        /* ===== SLIDE 2: EXECUTIVE SUMMARY ===== */
+        .slide-summary {
+            background: var(--color-bg-dark);
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xl);
+            color: var(--color-text-primary);
+        }
+
+        .section-title span {
+            color: var(--color-primary-light);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .stat-card {
+            background: var(--color-bg-card);
+            border: 1px solid rgba(62, 146, 204, 0.2);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(62, 146, 204, 0.15);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--color-primary-light);
+            font-family: var(--font-mono);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        .value-props {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .value-card {
+            background: var(--color-bg-surface);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            display: flex;
+            gap: var(--spacing-md);
+            align-items: flex-start;
+        }
+
+        .value-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--color-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .value-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .value-content h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .value-content p {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* ===== SLIDE 3 & 4: PROBLEM/SOLUTION ===== */
+        .slide-problem {
+            background: linear-gradient(180deg, var(--color-bg-dark) 0%, #1a0a0a 100%);
+        }
+
+        .slide-solution {
+            background: linear-gradient(180deg, var(--color-bg-dark) 0%, #0a1a0a 100%);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-xl);
+        }
+
+        .problem-card, .solution-card {
+            background: var(--color-bg-card);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .problem-card {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .problem-card:hover {
+            border-color: var(--color-error);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.2);
+        }
+
+        .solution-card {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .solution-card:hover {
+            border-color: var(--color-success);
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
+        }
+
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .problem-card .card-icon {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .solution-card .card-icon {
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .card-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .problem-card .card-icon svg {
+            fill: var(--color-error);
+        }
+
+        .solution-card .card-icon svg {
+            fill: var(--color-success);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .card-description {
+            color: var(--color-text-secondary);
+            font-size: 0.9375rem;
+        }
+
+        /* ===== SLIDE 5: ARCHITECTURE ===== */
+        .slide-architecture {
+            background: var(--color-bg-dark);
+        }
+
+        .diagram-container {
+            background: var(--color-bg-surface);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            margin-top: var(--spacing-xl);
+        }
+
+        .diagram-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .architecture-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-lg);
+        }
+
+        .arch-layer {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .arch-box {
+            background: var(--color-bg-card);
+            border: 1px solid var(--color-primary-light);
+            border-radius: 8px;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text-primary);
+            position: relative;
+        }
+
+        .arch-box.primary {
+            background: var(--color-primary);
+            border-color: var(--color-primary-light);
+        }
+
+        .arch-box.external {
+            background: transparent;
+            border-style: dashed;
+            color: var(--color-text-secondary);
+        }
+
+        .arch-connector {
+            width: 2px;
+            height: 30px;
+            background: linear-gradient(to bottom, var(--color-primary-light), transparent);
+        }
+
+        .arch-connector-h {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--color-primary-light), transparent);
+        }
+
+        /* ===== SLIDE 6: DATA FLOW ===== */
+        .slide-dataflow {
+            background: var(--color-bg-dark);
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+            padding: var(--spacing-xl) 0;
+        }
+
+        .flow-step {
+            background: var(--color-bg-card);
+            border: 1px solid rgba(62, 146, 204, 0.3);
+            border-radius: 12px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .flow-step-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--color-primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+        }
+
+        .flow-step-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .flow-step-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        .flow-arrow {
+            color: var(--color-primary-light);
+            font-size: 1.5rem;
+        }
+
+        .cycle-diagram {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-xl);
+        }
+
+        .cycle-step {
+            background: var(--color-bg-surface);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            text-align: center;
+            position: relative;
+        }
+
+        .cycle-step::after {
+            content: "";
+            position: absolute;
+            right: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-left-color: var(--color-primary-light);
+        }
+
+        .cycle-step:last-child::after {
+            display: none;
+        }
+
+        .cycle-number {
+            width: 32px;
+            height: 32px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .cycle-label {
+            font-weight: 600;
+            font-size: 0.9375rem;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .cycle-desc {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted);
+        }
+
+        /* ===== SLIDE 7: AI CAPABILITIES ===== */
+        .slide-ai {
+            background: var(--color-bg-dark);
+        }
+
+        .providers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin: var(--spacing-xl) 0;
+        }
+
+        .provider-card {
+            background: var(--color-bg-card);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .provider-card:hover {
+            border-color: var(--color-primary-light);
+            transform: translateX(4px);
+        }
+
+        .provider-logo {
+            width: 48px;
+            height: 48px;
+            background: var(--color-bg-surface);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: var(--color-primary-light);
+        }
+
+        .provider-info h4 {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 2px;
+        }
+
+        .provider-info p {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted);
+        }
+
+        .provider-badge {
+            margin-left: auto;
+            background: var(--color-success);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .provider-badge.budget {
+            background: var(--color-info);
+        }
+
+        .provider-badge.fallback {
+            background: var(--color-warning);
+        }
+
+        /* ===== SLIDE 8: FEATURES ===== */
+        .slide-features {
+            background: var(--color-bg-dark);
+        }
+
+        .features-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-xl);
+            margin-top: var(--spacing-xl);
+        }
+
+        .feature-screen {
+            background: var(--color-bg-surface);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .screen-header {
+            background: var(--color-bg-card);
+            padding: var(--spacing-sm) var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .screen-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .screen-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .screen-dot.red { background: #EF4444; }
+        .screen-dot.yellow { background: #F59E0B; }
+        .screen-dot.green { background: #10B981; }
+
+        .screen-title {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted);
+            margin-left: var(--spacing-sm);
+        }
+
+        .screen-content {
+            padding: var(--spacing-lg);
+            min-height: 200px;
+        }
+
+        .mock-chart {
+            height: 120px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(62, 146, 204, 0.1) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            padding: var(--spacing-sm);
+            gap: 4px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--color-success), var(--color-primary-light));
+            border-radius: 2px 2px 0 0;
+            animation: grow-bar 1s ease-out forwards;
+            transform-origin: bottom;
+        }
+
+        @keyframes grow-bar {
+            from { transform: scaleY(0); }
+            to { transform: scaleY(1); }
+        }
+
+        .mock-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        .mock-stat {
+            background: var(--color-bg-card);
+            padding: var(--spacing-sm);
+            border-radius: 6px;
+        }
+
+        .mock-stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-success);
+        }
+
+        .mock-stat-label {
+            font-size: 0.6875rem;
+            color: var(--color-text-muted);
+        }
+
+        /* ===== SLIDE 9: STRATEGIES ===== */
+        .slide-strategies {
+            background: var(--color-bg-dark);
+        }
+
+        .strategies-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+            margin-top: var(--spacing-xl);
+        }
+
+        .strategy-card {
+            background: var(--color-bg-card);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            border: 1px solid rgba(62, 146, 204, 0.2);
+        }
+
+        .strategy-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .strategy-icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        .strategy-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .strategy-desc {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .strategy-params {
+            background: var(--color-bg-surface);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-xs) 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .param-row:last-child {
+            border-bottom: none;
+        }
+
+        .param-label {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted);
+        }
+
+        .param-value {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--color-primary-light);
+            font-family: var(--font-mono);
+        }
+
+        /* ===== SLIDE 10: MICROSERVICES ===== */
+        .slide-microservices {
+            background: var(--color-bg-dark);
+        }
+
+        .services-diagram {
+            background: var(--color-bg-surface);
+            border-radius: 16px;
+            padding: var(--spacing-2xl);
+            margin-top: var(--spacing-xl);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .service-node {
+            background: var(--color-bg-card);
+            border: 1px solid var(--color-primary-light);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .service-node:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(62, 146, 204, 0.2);
+        }
+
+        .service-port {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--color-success);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .service-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        .event-bus {
+            background: var(--color-primary);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+            margin-top: var(--spacing-lg);
+        }
+
+        .event-bus-label {
+            font-weight: 600;
+            font-size: 0.9375rem;
+        }
+
+        .event-bus-sub {
+            font-size: 0.8125rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* ===== SLIDE 11: MARKET OPPORTUNITY ===== */
+        .slide-market {
+            background: var(--color-bg-dark);
+        }
+
+        .market-stats {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-3xl);
+            margin: var(--spacing-2xl) 0;
+        }
+
+        .market-circle {
+            text-align: center;
+        }
+
+        .circle-outer {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 0 auto var(--spacing-md);
+        }
+
+        .circle-outer.tam {
+            background: conic-gradient(var(--color-primary-light) 0deg, transparent 0deg);
+            animation: fill-circle-tam 2s ease-out forwards;
+        }
+
+        .circle-outer.sam {
+            background: conic-gradient(var(--color-success) 0deg, transparent 0deg);
+            animation: fill-circle-sam 2s ease-out forwards;
+        }
+
+        .circle-outer.som {
+            background: conic-gradient(var(--color-warning) 0deg, transparent 0deg);
+            animation: fill-circle-som 2s ease-out forwards;
+        }
+
+        @keyframes fill-circle-tam {
+            to { background: conic-gradient(var(--color-primary-light) 360deg, transparent 0deg); }
+        }
+
+        @keyframes fill-circle-sam {
+            to { background: conic-gradient(var(--color-success) 270deg, transparent 0deg); }
+        }
+
+        @keyframes fill-circle-som {
+            to { background: conic-gradient(var(--color-warning) 180deg, transparent 0deg); }
+        }
+
+        .circle-inner {
+            width: 140px;
+            height: 140px;
+            background: var(--color-bg-dark);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .circle-value {
+            font-size: 2rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+        }
+
+        .circle-label {
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+        }
+
+        .market-trends {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .trend-card {
+            background: var(--color-bg-card);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .trend-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--color-success);
+        }
+
+        .trend-label {
+            font-size: 0.9375rem;
+            color: var(--color-text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ===== SLIDE 12: COMPETITIVE ANALYSIS ===== */
+        .slide-competitive {
+            background: var(--color-bg-dark);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: var(--spacing-xl);
+            background: var(--color-bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .comparison-table th {
+            background: var(--color-primary);
+            padding: var(--spacing-md);
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .comparison-table th:first-child {
+            text-align: left;
+        }
+
+        .comparison-table th:not(:first-child) {
+            text-align: center;
+        }
+
+        .comparison-table td {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.875rem;
+        }
+
+        .comparison-table td:first-child {
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .comparison-table td:not(:first-child) {
+            text-align: center;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table .highlight {
+            background: rgba(62, 146, 204, 0.1);
+        }
+
+        .check-icon {
+            color: var(--color-success);
+            font-weight: bold;
+        }
+
+        .x-icon {
+            color: var(--color-error);
+            font-weight: bold;
+        }
+
+        .partial-icon {
+            color: var(--color-warning);
+        }
+
+        /* ===== SLIDE 13: ROADMAP ===== */
+        .slide-roadmap {
+            background: var(--color-bg-dark);
+        }
+
+        .timeline {
+            position: relative;
+            margin-top: var(--spacing-2xl);
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--color-primary), var(--color-primary-light), var(--color-success));
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: var(--spacing-xl);
+            position: relative;
+        }
+
+        .timeline-item:nth-child(odd) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-content {
+            width: 45%;
+            background: var(--color-bg-card);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 24px;
+            background: var(--color-primary);
+            border: 4px solid var(--color-bg-dark);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .timeline-marker.complete {
+            background: var(--color-success);
+        }
+
+        .timeline-marker.in-progress {
+            background: var(--color-warning);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+        }
+
+        .timeline-phase {
+            font-size: 0.75rem;
+            color: var(--color-primary-light);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .timeline-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .timeline-desc {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .timeline-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xs);
+            margin-top: var(--spacing-sm);
+        }
+
+        .timeline-tag {
+            font-size: 0.6875rem;
+            padding: 2px 8px;
+            background: var(--color-bg-surface);
+            border-radius: 4px;
+            color: var(--color-text-muted);
+        }
+
+        /* ===== SLIDE 14: TEAM ===== */
+        .slide-team {
+            background: var(--color-bg-dark);
+        }
+
+        .team-structure {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+            margin-top: var(--spacing-2xl);
+        }
+
+        .team-group {
+            background: var(--color-bg-card);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            text-align: center;
+        }
+
+        .team-group-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--color-primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-lg);
+        }
+
+        .team-group-icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        .team-group-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .team-group-items {
+            text-align: left;
+        }
+
+        .team-group-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-xs) 0;
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .team-group-item::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background: var(--color-primary-light);
+            border-radius: 50%;
+        }
+
+        /* ===== SLIDE 15: CTA ===== */
+        .slide-cta {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            text-align: center;
+        }
+
+        .cta-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .cta-subtitle {
+            font-size: 1.25rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .cta-btn.primary {
+            background: white;
+            color: var(--color-primary);
+        }
+
+        .cta-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .cta-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .cta-btn.secondary:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .cta-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .cta-links {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-2xl);
+        }
+
+        .cta-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.9375rem;
+            transition: color 0.2s;
+        }
+
+        .cta-link:hover {
+            color: white;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .slide { padding: var(--spacing-xl); }
+            .hero-title { font-size: 3rem; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .strategies-grid { grid-template-columns: 1fr; }
+            .services-grid { grid-template-columns: repeat(4, 1fr); }
+            .market-stats { flex-direction: column; align-items: center; gap: var(--spacing-xl); }
+            .timeline::before { left: 20px; }
+            .timeline-item, .timeline-item:nth-child(odd) { flex-direction: row; padding-left: 50px; }
+            .timeline-content { width: 100%; }
+            .timeline-marker { left: 20px; }
+        }
+
+        @media (max-width: 768px) {
+            .nav-sidebar { display: none; }
+            .hero-title { font-size: 2.5rem; }
+            .section-title { font-size: 1.75rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .features-showcase { grid-template-columns: 1fr; }
+            .providers-grid { grid-template-columns: 1fr; }
+            .services-grid { grid-template-columns: repeat(2, 1fr); }
+            .team-structure { grid-template-columns: 1fr; }
+            .cta-buttons { flex-direction: column; align-items: center; }
+            .cta-links { flex-direction: column; gap: var(--spacing-md); }
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            .slide {
+                page-break-after: always;
+                min-height: auto;
+                height: 100vh;
+            }
+            .nav-sidebar, .scroll-indicator { display: none; }
+            body { background: white; color: black; }
+            .stat-card, .value-card, .problem-card, .solution-card,
+            .strategy-card, .service-node, .team-group {
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Dots -->
+    <nav class="nav-sidebar">
+        <div class="nav-dot active" data-slide="1" data-tooltip="Home"></div>
+        <div class="nav-dot" data-slide="2" data-tooltip="Summary"></div>
+        <div class="nav-dot" data-slide="3" data-tooltip="Problem"></div>
+        <div class="nav-dot" data-slide="4" data-tooltip="Solution"></div>
+        <div class="nav-dot" data-slide="5" data-tooltip="Architecture"></div>
+        <div class="nav-dot" data-slide="6" data-tooltip="Data Flow"></div>
+        <div class="nav-dot" data-slide="7" data-tooltip="AI"></div>
+        <div class="nav-dot" data-slide="8" data-tooltip="Features"></div>
+        <div class="nav-dot" data-slide="9" data-tooltip="Strategies"></div>
+        <div class="nav-dot" data-slide="10" data-tooltip="Services"></div>
+        <div class="nav-dot" data-slide="11" data-tooltip="Market"></div>
+        <div class="nav-dot" data-slide="12" data-tooltip="Competition"></div>
+        <div class="nav-dot" data-slide="13" data-tooltip="Roadmap"></div>
+        <div class="nav-dot" data-slide="14" data-tooltip="Team"></div>
+        <div class="nav-dot" data-slide="15" data-tooltip="Contact"></div>
+    </nav>
+
+    <!-- SLIDE 1: HERO -->
+    <section id="slide-1" class="slide slide-hero">
+        <div class="slide-content">
+            <div class="hero-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                </svg>
+            </div>
+            <h1 class="hero-title">AI Active Trader</h1>
+            <p class="hero-tagline">AI-Driven Trading with Complete Transparency</p>
+            <p class="hero-subtitle">Autonomous Paper Trading Platform</p>
+            <span class="hero-version">v2.0 - Microservices Architecture</span>
+        </div>
+        <div class="scroll-indicator">
+            <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+        <span class="slide-number">01 / 15</span>
+    </section>
+
+    <!-- SLIDE 2: EXECUTIVE SUMMARY -->
+    <section id="slide-2" class="slide slide-summary">
+        <div class="slide-content">
+            <h2 class="section-title">Executive <span>Summary</span></h2>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" data-target="130">0</div>
+                    <div class="stat-label">TypeScript Modules</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="60">0</div>
+                    <div class="stat-label">Documentation Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="6">0</div>
+                    <div class="stat-label">LLM Providers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="7">0</div>
+                    <div class="stat-label">Microservices</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="3">0</div>
+                    <div class="stat-label">Trading Strategies</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-target="35">0</div>
+                    <div class="stat-label">Database Tables</div>
+                </div>
+            </div>
+
+            <div class="value-props">
+                <div class="value-card">
+                    <div class="value-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    </div>
+                    <div class="value-content">
+                        <h3>Explainable AI Decisions</h3>
+                        <p>Every trade decision comes with full reasoning transparency and confidence scores</p>
+                    </div>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div class="value-content">
+                        <h3>Paper Trading First</h3>
+                        <p>Risk-free validation with Alpaca paper trading before going live</p>
+                    </div>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">
+                        <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="value-content">
+                        <h3>Multi-Asset Support</h3>
+                        <p>Trade stocks and crypto with unified risk management across 39 symbols</p>
+                    </div>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div class="value-content">
+                        <h3>Mobile-First Design</h3>
+                        <p>React Native app for iOS, Android, and Web with real-time updates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">02 / 15</span>
+    </section>
+
+    <!-- SLIDE 3: PROBLEM STATEMENT -->
+    <section id="slide-3" class="slide slide-problem">
+        <div class="slide-content">
+            <h2 class="section-title">The <span>Challenge</span></h2>
+
+            <div class="cards-grid">
+                <div class="problem-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <h3 class="card-title">Complexity Barrier</h3>
+                    <p class="card-description">Algorithmic trading requires deep technical expertise in quantitative finance, programming, and market microstructure that most traders lack.</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h3 class="card-title">Black Box AI</h3>
+                    <p class="card-description">Existing AI trading systems operate as opaque black boxes, making it impossible to understand why decisions are made or trust the logic.</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                    </div>
+                    <h3 class="card-title">High Entry Barrier</h3>
+                    <p class="card-description">Professional trading tools cost thousands per month, require institutional connections, and have steep learning curves.</p>
+                </div>
+
+                <div class="problem-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 class="card-title">Risk of Real Money</h3>
+                    <p class="card-description">Testing new strategies with real capital is expensive and stressful. One mistake can wipe out months of gains.</p>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">03 / 15</span>
+    </section>
+
+    <!-- SLIDE 4: SOLUTION -->
+    <section id="slide-4" class="slide slide-solution">
+        <div class="slide-content">
+            <h2 class="section-title">Our <span>Solution</span></h2>
+
+            <div class="cards-grid">
+                <div class="solution-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 class="card-title">Pre-Built AI Agent</h3>
+                    <p class="card-description">Ready-to-use autonomous trading agent with configurable strategies. No coding required - just set your parameters and let AI work.</p>
+                </div>
+
+                <div class="solution-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </div>
+                    <h3 class="card-title">Full Transparency</h3>
+                    <p class="card-description">Every decision explained with reasoning steps, confidence scores, and data sources. Understand exactly why each trade is made.</p>
+                </div>
+
+                <div class="solution-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <h3 class="card-title">Paper Trading</h3>
+                    <p class="card-description">Integrated with Alpaca's paper trading API. Validate strategies with realistic market conditions before risking real capital.</p>
+                </div>
+
+                <div class="solution-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <h3 class="card-title">Configurable Risk</h3>
+                    <p class="card-description">Set position limits, daily loss limits, and kill switches. Full control over risk exposure with real-time enforcement.</p>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">04 / 15</span>
+    </section>
+
+    <!-- SLIDE 5: ARCHITECTURE -->
+    <section id="slide-5" class="slide slide-architecture">
+        <div class="slide-content">
+            <h2 class="section-title">Technology <span>Architecture</span></h2>
+
+            <div class="diagram-container">
+                <div class="diagram-title">System Context (C4 Level 1)</div>
+                <div class="architecture-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box">Trader (Mobile/Web)</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">AI Active Trader Platform</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-connector-h"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box external">Alpaca (Broker)</div>
+                        <div class="arch-box external">Finnhub (Data)</div>
+                        <div class="arch-box external">CoinGecko (Crypto)</div>
+                        <div class="arch-box external">LLM Providers</div>
+                        <div class="arch-box external">PostgreSQL</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diagram-container" style="margin-top: var(--spacing-lg);">
+                <div class="diagram-title">Container Diagram (C4 Level 2)</div>
+                <div class="architecture-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box">Mobile App (React Native/Expo)</div>
+                        <div class="arch-box">Web App (Expo Web)</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">API Gateway (Express.js)</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box">Trading Engine</div>
+                        <div class="arch-box">AI Decision Service</div>
+                        <div class="arch-box">Market Data Service</div>
+                        <div class="arch-box">Orchestrator</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">NATS JetStream (Event Bus)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">05 / 15</span>
+    </section>
+
+    <!-- SLIDE 6: DATA FLOW -->
+    <section id="slide-6" class="slide slide-dataflow">
+        <div class="slide-content">
+            <h2 class="section-title">Trading <span>Cycle</span></h2>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-step-icon">
+                        <svg viewBox="0 0 24 24"><path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    </div>
+                    <div class="flow-step-label">Market Data</div>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                    <div class="flow-step-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    </div>
+                    <div class="flow-step-label">AI Analysis</div>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                    <div class="flow-step-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div class="flow-step-label">Risk Check</div>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                    <div class="flow-step-icon">
+                        <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="flow-step-label">Execute</div>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                    <div class="flow-step-icon">
+                        <svg viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                    </div>
+                    <div class="flow-step-label">Store</div>
+                </div>
+            </div>
+
+            <div class="cycle-diagram">
+                <div class="cycle-step">
+                    <div class="cycle-number">1</div>
+                    <div class="cycle-label">Initialize</div>
+                    <div class="cycle-desc">Generate cycle ID, check kill switch</div>
+                </div>
+                <div class="cycle-step">
+                    <div class="cycle-number">2</div>
+                    <div class="cycle-label">Fetch Data</div>
+                    <div class="cycle-desc">Alpaca, Finnhub, sentiment sources</div>
+                </div>
+                <div class="cycle-step">
+                    <div class="cycle-number">3</div>
+                    <div class="cycle-label">AI Decision</div>
+                    <div class="cycle-desc">Multi-agent debate, consensus</div>
+                </div>
+                <div class="cycle-step">
+                    <div class="cycle-number">4</div>
+                    <div class="cycle-label">Execute & Log</div>
+                    <div class="cycle-desc">Submit order, record outcome</div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">06 / 15</span>
+    </section>
+
+    <!-- SLIDE 7: AI CAPABILITIES -->
+    <section id="slide-7" class="slide slide-ai">
+        <div class="slide-content">
+            <h2 class="section-title">AI/ML <span>Capabilities</span></h2>
+
+            <div class="providers-grid">
+                <div class="provider-card">
+                    <div class="provider-logo">GPT</div>
+                    <div class="provider-info">
+                        <h4>OpenAI</h4>
+                        <p>GPT-4o-mini primary</p>
+                    </div>
+                    <span class="provider-badge">Primary</span>
+                </div>
+                <div class="provider-card">
+                    <div class="provider-logo">CL</div>
+                    <div class="provider-info">
+                        <h4>Anthropic Claude</h4>
+                        <p>High-criticality tasks</p>
+                    </div>
+                    <span class="provider-badge">Premium</span>
+                </div>
+                <div class="provider-card">
+                    <div class="provider-logo">GQ</div>
+                    <div class="provider-info">
+                        <h4>Groq</h4>
+                        <p>Llama 3.1-70B ultra-fast</p>
+                    </div>
+                    <span class="provider-badge budget">Budget</span>
+                </div>
+                <div class="provider-card">
+                    <div class="provider-logo">TG</div>
+                    <div class="provider-info">
+                        <h4>Together.ai</h4>
+                        <p>200+ models available</p>
+                    </div>
+                    <span class="provider-badge budget">Budget</span>
+                </div>
+                <div class="provider-card">
+                    <div class="provider-logo">AI</div>
+                    <div class="provider-info">
+                        <h4>AIML API</h4>
+                        <p>400+ models catalog</p>
+                    </div>
+                    <span class="provider-badge fallback">Fallback</span>
+                </div>
+                <div class="provider-card">
+                    <div class="provider-logo">OR</div>
+                    <div class="provider-info">
+                        <h4>OpenRouter</h4>
+                        <p>DeepSeek R1, routing</p>
+                    </div>
+                    <span class="provider-badge fallback">Fallback</span>
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-title">Role-Based Routing System</div>
+                <div class="architecture-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box primary">LLM Request</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">Role Classifier</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box">technical_analyst</div>
+                        <div class="arch-box">risk_manager</div>
+                        <div class="arch-box">news_summarizer</div>
+                        <div class="arch-box">execution_planner</div>
+                    </div>
+                    <div class="arch-connector"></div>
+                    <div class="arch-layer">
+                        <div class="arch-box external">OpenAI / DeepSeek / Groq (Cost-Optimized)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">07 / 15</span>
+    </section>
+
+    <!-- SLIDE 8: FEATURES -->
+    <section id="slide-8" class="slide slide-features">
+        <div class="slide-content">
+            <h2 class="section-title">Feature <span>Showcase</span></h2>
+
+            <div class="features-showcase">
+                <div class="feature-screen">
+                    <div class="screen-header">
+                        <div class="screen-dots">
+                            <span class="screen-dot red"></span>
+                            <span class="screen-dot yellow"></span>
+                            <span class="screen-dot green"></span>
+                        </div>
+                        <span class="screen-title">Dashboard</span>
+                    </div>
+                    <div class="screen-content">
+                        <div class="mock-chart">
+                            <div class="chart-bar" style="height: 30%"></div>
+                            <div class="chart-bar" style="height: 45%"></div>
+                            <div class="chart-bar" style="height: 60%"></div>
+                            <div class="chart-bar" style="height: 40%"></div>
+                            <div class="chart-bar" style="height: 75%"></div>
+                            <div class="chart-bar" style="height: 90%"></div>
+                            <div class="chart-bar" style="height: 85%"></div>
+                            <div class="chart-bar" style="height: 95%"></div>
+                        </div>
+                        <div class="mock-stats">
+                            <div class="mock-stat">
+                                <div class="mock-stat-value">+12.4%</div>
+                                <div class="mock-stat-label">Total Return</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-value">68%</div>
+                                <div class="mock-stat-label">Win Rate</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-value">1.85</div>
+                                <div class="mock-stat-label">Sharpe Ratio</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-value">-3.2%</div>
+                                <div class="mock-stat-label">Max Drawdown</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-screen">
+                    <div class="screen-header">
+                        <div class="screen-dots">
+                            <span class="screen-dot red"></span>
+                            <span class="screen-dot yellow"></span>
+                            <span class="screen-dot green"></span>
+                        </div>
+                        <span class="screen-title">AI Decision Log</span>
+                    </div>
+                    <div class="screen-content">
+                        <div style="background: var(--color-bg-card); border-radius: 8px; padding: var(--spacing-md); margin-bottom: var(--spacing-sm);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                                <span style="color: var(--color-success); font-weight: 600;">BUY AAPL</span>
+                                <span style="color: var(--color-text-muted); font-size: 0.75rem;">2 min ago</span>
+                            </div>
+                            <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+                                Momentum breakout detected. RSI: 62, MACD bullish crossover. Confidence: 0.78
+                            </div>
+                        </div>
+                        <div style="background: var(--color-bg-card); border-radius: 8px; padding: var(--spacing-md); margin-bottom: var(--spacing-sm);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                                <span style="color: var(--color-warning); font-weight: 600;">HOLD MSFT</span>
+                                <span style="color: var(--color-text-muted); font-size: 0.75rem;">15 min ago</span>
+                            </div>
+                            <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+                                Consolidation phase. Waiting for clearer signal. Confidence: 0.45
+                            </div>
+                        </div>
+                        <div style="background: var(--color-bg-card); border-radius: 8px; padding: var(--spacing-md);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                                <span style="color: var(--color-error); font-weight: 600;">SELL TSLA</span>
+                                <span style="color: var(--color-text-muted); font-size: 0.75rem;">1 hr ago</span>
+                            </div>
+                            <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+                                Take profit at resistance. +8.5% gain. Target reached.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">08 / 15</span>
+    </section>
+
+    <!-- SLIDE 9: STRATEGIES -->
+    <section id="slide-9" class="slide slide-strategies">
+        <div class="slide-content">
+            <h2 class="section-title">Trading <span>Strategies</span></h2>
+
+            <div class="strategies-grid">
+                <div class="strategy-card">
+                    <div class="strategy-icon">
+                        <svg viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <h3 class="strategy-name">Momentum</h3>
+                    <p class="strategy-desc">Trend-following strategy using rate of change and RSI indicators</p>
+                    <div class="strategy-params">
+                        <div class="param-row">
+                            <span class="param-label">Lookback Period</span>
+                            <span class="param-value">14 days</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Momentum Threshold</span>
+                            <span class="param-value">2%</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">RSI Period</span>
+                            <span class="param-value">14</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Allocation</span>
+                            <span class="param-value">8%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="strategy-card">
+                    <div class="strategy-icon">
+                        <svg viewBox="0 0 24 24"><path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    </div>
+                    <h3 class="strategy-name">MA Crossover</h3>
+                    <p class="strategy-desc">Classic moving average crossover for trend identification</p>
+                    <div class="strategy-params">
+                        <div class="param-row">
+                            <span class="param-label">Fast Period</span>
+                            <span class="param-value">7 days</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Slow Period</span>
+                            <span class="param-value">20 days</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Allocation</span>
+                            <span class="param-value">10%</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Risk Limit</span>
+                            <span class="param-value">10%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="strategy-card">
+                    <div class="strategy-icon">
+                        <svg viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </div>
+                    <h3 class="strategy-name">Mean Reversion</h3>
+                    <p class="strategy-desc">Statistical reversion trading using Bollinger Bands</p>
+                    <div class="strategy-params">
+                        <div class="param-row">
+                            <span class="param-label">Lookback Period</span>
+                            <span class="param-value">14 days</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Deviation</span>
+                            <span class="param-value">2.0&sigma;</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Max Holding</span>
+                            <span class="param-value">3 days</span>
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">Allocation</span>
+                            <span class="param-value">5%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">09 / 15</span>
+    </section>
+
+    <!-- SLIDE 10: MICROSERVICES -->
+    <section id="slide-10" class="slide slide-microservices">
+        <div class="slide-content">
+            <h2 class="section-title">Microservices <span>Architecture</span></h2>
+
+            <div class="services-diagram">
+                <div class="services-grid">
+                    <div class="service-node">
+                        <div class="service-port">:5000</div>
+                        <div class="service-name">API Gateway</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3001</div>
+                        <div class="service-name">Trading Engine</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3002</div>
+                        <div class="service-name">AI Decision</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3003</div>
+                        <div class="service-name">Market Data</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3004</div>
+                        <div class="service-name">Analytics</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3005</div>
+                        <div class="service-name">Orchestrator</div>
+                    </div>
+                    <div class="service-node">
+                        <div class="service-port">:3006</div>
+                        <div class="service-name">Event Bridge</div>
+                    </div>
+                </div>
+
+                <div class="event-bus">
+                    <div class="event-bus-label">NATS JetStream Event Bus</div>
+                    <div class="event-bus-sub">market.* | trade.* | ai.* | analytics.* | system.*</div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">10 / 15</span>
+    </section>
+
+    <!-- SLIDE 11: MARKET OPPORTUNITY -->
+    <section id="slide-11" class="slide slide-market">
+        <div class="slide-content">
+            <h2 class="section-title">Market <span>Opportunity</span></h2>
+
+            <div class="market-stats">
+                <div class="market-circle">
+                    <div class="circle-outer tam">
+                        <div class="circle-inner">
+                            <div class="circle-value" style="color: var(--color-primary-light);">$42B</div>
+                            <div class="circle-label">TAM</div>
+                        </div>
+                    </div>
+                    <div style="color: var(--color-text-secondary); font-size: 0.875rem;">AI in Finance (2030)</div>
+                </div>
+                <div class="market-circle">
+                    <div class="circle-outer sam">
+                        <div class="circle-inner">
+                            <div class="circle-value" style="color: var(--color-success);">$8B</div>
+                            <div class="circle-label">SAM</div>
+                        </div>
+                    </div>
+                    <div style="color: var(--color-text-secondary); font-size: 0.875rem;">Retail Algo Trading</div>
+                </div>
+                <div class="market-circle">
+                    <div class="circle-outer som">
+                        <div class="circle-inner">
+                            <div class="circle-value" style="color: var(--color-warning);">$500M</div>
+                            <div class="circle-label">SOM</div>
+                        </div>
+                    </div>
+                    <div style="color: var(--color-text-secondary); font-size: 0.875rem;">AI-First Trading</div>
+                </div>
+            </div>
+
+            <div class="market-trends">
+                <div class="trend-card">
+                    <div class="trend-value">12%</div>
+                    <div class="trend-label">CAGR Algo Trading Market</div>
+                </div>
+                <div class="trend-card">
+                    <div class="trend-value">300%</div>
+                    <div class="trend-label">Retail Trading Surge (Post-2020)</div>
+                </div>
+                <div class="trend-card">
+                    <div class="trend-value">85%</div>
+                    <div class="trend-label">Want AI-Assisted Trading</div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">11 / 15</span>
+    </section>
+
+    <!-- SLIDE 12: COMPETITIVE ANALYSIS -->
+    <section id="slide-12" class="slide slide-competitive">
+        <div class="slide-content">
+            <h2 class="section-title">Competitive <span>Analysis</span></h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th>QuantConnect</th>
+                        <th>Alpaca</th>
+                        <th>TradingView</th>
+                        <th>Composer</th>
+                        <th class="highlight">AI Active Trader</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>AI Decision Engine</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Explainable AI</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Paper Trading</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Backtesting</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="partial-icon">Partial</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Mobile App</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="partial-icon">Partial</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Multi-Asset</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="partial-icon">Stocks + Crypto</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="partial-icon">Stocks only</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>No-Code Setup</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="x-icon">&#x2717;</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="check-icon">&#x2713;</td>
+                        <td class="highlight check-icon">&#x2713;</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <span class="slide-number">12 / 15</span>
+    </section>
+
+    <!-- SLIDE 13: ROADMAP -->
+    <section id="slide-13" class="slide slide-roadmap">
+        <div class="slide-content">
+            <h2 class="section-title">Product <span>Roadmap</span></h2>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <div class="timeline-phase">Phase 0</div>
+                        <h3 class="timeline-title">Foundation</h3>
+                        <p class="timeline-desc">NATS JetStream, OpenTelemetry, CI/CD pipeline, service templates</p>
+                        <div class="timeline-tags">
+                            <span class="timeline-tag">NATS</span>
+                            <span class="timeline-tag">OTEL</span>
+                            <span class="timeline-tag">Docker</span>
+                        </div>
+                    </div>
+                    <div class="timeline-marker complete"></div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <div class="timeline-phase">Phase 1</div>
+                        <h3 class="timeline-title">Platform Foundation</h3>
+                        <p class="timeline-desc">Service templates, health endpoints, Kubernetes manifests, API contracts</p>
+                        <div class="timeline-tags">
+                            <span class="timeline-tag">K8s</span>
+                            <span class="timeline-tag">OpenAPI</span>
+                            <span class="timeline-tag">Health</span>
+                        </div>
+                    </div>
+                    <div class="timeline-marker complete"></div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <div class="timeline-phase">Phase 2</div>
+                        <h3 class="timeline-title">Domain Decomposition</h3>
+                        <p class="timeline-desc">Extract Trading Engine, Market Data, AI Decision as independent services</p>
+                        <div class="timeline-tags">
+                            <span class="timeline-tag">Trading</span>
+                            <span class="timeline-tag">AI</span>
+                            <span class="timeline-tag">Data</span>
+                        </div>
+                    </div>
+                    <div class="timeline-marker in-progress"></div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <div class="timeline-phase">Phase 3</div>
+                        <h3 class="timeline-title">Optimization & Ecosystem</h3>
+                        <p class="timeline-desc">n8n integration, social sentiment, advanced backtesting, mobile publishing</p>
+                        <div class="timeline-tags">
+                            <span class="timeline-tag">n8n</span>
+                            <span class="timeline-tag">Social</span>
+                            <span class="timeline-tag">Mobile</span>
+                        </div>
+                    </div>
+                    <div class="timeline-marker"></div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">13 / 15</span>
+    </section>
+
+    <!-- SLIDE 14: TEAM -->
+    <section id="slide-14" class="slide slide-team">
+        <div class="slide-content">
+            <h2 class="section-title">Team <span>Structure</span></h2>
+
+            <div class="team-structure">
+                <div class="team-group">
+                    <div class="team-group-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                    </div>
+                    <h3 class="team-group-title">Platform Engineering</h3>
+                    <div class="team-group-items">
+                        <div class="team-group-item">Event Bus (NATS)</div>
+                        <div class="team-group-item">API Gateway</div>
+                        <div class="team-group-item">Observability</div>
+                        <div class="team-group-item">CI/CD Pipeline</div>
+                        <div class="team-group-item">Security</div>
+                    </div>
+                </div>
+
+                <div class="team-group">
+                    <div class="team-group-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                    </div>
+                    <h3 class="team-group-title">Domain Engineering</h3>
+                    <div class="team-group-items">
+                        <div class="team-group-item">Trading Engine</div>
+                        <div class="team-group-item">AI Decision Service</div>
+                        <div class="team-group-item">Market Data Service</div>
+                        <div class="team-group-item">Analytics Service</div>
+                        <div class="team-group-item">Orchestrator</div>
+                    </div>
+                </div>
+
+                <div class="team-group">
+                    <div class="team-group-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <h3 class="team-group-title">Frontend Engineering</h3>
+                    <div class="team-group-items">
+                        <div class="team-group-item">Mobile App (React Native)</div>
+                        <div class="team-group-item">Web App (Expo Web)</div>
+                        <div class="team-group-item">UI Components</div>
+                        <div class="team-group-item">Charts & Visualization</div>
+                        <div class="team-group-item">UX/Design</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="slide-number">14 / 15</span>
+    </section>
+
+    <!-- SLIDE 15: CTA -->
+    <section id="slide-15" class="slide slide-cta">
+        <div class="slide-content">
+            <h2 class="cta-title">Ready to Transform Trading?</h2>
+            <p class="cta-subtitle">Experience AI-powered autonomous trading with complete transparency</p>
+
+            <div class="cta-buttons">
+                <a href="#" class="cta-btn primary">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Try Demo
+                </a>
+                <a href="#" class="cta-btn secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Documentation
+                </a>
+            </div>
+
+            <div class="cta-links">
+                <a href="#" class="cta-link">GitHub Repository</a>
+                <a href="#" class="cta-link">API Reference</a>
+                <a href="#" class="cta-link">Architecture Docs</a>
+                <a href="#" class="cta-link">Contact Us</a>
+            </div>
+        </div>
+        <span class="slide-number">15 / 15</span>
+    </section>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // Navigation dots
+        const navDots = document.querySelectorAll('.nav-dot');
+        const slides = document.querySelectorAll('.slide');
+
+        navDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const slideNum = dot.dataset.slide;
+                document.getElementById(`slide-${slideNum}`).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        // Intersection Observer for active dot and animations
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.5
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const slideNum = entry.target.id.split('-')[1];
+
+                    // Update active dot
+                    navDots.forEach(dot => dot.classList.remove('active'));
+                    document.querySelector(`.nav-dot[data-slide="${slideNum}"]`).classList.add('active');
+
+                    // Animate stat counters on slide 2
+                    if (slideNum === '2') {
+                        animateCounters();
+                    }
+                }
+            });
+        }, observerOptions);
+
+        slides.forEach(slide => observer.observe(slide));
+
+        // Animated counters
+        function animateCounters() {
+            const counters = document.querySelectorAll('.stat-number[data-target]');
+            counters.forEach(counter => {
+                const target = parseInt(counter.dataset.target);
+                const duration = 2000;
+                const step = target / (duration / 16);
+                let current = 0;
+
+                const updateCounter = () => {
+                    current += step;
+                    if (current < target) {
+                        counter.textContent = Math.floor(current) + '+';
+                        requestAnimationFrame(updateCounter);
+                    } else {
+                        counter.textContent = target + '+';
+                    }
+                };
+
+                updateCounter();
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const currentSlide = [...slides].findIndex(slide => {
+                const rect = slide.getBoundingClientRect();
+                return rect.top >= 0 && rect.top < window.innerHeight / 2;
+            });
+
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                e.preventDefault();
+                if (currentSlide < slides.length - 1) {
+                    slides[currentSlide + 1].scrollIntoView({ behavior: 'smooth' });
+                }
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                e.preventDefault();
+                if (currentSlide > 0) {
+                    slides[currentSlide - 1].scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
+
+        // Initialize first slide counter animation
+        if (window.scrollY < 100) {
+            setTimeout(animateCounters, 500);
+        }
+    </script>
+</body>
+</html>

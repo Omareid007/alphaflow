@@ -1,0 +1,129 @@
+{
+  "streams": [
+    {
+      "name": "MARKET",
+      "subjects": ["market.>"],
+      "retention": "limits",
+      "max_consumers": 100,
+      "max_msgs": 1000000,
+      "max_bytes": 1073741824,
+      "max_age": 3600000000000,
+      "max_msg_size": 65536,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 60000000000,
+      "description": "Market data events - quotes, bars, news"
+    },
+    {
+      "name": "TRADE",
+      "subjects": ["trade.>"],
+      "retention": "limits",
+      "max_consumers": 50,
+      "max_msgs": 500000,
+      "max_bytes": 536870912,
+      "max_age": 604800000000000,
+      "max_msg_size": 65536,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 120000000000,
+      "description": "Trade events - orders, fills, positions"
+    },
+    {
+      "name": "AI",
+      "subjects": ["ai.>"],
+      "retention": "limits",
+      "max_consumers": 50,
+      "max_msgs": 100000,
+      "max_bytes": 268435456,
+      "max_age": 86400000000000,
+      "max_msg_size": 131072,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 60000000000,
+      "description": "AI decision events - analyses, recommendations"
+    },
+    {
+      "name": "ANALYTICS",
+      "subjects": ["analytics.>"],
+      "retention": "limits",
+      "max_consumers": 20,
+      "max_msgs": 1000000,
+      "max_bytes": 1073741824,
+      "max_age": 2592000000000000,
+      "max_msg_size": 65536,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 60000000000,
+      "description": "Analytics events - P&L, metrics, snapshots"
+    },
+    {
+      "name": "ORCHESTRATOR",
+      "subjects": ["orchestrator.>"],
+      "retention": "limits",
+      "max_consumers": 50,
+      "max_msgs": 100000,
+      "max_bytes": 134217728,
+      "max_age": 86400000000000,
+      "max_msg_size": 32768,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 60000000000,
+      "description": "Orchestrator events - cycles, sagas, scheduling"
+    },
+    {
+      "name": "SYSTEM",
+      "subjects": ["system.>"],
+      "retention": "limits",
+      "max_consumers": 100,
+      "max_msgs": 500000,
+      "max_bytes": 268435456,
+      "max_age": 604800000000000,
+      "max_msg_size": 16384,
+      "storage": "file",
+      "replicas": 1,
+      "discard": "old",
+      "duplicate_window": 60000000000,
+      "description": "System events - health, alerts, configuration"
+    }
+  ],
+  "consumers": [
+    {
+      "stream": "MARKET",
+      "name": "orchestrator-market",
+      "durable_name": "orchestrator-market",
+      "deliver_policy": "new",
+      "ack_policy": "explicit",
+      "ack_wait": 30000000000,
+      "max_deliver": 3,
+      "filter_subject": "market.quote.>",
+      "description": "Orchestrator consuming market quotes"
+    },
+    {
+      "stream": "TRADE",
+      "name": "analytics-trades",
+      "durable_name": "analytics-trades",
+      "deliver_policy": "all",
+      "ack_policy": "explicit",
+      "ack_wait": 60000000000,
+      "max_deliver": 5,
+      "filter_subject": "trade.order.>",
+      "description": "Analytics consuming all trade events"
+    },
+    {
+      "stream": "AI",
+      "name": "orchestrator-decisions",
+      "durable_name": "orchestrator-decisions",
+      "deliver_policy": "new",
+      "ack_policy": "explicit",
+      "ack_wait": 30000000000,
+      "max_deliver": 3,
+      "filter_subject": "ai.decision.>",
+      "description": "Orchestrator consuming AI decisions"
+    }
+  ]
+}

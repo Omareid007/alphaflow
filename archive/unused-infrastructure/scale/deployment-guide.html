@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Active Trader | Deployment & Scaling Guide</title>
+    <style>
+        :root {
+            --color-primary: #0A2463;
+            --color-primary-light: #3E92CC;
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #3B82F6;
+            --color-bg-dark: #0A0A0A;
+            --color-bg-surface: #1A1A2E;
+            --color-bg-card: #16213E;
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: #94A3B8;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); background: var(--color-bg-dark); color: var(--color-text-primary); line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        header { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-bg-card) 100%); padding: 3rem 2rem; text-align: center; }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { color: var(--color-text-secondary); font-size: 1.125rem; }
+
+        nav.toc { background: var(--color-bg-card); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; }
+        nav.toc h2 { font-size: 1rem; margin-bottom: 1rem; color: var(--color-primary-light); }
+        nav.toc ul { list-style: none; columns: 2; }
+        nav.toc a { color: var(--color-text-secondary); text-decoration: none; font-size: 0.875rem; }
+        nav.toc a:hover { color: var(--color-primary-light); }
+
+        section { margin: 3rem 0; }
+        h2 { font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--color-primary-light); }
+        h3 { font-size: 1.25rem; color: var(--color-primary-light); margin: 1.5rem 0 1rem; }
+        h4 { font-size: 1rem; color: var(--color-text-secondary); margin: 1rem 0 0.5rem; }
+
+        .platform-card { background: var(--color-bg-card); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; border-left: 4px solid var(--color-primary-light); }
+        .platform-card.primary { border-left-color: var(--color-success); }
+        .platform-card h3 { margin-top: 0; }
+
+        .command-block { background: #000; border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 0.8125rem; overflow-x: auto; margin: 1rem 0; border: 1px solid rgba(62, 146, 204, 0.3); color: var(--color-success); white-space: pre-wrap; }
+        .command-block .comment { color: #6B7280; }
+        .command-block .prompt { color: var(--color-info); }
+
+        .config-block { background: var(--color-bg-surface); border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 0.75rem; overflow-x: auto; margin: 1rem 0; border: 1px solid rgba(62, 146, 204, 0.2); }
+
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: var(--color-primary); font-weight: 600; }
+        td { color: var(--color-text-secondary); }
+        td:first-child { color: var(--color-text-primary); font-weight: 500; }
+
+        .step-list { counter-reset: step; list-style: none; }
+        .step-list li { counter-increment: step; padding: 1rem; background: var(--color-bg-surface); border-radius: 8px; margin: 0.75rem 0; position: relative; padding-left: 3.5rem; }
+        .step-list li::before { content: counter(step); position: absolute; left: 1rem; top: 1rem; width: 28px; height: 28px; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; }
+
+        .cost-table { margin: 1.5rem 0; }
+        .cost-row { display: flex; justify-content: space-between; padding: 0.75rem; background: var(--color-bg-surface); border-radius: 6px; margin: 0.5rem 0; }
+        .cost-row .label { color: var(--color-text-secondary); }
+        .cost-row .value { font-weight: 600; font-family: var(--font-mono); color: var(--color-success); }
+        .cost-row.total { background: var(--color-primary); }
+        .cost-row.total .label, .cost-row.total .value { color: white; }
+
+        .alert { padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.875rem; }
+        .alert.info { background: rgba(59, 130, 246, 0.1); border: 1px solid var(--color-info); color: var(--color-info); }
+        .alert.warning { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--color-warning); color: var(--color-warning); }
+        .alert.success { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--color-success); color: var(--color-success); }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } nav.toc ul { columns: 1; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Deployment & Scaling Guide</h1>
+        <p>Deploy AI Active Trader to Hostinger VPS, Vercel, Railway & Beyond</p>
+    </header>
+
+    <div class="container">
+        <nav class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#hostinger">1. Hostinger VPS KVM2 (Primary)</a></li>
+                <li><a href="#vercel">2. Vercel (Frontend)</a></li>
+                <li><a href="#railway">3. Railway (Backend)</a></li>
+                <li><a href="#langchain">4. LangChain/LangGraph Integration</a></li>
+                <li><a href="#cicd">5. CI/CD Pipeline</a></li>
+                <li><a href="#mobile">6. Mobile App Publishing</a></li>
+                <li><a href="#costs">7. Cost Estimation</a></li>
+            </ul>
+        </nav>
+
+        <!-- SECTION 1: HOSTINGER VPS -->
+        <section id="hostinger">
+            <h2>1. Hostinger VPS KVM2 Deployment</h2>
+
+            <div class="platform-card primary">
+                <h3>Hostinger KVM2 Specifications</h3>
+                <table>
+                    <tr><td>vCPU Cores</td><td>2</td></tr>
+                    <tr><td>RAM</td><td>8 GB</td></tr>
+                    <tr><td>Storage</td><td>100 GB NVMe SSD</td></tr>
+                    <tr><td>Bandwidth</td><td>8 TB / month</td></tr>
+                    <tr><td>OS</td><td>Ubuntu 22.04 LTS</td></tr>
+                    <tr><td>Price</td><td>$8 / month</td></tr>
+                </table>
+            </div>
+
+            <h3>Resource Allocation for AI Active Trader</h3>
+            <table>
+                <thead>
+                    <tr><th>Service</th><th>CPU</th><th>Memory</th><th>Port</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>API Gateway</td><td>100m-500m</td><td>256-512Mi</td><td>5000</td></tr>
+                    <tr><td>Trading Engine</td><td>100m-500m</td><td>256-512Mi</td><td>3001</td></tr>
+                    <tr><td>AI Decision</td><td>200m-750m</td><td>512-768Mi</td><td>3002</td></tr>
+                    <tr><td>Market Data</td><td>100m-500m</td><td>256-512Mi</td><td>3003</td></tr>
+                    <tr><td>Analytics</td><td>100m-500m</td><td>256-512Mi</td><td>3004</td></tr>
+                    <tr><td>Orchestrator</td><td>100m-500m</td><td>256-512Mi</td><td>3005</td></tr>
+                    <tr><td>NATS JetStream</td><td>100m</td><td>256Mi</td><td>4222</td></tr>
+                    <tr><td>Redis</td><td>50m</td><td>128Mi</td><td>6379</td></tr>
+                    <tr><td><strong>Total</strong></td><td><strong>~1.2 CPU</strong></td><td><strong>~3GB</strong></td><td></td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert success">
+                KVM2 can comfortably run the full stack with headroom. For production scaling, consider KVM4 ($15/month) with 4 vCPU and 16GB RAM.
+            </div>
+
+            <h3>Step 1: Initial Server Setup</h3>
+            <div class="command-block"><span class="comment"># SSH into your VPS</span>
+<span class="prompt">$</span> ssh root@YOUR_VPS_IP
+
+<span class="comment"># Update system packages</span>
+<span class="prompt">$</span> apt update && apt upgrade -y
+
+<span class="comment"># Install required packages</span>
+<span class="prompt">$</span> apt install -y curl git htop ufw fail2ban ca-certificates gnupg lsb-release
+
+<span class="comment"># Create application user</span>
+<span class="prompt">$</span> adduser aitrader
+<span class="prompt">$</span> usermod -aG sudo aitrader
+<span class="prompt">$</span> su - aitrader
+
+<span class="comment"># Configure firewall</span>
+<span class="prompt">$</span> sudo ufw allow OpenSSH
+<span class="prompt">$</span> sudo ufw allow 80/tcp
+<span class="prompt">$</span> sudo ufw allow 443/tcp
+<span class="prompt">$</span> sudo ufw enable</div>
+
+            <h3>Step 2: Install Docker</h3>
+            <div class="command-block"><span class="comment"># Add Docker's official GPG key</span>
+<span class="prompt">$</span> sudo install -m 0755 -d /etc/apt/keyrings
+<span class="prompt">$</span> curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+<span class="prompt">$</span> sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+<span class="comment"># Add Docker repository</span>
+<span class="prompt">$</span> echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+<span class="comment"># Install Docker</span>
+<span class="prompt">$</span> sudo apt update
+<span class="prompt">$</span> sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+<span class="comment"># Add user to docker group</span>
+<span class="prompt">$</span> sudo usermod -aG docker aitrader
+<span class="prompt">$</span> newgrp docker</div>
+
+            <h3>Step 3: Install PostgreSQL (Native for Performance)</h3>
+            <div class="command-block"><span class="comment"># Install PostgreSQL 16</span>
+<span class="prompt">$</span> sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+<span class="prompt">$</span> wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+<span class="prompt">$</span> sudo apt update
+<span class="prompt">$</span> sudo apt install -y postgresql-16 postgresql-contrib-16
+
+<span class="comment"># Create database and user</span>
+<span class="prompt">$</span> sudo -u postgres psql << EOF
+CREATE USER aitrader WITH PASSWORD 'YOUR_SECURE_PASSWORD';
+CREATE DATABASE aitrader OWNER aitrader;
+GRANT ALL PRIVILEGES ON DATABASE aitrader TO aitrader;
+ALTER USER aitrader CREATEDB;
+EOF
+
+<span class="comment"># Configure for Docker network access</span>
+<span class="prompt">$</span> sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost,172.17.0.1'/" /etc/postgresql/16/main/postgresql.conf
+<span class="prompt">$</span> echo "host aitrader aitrader 172.17.0.0/16 scram-sha-256" | sudo tee -a /etc/postgresql/16/main/pg_hba.conf
+
+<span class="comment"># Tune for 8GB RAM</span>
+<span class="prompt">$</span> sudo tee /etc/postgresql/16/main/conf.d/aitrader.conf << EOF
+shared_buffers = 2GB
+effective_cache_size = 6GB
+work_mem = 52MB
+maintenance_work_mem = 512MB
+max_connections = 100
+wal_buffers = 64MB
+checkpoint_completion_target = 0.9
+max_wal_size = 2GB
+random_page_cost = 1.1
+effective_io_concurrency = 200
+EOF
+
+<span class="prompt">$</span> sudo systemctl restart postgresql</div>
+
+            <h3>Step 4: Clone Repository and Configure</h3>
+            <div class="command-block"><span class="comment"># Clone the repository</span>
+<span class="prompt">$</span> cd /home/aitrader
+<span class="prompt">$</span> git clone https://github.com/YOUR_REPO/ai-active-trader.git
+<span class="prompt">$</span> cd ai-active-trader
+
+<span class="comment"># Create environment file</span>
+<span class="prompt">$</span> cat > .env << EOF
+# Database
+DATABASE_URL=postgresql://aitrader:YOUR_SECURE_PASSWORD@host.docker.internal:5432/aitrader
+
+# Session
+SESSION_SECRET=your_secure_session_secret_here
+
+# Alpaca Trading
+ALPACA_API_KEY=your_alpaca_api_key
+ALPACA_SECRET_KEY=your_alpaca_secret_key
+
+# LLM Providers
+OPENAI_API_KEY=your_openai_api_key
+GROQ_API_KEY=your_groq_api_key
+TOGETHER_API_KEY=your_together_api_key
+
+# Market Data
+FINNHUB_API_KEY=your_finnhub_api_key
+NEWS_API_KEY=your_news_api_key
+EOF
+
+<span class="comment"># Secure the file</span>
+<span class="prompt">$</span> chmod 600 .env</div>
+
+            <h3>Step 5: Production Docker Compose</h3>
+            <div class="config-block">version: '3.8'
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api-gateway
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: ${DATABASE_URL}
+      NATS_URL: nats://nats:4222
+    ports:
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      - nats
+    restart: unless-stopped
+
+  trading-engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.trading-engine
+    environment:
+      NODE_ENV: production
+      ALPACA_API_KEY: ${ALPACA_API_KEY}
+      ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY}
+    depends_on:
+      - nats
+    restart: unless-stopped
+
+  ai-decision:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ai-decision
+    environment:
+      NODE_ENV: production
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    depends_on:
+      - nats
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.orchestrator
+    depends_on:
+      - nats
+      - trading-engine
+      - ai-decision
+    restart: unless-stopped
+
+volumes:
+  nats-data:
+  redis-data:</div>
+
+            <h3>Step 6: Nginx Reverse Proxy with SSL</h3>
+            <div class="command-block"><span class="comment"># Install Nginx</span>
+<span class="prompt">$</span> sudo apt install -y nginx
+
+<span class="comment"># Create Nginx configuration</span>
+<span class="prompt">$</span> sudo tee /etc/nginx/sites-available/aitrader << 'EOF'
+upstream api_gateway {
+    server 127.0.0.1:5000;
+    keepalive 64;
+}
+
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
+
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    limit_req zone=api_limit burst=50 nodelay;
+
+    location /health {
+        limit_req off;
+        proxy_pass http://api_gateway;
+    }
+
+    location /api {
+        proxy_pass http://api_gateway;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /ws {
+        proxy_pass http://api_gateway;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location / {
+        proxy_pass http://api_gateway;
+    }
+}
+EOF
+
+<span class="prompt">$</span> sudo ln -s /etc/nginx/sites-available/aitrader /etc/nginx/sites-enabled/
+<span class="prompt">$</span> sudo nginx -t
+<span class="prompt">$</span> sudo systemctl restart nginx</div>
+
+            <h3>Step 7: SSL Certificate with Let's Encrypt</h3>
+            <div class="command-block"><span class="comment"># Install Certbot</span>
+<span class="prompt">$</span> sudo apt install -y certbot python3-certbot-nginx
+
+<span class="comment"># Obtain certificate</span>
+<span class="prompt">$</span> sudo certbot --nginx -d api.yourdomain.com
+
+<span class="comment"># Test auto-renewal</span>
+<span class="prompt">$</span> sudo certbot renew --dry-run</div>
+
+            <h3>Step 8: Systemd Service for Auto-Start</h3>
+            <div class="command-block"><span class="comment"># Create systemd service</span>
+<span class="prompt">$</span> sudo tee /etc/systemd/system/aitrader.service << 'EOF'
+[Unit]
+Description=AI Active Trader Application
+Requires=docker.service postgresql.service
+After=docker.service postgresql.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=aitrader
+Group=docker
+WorkingDirectory=/home/aitrader/ai-active-trader
+EnvironmentFile=/home/aitrader/ai-active-trader/.env
+ExecStartPre=/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+<span class="prompt">$</span> sudo systemctl daemon-reload
+<span class="prompt">$</span> sudo systemctl enable aitrader
+<span class="prompt">$</span> sudo systemctl start aitrader</div>
+
+            <h3>Step 9: Backup Script</h3>
+            <div class="command-block"><span class="comment"># Create backup script</span>
+<span class="prompt">$</span> mkdir -p ~/scripts ~/backups
+<span class="prompt">$</span> cat > ~/scripts/backup.sh << 'EOF'
+#!/bin/bash
+set -e
+BACKUP_DIR="/home/aitrader/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Database backup
+pg_dump -U aitrader -h localhost aitrader | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+
+# NATS data backup
+docker run --rm -v aitrader_nats-data:/data -v $BACKUP_DIR:/backup alpine \
+    tar czf /backup/nats_$DATE.tar.gz -C /data .
+
+# Clean old backups (keep 7 days)
+find $BACKUP_DIR -type f -mtime +7 -delete
+
+echo "Backup completed: $DATE"
+EOF
+
+<span class="prompt">$</span> chmod +x ~/scripts/backup.sh
+
+<span class="comment"># Add to cron (daily at 3 AM)</span>
+<span class="prompt">$</span> (crontab -l 2>/dev/null; echo "0 3 * * * /home/aitrader/scripts/backup.sh >> /home/aitrader/logs/backup.log 2>&1") | crontab -</div>
+
+            <h3>Step 10: Monitoring with Prometheus & Grafana</h3>
+            <div class="command-block"><span class="comment"># Add monitoring stack to docker-compose</span>
+<span class="prompt">$</span> mkdir -p ~/monitoring
+<span class="prompt">$</span> cat > ~/monitoring/docker-compose.yml << 'EOF'
+version: '3.8'
+services:
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    ports:
+      - "127.0.0.1:3100:3000"
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    restart: unless-stopped
+EOF
+
+<span class="prompt">$</span> docker compose -f ~/monitoring/docker-compose.yml up -d</div>
+        </section>
+
+        <!-- SECTION 2: VERCEL -->
+        <section id="vercel">
+            <h2>2. Vercel (Frontend Deployment)</h2>
+
+            <div class="platform-card">
+                <h3>Expo Web Build for Vercel</h3>
+                <p style="color: var(--color-text-secondary);">Deploy the React Native web version to Vercel's edge network.</p>
+            </div>
+
+            <h3>vercel.json Configuration</h3>
+            <div class="config-block">{
+  "buildCommand": "npx expo export -p web",
+  "outputDirectory": "dist",
+  "framework": "other",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://api.yourdomain.com/api/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}</div>
+
+            <h3>Deployment Steps</h3>
+            <ol class="step-list">
+                <li>Install Vercel CLI: <code>npm i -g vercel</code></li>
+                <li>Login: <code>vercel login</code></li>
+                <li>Link project: <code>vercel link</code></li>
+                <li>Set environment variables in Vercel dashboard</li>
+                <li>Deploy: <code>vercel --prod</code></li>
+            </ol>
+
+            <div class="alert warning">
+                Vercel has 10s timeout (Hobby) or 30s (Pro). For long-running API calls, use the Hostinger backend.
+            </div>
+        </section>
+
+        <!-- SECTION 3: RAILWAY -->
+        <section id="railway">
+            <h2>3. Railway (Backend Alternative)</h2>
+
+            <div class="platform-card">
+                <h3>Railway Configuration</h3>
+                <p style="color: var(--color-text-secondary);">Railway provides managed PostgreSQL and easy Docker deployments.</p>
+            </div>
+
+            <h3>railway.json</h3>
+            <div class="config-block">{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "services/Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": "/health/live",
+    "sleepApplication": false
+  }
+}</div>
+
+            <h3>Deployment Commands</h3>
+            <div class="command-block"><span class="comment"># Install Railway CLI</span>
+<span class="prompt">$</span> npm i -g @railway/cli
+
+<span class="comment"># Login</span>
+<span class="prompt">$</span> railway login
+
+<span class="comment"># Initialize project</span>
+<span class="prompt">$</span> railway init
+
+<span class="comment"># Add PostgreSQL</span>
+<span class="prompt">$</span> railway add postgresql
+
+<span class="comment"># Deploy</span>
+<span class="prompt">$</span> railway up</div>
+        </section>
+
+        <!-- SECTION 4: LANGCHAIN -->
+        <section id="langchain">
+            <h2>4. LangChain/LangGraph Integration</h2>
+
+            <div class="platform-card">
+                <h3>LangChain Architecture for Trading</h3>
+                <p style="color: var(--color-text-secondary);">Replace the custom AI Decision Engine with LangChain for better composability.</p>
+            </div>
+
+            <h3>Multi-Provider Chain Setup</h3>
+            <div class="config-block">import { ChatOpenAI } from "@langchain/openai";
+import { ChatGroq } from "@langchain/groq";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+
+// Multi-provider with fallback
+const groqFast = new ChatGroq({
+  model: "llama-3.1-70b-versatile",
+  temperature: 0.3,
+});
+
+const openaiBackup = new ChatOpenAI({
+  model: "gpt-4o-mini",
+  temperature: 0.3,
+});
+
+const prompt = ChatPromptTemplate.fromTemplate(`
+  Analyze the following market data for {symbol}:
+  Technical: {technicals}
+  Sentiment: {sentiment}
+
+  Respond in JSON: {{"action": "buy"|"sell"|"hold", "confidence": 0-1, "reasoning": []}}
+`);
+
+const analysisChain = RunnableSequence.from([
+  prompt,
+  groqFast.withFallbacks({ fallbacks: [openaiBackup] }),
+  new JsonOutputParser(),
+]);</div>
+
+            <h3>LangGraph Trading Workflow</h3>
+            <div class="config-block">import { StateGraph, END } from "@langchain/langgraph";
+
+const workflow = new StateGraph({
+  channels: {
+    symbol: { value: (_, next) => next },
+    marketData: { value: (_, next) => next },
+    analysis: { value: (_, next) => next },
+    decision: { value: (_, next) => next },
+    status: { value: (_, next) => next },
+  },
+});
+
+// Add nodes
+workflow.addNode("analyze", analyzeMarketNode);
+workflow.addNode("risk_check", riskCheckNode);
+workflow.addNode("decide", decisionNode);
+workflow.addNode("execute", executeOrderNode);
+
+// Add edges
+workflow.addEdge("analyze", "risk_check");
+workflow.addConditionalEdges("risk_check", (state) =>
+  state.riskApproved ? "decide" : END
+);
+workflow.addEdge("decide", "execute");
+workflow.addEdge("execute", END);
+
+workflow.setEntryPoint("analyze");
+
+export const tradingGraph = workflow.compile();</div>
+        </section>
+
+        <!-- SECTION 5: CI/CD -->
+        <section id="cicd">
+            <h2>5. CI/CD Pipeline</h2>
+
+            <h3>GitHub Actions Workflow</h3>
+            <div class="config-block">name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Add host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh aitrader@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            cd /home/aitrader/ai-active-trader
+            git pull origin main
+            docker compose pull
+            docker compose run --rm api-gateway npm run db:push
+            docker compose up -d --build
+
+            # Health check
+            for port in 5000 3001 3002; do
+              curl -f http://localhost:$port/health/live || exit 1
+            done
+          ENDSSH
+
+      - name: Notify on Success
+        if: success()
+        run: echo "Deployment successful!"</div>
+        </section>
+
+        <!-- SECTION 6: MOBILE -->
+        <section id="mobile">
+            <h2>6. Mobile App Publishing</h2>
+
+            <div class="grid-2">
+                <div class="platform-card">
+                    <h3>iOS App Store</h3>
+                    <table>
+                        <tr><td>Developer Account</td><td>$99/year</td></tr>
+                        <tr><td>Bundle ID</td><td>com.aiactivetrader.app</td></tr>
+                        <tr><td>Build Command</td><td><code>eas build --platform ios</code></td></tr>
+                        <tr><td>Submit Command</td><td><code>eas submit --platform ios</code></td></tr>
+                    </table>
+                </div>
+
+                <div class="platform-card">
+                    <h3>Google Play Store</h3>
+                    <table>
+                        <tr><td>Developer Account</td><td>$25 one-time</td></tr>
+                        <tr><td>Package Name</td><td>com.aiactivetrader.app</td></tr>
+                        <tr><td>Build Command</td><td><code>eas build --platform android</code></td></tr>
+                        <tr><td>Submit Command</td><td><code>eas submit --platform android</code></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <h3>EAS Build Configuration (eas.json)</h3>
+            <div class="config-block">{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "production": {
+      "distribution": "store",
+      "ios": { "resourceClass": "m-medium" },
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your@email.com",
+        "ascAppId": "1234567890"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production"
+      }
+    }
+  }
+}</div>
+        </section>
+
+        <!-- SECTION 7: COSTS -->
+        <section id="costs">
+            <h2>7. Cost Estimation</h2>
+
+            <h3>Monthly Infrastructure Costs</h3>
+            <div class="cost-table">
+                <div class="cost-row"><span class="label">Hostinger VPS KVM2</span><span class="value">$8</span></div>
+                <div class="cost-row"><span class="label">Domain (.com)</span><span class="value">$1</span></div>
+                <div class="cost-row"><span class="label">SSL (Let's Encrypt)</span><span class="value">$0</span></div>
+                <div class="cost-row"><span class="label">CDN (Cloudflare Free)</span><span class="value">$0</span></div>
+                <div class="cost-row"><span class="label">Vercel Pro (Frontend)</span><span class="value">$20</span></div>
+                <div class="cost-row"><span class="label">Backup Storage (10GB)</span><span class="value">$1</span></div>
+                <div class="cost-row total"><span class="label">Infrastructure Subtotal</span><span class="value">$30</span></div>
+            </div>
+
+            <h3>API & Service Costs</h3>
+            <div class="cost-table">
+                <div class="cost-row"><span class="label">OpenAI API (GPT-4o-mini)</span><span class="value">$30-50</span></div>
+                <div class="cost-row"><span class="label">Groq API (free tier)</span><span class="value">$0-20</span></div>
+                <div class="cost-row"><span class="label">Together AI</span><span class="value">$0-10</span></div>
+                <div class="cost-row"><span class="label">Alpaca (Paper Trading)</span><span class="value">$0</span></div>
+                <div class="cost-row"><span class="label">Finnhub (Free tier)</span><span class="value">$0</span></div>
+                <div class="cost-row"><span class="label">Polygon (Basic plan)</span><span class="value">$29</span></div>
+                <div class="cost-row total"><span class="label">API Subtotal</span><span class="value">$59-109</span></div>
+            </div>
+
+            <h3>Mobile Publishing Costs</h3>
+            <div class="cost-table">
+                <div class="cost-row"><span class="label">Apple Developer (annual)</span><span class="value">$8.25/mo</span></div>
+                <div class="cost-row"><span class="label">Google Play (one-time, amortized)</span><span class="value">$2.08/mo</span></div>
+                <div class="cost-row total"><span class="label">Mobile Subtotal</span><span class="value">$10.33</span></div>
+            </div>
+
+            <h3>Total Monthly Cost</h3>
+            <div class="cost-table">
+                <div class="cost-row total"><span class="label">Minimal Setup</span><span class="value">$100-150</span></div>
+                <div class="cost-row total"><span class="label">Full Production</span><span class="value">$150-250</span></div>
+            </div>
+
+            <h3>Scaling Cost Tiers</h3>
+            <table>
+                <thead>
+                    <tr><th>Scale</th><th>Users</th><th>VPS</th><th>Database</th><th>LLM Budget</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Starter</td><td>1-10</td><td>KVM2 $8</td><td>Included</td><td>$50</td><td>~$100</td></tr>
+                    <tr><td>Growth</td><td>10-100</td><td>KVM4 $15</td><td>Managed $25</td><td>$100</td><td>~$200</td></tr>
+                    <tr><td>Scale</td><td>100-1K</td><td>KVM8 $30</td><td>Managed $50</td><td>$300</td><td>~$500</td></tr>
+                    <tr><td>Enterprise</td><td>1K+</td><td>K8s Cluster</td><td>RDS $200+</td><td>$1000+</td><td>$2000+</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <footer style="background: var(--color-bg-card); padding: 2rem; text-align: center; margin-top: 3rem;">
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            AI Active Trader Deployment Guide | December 2025
+        </p>
+    </footer>
+</body>
+</html>

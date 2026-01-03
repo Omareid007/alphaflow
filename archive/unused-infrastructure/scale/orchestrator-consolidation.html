@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Active Trader | Orchestrator Consolidation Plan</title>
+    <style>
+        :root {
+            --color-primary: #0A2463;
+            --color-primary-light: #3E92CC;
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #3B82F6;
+            --color-bg-dark: #0A0A0A;
+            --color-bg-surface: #1A1A2E;
+            --color-bg-card: #16213E;
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: #94A3B8;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); background: var(--color-bg-dark); color: var(--color-text-primary); line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        header { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-bg-card) 100%); padding: 3rem 2rem; text-align: center; }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { color: var(--color-text-secondary); font-size: 1.125rem; }
+
+        section { margin: 3rem 0; }
+        h2 { font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--color-primary-light); }
+        h3 { font-size: 1.25rem; color: var(--color-primary-light); margin: 1.5rem 0 1rem; }
+
+        .diagram-container { background: var(--color-bg-card); border-radius: 16px; padding: 2rem; margin: 1.5rem 0; }
+        .diagram-title { font-size: 0.875rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; text-align: center; }
+
+        .arch-diagram { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .arch-row { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        .arch-box { background: var(--color-bg-surface); border: 2px solid var(--color-primary-light); border-radius: 8px; padding: 0.75rem 1.5rem; font-size: 0.875rem; font-weight: 500; text-align: center; min-width: 120px; }
+        .arch-box.primary { background: var(--color-primary); border-color: var(--color-primary-light); }
+        .arch-box.success { border-color: var(--color-success); }
+        .arch-box.error { border-color: var(--color-error); background: rgba(239, 68, 68, 0.1); }
+        .arch-connector { font-size: 1.5rem; color: var(--color-primary-light); }
+
+        .consolidation-card { background: var(--color-bg-card); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; border-left: 4px solid var(--color-primary-light); }
+        .consolidation-card h4 { color: var(--color-primary-light); margin-bottom: 0.75rem; }
+        .consolidation-card p { color: var(--color-text-secondary); font-size: 0.9375rem; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: var(--color-primary); font-weight: 600; }
+        td { color: var(--color-text-secondary); }
+
+        .code-block { background: #000; border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 0.8125rem; overflow-x: auto; margin: 1rem 0; color: var(--color-success); white-space: pre-wrap; }
+
+        .file-path { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-info); background: rgba(59, 130, 246, 0.1); padding: 0.25rem 0.5rem; border-radius: 4px; }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; }
+        .status-badge.current { background: rgba(239, 68, 68, 0.2); color: var(--color-error); }
+        .status-badge.target { background: rgba(16, 185, 129, 0.2); color: var(--color-success); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Orchestrator Consolidation Plan</h1>
+        <p>Unifying Redundant Services Under Coordinated Control</p>
+    </header>
+
+    <div class="container">
+        <!-- EXECUTIVE SUMMARY -->
+        <section>
+            <h2>Executive Summary</h2>
+            <p style="color: var(--color-text-secondary); font-size: 1.0625rem; margin-bottom: 1.5rem;">
+                The AI Active Trader platform has evolved organically, resulting in several redundant components
+                that operate independently without coordination. This plan outlines how to consolidate these
+                services under a unified orchestrator to eliminate duplication, reduce costs, and prevent
+                conflicting decisions.
+            </p>
+
+            <div class="grid-2">
+                <div class="consolidation-card">
+                    <h4>Current State</h4>
+                    <span class="status-badge current">Fragmented</span>
+                    <ul style="color: var(--color-text-secondary); margin-top: 0.75rem; padding-left: 1.25rem;">
+                        <li>5 areas of redundancy identified</li>
+                        <li>~280 lines of duplicated code</li>
+                        <li>No unified data flow control</li>
+                        <li>Independent decision-making</li>
+                        <li>Wasted API budget</li>
+                    </ul>
+                </div>
+                <div class="consolidation-card" style="border-left-color: var(--color-success);">
+                    <h4>Target State</h4>
+                    <span class="status-badge target">Unified</span>
+                    <ul style="color: var(--color-text-secondary); margin-top: 0.75rem; padding-left: 1.25rem;">
+                        <li>Single source of truth per domain</li>
+                        <li>Centralized orchestrator control</li>
+                        <li>Coordinated data fetching</li>
+                        <li>Prioritized API calls</li>
+                        <li>Real-time position reconciliation</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- REDUNDANCY AREAS -->
+        <section>
+            <h2>Identified Redundancy Areas</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Area</th>
+                        <th>Duplicated In</th>
+                        <th>Lines</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>1. Technical Indicators</strong></td>
+                        <td>4 files (momentum, mean-reversion, MA crossover, lib)</td>
+                        <td>~280</td>
+                        <td>Maintenance burden, potential inconsistency</td>
+                    </tr>
+                    <tr>
+                        <td><strong>2. Sentiment Sources</strong></td>
+                        <td>GDELT, NewsAPI, HuggingFace (3 connectors)</td>
+                        <td>N/A</td>
+                        <td>Wasted API calls, no prioritization</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3. Strategy Presets</strong></td>
+                        <td>3 strategy files with identical preset structure</td>
+                        <td>~150</td>
+                        <td>Inconsistent behavior, maintenance</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4. Caching Systems</strong></td>
+                        <td>order-execution-cache + persistentApiCache</td>
+                        <td>~400</td>
+                        <td>Memory overhead, staleness issues</td>
+                    </tr>
+                    <tr>
+                        <td><strong>5. Position Tracking</strong></td>
+                        <td>Alpaca API + Database (dual source)</td>
+                        <td>N/A</td>
+                        <td>Position mismatch, incorrect P&L</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ARCHITECTURE BEFORE/AFTER -->
+        <section>
+            <h2>Architecture Transformation</h2>
+
+            <div class="diagram-container">
+                <div class="diagram-title">BEFORE: Fragmented Architecture</div>
+                <div class="arch-diagram">
+                    <div class="arch-row">
+                        <div class="arch-box">API Routes</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box error">Orchestrator<br/><small>(Partial control)</small></div>
+                        <div class="arch-box error">Strategies<br/><small>(Own indicators)</small></div>
+                        <div class="arch-box error">Trading Engine<br/><small>(Independent)</small></div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box error">GDELT</div>
+                        <div class="arch-box error">NewsAPI</div>
+                        <div class="arch-box error">HuggingFace</div>
+                        <div class="arch-box error">Valyu</div>
+                        <div class="arch-box error">Finnhub</div>
+                    </div>
+                    <p style="color: var(--color-error); text-align: center; margin-top: 1rem; font-size: 0.875rem;">
+                        No coordination - each component makes independent decisions
+                    </p>
+                </div>
+            </div>
+
+            <div class="diagram-container" style="border: 2px solid var(--color-success);">
+                <div class="diagram-title">AFTER: Unified Orchestrator Architecture</div>
+                <div class="arch-diagram">
+                    <div class="arch-row">
+                        <div class="arch-box">API Routes</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box primary">Unified Orchestrator<br/><small>(Single control plane)</small></div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">Indicators Library<br/><small>(Single source)</small></div>
+                        <div class="arch-box success">Sentiment Aggregator<br/><small>(Prioritized)</small></div>
+                        <div class="arch-box success">Risk Manager<br/><small>(Centralized)</small></div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box">Strategies</div>
+                        <div class="arch-box">Data Fusion</div>
+                        <div class="arch-box">Position Sync</div>
+                    </div>
+                    <p style="color: var(--color-success); text-align: center; margin-top: 1rem; font-size: 0.875rem;">
+                        All decisions flow through orchestrator - no conflicts
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CONSOLIDATION STEPS -->
+        <section>
+            <h2>Consolidation Implementation Steps</h2>
+
+            <div class="consolidation-card">
+                <h4>Step 1: Technical Indicators Centralization</h4>
+                <p>Move all indicator calculations to the canonical library and update strategy imports.</p>
+                <div style="margin-top: 1rem;">
+                    <strong>Files to modify:</strong>
+                    <ul style="margin-top: 0.5rem; color: var(--color-text-secondary); padding-left: 1.25rem;">
+                        <li><span class="file-path">server/lib/technical-indicators.ts</span> - Ensure exports</li>
+                        <li><span class="file-path">server/strategies/momentum-strategy.ts</span> - Remove duplicates</li>
+                        <li><span class="file-path">server/strategies/mean-reversion-scalper.ts</span> - Remove duplicates</li>
+                        <li><span class="file-path">server/strategies/moving-average-crossover.ts</span> - Remove duplicates</li>
+                    </ul>
+                </div>
+                <div class="code-block">// All strategies should import from:
+import {
+  calculateSMA,
+  calculateEMA,
+  calculateRSI,
+  calculateROC,
+  calculateStdDev,
+  calculateMACD,
+  calculateATR
+} from '../lib/technical-indicators';</div>
+            </div>
+
+            <div class="consolidation-card">
+                <h4>Step 2: Sentiment Aggregator Service</h4>
+                <p>Create a new service that orchestrates all sentiment sources with priority-based fetching.</p>
+                <div style="margin-top: 1rem;">
+                    <strong>Create new file:</strong>
+                    <span class="file-path">server/services/sentiment-aggregator.ts</span>
+                </div>
+                <div class="code-block">export interface SentimentResult {
+  symbol: string;
+  score: number;           // 0 (bearish) to 1 (bullish)
+  confidence: number;      // 0-1 based on data quality
+  sources: string[];       // Which sources contributed
+  headlines: string[];     // Top headlines
+  timestamp: Date;
+}
+
+// Priority: GDELT (free) > NewsAPI (budget) > HuggingFace (classify only)
+export async function getAggregatedSentiment(symbol: string): Promise&lt;SentimentResult&gt; {
+  // 1. Try GDELT first (free, unlimited)
+  const gdeltResult = await gdeltConnector.getSentiment(symbol);
+
+  if (gdeltResult.headlines.length >= 3) {
+    return formatResult(gdeltResult, ["gdelt"]);
+  }
+
+  // 2. Fallback to NewsAPI if GDELT insufficient
+  const newsResult = await newsApiConnector.getHeadlines(symbol);
+
+  // 3. Use HuggingFace FinBERT to classify combined headlines
+  const classified = await huggingface.classifySentiment([
+    ...gdeltResult.headlines,
+    ...newsResult.headlines
+  ]);
+
+  return formatResult(classified, ["gdelt", "newsapi", "huggingface"]);
+}</div>
+            </div>
+
+            <div class="consolidation-card">
+                <h4>Step 3: Shared Preset Framework</h4>
+                <p>Extract common preset logic into a shared module used by all strategies.</p>
+                <div style="margin-top: 1rem;">
+                    <strong>Create new file:</strong>
+                    <span class="file-path">server/strategies/shared/preset-framework.ts</span>
+                </div>
+                <div class="code-block">export type PresetLevel = "conservative" | "balanced" | "aggressive";
+
+export interface BasePreset {
+  id: PresetLevel;
+  name: string;
+  description: string;
+  allocationPct: number;
+  riskLimitPct: number;
+}
+
+export const SHARED_PRESETS: Record&lt;PresetLevel, BasePreset&gt; = {
+  conservative: {
+    id: "conservative",
+    name: "Conservative",
+    description: "Lower risk, smaller positions",
+    allocationPct: 0.05,
+    riskLimitPct: 0.03,
+  },
+  balanced: {
+    id: "balanced",
+    name: "Balanced",
+    description: "Moderate risk and reward",
+    allocationPct: 0.10,
+    riskLimitPct: 0.05,
+  },
+  aggressive: {
+    id: "aggressive",
+    name: "Aggressive",
+    description: "Higher risk, larger positions",
+    allocationPct: 0.15,
+    riskLimitPct: 0.08,
+  },
+};
+
+export function getPreset(presetId: PresetLevel = "balanced"): BasePreset {
+  return SHARED_PRESETS[presetId] || SHARED_PRESETS.balanced;
+}</div>
+            </div>
+
+            <div class="consolidation-card">
+                <h4>Step 4: Unified Cache Layer</h4>
+                <p>Merge order-execution-cache and persistentApiCache into a single tiered cache.</p>
+                <div style="margin-top: 1rem;">
+                    <strong>Create new file:</strong>
+                    <span class="file-path">server/lib/unified-cache.ts</span>
+                </div>
+                <div class="code-block">export interface UnifiedCacheConfig {
+  domain: string;
+  l1FreshMs: number;      // In-memory fresh duration
+  l1StaleMs: number;      // In-memory stale duration
+  l2FreshMs: number;      // Database fresh duration
+  l2StaleMs: number;      // Database stale duration
+  maxL1Entries: number;   // Max in-memory entries
+}
+
+export class UnifiedCache&lt;T&gt; {
+  private l1Cache: Map&lt;string, CacheEntry&lt;T&gt;&gt; = new Map();
+
+  constructor(private config: UnifiedCacheConfig) {}
+
+  async get(key: string): Promise&lt;CacheResult&lt;T&gt; | null&gt; {
+    // 1. Check L1 (in-memory)
+    const l1Entry = this.l1Cache.get(key);
+    if (l1Entry && this.isFresh(l1Entry, this.config.l1FreshMs)) {
+      return { data: l1Entry.data, source: "l1", fresh: true };
+    }
+
+    // 2. Check L2 (database)
+    const l2Entry = await this.getFromDatabase(key);
+    if (l2Entry && this.isFresh(l2Entry, this.config.l2FreshMs)) {
+      // Populate L1 from L2
+      this.l1Cache.set(key, l2Entry);
+      return { data: l2Entry.data, source: "l2", fresh: true };
+    }
+
+    // 3. Return stale if available
+    if (l1Entry) return { data: l1Entry.data, source: "l1", fresh: false };
+    if (l2Entry) return { data: l2Entry.data, source: "l2", fresh: false };
+
+    return null;
+  }
+
+  async set(key: string, data: T): Promise&lt;void&gt; {
+    const entry = { data, timestamp: Date.now() };
+    this.l1Cache.set(key, entry);
+    await this.saveToDatabase(key, entry);
+    this.evictIfNeeded();
+  }
+}</div>
+            </div>
+
+            <div class="consolidation-card">
+                <h4>Step 5: Real Position Reconciliation</h4>
+                <p>Implement actual position sync between Alpaca and database in the coordinator.</p>
+                <div style="margin-top: 1rem;">
+                    <strong>Modify file:</strong>
+                    <span class="file-path">server/orchestration/coordinator.ts</span>
+                </div>
+                <div class="code-block">private async reconcilePositions(): Promise&lt;void&gt; {
+  logger.info("COORDINATOR", "Starting position reconciliation...");
+
+  try {
+    // 1. Fetch positions from Alpaca (source of truth)
+    const alpacaPositions = await alpaca.getPositions();
+
+    // 2. Fetch positions from database
+    const dbPositions = await storage.getPositions();
+
+    // 3. Create maps for comparison
+    const alpacaMap = new Map(alpacaPositions.map(p => [p.symbol, p]));
+    const dbMap = new Map(dbPositions.map(p => [p.symbol, p]));
+
+    // 4. Sync: Update DB with Alpaca truth
+    for (const [symbol, alpacaPos] of alpacaMap) {
+      const dbPos = dbMap.get(symbol);
+      if (!dbPos) {
+        // Position exists in Alpaca but not DB - create it
+        await storage.createPosition({
+          symbol,
+          quantity: parseFloat(alpacaPos.qty),
+          entryPrice: parseFloat(alpacaPos.avg_entry_price),
+          side: alpacaPos.side,
+        });
+        logger.info("COORDINATOR", `Created missing position: ${symbol}`);
+      } else if (parseFloat(dbPos.quantity) !== parseFloat(alpacaPos.qty)) {
+        // Quantity mismatch - update DB
+        await storage.updatePosition(dbPos.id, {
+          quantity: parseFloat(alpacaPos.qty),
+        });
+        logger.info("COORDINATOR", `Updated position quantity: ${symbol}`);
+      }
+    }
+
+    // 5. Remove stale DB positions not in Alpaca
+    for (const [symbol, dbPos] of dbMap) {
+      if (!alpacaMap.has(symbol)) {
+        await storage.deletePosition(dbPos.id);
+        logger.info("COORDINATOR", `Removed stale position: ${symbol}`);
+      }
+    }
+
+    eventBus.emit("system:reconciled", {
+      alpacaCount: alpacaPositions.length,
+      dbCount: dbPositions.length,
+      synced: true,
+    }, "coordinator");
+
+  } catch (error) {
+    logger.error("COORDINATOR", "Position reconciliation failed", { error });
+    eventBus.emit("system:error", {
+      component: "reconciliation",
+      error: String(error),
+    }, "coordinator");
+  }
+}</div>
+            </div>
+        </section>
+
+        <!-- ORCHESTRATOR FLOW -->
+        <section>
+            <h2>Unified Orchestrator Control Flow</h2>
+
+            <div class="diagram-container">
+                <div class="diagram-title">Trading Decision Flow Through Orchestrator</div>
+                <div class="arch-diagram">
+                    <div class="arch-row">
+                        <div class="arch-box primary">1. Market Data Request</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box">Orchestrator validates request</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">2. Unified Cache Check</div>
+                    </div>
+                    <div class="arch-connector">&darr; (miss)</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">3. Sentiment Aggregator</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">4. Technical Indicators (centralized)</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">5. AI Decision Engine</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box success">6. Risk Check (centralized limits)</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box primary">7. Execute Trade (if approved)</div>
+                    </div>
+                    <div class="arch-connector">&darr;</div>
+                    <div class="arch-row">
+                        <div class="arch-box">8. Position Reconciliation</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MIGRATION PLAN -->
+        <section>
+            <h2>Migration Timeline</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Week</th>
+                        <th>Task</th>
+                        <th>Effort</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Week 1</td>
+                        <td>Technical Indicators Consolidation + Position Reconciliation</td>
+                        <td>Medium</td>
+                        <td>Low</td>
+                    </tr>
+                    <tr>
+                        <td>Week 2</td>
+                        <td>Sentiment Aggregator + Preset Framework</td>
+                        <td>Medium</td>
+                        <td>Low</td>
+                    </tr>
+                    <tr>
+                        <td>Week 3</td>
+                        <td>Unified Cache Layer + LLM Response Caching</td>
+                        <td>Medium</td>
+                        <td>Medium</td>
+                    </tr>
+                    <tr>
+                        <td>Week 4</td>
+                        <td>Integration Testing + Documentation</td>
+                        <td>Low</td>
+                        <td>Low</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- EXPECTED OUTCOMES -->
+        <section>
+            <h2>Expected Outcomes</h2>
+
+            <div class="grid-2">
+                <div class="consolidation-card" style="border-left-color: var(--color-success);">
+                    <h4>Technical Benefits</h4>
+                    <ul style="color: var(--color-text-secondary); padding-left: 1.25rem;">
+                        <li>~280 lines of duplicated code removed</li>
+                        <li>Single source of truth for calculations</li>
+                        <li>Consistent behavior across strategies</li>
+                        <li>Easier testing and maintenance</li>
+                        <li>Reduced memory footprint</li>
+                    </ul>
+                </div>
+                <div class="consolidation-card" style="border-left-color: var(--color-success);">
+                    <h4>Business Benefits</h4>
+                    <ul style="color: var(--color-text-secondary); padding-left: 1.25rem;">
+                        <li>~30% reduction in API calls</li>
+                        <li>Accurate position tracking</li>
+                        <li>No conflicting trade decisions</li>
+                        <li>Better cost control</li>
+                        <li>Improved reliability</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer style="background: var(--color-bg-card); padding: 2rem; text-align: center; margin-top: 3rem;">
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            AI Active Trader Orchestrator Consolidation Plan | December 2025
+        </p>
+    </footer>
+</body>
+</html>

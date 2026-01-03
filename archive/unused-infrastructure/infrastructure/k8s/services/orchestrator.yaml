@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: ai-trader
+  labels:
+    app: orchestrator
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: backend
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+        version: ${IMAGE_TAG}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9005"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "ai-trader"
+        vault.hashicorp.com/agent-inject-secret-database: "secret/data/ai-trader/database"
+        vault.hashicorp.com/agent-inject-template-database: |
+          {{- with secret "secret/data/ai-trader/database" -}}
+          export DATABASE_URL="{{ .Data.data.url }}"
+          {{- end }}
+    spec:
+      serviceAccountName: ai-trader-service
+      containers:
+        - name: orchestrator
+          image: ghcr.io/${GITHUB_REPOSITORY}/orchestrator:${IMAGE_TAG}
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              if [ -f /vault/secrets/database ]; then
+                source /vault/secrets/database
+              fi
+              exec node dist/index.js
+          ports:
+            - containerPort: 3005
+              name: http
+            - containerPort: 9005
+              name: metrics
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3005"
+            - name: NATS_URL
+              value: nats://nats-lb.ai-trader.svc.cluster.local:4222
+            - name: VAULT_ADDR
+              value: http://vault.vault.svc.cluster.local:8200
+            - name: VAULT_ROLE
+              value: ai-trader
+            - name: VAULT_SECRETS_PATH
+              value: /vault/secrets
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.ai-trader.svc.cluster.local:4318
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3005
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: ai-trader
+  labels:
+    app: orchestrator
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3005
+      targetPort: 3005
+    - name: metrics
+      port: 9005
+      targetPort: 9005
+  selector:
+    app: orchestrator
