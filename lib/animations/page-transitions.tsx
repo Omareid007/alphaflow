@@ -195,6 +195,126 @@ export function HeroTransition({ children, className }: HeroTransitionProps) {
 }
 
 /**
+ * Scroll-driven parallax wrapper
+ * @example
+ * <ScrollParallax speed={0.5}>
+ *   <div>Content moves at 50% scroll speed</div>
+ * </ScrollParallax>
+ */
+interface ScrollParallaxProps {
+  children: React.ReactNode;
+  className?: string;
+  speed?: number; // 0.5 = slower, 1.5 = faster than scroll
+  direction?: "up" | "down";
+}
+
+export function ScrollParallax({
+  children,
+  className,
+  speed = 0.5,
+  direction = "up",
+}: ScrollParallaxProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const [offsetY, setOffsetY] = React.useState(0);
+
+  React.useEffect(() => {
+    if (prefersReducedMotion || typeof window === "undefined") {
+      return;
+    }
+
+    const handleScroll = () => {
+      setOffsetY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [prefersReducedMotion]);
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  const transform =
+    direction === "up"
+      ? `translateY(${offsetY * speed}px)`
+      : `translateY(-${offsetY * speed}px)`;
+
+  return (
+    <div className={className} style={{ transform }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Scroll-triggered reveal animation (alternative to AnimateOnScroll)
+ */
+interface ScrollRevealProps {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  threshold?: number; // 0 to 1, how much of element visible before animating
+}
+
+export function ScrollReveal({
+  children,
+  className,
+  delay = 0,
+  threshold = 0.2,
+}: ScrollRevealProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const [isVisible, setIsVisible] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (prefersReducedMotion || typeof window === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold }
+    );
+
+    const currentRef = ref.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [prefersReducedMotion, threshold]);
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{
+        duration: 0.5,
+        delay,
+        ease: [0.16, 1, 0.3, 1],
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/**
  * Modal/Dialog transition
  */
 interface ModalTransitionProps {

@@ -24,20 +24,20 @@
 
 ## 4. Email Service Enhancement
 
-- [ ] 4.1 Add `sendTradeAlert()` method to `server/lib/email-service.ts`
-- [ ] 4.2 Create email template for order fills
-- [ ] 4.3 Create email template for large losses
-- [ ] 4.4 Create email template for circuit breaker
-- [ ] 4.5 Create email template for daily summary
-- [ ] 4.6 Create email template for weekly report
+- [x] 4.1 Add `sendTradeAlert()` method to `server/lib/email-service.ts`
+- [x] 4.2 Create email template for order fills
+- [x] 4.3 Create email template for large losses
+- [x] 4.4 Create email template for circuit breaker
+- [x] 4.5 Create email template for daily summary
+- [x] 4.6 Create email template for weekly report
 - [ ] 4.7 Add email template testing
 
 ## 5. Notification Service Integration
 
-- [ ] 5.1 Update `server/lib/notification-service.ts` - Replace email stub with real implementation
-- [ ] 5.2 Add email channel to `sendNotification()` method
+- [x] 5.1 Update `server/lib/notification-service.ts` - Replace email stub with real implementation
+- [x] 5.2 Add email channel to `sendNotification()` method
 - [ ] 5.3 Implement retry logic for failed deliveries
-- [ ] 5.4 Add email delivery logging
+- [x] 5.4 Add email delivery logging
 - [ ] 5.5 Update tests in `tests/server/lib/notification-service.test.ts`
 
 ## 6. User Preferences

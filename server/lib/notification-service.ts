@@ -191,8 +191,8 @@ async function sendToChannel(
         break;
       case "email": {
         if (!isEmailConfigured()) {
-          result.error = "SENDGRID_API_KEY not configured";
-          log.warn("Notification", "Email skipped - SendGrid not configured", {
+          result.error = "No email provider configured";
+          log.warn("Notification", "Email skipped - no provider configured", {
             channelId: channel.id,
           });
           break;

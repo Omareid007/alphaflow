@@ -6,6 +6,8 @@
 
 // Hooks
 export { useReducedMotion } from "./hooks/useReducedMotion";
+export { useScrollProgress } from "./hooks/useScrollProgress";
+export type { ScrollProgress } from "./hooks/useScrollProgress";
 
 // Confetti
 export { Confetti, useConfetti } from "./confetti";
@@ -46,5 +48,7 @@ export {
   SectionTransition,
   HeroTransition,
   ModalTransition,
+  ScrollParallax,
+  ScrollReveal,
   pageVariants,
 } from "./page-transitions";

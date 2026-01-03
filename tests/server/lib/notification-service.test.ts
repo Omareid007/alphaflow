@@ -226,8 +226,8 @@ describe('NotificationService', () => {
       const result = await sendDirectNotification('email-test', 'Test email');
 
       expect(result).toBeDefined();
-      // Should fail gracefully when SendGrid is not configured
-      expect(result?.error).toContain('SENDGRID');
+      // Should fail gracefully when no email provider is configured
+      expect(result?.error).toContain('No email provider configured');
     });
   });
 
