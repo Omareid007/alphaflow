@@ -438,10 +438,12 @@ export function registerAutonomousRoutes(
 
             // SECURITY: Mark as authorized since this is an admin-initiated action
             // executing a pre-approved AI decision
+            // Use authenticated user's ID from session
             const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
               symbol: decision.symbol,
               side: decision.action as "buy" | "sell",
               quantity,
+              userId: req.userId!, // Required - from authenticated session
               authorizedByOrchestrator: true,
             });
 

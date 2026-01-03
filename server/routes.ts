@@ -126,6 +126,7 @@ import performanceRouter from "./routes/performance";
 import analyticsRouter from "./routes/analytics";
 import cryptoRouter from "./routes/crypto";
 import stockRouter from "./routes/stock";
+import emailQueueAdminRouter from "./routes/email-queue-admin";
 import { enrichmentScheduler } from "./services/enrichment-scheduler";
 import { alertService } from "./observability/alertService";
 import {
@@ -405,6 +406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", authMiddleware, cacheRouter); // cache routes
   app.use("/api/llm", authMiddleware, llmRouter); // llm routes
   app.use("/api/admin", authMiddleware, adminRouter); // admin routes (modular)
+  app.use("/api/admin/email-queue", authMiddleware, emailQueueAdminRouter); // email queue admin routes
   app.use("/api/notifications", authMiddleware, notificationsRouter); // notification routes
   app.use("/api", authMiddleware, allocationRebalanceRouter); // allocation & rebalance routes
   app.use("/api", enforcementFundamentalsRouter); // enforcement & fundamentals routes

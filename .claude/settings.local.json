@@ -35,7 +35,8 @@
       "mcp__openspec__openspec_validate_change",
       "mcp__openspec__openspec_show_change",
       "mcp__openspec__openspec_validate_all",
-      "mcp__openspec__openspec_list_changes"
+      "mcp__openspec__openspec_list_changes",
+      "Bash(test:*)"
     ],
     "deny": [
       "Bash(rm -rf /)",

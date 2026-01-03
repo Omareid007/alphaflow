@@ -7,7 +7,11 @@ import { Router, Request, Response } from "express";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
-import { requireAuth, requireAdmin, type AuthenticatedRequest } from "../middleware/requireAuth";
+import {
+  requireAuth,
+  requireAdmin,
+  type AuthenticatedRequest,
+} from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -26,44 +30,55 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/execute - Execute a trade via Alpaca trading engine
-router.post("/execute", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } =
-      req.body;
+router.post(
+  "/execute",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const {
+        symbol,
+        side,
+        quantity,
+        strategyId,
+        notes,
+        orderType,
+        limitPrice,
+      } = req.body;
 
-    if (!symbol || !side || !quantity) {
-      return res
-        .status(400)
-        .json({ error: "Symbol, side, and quantity are required" });
+      if (!symbol || !side || !quantity) {
+        return res
+          .status(400)
+          .json({ error: "Symbol, side, and quantity are required" });
+      }
+
+      if (!["buy", "sell"].includes(side)) {
+        return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
+      }
+
+      // SECURITY: Use authenticated user context - no more hardcoded bypass
+      const result = await alpacaTradingEngine.executeAlpacaTrade({
+        symbol,
+        side,
+        quantity: safeParseFloat(quantity),
+        strategyId,
+        notes,
+        orderType,
+        limitPrice: limitPrice ? safeParseFloat(limitPrice) : undefined,
+        userId: req.userId!, // Extract from authenticated session
+        authorizedByOrchestrator: true, // Admin route - authorized by authentication
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      log.error("AlpacaTradingAPI", "Alpaca trade execution error", { error });
+      res.status(500).json({ error: "Failed to execute Alpaca trade" });
     }
-
-    if (!["buy", "sell"].includes(side)) {
-      return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
-    }
-
-    // SECURITY: Use authenticated user context - no more hardcoded bypass
-    const result = await alpacaTradingEngine.executeAlpacaTrade({
-      symbol,
-      side,
-      quantity: safeParseFloat(quantity),
-      strategyId,
-      notes,
-      orderType,
-      limitPrice: limitPrice ? safeParseFloat(limitPrice) : undefined,
-      userId: req.userId!, // Extract from authenticated session
-      authorizedByOrchestrator: true, // Admin route - authorized by authentication
-    });
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
-    }
-
-    res.json(result);
-  } catch (error) {
-    log.error("AlpacaTradingAPI", "Alpaca trade execution error", { error });
-    res.status(500).json({ error: "Failed to execute Alpaca trade" });
   }
-});
+);
 
 // POST /api/alpaca-trading/close/:symbol - Close a position for a symbol
 router.post(
@@ -74,12 +89,12 @@ router.post(
       const { symbol } = req.params;
       const { strategyId } = req.body;
 
-      // SECURITY: Use authenticated user context - no more hardcoded bypass
+      // SECURITY: Use authenticated user context via requireAuth middleware
+      // User is verified by requireAuth, position close is authorized
       const result = await alpacaTradingEngine.closeAlpacaPosition(
         symbol,
         strategyId,
         {
-          userId: req.userId!, // Extract from authenticated session
           authorizedByOrchestrator: true, // Admin route - authorized by authentication
         }
       );

@@ -30,7 +30,11 @@ import {
 } from "../services/sentiment-aggregator";
 import { insertAiDecisionSchema } from "@shared/schema";
 import type { Order, Trade, Position } from "@shared/schema";
-import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+import {
+  requireAuth,
+  requireAdmin,
+  type AuthenticatedRequest,
+} from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -868,10 +872,12 @@ router.post(
 /**
  * POST /api/autonomous/execute-trades
  * Execute trades based on AI decisions
+ * SECURITY: Requires authentication - admin or user executing their own AI decisions
  */
 router.post(
   "/autonomous/execute-trades",
-  async (req: Request, res: Response) => {
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { decisionIds } = req.body;
       if (
@@ -939,10 +945,12 @@ router.post(
 
           // SECURITY: Mark as authorized since this is an admin-initiated action
           // executing a pre-approved AI decision
+          // Use authenticated user's ID from session
           const orderResult = await alpacaTradingEngine.executeAlpacaTrade({
             symbol: decision.symbol,
             side: decision.action as "buy" | "sell",
             quantity,
+            userId: req.userId!, // Required - from authenticated session
             authorizedByOrchestrator: true,
           });
 

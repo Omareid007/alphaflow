@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { log } from "../utils/logger";
-import { sendEmail, isEmailConfigured } from "./email-service";
+import { isEmailConfigured } from "./email-service";
+import { queueEmail } from "./email-queue";
 import {
   getOrderFilledTemplate,
   getLargeLossAlertTemplate,
@@ -206,7 +207,8 @@ async function sendToChannel(
           break;
         }
         const emailConfig = channel.config as EmailConfig;
-        const emailResult = await sendEmail({
+        // Queue email for background processing (non-blocking)
+        const queueResult = await queueEmail({
           to: emailConfig.to,
           from: emailConfig.from,
           subject: message.substring(0, 100).replace(/<[^>]*>/g, ""),
@@ -214,14 +216,15 @@ async function sendToChannel(
           html: message.replace(/\n/g, "<br>"),
           replyTo: emailConfig.replyTo,
         });
-        if (emailResult.success) {
+        if (queueResult.queued) {
           result.success = true;
-          log.info("Notification", "Email sent successfully", {
+          log.info("Notification", "Email queued successfully", {
             channelId: channel.id,
+            jobId: queueResult.jobId,
             to: emailConfig.to.length,
           });
         } else {
-          result.error = emailResult.error;
+          result.error = "Failed to queue email";
         }
         break;
       }
@@ -369,6 +372,7 @@ createDefaultTemplates();
 
 /**
  * Send order filled email notification using professional template
+ * Email is queued for background processing (non-blocking)
  */
 export async function sendOrderFilledEmail(
   to: string | string[],
@@ -387,7 +391,7 @@ export async function sendOrderFilledEmail(
 
   try {
     const template = getOrderFilledTemplate(params);
-    const result = await sendEmail({
+    const result = await queueEmail({
       to,
       from: "noreply@alphaflow.app",
       subject: template.subject,
@@ -395,20 +399,20 @@ export async function sendOrderFilledEmail(
       html: template.html,
     });
 
-    if (result.success) {
-      log.info("Notification", "Order filled email sent", {
+    if (result.queued) {
+      log.info("Notification", "Order filled email queued", {
+        jobId: result.jobId,
         symbol: params.symbol,
         side: params.side,
         qty: params.qty,
       });
     } else {
-      log.error("Notification", "Order filled email failed", {
-        error: result.error,
+      log.error("Notification", "Order filled email queueing failed", {
         symbol: params.symbol,
       });
     }
   } catch (error) {
-    log.error("Notification", "Error sending order filled email", {
+    log.error("Notification", "Error queueing order filled email", {
       error: (error as Error).message,
       symbol: params.symbol,
     });
@@ -417,6 +421,7 @@ export async function sendOrderFilledEmail(
 
 /**
  * Send large loss alert email notification using professional template
+ * Email is queued for background processing (non-blocking)
  */
 export async function sendLossAlertEmail(
   to: string | string[],
@@ -435,7 +440,7 @@ export async function sendLossAlertEmail(
 
   try {
     const template = getLargeLossAlertTemplate(params);
-    const result = await sendEmail({
+    const result = await queueEmail({
       to,
       from: "noreply@alphaflow.app",
       subject: template.subject,
@@ -443,19 +448,19 @@ export async function sendLossAlertEmail(
       html: template.html,
     });
 
-    if (result.success) {
-      log.info("Notification", "Loss alert email sent", {
+    if (result.queued) {
+      log.info("Notification", "Loss alert email queued", {
+        jobId: result.jobId,
         symbol: params.symbol,
         percentLoss: params.percentLoss,
       });
     } else {
-      log.error("Notification", "Loss alert email failed", {
-        error: result.error,
+      log.error("Notification", "Loss alert email queueing failed", {
         symbol: params.symbol,
       });
     }
   } catch (error) {
-    log.error("Notification", "Error sending loss alert email", {
+    log.error("Notification", "Error queueing loss alert email", {
       error: (error as Error).message,
       symbol: params.symbol,
     });
@@ -464,6 +469,7 @@ export async function sendLossAlertEmail(
 
 /**
  * Send circuit breaker alert email notification using professional template
+ * Email is queued for background processing (non-blocking)
  */
 export async function sendCircuitBreakerEmail(
   to: string | string[],
@@ -482,7 +488,7 @@ export async function sendCircuitBreakerEmail(
 
   try {
     const template = getCircuitBreakerTemplate(params);
-    const result = await sendEmail({
+    const result = await queueEmail({
       to,
       from: "noreply@alphaflow.app",
       subject: template.subject,
@@ -490,18 +496,18 @@ export async function sendCircuitBreakerEmail(
       html: template.html,
     });
 
-    if (result.success) {
-      log.info("Notification", "Circuit breaker email sent", {
+    if (result.queued) {
+      log.info("Notification", "Circuit breaker email queued", {
+        jobId: result.jobId,
         reason: params.reason,
       });
     } else {
-      log.error("Notification", "Circuit breaker email failed", {
-        error: result.error,
+      log.error("Notification", "Circuit breaker email queueing failed", {
         reason: params.reason,
       });
     }
   } catch (error) {
-    log.error("Notification", "Error sending circuit breaker email", {
+    log.error("Notification", "Error queueing circuit breaker email", {
       error: (error as Error).message,
       reason: params.reason,
     });

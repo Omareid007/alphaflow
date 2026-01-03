@@ -531,7 +531,8 @@ class AlpacaTradingEngine {
   async analyzeAndExecute(
     symbol: string,
     strategyId?: string,
-    traceId?: string
+    traceId?: string,
+    userId?: string
   ): Promise<{ decision: AIDecision; tradeResult?: AlpacaTradeResult }> {
     const effectiveTraceId = traceId || generateTraceId();
     const { decision } = await aiAnalyzer.analyzeSymbol(
@@ -571,6 +572,7 @@ class AlpacaTradingEngine {
         symbol,
         side: decision.action === "buy" ? "buy" : "sell",
         quantity: decision.suggestedQuantity || 1,
+        userId: userId || "system", // System user for autonomous trades
         strategyId,
         notes: `AI Decision: ${decision.reasoning}`,
       };
@@ -711,13 +713,18 @@ class AlpacaTradingEngine {
 
   async executeRebalance(
     targetAllocations: TargetAllocation[],
-    dryRun: boolean = false
+    dryRun: boolean = false,
+    userId?: string
   ): Promise<RebalanceResult> {
     return portfolioRebalancer.executeRebalance(
       targetAllocations,
       dryRun,
       () => positionManager.getCurrentAllocations(),
-      (req) => orderExecutor.executeAlpacaTrade(req)
+      (req) =>
+        orderExecutor.executeAlpacaTrade({
+          ...req,
+          userId: userId || "system", // System user for rebalance trades
+        })
     );
   }
 
