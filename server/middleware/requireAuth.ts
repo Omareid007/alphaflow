@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { unauthorized } from "../lib/standard-errors";
+import { unauthorized, forbidden } from "../lib/standard-errors";
+import { storage } from "../storage";
 
 /**
  * Extended Request type with authentication properties
@@ -28,25 +29,36 @@ export const requireAuth = (
 /**
  * Middleware to require admin role for admin-only routes
  * First checks authentication, then verifies admin role
- * TODO: Add admin role check when user roles implemented
+ * SECURITY: Blocks access to admin routes for non-admin users
  */
-export const requireAdmin = (
+export const requireAdmin = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   if (!req.userId) {
     unauthorized(res, "Authentication required");
     return;
   }
 
-  // TODO: Add admin role check when user roles are implemented in schema
-  // Currently all authenticated users can access admin routes
-  // Future implementation:
-  // if (req.user.role !== "admin") {
-  //   forbidden(res, "Admin access required");
-  //   return;
-  // }
+  try {
+    // SECURITY: Fetch user from database and check admin status
+    const user = await storage.getUser(req.userId);
 
-  next();
+    if (!user) {
+      unauthorized(res, "User not found");
+      return;
+    }
+
+    if (!user.isAdmin) {
+      forbidden(res, "Admin access required");
+      return;
+    }
+
+    // User is authenticated and has admin privileges
+    next();
+  } catch (error) {
+    console.error("Admin role check failed:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
