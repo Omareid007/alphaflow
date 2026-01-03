@@ -1,27 +1,18 @@
 # Deploy AlphaFlow
 
-## Pre-deploy Checklist
+## Pre-deploy
 
 1. npm run build passes
 2. npm run typecheck passes
-3. All OpenSpec changes archived
-4. No uncommitted files
+3. No uncommitted files
 
-## Deploy Steps
-
-For Replit: Push to main triggers auto-deploy
+## Deploy (Replit auto-deploys on push)
 
 ```bash
 git add -A
-git commit -m "deploy: <description>"
+git commit -m "deploy: description"
 git push origin main
 ```
-
-## Verify Deployment
-
-1. Check app loads in browser
-2. Verify Alpaca connection
-3. Test a paper trade
 
 ## Rollback
 

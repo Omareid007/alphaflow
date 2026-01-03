@@ -392,18 +392,44 @@ If you encounter a blocker:
 
 ---
 
-## ✅ COMPLETION CHECKLIST
+## ✅ COMPLETION CHECKLIST (Stop Hook)
 
-Before marking a task complete, verify ALL of these:
+Before marking ANY task complete, verify ALL with evidence:
 
-- [ ] Build passes: `npm run build` → success
-- [ ] TypeCheck passes: `npm run typecheck` → no errors
-- [ ] Feature works: manually tested and confirmed
-- [ ] No console errors: checked browser console
-- [ ] Changes committed: git commit with good message
-- [ ] TODOs marked complete: all related TODOs done
-- [ ] No file pollution: no forbidden file patterns created
-- [ ] No dead code: removed old/commented code
+### Build Verification
+
+- [ ] `npm run build` passes - show output
+- [ ] `npm run typecheck` passes - show output
+- [ ] `npm run lint` passes - show warnings if any
+
+### Implementation Verification
+
+- [ ] Code is ACTUALLY IMPLEMENTED (not just planned)
+- [ ] Tests written if applicable
+- [ ] No TypeScript errors
+- [ ] No console errors
+
+### Documentation Verification
+
+- [ ] Existing docs UPDATED (not new files created)
+- [ ] CLAUDE.md NOT modified without approval
+- [ ] No \*\_COMPLETE.md files created
+
+### Quality Verification
+
+- [ ] Changes match original request
+- [ ] No scope creep (extra features not requested)
+- [ ] Old code removed if replaced
+
+### Evidence Required
+
+Provide concrete proof for each:
+BUILD: [paste last 5 lines of build output]
+TYPES: [paste typecheck result]
+TEST: [describe manual test performed]
+FILES: [list files changed]
+
+**If ANY checkbox fails or lacks evidence: DO NOT mark complete - continue working**
 
 ---
 
@@ -451,6 +477,39 @@ refactor(hooks): consolidate portfolio hooks
 test(strategies): add strategy creation tests
 chore(deps): remove unused dependencies
 ```
+
+---
+
+## 🧠 ULTRATHINK PROTOCOL
+
+When user says "ULTRATHINK" before a request:
+
+### Activation
+
+- Suspend brevity rules
+- Engage maximum depth analysis
+- Consider all dimensions
+
+### Analysis Dimensions
+
+1. Technical: Performance, complexity, edge cases
+2. User Experience: Cognitive load, accessibility
+3. Security: Vulnerabilities, data protection
+4. Scalability: Future growth, maintenance burden
+5. Business: ROI, time to implement, risk
+
+### Output Format
+
+1. Deep reasoning chain with all considerations
+2. Edge case analysis
+3. Multiple solution options with tradeoffs
+4. Recommended approach with justification
+5. Implementation plan
+
+### When NOT Triggered
+
+- Normal requests get concise responses
+- Only activate on explicit "ULTRATHINK" command
 
 ---
 
