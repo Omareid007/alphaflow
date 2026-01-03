@@ -6,8 +6,21 @@ import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
 const router = Router();
 
+// Provider interface for in-memory storage
+interface Provider {
+  id: string;
+  type: "broker" | "llm" | "data" | "other";
+  name: string;
+  baseUrl: string;
+  status: "active" | "inactive" | "error";
+  tags: string[];
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // In-memory storage for providers (in production, this would be in database)
-let providers: any[] = [
+let providers: Provider[] = [
   {
     id: "alpaca-trading",
     type: "broker",

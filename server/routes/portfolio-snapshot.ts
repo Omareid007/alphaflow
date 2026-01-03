@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
-import { alpaca } from "../connectors/alpaca";
+import { alpaca, type AlpacaPosition } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth";
 
@@ -36,7 +36,7 @@ router.get("/snapshot", requireAuth, async (req: Request, res: Response) => {
     const dailyPlPct = lastEquity > 0 ? (dailyPl / lastEquity) * 100 : 0;
 
     // Map positions to required format
-    const positions = alpacaPositions.map((pos: any) => ({
+    const positions = alpacaPositions.map((pos: AlpacaPosition) => ({
       id: pos.asset_id,
       symbol: pos.symbol,
       side: pos.side === "long" ? "long" : "short",

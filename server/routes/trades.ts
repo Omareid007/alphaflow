@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
-import { alpaca } from "../connectors/alpaca";
+import { alpaca, type AlpacaOrder } from "../connectors/alpaca";
 import { safeParseFloat } from "../utils/numeric";
 import { badRequest, notFound, serverError } from "../lib/standard-errors";
 import type { InsertTrade } from "@shared/schema";
@@ -131,7 +131,7 @@ router.post(
         return res.json({ message: "No trades need backfilling", updated: 0 });
       }
 
-      let orders: any[] = [];
+      let orders: AlpacaOrder[] = [];
       try {
         orders = await alpaca.getOrders("all", 500);
       } catch (e) {
@@ -149,6 +149,7 @@ router.post(
             o.side === trade.side &&
             o.status === "filled" &&
             safeParseFloat(o.filled_avg_price, 0) > 0 &&
+            o.filled_at !== null &&
             Math.abs(
               new Date(o.filled_at).getTime() -
                 new Date(trade.executedAt).getTime()

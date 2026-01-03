@@ -55,7 +55,14 @@ export function errorHandler(
   const statusCode = err.statusCode || 500;
 
   // Construct error response
-  const errorResponse: any = {
+  interface ErrorResponse {
+    error: string;
+    code: string;
+    correlationId: string;
+    stack?: string[];
+  }
+
+  const errorResponse: ErrorResponse = {
     error: isDevelopment ? err.message : "Internal server error",
     code: err.code || "INTERNAL_ERROR",
     correlationId,
@@ -73,7 +80,8 @@ export function errorHandler(
  * 404 Not Found handler
  */
 export function notFoundHandler(req: Request, res: Response) {
-  const correlationId = (req as any).correlationId || "unknown";
+  const correlationId =
+    "correlationId" in req ? (req.correlationId as string) : "unknown";
 
   log.warn("ErrorHandler", `Route not found: ${req.method} ${req.path}`, {
     correlationId,

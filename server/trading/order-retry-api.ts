@@ -5,11 +5,11 @@
  * and manual retry triggering.
  */
 
-import type { Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import {
   getRetryStats,
-  resetCircuitBreaker,
   clearRetryHistory,
+  resetCircuitBreaker,
   testRejectionReason,
   getRegisteredHandlers,
   handleOrderRejection,
@@ -265,7 +265,7 @@ export async function manualRetryHandler(req: Request, res: Response) {
 /**
  * Register all retry API routes
  */
-export function registerRetryAPIRoutes(app: any) {
+export function registerRetryAPIRoutes(app: Express) {
   app.get("/api/trading/retry-stats", getRetryStatsHandler);
   app.post(
     "/api/trading/retry-circuit-breaker/reset",

@@ -1,7 +1,7 @@
 import { storage } from "../storage";
 import { eventBus, logger } from "../orchestration";
 import { log } from "../utils/logger";
-import type { StrategyRunState } from "./engine-types";
+import type { StrategyRunState, AlpacaTradeResult } from "./engine-types";
 import { orchestratorController } from "./orchestrator-controller";
 import { generateTraceId } from "../ai/llmGateway";
 import type { AIDecision } from "../ai/decision-engine";
@@ -107,7 +107,7 @@ export class StrategyRunner {
    * @param analyzeAndExecuteCallback - Callback to analyze and execute trades for a symbol
    *   - Called for each asset in the strategy
    *   - Receives: symbol, strategyId, traceId
-   *   - Returns: { decision: AIDecision, tradeResult?: any }
+   *   - Returns: { decision: AIDecision, tradeResult?: AlpacaTradeResult }
    *
    * @returns Promise resolving to success result with optional error
    *
@@ -157,7 +157,7 @@ export class StrategyRunner {
       symbol: string,
       strategyId: string,
       traceId: string
-    ) => Promise<{ decision: AIDecision; tradeResult?: any }>
+    ) => Promise<{ decision: AIDecision; tradeResult?: AlpacaTradeResult }>
   ): Promise<{ success: boolean; error?: string }> {
     const strategy = await storage.getStrategy(strategyId);
     if (!strategy) {

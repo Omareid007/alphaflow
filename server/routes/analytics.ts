@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
-import { alpaca } from "../connectors/alpaca";
+import { alpaca, type AlpacaPosition } from "../connectors/alpaca";
 import { orchestrator } from "../autonomous/orchestrator";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
@@ -19,7 +19,7 @@ router.get("/summary", requireAuth, async (req: Request, res: Response) => {
     const orchestratorState = orchestrator.getState();
     const riskLimits = orchestrator.getRiskLimits();
 
-    let alpacaPositions: any[] = [];
+    let alpacaPositions: AlpacaPosition[] = [];
     let unrealizedPnl = 0;
     let dailyPnlFromAccount = 0;
     let accountData = {

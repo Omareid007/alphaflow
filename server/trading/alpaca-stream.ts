@@ -364,18 +364,26 @@ class AlpacaStreamManager {
                 "AlpacaStream",
                 `Auto-created trade record for filled order ${brokerOrderId}, symbol: ${order.symbol}, qty: ${qty}, price: ${price}${pnl ? `, pnl: ${pnl}` : ""}`
               );
-            } catch (tradeError: any) {
-              log.error(
-                "AlpacaStream",
-                `Failed to auto-create trade record: ${tradeError.message}`
-              );
+            } catch (tradeError) {
+              const errorMessage =
+                tradeError instanceof Error
+                  ? tradeError.message
+                  : String(tradeError);
+              log.error("AlpacaStream", "Failed to auto-create trade record", {
+                error: errorMessage,
+              });
             }
           }
-        } catch (fillError: any) {
-          if (
-            fillError.message?.includes("duplicate") ||
-            fillError.code === "23505"
-          ) {
+        } catch (fillError) {
+          const isDuplicate =
+            (fillError instanceof Error &&
+              fillError.message?.includes("duplicate")) ||
+            (typeof fillError === "object" &&
+              fillError !== null &&
+              "code" in fillError &&
+              fillError.code === "23505");
+
+          if (isDuplicate) {
             log.debug("AlpacaStream", `Fill already exists: ${fillId}`);
           } else {
             throw fillError;
