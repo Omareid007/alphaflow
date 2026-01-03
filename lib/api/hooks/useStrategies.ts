@@ -85,6 +85,7 @@ export function useStrategies() {
   return useQuery({
     queryKey: ["strategies"],
     queryFn: () => api.get<Strategy[]>("/api/strategies"),
+    initialData: [] as Strategy[],
   });
 }
 
@@ -495,6 +496,7 @@ export function useStrategyOrders(strategyId: string) {
       api.get<StrategyOrder[]>(`/api/strategies/${strategyId}/orders`),
     enabled: !!strategyId,
     refetchInterval: 30000, // Refresh every 30 seconds
+    initialData: [] as StrategyOrder[],
   });
 }
 

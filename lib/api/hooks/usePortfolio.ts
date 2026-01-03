@@ -42,17 +42,33 @@ export interface Trade {
   executedAt: string;
 }
 
+// Default empty portfolio snapshot to prevent undefined errors
+const EMPTY_PORTFOLIO_SNAPSHOT: PortfolioSnapshot = {
+  totalEquity: 0,
+  buyingPower: 0,
+  cash: 0,
+  portfolioValue: 0,
+  dailyPl: 0,
+  dailyPlPct: 0,
+  totalPl: 0,
+  totalPlPct: 0,
+  positions: [],
+  timestamp: new Date().toISOString(),
+};
+
 export function usePortfolioSnapshot() {
   return useQuery({
     queryKey: ["portfolio", "snapshot"],
     queryFn: () => api.get<PortfolioSnapshot>("/api/positions/snapshot"),
     refetchInterval: 60000, // Refresh every 60 seconds - reduced from 30s
+    initialData: EMPTY_PORTFOLIO_SNAPSHOT,
   });
 }
 
 export function usePositions() {
   return useQuery({
     queryKey: ["positions"],
+    initialData: [] as Position[],
     queryFn: async () => {
       const response = await api.get<{ positions: any[] } | any[]>(
         "/api/positions"
@@ -93,6 +109,7 @@ export function usePositions() {
 export function useTrades(options?: { limit?: number; offset?: number }) {
   return useQuery({
     queryKey: ["trades", options],
+    initialData: [] as Trade[],
     queryFn: async () => {
       const response = await api.get<any[]>("/api/trades", {
         params: options,
@@ -124,6 +141,7 @@ export function useTradesBySymbol(symbol: string) {
     queryKey: ["trades", "symbol", symbol],
     queryFn: () => api.get<Trade[]>(`/api/trades/symbol/${symbol}`),
     enabled: !!symbol,
+    initialData: [] as Trade[],
   });
 }
 

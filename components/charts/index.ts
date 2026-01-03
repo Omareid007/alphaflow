@@ -23,3 +23,9 @@ export {
   TouchChartTooltip,
   useTouchChart,
 } from "./touch-chart-tooltip";
+
+// Error Boundary - Graceful chart failure handling
+export {
+  ChartErrorBoundary,
+  withChartErrorBoundary,
+} from "./ChartErrorBoundary";

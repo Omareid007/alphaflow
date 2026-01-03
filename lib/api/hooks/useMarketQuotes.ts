@@ -22,5 +22,6 @@ export function useMarketQuotes(symbols: string[]) {
     enabled: symbols.length > 0,
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 15000, // Consider data stale after 15 seconds
+    initialData: [] as MarketQuote[],
   });
 }

@@ -60,6 +60,7 @@ function normalizeBacktestStatus(
 export function useBacktests(strategyId?: string) {
   return useQuery({
     queryKey: ["backtests", strategyId],
+    initialData: [] as BacktestRun[],
     queryFn: async () => {
       const response = await api.get<
         { runs: BacktestRun[]; limit: number; offset: number } | BacktestRun[]
@@ -174,6 +175,7 @@ export function useRunBacktest() {
 export function useBacktestEquityCurve(backtestId: string) {
   return useQuery({
     queryKey: ["backtests", "equity-curve", backtestId],
+    initialData: [] as Array<{ date: string; equity: number }>,
     queryFn: async () => {
       const response = await api.get<
         | { points: Array<{ ts: string; equity: number }> }
@@ -206,6 +208,14 @@ export function useBacktestEquityCurve(backtestId: string) {
 export function useBacktestTrades(backtestId: string) {
   return useQuery({
     queryKey: ["backtests", "trades", backtestId],
+    initialData: [] as Array<{
+      symbol: string;
+      side: "buy" | "sell";
+      qty: number;
+      price: number;
+      pnl: number;
+      timestamp: string;
+    }>,
     queryFn: async () => {
       const response = await api.get<
         | { trades: Array<any> }
