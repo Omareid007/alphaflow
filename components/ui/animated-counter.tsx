@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { motion, useSpring, useTransform, type MotionValue } from "framer-motion";
+import {
+  motion,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
 
@@ -105,9 +110,7 @@ export function AnimatedCounter({
   // Format the animated value
   const display = useTransform(springValue, (current) => {
     const rounded =
-      decimals > 0
-        ? current.toFixed(decimals)
-        : Math.round(current).toString();
+      decimals > 0 ? current.toFixed(decimals) : Math.round(current).toString();
 
     if (format) {
       return format(parseFloat(rounded));
@@ -136,7 +139,10 @@ export function AnimatedCounter({
   React.useEffect(() => {
     if (!onAnimationComplete) return;
 
-    const unsubscribe = springValue.on("animationComplete", onAnimationComplete);
+    const unsubscribe = springValue.on(
+      "animationComplete",
+      onAnimationComplete
+    );
     return () => unsubscribe();
   }, [springValue, onAnimationComplete]);
 
@@ -145,8 +151,8 @@ export function AnimatedCounter({
     ? value > 0
       ? positiveClassName
       : value < 0
-      ? negativeClassName
-      : ""
+        ? negativeClassName
+        : ""
     : "";
 
   // If reduced motion, just display the value directly
@@ -169,9 +175,7 @@ export function AnimatedCounter({
   }
 
   return (
-    <motion.span className={cn(className, colorClass)}>
-      {display}
-    </motion.span>
+    <motion.span className={cn(className, colorClass)}>{display}</motion.span>
   );
 }
 
@@ -187,7 +191,10 @@ export function AnimatedCounter({
  * <AnimatedCurrency value={totalPnL} currency="USD" colorize showPlusSign />
  * ```
  */
-export interface AnimatedCurrencyProps extends Omit<AnimatedCounterProps, "format" | "decimals" | "prefix" | "suffix"> {
+export interface AnimatedCurrencyProps extends Omit<
+  AnimatedCounterProps,
+  "format" | "decimals" | "prefix" | "suffix"
+> {
   /** ISO 4217 currency code */
   currency?: string;
   /** Locale for formatting */
@@ -239,7 +246,10 @@ export function AnimatedCurrency({
  * <AnimatedPercentage value={changePercent} colorize showPlusSign />
  * ```
  */
-export interface AnimatedPercentageProps extends Omit<AnimatedCounterProps, "format" | "suffix"> {
+export interface AnimatedPercentageProps extends Omit<
+  AnimatedCounterProps,
+  "format" | "suffix"
+> {
   /** Decimal places for percentage (default: 2) */
   decimals?: number;
 }
@@ -307,9 +317,7 @@ export function useAnimatedValue({
 
   const display = useTransform(motionValue, (current) => {
     const rounded =
-      decimals > 0
-        ? current.toFixed(decimals)
-        : Math.round(current).toString();
+      decimals > 0 ? current.toFixed(decimals) : Math.round(current).toString();
 
     if (format) {
       return format(parseFloat(rounded));

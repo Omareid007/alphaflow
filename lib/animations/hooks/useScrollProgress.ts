@@ -1,166 +1,368 @@
-import { useEffect, useState, useCallback, useRef, RefObject } from "react";
+"use client";
+
+import { useEffect, useState, useMemo, useRef } from "react";
+import {
+  useScroll,
+  useTransform,
+  useMotionValue,
+  type MotionValue,
+} from "framer-motion";
+import { useReducedMotion } from "./useReducedMotion";
 
 /**
- * Scroll progress tracking result
+ * Options for the useScrollProgress hook
  */
-export interface ScrollProgress {
-  /** Scroll progress from 0 to 1 */
+export interface UseScrollProgressOptions {
+  /**
+   * Target element ref (defaults to window/document)
+   * When provided, tracks scroll within that element
+   */
+  target?: React.RefObject<HTMLElement>;
+
+  /**
+   * Container element for scroll tracking
+   * Used with Framer Motion's useScroll container option
+   */
+  container?: React.RefObject<HTMLElement>;
+
+  /**
+   * Offset from start/end for tracking (in pixels or viewport units)
+   * @default 0
+   */
+  offset?: number;
+
+  /**
+   * Enable smoothing for the progress value
+   * When true, uses spring physics for smoother value changes
+   * @default false
+   */
+  smooth?: boolean;
+
+  /**
+   * Axis to track scroll progress on
+   * @default 'y'
+   */
+  axis?: "x" | "y";
+
+  /**
+   * Custom scroll offsets for Framer Motion's useScroll
+   * Accepts Framer Motion's ScrollOffset format
+   * @example ["start end", "end start"] or [[0, 0], [1, 1]]
+   * @see https://www.framer.com/motion/use-scroll/#scroll-offsets
+   */
+  scrollOffset?: Parameters<typeof useScroll>[0] extends { offset?: infer T }
+    ? T
+    : never;
+}
+
+/**
+ * Return type for the useScrollProgress hook
+ */
+export interface UseScrollProgressReturn {
+  /**
+   * Current scroll progress from 0 to 1
+   * This is a static number value (updates on scroll)
+   */
   progress: number;
-  /** Whether the page is currently being scrolled */
+
+  /**
+   * Framer Motion MotionValue for scroll progress (0-1)
+   * Use this for direct binding to motion components for optimal performance
+   *
+   * @example
+   * <motion.div style={{ opacity: scrollProgress }} />
+   */
+  scrollProgress: MotionValue<number>;
+
+  /**
+   * Raw scroll position MotionValue (in pixels)
+   * Useful for custom transformations
+   */
+  scrollPosition: MotionValue<number>;
+
+  /**
+   * Whether the target element is currently in view
+   * For window scrolling, this is always true
+   */
+  isInView: boolean;
+
+  /**
+   * Current scroll direction
+   * 'none' when not scrolling or at initial position
+   */
+  direction: "up" | "down" | "left" | "right" | "none";
+
+  /**
+   * Whether the user is currently scrolling
+   */
   isScrolling: boolean;
-  /** Current vertical scroll position in pixels */
+}
+
+// Legacy export for backward compatibility
+export interface ScrollProgress {
+  progress: number;
+  isScrolling: boolean;
   scrollY: number;
 }
 
-interface UseScrollProgressOptions {
-  /** Optional element ref for scoped scroll tracking. If not provided, tracks window scroll */
-  element?: RefObject<HTMLElement>;
-  /** Throttle delay in milliseconds (default: 16ms for ~60fps) */
-  throttleMs?: number;
-  /** Callback when scrolling stops (debounced) */
-  onScrollEnd?: () => void;
-  /** Debounce delay for scroll end detection in milliseconds (default: 150ms) */
-  debounceMs?: number;
-}
-
 /**
- * Hook to track scroll progress on the page or within a specific element
+ * useScrollProgress Hook
  *
- * @example
- * ```tsx
- * // Track page scroll
- * const { progress, isScrolling, scrollY } = useScrollProgress();
+ * Track scroll progress for scroll-linked animations.
+ * Returns values 0-1 representing scroll position.
  *
- * // Track scroll within a specific element
- * const ref = useRef<HTMLDivElement>(null);
- * const { progress } = useScrollProgress({ element: ref });
- *
- * // With scroll end callback
- * const { progress } = useScrollProgress({
- *   onScrollEnd: () => console.log('Scrolling stopped'),
- *   debounceMs: 200
- * });
- * ```
+ * Uses Framer Motion's useScroll and useTransform for optimal performance
+ * with hardware-accelerated animations. Respects prefers-reduced-motion
+ * accessibility setting.
  *
  * @param options - Configuration options
- * @returns Scroll progress state
+ * @returns Object containing progress values and scroll state
+ *
+ * @example
+ * // Basic window scroll tracking
+ * ```tsx
+ * function ScrollProgressBar() {
+ *   const { scrollProgress } = useScrollProgress();
+ *
+ *   return (
+ *     <motion.div
+ *       className="fixed top-0 left-0 right-0 h-1 bg-primary origin-left"
+ *       style={{ scaleX: scrollProgress }}
+ *     />
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * // Track scroll within a container element
+ * ```tsx
+ * function ScrollableContainer() {
+ *   const containerRef = useRef<HTMLDivElement>(null);
+ *   const { progress, isInView, direction } = useScrollProgress({
+ *     target: containerRef,
+ *   });
+ *
+ *   return (
+ *     <div ref={containerRef} className="overflow-auto h-96">
+ *       <div>Scroll progress: {(progress * 100).toFixed(0)}%</div>
+ *       <div>Direction: {direction}</div>
+ *       {/* Long content... *\/}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * // Parallax effect with scroll progress
+ * ```tsx
+ * function ParallaxHero() {
+ *   const { scrollProgress } = useScrollProgress();
+ *   const y = useTransform(scrollProgress, [0, 1], [0, -200]);
+ *   const opacity = useTransform(scrollProgress, [0, 0.5], [1, 0]);
+ *
+ *   return (
+ *     <motion.div style={{ y, opacity }} className="hero-background" />
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * // Scroll-linked color transition
+ * ```tsx
+ * function ColorTransition() {
+ *   const { scrollProgress } = useScrollProgress();
+ *   const backgroundColor = useTransform(
+ *     scrollProgress,
+ *     [0, 0.5, 1],
+ *     ['#00D395', '#1DB954', '#00A67E']
+ *   );
+ *
+ *   return <motion.div style={{ backgroundColor }} />;
+ * }
+ * ```
+ *
+ * @example
+ * // Horizontal scroll tracking
+ * ```tsx
+ * function HorizontalScroller() {
+ *   const containerRef = useRef<HTMLDivElement>(null);
+ *   const { progress } = useScrollProgress({
+ *     target: containerRef,
+ *     axis: 'x',
+ *   });
+ *
+ *   return (
+ *     <div ref={containerRef} className="overflow-x-auto flex">
+ *       <div>Horizontal progress: {progress}</div>
+ *     </div>
+ *   );
+ * }
+ * ```
  */
 export function useScrollProgress(
   options: UseScrollProgressOptions = {}
-): ScrollProgress {
-  const { element, throttleMs = 16, onScrollEnd, debounceMs = 150 } = options;
+): UseScrollProgressReturn {
+  const {
+    target,
+    container,
+    offset = 0,
+    smooth = false,
+    axis = "y",
+    scrollOffset,
+  } = options;
 
-  const [state, setState] = useState<ScrollProgress>({
-    progress: 0,
-    isScrolling: false,
-    scrollY: 0,
+  // Check for reduced motion preference
+  const prefersReducedMotion = useReducedMotion();
+
+  // Track scroll state
+  const [isInView, setIsInView] = useState(true);
+  const [direction, setDirection] = useState<
+    "up" | "down" | "left" | "right" | "none"
+  >("none");
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [progressValue, setProgressValue] = useState(0);
+
+  // Store previous scroll position to determine direction
+  const prevScrollRef = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Framer Motion scroll hooks
+  const scrollOptions = useMemo(() => {
+    const opts: Parameters<typeof useScroll>[0] = {};
+
+    if (target?.current) {
+      // Track scroll of a specific element
+      opts.target = target;
+    }
+
+    if (container?.current) {
+      opts.container = container;
+    }
+
+    if (scrollOffset) {
+      opts.offset = scrollOffset;
+    }
+
+    return opts;
+  }, [target, container, scrollOffset]);
+
+  const { scrollX, scrollY, scrollXProgress, scrollYProgress } =
+    useScroll(scrollOptions);
+
+  // Select appropriate scroll values based on axis
+  const scrollPosition = axis === "x" ? scrollX : scrollY;
+  const rawScrollProgress = axis === "x" ? scrollXProgress : scrollYProgress;
+
+  // Create a static motion value for reduced motion fallback
+  const staticMotionValue = useMotionValue(0);
+
+  // Apply offset transformation if needed
+  const scrollProgress = useTransform(rawScrollProgress, (value) => {
+    if (prefersReducedMotion) {
+      return 0;
+    }
+
+    // Apply offset if specified
+    if (offset > 0) {
+      const adjusted = Math.max(0, value - offset / 100);
+      return Math.min(1, adjusted / (1 - offset / 100));
+    }
+
+    return value;
   });
 
-  const scrollEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastScrollTimeRef = useRef<number>(0);
-  const rafRef = useRef<number | null>(null);
-
-  /**
-   * Calculate scroll progress for the target element or window
-   */
-  const calculateProgress = useCallback((): ScrollProgress => {
-    if (typeof window === "undefined") {
-      return { progress: 0, isScrolling: false, scrollY: 0 };
-    }
-
-    let scrollY: number;
-    let scrollHeight: number;
-    let clientHeight: number;
-
-    if (element?.current) {
-      // Scoped scroll tracking within element
-      const el = element.current;
-      scrollY = el.scrollTop;
-      scrollHeight = el.scrollHeight;
-      clientHeight = el.clientHeight;
-    } else {
-      // Global window scroll tracking
-      scrollY = window.scrollY || window.pageYOffset;
-      scrollHeight = document.documentElement.scrollHeight;
-      clientHeight = window.innerHeight;
-    }
-
-    // Calculate progress (0 to 1)
-    const maxScroll = scrollHeight - clientHeight;
-    const progress = maxScroll > 0 ? Math.min(scrollY / maxScroll, 1) : 0;
-
-    return {
-      progress,
-      isScrolling: true,
-      scrollY,
-    };
-  }, [element]);
-
-  /**
-   * Throttled scroll handler using requestAnimationFrame
-   */
-  const handleScroll = useCallback(() => {
-    const now = Date.now();
-
-    // Throttle using timestamp comparison
-    if (now - lastScrollTimeRef.current < throttleMs) {
-      return;
-    }
-
-    lastScrollTimeRef.current = now;
-
-    // Cancel any pending RAF to avoid duplicate updates
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-    }
-
-    // Use RAF for smooth updates synchronized with browser repaints
-    rafRef.current = requestAnimationFrame(() => {
-      const newState = calculateProgress();
-      setState(newState);
-
-      // Clear existing scroll end timeout
-      if (scrollEndTimeoutRef.current !== null) {
-        clearTimeout(scrollEndTimeoutRef.current);
-      }
-
-      // Set new scroll end timeout (debounced)
-      scrollEndTimeoutRef.current = setTimeout(() => {
-        setState((prev) => ({ ...prev, isScrolling: false }));
-        onScrollEnd?.();
-      }, debounceMs);
-    });
-  }, [calculateProgress, throttleMs, debounceMs, onScrollEnd]);
-
+  // Update progress value for static access
   useEffect(() => {
-    // Skip in SSR
-    if (typeof window === "undefined") {
+    const unsubscribe = scrollProgress.on("change", (value) => {
+      setProgressValue(value);
+    });
+
+    return () => unsubscribe();
+  }, [scrollProgress]);
+
+  // Track scroll direction and scrolling state
+  useEffect(() => {
+    if (prefersReducedMotion) {
       return;
     }
 
-    // Calculate initial scroll position
-    const initialState = calculateProgress();
-    setState({ ...initialState, isScrolling: false });
+    const unsubscribe = scrollPosition.on("change", (currentScroll) => {
+      const prevScroll = prevScrollRef.current;
 
-    // Determine scroll target
-    const scrollTarget = element?.current || window;
-
-    // Add scroll event listener
-    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
-
-    // Cleanup
-    return () => {
-      scrollTarget.removeEventListener("scroll", handleScroll);
-
-      // Clear any pending timeouts/RAF
-      if (scrollEndTimeoutRef.current !== null) {
-        clearTimeout(scrollEndTimeoutRef.current);
+      // Determine direction
+      if (currentScroll > prevScroll) {
+        setDirection(axis === "x" ? "right" : "down");
+      } else if (currentScroll < prevScroll) {
+        setDirection(axis === "x" ? "left" : "up");
       }
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
+
+      prevScrollRef.current = currentScroll;
+
+      // Mark as scrolling
+      setIsScrolling(true);
+
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Set scrolling to false after a delay
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+        setDirection("none");
+      }, 150);
+    });
+
+    return () => {
+      unsubscribe();
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [element, handleScroll, calculateProgress]);
+  }, [scrollPosition, axis, prefersReducedMotion]);
 
-  return state;
+  // Track element visibility using IntersectionObserver
+  useEffect(() => {
+    if (!target?.current || typeof window === "undefined") {
+      // Window scrolling - always in view
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [target]);
+
+  // Return static values if user prefers reduced motion
+  if (prefersReducedMotion) {
+    return {
+      progress: 0,
+      scrollProgress: staticMotionValue,
+      scrollPosition: staticMotionValue,
+      isInView: true,
+      direction: "none",
+      isScrolling: false,
+    };
+  }
+
+  return {
+    progress: progressValue,
+    scrollProgress,
+    scrollPosition,
+    isInView,
+    direction,
+    isScrolling,
+  };
 }
+
+export default useScrollProgress;

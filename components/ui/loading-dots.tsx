@@ -13,7 +13,13 @@ export type LoadingDotsAnimation = "bounce" | "pulse" | "wave" | "fade";
 /**
  * Color presets for loading dots
  */
-export type LoadingDotsColor = "default" | "primary" | "muted" | "gain" | "loss" | "inherit";
+export type LoadingDotsColor =
+  | "default"
+  | "primary"
+  | "muted"
+  | "gain"
+  | "loss"
+  | "inherit";
 
 const sizeMap = {
   xs: { dot: "h-0.5 w-0.5", gap: "gap-0.5", bounceHeight: -4 },
@@ -234,9 +240,10 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   const prefersReducedMotion = useReducedMotion();
   const pixelSize = spinnerSizeMap[size];
-  const colorClass = color === "default" || color === "inherit"
-    ? "stroke-current"
-    : `stroke-${color === "primary" ? "primary" : color}`;
+  const colorClass =
+    color === "default" || color === "inherit"
+      ? "stroke-current"
+      : `stroke-${color === "primary" ? "primary" : color}`;
 
   const radius = (pixelSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -334,7 +341,10 @@ export function LoadingBar({
       <div
         role="status"
         aria-label={label}
-        className={cn("w-full overflow-hidden rounded-full bg-muted", className)}
+        className={cn(
+          "w-full overflow-hidden rounded-full bg-muted",
+          className
+        )}
         style={{ height }}
       >
         <div

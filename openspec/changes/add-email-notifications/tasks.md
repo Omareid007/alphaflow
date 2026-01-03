@@ -42,10 +42,10 @@
 
 ## 6. User Preferences
 
-- [ ] 6.1 Create `notification_preferences` table in schema
-- [ ] 6.2 Add default preferences for new users
-- [ ] 6.3 Create `GET /api/notifications/preferences` endpoint
-- [ ] 6.4 Create `PUT /api/notifications/preferences` endpoint
+- [x] 6.1 Create `notification_preferences` table in schema
+- [x] 6.2 Add default preferences for new users
+- [x] 6.3 Create `GET /api/notifications/preferences` endpoint
+- [x] 6.4 Create `PUT /api/notifications/preferences` endpoint
 - [ ] 6.5 Add frontend UI for email notification toggles
 
 ## 7. Testing

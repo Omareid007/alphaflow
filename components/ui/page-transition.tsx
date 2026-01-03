@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence, type Variants, type Transition } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  type Variants,
+  type Transition,
+} from "framer-motion";
 import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
 
 /**
@@ -200,7 +205,10 @@ export function PageTransition({
  * </PageTransitionPresence>
  * ```
  */
-export interface PageTransitionPresenceProps extends Omit<PageTransitionProps, "enableExit"> {
+export interface PageTransitionPresenceProps extends Omit<
+  PageTransitionProps,
+  "enableExit"
+> {
   /** Unique key for the page (typically pathname) */
   pageKey: string;
   /** AnimatePresence mode */

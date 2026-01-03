@@ -7,20 +7,32 @@ import { useReducedMotion } from "@/lib/animations/hooks/useReducedMotion";
 /**
  * Direction presets for stagger animations
  */
-export type StaggerDirection = "up" | "down" | "left" | "right" | "scale" | "fade";
+export type StaggerDirection =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "scale"
+  | "fade";
 
 /**
  * Speed presets for stagger timing
  */
 export type StaggerSpeed = "fast" | "normal" | "slow";
 
-const staggerTimings: Record<StaggerSpeed, { staggerChildren: number; delayChildren: number }> = {
+const staggerTimings: Record<
+  StaggerSpeed,
+  { staggerChildren: number; delayChildren: number }
+> = {
   fast: { staggerChildren: 0.03, delayChildren: 0.02 },
   normal: { staggerChildren: 0.05, delayChildren: 0.05 },
   slow: { staggerChildren: 0.1, delayChildren: 0.1 },
 };
 
-const directionVariants: Record<StaggerDirection, { hidden: object; visible: object }> = {
+const directionVariants: Record<
+  StaggerDirection,
+  { hidden: object; visible: object }
+> = {
   up: {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
@@ -126,10 +138,17 @@ export function StaggerContainer({
 }: StaggerContainerProps) {
   const prefersReducedMotion = useReducedMotion();
 
+  // Store direction in context for child items (must be before conditional return)
+  const contextValue = React.useMemo(() => ({ direction }), [direction]);
+
   // Return non-animated version for reduced motion
   if (prefersReducedMotion) {
     const Component = as;
-    return <Component className={className}>{children}</Component>;
+    return (
+      <StaggerContext.Provider value={contextValue}>
+        <Component className={className}>{children}</Component>
+      </StaggerContext.Provider>
+    );
   }
 
   const timing = staggerTimings[speed];
@@ -145,10 +164,9 @@ export function StaggerContainer({
   };
 
   // Create MotionComponent dynamically
-  const MotionComponent = motion[as as keyof typeof motion] as typeof motion.div;
-
-  // Store direction in context for child items
-  const contextValue = React.useMemo(() => ({ direction }), [direction]);
+  const MotionComponent = motion[
+    as as keyof typeof motion
+  ] as typeof motion.div;
 
   const animateProps = animateInView
     ? {

@@ -7,7 +7,11 @@
 // Hooks
 export { useReducedMotion } from "./hooks/useReducedMotion";
 export { useScrollProgress } from "./hooks/useScrollProgress";
-export type { ScrollProgress } from "./hooks/useScrollProgress";
+export type {
+  ScrollProgress,
+  UseScrollProgressOptions,
+  UseScrollProgressReturn,
+} from "./hooks/useScrollProgress";
 
 // Confetti
 export { Confetti, useConfetti } from "./confetti";

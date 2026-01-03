@@ -198,10 +198,7 @@ export function SkeletonAvatarGroup({
               zIndex: displayCount - index,
             }}
           >
-            <SkeletonAvatar
-              size={size}
-              className="ring-2 ring-background"
-            />
+            <SkeletonAvatar size={size} className="ring-2 ring-background" />
           </motion.div>
         ))}
       </div>
@@ -216,9 +213,7 @@ export function SkeletonAvatarGroup({
             marginLeft: -overlap,
           }}
         >
-          <div
-            className="w-1/2 h-2 bg-muted-foreground/20 rounded"
-          />
+          <div className="w-1/2 h-2 bg-muted-foreground/20 rounded" />
         </div>
       )}
     </div>

@@ -153,10 +153,7 @@ export function ShimmerText({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div
-      className={cn("flex flex-col", className)}
-      style={{ gap }}
-    >
+    <div className={cn("flex flex-col", className)} style={{ gap }}>
       {Array.from({ length: lines }).map((_, i) => (
         <Shimmer
           key={i}
@@ -239,8 +236,20 @@ export function ShimmerMetric({
 }: ShimmerMetricProps) {
   return (
     <div className={cn("rounded-xl border bg-card p-6", className)}>
-      <Shimmer height={14} width="40%" rounded="sm" speed={speed} className="mb-3" />
-      <Shimmer height={32} width="60%" rounded="md" speed={speed} className="mb-2" />
+      <Shimmer
+        height={14}
+        width="40%"
+        rounded="sm"
+        speed={speed}
+        className="mb-3"
+      />
+      <Shimmer
+        height={32}
+        width="60%"
+        rounded="md"
+        speed={speed}
+        className="mb-2"
+      />
       {showChange && (
         <Shimmer height={16} width="30%" rounded="sm" speed={speed} />
       )}
@@ -350,10 +359,28 @@ export function ShimmerChart({
           preserveAspectRatio="none"
         >
           <defs>
-            <linearGradient id="chartShimmerGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="hsl(var(--muted))" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="hsl(var(--muted))" stopOpacity="0.5" />
-              <stop offset="100%" stopColor="hsl(var(--muted))" stopOpacity="0.3" />
+            <linearGradient
+              id="chartShimmerGradient"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="0"
+            >
+              <stop
+                offset="0%"
+                stopColor="hsl(var(--muted))"
+                stopOpacity="0.3"
+              />
+              <stop
+                offset="50%"
+                stopColor="hsl(var(--muted))"
+                stopOpacity="0.5"
+              />
+              <stop
+                offset="100%"
+                stopColor="hsl(var(--muted))"
+                stopOpacity="0.3"
+              />
             </linearGradient>
           </defs>
           {prefersReducedMotion ? (
