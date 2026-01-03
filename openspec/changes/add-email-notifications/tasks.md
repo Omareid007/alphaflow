@@ -2,25 +2,25 @@
 
 ## 1. Database Migration
 
-- [ ] 1.1 Create migration script `migrations/0006_make_email_required.sql`
-- [ ] 1.2 Add query to identify users with null emails
-- [ ] 1.3 Add backfill logic for test users (set to admin email)
-- [ ] 1.4 Test migration on dev database
-- [ ] 1.5 Create rollback script
+- [x] 1.1 Create migration script `migrations/0006_make_email_required.sql`
+- [x] 1.2 Add query to identify users with null emails
+- [x] 1.3 Add backfill logic for test users (set to admin email)
+- [x] 1.4 Test migration on dev database
+- [x] 1.5 Create rollback script
 
 ## 2. Schema Updates
 
-- [ ] 2.1 Update `shared/schema/auth.ts` - Change email from `varchar().nullable()` to `varchar().notNull()`
-- [ ] 2.2 Add email validation schema in `server/validation/api-schemas.ts`
-- [ ] 2.3 Update TypeScript types for User interface
+- [x] 2.1 Update `shared/schema/auth.ts` - Change email from `varchar().nullable()` to `varchar().notNull()`
+- [x] 2.2 Add email validation schema in `server/validation/api-schemas.ts`
+- [x] 2.3 Update TypeScript types for User interface
 
 ## 3. Authentication Updates
 
-- [ ] 3.1 Update `server/routes/auth.ts` - Add email validation to registration
-- [ ] 3.2 Update registration endpoint to require email
-- [ ] 3.3 Add email format validation (RFC 5322)
-- [ ] 3.4 Update login response to include email
-- [ ] 3.5 Update existing tests in `tests/server/routes/auth.test.ts`
+- [x] 3.1 Update `server/routes/auth.ts` - Add email validation to registration
+- [x] 3.2 Update registration endpoint to require email
+- [x] 3.3 Add email format validation (RFC 5322)
+- [x] 3.4 Update login response to include email
+- [x] 3.5 Update existing tests in `tests/server/routes/auth.test.ts`
 
 ## 4. Email Service Enhancement
 
@@ -46,7 +46,7 @@
 - [x] 6.2 Add default preferences for new users
 - [x] 6.3 Create `GET /api/notifications/preferences` endpoint
 - [x] 6.4 Create `PUT /api/notifications/preferences` endpoint
-- [ ] 6.5 Add frontend UI for email notification toggles
+- [x] 6.5 Add frontend UI for email notification toggles
 
 ## 7. Testing
 
