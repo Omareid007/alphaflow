@@ -1,0 +1,1 @@
+/nix/store/802zsw7vbgh38i7zs0hd9pk6szfsrg7w-npx/bin/npx: line 7: 105721 Aborted                 (core dumped) /nix/store/brk41mvaqsffxszsiw6lcd35m6y1pp0v-nodejs-22.17.0-wrapped/bin/npx "$@"
