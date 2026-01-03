@@ -1,3 +1,25 @@
+<!-- OPENSPEC:START -->
+
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # AlphaFlow - Claude Code Project Memory and Rules
 
 **Version**: 2.0
@@ -8,14 +30,15 @@
 
 ## 🚨 CRITICAL RULES - FOLLOW WITHOUT EXCEPTION
 
-### Rule 1: SPEC BEFORE CODE
+### Rule 1: SPEC BEFORE CODE (OpenSpec Required)
 
-Never write significant code without a clear plan. Wait for approval before implementing.
+**NEVER write feature code without an approved OpenSpec proposal.**
 
-- For tasks affecting 3+ files, state your understanding first
-- List exactly which files you'll modify
-- Get explicit confirmation before proceeding
-- Use OpenSpec for major features (see `openspec/AGENTS.md`)
+- Use `/openspec:proposal` for any new feature
+- Wait for human approval of the spec
+- Only then implement with `/openspec:apply`
+- Archive when complete with `/openspec:archive`
+- Bug fixes with clear scope are exempt
 
 ### Rule 2: SINGLE RESPONSIBILITY
 
@@ -80,6 +103,50 @@ npm run test           # For feature changes
 ```
 
 Report pass/fail status explicitly.
+
+---
+
+## 🔄 OPENSPEC WORKFLOW
+
+### When OpenSpec is Required
+
+- Any new feature
+- Any change touching more than 3 files
+- Any new API endpoint
+- Any database schema change
+- Any significant refactoring
+
+### OpenSpec Commands
+
+| Command                     | Purpose                   |
+| --------------------------- | ------------------------- |
+| `/openspec:proposal <desc>` | Create change proposal    |
+| `/openspec:apply <name>`    | Implement approved change |
+| `/openspec:archive <name>`  | Complete and archive      |
+| `openspec list`             | View active changes       |
+| `openspec show <name>`      | View change details       |
+
+### Spec Format
+
+- Requirements use SHALL or MUST
+- Every requirement has scenarios
+- Scenarios use GIVEN/WHEN/THEN format
+
+### Directory Structure
+
+openspec/
+├── project.md - Project context (read first)
+├── specs/ - Current truth (approved)
+└── changes/ - Proposals (pending approval)
+
+### Before Feature Work
+
+1. Read openspec/project.md
+2. Check openspec/specs/ for existing specs
+3. Create proposal: /openspec:proposal <description>
+4. Wait for approval
+5. Implement: /openspec:apply <name>
+6. Complete: /openspec:archive <name>
 
 ---
 
