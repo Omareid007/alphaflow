@@ -52,16 +52,32 @@ export function HeroChart({
   const prefersReducedMotion = useReducedMotion();
   const shouldAnimate = animate && !prefersReducedMotion;
 
-  // Calculate trend based on first and last values
-  const firstValue = data[0]?.value ?? 0;
-  const lastValue = data[data.length - 1]?.value ?? 0;
-  const isPositive = lastValue >= firstValue;
-  const refValue = referenceValue ?? firstValue;
-
-  // Generate unique gradient ID
-  const uniqueGradientId = gradientId || React.useId().replace(/:/g, "");
+  // Generate unique gradient ID - hook must always be called (React hooks rules)
+  const generatedId = React.useId().replace(/:/g, "");
+  const uniqueGradientId = gradientId || generatedId;
   const areaGradientId = `heroGradient-${uniqueGradientId}`;
   const lineGradientId = `heroLine-${uniqueGradientId}`;
+
+  // Early return for empty data to prevent crashes (after all hooks)
+  if (!data || data.length === 0) {
+    return (
+      <div
+        className={cn(
+          "w-full relative flex items-center justify-center text-muted-foreground",
+          className
+        )}
+        style={{ height }}
+      >
+        No chart data available
+      </div>
+    );
+  }
+
+  // Calculate trend based on first and last values
+  const firstValue = data[0].value;
+  const lastValue = data[data.length - 1].value;
+  const isPositive = lastValue >= firstValue;
+  const refValue = referenceValue ?? firstValue;
 
   // Colors based on trend
   const colors = {
@@ -82,7 +98,9 @@ export function HeroChart({
       <div
         className={cn(
           "absolute inset-0 pointer-events-none",
-          isPositive ? "bg-gradient-to-t from-gain/5 to-transparent" : "bg-gradient-to-t from-loss/5 to-transparent"
+          isPositive
+            ? "bg-gradient-to-t from-gain/5 to-transparent"
+            : "bg-gradient-to-t from-loss/5 to-transparent"
         )}
       />
 
@@ -140,14 +158,21 @@ export function HeroChart({
                 if (!active || !payload?.length) return null;
                 const value = payload[0].value as number;
                 const change = value - refValue;
-                const changePercent = ((change / refValue) * 100).toFixed(2);
+                // Guard against division by zero
+                const changePercent =
+                  refValue !== 0
+                    ? ((change / refValue) * 100).toFixed(2)
+                    : "0.00";
                 const isUp = change >= 0;
 
                 return (
                   <div className="glass rounded-lg border border-white/10 px-3 py-2 shadow-xl">
                     <p className="text-xs text-muted-foreground">{label}</p>
                     <p className="text-lg font-semibold tabular-nums">
-                      ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      $
+                      {value.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}
                     </p>
                     <p
                       className={cn(
@@ -156,7 +181,11 @@ export function HeroChart({
                       )}
                     >
                       {isUp ? "+" : ""}
-                      {change.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({isUp ? "+" : ""}{changePercent}%)
+                      {change.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}{" "}
+                      ({isUp ? "+" : ""}
+                      {changePercent}%)
                     </p>
                   </div>
                 );

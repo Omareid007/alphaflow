@@ -78,10 +78,21 @@ export function Sparkline({
   const gradientId = React.useId().replace(/:/g, "");
 
   // Calculate Y domain with some padding
+  // Guard against empty data arrays which cause Math.min/max to return Infinity
   const values = chartData.map((d) => d.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue = values.length > 0 ? Math.max(...values) : 100;
   const padding = (maxValue - minValue) * 0.1 || 1;
+
+  // Early return for empty data
+  if (chartData.length === 0) {
+    return (
+      <div
+        className={cn("flex-shrink-0", className)}
+        style={{ width, height }}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -92,10 +103,23 @@ export function Sparkline({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+        <AreaChart
+          data={chartData}
+          margin={{ top: 2, right: 2, left: 2, bottom: 2 }}
+        >
           <defs>
-            <linearGradient id={`sparkGradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colors.fill} stopOpacity={showArea ? 0.3 : 0} />
+            <linearGradient
+              id={`sparkGradient-${gradientId}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset="0%"
+                stopColor={colors.fill}
+                stopOpacity={showArea ? 0.3 : 0}
+              />
               <stop offset="100%" stopColor={colors.fill} stopOpacity={0} />
             </linearGradient>
           </defs>
