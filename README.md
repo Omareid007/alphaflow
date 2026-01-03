@@ -36,8 +36,8 @@ AlphaFlow is a full-stack trading platform that combines:
 npm install
 
 # Set up environment variables
-cp server/config/.env.example .env
-# Edit .env with your API keys
+cp .env.example .env
+# Edit .env with your API keys and configuration
 
 # Push database schema
 npm run db:push
@@ -121,14 +121,27 @@ npm run db:push       # Push database schema
 
 ## Environment Variables
 
-Required variables (see `server/config/.env.example` for full list):
+Copy `.env.example` to `.env` and configure the following required variables:
 
 ```env
-DATABASE_URL=postgresql://...
-ALPACA_API_KEY=...
-ALPACA_SECRET_KEY=...
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/alphaflow
+
+# Alpaca Trading (REQUIRED)
+ALPACA_API_KEY=your-alpaca-api-key
+ALPACA_SECRET_KEY=your-alpaca-secret-key
 ALPACA_TRADING_MODE=paper
+
+# AI Provider (at least one required)
+OPENAI_API_KEY=sk-your-openai-key
+ANTHROPIC_API_KEY=sk-ant-your-claude-key
+
+# Security
+SESSION_SECRET=secure-random-string
+ADMIN_TOKEN=secure-admin-token
 ```
+
+See `.env.example` for complete documentation of all 50+ available configuration options including trading parameters, AI providers, market data sources, and advanced settings.
 
 ## Contributing
 

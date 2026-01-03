@@ -69,6 +69,16 @@ export interface AlpacaTradeRequest {
   extendedHours?: boolean;
 
   /**
+   * SECURITY: User ID of the authenticated user executing this trade
+   *
+   * REQUIRED for all trading operations. Must be extracted from authenticated session.
+   * Ensures proper trade attribution and prevents unauthorized trading actions.
+   *
+   * @security Critical security field - must be validated
+   */
+  userId: string;
+
+  /**
    * SECURITY: Authorization flag for orchestrator-controlled trading
    *
    * Only the work queue processor should set this to true.

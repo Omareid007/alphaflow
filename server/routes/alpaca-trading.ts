@@ -7,7 +7,7 @@ import { Router, Request, Response } from "express";
 import { alpacaTradingEngine } from "../trading/alpaca-trading-engine";
 import { safeParseFloat } from "../utils/numeric";
 import { log } from "../utils/logger";
-import { requireAuth, requireAdmin } from "../middleware/requireAuth";
+import { requireAuth, requireAdmin, type AuthenticatedRequest } from "../middleware/requireAuth";
 
 const router = Router();
 
@@ -26,7 +26,7 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /api/alpaca-trading/execute - Execute a trade via Alpaca trading engine
-router.post("/execute", requireAuth, async (req: Request, res: Response) => {
+router.post("/execute", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { symbol, side, quantity, strategyId, notes, orderType, limitPrice } =
       req.body;
@@ -41,7 +41,7 @@ router.post("/execute", requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Side must be 'buy' or 'sell'" });
     }
 
-    // SECURITY: Mark as authorized since this is an admin-initiated action
+    // SECURITY: Use authenticated user context - no more hardcoded bypass
     const result = await alpacaTradingEngine.executeAlpacaTrade({
       symbol,
       side,
@@ -50,7 +50,8 @@ router.post("/execute", requireAuth, async (req: Request, res: Response) => {
       notes,
       orderType,
       limitPrice: limitPrice ? safeParseFloat(limitPrice) : undefined,
-      authorizedByOrchestrator: true,
+      userId: req.userId!, // Extract from authenticated session
+      authorizedByOrchestrator: true, // Admin route - authorized by authentication
     });
 
     if (!result.success) {
@@ -68,17 +69,18 @@ router.post("/execute", requireAuth, async (req: Request, res: Response) => {
 router.post(
   "/close/:symbol",
   requireAuth,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { symbol } = req.params;
       const { strategyId } = req.body;
 
-      // SECURITY: Mark as authorized since this is an admin-initiated action
+      // SECURITY: Use authenticated user context - no more hardcoded bypass
       const result = await alpacaTradingEngine.closeAlpacaPosition(
         symbol,
         strategyId,
         {
-          authorizedByOrchestrator: true,
+          userId: req.userId!, // Extract from authenticated session
+          authorizedByOrchestrator: true, // Admin route - authorized by authentication
         }
       );
 

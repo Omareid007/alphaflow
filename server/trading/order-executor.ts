@@ -166,6 +166,7 @@ export class OrderExecutor {
         useBracketOrder,
         trailingStopPercent,
         extendedHours = false,
+        userId,
       } = request;
 
       // ============================================================================
@@ -187,7 +188,27 @@ export class OrderExecutor {
         return { success: false, error: "Quantity must be greater than 0" };
       }
 
-      // Guard 2: Orchestrator control check
+      // Guard 2: User context validation
+      // SECURITY: All trading operations MUST have proper user attribution
+      if (!userId || userId.trim() === "") {
+        log.warn(
+          "Trading",
+          `ORDER_BLOCKED: ${symbol} - Missing user context`,
+          {
+            symbol,
+            side,
+            quantity,
+            reason: "MISSING_USER_CONTEXT",
+            userId: userId || "undefined",
+          }
+        );
+        return {
+          success: false,
+          error: "Trading operation requires valid user authentication"
+        };
+      }
+
+      // Guard 3: Orchestrator control check
       // SECURITY: Only allow trades authorized by the orchestrator/work queue
       // This cannot be bypassed by manipulating notes strings
       if (
@@ -477,6 +498,7 @@ export class OrderExecutor {
         status: order.status,
         notes: tradeNotes,
         pnl: null,
+        userId: userId, // SECURITY: Ensure trade is attributed to authenticated user
       });
 
       await this.updateAgentStats();

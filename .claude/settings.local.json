@@ -1,5 +1,4 @@
 {
-  "model": "claude-sonnet-4-20250514",
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
@@ -26,7 +25,17 @@
       "Bash(pkill:*)",
       "Bash(sleep:*)",
       "Read(*)",
-      "Write(*)"
+      "Write(*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__openspec__openspec_get_project_context",
+      "mcp__openspec__openspec_list_specs",
+      "mcp__openspec__openspec_show_spec",
+      "mcp__openspec__openspec_generate_proposal",
+      "mcp__openspec__openspec_save_proposal",
+      "mcp__openspec__openspec_validate_change",
+      "mcp__openspec__openspec_show_change",
+      "mcp__openspec__openspec_validate_all",
+      "mcp__openspec__openspec_list_changes"
     ],
     "deny": [
       "Bash(rm -rf /)",
@@ -40,16 +49,7 @@
       "Bash(reboot:*)"
     ]
   },
-  "autonomousMode": {
-    "enabled": true,
-    "maxTurns": 50,
-    "stopConditions": [
-      "BUILD_FAILURE",
-      "TEST_FAILURE",
-      "PERMISSION_DENIED",
-      "USER_INTERRUPT"
-    ]
-  },
+  "model": "claude-sonnet-4-20250514",
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "postgres",
@@ -120,6 +120,16 @@
           }
         ]
       }
+    ]
+  },
+  "autonomousMode": {
+    "enabled": true,
+    "maxTurns": 50,
+    "stopConditions": [
+      "BUILD_FAILURE",
+      "TEST_FAILURE",
+      "PERMISSION_DENIED",
+      "USER_INTERRUPT"
     ]
   }
 }
