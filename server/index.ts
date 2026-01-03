@@ -20,6 +20,10 @@ import { cleanupExpiredSessions } from "./lib/session";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { requestLogger, performanceLogger } from "./middleware/request-logger";
 import { wsServer } from "./lib/websocket-server";
+import {
+  initializePortfolioStream,
+  getPortfolioStreamManager,
+} from "./lib/portfolio-stream";
 import { initRedis, closeRedis, isRedisAvailable } from "./lib/redis-cache";
 
 process.on("uncaughtException", (err) => {
@@ -55,6 +59,16 @@ async function gracefulShutdown(signal: string) {
     log.info("SHUTDOWN", "Shutting down WebSocket server...");
     wsServer.shutdown();
     log.info("SHUTDOWN", "WebSocket server shutdown complete");
+
+    // Shutdown portfolio stream (real-time updates)
+    log.info("SHUTDOWN", "Shutting down portfolio stream...");
+    const portfolioStream = getPortfolioStreamManager();
+    if (portfolioStream) {
+      portfolioStream.shutdown();
+      log.info("SHUTDOWN", "Portfolio stream shutdown complete");
+    } else {
+      log.info("SHUTDOWN", "Portfolio stream not initialized - skipping");
+    }
 
     // Stop background jobs
     log.info("SHUTDOWN", "Stopping background jobs...");
@@ -425,6 +439,23 @@ async function verifyAlpacaAccount() {
     log.info("STARTUP", "Initializing WebSocket server...");
     wsServer.initialize(server);
     log.info("STARTUP", "WebSocket server initialized on /ws path");
+
+    // Initialize portfolio stream for real-time portfolio updates
+    log.info("STARTUP", "Initializing portfolio stream...");
+    const portfolioStream = initializePortfolioStream(server);
+    if (portfolioStream) {
+      log.info("STARTUP", "Portfolio stream initialized on /ws/portfolio", {
+        maxConnectionsPerUser: 5,
+        maxTotalConnections: 100,
+        batchWindowMs: 1000,
+        heartbeatIntervalMs: 15000,
+      });
+    } else {
+      log.info(
+        "STARTUP",
+        "Portfolio stream disabled (ENABLE_REALTIME_PORTFOLIO=false)"
+      );
+    }
 
     server.listen(
       {
