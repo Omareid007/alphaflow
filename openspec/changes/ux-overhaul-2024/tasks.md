@@ -141,7 +141,7 @@
 - [x] lib/animations/presets.ts (Framer Motion configs)
 - [x] lib/animations/page-transitions.tsx
 - [x] lib/animations/hooks/useReducedMotion.ts
-- [ ] lib/animations/hooks/useScrollProgress.ts
+- [x] lib/animations/hooks/useScrollProgress.ts
 
 ### 5.2 Enhanced Core Components
 
@@ -162,16 +162,16 @@
 
 ### 5.4 Trading-Specific Animations
 
-- [ ] components/strategy/animated-status-badge.tsx
-- [ ] components/portfolio/animated-metric-card.tsx
-- [ ] components/charts/animated-chart-wrapper.tsx
+- [x] components/strategy/animated-status-badge.tsx
+- [x] components/portfolio/animated-metric-card.tsx
+- [x] components/charts/animated-chart-wrapper.tsx
 
 ## Phase 6: Forms & Validation 📝
 
 ### 6.1 Form Utilities
 
-- [ ] lib/utils/debounce.ts
-- [ ] lib/utils/useDebounce.ts hook
+- [x] lib/utils/debounce.ts
+- [x] lib/utils/useDebounce.ts hook
 - [x] lib/validation/error-formatter.ts
 
 ### 6.2 Enhanced Form Components

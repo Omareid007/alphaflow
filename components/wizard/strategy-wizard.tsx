@@ -17,8 +17,11 @@ import { ConfigStep } from "./ConfigStep";
 import { BacktestPrompt } from "./BacktestPrompt";
 import { BacktestProgress } from "./BacktestProgress";
 import { WizardNavigation } from "./WizardNavigation";
+import { WizardStep } from "./wizard-step";
+import { WizardProgress } from "./wizard-progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AnimatePresence } from "framer-motion";
 
 interface StrategyWizardProps {
   existingStrategy?: Strategy;
@@ -48,6 +51,8 @@ export function StrategyWizard({
   );
   const [completedBacktest, setCompletedBacktest] =
     useState<BacktestRun | null>(existingBacktest || null);
+  const [previousStep, setPreviousStep] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // React Query mutations
   const createStrategyMutation = useCreateStrategy();
@@ -239,24 +244,36 @@ export function StrategyWizard({
   );
 
   const handleBack = useCallback(() => {
-    if (currentStep === 1) {
-      setSelectedTemplate(null);
-      setSelectedPreset(null);
-      setRunningBacktestId(null);
-      setCompletedBacktest(null);
-    } else if (completedBacktest) {
-      // Go back to config step when viewing backtest results
-      setCompletedBacktest(null);
-      setRunningBacktestId(null);
-      setBacktestProgress(0);
-    } else {
-      setCurrentStep((prev) => prev - 1);
-    }
+    setIsNavigating(true);
+    setPreviousStep(currentStep);
+
+    setTimeout(() => {
+      if (currentStep === 1) {
+        setSelectedTemplate(null);
+        setSelectedPreset(null);
+        setRunningBacktestId(null);
+        setCompletedBacktest(null);
+      } else if (completedBacktest) {
+        // Go back to config step when viewing backtest results
+        setCompletedBacktest(null);
+        setRunningBacktestId(null);
+        setBacktestProgress(0);
+      } else {
+        setCurrentStep((prev) => prev - 1);
+      }
+      setIsNavigating(false);
+    }, 150);
   }, [currentStep, completedBacktest]);
 
   const handleNext = useCallback(() => {
-    setCurrentStep((prev) => prev + 1);
-  }, []);
+    setIsNavigating(true);
+    setPreviousStep(currentStep);
+
+    setTimeout(() => {
+      setCurrentStep((prev) => prev + 1);
+      setIsNavigating(false);
+    }, 150);
+  }, [currentStep]);
 
   const totalSteps = selectedTemplate
     ? selectedTemplate.stepSchema.steps.length
@@ -277,6 +294,14 @@ export function StrategyWizard({
   const currentStepData = selectedTemplate.stepSchema.steps[currentStep - 1];
   const isConfigStep = currentStep >= 1 && currentStep <= totalSteps;
   const isBacktestStep = currentStep === totalSteps + 1;
+  const direction = currentStep > previousStep ? "forward" : "backward";
+
+  // Generate step labels for progress indicator
+  const stepLabels = [
+    "Preset",
+    ...selectedTemplate.stepSchema.steps.slice(1).map((s) => s.title),
+    "Backtest",
+  ];
 
   return (
     <div className="space-y-6">
@@ -287,53 +312,55 @@ export function StrategyWizard({
             {selectedTemplate.name} Strategy
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {Array.from({ length: totalSteps + 2 }, (_, i) => (
-            <div
-              key={i}
-              className={cn(
-                "h-2 w-8 rounded-full transition-colors",
-                i < currentStep ? "bg-primary" : "bg-secondary"
-              )}
-            />
-          ))}
-        </div>
       </div>
 
-      {currentStep === 1 && (
-        <PresetSelector
-          presets={selectedTemplate.presets}
-          selectedPreset={selectedPreset}
-          onPresetSelect={handlePresetSelect}
-        />
-      )}
+      {/* Animated progress indicator */}
+      <WizardProgress
+        currentStep={currentStep}
+        totalSteps={totalSteps + 2}
+        showLabels={true}
+        labels={stepLabels}
+      />
 
-      {isConfigStep && currentStepData && (
-        <ConfigStep
-          stepData={currentStepData}
-          configValues={configValues}
-          onFieldChange={handleFieldChange}
-        />
-      )}
+      {/* Animated step transitions */}
+      <AnimatePresence mode="wait">
+        <WizardStep key={currentStep} stepKey={currentStep} direction={direction}>
+          {currentStep === 1 && (
+            <PresetSelector
+              presets={selectedTemplate.presets}
+              selectedPreset={selectedPreset}
+              onPresetSelect={handlePresetSelect}
+            />
+          )}
 
-      {isBacktestStep && !isBacktesting && !backtest && (
-        <BacktestPrompt
-          strategyName={strategyName}
-          onStrategyNameChange={setStrategyName}
-          onRunBacktest={handleRunBacktest}
-        />
-      )}
+          {isConfigStep && currentStepData && (
+            <ConfigStep
+              stepData={currentStepData}
+              configValues={configValues}
+              onFieldChange={handleFieldChange}
+            />
+          )}
 
-      {isBacktesting && <BacktestProgress progress={backtestProgress} />}
+          {isBacktestStep && !isBacktesting && !backtest && (
+            <BacktestPrompt
+              strategyName={strategyName}
+              onStrategyNameChange={setStrategyName}
+              onRunBacktest={handleRunBacktest}
+            />
+          )}
 
-      {backtest && (
-        <BacktestResults
-          backtest={backtest}
-          onApplySuggestions={handleApplySuggestions}
-          onRunAgain={handleRunAgain}
-          onDeploy={handleDeploy}
-        />
-      )}
+          {isBacktesting && <BacktestProgress progress={backtestProgress} />}
+
+          {backtest && (
+            <BacktestResults
+              backtest={backtest}
+              onApplySuggestions={handleApplySuggestions}
+              onRunAgain={handleRunAgain}
+              onDeploy={handleDeploy}
+            />
+          )}
+        </WizardStep>
+      </AnimatePresence>
 
       <WizardNavigation
         currentStep={currentStep}
@@ -341,6 +368,8 @@ export function StrategyWizard({
         hasBacktest={!!backtest}
         onBack={handleBack}
         onNext={handleNext}
+        isLoading={isNavigating || isBacktesting}
+        disableNext={isNavigating}
       />
     </div>
   );
