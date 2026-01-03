@@ -59,35 +59,6 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
     },
-    "slack": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-slack"],
-      "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
-        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
-      }
-    },
-    "brave-search": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-      "env": {
-        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
-      }
-    },
-    "exa": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-exa"],
-      "env": {
-        "EXA_API_KEY": "${EXA_API_KEY}"
-      }
-    },
-    "financial-datasets": {
-      "command": "npx",
-      "args": ["-y", "financial-datasets-mcp"],
-      "env": {
-        "FINANCIAL_DATASETS_API_KEY": "${FINANCIAL_DATASETS_API_KEY}"
-      }
-    },
     "alpaca-trading": {
       "command": "npx",
       "args": ["-y", "alpaca-mcp"],
@@ -95,45 +66,6 @@
         "ALPACA_API_KEY": "${ALPACA_API_KEY}",
         "ALPACA_SECRET_KEY": "${ALPACA_SECRET_KEY}",
         "ALPACA_PAPER": "true"
-      }
-    },
-    "alphavantage": {
-      "command": "npx",
-      "args": ["-y", "alphavantage-mcp"],
-      "env": {
-        "ALPHAVANTAGE_API_KEY": "${ALPHAVANTAGE_API_KEY}"
-      }
-    },
-    "polygon": {
-      "command": "npx",
-      "args": ["-y", "polygon-mcp-server"],
-      "env": {
-        "POLYGON_API_KEY": "${POLYGON_API_KEY}"
-      }
-    },
-    "octagon": {
-      "command": "npx",
-      "args": ["-y", "@octagonai/octagon-mcp-server"],
-      "env": {
-        "OCTAGON_API_KEY": "${OCTAGON_API_KEY}"
-      }
-    },
-    "coingecko": {
-      "command": "npx",
-      "args": ["-y", "@coingecko/mcp-server"]
-    },
-    "codacy": {
-      "command": "npx",
-      "args": ["-y", "@codacy/codacy-mcp"],
-      "env": {
-        "CODACY_ACCOUNT_TOKEN": "${CODACY_ACCOUNT_TOKEN}"
-      }
-    },
-    "sendgrid": {
-      "command": "npx",
-      "args": ["-y", "sendgrid-api-mcp-server"],
-      "env": {
-        "SENDGRID_API_KEY": "${SENDGRID_API_KEY}"
       }
     },
     "vitest": {
@@ -157,21 +89,6 @@
     "yfinance": {
       "command": "npx",
       "args": ["-y", "@mokemokechicken/yfinance-mcp-server"]
-    },
-    "finnhub": {
-      "command": "uvx",
-      "args": ["mcp-finnhub"],
-      "env": {
-        "FINNHUB_API_KEY": "${FINNHUB_API_KEY}"
-      }
-    },
-    "redis": {
-      "command": "npx",
-      "args": ["-y", "@gongrzhe/server-redis-mcp"],
-      "env": {
-        "REDIS_HOST": "${REDIS_HOST:-localhost}",
-        "REDIS_PORT": "${REDIS_PORT:-6379}"
-      }
     },
     "trading-utilities": {
       "command": "npx",
