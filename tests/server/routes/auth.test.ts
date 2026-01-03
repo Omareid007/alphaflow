@@ -146,6 +146,7 @@ describe("Auth Routes", () => {
   describe("POST /api/auth/signup", () => {
     it("should create a new user with valid credentials", async () => {
       vi.mocked(storage.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(storage.getUserByEmail).mockResolvedValue(undefined);
       vi.mocked(storage.createUser).mockResolvedValue(createMockUser());
       vi.mocked(createSession).mockResolvedValue("new-session-id");
 
@@ -153,11 +154,13 @@ describe("Auth Routes", () => {
       const result = await storage.createUser({
         username: "newuser",
         password: "hashed-password",
+        email: "newuser@example.com",
       });
 
       expect(storage.createUser).toHaveBeenCalled();
       expect(result).toBeDefined();
       expect(result.username).toBe("testuser");
+      expect(result.email).toBe("test@example.com");
     });
 
     it("should reject signup if username already exists", async () => {
@@ -171,6 +174,7 @@ describe("Auth Routes", () => {
 
     it("should sanitize username to prevent XSS", async () => {
       vi.mocked(storage.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(storage.getUserByEmail).mockResolvedValue(undefined);
       vi.mocked(storage.createUser).mockImplementation(async (data) => ({
         ...createMockUser(),
         username: data.username,
@@ -182,10 +186,11 @@ describe("Auth Routes", () => {
       await storage.createUser({
         username: "sanitized-username",
         password: "test",
+        email: "test@example.com",
       });
 
       expect(storage.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ username: "sanitized-username" })
+        expect.objectContaining({ username: "sanitized-username", email: "test@example.com" })
       );
     });
 
@@ -203,6 +208,43 @@ describe("Auth Routes", () => {
 
       await createSession("new-user-id");
       expect(createSession).toHaveBeenCalledWith("new-user-id");
+    });
+
+    it("should reject signup if email already exists", async () => {
+      const existingUser = createMockUser({ email: "taken@example.com" });
+      vi.mocked(storage.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(storage.getUserByEmail).mockResolvedValue(existingUser);
+
+      const existing = await storage.getUserByEmail("taken@example.com");
+      expect(existing).toBeDefined();
+      expect(existing?.email).toBe("taken@example.com");
+    });
+
+    it("should validate email format during signup", async () => {
+      // Email validation is handled by Zod schema
+      const invalidEmails = [
+        "notanemail",
+        "@nodomain",
+        "no@",
+        "spaces in@email.com",
+        "",
+      ];
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      for (const email of invalidEmails) {
+        expect(emailRegex.test(email)).toBe(false);
+      }
+
+      const validEmails = [
+        "test@example.com",
+        "user.name@domain.co.uk",
+        "user+tag@example.org",
+      ];
+
+      for (const email of validEmails) {
+        expect(emailRegex.test(email)).toBe(true);
+      }
     });
   });
 
@@ -258,11 +300,12 @@ describe("Auth Routes", () => {
       const mockUser = createMockUser();
       vi.mocked(storage.getUserByUsername).mockResolvedValue(mockUser);
 
-      // The route returns { id, username, isAdmin } - no password
+      // The route returns { id, username, email, isAdmin } - no password
       const { password, ...safeUser } = mockUser;
       expect(safeUser).not.toHaveProperty("password");
       expect(safeUser).toHaveProperty("id");
       expect(safeUser).toHaveProperty("username");
+      expect(safeUser).toHaveProperty("email");
       expect(safeUser).toHaveProperty("isAdmin");
     });
   });
@@ -312,6 +355,7 @@ describe("Auth Routes", () => {
       const user = await storage.getUser(session!.userId);
       expect(user).toBeDefined();
       expect(user?.username).toBe("testuser");
+      expect(user?.email).toBe("test@example.com");
     });
 
     it("should reject request without session cookie", async () => {

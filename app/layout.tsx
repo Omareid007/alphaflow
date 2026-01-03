@@ -22,6 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        {/* Skip to content link for keyboard navigation (WCAG 2.1 AA) */}
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
         <QueryProvider>
           <ThemeProvider
             attribute="class"

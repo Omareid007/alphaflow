@@ -61,7 +61,7 @@ router.post("/signup", authLimiter, async (req: Request, res: Response) => {
       return fromZodError(res, parsed.error);
     }
 
-    const { username, password } = parsed.data;
+    const { username, password, email } = parsed.data;
 
     // SECURITY: Sanitize username to prevent XSS attacks
     const sanitizedUsername = sanitizeInput(username);
@@ -79,10 +79,21 @@ router.post("/signup", authLimiter, async (req: Request, res: Response) => {
       return badRequest(res, "Username already taken");
     }
 
+    // Check for existing email if provided
+    let sanitizedEmail: string | undefined;
+    if (email) {
+      sanitizedEmail = sanitizeInput(email.toLowerCase().trim());
+      const existingEmail = await storage.getUserByEmail(sanitizedEmail);
+      if (existingEmail) {
+        return badRequest(res, "Email already in use");
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await storage.createUser({
       username: sanitizedUsername,
       password: hashedPassword,
+      email: sanitizedEmail,
     });
 
     const sessionId = await createSession(user.id);
@@ -93,7 +104,7 @@ router.post("/signup", authLimiter, async (req: Request, res: Response) => {
 
     res
       .status(201)
-      .json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+      .json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Signup error: ${error}`);
     return serverError(res, "Failed to create account");
@@ -129,7 +140,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
 
     log.info("AuthAPI", `User logged in: ${sanitizedUsername}`);
 
-    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Login error: ${error}`);
     return serverError(res, "Failed to login");
@@ -178,7 +189,7 @@ router.get("/me", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "User not found" });
     }
 
-    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Get user error: ${error}`);
     res.status(500).json({ error: "Failed to get user" });

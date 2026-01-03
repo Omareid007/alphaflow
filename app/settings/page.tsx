@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppearanceCard } from "./AppearanceCard";
 import { NotificationsCard } from "./NotificationsCard";
 import { RiskGuardrailsCard } from "./RiskGuardrailsCard";
+import { EmailPreferencesCard } from "./EmailPreferencesCard";
 import { ConnectionsCard } from "./ConnectionsCard";
 import {
   PageTransition,
@@ -101,8 +102,13 @@ export default function SettingsPage() {
           />
         </SectionTransition>
 
-        {/* Connections Card */}
+        {/* Email Preferences Card */}
         <SectionTransition delay={0.4}>
+          <EmailPreferencesCard />
+        </SectionTransition>
+
+        {/* Connections Card */}
+        <SectionTransition delay={0.5}>
           <ConnectionsCard />
         </SectionTransition>
       </div>

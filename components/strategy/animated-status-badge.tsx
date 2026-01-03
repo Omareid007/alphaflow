@@ -117,6 +117,11 @@ export interface AnimatedStatusBadgeProps {
   enablePulse?: boolean;
   /** Additional CSS classes */
   className?: string;
+  /**
+   * Enable ARIA live region for status changes (WCAG 2.1 AA)
+   * When true, status changes will be announced to screen readers
+   */
+  ariaLive?: boolean;
 }
 
 /**
@@ -203,6 +208,7 @@ export function AnimatedStatusBadge({
   showGlow = false,
   enablePulse = true,
   className,
+  ariaLive = false,
 }: AnimatedStatusBadgeProps) {
   const prefersReducedMotion = useReducedMotion();
   const config = statusConfigs[status];
@@ -211,6 +217,9 @@ export function AnimatedStatusBadge({
 
   // Determine if pulse should be shown
   const shouldPulse = enablePulse && config.pulseClass && !prefersReducedMotion;
+
+  // Generate accessible label
+  const ariaLabel = `Strategy status: ${config.label}`;
 
   // Build class names
   const badgeClasses = cn(
@@ -226,8 +235,13 @@ export function AnimatedStatusBadge({
   // For reduced motion, render without animations
   if (prefersReducedMotion) {
     return (
-      <span className={badgeClasses}>
-        <Icon className={sizeConfig.icon} />
+      <span
+        className={badgeClasses}
+        role="status"
+        aria-label={ariaLabel}
+        aria-live={ariaLive ? "polite" : undefined}
+      >
+        <Icon className={sizeConfig.icon} aria-hidden="true" />
         {showLabel && <span className={sizeConfig.text}>{config.label}</span>}
       </span>
     );
@@ -242,9 +256,12 @@ export function AnimatedStatusBadge({
         initial="initial"
         animate="animate"
         exit="exit"
+        role="status"
+        aria-label={ariaLabel}
+        aria-live={ariaLive ? "polite" : undefined}
       >
         <motion.span variants={iconVariants} className="inline-flex">
-          <Icon className={sizeConfig.icon} />
+          <Icon className={sizeConfig.icon} aria-hidden="true" />
         </motion.span>
         {showLabel && (
           <motion.span

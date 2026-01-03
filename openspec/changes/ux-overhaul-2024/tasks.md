@@ -191,16 +191,16 @@
 
 ### 7.1 Dynamic Imports
 
-- [ ] app/create/page.tsx (lazy load StrategyWizard)
-- [ ] app/backtests/page.tsx (lazy load charts)
-- [ ] app/admin/\*/page.tsx (lazy load admin components)
-- [ ] components/charts/\* (lazy load Recharts)
+- [x] app/create/page.tsx (lazy load StrategyWizard)
+- [x] app/backtests/page.tsx (lazy load charts)
+- [x] app/admin/\*/page.tsx (lazy load admin components)
+- [x] components/charts/\* (lazy load Recharts)
 
 ### 7.2 Build Configuration
 
-- [ ] next.config.js (add bundle analyzer)
-- [ ] next.config.js (optimize images)
-- [ ] package.json (add bundle:analyze script)
+- [x] next.config.js (add bundle analyzer)
+- [x] next.config.js (optimize images)
+- [x] package.json (add bundle:analyze script)
 
 ### 7.3 Analysis & Optimization
 
@@ -213,16 +213,16 @@
 
 ### 8.1 QueryClient Configuration
 
-- [ ] components/providers/query-provider.tsx (update defaults)
-- [ ] Add selective refetchOnWindowFocus for critical data
-- [ ] Configure staleTime per query type
-- [ ] Add query deduplication
+- [x] components/providers/query-provider.tsx (update defaults)
+- [x] Add selective refetchOnWindowFocus for critical data
+- [x] Configure staleTime per query type
+- [x] Add query deduplication
 
 ### 8.2 Custom Hooks Enhancement
 
-- [ ] lib/api/hooks/usePortfolio.ts (add smart invalidation)
-- [ ] lib/api/hooks/useStrategies.ts (add smart invalidation)
-- [ ] lib/api/hooks/useBacktests.ts (add smart invalidation)
+- [x] lib/api/hooks/usePortfolio.ts (add smart invalidation)
+- [x] lib/api/hooks/useStrategies.ts (add smart invalidation)
+- [x] lib/api/hooks/useBacktests.ts (add smart invalidation)
 
 ## Phase 9: Accessibility 🌐
 

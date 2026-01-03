@@ -64,6 +64,11 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends SafeButtonProps, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /**
+   * Accessible label for icon-only buttons (WCAG 2.1 AA compliance)
+   * Required when button contains only an icon with no visible text
+   */
+  "aria-label"?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(

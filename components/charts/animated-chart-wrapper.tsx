@@ -35,6 +35,11 @@ export interface AnimatedChartWrapperProps {
   errorComponent?: React.ReactNode;
   /** Delay before showing content (for coordinated animations) */
   delay?: number;
+  /**
+   * Accessible label describing chart data (WCAG 2.1 AA)
+   * Required for screen reader users to understand chart content
+   */
+  ariaLabel?: string;
 }
 
 /**
@@ -202,6 +207,7 @@ export function AnimatedChartWrapper({
   loadingComponent,
   errorComponent,
   delay = 0,
+  ariaLabel,
 }: AnimatedChartWrapperProps) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -211,6 +217,13 @@ export function AnimatedChartWrapper({
   // Determine current state
   const hasError = error !== null && error !== undefined;
   const showContent = !isLoading && !hasError;
+
+  // Generate accessible label
+  const generateAriaLabel = (): string => {
+    if (ariaLabel) return ariaLabel;
+    if (chartName) return `${chartName} chart`;
+    return "Data visualization chart";
+  };
 
   // Prepare animation props based on scroll trigger
   const animationProps = animateOnScroll
@@ -276,6 +289,8 @@ export function AnimatedChartWrapper({
       <div
         className={cn("relative overflow-hidden", className)}
         style={{ minHeight: heightStyle }}
+        role="img"
+        aria-label={generateAriaLabel()}
       >
         {isLoading && renderLoading()}
         {hasError && renderError()}
@@ -288,6 +303,8 @@ export function AnimatedChartWrapper({
     <div
       className={cn("relative overflow-hidden", className)}
       style={{ minHeight: heightStyle }}
+      role="img"
+      aria-label={generateAriaLabel()}
     >
       <AnimatePresence mode="wait">
         {/* Loading State */}

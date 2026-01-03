@@ -42,7 +42,7 @@ var init_auth = __esm({
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       username: text("username").notNull().unique(),
       password: text("password").notNull(),
-      email: text("email"),
+      email: text("email").unique(),
       isAdmin: boolean("is_admin").default(false).notNull()
     });
     sessions = pgTable(
@@ -126,14 +126,13 @@ var init_auth = __esm({
         index("audit_logs_timestamp_idx").on(table.timestamp)
       ]
     );
-    insertUserSchema = createInsertSchema(users).pick({
+    insertUserSchema = createInsertSchema(users, {
+      email: z.string().email("Please enter a valid email address").optional()
+    }).pick({
       username: true,
       password: true,
       email: true,
       isAdmin: true
-    }).extend({
-      email: z.string().email().optional(),
-      isAdmin: z.boolean().optional()
     });
     insertPasswordResetTokenSchema = createInsertSchema(
       passwordResetTokens
@@ -2925,7 +2924,10 @@ var init_storage = __esm({
       }
       async createUser(insertUser) {
         const sanitizedUser = sanitizeUserInput(insertUser);
-        const [user] = await db.insert(users).values(sanitizedUser).returning();
+        const cleanedUser = Object.fromEntries(
+          Object.entries(sanitizedUser).filter(([_, v]) => v !== void 0)
+        );
+        const [user] = await db.insert(users).values(cleanedUser).returning();
         return user;
       }
       async updateUser(id, updates) {
@@ -43760,7 +43762,7 @@ router11.post("/signup", authLimiter, async (req, res) => {
     if (!parsed.success) {
       return fromZodError(res, parsed.error);
     }
-    const { username, password } = parsed.data;
+    const { username, password, email } = parsed.data;
     const sanitizedUsername = sanitizeInput(username);
     if (sanitizedUsername.length < 3) {
       return badRequest(res, "Username must be at least 3 characters");
@@ -43772,15 +43774,24 @@ router11.post("/signup", authLimiter, async (req, res) => {
     if (existingUser) {
       return badRequest(res, "Username already taken");
     }
+    let sanitizedEmail;
+    if (email) {
+      sanitizedEmail = sanitizeInput(email.toLowerCase().trim());
+      const existingEmail = await storage.getUserByEmail(sanitizedEmail);
+      if (existingEmail) {
+        return badRequest(res, "Email already in use");
+      }
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await storage.createUser({
       username: sanitizedUsername,
-      password: hashedPassword
+      password: hashedPassword,
+      email: sanitizedEmail
     });
     const sessionId = await createSession(user.id);
     res.cookie("session", sessionId, getCookieOptions());
     log.info("AuthAPI", `User registered: ${sanitizedUsername}`);
-    res.status(201).json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.status(201).json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Signup error: ${error}`);
     return serverError(res, "Failed to create account");
@@ -43804,7 +43815,7 @@ router11.post("/login", authLimiter, async (req, res) => {
     const sessionId = await createSession(user.id);
     res.cookie("session", sessionId, getCookieOptions());
     log.info("AuthAPI", `User logged in: ${sanitizedUsername}`);
-    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Login error: ${error}`);
     return serverError(res, "Failed to login");
@@ -43840,7 +43851,7 @@ router11.get("/me", async (req, res) => {
       await deleteSession(sessionId);
       return res.status(401).json({ error: "User not found" });
     }
-    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     log.error("AuthAPI", `Get user error: ${error}`);
     res.status(500).json({ error: "Failed to get user" });

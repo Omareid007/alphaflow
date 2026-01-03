@@ -110,7 +110,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <MobileHeader />
       <Sidebar />
-      <main className="flex-1 pt-14 pb-24 md:pt-0 md:pb-0 md:pl-64 transition-[padding] duration-300">
+      <main
+        id="main-content"
+        className="flex-1 pt-14 pb-24 md:pt-0 md:pb-0 md:pl-64 transition-[padding] duration-300"
+      >
         <div className="min-h-screen p-4 md:p-6">{children}</div>
       </main>
       <MobileBottomNav />

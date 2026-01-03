@@ -275,7 +275,11 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     // SECURITY: Sanitize user input to prevent XSS attacks
     const sanitizedUser = sanitizeUserInput(insertUser) as InsertUser;
-    const [user] = await db.insert(users).values(sanitizedUser).returning();
+    // Filter out undefined values for optional fields
+    const cleanedUser = Object.fromEntries(
+      Object.entries(sanitizedUser).filter(([_, v]) => v !== undefined)
+    ) as typeof users.$inferInsert;
+    const [user] = await db.insert(users).values(cleanedUser).returning();
     return user;
   }
 

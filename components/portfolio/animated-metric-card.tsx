@@ -44,6 +44,11 @@ export interface AnimatedMetricCardProps {
   className?: string;
   /** Size variant */
   size?: "sm" | "md" | "lg";
+  /**
+   * Accessible description for screen readers (WCAG 2.1 AA)
+   * If not provided, a default description will be generated
+   */
+  ariaLabel?: string;
 }
 
 const sizeClasses = {
@@ -227,6 +232,7 @@ export function AnimatedMetricCard({
   showChangePercent = true,
   className,
   size = "md",
+  ariaLabel,
 }: AnimatedMetricCardProps) {
   const prefersReducedMotion = useReducedMotion();
   const sizeConfig = sizeClasses[size];
@@ -241,6 +247,33 @@ export function AnimatedMetricCard({
 
   // Determine if we should show trend
   const shouldShowTrend = showTrend && previousValue !== undefined;
+
+  // Generate accessible description
+  const generateAriaLabel = (): string => {
+    if (ariaLabel) return ariaLabel;
+
+    let valueText = "";
+    switch (format) {
+      case "currency":
+        valueText = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency,
+        }).format(value);
+        break;
+      case "percentage":
+        valueText = `${value.toFixed(decimals)}%`;
+        break;
+      default:
+        valueText = value.toFixed(decimals);
+    }
+
+    let trendText = "";
+    if (shouldShowTrend && direction !== "neutral") {
+      trendText = `, ${direction === "up" ? "up" : "down"} ${changePercent.toFixed(1)}% from previous value`;
+    }
+
+    return `${label}: ${valueText}${trendText}`;
+  };
 
   /**
    * Render the value based on format type
@@ -330,6 +363,8 @@ export function AnimatedMetricCard({
           sizeConfig.container,
           className
         )}
+        role="region"
+        aria-label={generateAriaLabel()}
       >
         <div className="flex items-center justify-between mb-2">
           <span className={cn(sizeConfig.label, "text-muted-foreground")}>
@@ -338,6 +373,7 @@ export function AnimatedMetricCard({
           {UserIcon && (
             <UserIcon
               className={cn(sizeConfig.icon, "text-muted-foreground")}
+              aria-hidden="true"
             />
           )}
         </div>
@@ -361,6 +397,8 @@ export function AnimatedMetricCard({
       animate="visible"
       whileHover={{ scale: 1.01 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      role="region"
+      aria-label={generateAriaLabel()}
     >
       {/* Header with label and icon */}
       <motion.div
@@ -380,6 +418,7 @@ export function AnimatedMetricCard({
           >
             <UserIcon
               className={cn(sizeConfig.icon, "text-muted-foreground")}
+              aria-hidden="true"
             />
           </motion.span>
         )}

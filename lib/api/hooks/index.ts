@@ -11,3 +11,4 @@ export * from "./useMarketQuotes";
 export * from "./useMarketStatus";
 export * from "./useCandidates";
 export * from "./useAdmin";
+export * from "./useNotificationPreferences";

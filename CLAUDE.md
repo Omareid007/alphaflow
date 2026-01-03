@@ -42,6 +42,8 @@ Trading platform with autonomous strategy management, backtesting, and broker in
 
 **Full changelog**: See `/docs/CHANGELOG.md` for phases 1-22 history.
 
+**Recent**: Phase 4 UX Overhaul - 31 loading states, 31 error boundaries, 15 optimistic mutation hooks, comprehensive documentation.
+
 ## Path-Scoped Rules
 
 Rules in `.claude/rules/` load only when editing matching files:
@@ -112,6 +114,9 @@ wc -c < CLAUDE.md
 | `docs/CHANGELOG.md` | Full phase history (1-22)    |
 | `docs/product/`     | Roadmap, BRDs, user journeys |
 | `docs/api/`         | OpenAPI specification        |
+| `docs/UX_PATTERNS.md` | Loading states, error boundaries, optimistic updates |
+| `docs/ANIMATION_GUIDE.md` | Framer Motion presets, reduced motion support |
+| `docs/PERFORMANCE_GUIDE.md` | Bundle optimization, React Query caching |
 | `analysis/`         | Gap analysis, flow docs      |
 | `specs/`            | Feature specifications       |
 

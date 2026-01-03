@@ -16,7 +16,7 @@
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 0 0% 40%; /* Improved from 45% for WCAG AA contrast (4.6:1) */
     --accent: 142 100% 39%; /* Neon green accent */
     --accent-foreground: 0 0% 100%;
     --destructive: 4 84% 60%; /* Robinhood red */
@@ -70,7 +70,7 @@
     --secondary: 0 0% 12%; /* Subtle gray */
     --secondary-foreground: 0 0% 95%;
     --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 55%;
+    --muted-foreground: 0 0% 65%; /* Improved from 55% for WCAG AA contrast (7.4:1 on dark bg) */
     --accent: 142 100% 39%; /* Neon green */
     --accent-foreground: 0 0% 0%;
     --destructive: 4 90% 58%; /* Brighter red for dark mode */
@@ -263,6 +263,50 @@
       0 0 0 2px hsl(var(--background)),
       0 0 0 4px hsl(var(--primary)),
       0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  /* WCAG 2.1 AA compliant focus-visible styles */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Enhanced focus styles for interactive elements */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="link"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="menuitem"]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px hsl(var(--ring)),
+      0 0 20px hsl(var(--ring) / 0.3);
+  }
+
+  /* Skip to content link (hidden until focused) */
+  .skip-to-content {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 1rem 1.5rem;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    text-decoration: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+  }
+
+  .skip-to-content:focus {
+    left: 1rem;
+    top: 1rem;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 

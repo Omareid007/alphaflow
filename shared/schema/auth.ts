@@ -37,14 +37,14 @@ import { z } from "zod";
  * @property {string} id - Auto-generated UUID primary key
  * @property {string} username - Unique username for authentication
  * @property {string} password - Hashed password (never stored in plaintext)
- * @property {string|null} email - Optional email for password reset functionality
+ * @property {string|null} email - Optional unique email for password reset functionality
  * @property {boolean} isAdmin - Whether the user has administrator privileges (default: false)
  *
  * @remarks
  * - All sessions and related records are cascade deleted when a user is removed
  * - Usernames are unique and required for login
  * - Passwords should be hashed using bcrypt or similar before storage
- * - Email is optional but required for password reset functionality
+ * - Email is optional but must be unique if provided (required for password reset)
  */
 export const users = pgTable("users", {
   id: varchar("id")
@@ -52,7 +52,7 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email"),
+  email: text("email").unique(),
   isAdmin: boolean("is_admin").default(false).notNull(),
 });
 
@@ -255,20 +255,17 @@ export const auditLogs = pgTable(
  * @remarks
  * - Omits auto-generated fields (id)
  * - isAdmin is optional and defaults to false
- * - Email is optional but required for password reset
+ * - Email is optional but must be a valid email format if provided
  * - Password should be hashed before insertion
  */
-export const insertUserSchema = createInsertSchema(users)
-  .pick({
-    username: true,
-    password: true,
-    email: true,
-    isAdmin: true,
-  })
-  .extend({
-    email: z.string().email().optional(),
-    isAdmin: z.boolean().optional(),
-  });
+export const insertUserSchema = createInsertSchema(users, {
+  email: z.string().email("Please enter a valid email address").optional(),
+}).pick({
+  username: true,
+  password: true,
+  email: true,
+  isAdmin: true,
+});
 
 /**
  * Zod schema for inserting a new password reset token
@@ -325,9 +322,9 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 // ============================================================================
 
 /**
- * Type for inserting a new user (inferred from table schema)
+ * Type for inserting a new user (inferred from Zod schema)
  */
-export type InsertUser = typeof users.$inferInsert;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 /**
  * Type for a user record (inferred from table schema)
