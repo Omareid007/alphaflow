@@ -517,6 +517,41 @@ export class PositionManager {
         updated: updated.length,
         removed: removed.length,
       });
+
+      // Emit position:updated events for created/updated positions (real-time portfolio streaming)
+      const changedPositions = [...created, ...updated];
+      for (const symbol of changedPositions) {
+        eventBus.emit(
+          "position:updated",
+          {
+            userId: effectiveUserId,
+            symbol,
+            source: "position-manager-sync",
+          },
+          "position-manager"
+        );
+      }
+
+      // Emit position:closed events for removed positions (real-time portfolio streaming)
+      for (const symbol of removed) {
+        eventBus.emit(
+          "position:closed",
+          {
+            userId: effectiveUserId,
+            symbol,
+            source: "position-manager-sync",
+          },
+          "position-manager"
+        );
+      }
+
+      if (changedPositions.length > 0 || removed.length > 0) {
+        log.debug("PositionManager", "Emitted real-time portfolio events", {
+          positionUpdates: changedPositions.length,
+          positionClosed: removed.length,
+          userId: effectiveUserId,
+        });
+      }
     } catch (err) {
       log.error("Sync", "Failed to sync positions", {
         error: (err as Error).message,
