@@ -31,6 +31,10 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
 import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
 import { ConnectionStatus as PortfolioStreamStatus } from "@/components/ui/ConnectionStatus";
+import {
+  StalenessWarning,
+  LastUpdatedTimestamp,
+} from "@/components/ui/StalenessWarning";
 import { useRealtimePositions } from "@/hooks/useRealtimePositions";
 import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
 import { useRealtimeAccount } from "@/hooks/useRealtimeAccount";
@@ -257,6 +261,7 @@ export default function PortfolioPage() {
   const {
     connectionStatus: positionsStreamStatus,
     hasStaleData: positionsHaveStaleData,
+    lastUpdateTime: positionsLastUpdateTime,
   } = useRealtimePositions({
     enabled: !!user?.id,
     onPositionUpdate: (position) => {
@@ -441,6 +446,16 @@ export default function PortfolioPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
+        {/* NEW: Staleness Warning Banner (Task 3.4) - Auto-hides when fresh */}
+        <StalenessWarning
+          lastUpdate={positionsLastUpdateTime}
+          threshold={60000}
+          onRefresh={() => {
+            refetchPositions();
+            refetchPortfolio();
+          }}
+        />
+
         {/* Hero Section with Portfolio Chart */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border">
           <div className="absolute inset-0 bg-grid-white/[0.02]" />

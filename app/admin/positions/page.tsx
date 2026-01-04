@@ -13,18 +13,36 @@ import {
 import { Layers, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePositions } from "@/lib/api/hooks";
+import { AnimatedPnL } from "@/components/ui/AnimatedPnL";
+import { LiveBadge } from "@/components/ui/LiveBadge";
+import { useRealtimePositions } from "@/hooks/useRealtimePositions";
+import { StalenessWarning } from "@/components/ui/StalenessWarning";
 
 export default function PositionsPage() {
   const { data: positions = [], isLoading, error } = usePositions();
 
+  // NEW: Real-time position updates (Task 3.4)
+  const { positionUpdateTimes, lastUpdateTime } = useRealtimePositions({
+    enabled: true,
+  });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Positions</h1>
-        <p className="mt-1 text-muted-foreground">
-          Active positions across all strategies
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Positions</h1>
+          <p className="mt-1 text-muted-foreground">
+            Active positions across all strategies
+          </p>
+        </div>
       </div>
+
+      {/* Staleness Warning Banner (Task 3.4) */}
+      <StalenessWarning
+        lastUpdate={lastUpdateTime}
+        threshold={60000}
+        onRefresh={() => window.location.reload()}
+      />
 
       <Card>
         <CardHeader>
@@ -62,6 +80,7 @@ export default function PositionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Symbol</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Entry Price</TableHead>
                   <TableHead>Current Price</TableHead>
@@ -70,42 +89,49 @@ export default function PositionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map((pos) => (
-                  <TableRow key={pos.id}>
-                    <TableCell className="font-medium">{pos.symbol}</TableCell>
-                    <TableCell>
-                      {pos.side === "long"
-                        ? `+${pos.qty}`
-                        : `-${Math.abs(pos.qty)}`}
-                    </TableCell>
-                    <TableCell>
-                      ${Number(pos.entryPrice || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      ${Number(pos.currentPrice || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        (pos.unrealizedPl || 0) >= 0
-                          ? "text-success"
-                          : "text-destructive"
-                      )}
-                    >
-                      {(pos.unrealizedPl || 0) >= 0 ? "+" : ""}$
-                      {Number(pos.unrealizedPl || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        (pos.unrealizedPlPct || 0) >= 0
-                          ? "text-success"
-                          : "text-destructive"
-                      )}
-                    >
-                      {(pos.unrealizedPlPct || 0) >= 0 ? "+" : ""}
-                      {Number(pos.unrealizedPlPct || 0).toFixed(2)}%
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {positions.map((pos) => {
+                  const posLastUpdate = positionUpdateTimes.get(pos.symbol);
+                  return (
+                    <TableRow key={pos.id}>
+                      <TableCell className="font-medium">
+                        {pos.symbol}
+                      </TableCell>
+                      <TableCell>
+                        <LiveBadge
+                          lastUpdate={posLastUpdate}
+                          showLabel={false}
+                          size="sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {pos.side === "long"
+                          ? `+${pos.qty}`
+                          : `-${Math.abs(pos.qty)}`}
+                      </TableCell>
+                      <TableCell>
+                        ${Number(pos.entryPrice || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        ${Number(pos.currentPrice || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <AnimatedPnL
+                          value={pos.unrealizedPl || 0}
+                          showSign
+                          size="sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <AnimatedPnL
+                          value={pos.unrealizedPlPct || 0}
+                          showSign
+                          size="sm"
+                          formatter={(v) => `${v.toFixed(2)}%`}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
