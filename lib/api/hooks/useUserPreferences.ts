@@ -58,7 +58,9 @@ export function useUserPreferences() {
   return useQuery({
     queryKey: userPreferencesKeys.current(),
     queryFn: async (): Promise<UserPreferences> => {
-      const response = await api.get("/user/preferences") as { data: UserPreferences };
+      const response = (await api.get("/api/user/preferences")) as {
+        data: UserPreferences;
+      };
       return response.data;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -77,7 +79,9 @@ export function useUpdatePreferences() {
     mutationFn: async (
       updates: UpdatePreferencesPayload
     ): Promise<UserPreferences> => {
-      const response = await api.put("/user/preferences", updates) as { data: UserPreferences };
+      const response = (await api.put("/api/user/preferences", updates)) as {
+        data: UserPreferences;
+      };
       return response.data;
     },
     onMutate: async (updates) => {
@@ -132,7 +136,9 @@ export function useResetPreferences() {
 
   return useMutation({
     mutationFn: async (): Promise<UserPreferences> => {
-      const response = await api.delete("/user/preferences") as { data: UserPreferences };
+      const response = (await api.delete("/user/preferences")) as {
+        data: UserPreferences;
+      };
       return response.data;
     },
     onSuccess: (data) => {

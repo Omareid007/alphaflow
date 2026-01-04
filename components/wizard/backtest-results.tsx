@@ -52,6 +52,7 @@ interface BacktestResultsProps {
   onApplySuggestions: () => void;
   onRunAgain: () => void;
   onDeploy: (mode: "paper" | "live") => void;
+  onSave?: () => void;
 }
 
 // Transform API response to expected metrics format
@@ -63,8 +64,10 @@ function transformToMetrics(
     return backtest.metrics;
   }
 
-  // Transform from API resultsSummary format
-  const summary = (backtest as ApiBacktestRun).resultsSummary || {};
+  // Transform from API resultsSummary format or results format
+  const apiBacktest = backtest as ApiBacktestRun;
+  const summary = apiBacktest.resultsSummary || {};
+
   return {
     sharpe: summary.sharpeRatio ?? 0,
     maxDrawdown: summary.maxDrawdownPct ?? 0,
@@ -79,29 +82,188 @@ function transformToMetrics(
   };
 }
 
+// Generate AI interpretation based on metrics
+function generateInterpretation(metrics: BacktestMetrics): Interpretation {
+  const strengths: string[] = [];
+  const risks: string[] = [];
+
+  // Analyze Sharpe ratio
+  if (metrics.sharpe > 1) {
+    strengths.push(
+      `Strong risk-adjusted returns with Sharpe ratio of ${metrics.sharpe.toFixed(2)}`
+    );
+  } else if (metrics.sharpe > 0.5) {
+    strengths.push(
+      `Decent risk-adjusted returns with Sharpe ratio of ${metrics.sharpe.toFixed(2)}`
+    );
+  } else {
+    risks.push(
+      `Low Sharpe ratio (${metrics.sharpe.toFixed(2)}) indicates inadequate risk compensation`
+    );
+  }
+
+  // Analyze max drawdown
+  if (Math.abs(metrics.maxDrawdown) < 10) {
+    strengths.push(
+      `Conservative drawdown of ${Math.abs(metrics.maxDrawdown).toFixed(1)}% shows good risk management`
+    );
+  } else if (Math.abs(metrics.maxDrawdown) < 20) {
+    strengths.push(
+      `Manageable maximum drawdown of ${Math.abs(metrics.maxDrawdown).toFixed(1)}%`
+    );
+  } else {
+    risks.push(
+      `Maximum drawdown of ${Math.abs(metrics.maxDrawdown).toFixed(1)}% indicates significant volatility`
+    );
+  }
+
+  // Analyze win rate
+  if (metrics.winRate > 55) {
+    strengths.push(
+      `Win rate of ${metrics.winRate.toFixed(1)}% shows consistent profitability`
+    );
+  } else if (metrics.winRate > 45) {
+    risks.push(
+      `Win rate of ${metrics.winRate.toFixed(1)}% is only slightly above break-even`
+    );
+  } else {
+    risks.push(
+      `Low win rate of ${metrics.winRate.toFixed(1)}% requires large average wins to be profitable`
+    );
+  }
+
+  // Analyze profit factor
+  if (metrics.profitFactor > 1.5) {
+    strengths.push(
+      `Excellent profit factor of ${metrics.profitFactor.toFixed(2)} shows strong profitability relative to losses`
+    );
+  } else if (metrics.profitFactor > 1) {
+    strengths.push(
+      `Profit factor of ${metrics.profitFactor.toFixed(2)} indicates profitable strategy`
+    );
+  } else {
+    risks.push(
+      `Profit factor below 1.0 indicates the strategy is not profitable`
+    );
+  }
+
+  // Analyze trade count
+  if (metrics.totalTrades < 5) {
+    risks.push(
+      `Only ${metrics.totalTrades} trades in backtest is insufficient for statistical significance`
+    );
+  } else if (metrics.totalTrades < 20) {
+    risks.push(
+      `Limited trade count (${metrics.totalTrades}) may not be statistically reliable`
+    );
+  } else {
+    strengths.push(
+      `${metrics.totalTrades} trades provide reasonable statistical sample size`
+    );
+  }
+
+  // If no strengths, add a generic positive message
+  if (strengths.length === 0) {
+    strengths.push("Strategy completed backtest successfully");
+  }
+
+  return {
+    summary: `Backtest analysis: Sharpe ${metrics.sharpe.toFixed(2)}, Max Drawdown ${Math.abs(metrics.maxDrawdown).toFixed(1)}%, Win Rate ${metrics.winRate.toFixed(1)}%`,
+    strengths,
+    risks,
+    suggestedEdits: [],
+  };
+}
+
+// Transform API response to expected chart series format
+function transformToChartSeries(
+  backtest: BacktestRun | ApiBacktestRun
+): BacktestChartSeries {
+  // If already has chartSeries in expected format, use it
+  if ("chartSeries" in backtest && backtest.chartSeries) {
+    return backtest.chartSeries;
+  }
+
+  // Transform from API results format (has equityCurve array)
+  const apiBacktest = backtest as ApiBacktestRun;
+  const results = (apiBacktest as any).results;
+
+  if (results && results.equityCurve) {
+    // Transform equityCurve from { date, equity } to { date, value }
+    const equityCurve = results.equityCurve.map((point: any) => ({
+      date: point.date || point.ts || new Date().toISOString(),
+      value:
+        typeof point.equity === "number"
+          ? point.equity
+          : parseFloat(point.equity) || 0,
+    }));
+
+    // Generate drawdown series from equity curve
+    const drawdown = equityCurve.map((point: any, idx: number) => {
+      const maxEquity = Math.max(
+        ...equityCurve.slice(0, idx + 1).map((p: any) => p.value)
+      );
+      const dd =
+        maxEquity > 0 ? ((point.value - maxEquity) / maxEquity) * 100 : 0;
+      return {
+        date: point.date,
+        value: dd,
+      };
+    });
+
+    // Generate returns series (daily returns)
+    const returns = equityCurve.map((point: any, idx: number) => {
+      if (idx === 0) {
+        return {
+          date: point.date,
+          value: 0,
+        };
+      }
+      const prevValue = equityCurve[idx - 1].value;
+      const dailyReturn =
+        prevValue > 0 ? ((point.value - prevValue) / prevValue) * 100 : 0;
+      return {
+        date: point.date,
+        value: dailyReturn,
+      };
+    });
+
+    return { equityCurve, drawdown, returns };
+  }
+
+  // Fallback to empty chart series
+  return {
+    equityCurve: [],
+    drawdown: [],
+    returns: [],
+  };
+}
+
 export function BacktestResults({
   backtest,
   onApplySuggestions,
   onRunAgain,
   onDeploy,
+  onSave,
 }: BacktestResultsProps) {
   // Transform metrics from API format if needed
   const metrics = transformToMetrics(backtest);
-  const chartSeries = ("chartSeries" in backtest
-    ? backtest.chartSeries
-    : undefined) || {
-    equityCurve: [],
-    drawdown: [],
-    returns: [],
-  };
-  const interpretation = ("interpretation" in backtest
-    ? backtest.interpretation
-    : undefined) || {
-    summary: "Backtest completed successfully.",
-    strengths: [],
-    risks: [],
-    suggestedEdits: [],
-  };
+  // Transform chart series - handles both API and internal formats
+  const chartSeries = transformToChartSeries(backtest);
+
+  // Get interpretation from backtest or generate one based on metrics
+  let interpretation: Interpretation;
+  if ("interpretation" in backtest && backtest.interpretation) {
+    const raw = backtest.interpretation;
+    // If it's a string, normalize it; otherwise use as-is
+    interpretation =
+      typeof raw === "string"
+        ? { summary: raw, strengths: [], risks: [], suggestedEdits: [] }
+        : raw;
+  } else {
+    // Generate interpretation from metrics if not provided
+    interpretation = generateInterpretation(metrics);
+  }
 
   const isGoodPerformance = metrics.sharpe > 1 && metrics.maxDrawdown < 20;
 
@@ -147,7 +309,11 @@ export function BacktestResults({
 
       <Card>
         <CardContent className="py-6">
-          <BacktestActions onRunAgain={onRunAgain} onDeploy={onDeploy} />
+          <BacktestActions
+            onRunAgain={onRunAgain}
+            onDeploy={onDeploy}
+            onSave={onSave}
+          />
         </CardContent>
       </Card>
     </div>

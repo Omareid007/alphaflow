@@ -98,7 +98,7 @@ export default function PositionsPage() {
                       </TableCell>
                       <TableCell>
                         <LiveBadge
-                          lastUpdate={posLastUpdate}
+                          lastUpdate={posLastUpdate ?? null}
                           showLabel={false}
                           size="sm"
                         />

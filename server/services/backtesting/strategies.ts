@@ -7,7 +7,8 @@ import type { HistoricalBar } from "./historical-data-service";
 export type StrategyType =
   | "moving_average_crossover"
   | "rsi_oscillator"
-  | "buy_and_hold";
+  | "buy_and_hold"
+  | "mean_reversion";
 
 export interface StrategyConfig {
   type: StrategyType;
@@ -233,6 +234,168 @@ export function createBuyAndHoldStrategy(
   };
 }
 
+interface MeanReversionSymbolState extends SymbolState {
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  entryIndex: number;
+}
+
+export function createMeanReversionStrategy(
+  universe: string[],
+  initialCash: number,
+  meanPeriod: number = 20,
+  stdDevMultiple: number = 2.0,
+  stopLossPercent: number = 5,
+  allocationPct: number = 10
+): StrategySignalGenerator {
+  const state: Map<string, MeanReversionSymbolState> = new Map();
+
+  // Helper: Calculate Simple Moving Average
+  function calculateSMA(prices: number[], period: number): number {
+    if (prices.length < period) return 0;
+    const slice = prices.slice(-period);
+    return slice.reduce((sum, p) => sum + p, 0) / period;
+  }
+
+  // Helper: Calculate Standard Deviation
+  function calculateStdDev(
+    prices: number[],
+    period: number,
+    sma: number
+  ): number {
+    if (prices.length < period) return 0;
+    const slice = prices.slice(-period);
+    const squaredDiffs = slice.map((p) => Math.pow(p - sma, 2));
+    const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / period;
+    return Math.sqrt(variance);
+  }
+
+  // Helper: Calculate Z-Score
+  function calculateZScore(price: number, sma: number, stdDev: number): number {
+    if (stdDev === 0) return 0;
+    return (price - sma) / stdDev;
+  }
+
+  // Initialize state for symbols
+  for (const symbol of universe) {
+    state.set(symbol, {
+      prices: [],
+      position: "none",
+      positionQty: 0,
+      entryPrice: 0,
+      stopLoss: 0,
+      takeProfit: 0,
+      entryIndex: 0,
+    });
+  }
+
+  return {
+    onBar(
+      bar: HistoricalBar,
+      barIndex: number,
+      allBarsUpToNow: HistoricalBar[]
+    ): StrategySignal[] {
+      const signals: StrategySignal[] = [];
+      const symbol = bar.symbol;
+
+      let symbolState = state.get(symbol);
+      if (!symbolState) {
+        symbolState = {
+          prices: [],
+          position: "none",
+          positionQty: 0,
+          entryPrice: 0,
+          stopLoss: 0,
+          takeProfit: 0,
+          entryIndex: 0,
+        };
+        state.set(symbol, symbolState);
+      }
+
+      symbolState.prices.push(bar.close);
+      const currentPrice = bar.close;
+
+      // Need enough data for Bollinger Bands calculation
+      if (symbolState.prices.length < meanPeriod) return signals;
+
+      // Calculate Bollinger Bands
+      const sma = calculateSMA(symbolState.prices, meanPeriod);
+      const stdDev = calculateStdDev(symbolState.prices, meanPeriod, sma);
+      const lowerBand = sma - stdDev * stdDevMultiple;
+      const upperBand = sma + stdDev * stdDevMultiple;
+      const zScore = calculateZScore(currentPrice, sma, stdDev);
+
+      // Handle existing position - check for exits
+      if (symbolState.position === "long") {
+        let shouldExit = false;
+        let exitReason = "";
+
+        // Check stop loss
+        if (currentPrice <= symbolState.stopLoss) {
+          shouldExit = true;
+          exitReason = `Stop loss triggered at ${currentPrice.toFixed(2)}`;
+        }
+        // Check take profit
+        else if (currentPrice >= symbolState.takeProfit) {
+          shouldExit = true;
+          exitReason = `Take profit target reached at ${currentPrice.toFixed(2)}`;
+        }
+        // Check mean reversion complete
+        else if (currentPrice >= sma) {
+          shouldExit = true;
+          exitReason = `Price reverted to mean (SMA: ${sma.toFixed(2)})`;
+        }
+
+        if (shouldExit) {
+          signals.push({
+            symbol,
+            side: "sell",
+            qty: symbolState.positionQty,
+            reason: exitReason,
+          });
+          symbolState.position = "none";
+          symbolState.positionQty = 0;
+          symbolState.entryPrice = 0;
+          symbolState.stopLoss = 0;
+          symbolState.takeProfit = 0;
+        }
+      }
+
+      // No position - check for entry signals
+      if (
+        symbolState.position === "none" &&
+        currentPrice < lowerBand &&
+        zScore < -stdDevMultiple
+      ) {
+        const allocationAmount = initialCash * (allocationPct / 100);
+        const qty = Math.floor(allocationAmount / currentPrice);
+
+        if (qty > 0) {
+          const stopLoss = currentPrice * (1 - stopLossPercent / 100);
+          const takeProfit = sma; // Mean reversion target
+
+          signals.push({
+            symbol,
+            side: "buy",
+            qty,
+            reason: `Oversold: Price ${currentPrice.toFixed(2)} below lower band ${lowerBand.toFixed(2)} (Z-score: ${zScore.toFixed(2)})`,
+          });
+
+          symbolState.position = "long";
+          symbolState.positionQty = qty;
+          symbolState.entryPrice = currentPrice;
+          symbolState.stopLoss = stopLoss;
+          symbolState.takeProfit = takeProfit;
+          symbolState.entryIndex = barIndex;
+        }
+      }
+
+      return signals;
+    },
+  };
+}
+
 export function createStrategy(
   strategyConfig: StrategyConfig,
   universe: string[],
@@ -256,6 +419,15 @@ export function createStrategy(
         params.period || 14,
         params.oversoldThreshold || 30,
         params.overboughtThreshold || 70,
+        params.allocationPct || 10
+      );
+    case "mean_reversion":
+      return createMeanReversionStrategy(
+        universe,
+        initialCash,
+        params.meanPeriod || 20,
+        params.stdDevMultiple || 2.0,
+        params.stopLossPercent || 5,
         params.allocationPct || 10
       );
     case "buy_and_hold":

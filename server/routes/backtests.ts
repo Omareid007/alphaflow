@@ -62,6 +62,7 @@ router.post("/run", requireAuth, async (req: Request, res: Response) => {
       "moving_average_crossover",
       "rsi_oscillator",
       "buy_and_hold",
+      "mean_reversion",
     ];
     if (strategyType && !validStrategyTypes.includes(strategyType)) {
       return res.status(400).json({

@@ -60,9 +60,26 @@ const EMPTY_PORTFOLIO_SNAPSHOT: PortfolioSnapshot = {
 export function usePortfolioSnapshot() {
   return useQuery({
     queryKey: ["portfolio", "snapshot"],
-    queryFn: () => api.get<PortfolioSnapshot>("/api/positions/snapshot"),
+    queryFn: async () => {
+      try {
+        const response = await api.get<PortfolioSnapshot>(
+          "/api/positions/snapshot"
+        );
+        return response;
+      } catch (error) {
+        // If the endpoint fails (e.g., Alpaca not connected), throw error instead of falling back to zeros
+        // This allows the UI to show an error state rather than misleading "--" values
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load portfolio snapshot. Check if Alpaca is connected."
+        );
+      }
+    },
     // Inherits staleTime: 5s, refetchInterval: 30s from QueryProvider defaults
     initialData: EMPTY_PORTFOLIO_SNAPSHOT,
+    // Don't use fallback data if there was an error
+    retry: 2,
   });
 }
 

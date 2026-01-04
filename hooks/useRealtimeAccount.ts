@@ -193,7 +193,7 @@ export function useRealtimeAccount(
         // Update portfolio snapshot cache (merges with existing snapshot)
         queryClient.setQueryData<any>(
           PORTFOLIO_SNAPSHOT_QUERY_KEY,
-          (oldSnapshot) => {
+          (oldSnapshot: any) => {
             if (!oldSnapshot) {
               // No snapshot yet, create minimal one
               return {
@@ -223,7 +223,7 @@ export function useRealtimeAccount(
         );
 
         // Also update standalone account cache if it exists
-        queryClient.setQueryData<any>(ACCOUNT_QUERY_KEY, (oldAccount) => ({
+        queryClient.setQueryData<any>(ACCOUNT_QUERY_KEY, (oldAccount: any) => ({
           ...oldAccount,
           equity: parseFloat(accountData.equity),
           buyingPower: parseFloat(accountData.buyingPower),
@@ -250,7 +250,7 @@ export function useRealtimeAccount(
           // Update portfolio snapshot cache
           queryClient.setQueryData<any>(
             PORTFOLIO_SNAPSHOT_QUERY_KEY,
-            (oldSnapshot) => {
+            (oldSnapshot: any) => {
               if (!oldSnapshot) {
                 return {
                   totalEquity: parseFloat(accountData.equity),
@@ -278,16 +278,19 @@ export function useRealtimeAccount(
           );
 
           // Update standalone account cache
-          queryClient.setQueryData<any>(ACCOUNT_QUERY_KEY, (oldAccount) => ({
-            ...oldAccount,
-            equity: parseFloat(accountData.equity),
-            buyingPower: parseFloat(accountData.buyingPower),
-            cash: parseFloat(accountData.cash),
-            portfolioValue: parseFloat(accountData.portfolioValue),
-            dayPnl: parseFloat(accountData.dayPnl),
-            dayPnlPercent: parseFloat(accountData.dayPnlPercent),
-            lastUpdated: new Date(),
-          }));
+          queryClient.setQueryData<any>(
+            ACCOUNT_QUERY_KEY,
+            (oldAccount: any) => ({
+              ...oldAccount,
+              equity: parseFloat(accountData.equity),
+              buyingPower: parseFloat(accountData.buyingPower),
+              cash: parseFloat(accountData.cash),
+              portfolioValue: parseFloat(accountData.portfolioValue),
+              dayPnl: parseFloat(accountData.dayPnl),
+              dayPnlPercent: parseFloat(accountData.dayPnlPercent),
+              lastUpdated: new Date(),
+            })
+          );
 
           // Notify callback
           onAccountUpdate?.(accountData);

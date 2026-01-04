@@ -220,6 +220,29 @@ export function StrategyWizard({
     setBacktestProgress(0);
   }, []);
 
+  const handleSave = useCallback(async () => {
+    if (!strategy) return;
+
+    try {
+      toast.loading("Saving strategy...");
+      // Update strategy status to backtested
+      await updateStrategyMutation.mutateAsync({
+        id: strategy.id,
+        status: "backtested",
+        name: strategyName,
+        config: configValues,
+      });
+      toast.dismiss();
+      toast.success("Strategy saved successfully");
+      router.push("/strategies");
+    } catch (error) {
+      toast.dismiss();
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save strategy"
+      );
+    }
+  }, [strategy, strategyName, configValues, updateStrategyMutation, router]);
+
   const handleDeploy = useCallback(
     async (mode: "paper" | "live") => {
       if (!strategy) return;
@@ -361,6 +384,7 @@ export function StrategyWizard({
               onApplySuggestions={handleApplySuggestions}
               onRunAgain={handleRunAgain}
               onDeploy={handleDeploy}
+              onSave={handleSave}
             />
           )}
         </WizardStep>

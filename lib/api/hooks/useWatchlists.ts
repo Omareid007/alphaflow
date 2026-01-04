@@ -8,8 +8,27 @@ export function useWatchlists() {
     queryKey: ["watchlists"],
     queryFn: async () => {
       try {
-        return await api.get<Watchlist[]>("/api/watchlists");
-      } catch {
+        const response = await api.get<any[]>("/api/watchlists");
+
+        // Transform backend response to match frontend Watchlist type
+        // Backend returns { symbols: [] }, frontend expects { items: [] }
+        return response.map((watchlist: any) => ({
+          id: watchlist.id,
+          name: watchlist.name,
+          createdAt: watchlist.createdAt,
+          // Transform symbols array to items array with placeholder price data
+          items: (watchlist.symbols || []).map((symbol: any) => ({
+            symbol: symbol.symbol || symbol,
+            name: symbol.name || symbol,
+            price: symbol.price || 0,
+            change: symbol.change || 0,
+            changePercent: symbol.changePercent || 0,
+            tags: symbol.tags || [],
+            eligible: symbol.eligible !== false,
+          })),
+        })) as Watchlist[];
+      } catch (error) {
+        console.error("Failed to fetch watchlists:", error);
         // Return empty array if endpoint unavailable
         return [];
       }

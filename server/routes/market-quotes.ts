@@ -25,10 +25,20 @@ router.get("/quotes", requireAuth, async (req: Request, res: Response) => {
       if (!snap) {
         return { symbol, price: null, change: null, changePercent: null };
       }
-      const price = snap.latestTrade?.p || snap.dailyBar?.c || 0;
-      const prevClose = snap.prevDailyBar?.c || price;
-      const change = price - prevClose;
-      const changePercent = prevClose ? (change / prevClose) * 100 : 0;
+
+      // Use latest trade price if available, otherwise use daily bar close
+      // For after-hours/closed market: use previous close as fallback
+      const price =
+        snap.latestTrade?.p || snap.dailyBar?.c || snap.prevDailyBar?.c || null;
+      const prevClose = snap.prevDailyBar?.c || (snap.dailyBar?.c ?? null);
+
+      // Only calculate change if we have valid prices
+      const change = price && prevClose ? price - prevClose : null;
+      const changePercent =
+        price && prevClose && prevClose > 0
+          ? (change! / prevClose) * 100
+          : null;
+
       return {
         symbol,
         price,
