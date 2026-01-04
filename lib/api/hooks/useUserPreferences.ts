@@ -136,7 +136,7 @@ export function useResetPreferences() {
 
   return useMutation({
     mutationFn: async (): Promise<UserPreferences> => {
-      const response = (await api.delete("/user/preferences")) as {
+      const response = (await api.delete("/api/user/preferences")) as {
         data: UserPreferences;
       };
       return response.data;
