@@ -3,6 +3,7 @@ import { alpaca } from "../connectors/alpaca";
 import { log } from "../utils/logger";
 import { tradabilityService } from "../services/tradability-service";
 import { withLock } from "./redis-cache";
+import { eventBus } from "../orchestration/events";
 // Lazy import to break circular dependency with universe/index.ts
 // tradingEnforcementService -> rebalancerService -> work-queue
 const getTradingEnforcementService = async () => {
@@ -871,13 +872,43 @@ class WorkQueueServiceImpl implements WorkQueueService {
       rawJson: order,
     };
 
-    await storage.upsertOrderByBrokerOrderId(order.id, orderData);
+    const createdOrder = await storage.upsertOrderByBrokerOrderId(
+      order.id,
+      orderData
+    );
 
     await storage.updateWorkItem(item.id, { brokerOrderId: order.id });
     await this.markSucceeded(
       item.id,
       JSON.stringify({ orderId: order.id, status: order.status })
     );
+
+    // Emit position:updated event for real-time portfolio streaming
+    // This triggers WebSocket clients to receive order status updates
+    try {
+      eventBus.emit(
+        "position:updated",
+        {
+          userId,
+          symbol,
+          source: "work-queue-order-submit",
+        },
+        "work-queue"
+      );
+
+      log.debug("WorkQueue", "Emitted position:updated after ORDER_SUBMIT", {
+        orderId: createdOrder.id,
+        brokerOrderId: order.id,
+        symbol,
+        status: order.status,
+      });
+    } catch (emitError) {
+      // Don't fail the work item if event emission fails
+      log.error("WorkQueue", "Failed to emit position:updated event", {
+        error: emitError,
+        orderId: createdOrder.id,
+      });
+    }
   }
 
   async processOrderCancel(item: WorkItem): Promise<void> {
@@ -889,11 +920,41 @@ class WorkQueueServiceImpl implements WorkQueueService {
       return;
     }
 
+    // Get order before cancellation to extract details for event
+    const orderToCancel = await storage.getOrderByBrokerOrderId(orderId);
+
     await alpaca.cancelOrder(orderId);
     await this.markSucceeded(
       item.id,
       JSON.stringify({ canceledOrderId: orderId })
     );
+
+    // Emit position:updated event for cancelled order (real-time portfolio streaming)
+    if (orderToCancel) {
+      try {
+        eventBus.emit(
+          "position:updated",
+          {
+            userId: orderToCancel.userId,
+            symbol: orderToCancel.symbol,
+            source: "work-queue-order-cancel",
+          },
+          "work-queue"
+        );
+
+        log.debug("WorkQueue", "Emitted position:updated after ORDER_CANCEL", {
+          orderId: orderToCancel.id,
+          brokerOrderId: orderId,
+          symbol: orderToCancel.symbol,
+        });
+      } catch (emitError) {
+        // Don't fail the work item if event emission fails
+        log.error("WorkQueue", "Failed to emit event after ORDER_CANCEL", {
+          error: emitError,
+          orderId: orderToCancel.id,
+        });
+      }
+    }
   }
 
   async processOrderSync(item: WorkItem): Promise<void> {
