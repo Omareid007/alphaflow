@@ -30,6 +30,10 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useRealTimeTrading } from "@/lib/hooks/useRealTimeTrading";
 import { ConnectionStatus } from "@/components/trading/ConnectionStatus";
+import { ConnectionStatus as PortfolioStreamStatus } from "@/components/ui/ConnectionStatus";
+import { useRealtimePositions } from "@/hooks/useRealtimePositions";
+import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
+import { useRealtimeAccount } from "@/hooks/useRealtimeAccount";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useMemo, useCallback, useState } from "react";
@@ -241,12 +245,45 @@ export default function PortfolioPage() {
     queryClient.invalidateQueries({ queryKey: ["positions"] });
   }, [queryClient]);
 
-  // Real-time SSE connection for live P&L updates
+  // Real-time SSE connection for live P&L updates (existing)
   const { isConnected, status } = useRealTimeTrading({
     enabled: !!user?.id,
     userId: user?.id,
     onPositionUpdate: handlePositionUpdate,
     onPriceUpdate: handlePriceUpdate,
+  });
+
+  // NEW: Real-time WebSocket portfolio streaming (Task 3.1)
+  const {
+    connectionStatus: positionsStreamStatus,
+    hasStaleData: positionsHaveStaleData,
+  } = useRealtimePositions({
+    enabled: !!user?.id,
+    onPositionUpdate: (position) => {
+      console.log(
+        "[Realtime] Position updated:",
+        position.symbol,
+        position.unrealizedPnl
+      );
+    },
+  });
+
+  const { isConnected: ordersStreamConnected } = useRealtimeOrders({
+    enabled: !!user?.id,
+    onOrderFilled: (order) => {
+      toast({
+        title: "Order Filled",
+        description: `${order.side.toUpperCase()} ${order.filledQty} ${order.symbol} @ $${order.filledAvgPrice}`,
+        variant: "default",
+      });
+    },
+  });
+
+  const { isConnected: accountStreamConnected } = useRealtimeAccount({
+    enabled: !!user?.id,
+    onAccountUpdate: (account) => {
+      console.log("[Realtime] Account updated: equity =", account.equity);
+    },
   });
 
   const isLoading = portfolioLoading || positionsLoading || strategiesLoading;
@@ -424,6 +461,14 @@ export default function PortfolioPage() {
                     compact
                     showStats={false}
                   />
+                )}
+                {/* NEW: Portfolio WebSocket streaming status (Task 3.1) */}
+                <PortfolioStreamStatus showLabel={false} size="sm" />
+                {positionsHaveStaleData && (
+                  <span className="text-xs text-yellow-500 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Data may be outdated
+                  </span>
                 )}
                 <Button
                   variant="glass"
