@@ -8,31 +8,45 @@ export function useWatchlists() {
     queryKey: ["watchlists"],
     queryFn: async () => {
       try {
-        const response = await api.get<any[]>("/api/watchlists");
+        const response = await api.get<any>("/api/watchlists");
 
-        // Transform backend response to match frontend Watchlist type
-        // Backend returns { symbols: [] }, frontend expects { items: [] }
-        return response.map((watchlist: any) => ({
-          id: watchlist.id,
-          name: watchlist.name,
-          createdAt: watchlist.createdAt,
-          // Transform symbols array to items array with placeholder price data
-          items: (watchlist.symbols || []).map((symbol: any) => ({
-            symbol: symbol.symbol || symbol,
-            name: symbol.name || symbol,
-            price: symbol.price || 0,
-            change: symbol.change || 0,
-            changePercent: symbol.changePercent || 0,
-            tags: symbol.tags || [],
-            eligible: symbol.eligible !== false,
-          })),
-        })) as Watchlist[];
+        // Safety check - if not array, return empty
+        if (!response || !Array.isArray(response)) {
+          console.warn("Watchlists response is not an array:", response);
+          return [];
+        }
+
+        // Transform with safety checks
+        return response
+          .map((watchlist: any) => {
+            if (!watchlist) return null;
+
+            const symbols = watchlist.symbols || watchlist.items || [];
+
+            return {
+              id: watchlist.id || "",
+              name: watchlist.name || "Unnamed",
+              createdAt: watchlist.createdAt || new Date().toISOString(),
+              items: Array.isArray(symbols)
+                ? symbols.map((s: any) => ({
+                    symbol: typeof s === "string" ? s : s?.symbol || "",
+                    name: typeof s === "string" ? s : s?.name || "",
+                    price: s?.price ?? 0,
+                    change: s?.change ?? 0,
+                    changePercent: s?.changePercent ?? 0,
+                    tags: s?.tags || [],
+                    eligible: s?.eligible !== false,
+                  }))
+                : [],
+            };
+          })
+          .filter(Boolean) as Watchlist[];
       } catch (error) {
         console.error("Failed to fetch watchlists:", error);
-        // Return empty array if endpoint unavailable
         return [];
       }
     },
+    staleTime: 1000 * 60 * 5,
   });
 }
 
