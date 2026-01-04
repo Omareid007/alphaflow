@@ -6,6 +6,7 @@ import { hookIntoTradeUpdates } from "./order-retry-handler";
 import { toDecimal, calculatePnL, formatPrice } from "../utils/money";
 import { tradingConfig } from "../config/trading-config";
 import { broadcastTradeUpdate } from "../lib/websocket-server";
+import { eventBus } from "../orchestration/events";
 
 // Use config-based URL that respects ALPACA_TRADING_MODE environment variable
 const ALPACA_STREAM_URL =
@@ -294,7 +295,7 @@ class AlpacaStreamManager {
         rawJson: order,
       });
 
-      // Broadcast trade update to connected WebSocket clients
+      // Broadcast trade update to connected WebSocket clients (legacy)
       broadcastTradeUpdate({
         orderId: brokerOrderId,
         symbol: order.symbol,
@@ -302,6 +303,23 @@ class AlpacaStreamManager {
         status: newStatus,
         filledQty: order.filled_qty,
         filledPrice: order.filled_avg_price || undefined,
+      });
+
+      // Emit position:updated event for real-time portfolio streaming
+      // The portfolio stream manager will fetch the updated position from Alpaca and broadcast
+      eventBus.emit(
+        "position:updated",
+        {
+          userId,
+          symbol: order.symbol,
+          source: "alpaca-stream-order-update",
+        },
+        "alpaca-stream"
+      );
+
+      log.debug("AlpacaStream", "Emitted position:updated event", {
+        symbol: order.symbol,
+        userId,
       });
 
       if ((event === "fill" || event === "partial_fill") && price && qty) {
@@ -347,7 +365,7 @@ class AlpacaStreamManager {
                 );
               }
 
-              await storage.createTrade({
+              const createdTrade = await storage.createTrade({
                 userId,
                 orderId: existingOrder.id,
                 symbol: order.symbol,
@@ -364,6 +382,28 @@ class AlpacaStreamManager {
                 "AlpacaStream",
                 `Auto-created trade record for filled order ${brokerOrderId}, symbol: ${order.symbol}, qty: ${qty}, price: ${price}${pnl ? `, pnl: ${pnl}` : ""}`
               );
+
+              // Emit trade:executed event for real-time portfolio streaming
+              eventBus.emit(
+                "trade:executed",
+                {
+                  tradeId: createdTrade.id,
+                  orderId: existingOrder.id,
+                  symbol: order.symbol,
+                  side: order.side as "buy" | "sell",
+                  quantity: parseFloat(qty),
+                  price: parseFloat(price),
+                  status: "completed",
+                  strategyId: existingOrder.decisionId || undefined,
+                },
+                "alpaca-stream"
+              );
+
+              log.debug("AlpacaStream", "Emitted trade:executed event", {
+                tradeId: createdTrade.id,
+                symbol: order.symbol,
+                side: order.side,
+              });
             } catch (tradeError) {
               const errorMessage =
                 tradeError instanceof Error
