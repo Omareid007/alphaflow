@@ -31,6 +31,7 @@ import { orchestrator } from "../../autonomous/orchestrator";
 import { getAllUsageStats } from "../../lib/apiBudget";
 import { getCallStats } from "../../ai/roleBasedRouter";
 import { alpacaTradingEngine } from "../../trading/alpaca-trading-engine";
+import { getPortfolioStreamManager } from "../../lib/portfolio-stream";
 import { log } from "../../utils/logger";
 import { requireAuth, requireAdmin } from "../../middleware/requireAuth";
 
@@ -85,11 +86,11 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      const module = getModule(req.params.id);
-      if (!module) {
+      const adminModule = getModule(req.params.id);
+      if (!adminModule) {
         return res.status(404).json({ error: "Module not found" });
       }
-      res.json(module);
+      res.json(adminModule);
     } catch (error) {
       log.error("AdminSystem", "Failed to get admin module", { error });
       res.status(500).json({ error: "Failed to get admin module" });
@@ -459,5 +460,104 @@ router.get(
     }
   }
 );
+
+// GET /api/admin/websocket-stats - Get real-time WebSocket connection statistics
+router.get(
+  "/websocket-stats",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const portfolioStream = getPortfolioStreamManager();
+
+      if (!portfolioStream) {
+        return res.json({
+          status: "disabled",
+          message:
+            "Real-time portfolio streaming is disabled (ENABLE_REALTIME_PORTFOLIO=false)",
+          enabled: false,
+          activeConnections: 0,
+          totalMessagesDelivered: 0,
+          totalEventsEmitted: 0,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const stats = portfolioStream.getStats();
+
+      // Determine health status based on metrics
+      let status: "healthy" | "degraded" | "offline" = "healthy";
+
+      // Degraded if disconnect rate is high (> 10% of connections per minute)
+      const disconnectRatePerMinute =
+        stats.totalDisconnects / (stats.uptime / 60) || 0;
+      if (disconnectRatePerMinute > stats.activeConnections * 0.1) {
+        status = "degraded";
+      }
+
+      // Degraded if batch efficiency is low (< 50%)
+      if (stats.batchEfficiency < 0.5 && stats.totalEventsEmitted > 100) {
+        status = "degraded";
+      }
+
+      // Offline if no connections and uptime > 5 minutes
+      if (stats.activeConnections === 0 && stats.uptime > 300) {
+        status = "offline";
+      }
+
+      res.json({
+        status,
+        enabled: true,
+        activeConnections: stats.activeConnections,
+        connectionsByUser: stats.connectionsByUser,
+        totalMessagesDelivered: stats.totalMessagesDelivered,
+        totalEventsEmitted: stats.totalEventsEmitted,
+        totalDisconnects: stats.totalDisconnects,
+        totalReconnects: stats.totalReconnects,
+        performance: {
+          batchEfficiency: `${(stats.batchEfficiency * 100).toFixed(1)}%`,
+          batchEfficiencyRaw: stats.batchEfficiency,
+          avgConnectionDurationSeconds: stats.avgConnectionDuration,
+          disconnectRatePerMinute: disconnectRatePerMinute.toFixed(2),
+        },
+        uptime: {
+          seconds: stats.uptime,
+          formatted: formatUptime(stats.uptime),
+        },
+        limits: {
+          maxConnectionsPerUser: 5,
+          maxTotalConnections: 100,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error("AdminSystem", "Failed to get WebSocket stats", { error });
+      res.status(500).json({
+        error: "Failed to retrieve WebSocket statistics",
+        status: "error",
+      });
+    }
+  }
+);
+
+/**
+ * Format uptime seconds into human-readable string
+ *
+ * @param seconds - Uptime in seconds
+ * @returns Formatted string (e.g., "2h 15m", "45m", "30s")
+ */
+function formatUptime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}
 
 export default router;
